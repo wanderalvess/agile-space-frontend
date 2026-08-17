@@ -6,6 +6,14 @@ export interface UserJiraConfig {
   domain: string;
 }
 
+export interface UserTdnConfig {
+  userId?: string;
+  token: string;
+  baseUrl: string;
+  space?: string;
+  label?: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -67,9 +75,41 @@ export const userApi = {
 
   async deleteJiraConfig(userId: string): Promise<void> {
     try {
-      return await req<void>(`/users/${userId}/jira-config`, { method: 'DELETE' });
+      await req<void>(`/users/${userId}/jira-config`, { method: 'DELETE' });
     } catch (e: any) {
       console.warn("userApi.deleteJiraConfig warning (backend offline?):", e.message || e);
     }
+  },
+
+  async getTdnConfig(userId: string): Promise<UserTdnConfig | null> {
+    try {
+      return await req<UserTdnConfig>(`/users/${userId}/tdn-config`);
+    } catch (e: any) {
+      if (e.message?.includes('404') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
+        return null;
+      }
+      throw e;
+    }
+  },
+
+  async saveTdnConfig(userId: string, config: UserTdnConfig): Promise<UserTdnConfig> {
+    try {
+      return await req<UserTdnConfig>(`/users/${userId}/tdn-config`, {
+        method: 'POST',
+        body: JSON.stringify(config)
+      });
+    } catch (e: any) {
+      console.warn("userApi.saveTdnConfig warning (backend offline?):", e.message || e);
+      return config;
+    }
+  },
+
+  async deleteTdnConfig(userId: string): Promise<void> {
+    try {
+      await req<void>(`/users/${userId}/tdn-config`, { method: 'DELETE' });
+    } catch (e: any) {
+      console.warn("userApi.deleteTdnConfig warning (backend offline?):", e.message || e);
+    }
   }
 };
+

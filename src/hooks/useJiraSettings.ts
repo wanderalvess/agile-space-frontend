@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase/provider';
+import { useUserContext } from '@/context/UserContext';
+import { userApi } from '@/app/users/api';
 
 export interface JiraSettings {
   domain: string;
@@ -8,27 +10,29 @@ export interface JiraSettings {
 }
 
 export function useJiraSettings() {
-  const { firestore, user } = useFirebase();
+  const { userProfile } = useUserContext();
+  const userId = userProfile?.id;
   const [settings, setSettings] = useState<JiraSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Reseta imediatamente ao trocar de usuário para não deixar
-    // token/domínio da conta anterior visíveis na UI durante o carregamento.
+    // Reseta ao trocar de perfil de usuário
     setSettings(null);
     setLoading(true);
 
     async function loadSettings() {
-      if (!user || !firestore) {
+      if (!userId) {
         setLoading(false);
         return;
       }
 
       try {
-        const ref = doc(firestore, 'users', user.uid, 'config', 'jira');
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          setSettings(snap.data() as JiraSettings);
+        const config = await userApi.getJiraConfig(userId);
+        if (config) {
+          setSettings({
+            domain: config.domain || '',
+            token: config.token || ''
+          });
         }
       } catch (err) {
         console.error('Erro ao carregar configurações do Jira:', err);
@@ -38,15 +42,21 @@ export function useJiraSettings() {
     }
 
     loadSettings();
-  }, [user, firestore]);
+  }, [userId]);
 
   const saveSettings = async (newSettings: JiraSettings) => {
-    if (!user || !firestore) return;
+    if (!userId) return;
 
     try {
-      const ref = doc(firestore, 'users', user.uid, 'config', 'jira');
-      await setDoc(ref, newSettings, { merge: true });
-      setSettings(newSettings);
+      const saved = await userApi.saveJiraConfig(userId, {
+        userId,
+        domain: newSettings.domain,
+        token: newSettings.token
+      });
+      setSettings({
+        domain: saved.domain,
+        token: saved.token
+      });
     } catch (err) {
       console.error('Erro ao salvar configurações do Jira:', err);
       throw err;

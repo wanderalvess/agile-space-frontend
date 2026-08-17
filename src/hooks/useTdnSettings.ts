@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
+import { userApi } from '@/app/users/api';
 
 export interface TdnSettings {
   baseUrl: string;
@@ -10,27 +12,31 @@ export interface TdnSettings {
 }
 
 export function useTdnSettings() {
-  const { firestore, user } = useFirebase();
+  const { userProfile } = useUserContext();
+  const userId = userProfile?.id;
   const [settings, setSettings] = useState<TdnSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Reseta imediatamente ao trocar de usuário para não deixar
-    // token/domínio da conta anterior visíveis na UI durante o carregamento.
+    // Reseta ao trocar de perfil de usuário
     setSettings(null);
     setLoading(true);
 
     async function loadSettings() {
-      if (!user || !firestore) {
+      if (!userId) {
         setLoading(false);
         return;
       }
 
       try {
-        const ref = doc(firestore, 'users', user.uid, 'config', 'tdn');
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
-          setSettings(snap.data() as TdnSettings);
+        const config = await userApi.getTdnConfig(userId);
+        if (config) {
+          setSettings({
+            baseUrl: config.baseUrl || '',
+            token: config.token || '',
+            space: config.space || '',
+            label: config.label || ''
+          });
         }
       } catch (err) {
         console.error('Erro ao carregar configurações do TDN:', err);
@@ -40,20 +46,30 @@ export function useTdnSettings() {
     }
 
     loadSettings();
-  }, [user, firestore]);
+  }, [userId]);
 
   const saveSettings = async (newSettings: TdnSettings) => {
-    if (!user || !firestore) return;
+    if (!userId) return;
 
     try {
-      const ref = doc(firestore, 'users', user.uid, 'config', 'tdn');
-      await setDoc(ref, newSettings, { merge: true });
-      setSettings(newSettings);
+      const saved = await userApi.saveTdnConfig(userId, {
+        userId,
+        baseUrl: newSettings.baseUrl,
+        token: newSettings.token,
+        space: newSettings.space,
+        label: newSettings.label
+      });
+      setSettings({
+        baseUrl: saved.baseUrl,
+        token: saved.token,
+        space: saved.space,
+        label: saved.label
+      });
     } catch (err) {
       console.error('Erro ao salvar configurações do TDN:', err);
       throw err;
-        }
-    };
+    }
+  };
 
-    return { settings, loading, saveSettings };
+  return { settings, loading, saveSettings };
 }
