@@ -29,7 +29,8 @@ import {
   LifeBuoy,
   Send,
   Brain,
-  Palette
+  Palette,
+  GitBranch
 } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { adminApi } from '@/app/admin/api';
@@ -67,6 +68,7 @@ import { SystemConfigManager } from '@/components/admin/SystemConfigManager';
 import { CommunicationsManager } from '@/components/admin/CommunicationsManager';
 import { MaintenanceManager } from '@/components/admin/MaintenanceManager';
 import { IntelligenceHubMonitor } from '@/components/admin/IntelligenceHubMonitor';
+import { ChangelogManager } from '@/components/admin/ChangelogManager';
 import {
   KpiCard,
   HealthBar,
@@ -249,6 +251,7 @@ export default function AdminDashboard() {
             <TabsList className="bg-transparent p-0 h-auto gap-1 w-full">
               {[
                 { id: 'overview', label: 'Dashboard', icon: <Layout className="h-3 w-3" /> },
+                { id: 'changelog', label: 'Changelog', icon: <GitBranch className="h-3 w-3" /> },
                 { id: 'sessions', label: 'Sessões', icon: <WalletCards className="h-3 w-3" /> },
                 { id: 'growth', label: 'Métricas', icon: <TrendingUp className="h-3 w-3" /> },
                 { id: 'users', label: 'Usuários', icon: <Users className="h-3 w-3" /> },
@@ -354,6 +357,7 @@ export default function AdminDashboard() {
               </div>
             </TabsContent>
 
+            <TabsContent value="changelog" className="outline-none"><ChangelogManager /></TabsContent>
             <TabsContent value="sessions" className="outline-none"><SessionMonitor /></TabsContent>
             <TabsContent value="growth" className="outline-none"><GrowthDashboard /></TabsContent>
             <TabsContent value="users" className="outline-none"><UserExplorer /></TabsContent>

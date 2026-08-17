@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -28,9 +28,10 @@ import {
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
+import { Input } from "@/components/ui/input";
+import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
 import versionsData from './versions.json';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -40,7 +41,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   Zap, 
   ShieldCheck, 
   Layers, 
-  Sparkles,
+  Sparkles, 
   RefreshCw,
   History,
   Code2,
@@ -58,7 +59,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 };
 
 const renderVersionIcon = (iconData: { name: string; className: string } | any) => {
-  if (!iconData) return null;
+  if (!iconData) return <Sparkles className="h-5 w-5 text-primary" />;
   const iconName = typeof iconData === 'object' ? iconData.name : iconData;
   const className = typeof iconData === 'object' ? iconData.className : "h-5 w-5 text-primary";
   
@@ -66,15 +67,53 @@ const renderVersionIcon = (iconData: { name: string; className: string } | any) 
   return <IconComponent className={className} />;
 };
 
-const versions = versionsData;
-
 export default function ChangelogPage() {
   const router = useRouter();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
+  const [versions, setVersions] = useState<AppReleaseItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.title = `Changelog & Evolução | Espaço Ágil`;
+
+    const loadData = async () => {
+      try {
+        const remoteReleases = await changelogApi.getPublishedReleases();
+        if (remoteReleases && remoteReleases.length > 0) {
+          setVersions(remoteReleases);
+        } else {
+          setVersions(versionsData as any);
+        }
+      } catch (err) {
+        console.warn('Usando changelog estático local como fallback:', err);
+        setVersions(versionsData as any);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
+
+  const filteredVersions = useMemo(() => {
+    return versions.filter((version) => {
+      const matchSearch =
+        search === '' ||
+        version.tag?.toLowerCase().includes(search.toLowerCase()) ||
+        version.title?.toLowerCase().includes(search.toLowerCase()) ||
+        version.description?.toLowerCase().includes(search.toLowerCase()) ||
+        version.changes?.some((c) => c.toLowerCase().includes(search.toLowerCase()));
+
+      const matchFilter =
+        activeFilter === 'all' || version.type?.toLowerCase() === activeFilter.toLowerCase();
+
+      return matchSearch && matchFilter;
+    });
+  }, [versions, search, activeFilter]);
+
+  const latestTag = versions[0]?.tag || 'v3.117.1';
 
   return (
     <div className="min-h-screen bg-[#fafafa] dark:bg-slate-950 selection:bg-primary/10 transition-colors duration-300">
@@ -109,7 +148,7 @@ export default function ChangelogPage() {
           <div className="hidden lg:flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 px-4 py-2 rounded-xl">
              <div className="flex flex-col items-end">
                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Build Estável</span>
-               <span className="text-sm font-black text-slate-900 dark:text-slate-100 leading-none">{versions[0]?.tag || 'v3.23.0'}</span>
+               <span className="text-sm font-black text-slate-900 dark:text-slate-100 leading-none">{latestTag}</span>
              </div>
              <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
              <Rocket className="h-4 w-4 text-primary" />
@@ -117,77 +156,128 @@ export default function ChangelogPage() {
         </div>
       </header>
 
-      <main className="max-w-[1920px] mx-auto py-4 px-6 md:px-12 lg:px-24">
-        <div className="relative">
-          <div className="absolute left-8 md:left-[51px] top-0 bottom-0 w-[4px] bg-gradient-to-b from-primary/40 via-slate-200 dark:via-slate-800 to-transparent rounded-full opacity-50" />
+      <main className="max-w-[1920px] mx-auto py-6 px-6 md:px-12 lg:px-24">
+        {/* Search and Filters */}
+        <div className="mb-10 flex flex-col md:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Buscar por versão, recurso ou correção..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 h-10 rounded-xl bg-slate-50/50 dark:bg-slate-950 border-slate-200/80 dark:border-slate-800 text-xs font-medium"
+            />
+          </div>
 
-          <div className="space-y-8">
-            {versions.map((version, idx) => (
-              <div key={`${version.tag}-${idx}`} className="relative pl-20 md:pl-32 group">
-                <div className="absolute left-4 md:left-[39px] top-0 w-10 h-10 bg-white dark:bg-slate-900 border-4 border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:border-primary group-hover:rotate-12 transition-all duration-500 z-10 overflow-hidden">
-                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-primary group-hover:scale-110 transition-transform">{renderVersionIcon(version.icon)}</span>
-                </div>
-
-                <div className="mb-2 flex items-center gap-4">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/60 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-800 shadow-sm">
-                      {version.date}
-                    </span>
-                    <div className="h-[1px] flex-1 bg-slate-50 dark:bg-slate-900 md:hidden" />
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                  <div className="xl:col-span-4 translate-y-1">
-                    <div className="xl:sticky xl:top-24">
-                      <Badge variant="outline" className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] border-slate-200 dark:border-slate-850 text-slate-400 dark:text-slate-400 py-0.5 px-3 rounded-lg bg-white dark:bg-slate-900/50 shadow-sm">
-                        {version.tag}
-                      </Badge>
-                      <h2 className="text-xl md:text-2xl xl:text-2xl font-black uppercase tracking-tighter text-slate-950 dark:text-slate-50 leading-[0.95] italic font-headline mb-2 group-hover:text-primary transition-colors">
-                        {version.title}
-                      </h2>
-                      <p className="text-base font-bold text-slate-800 dark:text-slate-300 leading-relaxed italic border-l-4 border-primary/40 pl-4 py-1 bg-gradient-to-r from-slate-50/50 dark:from-slate-900/50 to-transparent rounded-r-xl">
-                        {version.description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="xl:col-span-8">
-                    <Card className="border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 rounded-[2.5rem] p-6 md:p-8 shadow-2xl shadow-slate-200/50 dark:shadow-none hover:shadow-primary/5 transition-all duration-700 overflow-hidden relative group-hover:border-primary/20">
-                      <div className="absolute -bottom-20 -right-20 opacity-[0.02] group-hover:opacity-[0.06] transition-all duration-1000 text-slate-900 dark:text-white scale-[5] rotate-12">
-                        {renderVersionIcon(version.icon)}
-                      </div>
-
-                      <CardHeader className="p-0 mb-4 border-b border-slate-50 dark:border-slate-800/50 pb-4">
-                         <div className="flex items-center gap-4">
-                           <div className="w-8 h-8 bg-primary/5 dark:bg-primary/10 rounded-xl flex items-center justify-center border border-primary/10 dark:border-primary/20">
-                              <GitBranch className="h-4 w-4 text-primary" />
-                           </div>
-                           <div>
-                             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 block mb-0.5">Log Detalhado</span>
-                             <span className="text-[10px] font-black text-slate-900 dark:text-slate-200 uppercase tracking-widest">Build {version.tag}</span>
-                           </div>
-                         </div>
-                      </CardHeader>
-                      
-                      <CardContent className="p-0 relative z-10">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
-                          {version.changes.map((change, cIdx) => (
-                            <div key={cIdx} className="flex items-start gap-4 group/item">
-                              <div className="mt-1.5 w-1.5 h-1.5 bg-primary/10 dark:bg-primary/20 border-2 border-primary/40 dark:border-primary/50 rounded-full shrink-0 group-hover/item:bg-primary group-hover/item:border-primary group-hover/item:scale-125 transition-all duration-300" />
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-snug group-hover/item:text-slate-950 dark:group-hover/item:text-slate-200 transition-colors">
-                                {change}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </div>
+          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+            {[
+              { id: 'all', label: 'Todas as Versões' },
+              { id: 'major', label: 'Majors' },
+              { id: 'minor', label: 'Minors (Features)' },
+              { id: 'patch', label: 'Patches (Fixes)' },
+            ].map((f) => (
+              <Button
+                key={f.id}
+                variant={activeFilter === f.id ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveFilter(f.id)}
+                className={`h-9 px-4 rounded-xl text-xs font-bold transition-all ${
+                  activeFilter === f.id
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {f.label}
+              </Button>
             ))}
           </div>
         </div>
+
+        {loading ? (
+          <div className="py-20 text-center text-slate-400 font-medium">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-3 text-primary" />
+            Carregando histórico de engenharia...
+          </div>
+        ) : filteredVersions.length === 0 ? (
+          <div className="py-16 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm font-medium">
+            Nenhuma versão encontrada correspondente aos termos de busca.
+          </div>
+        ) : (
+          <div className="relative">
+            <div className="absolute left-8 md:left-[51px] top-0 bottom-0 w-[4px] bg-gradient-to-b from-primary/40 via-slate-200 dark:via-slate-800 to-transparent rounded-full opacity-50" />
+
+            <div className="space-y-8">
+              {filteredVersions.map((version, idx) => (
+                <div key={`${version.tag}-${idx}`} className="relative pl-20 md:pl-32 group">
+                  <div className="absolute left-4 md:left-[39px] top-0 w-10 h-10 bg-white dark:bg-slate-900 border-4 border-slate-100 dark:border-slate-800 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:border-primary group-hover:rotate-12 transition-all duration-500 z-10 overflow-hidden">
+                      <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <span className="text-primary group-hover:scale-110 transition-transform">
+                        {renderVersionIcon(version.icon || { name: version.iconName, className: version.iconClass })}
+                      </span>
+                  </div>
+
+                  <div className="mb-2 flex items-center gap-4">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/60 px-3 py-1 rounded-full border border-slate-100 dark:border-slate-800 shadow-sm">
+                        {version.displayDate || version.date}
+                      </span>
+                      <div className="h-[1px] flex-1 bg-slate-50 dark:bg-slate-900 md:hidden" />
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                    <div className="xl:col-span-4 translate-y-1">
+                      <div className="xl:sticky xl:top-24">
+                        <Badge variant="outline" className="mb-1 text-[11px] font-black uppercase tracking-[0.2em] border-slate-200 dark:border-slate-850 text-slate-400 dark:text-slate-400 py-0.5 px-3 rounded-lg bg-white dark:bg-slate-900/50 shadow-sm">
+                          {version.tag}
+                        </Badge>
+                        <h2 className="text-xl md:text-2xl xl:text-2xl font-black uppercase tracking-tighter text-slate-950 dark:text-slate-50 leading-[0.95] italic font-headline mb-2 group-hover:text-primary transition-colors">
+                          {version.title}
+                        </h2>
+                        {version.description && (
+                          <p className="text-base font-bold text-slate-800 dark:text-slate-300 leading-relaxed italic border-l-4 border-primary/40 pl-4 py-1 bg-gradient-to-r from-slate-50/50 dark:from-slate-900/50 to-transparent rounded-r-xl">
+                            {version.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="xl:col-span-8">
+                      <Card className="border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900/60 rounded-[2.5rem] p-6 md:p-8 shadow-2xl shadow-slate-200/50 dark:shadow-none hover:shadow-primary/5 transition-all duration-700 overflow-hidden relative group-hover:border-primary/20">
+                        <div className="absolute -bottom-20 -right-20 opacity-[0.02] group-hover:opacity-[0.06] transition-all duration-1000 text-slate-900 dark:text-white scale-[5] rotate-12">
+                          {renderVersionIcon(version.icon || { name: version.iconName, className: version.iconClass })}
+                        </div>
+
+                        <CardHeader className="p-0 mb-4 border-b border-slate-50 dark:border-slate-800/50 pb-4">
+                           <div className="flex items-center gap-4">
+                             <div className="w-8 h-8 bg-primary/5 dark:bg-primary/10 rounded-xl flex items-center justify-center border border-primary/10 dark:border-primary/20">
+                                <GitBranch className="h-4 w-4 text-primary" />
+                             </div>
+                             <div>
+                               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 block mb-0.5">Log Detalhado</span>
+                               <span className="text-[10px] font-black text-slate-900 dark:text-slate-200 uppercase tracking-widest">Build {version.tag}</span>
+                             </div>
+                           </div>
+                        </CardHeader>
+                        
+                        <CardContent className="p-0 relative z-10">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-3">
+                            {version.changes?.map((change, cIdx) => (
+                              <div key={cIdx} className="flex items-start gap-4 group/item">
+                                <div className="mt-1.5 w-1.5 h-1.5 bg-primary/10 dark:bg-primary/20 border-2 border-primary/40 dark:border-primary/50 rounded-full shrink-0 group-hover/item:bg-primary group-hover/item:border-primary group-hover/item:scale-125 transition-all duration-300" />
+                                <span className="text-sm font-medium text-slate-600 dark:text-slate-400 leading-snug group-hover/item:text-slate-950 dark:group-hover/item:text-slate-200 transition-colors">
+                                  {change}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="mt-12 pt-6 border-t border-slate-200 dark:border-slate-800 text-center relative overflow-hidden rounded-[3rem] bg-white dark:bg-slate-900/60 shadow-3xl shadow-slate-200/50 dark:shadow-none p-8">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
