@@ -1,18 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export interface SpotifyUser {
-  display_name: string;
-  image_url: string;
-}
-
-export interface SpotifyPlaylist {
-  id: string;
-  name: string;
-  image: string;
-  uri: string;
-}
-
 export const CALMARIA_QUOTES = [
   "Devagar é a forma mais rápida de chegar lá.",
   "Solte os ombros. Você está indo bem.",
@@ -27,7 +15,6 @@ export const CALMARIA_QUOTES = [
 interface CalmariaStoreState {
   isOpen: boolean;
   isMinimized: boolean;
-  activeTab: 'ambient' | 'spotify';
   masterVolume: number;
   activeSounds: Record<string, number>; // soundId -> volume (0-100)
   isTimerRunning: boolean;
@@ -36,17 +23,12 @@ interface CalmariaStoreState {
   cycles: number;
   lastTickTimestamp: number | null;
   currentQuote: string;
-  spotifyToken: string | null;
-  spotifyUser: SpotifyUser | null;
-  spotifyPlaylists: SpotifyPlaylist[];
-  selectedPlaylistId: string | null;
   isMuted: boolean;
 
   // Actions
   toggleOpen: () => void;
   setOpen: (isOpen: boolean) => void;
   setMinimized: (isMinimized: boolean) => void;
-  setActiveTab: (tab: 'ambient' | 'spotify') => void;
   setMasterVolume: (volume: number) => void;
   setSoundVolume: (soundId: string, volume: number) => void;
   toggleMute: () => void;
@@ -59,13 +41,6 @@ interface CalmariaStoreState {
   tick: () => void;
   incrementCycle: () => void;
   rotateQuote: () => void;
-
-  // Spotify Actions
-  setSpotifyToken: (token: string | null) => void;
-  setSpotifyUser: (user: SpotifyUser | null) => void;
-  setSpotifyPlaylists: (playlists: SpotifyPlaylist[]) => void;
-  setSelectedPlaylistId: (id: string | null) => void;
-  logoutSpotify: () => void;
   stopAll: () => void;
 }
 
@@ -74,7 +49,6 @@ export const useCalmariaStore = create<CalmariaStoreState>()(
     (set, get) => ({
       isOpen: false,
       isMinimized: false,
-      activeTab: 'ambient',
       masterVolume: 80,
       activeSounds: {},
       isTimerRunning: false,
@@ -83,16 +57,11 @@ export const useCalmariaStore = create<CalmariaStoreState>()(
       cycles: 0,
       lastTickTimestamp: null,
       currentQuote: CALMARIA_QUOTES[0],
-      spotifyToken: null,
-      spotifyUser: null,
-      spotifyPlaylists: [],
-      selectedPlaylistId: null,
       isMuted: false,
 
       toggleOpen: () => set(state => ({ isOpen: !state.isOpen, isMinimized: false })),
       setOpen: (isOpen) => set({ isOpen, isMinimized: false }),
       setMinimized: (isMinimized) => set({ isMinimized, isOpen: !isMinimized }),
-      setActiveTab: (tab) => set({ activeTab: tab }),
       
       setMasterVolume: (volume) => set({ masterVolume: volume }),
       setSoundVolume: (soundId, volume) => set(state => {
@@ -153,20 +122,9 @@ export const useCalmariaStore = create<CalmariaStoreState>()(
         currentQuote: CALMARIA_QUOTES[Math.floor(Math.random() * CALMARIA_QUOTES.length)]
       }),
 
-      setSpotifyToken: (token) => set({ spotifyToken: token }),
-      setSpotifyUser: (user) => set({ spotifyUser: user }),
-      setSpotifyPlaylists: (playlists) => set({ spotifyPlaylists: playlists }),
-      setSelectedPlaylistId: (id) => set({ selectedPlaylistId: id }),
-      logoutSpotify: () => set({
-        spotifyToken: null,
-        spotifyUser: null,
-        spotifyPlaylists: [],
-        selectedPlaylistId: null
-      }),
       stopAll: () => set({
         isTimerRunning: false,
-        activeSounds: {},
-        selectedPlaylistId: null
+        activeSounds: {}
       })
     }),
     {
@@ -175,9 +133,6 @@ export const useCalmariaStore = create<CalmariaStoreState>()(
         masterVolume: state.masterVolume,
         activeSounds: state.activeSounds,
         cycles: state.cycles,
-        spotifyToken: state.spotifyToken,
-        spotifyUser: state.spotifyUser,
-        spotifyPlaylists: state.spotifyPlaylists,
         baseMinutes: state.baseMinutes
       })
     }

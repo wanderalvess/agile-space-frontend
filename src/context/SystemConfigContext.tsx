@@ -10,8 +10,6 @@ interface SystemConfig {
   logoUrl: string;
   allowAnonymous: boolean;
   maintenanceMode: boolean;
-  spotifyClientId?: string;
-  spotifyClientSecret?: string;
 }
 
 interface SystemConfigContextType {
@@ -26,9 +24,7 @@ const DEFAULT_CONFIG: SystemConfig = {
   primaryColor: '24 93% 53%',
   logoUrl: '',
   allowAnonymous: true,
-  maintenanceMode: false,
-  spotifyClientId: 'a2693d23e9cb4c42b971c458f5ad20b8',
-  spotifyClientSecret: ''
+  maintenanceMode: false
 };
 
 export function SystemConfigProvider({ children }: { children: ReactNode }) {

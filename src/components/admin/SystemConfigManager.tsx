@@ -17,8 +17,7 @@ import {
   Globe,
   Settings2,
   ShieldCheck,
-  Zap,
-  Music
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,8 +33,6 @@ interface SystemConfig {
   logoUrl: string;
   allowAnonymous: boolean;
   maintenanceMode: boolean;
-  spotifyClientId?: string;
-  spotifyClientSecret?: string;
   updatedAt?: any;
 }
 
@@ -44,9 +41,7 @@ const DEFAULT_CONFIG: SystemConfig = {
   primaryColor: '24 93% 53%', // Cor primária padrão (Orange) em HSL
   logoUrl: '',
   allowAnonymous: true,
-  maintenanceMode: false,
-  spotifyClientId: 'a2693d23e9cb4c42b971c458f5ad20b8',
-  spotifyClientSecret: 'f9652681c0cb41dba4375c4d733bf224'
+  maintenanceMode: false
 };
 
 export function SystemConfigManager() {
@@ -213,38 +208,6 @@ export function SystemConfigManager() {
             </CardContent>
           </Card>
 
-          {/* Integração Spotify */}
-          <Card className="border-slate-200/60 rounded-[2rem] bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
-            <CardHeader className="p-5 border-b border-slate-50 flex items-center gap-4">
-              <div className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-600"><Music className="h-5 w-5" /></div>
-              <div>
-                <CardTitle className="text-xl font-black uppercase tracking-tighter italic font-headline text-slate-900">Integração Spotify</CardTitle>
-                <CardDescription className="text-[9px] font-black italic text-slate-400 uppercase tracking-widest mt-0.5">Credenciais de API para Calmaria</CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="p-5 space-y-5">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-2">Spotify Client ID</label>
-                <Input 
-                  value={config.spotifyClientId || ''}
-                  onChange={(e) => setConfig({ ...config, spotifyClientId: e.target.value })}
-                  placeholder="Ex: a2693d23e9cb..."
-                  className="h-11 bg-slate-50 border-slate-200 rounded-xl font-medium"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-2">Spotify Client Secret</label>
-                <Input 
-                  type="password"
-                  value={config.spotifyClientSecret || ''}
-                  onChange={(e) => setConfig({ ...config, spotifyClientSecret: e.target.value })}
-                  placeholder="Seu Client Secret"
-                  className="h-11 bg-slate-50 border-slate-200 rounded-xl font-medium"
-                />
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Action Bar */}
           <div className="flex gap-4">
