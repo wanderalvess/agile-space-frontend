@@ -1,6 +1,0 @@
-{
-  "apphosting": {
-    "source": ".",
-    "region": "us-central1"
-  }
-}
