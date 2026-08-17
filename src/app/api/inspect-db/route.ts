@@ -4,13 +4,8 @@ import { getFirestore, collection, getDocs } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
-const firebaseConfig = {
-  projectId: "studio-4031532280-4f32a",
-  appId: "1:1090613269413:web:395c1526b03ac942254e4c",
-  apiKey: "AIzaSyAVcRKz2apTOxS6X5j3rHKuaQNI1v2xkIg",
-  authDomain: "studio-4031532280-4f32a.firebaseapp.com",
-  messagingSenderId: "1090613269413"
-};
+import { firebaseConfig } from '@/firebase/config';
+
 
 export async function GET(req: NextRequest) {
   if (process.env.NODE_ENV === 'production') {
