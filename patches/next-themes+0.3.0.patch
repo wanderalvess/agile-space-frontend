@@ -1,0 +1,12 @@
+--- a/node_modules/next-themes/package.json
++++ b/node_modules/next-themes/package.json
+@@ -26,8 +26,8 @@
+   },
+   "peerDependencies": {
+-    "react": "^16.8 || ^17 || ^18",
+-    "react-dom": "^16.8 || ^17 || ^18"
++    "react": "^16.8 || ^17 || ^18 || ^19",
++    "react-dom": "^16.8 || ^17 || ^18 || ^19"
+   },
+   "peerDependenciesMeta": {
+     "react-dom": {
