@@ -54,7 +54,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
-import legacyVersionsData from '@/app/changelog/versions.json';
 
 const AVAILABLE_ICONS = [
   { name: 'Zap', label: 'Raio (Patch / Fix)', className: 'h-5 w-5 text-indigo-500', defaultFor: 'patch' },
@@ -140,7 +139,6 @@ export function ChangelogManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AppReleaseItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
 
   // Form State
   const [formTag, setFormTag] = useState('');
@@ -161,29 +159,10 @@ export function ChangelogManager() {
     setLoading(true);
     try {
       const data = await changelogApi.getAdminReleases();
-      if (data && data.length > 0) {
-        setReleases(data);
-      } else {
-        // Fallback local se o banco ainda não foi semeado
-        setReleases((legacyVersionsData as any[]).map((v, i) => ({
-          ...v,
-          id: `legacy-${i}`,
-          displayDate: v.date,
-          iconName: v.icon?.name || 'Sparkles',
-          iconClass: v.icon?.className || 'h-5 w-5 text-primary',
-          isPublished: true
-        })));
-      }
+      setReleases(data || []);
     } catch (err: any) {
-      console.warn('Erro ao carregar do backend, usando legado:', err);
-      setReleases((legacyVersionsData as any[]).map((v, i) => ({
-        ...v,
-        id: `legacy-${i}`,
-        displayDate: v.date,
-        iconName: v.icon?.name || 'Sparkles',
-        iconClass: v.icon?.className || 'h-5 w-5 text-primary',
-        isPublished: true
-      })));
+      console.warn('Erro ao carregar versões do backend:', err);
+      setReleases([]);
     } finally {
       setLoading(false);
     }
@@ -348,31 +327,6 @@ export function ChangelogManager() {
         variant: 'destructive'
       });
     }
-  };
-
-  // Sync Legacy versions.json to Database
-  const handleSyncLegacy = async () => {
-    if (!confirm('Deseja importar todas as versões do arquivo versions.json legado para o banco PostgreSQL? Versões já existentes serão mantidas sem duplicação.')) return;
-
-    setIsImporting(true);
-    try {
-      const res = await changelogApi.importLegacyReleases(legacyVersionsData);
-      toast({
-        title: 'Sincronização Concluída!',
-        description: `${res.imported} versões importadas, ${res.skipped} já existentes ignoradas. Total no histórico: ${res.total}.`
-      });
-      await loadReleases();
-    } catch (err: any) {
-      toast({
-        title: 'Erro ao sincronizar',
-        description: err.message || 'Falha ao importar registros para o banco.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
   // Filtered List
   const filteredReleases = useMemo(() => {
     return releases.filter((r) => {
@@ -411,16 +365,6 @@ export function ChangelogManager() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="h-10 px-4 rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold gap-2"
-            onClick={handleSyncLegacy}
-            disabled={isImporting}
-          >
-            <UploadCloud className={`h-4 w-4 ${isImporting ? 'animate-bounce' : ''}`} />
-            <span>{isImporting ? 'Importando...' : 'Sincronizar Legado'}</span>
-          </Button>
-
           <Button
             className="h-10 px-5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider gap-2 shadow-lg shadow-primary/20"
             onClick={handleOpenCreate}

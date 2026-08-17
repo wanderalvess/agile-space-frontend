@@ -32,7 +32,6 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
-import versionsData from './versions.json';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   ArrowLeft, 
@@ -81,14 +80,10 @@ export default function ChangelogPage() {
     const loadData = async () => {
       try {
         const remoteReleases = await changelogApi.getPublishedReleases();
-        if (remoteReleases && remoteReleases.length > 0) {
-          setVersions(remoteReleases);
-        } else {
-          setVersions(versionsData as any);
-        }
+        setVersions(remoteReleases || []);
       } catch (err) {
-        console.warn('Usando changelog estático local como fallback:', err);
-        setVersions(versionsData as any);
+        console.warn('Erro ao carregar changelog do backend:', err);
+        setVersions([]);
       } finally {
         setLoading(false);
       }

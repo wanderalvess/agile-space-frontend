@@ -79,23 +79,10 @@ const newEntry = {
   icon
 };
 
-// 6. Update versions.json
-const versionsJsonPath = path.join(__dirname, '../src/app/changelog/versions.json');
-let versionsList = [];
-try {
-  versionsList = JSON.parse(fs.readFileSync(versionsJsonPath, 'utf8'));
-} catch (e) {
-  console.warn('versions.json não encontrado ou inválido. Criando um novo.');
-}
-
-versionsList.unshift(newEntry);
-
-// Write changes back to files
+// 6. Update package.json
 packageJson.version = newVersion;
 fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n', 'utf8');
-fs.writeFileSync(versionsJsonPath, JSON.stringify(versionsList, null, 2) + '\n', 'utf8');
 
 console.log('\n\x1b[32m%s\x1b[0m', `Sucesso! Versão atualizada de v${currentVersion} para v${newVersion}`);
 console.log(`- package.json atualizado para a versão: ${newVersion}`);
-console.log(`- Novo registro adicionado ao changelog em: ${versionsJsonPath}`);
-console.log(`  Métricas do Registro: ${changes.length} alterações listadas.`);
+console.log(`- Nota: Cadastre a nova versão e o log de mudanças no Painel Admin (/admin) ou via API backend.`);
