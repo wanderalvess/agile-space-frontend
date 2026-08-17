@@ -1,0 +1,718 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 25 100% 50%; /* Vibrant Orange */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 25 100% 50%;
+    --radius: 0.5rem;
+
+    /* Sidebar tokens follow the active theme surfaces (indirect refs resolve
+       per-theme, since --card/--border/etc. are redefined by each variant/mode). */
+    --sidebar-background: var(--card);
+    --sidebar-foreground: var(--card-foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--primary-foreground);
+    --sidebar-accent: var(--muted);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--ring);
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%; /* Slate 950 (#020617) */
+    --foreground: 210 40% 98%;
+    --card: 222.2 47% 11.2%; /* Slate 900 (#0f172a) */
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 47% 11.2%; /* Slate 900 (#0f172a) */
+    --popover-foreground: 210 40% 98%;
+    --primary: 25 100% 50%; /* Vibrant Orange */
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%; /* Slate 800 */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 22%; /* Slate 750 (Highly Visible Border) */
+    --input: 217.2 32.6% 22%; /* Slate 750 */
+    --ring: 25 100% 50%;
+  }
+}
+
+/* Smooth theme transitions */
+*, *::before, *::after {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 400ms;
+}
+
+html, body {
+  transition: background-color 400ms cubic-bezier(0.4, 0, 0.2, 1), color 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Theme Variant Configurations */
+
+/* 1. Nebula Theme (Deep Space / Cosmic) */
+.theme-nebula {
+  --primary: 262 83% 58%; /* Indigo/Purple */
+  --ring: 262 83% 58%;
+}
+.dark.theme-nebula {
+  --background: 240 25% 4%; /* Dark Navy/Obsidian */
+  --foreground: 210 40% 98%;
+  --card: 240 20% 8%; /* Navy card */
+  --card-foreground: 210 40% 98%;
+  --border: 262 30% 22%; /* Cosmic Purple Border */
+  --popover: 240 20% 8%;
+  --popover-foreground: 210 40% 98%;
+}
+.dark.theme-nebula .shadow-2xl {
+  box-shadow: 0 10px 30px -5px rgba(139, 92, 246, 0.15), 0 5px 15px -5px rgba(6, 182, 212, 0.1) !important;
+}
+
+/* 2. Cyberpunk Theme (Neon Pink & Cyan) */
+.theme-cyberpunk {
+  --primary: 327 100% 54%; /* Hot Pink */
+  --ring: 327 100% 54%;
+  --accent: 180 100% 50%; /* Cyan */
+}
+.dark.theme-cyberpunk {
+  --background: 280 100% 1.5%; /* Pure dark violet/black */
+  --foreground: 180 100% 90%;
+  --card: 280 60% 4.5%; /* Dark violet card */
+  --card-foreground: 180 100% 90%;
+  --border: 280 50% 24%; /* Glowing Neon Purple Border */
+  --popover: 280 60% 4.5%;
+  --popover-foreground: 180 100% 90%;
+}
+.dark.theme-cyberpunk .shadow-2xl {
+  box-shadow: 0 10px 30px -5px rgba(255, 0, 127, 0.15), 0 5px 15px -5px rgba(0, 255, 255, 0.1) !important;
+}
+ 
+/* 3. Midnight Tech (Pitch Black & Electric Blue) */
+.theme-midnight {
+  --primary: 217 91% 60%; /* Electric Blue */
+  --ring: 217 91% 60%;
+}
+.dark.theme-midnight {
+  --background: 0 0% 2%; /* Jet Black */
+  --foreground: 210 40% 98%;
+  --card: 0 0% 5.5%; /* Minimalist Slate Card */
+  --card-foreground: 210 40% 98%;
+  --border: 217 45% 22%; /* Glowing Tech Blue Border */
+  --popover: 0 0% 5.5%;
+  --popover-foreground: 210 40% 98%;
+}
+.dark.theme-midnight .shadow-2xl {
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* 4. Nordic Calm (Earthy Green & Sage) */
+.theme-nordic {
+  --primary: 155 50% 25%; /* Deep Forest Green */
+  --ring: 155 50% 25%;
+}
+.theme-nordic:not(.dark) {
+  --background: 140 15% 98%; /* Soft cream */
+  --foreground: 155 50% 10%;
+  --card: 140 10% 95%; /* Soft Sage Card */
+  --card-foreground: 155 50% 10%;
+  --border: 140 10% 88%;
+  --popover: 140 10% 95%;
+  --popover-foreground: 155 50% 10%;
+}
+.dark.theme-nordic {
+  --background: 155 20% 8%; /* Dark pine */
+  --foreground: 140 20% 95%;
+  --card: 155 15% 12%; /* Sage dark card */
+  --card-foreground: 140 20% 95%;
+  --border: 155 15% 18%;
+  --popover: 155 15% 12%;
+  --popover-foreground: 140 20% 95%;
+}
+
+/* Light Mode Variant Palettes (full theming parity with dark) */
+
+/* Nebula (light) — soft lavender/cosmic */
+.theme-nebula:not(.dark) {
+  --background: 262 45% 98%;
+  --foreground: 262 40% 12%;
+  --card: 262 40% 99.5%;
+  --card-foreground: 262 40% 12%;
+  --popover: 262 40% 99.5%;
+  --popover-foreground: 262 40% 12%;
+  --secondary: 262 35% 95%;
+  --secondary-foreground: 262 40% 15%;
+  --muted: 262 35% 95%;
+  --muted-foreground: 262 15% 42%;
+  --accent: 262 35% 94%;
+  --accent-foreground: 262 40% 15%;
+  --border: 262 30% 90%;
+  --input: 262 30% 90%;
+}
+
+/* Cyberpunk (light) — soft pink with cyan accent */
+.theme-cyberpunk:not(.dark) {
+  --background: 327 55% 98%;
+  --foreground: 300 35% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 300 35% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 300 35% 12%;
+  --secondary: 327 40% 95%;
+  --secondary-foreground: 300 35% 15%;
+  --muted: 327 35% 95%;
+  --muted-foreground: 300 12% 42%;
+  --accent: 180 70% 92%; /* Cyan tint */
+  --accent-foreground: 190 80% 20%;
+  --border: 327 35% 90%;
+  --input: 327 35% 90%;
+}
+
+/* Midnight (light) — cool electric blue */
+.theme-midnight:not(.dark) {
+  --background: 217 50% 98%;
+  --foreground: 217 45% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 217 45% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 217 45% 12%;
+  --secondary: 217 40% 95%;
+  --secondary-foreground: 217 45% 15%;
+  --muted: 217 40% 95%;
+  --muted-foreground: 217 15% 42%;
+  --accent: 217 45% 93%;
+  --accent-foreground: 217 45% 18%;
+  --border: 217 35% 89%;
+  --input: 217 35% 89%;
+}
+
+/* Nordic light palette already defined above (.theme-nordic:not(.dark)) */
+
+/* Dark Mode Utility Overrides for Premium Aesthetic - Universal for all themes */
+
+/* Automatically map white surfaces to the theme's card color with their original opacity */
+.dark .bg-white,
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/80,
+.dark .bg-white\/75,
+.dark .bg-white\/70,
+.dark .bg-white\/60,
+.dark .bg-white\/50,
+.dark .bg-white\/40,
+.dark .bg-white\/30,
+.dark .bg-white\/20,
+.dark .bg-white\/10,
+.dark .bg-white\/5,
+.dark .bg-\[\#fbfdff\],
+.dark .bg-\[\#fbfdff\]\/50,
+.dark .bg-\[\#fbfdff\]\/80 {
+  background-color: hsl(var(--card) / var(--tw-bg-opacity, 1)) !important;
+}
+
+/* Map light backgrounds to the theme's background color with their original opacity */
+.dark .bg-\[\#fafafa\],
+.dark .bg-\[\#fcfcfc\],
+.dark .bg-\[\#f8fafc\],
+.dark .bg-\[\#F8FAFC\] {
+  background-color: hsl(var(--background) / 1) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-50\/30,
+.dark .bg-slate-50\/50,
+.dark .bg-slate-50\/55,
+.dark .bg-slate-100,
+.dark .bg-slate-100\/50,
+.dark .bg-slate-100\/60,
+.dark .bg-slate-100\/90,
+.dark .bg-slate-200,
+.dark .bg-slate-200\/50,
+.dark .bg-slate-200\/60,
+.dark .bg-slate-300 {
+  background-color: hsl(var(--background) / var(--tw-bg-opacity, 1)) !important;
+}
+
+/* Map light indigo backgrounds to deep dark indigo */
+.dark .bg-indigo-50,
+.dark .bg-indigo-50\/50,
+.dark .bg-indigo-100 {
+  background-color: rgb(30 27 75 / var(--tw-bg-opacity, 0.4)) !important;
+}
+
+/* Map light emerald backgrounds to deep dark green */
+.dark .bg-emerald-50,
+.dark .bg-emerald-100,
+.dark .bg-emerald-500\/20 {
+  background-color: rgba(6, 78, 59, 0.4) !important;
+}
+
+/* Map light amber backgrounds to deep dark amber */
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.dark .bg-amber-500\/20 {
+  background-color: rgba(120, 53, 4, 0.4) !important;
+}
+
+/* Map light rose backgrounds to deep dark rose */
+.dark .bg-rose-50,
+.dark .bg-rose-100,
+.dark .bg-rose-500\/20 {
+  background-color: rgba(136, 19, 55, 0.4) !important;
+}
+
+/* Map light violet/purple backgrounds */
+.dark .bg-violet-50,
+.dark .bg-violet-100,
+.dark .bg-violet-500\/20 {
+  background-color: rgba(76, 29, 149, 0.4) !important;
+}
+
+/* Map light blue backgrounds */
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.dark .bg-blue-500\/20 {
+  background-color: rgba(30, 58, 138, 0.4) !important;
+}
+
+/* Map light cyan backgrounds */
+.dark .bg-cyan-55,
+.dark .bg-cyan-50\/50,
+.dark .bg-cyan-100,
+.dark .bg-cyan-500\/20 {
+  background-color: rgba(8, 145, 178, 0.2) !important;
+}
+
+/* Map light zinc/gray backgrounds */
+.dark .bg-zinc-50,
+.dark .bg-zinc-100,
+.dark .bg-zinc-200 {
+  background-color: rgba(63, 63, 70, 0.4) !important;
+}
+
+/* Map borders to the theme's border color */
+.dark .border-slate-100,
+.dark .border-slate-200,
+.dark .border-slate-200\/60,
+.dark .border-slate-200\/40,
+.dark .border-slate-300,
+.dark .border-slate-300\/80,
+.dark .border-indigo-100,
+.dark .border-indigo-100\/50,
+.dark .border-indigo-200,
+.dark .border-cyan-100,
+.dark .border-cyan-150\/50,
+.dark .border-cyan-200,
+.dark .border-emerald-100,
+.dark .border-emerald-200,
+.dark .border-rose-100,
+.dark .border-rose-200,
+.dark .border-violet-150,
+.dark .border-violet-200,
+.dark .border-violet-500\/20,
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-border\/40,
+.dark .border-white\/60,
+.dark .border-white\/40,
+.dark .border-white\/10,
+.dark .border-white\/5 {
+  border-color: hsl(var(--border) / var(--tw-border-opacity, 1)) !important;
+}
+
+/* Map text colors to the theme's foreground */
+.dark .text-slate-950,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700 {
+  color: hsl(var(--foreground) / var(--tw-text-opacity, 1)) !important;
+}
+
+.dark .text-indigo-900,
+.dark .text-indigo-700,
+.dark .text-indigo-600,
+.dark .text-indigo-500 {
+  color: rgb(165 180 252) !important;
+}
+
+.dark .text-emerald-700,
+.dark .text-emerald-600 {
+  color: rgb(52 211 153) !important;
+}
+
+.dark .text-amber-700,
+.dark .text-amber-600 {
+  color: rgb(251 191 36) !important;
+}
+
+.dark .text-rose-700,
+.dark .text-rose-650 {
+  color: rgb(248 113 113) !important;
+}
+
+.dark .text-violet-700,
+.dark .text-violet-600 {
+  color: rgb(167 139 250) !important;
+}
+
+.dark .text-blue-700,
+.dark .text-blue-600 {
+  color: rgb(147 197 253) !important;
+}
+
+.dark .text-cyan-900,
+.dark .text-cyan-600 {
+  color: rgb(103 232 249) !important;
+}
+
+.dark .text-zinc-700,
+.dark .text-zinc-600 {
+  color: rgb(212 212 216) !important;
+}
+
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: hsl(var(--muted-foreground) / var(--tw-text-opacity, 1)) !important;
+}
+
+/* Force tab state styles under dark mode */
+.dark .data-\[state\=active\]\:text-slate-950[data-state=active] {
+  color: hsl(var(--foreground)) !important;
+}
+.dark .hover\:text-slate-900:hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover {
+  color: hsl(var(--foreground)) !important;
+  background-color: hsl(var(--border)) !important;
+}
+
+/* Override focus states for inputs in dark mode */
+.dark .focus\:bg-white:focus,
+.dark .focus\:bg-white\/95:focus {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Eliminate smoky white shadows in dark mode */
+.dark .shadow-slate-200,
+.dark .shadow-slate-200\/5,
+.dark .shadow-slate-200\/10,
+.dark .shadow-slate-200\/20,
+.dark .shadow-slate-200\/30,
+.dark .shadow-slate-200\/40,
+.dark .shadow-slate-200\/50,
+.dark .shadow-slate-300,
+.dark .shadow-slate-400,
+.dark .shadow-slate-900\/5,
+.dark .shadow-slate-900\/10,
+.dark .shadow-slate-900\/20 {
+  --tw-shadow-color: rgba(0, 0, 0, 0.7) !important;
+  --tw-shadow: 0 15px 35px -5px var(--tw-shadow-color), 0 5px 15px -5px var(--tw-shadow-color) !important;
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow) !important;
+}
+
+/* Light Mode Variant Overrides — only for non-default variants.
+   Default light theme is intentionally untouched (zero regression).
+   Mirrors the .dark remapping block so hardcoded neutral surfaces inherit the variant palette. */
+
+/* White surfaces -> variant card color */
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/95,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/90,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/80,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/75,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/70,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/60,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/40,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fbfdff\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fbfdff\]\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fbfdff\]\/80 {
+  background-color: hsl(var(--card) / var(--tw-bg-opacity, 1)) !important;
+}
+
+/* Off-white / slate page surfaces -> variant background color */
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fafafa\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fcfcfc\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#f8fafc\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#F8FAFC\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50\/30,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50\/55,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-100,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-100\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-100\/60 {
+  background-color: hsl(var(--background) / var(--tw-bg-opacity, 1)) !important;
+}
+
+/* Neutral slate borders -> variant border color */
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-100,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-200,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-200\/60,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-200\/40,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-300 {
+  border-color: hsl(var(--border) / var(--tw-border-opacity, 1)) !important;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  /* Custom Scrollbar Utilities */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+
+  /* Firefox */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+
+  /* Shadow Pulse Animations */
+  @keyframes shadow-pulse-green {
+    0% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+    50% { box-shadow: 0 0 35px rgba(16, 185, 129, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.15); }
+  }
+  @keyframes shadow-pulse-orange {
+    0% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
+    50% { box-shadow: 0 0 35px rgba(245, 158, 11, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.15); }
+  }
+  @keyframes shadow-pulse-indigo {
+    0% { box-shadow: 0 0 20px rgba(79, 70, 229, 0.15); }
+    50% { box-shadow: 0 0 40px rgba(79, 70, 229, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(79, 70, 229, 0.15); }
+  }
+  @keyframes shadow-pulse-violet {
+    0% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); }
+    50% { box-shadow: 0 0 40px rgba(139, 92, 246, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); }
+  }
+  @keyframes shadow-pulse-pink {
+    0% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.15); }
+    50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.15); }
+  }
+  @keyframes shadow-pulse-cyan {
+    0% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+    50% { box-shadow: 0 0 40px rgba(6, 182, 212, 0.4); }
+    100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+  }
+
+  .animate-shadow-pulse-green {
+    animation: shadow-pulse-green 3s infinite ease-in-out;
+  }
+  .animate-shadow-pulse-orange {
+    animation: shadow-pulse-orange 3s infinite ease-in-out;
+  }
+  .animate-shadow-pulse-indigo {
+    animation: shadow-pulse-indigo 3s infinite ease-in-out;
+  }
+  .animate-shadow-pulse-violet {
+    animation: shadow-pulse-violet 3s infinite ease-in-out;
+  }
+  .animate-shadow-pulse-pink {
+    animation: shadow-pulse-pink 3s infinite ease-in-out;
+  }
+  .animate-shadow-pulse-cyan {
+    animation: shadow-pulse-cyan 3s infinite ease-in-out;
+  }
+
+  .glass-surface {
+    @apply bg-white/40 backdrop-blur-xl border border-white/60 shadow-2xl;
+  }
+
+  /* Elite Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.45);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 116, 139, 0.7);
+  }
+
+  /* Hide scrollbar completely while keeping the element scrollable */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Override inline styled colors in dark mode inside prose container to prevent unreadability */
+  .dark .prose [style*="color"] {
+    color: currentColor !important;
+  }
+  .dark .prose font[color] {
+    color: currentColor !important;
+  }
+
+  /* Wiki Confluence/TDN macro styling */
+  .wiki-tab-section {
+    margin: 2rem 0;
+    border-radius: 1.25rem;
+    border: 1px solid rgb(226, 232, 240);
+    background-color: rgb(255, 255, 255);
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+  .dark .wiki-tab-section {
+    border-color: rgb(30, 41, 59);
+    background-color: rgba(15, 23, 42, 0.2);
+    box-shadow: none;
+  }
+
+  .wiki-tab-title {
+    font-size: 0.75rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin: 0 !important;
+    padding: 0.75rem 1.25rem !important;
+    background-color: rgb(248, 250, 252);
+    border-bottom: 1px solid rgb(226, 232, 240);
+    color: rgb(8, 145, 178) !important;
+  }
+  .dark .wiki-tab-title {
+    background-color: rgba(30, 41, 59, 0.4);
+    border-color: rgb(30, 41, 59);
+    color: rgb(34, 211, 238) !important;
+  }
+
+  .wiki-tab-content {
+    padding: 1.25rem;
+  }
+
+  .wiki-code-block {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background-color: rgb(15, 23, 42) !important;
+    color: rgb(241, 245, 249) !important;
+    overflow-x: auto;
+    border: 1px solid rgb(30, 41, 59);
+  }
+  .wiki-code-block code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    font-size: 0.8rem !important;
+    color: inherit !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .wiki-panel {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    border-radius: 1rem;
+    border-left: 4px solid transparent;
+  }
+  .wiki-panel-title {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .wiki-panel-info {
+    background-color: rgb(240, 249, 255);
+    border-left-color: rgb(14, 165, 233);
+  }
+  .dark .wiki-panel-info {
+    background-color: rgba(14, 165, 233, 0.1);
+  }
+  .wiki-panel-warning {
+    background-color: rgb(254, 242, 242);
+    border-left-color: rgb(239, 68, 68);
+  }
+  .dark .wiki-panel-warning {
+    background-color: rgba(239, 68, 68, 0.1);
+  }
+  .wiki-panel-tip {
+    background-color: rgb(240, 253, 244);
+    border-left-color: rgb(34, 197, 94);
+  }
+  .dark .wiki-panel-tip {
+    background-color: rgba(34, 197, 94, 0.1);
+  }
+}
