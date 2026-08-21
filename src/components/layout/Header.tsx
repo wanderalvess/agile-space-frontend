@@ -34,6 +34,7 @@ import {
 import { UserProfileModal } from './UserProfileModal';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { ThemeToggle } from './ThemeToggle';
+import { GlobalProjectSelector } from '@/components/admin/GlobalProjectSelector';
 
 
 export function Header() {
@@ -70,6 +71,7 @@ export function Header() {
     pathname.startsWith('/support') ||
     pathname.startsWith('/vault') ||
     pathname.startsWith('/prompt-hub') ||
+    pathname.startsWith('/dashboards') ||
     pathname.startsWith('/focus') ||
     pathname.startsWith('/action-plan');
 
@@ -125,6 +127,7 @@ export function Header() {
               )}
             </Button>
 
+            <GlobalProjectSelector />
             <ThemeToggle />
 
             {/* Hydration-safe auth area */}

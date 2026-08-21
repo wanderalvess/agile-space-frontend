@@ -38,6 +38,23 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   const [email, setEmail] = React.useState(profile?.email || '');
   const [avatarSeed, setAvatarSeed] = React.useState(profile?.avatarSeed || AVATAR_SEEDS[0]);
 
+  const [dynamicSquads, setDynamicSquads] = React.useState<string[]>([]);
+  const [isSquadsLoaded, setIsSquadsLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+    fetch(`${apiUrl}/squads`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        if (Array.isArray(data)) {
+          const mapped = data.map((s: any) => s.id || s.jiraProjectKey).filter(Boolean);
+          setDynamicSquads(mapped);
+        }
+      })
+      .catch(err => console.warn('Erro ao carregar projetos:', err))
+      .finally(() => setIsSquadsLoaded(true));
+  }, []);
+
   const handleSave = () => {
     onUpdate({
       name: name.trim(),
@@ -49,30 +66,30 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col min-h-0">
-      <Card className="border border-slate-200/60 bg-white/60 backdrop-blur-xl shadow-2xl shadow-slate-200/10 rounded-[2.5rem] overflow-hidden flex flex-col h-full">
+    <div className="w-full space-y-6">
+      <Card className="border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-lg rounded-3xl overflow-hidden flex flex-col">
         {/* Header - Compact Full Width */}
-        <div className="bg-slate-900 p-6 md:p-8 border-b border-slate-800 relative overflow-hidden shrink-0">
+        <div className="bg-slate-900 dark:bg-slate-950 p-6 md:p-8 border-b border-slate-800 relative overflow-hidden shrink-0">
            <div className="absolute top-0 right-0 w-[50%] h-full bg-primary/10 blur-[120px] rounded-full translate-x-1/2" />
            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full -translate-x-1/4" />
            
            <div className="relative z-10 flex items-center justify-between">
-             <div className="flex items-center gap-6">
+             <div className="flex items-center gap-5">
                <div className="relative group shrink-0">
                   <div className="absolute inset-0 bg-white/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
                   <NiceAvatar 
-                    className="h-16 w-16 md:h-20 md:w-20 rounded-[1.5rem] border-4 border-white shadow-2xl" 
+                    className="h-14 w-14 md:h-16 md:w-16 rounded-2xl border-2 border-white shadow-xl" 
                     {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))} 
                   />
-                  <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-white border-[3px] border-slate-900 shadow-xl">
-                     <Camera className="h-3.5 w-3.5" />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-lg flex items-center justify-center text-white border-2 border-slate-900 shadow-md">
+                     <Camera className="h-3 w-3" />
                   </div>
                </div>
                <div className="space-y-1">
-                 <h2 className="text-2xl md:text-3xl font-black font-headline uppercase tracking-tighter italic text-white leading-none">
+                 <h2 className="text-xl md:text-2xl font-black font-headline uppercase tracking-tight italic text-white leading-none">
                    Configuração do <span className="text-primary not-italic">Perfil</span>
                  </h2>
-                 <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.3em] text-white/40">
+                 <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-white/50">
                    <ShieldCheck className="h-3 w-3 text-emerald-500" />
                    Sincronização Ativa
                  </div>
@@ -82,9 +99,9 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
              <Button 
                onClick={handleSave} 
                disabled={!name.trim() || !role}
-               className="hidden md:flex h-12 px-10 font-black uppercase tracking-[0.2em] text-[9px] rounded-xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 gap-3 border-none transition-all active:scale-95"
+               className="hidden md:flex h-10 px-8 font-black uppercase tracking-[0.2em] text-[9px] rounded-xl bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 gap-2 border-none transition-all active:scale-95"
              >
-               <Save className="h-4 w-4" />
+               <Save className="h-3.5 w-3.5" />
                Salvar Perfil
              </Button>
            </div>
@@ -145,29 +162,35 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
                      <Users className="h-3 w-3" /> Squad Principal
                    </Label>
-                   <div className="flex flex-col gap-2">
-                     <Select 
-                       value={SQUADS.includes(team) ? team : (team ? 'other' : '')} 
-                       onValueChange={(v) => { if (v !== 'other') setTeam(v); }}
-                     >
-                       <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm">
-                         <SelectValue placeholder="Selecione..." />
-                       </SelectTrigger>
-                       <SelectContent className="rounded-xl border-none shadow-2xl p-2">
-                         {SQUADS.map(s => (
-                           <SelectItem key={s} value={s} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{s}</SelectItem>
-                         ))}
-                         <SelectItem value="other" className="text-[9px] font-black text-primary py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase">+ Digitar Novo</SelectItem>
-                       </SelectContent>
-                     </Select>
+                    <div className="flex flex-col gap-2">
+                      <Select 
+                        value={(dynamicSquads.includes(team) || SQUADS.includes(team)) ? team : (team ? 'other' : '')} 
+                        onValueChange={(v) => { if (v !== 'other') setTeam(v); else setTeam(''); }}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-none shadow-2xl p-2 max-h-[300px]">
+                          {!isSquadsLoaded && (
+                            <SelectItem value="loading" disabled className="text-xs text-slate-400 font-bold">
+                              Carregando projetos...
+                            </SelectItem>
+                          )}
+                          {isSquadsLoaded && Array.from(new Set([...dynamicSquads, ...(profile?.squadId && SQUADS.includes(profile.squadId) ? [profile.squadId] : [])])).map(s => (
+                            <SelectItem key={s} value={s} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{s}</SelectItem>
+                          ))}
+                          <SelectItem value="other" className="text-[9px] font-black text-primary py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase border-t border-slate-100 mt-1">+ Digitar Novo</SelectItem>
+                        </SelectContent>
+                      </Select>
                      
-                     {(!SQUADS.includes(team) || team === 'other') && (
-                       <Input 
-                         value={team === 'other' ? '' : team} 
-                         onChange={(e) => setTeam(e.target.value)} 
-                         className="h-10 rounded-lg border-primary/20 bg-primary/5 font-black uppercase text-[10px] tracking-widest text-primary" 
-                       />
-                     )}
+                      {(!dynamicSquads.includes(team) && !SQUADS.includes(team) || team === 'other' || team === '') && (
+                        <Input 
+                          value={team === 'other' ? '' : team} 
+                          onChange={(e) => setTeam(e.target.value)} 
+                          className="h-10 rounded-lg border-primary/20 bg-primary/5 font-black uppercase text-[10px] tracking-widest text-primary" 
+                          placeholder="Nome da Squad"
+                        />
+                      )}
                    </div>
                  </div>
                </div>

@@ -27,6 +27,7 @@ import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { PREDEFINED_AVATARS } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
+import { GlobalProjectSelector } from '@/components/admin/GlobalProjectSelector';
 
 interface RoomHeaderProps {
   title: string;
@@ -37,6 +38,7 @@ interface RoomHeaderProps {
   onOpenFeedback?: () => void;
   isEditable?: boolean;
   onTitleChange?: (newTitle: string) => void;
+  className?: string;
 }
 
 export function RoomHeader({ 
@@ -47,7 +49,8 @@ export function RoomHeader({
   badge, 
   onOpenFeedback,
   isEditable = false,
-  onTitleChange
+  onTitleChange,
+  className
 }: RoomHeaderProps) {
   const router = useRouter();
   const { userProfile, logout, setIsEditProfileOpen, requestIdentity } = useUserContext();
@@ -74,8 +77,11 @@ export function RoomHeader({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full animate-in fade-in slide-in-from-top-2 duration-500">
-      <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/60 dark:border-slate-800/60 h-12 flex items-center justify-between px-4 md:px-6 shadow-sm">
+    <header className={cn("sticky top-0 z-50 w-full animate-in fade-in slide-in-from-top-2 duration-500", className)}>
+      <div className={cn(
+        "backdrop-blur-2xl border-b h-12 flex items-center justify-between px-4 md:px-6 shadow-sm transition-colors",
+        className?.includes("bg-") ? "bg-transparent border-inherit" : "bg-white/70 dark:bg-slate-900/70 border-white/60 dark:border-slate-800/60"
+      )}>
         
         {/*
           Lado Esquerdo: Breadcrumb / Logo / Título.
@@ -162,6 +168,9 @@ export function RoomHeader({
 
           {/* Theme Toggle */}
           <ThemeToggle className="h-8 w-8 rounded-xl border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:text-slate-300 dark:hover:text-slate-100" />
+
+          {/* Project Selector (Leadership only) */}
+          <GlobalProjectSelector />
 
           <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" aria-hidden="true" />
 

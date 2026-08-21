@@ -1,6 +1,6 @@
+import Script from 'next/script';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import Script from 'next/script';
 import { Toaster } from "@/components/ui/toaster"
 // Boa parte do app (Prompt Hub, Knowledge, devtools) usa o toast do sonner, que
 // precisa do próprio provider — o Toaster acima é o do Radix e só renderiza os
@@ -11,6 +11,7 @@ import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
 import { IdentityGatekeeper } from '@/components/auth/IdentityGatekeeper';
+import { BackendHealthGatekeeper } from '@/components/layout/BackendHealthGatekeeper';
 import { GlobalAnnouncementListener } from '@/components/admin/GlobalAnnouncementListener';
 import { MonacoConfig } from '../components/layout/MonacoConfig';
 import { SystemConfigProvider } from '@/context/SystemConfigContext';
@@ -60,9 +61,15 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`h-full ${outfit.variable} ${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Espaço Ágil" />
+        <link rel="apple-touch-icon" href="/icon.png" />
+      </head>
+      <body className="font-body antialiased bg-background text-foreground transition-colors duration-150" suppressHydrationWarning>
         <Script
           id="theme-initializer"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -81,24 +88,20 @@ export default function RootLayout({
             `
           }}
         />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Espaço Ágil" />
-        <link rel="apple-touch-icon" href="/icon.png" />
-      </head>
-      <body className="font-body antialiased bg-background text-foreground transition-colors duration-150" suppressHydrationWarning>
         <FirebaseClientProvider>
           <ThemeProvider>
             <SystemConfigProvider>
               <UserProvider>
-                <IdentityGatekeeper>
-                  <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
-                    <Header />
-                    <main className="flex flex-1 w-full overflow-x-hidden">{children}</main>
-                    <GlobalAnnouncementListener />
-                    <Calmaria />
-                  </div>
-                </IdentityGatekeeper>
+                <BackendHealthGatekeeper>
+                  <IdentityGatekeeper>
+                    <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
+                      <Header />
+                      <main className="flex flex-1 w-full overflow-x-hidden">{children}</main>
+                      <GlobalAnnouncementListener />
+                      <Calmaria />
+                    </div>
+                  </IdentityGatekeeper>
+                </BackendHealthGatekeeper>
               </UserProvider>
             </SystemConfigProvider>
             <MonacoConfig />

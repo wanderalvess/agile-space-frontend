@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, serverTimestamp, setDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { useUserContext } from '@/context/UserContext';
 import { toast } from 'sonner';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import {
@@ -51,6 +52,8 @@ const LANGUAGES = [
 
 export function SnippetLibrary() {
   const { firestore, user } = useFirebase();
+  const { userProfile } = useUserContext();
+  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid;
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [search, setSearch] = useState('');
@@ -64,12 +67,12 @@ export function SnippetLibrary() {
   });
 
   const snippetsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !effectiveUserId) return null;
     return query(
-      collection(firestore, 'users', user.uid, 'snippets'),
+      collection(firestore, 'users', effectiveUserId, 'snippets'),
       orderBy('updatedAt', 'desc')
     );
-  }, [firestore, user]);
+  }, [firestore, effectiveUserId]);
 
   const { data: snippets, isLoading } = useCollection<Snippet>(snippetsQuery);
   
@@ -119,7 +122,7 @@ export function SnippetLibrary() {
   };
 
   const handleSave = async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !effectiveUserId) return;
     if (!formData.title.trim() || !formData.code.trim()) return;
 
     const id = editingSnippet?.id || `snippet_${Date.now()}`;
@@ -134,7 +137,7 @@ export function SnippetLibrary() {
     };
 
     try {
-      await setDoc(doc(firestore, 'users', user.uid, 'snippets', id), payload, { merge: true });
+      await setDoc(doc(firestore, 'users', effectiveUserId, 'snippets', id), payload, { merge: true });
       toast.success('Snippet salvo com sucesso!');
       setIsEditorOpen(false);
     } catch (err: any) {
@@ -143,9 +146,9 @@ export function SnippetLibrary() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore || !user || !confirm('Deseja realmente excluir este snippet?')) return;
+    if (!firestore || !effectiveUserId || !confirm('Deseja realmente excluir este snippet?')) return;
     try {
-      await deleteDoc(doc(firestore, 'users', user.uid, 'snippets', id));
+      await deleteDoc(doc(firestore, 'users', effectiveUserId, 'snippets', id));
       toast.success('Snippet removido.');
     } catch (err: any) {
       toast.error('Erro ao remover: ' + err.message);

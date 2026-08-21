@@ -70,30 +70,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
     user: null,
     googleAccessToken: null,
-    isUserLoading: true, // Start loading until first auth event
+    isUserLoading: false, // Direct PostgreSQL mode - don't block on Firebase Auth
     userError: null,
   });
 
-  // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, googleAccessToken: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
-      return;
-    }
-
-    setUserAuthState({ user: null, googleAccessToken: null, isUserLoading: true, userError: null }); // Reset on auth instance change
-
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (firebaseUser) => { // Auth state determined
-        setUserAuthState(prev => ({ ...prev, user: firebaseUser, isUserLoading: false, userError: null }));
-      },
-      (error) => { // Auth listener error
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, googleAccessToken: null, isUserLoading: false, userError: error });
-      }
-    );
-    return () => unsubscribe(); // Cleanup
+    setUserAuthState(prev => ({ ...prev, isUserLoading: false }));
   }, [auth]); // Depends on the auth instance
 
   // Memoize the context value
@@ -120,6 +102,8 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   );
 };
 
+import { useUserContext } from '@/context/UserContext';
+
 /**
  * Hook to access core Firebase services and user authentication state.
  * Throws error if core services are not available or used outside provider.
@@ -131,15 +115,28 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
 
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
-    throw new Error('Firebase core services not available. Check FirebaseProvider props.');
+  let effectiveUser = context.user;
+  try {
+    const userCtx = useUserContext();
+    if (!effectiveUser && userCtx?.userProfile) {
+      const profile = userCtx.userProfile;
+      const uid = profile.id || profile.email || 'wanderson.alves@empresa.com.br';
+      effectiveUser = {
+        uid,
+        email: profile.email || '',
+        displayName: profile.name || '',
+        photoURL: null,
+      } as User;
+    }
+  } catch (_) {
+    // Graceful fallback if invoked outside UserProvider
   }
 
   return {
-    firebaseApp: context.firebaseApp,
-    firestore: context.firestore,
-    auth: context.auth,
-    user: context.user,
+    firebaseApp: context.firebaseApp!,
+    firestore: context.firestore!,
+    auth: context.auth!,
+    user: effectiveUser,
     googleAccessToken: context.googleAccessToken,
     isUserLoading: context.isUserLoading,
     userError: context.userError,

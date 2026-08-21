@@ -34,6 +34,8 @@ import {
 } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Footer } from '@/components/layout/Footer';
+import { RoomHeader } from '@/components/layout/RoomHeader';
+import { FeedbackWidget } from '@/components/feedback-widget';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -45,18 +47,20 @@ export default function SupportPage() {
   const router = useRouter();
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
+  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   
   const [ticketType, setTicketType] = useState<TicketType>('support');
   const [description, setDescription] = useState('');
   const [subject, setSubject] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [myTickets, setMyTickets] = useState<any[]>([]);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('new');
+  
+  // Lista de tickets do usuário
+  const [myTickets, setMyTickets] = useState<any[]>([]);
 
+  // Escuta os tickets do usuário logado
   React.useEffect(() => {
-    if (!firestore || !user?.uid) return;
+    if (!firestore || !user) return;
 
     const q = query(
       collection(firestore, 'support_tickets'),
@@ -65,59 +69,49 @@ export default function SupportPage() {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tickets = snapshot.docs.map(doc => ({
+      const docs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setMyTickets(tickets);
-      setFetchError(null);
+      setMyTickets(docs);
     }, (error) => {
-      console.error("SupportPage: Error fetching tickets:", error);
-      setFetchError(error.message);
+      console.error("Erro ao buscar tickets:", error);
     });
 
     return () => unsubscribe();
-  }, [firestore, user?.uid]);
-
-  // Título Dinâmico da Aba
-  React.useEffect(() => {
-    document.title = `Central de Suporte | Espaço Ágil`;
-  }, []);
+  }, [firestore, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || !firestore) return;
+    if (!description.trim() || !subject.trim() || !user || !firestore) return;
 
     setIsSubmitting(true);
     try {
       await addDoc(collection(firestore, 'support_tickets'), {
-        type: ticketType,
-        subject: subject.trim() || (ticketType === 'bug' ? 'Relato de Bug' : 'Solicitação de Suporte'),
+        userId: user.uid,
+        userEmail: user.email || 'Anônimo',
+        userName: user.displayName || 'Usuário',
+        subject: subject.trim(),
         description: description.trim(),
-        userEmail: user?.email || user?.uid || 'anonymous',
-        userId: user?.uid || 'anonymous',
+        type: ticketType,
+        status: 'open',
         timestamp: serverTimestamp(),
-        status: 'open'
+        replies: []
       });
 
-      setIsSuccess(true);
       toast({
-        title: "Solicitação enviada!",
-        description: "Nossa equipe de governança analisará seu ticket em breve.",
+        title: "Solicitação Enviada",
+        description: "Seu ticket foi recebido pelo time de governança.",
       });
-      
-      // Reset form after success
-      setTimeout(() => {
-        setIsSuccess(false);
-        setDescription('');
-        setSubject('');
-        setTicketType('support');
-      }, 5000);
+
+      setDescription('');
+      setSubject('');
+      setActiveTab('history');
     } catch (error) {
       console.error("Erro ao enviar ticket:", error);
       toast({
-        title: "Erro ao enviar",
-        description: "Não foi possível conectar ao servidor de suporte.",
+        title: "Erro no envio",
+        description: "Não foi possível registrar seu ticket. Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -133,68 +127,44 @@ export default function SupportPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-slate-950 selection:bg-primary/10 flex flex-col">
-      <header className="w-full h-[72px] border-b border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex items-center px-6 md:px-12 sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto w-full flex items-center justify-between pt-1">
-          <div className="flex items-center gap-5">
-            <Button 
-              variant="ghost" 
-              className="h-10 px-4 rounded-xl border border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all flex items-center gap-2 group"
-              onClick={() => router.push('/')}
-            >
-              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Hub</span>
-            </Button>
-            
-            <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-slate-900 dark:bg-slate-700 rounded-xl flex items-center justify-center text-white shadow-xl group-hover:scale-110 transition-transform duration-500">
-                <LifeBuoy className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
-                  Central de <span className="text-primary">Suporte</span>
-                </span>
-                <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 hidden md:block" />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 leading-none hidden lg:block">
-                  Help & Governance
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-100 dark:border-emerald-800/50 rounded-full">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Time Online • 24/7</span>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
+      {/* Background Glow */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-primary/5 rounded-full blur-[160px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-500/5 rounded-full blur-[140px]" />
+      </div>
 
-      <main className="flex-1 max-w-[1920px] mx-auto w-full py-12 px-6 md:px-12 lg:px-24">
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="xl:col-span-8 space-y-8"
-          >
-            <div className="text-left space-y-4 mb-12">
-              <div className="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-4 py-1.5 rounded-full border border-indigo-100 dark:border-indigo-800/50 shadow-sm mb-2">
+      <div className="w-full flex-1 flex flex-col">
+        {/* ROOM HEADER */}
+        <RoomHeader
+          title="Central de Suporte"
+          toolIcon={<LifeBuoy className="h-4 w-4" />}
+          toolColorClass="text-primary"
+          onOpenFeedback={() => setFeedbackSignal(Date.now())}
+          badge={<Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">HELP & GOVERNANCE</Badge>}
+        />
+
+        <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+          <main className="w-full space-y-8">
+            <div className="text-left space-y-3 mb-6">
+              <div className="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1 rounded-full border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
                 <Sparkles className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Atendimento Direto</span>
+                <span className="text-[9px] font-black uppercase tracking-widest">Atendimento Direto</span>
               </div>
-              <h2 className="text-5xl md:text-7xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 leading-[0.85] italic font-headline">
+              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 leading-tight italic font-headline">
                 Como podemos <span className="text-primary not-italic">Acelerar</span> hoje?
               </h2>
-              <p className="text-slate-500 dark:text-slate-400 text-xl font-medium max-w-2xl italic border-l-4 border-primary/20 pl-6 py-2">
+              <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium max-w-2xl italic border-l-2 border-primary/30 pl-4 py-1">
                 Sua voz molda o futuro do Espaço Ágil. Relate problemas, sugira melhorias ou tire dúvidas diretamente com nosso time de governança.
               </p>
             </div>
 
             <Tabs defaultValue="new" className="w-full" onValueChange={setActiveTab}>
-               <TabsList className="bg-slate-100/50 dark:bg-slate-800/50 p-1.5 rounded-2xl mb-8 w-fit border border-slate-200/40 dark:border-slate-700/40 backdrop-blur-sm">
-                  <TabsTrigger value="new" className="rounded-xl px-10 py-3 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-lg data-[state=active]:shadow-slate-200/50 dark:text-slate-400 dark:data-[state=active]:text-slate-100">
+               <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl mb-6 w-fit border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-sm">
+                  <TabsTrigger value="new" className="rounded-xl px-8 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm dark:text-slate-400 dark:data-[state=active]:text-slate-100">
                      Nova Solicitação
                   </TabsTrigger>
-                  <TabsTrigger value="history" className="rounded-xl px-10 py-3 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-lg data-[state=active]:shadow-slate-200/50 flex items-center gap-2 dark:text-slate-400 dark:data-[state=active]:text-slate-100">
+                  <TabsTrigger value="history" className="rounded-xl px-8 py-2 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm flex items-center gap-2 dark:text-slate-400 dark:data-[state=active]:text-slate-100">
                      Meus Tickets {myTickets.length > 0 && <Badge className="bg-primary/10 text-primary border-none text-[8px] h-4 min-w-4 flex items-center justify-center p-0">{myTickets.length}</Badge>}
                   </TabsTrigger>
                </TabsList>
@@ -376,8 +346,11 @@ export default function SupportPage() {
           </aside>
         </div>
       </main>
+        </div>
+      </div>
 
-      <Footer />
+      <Footer className="mt-8 shrink-0" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
+      <FeedbackWidget toolName="Espaço Ágil - Suporte" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
     </div>
   );
 }

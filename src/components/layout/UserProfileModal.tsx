@@ -35,14 +35,21 @@ import {
   User,
   Settings,
   Shield,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Key,
+  Globe,
+  CheckCircle2,
+  Building2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import { ROLES, SQUADS, AVATAR_SEEDS, PREDEFINED_AVATARS } from '@/lib/types';
-import type { GlobalRole } from '@/lib/types';
+import type { GlobalRole, SquadMember } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { userApi } from '@/app/users/api';
+import { Badge } from '@/components/ui/badge';
 
 export function UserProfileModal() {
   const {
@@ -63,6 +70,7 @@ export function UserProfileModal() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSyncingJira, setIsSyncingJira] = useState(false);
 
   const [name, setName] = useState('');
   const [role, setRole] = useState<GlobalRole | ''>('');
@@ -73,8 +81,43 @@ export function UserProfileModal() {
   const [avatarSeed, setAvatarSeed] = useState(AVATAR_SEEDS[0]);
   const [step, setStep] = useState(0); // 0 = auth, 1 = profile
 
-  const isOpen = (isEditProfileOpen || mustOnboard || isIdentityRequested) && !isPublicExploration;
+  // Jira PAT Token & Domain
+  const [jiraDomain, setJiraDomain] = useState('jiraproducao.totvs.com.br');
+  const [jiraToken, setJiraToken] = useState('');
+  const [jiraAccountDetails, setJiraAccountDetails] = useState<any | null>(null);
+  
+  const [dynamicSquads, setDynamicSquads] = useState<string[]>([]);
+  const [isSquadsLoaded, setIsSquadsLoaded] = useState(false);
+
+  const isOpen = isEditProfileOpen || ((mustOnboard || isIdentityRequested) && !isPublicExploration);
   const isNewUser = !userProfile || userProfile.isGuest || !userProfile.name;
+
+  // Carrega squads da API
+  useEffect(() => {
+    if (isOpen) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+      fetch(`${apiUrl}/squads`)
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+          if (Array.isArray(data)) {
+            const mapped = data.map((s: any) => s.id || s.jiraProjectKey).filter(Boolean);
+            setDynamicSquads(mapped);
+          }
+        })
+        .catch(err => console.warn('Erro ao carregar projetos:', err))
+        .finally(() => setIsSquadsLoaded(true));
+    }
+  }, [isOpen]);
+
+  // Carrega configurações de Jira salvas
+  useEffect(() => {
+    try {
+      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || localStorage.getItem('agileSpace_jiraDomain') || 'jiraproducao.totvs.com.br';
+      const savedToken = localStorage.getItem('agileSpace_jiraSync_token') || localStorage.getItem('agileSpace_jiraToken') || '';
+      setJiraDomain(savedDomain);
+      setJiraToken(savedToken);
+    } catch {}
+  }, [isOpen]);
 
   // Forçar step 0 se for um novo usuário abrindo o modal pela primeira vez nesta sessão
   useEffect(() => {
@@ -84,13 +127,17 @@ export function UserProfileModal() {
   }, [isOpen, isNewUser, userProfile?.name]);
 
   useEffect(() => {
-    if (userProfile && isOpen) {
+    if (userProfile && isOpen && isSquadsLoaded) {
       setName(userProfile.name || '');
       setRole(userProfile.role || '');
       setEmail(userProfile.email || '');
       setAvatarSeed(userProfile.avatarSeed || AVATAR_SEEDS[0]);
 
-      const isPredefined = SQUADS.includes(userProfile.squadId);
+      // Combina a lista da API com os SQUADS hardcoded apenas para não quebrar 
+      // quem tem squads antigos, mas só vamos renderizar os da API ou o atual do usuário
+      const allKnown = Array.from(new Set([...dynamicSquads, ...SQUADS]));
+      const isPredefined = allKnown.includes(userProfile.squadId);
+      
       if (userProfile.squadId && !isPredefined) {
         setSquadId('other');
         setCustomSquad(userProfile.squadId);
@@ -103,12 +150,10 @@ export function UserProfileModal() {
       if (!userProfile.isGuest && userProfile.name) {
         setStep(1);
       } else if (!userProfile.name && !userProfile.isGuest) {
-        // Para usuários anônimos recém-criados que ainda não têm nome, 
-        // mantemos no step 0 para que possam escolher entrar com Google
         setStep(0);
       }
     }
-  }, [userProfile, isOpen]);
+  }, [userProfile, isOpen, isSquadsLoaded, dynamicSquads]);
 
   const onGoogleLogin = async () => {
     setIsLoggingIn(true);
@@ -116,6 +161,82 @@ export function UserProfileModal() {
       await loginWithGoogle();
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleSyncFromJira = async (customToken?: string, customDomain?: string) => {
+    const tokenToUse = (customToken || jiraToken || localStorage.getItem('agileSpace_jiraToken') || localStorage.getItem('agileSpace_jiraSync_token') || '').trim();
+    const domainToUse = (customDomain || jiraDomain || localStorage.getItem('agileSpace_jiraSync_domain') || 'jiraproducao.totvs.com.br').trim();
+
+    if (!tokenToUse) {
+      toast({
+        title: "Token Jira necessário",
+        description: "Informe o seu Personal Access Token (PAT) do Jira para puxar seus dados automaticamente.",
+        variant: "destructive",
+      });
+      setActiveTab('security');
+      return;
+    }
+
+    setIsSyncingJira(true);
+    try {
+      const jiraUser = await userApi.getMyself(domainToUse, tokenToUse);
+      if (jiraUser) {
+        if (jiraUser.displayName) setName(jiraUser.displayName);
+        const resolvedEmail = jiraUser.emailAddress || (jiraUser.name ? `${jiraUser.name}@totvs.com.br` : '');
+        if (resolvedEmail) setEmail(resolvedEmail);
+
+        // Salva tokens no localStorage
+        localStorage.setItem('agileSpace_jiraToken', tokenToUse);
+        localStorage.setItem('agileSpace_jiraSync_token', tokenToUse);
+        localStorage.setItem('agileSpace_jiraSync_domain', domainToUse);
+        setJiraToken(tokenToUse);
+        setJiraDomain(domainToUse);
+        setJiraAccountDetails(jiraUser);
+
+        // Busca se o usuário já tem squad e cargo registrado no banco local
+        try {
+          const id = resolvedEmail || jiraUser.name || jiraUser.key || jiraUser.accountId;
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+          const res = await fetch(`${apiUrl}/squads/by-user?identifier=${encodeURIComponent(id)}`);
+          if (res.ok) {
+            const data: SquadMember[] = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const first = data[0];
+              if (first.squadId) {
+                // Se a squad recuperada está na lista de projetos dinâmicos ou nos SQUADS antigos
+                const allKnown = Array.from(new Set([...dynamicSquads, ...SQUADS]));
+                const isPredefined = allKnown.includes(first.squadId);
+                if (isPredefined) {
+                  setSquadId(first.squadId);
+                  setIsCustomSquad(false);
+                } else {
+                  setSquadId('other');
+                  setCustomSquad(first.squadId);
+                  setIsCustomSquad(true);
+                }
+              }
+              if (first.role) setRole(first.role as GlobalRole);
+            }
+          }
+        } catch (squadErr) {
+          console.debug("Squad check error:", squadErr);
+        }
+
+        setStep(1);
+        toast({
+          title: "Jira Sincronizado!",
+          description: `Identidade carregada: ${jiraUser.displayName || jiraUser.name}`,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "Erro ao conectar ao Jira",
+        description: err.message || "Verifique o token e o domínio corporativo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncingJira(false);
     }
   };
 
@@ -155,6 +276,7 @@ export function UserProfileModal() {
 
     setIsEditProfileOpen(false);
     setIsIdentityRequested(false);
+    setIsPublicExploration(true);
 
     toast({
       title: mustOnboard ? "Bem-vindo ao Espaço Ágil!" : "Perfil Atualizado",
@@ -168,9 +290,6 @@ export function UserProfileModal() {
         setIsEditProfileOpen(true);
         return;
       }
-      // Fechar: visitante sem cadastro não é obrigado — apenas passa a
-      // explorar publicamente. requestIdentity() reativa o modal quando um
-      // recurso específico exigir identidade.
       if (mustOnboard || isIdentityRequested) {
         setIsPublicExploration(true);
       }
@@ -190,8 +309,13 @@ export function UserProfileModal() {
               <DialogTitle className="text-3xl font-black uppercase tracking-tighter italic text-white leading-none">
                 <div dangerouslySetInnerHTML={{ __html: isInitializing ? 'Sincronizando...' : 'Minha <span class="text-indigo-400 not-italic">Identidade</span>' }} className="contents" />
               </DialogTitle>
-              <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-2">
-                Gestão de Perfil e Credenciais de Acesso
+              <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
+                Gestão de Perfil & Integração Jira API
+                {jiraToken && (
+                  <Badge className="bg-emerald-500/20 text-emerald-300 border-none text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
+                    Jira Ativo
+                  </Badge>
+                )}
               </DialogDescription>
             </div>
             
@@ -206,7 +330,7 @@ export function UserProfileModal() {
 
           <div className="px-8 pb-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="bg-white/5 border border-white/10 p-1 h-11 rounded-xl w-full max-w-[280px]">
+              <TabsList className="bg-white/5 border border-white/10 p-1 h-11 rounded-xl w-full max-w-[320px]">
                 <TabsTrigger 
                   value="profile" 
                   className="rounded-lg text-[9px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:dark:bg-slate-800 data-[state=active]:dark:text-slate-100 transition-all flex-1"
@@ -219,7 +343,7 @@ export function UserProfileModal() {
                   className="rounded-lg text-[9px] font-black uppercase tracking-widest data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:dark:bg-slate-800 data-[state=active]:dark:text-slate-100 transition-all flex-1"
                 >
                   <Shield className="h-3 w-3 mr-2" />
-                  Segurança
+                  Jira & Segurança
                 </TabsTrigger>
               </TabsList>
             </Tabs>
@@ -232,6 +356,26 @@ export function UserProfileModal() {
               
               {isNewUser && step === 0 ? (
                 <div className="space-y-4">
+                  {/* Botão Sincronizar com Jira */}
+                  <button
+                    onClick={() => handleSyncFromJira()}
+                    disabled={isSyncingJira}
+                    className="w-full h-16 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-2 border-transparent shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-4 group active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {isSyncingJira ? (
+                      <Loader2 className="h-5 w-5 animate-spin text-white" />
+                    ) : (
+                      <>
+                        <div className="w-8 h-8 flex items-center justify-center bg-white/10 rounded-lg backdrop-blur-sm">
+                          <RefreshCw className="h-4 w-4 text-white" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-white">
+                          Puxar Dados do Jira (/myself)
+                        </span>
+                      </>
+                    )}
+                  </button>
+
                   <button
                     onClick={onGoogleLogin}
                     disabled={isLoggingIn}
@@ -258,7 +402,7 @@ export function UserProfileModal() {
                     className="w-full h-16 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-900/60 transition-all flex items-center justify-center gap-3 group active:scale-[0.98]"
                   >
                     <Fingerprint className="h-5 w-5 text-slate-400 dark:text-slate-500" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-650 dark:text-slate-350">Criar Perfil Local</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-650 dark:text-slate-350">Preencher Perfil Manualmente</span>
                   </button>
 
                   <button
@@ -270,6 +414,31 @@ export function UserProfileModal() {
                 </div>
               ) : (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  
+                  {/* Atalho de sincronização rápida com o Jira */}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                        <RefreshCw className={cn("h-4 w-4", isSyncingJira && "animate-spin")} />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Sincronizar com o Jira</p>
+                        <p className="text-[9px] text-slate-400">Atualiza seu nome, e-mail e dados via API corporativa (/myself)</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSyncFromJira()}
+                      disabled={isSyncingJira}
+                      className="h-8 rounded-xl text-[9px] font-black uppercase tracking-widest gap-1.5 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50"
+                    >
+                      {isSyncingJira ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                      Atualizar do Jira
+                    </Button>
+                  </div>
+
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 ml-1 flex items-center gap-2">
                       <User className="h-3.5 w-3.5 text-indigo-500" /> Nome Completo
@@ -278,7 +447,19 @@ export function UserProfileModal() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 font-bold text-sm focus:bg-white dark:focus:bg-slate-950 dark:text-slate-100 transition-all"
-                      placeholder="Ex: Francisco Alves"
+                      placeholder="Ex: Wanderson Alves"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 ml-1 flex items-center gap-2">
+                      <ChevronRight className="h-3.5 w-3.5 text-indigo-500" /> E-mail Corporativo
+                    </Label>
+                    <Input
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 font-bold text-sm focus:bg-white dark:focus:bg-slate-950 dark:text-slate-100 transition-all"
+                      placeholder="exemplo@totvs.com.br"
                     />
                   </div>
 
@@ -307,17 +488,23 @@ export function UserProfileModal() {
 
                     <div className="space-y-2">
                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400 ml-1 flex items-center gap-2">
-                        <ChevronRight className="h-3.5 w-3.5 text-indigo-500" /> Squad Principal
+                        <Building2 className="h-3.5 w-3.5 text-indigo-500" /> Projeto / Equipe
                       </Label>
                       <Select
-                        value={SQUADS.includes(squadId) ? squadId : (squadId ? 'other' : '')}
+                        value={(dynamicSquads.includes(squadId) || SQUADS.includes(squadId)) ? squadId : (squadId ? 'other' : '')}
                         onValueChange={(v) => { setSquadId(v); setIsCustomSquad(v === 'other'); }}
                       >
                         <SelectTrigger className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 font-bold text-sm dark:text-slate-100">
                           <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
-                        <SelectContent className="rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-950 shadow-2xl p-2">
-                          {SQUADS.map(s => (
+                        <SelectContent className="rounded-xl border border-slate-200 dark:border-slate-800 dark:bg-slate-950 shadow-2xl p-2 max-h-[300px]">
+                          {!isSquadsLoaded && (
+                            <SelectItem value="loading" disabled className="text-xs text-slate-400 font-bold">
+                              Carregando projetos...
+                            </SelectItem>
+                          )}
+                          {/* Garante que a squad atual do usuário apareça, mesmo se for legada, enquanto ele não alterar */}
+                          {isSquadsLoaded && Array.from(new Set([...dynamicSquads, ...(userProfile?.squadId && SQUADS.includes(userProfile.squadId) ? [userProfile.squadId] : [])])).map(s => (
                             <SelectItem
                               key={s}
                               value={s}
@@ -328,7 +515,7 @@ export function UserProfileModal() {
                           ))}
                           <SelectItem
                             value="other"
-                            className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 py-3 pl-8 rounded-lg focus:bg-slate-100 dark:focus:bg-slate-900 focus:text-indigo-700 dark:focus:text-indigo-300"
+                            className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 py-3 pl-8 rounded-lg focus:bg-slate-100 dark:focus:bg-slate-900 focus:text-indigo-700 dark:focus:text-indigo-300 border-t border-slate-100 dark:border-slate-800 mt-1"
                           >
                             + Digitar Novo
                           </SelectItem>
@@ -364,7 +551,7 @@ export function UserProfileModal() {
                         value={customSquad} 
                         onChange={(e) => setCustomSquad(e.target.value)} 
                         className="h-12 mt-2 rounded-xl border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/30 dark:bg-indigo-950/20 font-bold text-indigo-900 dark:text-indigo-300" 
-                        placeholder="Nome do seu time..."
+                        placeholder="Ex: DDWMISSI"
                       />
                     </div>
                   )}
@@ -373,16 +560,82 @@ export function UserProfileModal() {
               )}
             </TabsContent>
 
-            <TabsContent value="security" className="m-0 p-8 space-y-8 animate-in fade-in duration-300">
-              <div className="p-12 flex flex-col items-center justify-center text-center space-y-4 opacity-40">
-                <ShieldCheck className="h-12 w-12 text-slate-300 dark:text-slate-600" />
-                <div className="space-y-1">
-                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100">Segurança em Camadas</h4>
-                  <p className="text-[10px] font-bold uppercase tracking-tight text-slate-400 dark:text-slate-500">Tokens e chaves são gerenciados no nível do Workspace</p>
+            <TabsContent value="security" className="m-0 p-8 space-y-6 animate-in fade-in duration-300">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Key className="h-4 w-4 text-indigo-500" /> Conexão Jira API & Token
+                  </h4>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    Configure seu Personal Access Token (PAT) para puxar seus dados de usuário do endpoint <code>/rest/api/2/myself</code>.
+                  </p>
                 </div>
-                <Button variant="outline" onClick={() => setActiveTab('profile')} className="h-9 px-6 rounded-lg text-[9px] font-black uppercase tracking-widest dark:border-slate-800 dark:text-slate-350">
-                  Voltar ao Perfil
-                </Button>
+
+                <div className="space-y-3 bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <Globe className="h-3 w-3 text-indigo-500" /> Domínio Jira
+                    </Label>
+                    <Input
+                      value={jiraDomain}
+                      onChange={(e) => setJiraDomain(e.target.value)}
+                      placeholder="jiraproducao.totvs.com.br"
+                      className="h-10 rounded-xl text-xs bg-white dark:bg-slate-900 font-medium"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                      <Key className="h-3 w-3 text-indigo-500" /> Token de Acesso (PAT)
+                    </Label>
+                    <Input
+                      type="password"
+                      value={jiraToken}
+                      onChange={(e) => setJiraToken(e.target.value)}
+                      placeholder="Cole seu Personal Access Token do Jira"
+                      className="h-10 rounded-xl text-xs bg-white dark:bg-slate-900 font-mono"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    onClick={() => handleSyncFromJira(jiraToken, jiraDomain)}
+                    disabled={isSyncingJira}
+                    className="w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-[10px] tracking-widest gap-2 shadow-sm"
+                  >
+                    {isSyncingJira ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    {isSyncingJira ? 'Consultando /rest/api/2/myself...' : 'Testar e Puxar Dados do Jira'}
+                  </Button>
+                </div>
+
+                {jiraAccountDetails && (
+                  <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 space-y-2 animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                        Conta Jira Conectada
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                      <div>
+                        <span className="text-slate-400 text-[9px] uppercase font-bold block">Nome de Exibição</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{jiraAccountDetails.displayName || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[9px] uppercase font-bold block">Usuário / Key</span>
+                        <span className="font-mono text-slate-800 dark:text-slate-200">{jiraAccountDetails.name || jiraAccountDetails.key || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[9px] uppercase font-bold block">E-mail</span>
+                        <span className="text-slate-800 dark:text-slate-200">{jiraAccountDetails.emailAddress || '—'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 text-[9px] uppercase font-bold block">Fuso Horário</span>
+                        <span className="text-slate-800 dark:text-slate-200">{jiraAccountDetails.timeZone || '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
           </Tabs>
@@ -391,7 +644,7 @@ export function UserProfileModal() {
         {activeTab === 'profile' && !(isNewUser && step === 0) && (
           <div className="shrink-0 px-8 py-5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between">
             <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest max-w-[280px] leading-relaxed">
-              Suas informações são armazenadas de forma segura e criptografada no Firebase.
+              Suas informações são armazenadas e sincronizadas de forma segura no PostgreSQL.
             </p>
             <div className="flex gap-3">
                {isNewUser && (
@@ -414,3 +667,4 @@ export function UserProfileModal() {
     </Dialog>
   );
 }
+

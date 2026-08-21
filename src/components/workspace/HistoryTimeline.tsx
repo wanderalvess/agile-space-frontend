@@ -37,26 +37,25 @@ interface HistoryTimelineProps {
 
 export function HistoryTimeline({ items, isLoading, userId }: HistoryTimelineProps) {
   return (
-    <div className="w-full flex-1 flex flex-col min-h-0">
-      <Card className="border border-slate-200/60 bg-white/60 backdrop-blur-xl shadow-2xl shadow-slate-200/20 rounded-[2.5rem] overflow-hidden flex flex-col h-full">
-        <CardHeader className="bg-white border-b border-slate-100 shrink-0 py-6 px-8">
+    <div className="w-full space-y-6">
+      <Card className="border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-lg rounded-3xl overflow-hidden">
+        <CardHeader className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0 py-5 px-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-black font-headline uppercase tracking-tighter italic flex items-center gap-4 text-slate-900">
-              <div className="w-10 h-10 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-slate-900/20">
-                <History className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base md:text-lg font-black font-headline uppercase tracking-tight italic flex items-center gap-3 text-slate-900 dark:text-slate-100">
+              <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+                <History className="h-4.5 w-4.5 text-primary" />
               </div>
               Linha do Tempo de Cerimônias
             </CardTitle>
             {!isLoading && items && (
-              <Badge variant="outline" className="h-7 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-50 border-slate-200 text-slate-400">
+              <Badge variant="outline" className="h-6 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
                 {items.length} SESSÕES
               </Badge>
             )}
           </div>
         </CardHeader>
         
-        <ScrollArea className="flex-1">
-          <CardContent className="p-0">
+        <CardContent className="p-0">
             {isLoading ? (
               <div className="p-20 flex flex-col items-center justify-center space-y-6">
                 <AgileSpinner size="lg" />
@@ -75,7 +74,6 @@ export function HistoryTimeline({ items, isLoading, userId }: HistoryTimelinePro
               </Accordion>
             )}
           </CardContent>
-        </ScrollArea>
       </Card>
     </div>
   );

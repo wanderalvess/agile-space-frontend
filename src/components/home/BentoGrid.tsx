@@ -278,7 +278,7 @@ export function BentoGrid() {
         whileHover="hover"
       >
         <Card 
-          onClick={() => router.push('/daily-flow')}
+          onClick={() => router.push('/squad?tab=daily')}
           className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-cyan-500/40 dark:hover:border-cyan-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[300px] overflow-hidden"
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />

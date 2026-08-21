@@ -1,24 +1,8 @@
 /**
  * jiraService.ts
  * Serviço centralizado de integração com o Jira.
- * Utilizado pelo Scrum Poker e pelo Sprint Showcase.
+ * Utilizado pelo Daily Timesheet, Scrum Poker e Sprint Showcase.
  */
-import { initializeFirebase } from '@/firebase';
-
-/**
- * As rotas /api/jira/* exigem um ID token do Firebase Auth (Authorization:
- * Bearer <token>) — sem isso, qualquer visitante não autenticado podia usar
- * o backend como proxy pra qualquer host Jira público.
- */
-const getAuthHeader = async (): Promise<Record<string, string>> => {
-  const { auth } = initializeFirebase();
-  await auth.authStateReady();
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) {
-    console.error('[getAuthHeader] Token é vazio! auth.currentUser =', auth.currentUser);
-  }
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
-};
 
 export interface JiraIssue {
   key: string;
@@ -45,6 +29,8 @@ export interface JiraIssue {
   planned?: { dev?: string; qa?: string; tu?: string };
   updated?: string;
   dueDate?: string; // campo `duedate` do Jira, formato YYYY-MM-DD
+  targetStart?: string;
+  targetEnd?: string;
   parentKey?: string; // chave da issue pai (história), quando esta issue é subtarefa
   parentTitle?: string;
   labels?: string[];
@@ -438,7 +424,7 @@ export const fetchJiraIssues = async (
   try {
     res = await fetch('/api/jira/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         domain: domain.trim(), token: token.trim(), jql: jql.trim(),
         ...(opts?.maxResults ? { maxResults: opts.maxResults } : {}),
@@ -555,6 +541,8 @@ export const fetchJiraIssues = async (
       assigneeId: fields?.assignee?.accountId || fields?.assignee?.key || '',
       updated: fields?.updated || '',
       dueDate: fields?.duedate || '',
+      targetStart: fields?.customfield_10015 || fields?.startDate || fields?.target_start || (fields?.created ? fields.created.substring(0, 10) : ''),
+      targetEnd: fields?.customfield_10014 || fields?.duedate || fields?.target_end || (fields?.updated ? fields.updated.substring(0, 10) : ''),
       parentKey: fields?.parent?.key || '',
       parentTitle: fields?.parent?.fields?.summary || '',
       labels: fields?.labels || [],

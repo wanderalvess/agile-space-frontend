@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
 import { useDailyStore } from '@/store/useDailyStore';
 import { CheckCircle2, Lock } from 'lucide-react';
 
 export function TimesheetWidget() {
   const router = useRouter();
-  const { user, firestore } = useFirebase();
+  const { userProfile } = useUserContext();
+  const effectiveUserId = userProfile?.id || userProfile?.email || 'user';
   const {
     worklogs,
     weeklyWorklogs,
@@ -20,9 +21,7 @@ export function TimesheetWidget() {
 
   const [dateString, setDateString] = useState('');
 
-  // Data de hoje calculada localmente — não usa o `selectedDate` do store,
-  // que é compartilhado com o navegador de dias do Daily Flow e fica preso
-  // no último dia visto lá em vez de sempre mostrar "hoje" aqui no widget.
+  // Data de hoje calculada localmente
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
@@ -38,11 +37,11 @@ export function TimesheetWidget() {
   }, []);
 
   useEffect(() => {
-    if (firestore && user) {
-      fetchWorklogs(firestore, user.uid, todayStr);
-      fetchWeeklyWorklogs(firestore, user.uid);
+    if (effectiveUserId) {
+      fetchWorklogs(effectiveUserId, todayStr);
+      fetchWeeklyWorklogs(effectiveUserId);
     }
-  }, [firestore, user, todayStr, fetchWorklogs, fetchWeeklyWorklogs]);
+  }, [effectiveUserId, todayStr]);
 
   // Calculate real hours for today
   const todayMinutes = worklogs.reduce((acc, log) => acc + log.durationMinutes, 0);
@@ -148,7 +147,7 @@ export function TimesheetWidget() {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() => router.push('/daily-flow')}
+          onClick={() => router.push('/squad?tab=daily')}
           className="w-full mt-4 text-[10px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 h-10 rounded-xl transition-all shrink-0"
         >
           Ver Worklog Completo

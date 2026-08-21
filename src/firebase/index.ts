@@ -35,10 +35,25 @@ export function initializeFirebase() {
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
+  let auth: any = null;
+  let firestore: any = null;
+
+  try {
+    auth = getAuth(firebaseApp);
+  } catch (err) {
+    console.warn('Firebase Auth initialization warning:', err);
+  }
+
+  try {
+    firestore = getFirestore(firebaseApp);
+  } catch (err) {
+    console.warn('Firebase Firestore initialization warning:', err);
+  }
+
   return {
     firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
+    auth,
+    firestore
   };
 }
 

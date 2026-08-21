@@ -24,6 +24,7 @@ import { KnowledgeGuide } from '@/components/knowledge/KnowledgeGuide';
 import { HelpCircle } from 'lucide-react';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { useUserContext } from '@/context/UserContext';
 
 export default function KnowledgeLayout({
   children,
@@ -31,6 +32,7 @@ export default function KnowledgeLayout({
   children: React.ReactNode;
 }) {
   const { user, isUserLoading } = useFirebase();
+  const { userProfile, isInitializing } = useUserContext();
   const router = useRouter();
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -43,8 +45,10 @@ export default function KnowledgeLayout({
     { label: 'Ajustes', path: '/knowledge/settings', icon: Settings },
   ];
 
+  const effectiveUser = user || userProfile;
+
   // Se não está logado, renderiza apenas o children (a page.tsx cuida da tela de "Identidade Necessária")
-  if (!user) {
+  if (!effectiveUser && !isInitializing && !isUserLoading) {
     return <>{children}</>;
   }
 

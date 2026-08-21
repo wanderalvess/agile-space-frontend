@@ -64,6 +64,7 @@ export function FirebaseErrorListener() {
   const { firestore, user } = useFirebase();
 
   useEffect(() => {
+    if (!user || !firestore) return;
     const report = (
       key: string,
       content: string,

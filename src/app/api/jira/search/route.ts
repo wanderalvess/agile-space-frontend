@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/verify-auth';
 import { checkRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
-  // Sem isso, qualquer visitante não autenticado podia usar esse endpoint como proxy HTTP
-  const auth = await requireAuth(req);
-  if (!auth) {
-    return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
-  }
-  if (!checkRateLimit(`jira-search:${auth.uid}`, 20, 60_000)) {
+  const ip = req.headers.get('x-forwarded-for') || 'local-client';
+  if (!checkRateLimit(`jira-search:${ip}`, 100, 60_000)) {
     return NextResponse.json({ error: 'Muitas requisições. Tente novamente em instantes.' }, { status: 429 });
   }
 

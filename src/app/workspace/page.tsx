@@ -65,12 +65,11 @@ import { useUserContext } from '@/context/UserContext';
 import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { RoomHeader } from '@/components/layout/RoomHeader';
+import { Badge } from '@/components/ui/badge';
 import { collection, query, where } from 'firebase/firestore';
 import { workspaceApi } from '@/app/workspace/api';
 import Link from 'next/link';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
-import { PREDEFINED_AVATARS, GlobalRole } from '@/lib/types';
 
 // Workspace V3 Components & Types
 import { KanbanBoard } from '@/components/workspace/KanbanBoard';
@@ -86,17 +85,19 @@ export default function WorkspacePage() {
   const { firestore, auth, user, isUserLoading } = useFirebase();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const { toast } = useToast();
-  const { userProfile, updateProfile, requestIdentity } = useUserContext();
+  const { userProfile, updateProfile, requestIdentity, isInitializing } = useUserContext();
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
+
+  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid || '';
 
   // Authentication Guard & Page Title
   useEffect(() => {
     document.title = `Meu Espaço | Espaço Ágil`;
-    if (!isUserLoading && !user) {
+    if (!isInitializing && !userProfile && !user) {
       requestIdentity();
     }
-  }, [user, isUserLoading, requestIdentity]);
+  }, [userProfile, user, isInitializing, requestIdentity]);
 
   const [cards, setCards] = useState<KanbanCardData[]>([]);
   const [isKanbanLoading, setIsKanbanLoading] = useState(true);
@@ -107,13 +108,13 @@ export default function WorkspacePage() {
   const [userLinks, setUserLinks] = useState<any[]>([]);
 
   // Firestore Queries para Históricos colaborativos
-  const pokerHistoryQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'rooms'), where('participantIds', 'array-contains', user.uid)) : null, [firestore, user]);
+  const pokerHistoryQuery = useMemoFirebase(() => (firestore && effectiveUserId) ? query(collection(firestore, 'rooms'), where('participantIds', 'array-contains', effectiveUserId)) : null, [firestore, effectiveUserId]);
   const { data: pokerHistory, isLoading: isLoadingPoker } = useCollection<any>(pokerHistoryQuery);
 
-  const retroHistoryQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'retro_boards'), where('participantIds', 'array-contains', user.uid)) : null, [firestore, user]);
+  const retroHistoryQuery = useMemoFirebase(() => (firestore && effectiveUserId) ? query(collection(firestore, 'retro_boards'), where('participantIds', 'array-contains', effectiveUserId)) : null, [firestore, effectiveUserId]);
   const { data: retroHistory, isLoading: isLoadingRetro } = useCollection<any>(retroHistoryQuery);
 
-  const healthHistoryQuery = useMemoFirebase(() => (firestore && user) ? query(collection(firestore, 'health_checks'), where('participantIds', 'array-contains', user.uid)) : null, [firestore, user]);
+  const healthHistoryQuery = useMemoFirebase(() => (firestore && effectiveUserId) ? query(collection(firestore, 'health_checks'), where('participantIds', 'array-contains', effectiveUserId)) : null, [firestore, effectiveUserId]);
   const { data: healthHistory, isLoading: isLoadingHealth } = useCollection<any>(healthHistoryQuery);
 
   const mergedHistory = useMemo(() => {
@@ -127,16 +128,16 @@ export default function WorkspacePage() {
   }, [pokerHistory, retroHistory, healthHistory, isLoadingPoker, isLoadingRetro, isLoadingHealth]);
 
   const loadWorkspaceData = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     try {
       const [cardsList, notesList, linksList] = await Promise.all([
-        workspaceApi.getKanbanCards(user.uid),
-        workspaceApi.getStickyNotes(user.uid),
-        workspaceApi.getQuickLinks(user.uid)
+        workspaceApi.getKanbanCards(effectiveUserId),
+        workspaceApi.getStickyNotes(effectiveUserId),
+        workspaceApi.getQuickLinks(effectiveUserId)
       ]);
-      setCards(cardsList);
-      setNotes(notesList);
-      setUserLinks(linksList);
+      setCards(cardsList || []);
+      setNotes(notesList || []);
+      setUserLinks(linksList || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -146,10 +147,10 @@ export default function WorkspacePage() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       loadWorkspaceData();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const triggerSavingIndicator = () => {
     setIsSaving(true);
@@ -170,7 +171,15 @@ export default function WorkspacePage() {
   const [currentExportedAt, setCurrentExportedAt] = useState<string | undefined>();
 
   // Guard de Autenticação Estrito (Rule of Hooks Compliant)
-  if (isUserLoading || !user) {
+  if (isInitializing) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-white dark:bg-slate-950">
+        <AgileSpinner size="lg" variant="primary" title="Carregando..." subtitle="Carregando dados do seu Espaço." />
+      </div>
+    );
+  }
+
+  if (!userProfile && !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white dark:bg-slate-950">
         <AgileSpinner size="lg" variant="primary" title="Autenticação Requerida" subtitle="Por favor, conecte-se para acessar o seu Espaço Privado." />
@@ -180,11 +189,12 @@ export default function WorkspacePage() {
 
   // Handlers Kanban
   const handleUpdateTaskStatus = async (id: string, newStatus: KanbanStatus) => {
+    if (!effectiveUserId) return;
     triggerSavingIndicator();
     // Optimistic Update
     setCards(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
     try {
-      await workspaceApi.saveKanbanCard(user.uid, { id, status: newStatus });
+      await workspaceApi.saveKanbanCard(effectiveUserId, { id, status: newStatus });
     } catch (e) {
       console.error(e);
       loadWorkspaceData();
@@ -215,7 +225,7 @@ export default function WorkspacePage() {
   };
 
   const handleSaveTask = async () => {
-    if (!newTaskTitle.trim() || !user) return;
+    if (!newTaskTitle.trim() || !effectiveUserId) return;
     triggerSavingIndicator();
     const taskData = {
       id: editingCardId || undefined,
@@ -228,7 +238,7 @@ export default function WorkspacePage() {
     };
 
     try {
-      await workspaceApi.saveKanbanCard(user.uid, taskData as any);
+      await workspaceApi.saveKanbanCard(effectiveUserId, taskData as any);
       loadWorkspaceData();
     } catch (e) {
       console.error(e);
@@ -250,10 +260,10 @@ export default function WorkspacePage() {
 
   // Handlers Sticky Notes
   const handleAddNote = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     triggerSavingIndicator();
     try {
-      await workspaceApi.saveStickyNote(user.uid, {
+      await workspaceApi.saveStickyNote(effectiveUserId, {
         content: '',
         color: 'bg-amber-50 border-amber-200/60 text-amber-900',
         isPinned: false
@@ -265,11 +275,12 @@ export default function WorkspacePage() {
   };
 
   const handleUpdateNote = async (id: string, updates: Partial<StickyNote>) => {
+    if (!effectiveUserId) return;
     triggerSavingIndicator();
     // Optimistic Update
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
     try {
-      await workspaceApi.saveStickyNote(user.uid, { id, ...updates });
+      await workspaceApi.saveStickyNote(effectiveUserId, { id, ...updates });
     } catch (e) {
       console.error(e);
       loadWorkspaceData();
@@ -289,14 +300,14 @@ export default function WorkspacePage() {
   };
 
   const handleSendNoteToKanban = async (note: StickyNote) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     triggerSavingIndicator();
     const lines = note.content.split('\n');
     const title = lines[0].trim() || 'Rascunho de Nota';
     const description = lines.slice(1).join('\n').trim();
 
     try {
-      await workspaceApi.saveKanbanCard(user.uid, {
+      await workspaceApi.saveKanbanCard(effectiveUserId, {
         title,
         description: description || null,
         status: 'todo',
@@ -318,10 +329,10 @@ export default function WorkspacePage() {
   };
 
   const handleAddLink = async (name: string, url: string, iconType: string, color: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     triggerSavingIndicator();
     try {
-      await workspaceApi.saveQuickLink(user.uid, {
+      await workspaceApi.saveQuickLink(effectiveUserId, {
         title: name,
         url,
       });
@@ -342,11 +353,11 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className="flex flex-col flex-1 bg-[#fafafa] h-dvh overflow-hidden relative font-sans selection:bg-primary/30">
-      {/* ELITE MESH GRADIENT LAYER */}
-      <div className="fixed inset-0 -z-10 bg-[#fafafa] overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-primary/5 rounded-full blur-[160px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-500/5 rounded-full blur-[140px] animate-pulse" style={{ animationDelay: '2s' }}></div>
+    <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
+      {/* Background Mesh Glow */}
+      <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
       <CommandPalette
@@ -363,283 +374,178 @@ export default function WorkspacePage() {
         }}
       />
 
-      <header className="sticky top-0 z-50 h-16 border-b border-slate-100 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0 select-none">
-        <div className="w-full h-full flex items-center justify-between px-6 md:px-12">
-          <div className="flex items-center gap-5">
-            <Button
-              onClick={() => router.push('/')}
-              variant="ghost"
-              className="h-10 px-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all flex items-center gap-2 group"
-            >
-              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Hub</span>
-            </Button>
-
-            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('home')}>
-              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-                <LayoutGrid className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-xl font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
-                  Meu <span className="text-primary not-italic">Espaço</span>
-                </h1>
-                <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none mt-0.5">
-                  <Cloud className="h-2.5 w-2.5 text-emerald-500 animate-pulse" />
-                  <span>Espaço Ágil</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div
-              onClick={() => setIsCommandPaletteOpen(true)}
-              className="hidden md:flex items-center gap-3 px-4 h-10 rounded-xl bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-600 dark:hover:text-slate-350 transition-all group"
-            >
-              <Search className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
-              <span>Pesquisar...</span>
-              <kbd className="ml-4 pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-1.5 font-mono text-[9px] font-medium text-slate-400 dark:text-slate-500 opacity-100">
-                <span className="text-[10px]">⌘</span>K
-              </kbd>
-            </div>
-
-            <div className={cn(
-              "hidden sm:flex items-center gap-2 px-3 h-8 rounded-full bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest transition-all duration-500",
-              isSaving ? "text-primary border-primary/20 bg-primary/5 shadow-sm" : "text-slate-400 dark:text-slate-500"
-            )}>
-              {isSaving ? <AgileSpinner size="sm" /> : <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />}
-              {isSaving ? "Sincronizando..." : "Conectado"}
-            </div>
-
-            <Separator orientation="vertical" className="h-6 hidden md:block bg-slate-250 dark:bg-slate-800" />
-
-            <div className="flex items-center gap-2.5">
-              {userProfile?.role === 'admin' && (
+      <div className="w-full flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
+          {/* PADRONIZAÇÃO DO HEADER */}
+          <RoomHeader
+            title="Meu Espaço de Trabalho"
+            toolIcon={<LayoutGrid className="h-4 w-4" />}
+            toolColorClass="text-primary"
+            onOpenFeedback={() => setFeedbackSignal(Date.now())}
+            badge={<Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">V3 WORKSPACE</Badge>}
+            actions={
+              <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => router.push('/admin')}
-                  className="h-9 px-3 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-xl transition-all"
+                  onClick={() => setIsCommandPaletteOpen(true)}
+                  className="hidden md:flex h-8 px-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-[10px] font-bold gap-2 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 transition-colors"
                 >
-                  <ShieldCheck className="h-4 w-4 mr-2" />
-                  <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Admin</span>
+                  <Search className="h-3.5 w-3.5" />
+                  <span>Busca</span>
+                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1 font-mono text-[8px] font-medium text-slate-400">
+                    ⌘K
+                  </kbd>
                 </Button>
-              )}
+                {isSaving && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-wider">
+                    <AgileSpinner size="sm" />
+                    <span>Salvando...</span>
+                  </div>
+                )}
+              </div>
+            }
+          />
 
-              <div className="flex items-center gap-2.5 px-3 py-1.5 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md rounded-2xl border border-white/60 dark:border-slate-800/80 shadow-sm text-slate-700 dark:text-slate-350">
-                <NiceAvatar
-                  className="w-7 h-7 rounded-full border border-primary/20 bg-primary/10 shadow-sm"
-                  {...(PREDEFINED_AVATARS[userProfile?.avatarSeed || ''] || genConfig(userProfile?.avatarSeed || userProfile?.email || userProfile?.name || 'user'))}
+          {/* PADRONIZAÇÃO DAS ABAS */}
+          <div className="w-full bg-white dark:bg-slate-900/40 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50 sticky top-12 z-[40]">
+            <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2.5 overflow-x-auto no-scrollbar">
+              <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl h-auto gap-1.5 inline-flex w-auto min-w-full sm:min-w-0 flex-nowrap items-center border border-slate-200/50 dark:border-slate-800/50">
+                {[
+                  { id: 'home', label: 'Início', icon: <Home className="h-3.5 w-3.5" /> },
+                  { id: 'kanban', label: 'Kanban', icon: <LayoutGrid className="h-3.5 w-3.5" /> },
+                  { id: 'notes', label: 'Notas', icon: <StickyNoteIcon className="h-3.5 w-3.5" /> },
+                  { id: 'history', label: 'Histórico', icon: <History className="h-3.5 w-3.5" /> },
+                  { id: 'profile', label: 'Perfil', icon: <UserIcon className="h-3.5 w-3.5" /> },
+                  { id: 'connectivity', label: 'Conectividade', icon: <Link2 className="h-3.5 w-3.5" /> },
+                  { id: 'links', label: 'Atalhos', icon: <ExternalLink className="h-3.5 w-3.5" /> },
+                  { id: 'prompts', label: 'Prompts', icon: <BrainCircuit className="h-3.5 w-3.5" /> },
+                  { id: 'daily', label: 'Daily Helper', icon: <ClipboardList className="h-3.5 w-3.5" /> },
+                  { id: 'snippets', label: 'Snippets', icon: <Code className="h-3.5 w-3.5" /> },
+                ].map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-xl px-4 py-2 text-[10.5px] font-black uppercase tracking-wider transition-all gap-2 flex items-center border border-transparent data-[state=active]:border-slate-200/80 dark:data-[state=active]:border-slate-800 whitespace-nowrap shrink-0 justify-center"
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+          </div>
+
+          {/* ÁREA DE CONTEÚDO COM CONTAINER MAX-W-7XL */}
+          <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+            <main className="w-full space-y-6">
+              <TabsContent value="home" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <BentoDashboard
+                  tasks={cards || []}
+                  history={mergedHistory}
+                  notes={notes || []}
+                  userProfile={userProfile}
+                  onNavigate={(tab) => setActiveTab(tab)}
+                  onAddTask={() => openTaskModal('todo')}
+                  onAddNote={handleAddNote}
+                  onOpenFeedback={() => setFeedbackSignal(Date.now())}
                 />
-                <span className="text-[10px] font-black uppercase tracking-tight text-slate-700 dark:text-slate-300">{userProfile?.name?.split(' ')[0]}</span>
-              </div>
+              </TabsContent>
 
-              <Separator orientation="vertical" className="h-6 hidden md:block bg-slate-250 dark:bg-slate-800" />
+              <TabsContent value="kanban" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <KanbanBoard
+                  cards={cards || []}
+                  isLoading={isKanbanLoading}
+                  onUpdateStatus={handleUpdateTaskStatus}
+                  onEditCard={(card) => openTaskModal(card.status, card)}
+                  onAddTask={openTaskModal}
+                />
+              </TabsContent>
 
-              <ThemeToggle className="h-9 w-9 rounded-xl border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:text-slate-300 dark:hover:text-slate-100" />
+              <TabsContent value="notes" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <StickyNotes
+                  notes={notes || []}
+                  isLoading={isNotesLoading}
+                  onAdd={handleAddNote}
+                  onUpdate={handleUpdateNote}
+                  onDelete={handleDeleteNote}
+                  onConvertToTask={handleSendNoteToKanban}
+                />
+              </TabsContent>
 
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 dark:text-slate-500 hover:text-primary dark:hover:text-primary rounded-xl"><HelpCircle className="h-4 w-4" /></Button>
-                </SheetTrigger>
-                <SheetContent className="sm:max-w-xl flex flex-col p-0 bg-white dark:bg-slate-950 border-l border-slate-100 dark:border-slate-800">
-                  <SheetHeader className="shrink-0 border-b border-slate-100 dark:border-slate-800 p-8 bg-slate-50/50 dark:bg-slate-900/50">
-                    <SheetTitle className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-white">Guia <span className="text-primary not-italic">V3</span></SheetTitle>
-                    <SheetDescription className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-2">Sua central privada de engenharia.</SheetDescription>
-                  </SheetHeader>
-                  <ScrollArea className="flex-1 p-8 space-y-10">
-                    <section className="space-y-4">
-                      <h3 className="font-black text-[11px] uppercase tracking-widest text-primary flex items-center gap-3"><Lock className="h-4 w-4" /> Privacidade</h3>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">Seu Workspace é privado. Kanban e Notas são visíveis apenas para você.</p>
-                    </section>
-                    <section className="space-y-4">
-                      <h3 className="font-black text-[11px] uppercase tracking-widest text-primary flex items-center gap-3"><CloudLightning className="h-4 w-4" /> Sincronização</h3>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed">Dados salvos instantaneamente via Firebase Realtime Updates.</p>
-                    </section>
-                  </ScrollArea>
-                </SheetContent>
-              </Sheet>
-            </div>
-          </div>
-        </div>
-      </header>
+              <TabsContent value="history" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <HistoryTimeline
+                  items={mergedHistory}
+                  isLoading={isLoadingPoker || isLoadingRetro || isLoadingHealth}
+                  userId={effectiveUserId}
+                />
+              </TabsContent>
 
-      <main className="flex-1 flex flex-col overflow-hidden px-4 md:px-10 pb-2 w-full">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full space-y-0">
-          <div className="h-12 border-b border-slate-100 dark:border-slate-850 bg-white/60 dark:bg-slate-950/40 backdrop-blur-lg shrink-0 flex items-center gap-1 overflow-x-auto no-scrollbar">
-            <TabsList className="bg-transparent h-full p-0 rounded-none shadow-none border-none w-auto">
-              <TabsTrigger value="home" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <Home className="h-4 w-4" />
-                Início
-              </TabsTrigger>
-              <TabsTrigger value="kanban" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <LayoutGrid className="h-4 w-4" />
-                Kanban
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <StickyNoteIcon className="h-4 w-4" />
-                Notas
-              </TabsTrigger>
-              <TabsTrigger value="history" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <History className="h-4 w-4" />
-                Histórico
-              </TabsTrigger>
-              <TabsTrigger value="profile" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <UserIcon className="h-4 w-4" />
-                Perfil
-              </TabsTrigger>
-              <TabsTrigger value="connectivity" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <Link2 className="h-4 w-4" />
-                Conectividade
-              </TabsTrigger>
-              <TabsTrigger value="links" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <Link2 className="h-4 w-4" />
-                Atalhos
-              </TabsTrigger>
-              <TabsTrigger value="prompts" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <BrainCircuit className="h-4 w-4" />
-                Prompts
-              </TabsTrigger>
-              <TabsTrigger value="daily" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <ClipboardList className="h-4 w-4" />
-                Daily Helper
-              </TabsTrigger>
-              <TabsTrigger value="snippets" className="relative text-[10px] font-black uppercase tracking-widest px-6 h-full gap-2.5 rounded-none border-none shadow-none bg-transparent data-[state=active]:text-slate-950 dark:data-[state=active]:text-white text-slate-500 dark:text-slate-450 hover:text-slate-900 dark:hover:text-slate-100 transition-all data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-6 data-[state=active]:after:right-6 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary">
-                <Code className="h-4 w-4" />
-                Snippets
-              </TabsTrigger>
-            </TabsList>
-          </div>
+              <TabsContent value="profile" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <ProfileSettings
+                  profile={userProfile}
+                  onUpdate={handleUpdateProfile}
+                />
+              </TabsContent>
 
-          <TabsContent value="home" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <BentoDashboard
-              tasks={cards || []}
-              history={mergedHistory}
-              notes={notes || []}
-              userProfile={userProfile}
-              onNavigate={(tab) => setActiveTab(tab)}
-              onAddTask={() => openTaskModal('todo')}
-              onAddNote={handleAddNote}
-              onOpenFeedback={() => setFeedbackSignal(Date.now())}
-            />
-          </TabsContent>
-
-          <TabsContent value="kanban" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <KanbanBoard
-              cards={cards || []}
-              isLoading={isKanbanLoading}
-              onUpdateStatus={handleUpdateTaskStatus}
-              onEditCard={(card) => openTaskModal(card.status, card)}
-              onAddTask={openTaskModal}
-            />
-          </TabsContent>
-
-          <TabsContent value="notes" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <StickyNotes
-              notes={notes || []}
-              isLoading={isNotesLoading}
-              onAdd={handleAddNote}
-              onUpdate={handleUpdateNote}
-              onDelete={handleDeleteNote}
-              onConvertToTask={handleSendNoteToKanban}
-            />
-          </TabsContent>
-
-          <TabsContent value="history" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 p-4 md:px-12 md:pb-12 md:pt-3 overflow-y-auto no-scrollbar flex flex-col justify-between min-h-0">
-              <HistoryTimeline
-                items={mergedHistory}
-                isLoading={isLoadingPoker || isLoadingRetro || isLoadingHealth}
-                userId={user?.uid || ''}
-              />
-              <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} className="mt-8 mx-0 md:mx-0 lg:mx-0" />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="profile" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 p-4 md:px-12 md:pb-12 md:pt-3 overflow-y-auto no-scrollbar flex flex-col justify-between min-h-0">
-              <ProfileSettings
-                profile={userProfile}
-                onUpdate={handleUpdateProfile}
-              />
-              <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} className="mt-8 mx-0 md:mx-0 lg:mx-0" />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="connectivity" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 p-4 md:px-12 md:pb-12 md:pt-3 bg-slate-50/30 rounded-[3rem] border border-slate-100 overflow-y-auto no-scrollbar flex flex-col justify-between min-h-0">
-              <div className="w-full mx-auto">
+              <TabsContent value="connectivity" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
                 <ConnectivitySettings />
-              </div>
-              <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} className="mt-8 mx-0 md:mx-0 lg:mx-0" />
-            </div>
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="links" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 p-4 md:px-12 md:pb-12 md:pt-3 bg-slate-50/30 rounded-[3rem] border border-slate-100 overflow-y-auto no-scrollbar flex flex-col justify-between min-h-0">
-              <div className="w-full mx-auto">
+              <TabsContent value="links" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
                 <QuickLinks links={userLinks || []} onAddLink={handleAddLink} onDeleteLink={handleDeleteLink} />
-              </div>
-              <Footer onOpenFeedback={handleOpenFeedback} className="mt-8 mx-0 md:mx-0 lg:mx-0" />
-            </div>
-          </TabsContent>
+              </TabsContent>
 
-          <TabsContent value="prompts" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 p-4 md:px-12 md:pb-12 md:pt-3 overflow-y-auto no-scrollbar flex flex-col justify-between min-h-0">
-              <MyPrompts userProfile={userProfile} />
-              <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} className="mt-8 mx-0 md:mx-0 lg:mx-0" />
-            </div>
-          </TabsContent>
+              <TabsContent value="prompts" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <MyPrompts userProfile={userProfile} />
+              </TabsContent>
 
-          <TabsContent value="daily" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <DailyHelper userProfile={userProfile} />
-            </div>
-          </TabsContent>
+              <TabsContent value="daily" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <DailyHelper userProfile={userProfile} />
+              </TabsContent>
 
-          <TabsContent value="snippets" className="flex-1 m-0 overflow-hidden outline-none data-[state=active]:flex data-[state=active]:flex-col min-h-0 animate-in fade-in duration-500">
-            <div className="flex-1 p-4 md:px-12 md:pb-12 md:pt-3 overflow-y-auto no-scrollbar flex flex-col justify-between min-h-0">
-              <SnippetLibrary />
-              <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} className="mt-8 mx-0 md:mx-0 lg:mx-0" />
-            </div>
-          </TabsContent>
+              <TabsContent value="snippets" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+                <SnippetLibrary />
+              </TabsContent>
+            </main>
+          </div>
         </Tabs>
-      </main>
+      </div>
 
       {/* TASK MODAL */}
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] border-none shadow-2xl p-0 overflow-hidden bg-white/95 backdrop-blur-xl">
-          <DialogHeader className="p-8 pb-4 border-b border-slate-100 bg-slate-900 text-white">
-            <DialogTitle className="text-2xl font-black font-headline uppercase tracking-tighter italic text-white">
+        <DialogContent className="sm:max-w-[500px] rounded-3xl border-none shadow-2xl p-0 overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
+          <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-900 text-white">
+            <DialogTitle className="text-xl font-black font-headline uppercase tracking-tight italic text-white">
               {editingCardId ? 'Ajustar' : 'Nova'} <span className="text-primary not-italic">Tarefa</span>
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-6 p-8">
+          <div className="grid gap-5 p-6">
             {currentOriginLink && (
-              <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl flex items-center justify-between">
+              <div className="p-3.5 bg-primary/5 border border-primary/10 rounded-2xl flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase text-primary tracking-widest">Vinculado a Cerimônia</span>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="h-9 text-primary hover:bg-primary/10 font-black text-[10px] uppercase rounded-xl">
+                <Button asChild variant="ghost" size="sm" className="h-8 text-primary hover:bg-primary/10 font-black text-[9px] uppercase rounded-xl">
                   <Link href={currentOriginLink} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="mr-2 h-3.5 w-3.5" /> Ver Sala
+                    <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Ver Sala
                   </Link>
                 </Button>
               </div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título da Atividade</Label>
-              <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} className="h-12 rounded-xl font-bold border-2 focus-visible:ring-primary/20" />
+              <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} className="h-11 rounded-xl font-bold border-2 focus-visible:ring-primary/20" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrição / Detalhes</Label>
-              <Textarea value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} className="min-h-[100px] rounded-xl text-sm border-2 focus-visible:ring-primary/20" />
+              <Textarea value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} className="min-h-[90px] rounded-xl text-sm border-2 focus-visible:ring-primary/20" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Urgência</Label>
                 <Select value={newTaskPriority} onValueChange={(v: KanbanPriority) => setNewTaskPriority(v)}>
-                  <SelectTrigger className="h-11 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl">
                     <SelectItem value="baixa" className="text-xs font-bold">Baixa</SelectItem>
                     <SelectItem value="media" className="text-xs font-bold text-blue-500">Média</SelectItem>
@@ -648,10 +554,10 @@ export default function WorkspacePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Status</Label>
                 <Select value={newTaskStatus} onValueChange={(v: KanbanStatus) => setNewTaskStatus(v)}>
-                  <SelectTrigger className="h-11 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl">
                     <SelectItem value="todo" className="text-xs font-bold">A Fazer</SelectItem>
                     <SelectItem value="doing" className="text-xs font-bold">Em Andamento</SelectItem>
@@ -661,15 +567,17 @@ export default function WorkspacePage() {
               </div>
             </div>
           </div>
-          <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100">
-            {editingCardId && <Button variant="ghost" onClick={handleDeleteTask} className="sm:mr-auto text-destructive hover:bg-rose-50 font-black text-[10px] uppercase tracking-widest">Excluir</Button>}
+          <DialogFooter className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+            {editingCardId && <Button variant="ghost" onClick={handleDeleteTask} className="sm:mr-auto text-destructive hover:bg-rose-50 dark:hover:bg-rose-950/30 font-black text-[10px] uppercase tracking-widest">Excluir</Button>}
             <Button variant="ghost" onClick={() => setIsTaskModalOpen(false)} className="font-black text-[10px] uppercase tracking-widest">Cancelar</Button>
-            <Button onClick={handleSaveTask} disabled={!newTaskTitle.trim()} className="h-12 px-8 font-black text-[10px] uppercase tracking-widest rounded-xl bg-slate-900 text-white shadow-lg">Salvar Tarefa</Button>
+            <Button onClick={handleSaveTask} disabled={!newTaskTitle.trim()} className="h-10 px-6 font-black text-[10px] uppercase tracking-widest rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md">Salvar Tarefa</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <FeedbackWidget toolName="Espaço Ágil - Meu Espaço V3" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
+      {/* RODAPÉ GLOBAL */}
+      <Footer className="mt-8 shrink-0" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
+      <FeedbackWidget toolName="Espaço Ágil - Meu Espaço" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
     </div>
   );
 }

@@ -43,6 +43,8 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
   
+  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrivate, setIsPrivate] = useState(true); // Default to private
   const [hasBlocker, setHasBlocker] = useState(false);
@@ -59,32 +61,32 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
 
   // Query for user's past reports
   const reportsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !effectiveUserId) return null;
     return query(
       collection(firestore, 'daily_checkins'),
-      where('userId', '==', user.uid),
+      where('userId', '==', effectiveUserId),
       orderBy('date', 'desc')
     );
-  }, [firestore, user]);
+  }, [firestore, effectiveUserId]);
 
   const { data: myReports, isLoading } = useCollection<DailyCheckin>(reportsQuery);
 
   // Query focus sessions from Firestore to dynamically load yesterday's data
   const sessionsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !effectiveUserId) return null;
     return query(
-      collection(firestore, 'users', user.uid, 'focus_sessions'),
+      collection(firestore, 'users', effectiveUserId, 'focus_sessions'),
       orderBy('createdAt', 'desc')
     );
-  }, [firestore, user]);
+  }, [firestore, effectiveUserId]);
 
   const { data: focusSessions } = useCollection<any>(sessionsQuery);
 
   // Query kanban cards to look up task titles
   const kanbanQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'users', user.uid, 'kanban'));
-  }, [firestore, user]);
+    if (!firestore || !effectiveUserId) return null;
+    return query(collection(firestore, 'users', effectiveUserId, 'kanban'));
+  }, [firestore, effectiveUserId]);
 
   const { data: kanbanCards } = useCollection<any>(kanbanQuery);
 
@@ -187,7 +189,7 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
   };
 
   const handleSaveReport = async () => {
-    if (!firestore || !user || !userProfile) return;
+    if (!firestore || !effectiveUserId || !userProfile) return;
     if (!formData.yesterday.trim() || !formData.today.trim()) {
       toast({ title: "Ops!", description: "Preencha o que fez ontem e fará hoje.", variant: "destructive" });
       return;
@@ -196,11 +198,11 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
     setIsSubmitting(true);
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const docId = editingReport?.id || `${user.uid}_${dateStr}_${Date.now()}`;
+      const docId = editingReport?.id || `${effectiveUserId}_${dateStr}_${Date.now()}`;
       
       const checkinDoc: DailyCheckin = {
         id: docId,
-        userId: user.uid,
+        userId: effectiveUserId,
         userName: userProfile.name,
         userRole: (userProfile.role as GlobalRole) || 'Developer',
         squadId: userProfile.squadId || 'Geral',

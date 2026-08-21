@@ -19,11 +19,13 @@ export type GlobalRole =
   | 'Scrum Master'
   | 'Product Owner'
   | 'Tech Lead'
+  | 'People Lead'
+  | 'Tribe Lead'
+  | 'Agile Coach'
   | 'Developer'
   | 'QA'
   | 'Designer'
   | 'UX'
-  | 'People Lead'
   | 'SME'
   | 'Stakeholder / Observador'
   // Variantes/rótulos em PT usados nos modais de perfil e nos switches de
@@ -38,15 +40,16 @@ export type GlobalRole =
   | 'user';
 
 export const ROLES: GlobalRole[] = [
-  'Agile Master',
-  'Scrum Master',
   'Product Owner',
+  'People Lead',
+  'Agile Master',
   'Tech Lead',
+  'Tribe Lead',
+  'Agile Coach',
   'Developer',
   'QA',
   'Designer',
   'UX',
-  'People Lead',
   'SME'
 ];
 
@@ -812,20 +815,22 @@ export type ActionPlanTask = {
 // Quem edita config e dispara sync (manual, v1 e v2) — nunca muda com o
 // papel de leitura, só Tech Lead/Scrum Master do PRÓPRIO squad (ver
 // firestore.rules isSquadLeadership).
-export const SQUAD_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Master'];
+export const SQUAD_ADMIN_ROLES: GlobalRole[] = [
+  'Tech Lead', 'Scrum Master', 'Agile Master', 'Product Owner', 'People Lead', 'Tribe Lead', 'Agile Coach', 'admin'
+];
 
 // v2: quem pode ver dado nominal — backlog por responsável, ranking,
 // capacidade/alocação por pessoa. Mais amplo que SQUAD_ADMIN_ROLES (PO e
 // liderança leem, mas não editam config nem disparam sync). Dev/QA nunca
 // entram aqui — o objetivo explícito é não virar leaderboard visível ao time.
 export const SQUAD_LEADERSHIP_VIEW_ROLES: GlobalRole[] = [
-  'Product Owner', 'Tech Lead', 'Scrum Master', 'People Lead', 'Agile Master'
+  'Product Owner', 'Tech Lead', 'Scrum Master', 'People Lead', 'Agile Master', 'Tribe Lead', 'Agile Coach', 'admin'
 ];
 
 // Gestão de pessoas (roster + capacidade individual) — People Lead é quem
 // pediu essa responsabilidade explicitamente, TL/SM entram também porque já
 // tocam config/sync do squad e não faz sentido travar capacidade sem eles.
-export const SQUAD_PEOPLE_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Master', 'People Lead'];
+export const SQUAD_PEOPLE_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Master', 'People Lead', 'Agile Master', 'Product Owner', 'Tribe Lead', 'admin'];
 
 export type SquadConfig = {
   squadId: string; // mesmo valor de userProfile.squadId (ex: 'MISSI', 'Varejo')
@@ -845,6 +850,9 @@ export type SquadConfig = {
   // dono (ver firestore.rules), então o sync não consegue ler o dailyHours
   // pessoal de cada membro pra comparar contra a hora lançada dele.
   defaultDailyCapacityHours?: number;
+  capacityCalculationMethod?: 'STANDARD' | 'JIRA_WORKLOG_AVERAGE' | 'CUSTOM_FORMULA' | string;
+  capacityJql?: string;
+  capacityFormula?: string;
   // Customfield do campo "Sprint" (Greenhopper/Jira Software) — ao contrário
   // dos campos de tempo (nativos, universais), o ID do campo Sprint varia por
   // instância Jira (ex: customfield_10005 no DDWMISSI). Sem isso configurado,
@@ -902,6 +910,7 @@ export type SquadSprintHistoryEntry = {
 // (história é só o pai; codificação/code review/teste é que carregam hora).
 export type SquadIssueSnapshot = {
   key: string;
+  title?: string;
   type: string;
   isBug: boolean;
   status: string;
@@ -912,6 +921,8 @@ export type SquadIssueSnapshot = {
   updatedAtJira: string; // campo `updated` do Jira, usado pra calcular staleSinceDays
   staleSinceDays: number;
   dueDate: string; // campo `duedate` do Jira (YYYY-MM-DD), ou '' se não tem prazo
+  targetStart?: string; // data de início estimada/target (YYYY-MM-DD)
+  targetEnd?: string;   // data de término estimada/target (YYYY-MM-DD)
   assigneeId: string; // accountId/key do Jira, ou '' se não atribuída
   assigneeName: string;
   parentKey: string; // campo nativo `parent` do Jira — issue pai (história), ou '' se não tem
@@ -1077,3 +1088,32 @@ export type SquadPanel = {
   resultRows?: SquadPanelResultRow[];
   resultIssues?: SquadPanelIssueRow[]; // só pra chartType 'table', capado (ver PANEL_TABLE_LIMIT no service)
 };
+
+export interface SquadMember {
+  dbId: string;
+  squadId: string;
+  jiraAccountId: string;
+  displayName: string;
+  email?: string;
+  role?: string;
+  capacityHoursPerDay?: number;
+  systemCalculatedCapacityHoursPerDay?: number;
+  calibrationNotes?: string;
+  overrideType?: 'SYSTEM' | 'MANUAL_OVERRIDE' | 'IMPORTED_EXCEL' | string;
+  claimedByUid?: string;
+  updatedAt?: string;
+}
+
+export interface JiraPlansItem {
+  id: string;
+  jiraKey: string;
+  title: string;
+  status: string;
+  type?: string;
+  assigneeName?: string;
+  assigneeAvatar?: string;
+  targetStart?: string;
+  targetEnd?: string;
+  parentKey?: string;
+  parentTitle?: string;
+}

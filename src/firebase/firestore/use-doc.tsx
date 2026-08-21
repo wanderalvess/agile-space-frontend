@@ -98,8 +98,6 @@ export function useDoc<T = any>(
 
         if (isUserSignedIn) {
           errorEmitter.emit('permission-error', contextualError);
-        } else {
-          console.warn(`Firestore permission denied (silenced) for path: ${memoizedDocRef.path} (User signed in: ${isUserSignedIn})`);
         }
       }
     );

@@ -83,11 +83,11 @@ export function HeroWidget() {
   }, []);
 
   useEffect(() => {
-    if (firestore && user) {
-      fetchWorklogs(firestore, user.uid, selectedDate);
-      fetchWeeklyWorklogs(firestore, user.uid);
+    if (user?.uid) {
+      fetchWorklogs(user.uid, selectedDate);
+      fetchWeeklyWorklogs(user.uid);
     }
-  }, [firestore, user, selectedDate, fetchWorklogs, fetchWeeklyWorklogs]);
+  }, [user?.uid, selectedDate]);
 
   const userName = userProfile?.name?.split(' ')[0] || 'Visitante';
 
@@ -310,7 +310,7 @@ export function HeroWidget() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => router.push('/daily-flow')}
+                    onClick={() => router.push('/squad?tab=daily')}
                     className="h-9 text-[9px] font-extrabold uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-all border border-blue-100 dark:border-blue-900/30 gap-1.5 px-3"
                   >
                     Ver tudo <ArrowRight className="h-3 w-3" />

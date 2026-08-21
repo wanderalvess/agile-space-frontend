@@ -138,22 +138,20 @@ export function useCollection<T = any>(
             // Default to false if auth not initialized
           }
 
-          // 3. Emissão Global segura (se não for silencioso e o usuário estiver logado)
-          // Toda falha é publicada. O listener global decide o que mostrar e
-          // registra o evento para o admin — nada mais morre em console.warn.
-          if (isPermissionDenied && isUserSignedIn) {
-            errorEmitter.emit('permission-error', contextualError as FirestorePermissionError);
-          }
+          // 3. Emissão Global segura (apenas se o usuário estiver logado no Firebase)
+          if (isUserSignedIn) {
+            if (isPermissionDenied) {
+              errorEmitter.emit('permission-error', contextualError as FirestorePermissionError);
+            }
 
-          errorEmitter.emit('firestore-error', {
-            code: (cleanError as any).code,
-            message: cleanError.message,
-            path,
-            operation: 'list',
-            // Consulta silent significa que a própria tela trata o erro; aí só
-            // registramos, sem duplicar o aviso para o usuário.
-            notifyUser: !options?.silent && !isPermissionDenied
-          });
+            errorEmitter.emit('firestore-error', {
+              code: (cleanError as any).code,
+              message: cleanError.message,
+              path,
+              operation: 'list',
+              notifyUser: !options?.silent && !isPermissionDenied
+            });
+          }
         }
       );
     } catch (e) {

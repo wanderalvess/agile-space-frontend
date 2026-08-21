@@ -25,6 +25,7 @@ import { PromptView } from '@/app/prompt-hub/components/PromptView';
 
 export function MyPrompts({ userProfile }: { userProfile: any }) {
   const { firestore, user } = useFirebase();
+  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid;
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<PromptItem | null>(null);
   const [viewingPrompt, setViewingPrompt] = useState<PromptItem | null>(null);
@@ -33,21 +34,21 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
   // Filtra só por autoria para usar o índice (authorId, updatedAt) que existe.
   // visibility + authorId + updatedAt não tem índice composto e falharia.
   const promptsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore || !effectiveUserId) return null;
     return query(
       collection(firestore, 'prompt_hub'),
-      where('authorId', '==', user.uid),
+      where('authorId', '==', effectiveUserId),
       orderBy('updatedAt', 'desc')
     );
-  }, [firestore, user]);
+  }, [firestore, effectiveUserId]);
 
   const { data: rawPrompts, isLoading } = useCollection<PromptItem>(promptsQuery, { silent: true });
 
   const filteredPrompts = useMemo(() => {
-    if (!rawPrompts || !user) return [];
+    if (!rawPrompts || !effectiveUserId) return [];
     
     // Filtra apenas os prompts do usuário logado
-    const userPrompts = rawPrompts.filter(item => item.authorId === user.uid);
+    const userPrompts = rawPrompts.filter(item => item.authorId === effectiveUserId);
     
     if (!search) return userPrompts;
     
@@ -57,19 +58,19 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
       item.content?.toLowerCase().includes(searchLower) ||
       item.tags.some(t => t.toLowerCase().includes(searchLower))
     );
-  }, [rawPrompts, search, user]);
+  }, [rawPrompts, search, effectiveUserId]);
 
   const handleSave = async (data: Partial<PromptItem>) => {
-    if (!firestore || !user) return;
+    if (!firestore || !effectiveUserId) return;
     
     const loadingToast = toast.loading('Salvando...');
     try {
-      const id = data.id || `prompt_${Date.now()}_${user.uid}`;
+      const id = data.id || `prompt_${Date.now()}_${effectiveUserId}`;
       const payload = {
         ...data,
         id,
-        authorId: user.uid,
-        authorName: userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Membro',
+        authorId: effectiveUserId,
+        authorName: userProfile?.name || user?.displayName || user?.email?.split('@')[0] || 'Membro',
         authorRole: userProfile?.role || 'Colaborador',
         authorSquad: userProfile?.squadId || 'Squad Geral',
         authorAvatar: userProfile?.avatarSeed || '',
@@ -96,7 +97,7 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
     try {
       // Remove também os comentários pendurados no item — o Firestore não
       // apaga subcoleção em cascata.
-      await deletePromptWithChildren(firestore, id, user?.uid);
+      await deletePromptWithChildren(firestore, id, effectiveUserId);
       toast.success('Prompt removido.');
     } catch (err: any) {
       toast.error('Erro ao remover: ' + err.message);
