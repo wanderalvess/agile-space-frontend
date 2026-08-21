@@ -1,6 +1,6 @@
 {
   "name": "nextn",
-  "version": "3.117.1",
+  "version": "4.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "bump": "node scripts/bump-version.js"
+    "bump": "node scripts/bump-version.js",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.64",
@@ -115,6 +117,7 @@
     "@types/node": "^20",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "cypress": "^15.21.0",
     "postcss": "8.5.10",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
