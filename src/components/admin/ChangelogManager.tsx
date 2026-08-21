@@ -327,6 +327,8 @@ export function ChangelogManager() {
         variant: 'destructive'
       });
     }
+  };
+
   // Filtered List
   const filteredReleases = useMemo(() => {
     return releases.filter((r) => {

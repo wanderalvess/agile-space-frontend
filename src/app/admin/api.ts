@@ -78,5 +78,9 @@ export const adminApi = {
       method: 'POST',
       body: details
     });
+  },
+
+  async getSessions(): Promise<any[]> {
+    return req<any[]>('/admin/sessions');
   }
 };

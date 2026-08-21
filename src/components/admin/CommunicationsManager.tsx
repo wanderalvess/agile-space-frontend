@@ -2,89 +2,59 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  orderBy, 
-  serverTimestamp,
-  limit,
-  onSnapshot
-} from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { 
   Megaphone, 
   Send, 
   Trash2, 
   Clock, 
   AlertCircle,
   CheckCircle2,
-  Bell,
-  MessageSquare,
-  ShieldCheck,
-  Globe
+  Bell
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { logSystemEvent } from '@/lib/audit';
 import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface Announcement {
-  id: string;
-  message: string;
-  createdBy: string;
-  createdAt: any;
-  isActive: boolean;
-}
+import { adminApi, Announcement } from '@/app/admin/api';
+import { useUserContext } from '@/context/UserContext';
 
 export function CommunicationsManager() {
-  const { firestore, user } = useFirebase();
+  const { userProfile: user } = useUserContext();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    if (!firestore) return;
-
-    const q = query(collection(firestore, 'global_announcements'), orderBy('createdAt', 'desc'), limit(10));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Announcement));
-      setAnnouncements(data);
+  const fetchAnnouncements = async () => {
+    try {
+      const list = await adminApi.getAnnouncements();
+      setAnnouncements(list || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
       setLoading(false);
-    });
+    }
+  };
 
-    return () => unsubscribe();
-  }, [firestore]);
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
 
   const handleBroadcast = async () => {
-    if (!firestore || !newMessage.trim()) return;
+    if (!newMessage.trim()) return;
     setSending(true);
     try {
-      await addDoc(collection(firestore, 'global_announcements'), {
-        message: newMessage,
-        createdBy: user?.email || 'Admin',
-        createdAt: serverTimestamp(),
-        isActive: true
-      });
-
-      await logSystemEvent(firestore, {
-        content: `ANÚNCIO GLOBAL DISPARADO: "${newMessage.substring(0, 50)}..."`,
-        type: 'admin',
-        severity: 'info',
-        userEmail: user?.email,
-        module: 'Communications'
+      await adminApi.createAnnouncement({
+        title: 'Aviso Global',
+        content: newMessage,
+        createdBy: user?.email || user?.name || 'Admin',
       });
 
       setNewMessage('');
       toast({ title: "Anúncio Publicado", description: "Todos os usuários conectados receberão o aviso." });
+      fetchAnnouncements();
     } catch (e) {
       toast({ variant: "destructive", title: "Erro ao publicar" });
     } finally {
@@ -93,10 +63,10 @@ export function CommunicationsManager() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore) return;
     try {
-      await deleteDoc(doc(firestore, 'global_announcements', id));
+      await adminApi.deleteAnnouncement(id);
       toast({ title: "Anúncio Removido" });
+      fetchAnnouncements();
     } catch (e) {
       toast({ variant: "destructive", title: "Erro ao remover" });
     }
@@ -108,6 +78,8 @@ export function CommunicationsManager() {
         <AgileSpinner size="lg" />
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Escaneando Canais de Comunicação...</p>
       </div>
+    );
+  } </div>
     );
   }
 
@@ -194,21 +166,23 @@ export function CommunicationsManager() {
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Transmitido por: <span className="text-slate-900 italic lowercase">{a.createdBy}</span></span>
                             <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">•</span>
                             <span className="text-[9px] font-bold text-slate-400 italic">
-                              {a.createdAt?.toDate ? a.createdAt.toDate().toLocaleString('pt-BR') : 'Recentemente'}
+                              {a.createdAt ? new Date(a.createdAt).toLocaleString('pt-BR') : 'Recentemente'}
                             </span>
                           </div>
                           <p className="text-[13px] font-semibold text-slate-700 leading-relaxed italic">
-                            "{a.message}"
+                            "{a.content || a.title}"
                           </p>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleDelete(a.id)}
-                          className="h-12 w-12 rounded-2xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
+                        {a.id && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(a.id!)}
+                            className="h-12 w-12 rounded-2xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </Button>
+                        )}
                       </div>
                     </motion.div>
                   ))}

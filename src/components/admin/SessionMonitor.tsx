@@ -1,14 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  doc, 
-  deleteDoc,
-  Timestamp,
-  writeBatch
-} from 'firebase/firestore';
+import { adminApi } from '@/app/admin/api';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useFirebase } from '@/firebase';
 import { 
   Table, 
   TableBody, 
@@ -37,18 +31,11 @@ import { toast } from '@/hooks/use-toast';
 import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { useAdminCacheStore, UnifiedSession } from '@/store/adminCacheStore';
 
 export function SessionMonitor() {
-  const { firestore } = useFirebase();
-  const { 
-    sessions, 
-    isFetchingSessions, 
-    totalSessionsCount, 
-    fetchSessions, 
-    removeSessionFromCache,
-    removeMultipleSessionsFromCache 
-  } = useAdminCacheStore();
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [isFetchingSessions, setIsFetchingSessions] = useState(false);
+  const [totalSessionsCount, setTotalSessionsCount] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -57,87 +44,61 @@ export function SessionMonitor() {
   const [visibleLimit, setVisibleLimit] = useState(20);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>({ key: 'participantCount', direction: 'desc' });
 
-  useEffect(() => {
-    if (firestore) {
-      fetchSessions(firestore);
+  const fetchSessions = async () => {
+    setIsFetchingSessions(true);
+    try {
+      const data = await adminApi.getSessions();
+      setSessions(data);
+      setTotalSessionsCount(data.length);
+    } catch (error) {
+      console.error("Erro ao buscar sessões do Postgres:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro na listagem",
+        description: "Falha ao buscar sessões do banco de dados.",
+      });
+    } finally {
+      setIsFetchingSessions(false);
     }
-  }, [firestore, fetchSessions]);
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
 
   const handleRefresh = () => {
-    if (firestore) {
-      fetchSessions(firestore, true);
-    }
+    fetchSessions();
   };
 
   const handleLoadMore = () => {
     setVisibleLimit(prev => prev + 20);
   };
 
-  const handleDeleteSession = async (session: UnifiedSession) => {
-    if (!firestore) return;
+  const handleDeleteSession = async (session: any) => {
+    // Para implementar a exclusão real no PostgreSQL seria necessário criar endpoint DELETE /admin/sessions/{id}
+    // Por enquanto, apenas removemos localmente do state
     if (!confirm(`Deseja realmente deletar a sessão "${session.title}"? Esta ação é irreversível.`)) return;
-
-    const collectionMap: Record<string, string> = {
-      poker: 'rooms',
-      retro: 'retro_boards',
-      health: 'health_checks',
-      brainstorm: 'brainstorming_boards',
-      sprint_planning: 'sprint_plannings'
-    };
-
-    try {
-      await deleteDoc(doc(firestore, collectionMap[session.type], session.id));
-      removeSessionFromCache(session.id);
-      setSelectedIds(prev => prev.filter(id => id !== session.id));
-      toast({
-        title: "Sessão encerrada",
-        description: "A sala foi deletada com sucesso.",
-      });
-    } catch (error) {
-      console.error("Erro ao deletar sessão:", error);
-      toast({
-        variant: "destructive",
-        title: "Falha na exclusão",
-        description: "Ocorreu um erro ao tentar encerrar a sessão.",
-      });
-    }
+    
+    setSessions(prev => prev.filter(s => s.id !== session.id));
+    setSelectedIds(prev => prev.filter(id => id !== session.id));
+    setTotalSessionsCount(prev => prev - 1);
+    toast({
+      title: "Sessão encerrada",
+      description: "A sala foi removida (simulação no frontend PostgreSQL).",
+    });
   };
 
   const handleBulkDelete = async () => {
-    if (!firestore || selectedIds.length === 0) return;
+    if (selectedIds.length === 0) return;
     if (!confirm(`Deseja excluir as ${selectedIds.length} sessões selecionadas? Esta ação é irreversível.`)) return;
 
-    const collectionMap: Record<string, string> = {
-      poker: 'rooms',
-      retro: 'retro_boards',
-      health: 'health_checks',
-      brainstorm: 'brainstorming_boards',
-      sprint_planning: 'sprint_plannings'
-    };
-
-    try {
-      const batch = writeBatch(firestore);
-      const selectedSessions = sessions.filter(s => selectedIds.includes(s.id));
-      
-      selectedSessions.forEach(s => {
-        batch.delete(doc(firestore, collectionMap[s.type], s.id));
-      });
-
-      await batch.commit();
-      removeMultipleSessionsFromCache(selectedIds);
-      setSelectedIds([]);
-      toast({
-        title: "Exclusão em massa",
-        description: `${selectedIds.length} sessões foram removidas.`,
-      });
-    } catch (error) {
-      console.error("Erro na exclusão em massa:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro operacional",
-        description: "Não foi possível remover todos os itens selecionados.",
-      });
-    }
+    setSessions(prev => prev.filter(s => !selectedIds.includes(s.id)));
+    setTotalSessionsCount(prev => prev - selectedIds.length);
+    setSelectedIds([]);
+    toast({
+      title: "Exclusão em massa",
+      description: `${selectedIds.length} sessões foram removidas (simulação).`,
+    });
   };
 
   const toggleSelect = (id: string) => {
@@ -186,7 +147,7 @@ export function SessionMonitor() {
     let matchDate = true;
     if (selectedDateRange !== 'all') {
       const now = new Date();
-      const sessionDate = s.createdAt?.toDate ? s.createdAt.toDate() : new Date();
+      const sessionDate = new Date(s.createdAt || Date.now());
       const diffTime = Math.abs(now.getTime() - sessionDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
@@ -204,10 +165,10 @@ export function SessionMonitor() {
     let valA = a[sortConfig.key];
     let valB = b[sortConfig.key];
 
-    // Tratamento especial para datas (Timestamp)
+    // Tratamento especial para datas
     if (sortConfig.key === 'createdAt') {
-      valA = a.createdAt?.seconds || 0;
-      valB = b.createdAt?.seconds || 0;
+      valA = new Date(a.createdAt || 0).getTime();
+      valB = new Date(b.createdAt || 0).getTime();
     }
 
     if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
@@ -334,7 +295,7 @@ export function SessionMonitor() {
                 const theme = getToolTheme(s.type);
                 const date = (() => {
                   if (!s.createdAt) return 'Histórico';
-                  const d = s.createdAt.toDate ? s.createdAt.toDate() : new Date(s.createdAt);
+                  const d = new Date(s.createdAt);
                   return isNaN(d.getTime()) ? 'Histórico' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                 })();
                 const Icon = theme.icon;

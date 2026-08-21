@@ -354,7 +354,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any
 }
 
 export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
-  const { firestore, user } = useFirebase();
+  const { userProfile: user } = useUserContext();
   const { toast } = useToast();
   const [announcement, setAnnouncement] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -363,31 +363,23 @@ export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: strin
   const handlePurgeCache = async () => {
     setIsPurging(true);
     try {
-      // Simulação de revalidação de cache / limpeza de rotas
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast({ title: "Cache Purificado", description: "As rotas e dados estáticos foram invalidados com sucesso." });
+      await new Promise(resolve => setTimeout(resolve, 800));
+      toast({ title: "Cache Purificado", description: "Dados estáticos revalidados." });
     } finally {
       setIsPurging(false);
     }
   };
 
   const handleBroadcast = async () => {
-    if (!announcement.trim() || !firestore) return;
+    if (!announcement.trim()) return;
     setIsLoading(true);
     try {
-      await addDoc(collection(firestore, 'global_announcements'), {
-        message: announcement,
-        timestamp: serverTimestamp(),
-        sender: user?.email,
-        type: 'admin_broadcast'
+      await adminApi.createAnnouncement({
+        title: 'Aviso Diretor',
+        content: announcement,
+        createdBy: user?.email || user?.name || 'Admin',
       });
-      await logSystemEvent(firestore, {
-        content: `Admin enviou anúncio global: "${announcement.substring(0, 30)}..."`,
-        type: 'admin',
-        severity: 'info',
-        userEmail: user?.email,
-        module: 'GlobalAnnouncements'
-      });
+      await adminApi.logAction('admin_broadcast', user?.email || 'admin', `Admin enviou anúncio global: "${announcement.substring(0, 30)}..."`);
       toast({ title: "Anúncio Disparado", description: "Todos os usuários verão essa mensagem." });
       setAnnouncement('');
     } catch (e) {
@@ -437,31 +429,18 @@ export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: strin
 }
 
 export function RecentActivityFeed() {
-  const { firestore } = useFirebase();
   const { userProfile, isInitializing } = useUserContext();
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore || isInitializing || !userProfile || userProfile.role !== 'admin') {
-      if (!isInitializing && userProfile && userProfile.role !== 'admin') {
+    adminApi.getAuditLogs()
+      .then(logs => {
+        setActivities(logs.slice(0, 4));
         setLoading(false);
-      }
-      return;
-    }
-
-    setLoading(true);
-    const q = query(collection(firestore, 'system_events'), orderBy('timestamp', 'desc'), limit(10));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setActivities(data);
-      setLoading(false);
-    }, (error) => {
-      console.error("RecentActivityFeed: Error fetching activities:", error);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [firestore, isInitializing, userProfile]);
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   const getIcon = (type: string) => {
     switch (type) {

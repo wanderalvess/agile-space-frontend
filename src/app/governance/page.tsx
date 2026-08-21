@@ -30,9 +30,10 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFirebase } from '@/firebase';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { GovernanceGuide } from '@/components/knowledge/GovernanceGuide';
+import { RoomHeader } from '@/components/layout/RoomHeader';
+import { Badge } from '@/components/ui/badge';
 import { useState, useCallback } from 'react';
 
 const SECURITY_PILLARS = [
@@ -118,7 +119,6 @@ const SECURITY_PILLARS = [
 
 const DATA_CATEGORIES = [
   { category: "Perfil de Usuário", data: "Nome, email, avatar, role, squad", storage: "Firestore", access: "Próprio usuário + Admin" },
-  { category: "Kanban Pessoal", data: "Título, descrição, status, prioridade", storage: "Firestore (subcoleção do UID)", access: "Somente o usuário" },
   { category: "Notas Rápidas", data: "Conteúdo de texto, cor, status de pin", storage: "Firestore (subcoleção do UID)", access: "Somente o usuário" },
   { category: "Salas (Poker/Retro/Health)", data: "Configurações, votos, feedbacks", storage: "Firestore (coleção compartilhada)", access: "Participantes da sala" },
   { category: "Conversas com Assistente", data: "Mensagens, histórico de consultas", storage: "Firestore (filtrado por userId)", access: "Somente o usuário" },
@@ -128,83 +128,67 @@ const DATA_CATEGORIES = [
 
 export default function GovernancePage() {
   const router = useRouter();
-  const { user } = useFirebase();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const handleOpenFeedback = useCallback(() => setFeedbackSignal(Date.now()), []);
 
   return (
-    <div className="relative flex-1 w-full overflow-x-hidden bg-white min-h-dvh font-sans selection:bg-primary/30 text-slate-900">
+    <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
       {/* Help Guide (Standard Sheet) */}
       <GovernanceGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
 
       {/* Subtle background */}
-      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-slate-100/50 rounded-full blur-[160px]"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-50/30 rounded-full blur-[140px]"></div>
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-emerald-500/5 rounded-full blur-[160px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-50/5 rounded-full blur-[140px]" />
       </div>
 
-      <div className="relative z-10 flex flex-col w-full min-h-dvh">
-        {/* HEADER */}
-        <header className="w-full h-[72px] border-b border-slate-100 bg-white/80 backdrop-blur-xl flex items-center px-6 md:px-12 sticky top-0 z-50">
-          <div className="max-w-[1600px] mx-auto w-full flex items-center justify-between pt-1">
-            <div className="flex items-center gap-5">
-              <Button 
-                onClick={() => router.push('/')}
-                variant="ghost" 
-                className="h-10 px-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all flex items-center gap-2 group"
-              >
-                <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Hub</span>
-              </Button>
-              <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-xl group-hover:scale-110 transition-transform duration-500">
-                <ShieldCheck className="h-5 w-5 text-emerald-400" />
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 leading-none">
-                  Governança <span className="text-emerald-600">& Segurança</span>
-                </span>
-                <div className="w-[1px] h-4 bg-slate-200 hidden md:block" />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 leading-none hidden lg:block">
-                  Portal Corporativo
-                </span>
-              </div>
-            </div>
-            </div>
-            <div className="flex items-center gap-3">
+      <div className="w-full flex-1 flex flex-col">
+        {/* ROOM HEADER */}
+        <RoomHeader
+          title="Governança & Segurança"
+          toolIcon={<ShieldCheck className="h-4 w-4" />}
+          toolColorClass="text-emerald-500"
+          onOpenFeedback={handleOpenFeedback}
+          badge={<Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">PORTAL CORPORATIVO</Badge>}
+          actions={
+            <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
-                size="icon"
+                size="sm"
                 onClick={() => setIsGuideOpen(true)}
-                className="h-10 w-10 rounded-xl border-slate-200 text-slate-400 hover:text-slate-900 transition-all"
+                className="h-8 px-3 rounded-xl border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-[9px] font-bold gap-1.5"
                 title="GUIA DE GOVERNANÇA"
               >
-                <HelpCircle className="h-5 w-5" />
+                <HelpCircle className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Guia</span>
               </Button>
-              <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
+              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/40 rounded-full">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600">Política v2.0 • Vigente</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Política v2.0</span>
               </div>
             </div>
-          </div>
-        </header>
-        <ScrollArea className="flex-1">
-          <main className="max-w-[1600px] mx-auto px-6 md:px-12 py-8 space-y-12">
+          }
+        />
+
+        <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+          <main className="w-full space-y-10">
 
             {/* HERO SECTION */}
-            <section className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full">
+            <section className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-850 rounded-full">
                 <Building2 className="h-3 w-3 text-slate-500" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Uso Corporativo & Profissional</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Uso Corporativo & Profissional</span>
               </div>
-              <h2 className="text-4xl sm:text-5xl font-black font-headline uppercase tracking-tighter italic text-slate-900 leading-[0.9] max-w-3xl">
+              <h2 className="text-2xl sm:text-3xl font-black font-headline uppercase tracking-tight italic text-slate-900 dark:text-white leading-tight max-w-3xl">
                 Transparência é a base <br />
                 <span className="text-primary not-italic">da confiança.</span>
               </h2>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed max-w-2xl">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-2xl">
                 Este documento descreve como o Espaço Ágil protege seus dados, gerencia acessos e 
                 garante a segurança da sua operação. Todas as informações aqui são reais e verificáveis.
+              </p>
+            </section>>das as informações aqui são reais e verificáveis.
               </p>
             </section>
 
@@ -397,14 +381,11 @@ export default function GovernancePage() {
                   </Button>
                 </div>
               </div>
-            </section>
-
           </main>
-        </ScrollArea>
-
-        <Footer onOpenFeedback={handleOpenFeedback} />
+        </div>
       </div>
 
+      <Footer className="mt-8 shrink-0" onOpenFeedback={handleOpenFeedback} />
       <FeedbackWidget 
         toolName="Espaço Ágil - Governança" 
         externalTriggerSignal={feedbackSignal} 
