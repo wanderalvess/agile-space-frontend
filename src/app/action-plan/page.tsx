@@ -61,7 +61,17 @@ export default function ActionPlanHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!user || isCreating) return;
+    if (isCreating) return;
+
+    if (!user || !user.uid) {
+      console.error("[action-plan] Criar plano abortado: usuário sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível identificar seu perfil.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({

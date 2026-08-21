@@ -28,7 +28,7 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function HealthCheckHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user } = useFirebase();
+  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -53,7 +53,17 @@ export default function HealthCheckHubPage() {
   };
 
   const handleCreate = async (dimensions: HealthCheckDimension[], sprintName: string, team: string, scaleType: HealthCheckScaleType) => {
-    if (!user || isCreating) return;
+    if (isCreating) return;
+
+    if (!user || !user.uid) {
+      console.error("[health-check] Criar board abortado: usuário sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade.",
+        variant: "destructive"
+      });
+      return;
+    }
     setIsCreating(true);
     
     const newHealthCheck = {

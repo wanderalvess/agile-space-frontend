@@ -36,13 +36,24 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
+import { knowledgeApi } from '@/app/knowledge/api';
+import { analyzeDocument, TechnicalExtraction } from '@/lib/tech-extractor';
+import { Copy, Check } from 'lucide-react';
+
+interface ExtractedDoc extends KnowledgeDocument {
+  tech?: TechnicalExtraction;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  docs?: KnowledgeDocument[];
+  docs?: ExtractedDoc[];
   tdnResults?: TdnSearchResult[];
+  extractedEndpoints?: string[];
+  extractedTables?: string[];
+  copiedItem?: string;
 }
 
 interface PokerChatProps {
@@ -60,25 +71,8 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
   const [messages, setMessages] = useState<Message[]>([]);
   const [isImporting, setIsImporting] = useState<string | null>(null);
   const [useContext, setUseContext] = useState(true);
-  const [userApiKey, setUserApiKey] = useState<string | null>(null);
+  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const { toast } = useToast();
-
-  // Carregar chave do motor
-  useEffect(() => {
-    async function loadKey() {
-      if (!firestore || !user) return;
-      try {
-        const configDoc = await getDoc(doc(firestore, 'knowledge_user_configs', user.uid, 'ai', 'settings'));
-        if (configDoc.exists()) {
-          const data = configDoc.data();
-          setUserApiKey(data.geminiKey || data.apiKey || null);
-        }
-      } catch (e) {
-        console.warn("Failed to load Key in PokerChat:", e);
-      }
-    }
-    loadKey();
-  }, [firestore, user]);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -87,8 +81,8 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
           id: 'welcome',
           role: 'assistant',
           content: activeIssue
-            ? `Olá! Estou lendo os detalhes da tarefa **${activeIssue.title}**. Como posso ajudar na estimativa técnica deste item?`
-            : 'Olá! Sou a Base de Conhecimento. Posso buscar informações na sua documentação técnica para ajudar na estimativa. O que você gostaria de saber?',
+            ? `Olá! Estou analisando a documentação para a tarefa **${activeIssue.title}**. O que você deseja consultar (ex: API de pedido, tabela, serviço)?`
+            : 'Olá! Sou o Assistente Técnico da Base de Conhecimento. Digite sua dúvida (ex: "api de pedido", "winthor-faturamento", "tabela PCPEDC") para buscar instantaneamente.',
           timestamp: Date.now()
         }
       ]);
@@ -111,26 +105,28 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
     scrollToBottom();
   }, [messages, isLoading, isOpen]);
 
-  // Fetch some available docs for suggestions or fallback
+  // Carrega documentos populares da KB via Spring Boot PostgreSQL
   useEffect(() => {
     const fetchDocs = async () => {
-      if (!firestore) return;
       try {
-        const q = query(
-          collection(firestore, 'knowledge_kb'),
-          where('status', '==', 'published'),
-          orderBy('updatedAt', 'desc'),
-          limit(5)
-        );
-        const snapshot = await getDocs(q);
-        const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as KnowledgeDocument));
-        setAvailableDocs(docs);
+        const res = await knowledgeApi.listDocuments('', [], 0, 5);
+        if (res?.content) setAvailableDocs(res.content);
       } catch (e) {
-        console.error('Error fetching available docs:', e);
+        console.error('Erro ao buscar documentos da Base de Conhecimento:', e);
       }
     };
     fetchDocs();
-  }, [firestore]);
+  }, []);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEndpoint(text);
+    toast({
+      title: 'Copiado!',
+      description: `${label} copiado para a área de transferência.`,
+    });
+    setTimeout(() => setCopiedEndpoint(null), 2000);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -144,82 +140,112 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
+    const userQuery = input.trim();
     setInput('');
     setIsLoading(true);
 
-    // Com "Analisar Issue em Votação" ligado, soma título/descrição da issue
-    // à pergunta digitada — sem isso, a busca (local e TDN) só via o texto
-    // literal do chat e ignorava de qual tarefa o usuário estava falando.
-    const searchQuery = (useContext && activeIssue)
-      ? [input, activeIssue.title, activeIssue.description].filter(Boolean).join(' ')
-      : input;
+    // Extrai palavras-chave significativas removendo stopwords em português
+    const STOP_WORDS = new Set([
+      'qual', 'quais', 'como', 'onde', 'quando', 'porque', 'por', 'que', 'de', 'do', 'da', 'dos', 'das',
+      'um', 'uma', 'uns', 'umas', 'em', 'no', 'na', 'nos', 'nas', 'para', 'pra', 'com', 'sem', 'este',
+      'esta', 'esse', 'essa', 'aquele', 'aquela', 'tem', 'temos', 'e', 'ou', 'a', 'o', 'as', 'os'
+    ]);
+    const cleanKeywords = userQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .map(w => w.replace(/[^a-zA-Z0-9\-_]/g, ''))
+      .filter(w => w.length > 1 && !STOP_WORDS.has(w))
+      .join(' ');
+
+    const searchQuery = cleanKeywords || userQuery;
 
     try {
-      // 1. Search Local Knowledge Base
-      const localResults = await searchKnowledgeBase(firestore!, searchQuery);
+      // 1. Busca documentos no PostgreSQL via Spring Boot REST API (/api/knowledge)
+      let localResults: ExtractedDoc[] = [];
+      try {
+        const kbResponse = await knowledgeApi.listDocuments(searchQuery, [], 0, 10);
+        if (kbResponse?.content && kbResponse.content.length > 0) {
+          localResults = kbResponse.content.map(doc => ({
+            ...doc,
+            tech: analyzeDocument(doc.content, doc.title, userQuery)
+          }));
+        } else {
+          // Se não encontrou por palavra-chave restrita, carrega a base recente para o RAG analisar
+          const allKbResponse = await knowledgeApi.listDocuments('', [], 0, 20);
+          if (allKbResponse?.content) {
+            localResults = allKbResponse.content.map(doc => ({
+              ...doc,
+              tech: analyzeDocument(doc.content, doc.title, userQuery)
+            }));
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao consultar Base de Conhecimento PostgreSQL:', e);
+      }
 
-      // 2. Search TDN (External)
+      // 2. Busca no TDN se configurado
       let tdnResults: TdnSearchResult[] = [];
       if (tdnSettings?.baseUrl && tdnSettings?.token) {
         try {
           tdnResults = await searchTdn(tdnSettings.baseUrl, tdnSettings.token, searchQuery, tdnSettings.space, tdnSettings.label);
         } catch (e) {
-          console.error('Error searching TDN:', e);
+          console.error('Erro ao buscar no TDN:', e);
         }
       }
 
-      // 3. AI Generation (if API Key is available)
-      let assistantContent = '';
-      if (userApiKey) {
-        // Build System Prompt with Context
-        let systemPrompt = "Você é um assistente técnico do Espaço Ágil, ajudando na estimativa de tarefas.";
-        if (useContext && activeIssue) {
-          systemPrompt += `\n\nCONTEXTO DA TAREFA ATUAL:\nTítulo: ${activeIssue.title}\nDescrição: ${activeIssue.description || 'Sem descrição'}\n\nPor favor, considere estas informações ao responder.`;
-        }
+      // 3. Compilação de Resultados Técnicos Extrativos
+      const allEndpoints = Array.from(new Set(localResults.flatMap(d => d.tech?.endpoints || [])));
+      const allTables = Array.from(new Set(localResults.flatMap(d => d.tech?.tables || [])));
 
-        if (localResults.length > 0) {
-          systemPrompt += `\n\nDOCUMENTAÇÃO ENCONTRADA NA WIKI:\n${localResults.map(d => `- ${d.title}: ${d.content}`).join('\n')}`;
-        }
+      // 4. Geração RAG via IA (Gemini API / /api/ai/chat)
+      let responseText = '';
+      const storedApiKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
 
-        try {
-          const response = await fetch('/api/ai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messages: [
-                { role: 'assistant', content: systemPrompt },
-                ...newMessages.map(m => ({ role: m.role, content: m.content }))
-              ],
-              apiKey: userApiKey,
-              userId: user?.uid
-            })
-          });
+      try {
+        const aiRes = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            apiKey: storedApiKey || undefined,
+            contextDocuments: localResults
+          })
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            assistantContent = String(data.content || data.text || '');
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          if (aiData.content) {
+            responseText = aiData.content;
           }
-        } catch (aiErr) {
-          console.error('AI Chat error in Poker:', aiErr);
         }
+      } catch (aiErr) {
+        console.warn('[PokerChat] Chamada para API de IA RAG falhou, utilizando fallback local:', aiErr);
       }
 
-      // Fallback or Addition if AI failed or not available
-      if (!assistantContent) {
-        if (localResults.length > 0 || tdnResults.length > 0) {
-          assistantContent = `Encontrei resultados para sua dúvida na Base local e no TDN:`;
+      // Fallback determinístico caso a IA não retorne texto
+      if (!responseText) {
+        if (localResults.length > 0) {
+          const topDoc = localResults[0];
+          responseText = `Encontrei **${localResults.length} documento(s)** relevante(s) na Base de Conhecimento.`;
+          if (topDoc.tech?.bestSnippet) {
+            responseText += `\n\n📌 **Trecho em Destaque (${topDoc.title}):**\n> "${topDoc.tech.bestSnippet}"`;
+          }
+        } else if (tdnResults.length > 0) {
+          responseText = `Encontrei **${tdnResults.length} página(s)** correspondente(s) no TDN (Confluence):`;
         } else {
-          assistantContent = 'Não encontrei nenhum documento específico. Aqui estão alguns tópicos da Base de Conhecimento que podem ajudar:';
+          responseText = `Não encontrei nenhum documento exato para **"${userQuery}"**. Tente buscar por termos como nome da API, serviço ou tabela (ex: PCPEDC).`;
         }
       }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: assistantContent,
+        content: responseText,
         timestamp: Date.now(),
-        docs: localResults.length > 0 ? localResults : (localResults.length === 0 && tdnResults.length === 0 ? availableDocs.slice(0, 3) : []),
-        tdnResults: tdnResults
+        docs: localResults,
+        tdnResults: tdnResults,
+        extractedEndpoints: allEndpoints,
+        extractedTables: allTables,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -227,7 +253,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Ocorreu um erro ao consultar as bases. Por favor, tente novamente.',
+        content: 'Ocorreu um erro ao consultar a Base de Conhecimento. Verifique sua conexão e tente novamente.',
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -293,7 +319,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Base de Conhecimento</span>
-                    {userApiKey && (
+                    {tdnSettings?.token && (
                       <Badge variant="secondary" className="text-[8px] bg-emerald-50 text-emerald-600 border-emerald-100 uppercase font-black tracking-tighter h-4 px-1.5">
                         Motor Ativo
                       </Badge>
@@ -344,22 +370,61 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                         {msg.content}
                       </div>
 
+                      {/* Badges de Endpoints e Tabelas extraídos */}
+                      {((msg.extractedEndpoints && msg.extractedEndpoints.length > 0) || (msg.extractedTables && msg.extractedTables.length > 0)) && (
+                        <div className="flex flex-col gap-1.5 w-full mt-1 bg-indigo-50/70 border border-indigo-100 p-2.5 rounded-xl">
+                          {msg.extractedEndpoints && msg.extractedEndpoints.length > 0 && (
+                            <div>
+                              <span className="text-[8px] font-black uppercase text-indigo-600 tracking-wider block mb-1">Endpoints Identificados:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {msg.extractedEndpoints.map((ep, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => copyToClipboard(ep, 'Endpoint')}
+                                    className="flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded-lg text-[9px] font-mono font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group"
+                                    title="Clique para copiar"
+                                  >
+                                    <span>{ep}</span>
+                                    {copiedEndpoint === ep ? <Check className="h-2.5 w-2.5 text-emerald-500" /> : <Copy className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {msg.extractedTables && msg.extractedTables.length > 0 && (
+                            <div className="mt-1">
+                              <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block mb-1">Tabelas Relacionadas:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {msg.extractedTables.map((tbl, idx) => (
+                                  <span key={idx} className="bg-slate-200/80 text-slate-700 font-mono text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
+                                    {tbl}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {msg.docs && msg.docs.length > 0 && (
                         <div className="flex flex-col gap-2 w-full mt-1 min-w-0">
                           {msg.docs.map((doc) => (
                             <div
                               key={doc.id}
                               onClick={() => window.open(`/knowledge/kb?id=${doc.id}`, '_blank')}
-                              className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/60 dark:border-white/5 p-2.5 rounded-xl hover:bg-white/60 transition-all cursor-pointer group overflow-hidden w-full min-w-0"
+                              className="bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl hover:bg-white transition-all cursor-pointer group overflow-hidden w-full min-w-0 shadow-xs"
                             >
                               <div className="flex items-center justify-between mb-0.5">
                                 <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1">
-                                  <BookOpen className="h-2 w-2" /> Wiki Local
+                                  <BookOpen className="h-2 w-2" /> Wiki Local • {doc.category || 'Geral'}
                                 </span>
                                 <ChevronRight className="h-2.5 w-2.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                               </div>
                               <h4 className="text-[10px] font-bold text-slate-900 dark:text-white block truncate max-w-full" title={doc.title}>{doc.title}</h4>
-                              <p className="text-[8px] text-slate-500 truncate mt-0.5">{doc.content.replace(/<[^>]*>?/gm, '')}</p>
+                              <p className="text-[8.5px] text-slate-500 line-clamp-2 mt-0.5 font-sans leading-tight">
+                                {doc.tech?.bestSnippet || doc.content.replace(/<[^>]*>?/gm, '')}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -369,7 +434,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                         <div className="flex flex-col gap-2 w-full mt-1">
                           <div className="flex items-center gap-2 px-1">
                             <Globe className="h-2 w-2 text-cyan-600" />
-                            <span className="text-[8px] font-black uppercase text-cyan-600 tracking-[0.2em]">TDN</span>
+                            <span className="text-[8px] font-black uppercase text-cyan-600 tracking-[0.2em]">TDN (Confluence)</span>
                           </div>
                           {msg.tdnResults.map((tdn) => (
                             <div

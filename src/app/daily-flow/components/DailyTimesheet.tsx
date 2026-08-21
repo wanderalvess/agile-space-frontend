@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Clock, Trash2, Layers, FileText, Filter, RefreshCw, AlertCircle, Sparkles, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Calendar, Plus, Clock, Trash2, Layers, FileText, Filter, RefreshCw, AlertCircle, Sparkles, ChevronLeft, ChevronRight, Pencil, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useDailyStore } from '@/store/useDailyStore';
-import { useFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
-import { fetchJiraIssues } from '@/services/jiraService';
+import { fetchJiraIssues, JiraIssue } from '@/services/jiraService';
 import { useUserContext } from '@/context/UserContext';
+import { userApi } from '@/app/users/api';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 type FilterType = 'all' | 'jira' | 'manual' | 'todo' | 'inprogress' | 'done';
 
@@ -78,16 +79,16 @@ const matchesWorklogDate = (startedStr: string, selectedDate: string): boolean =
 };
 
 export default function DailyTimesheet() {
-  const { firestore, user } = useFirebase();
   const { toast } = useToast();
-  const { settings } = useJiraSettings();
+  const { settings, saveSettings } = useJiraSettings();
   const { userProfile } = useUserContext();
+  const effectiveUserId = userProfile?.id || userProfile?.email || 'user';
   
   const { 
     worklogs, 
-    addWorklogFirebase, 
-    deleteWorklogFirebase, 
-    updateWorklogFirebase,
+    addWorklog, 
+    deleteWorklog, 
+    updateWorklog,
     selectedDate, 
     setSelectedDate,
     isLoadingWorklogs,
@@ -107,11 +108,14 @@ export default function DailyTimesheet() {
   const [selectedLogIds, setSelectedLogIds] = useState<string[]>([]);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<FilterType>('all');
+
+  const selectedTotalMinutes = syncableLogs
+    .filter(log => selectedLogIds.includes(log.id))
+    .reduce((acc, log) => acc + log.durationMinutes, 0);
   
   const [configJiraUrl, setConfigJiraUrl] = useState('');
   const [configJiraToken, setConfigJiraToken] = useState('');
   const [isJiraConfigModalOpen, setIsJiraConfigModalOpen] = useState(false);
-  const { saveSettings } = useJiraSettings();
 
   useEffect(() => {
     if (settings) {
@@ -120,24 +124,24 @@ export default function DailyTimesheet() {
     }
   }, [settings]);
 
+  // Carrega worklogs caso ainda não tenham sido carregados para o dia
+  useEffect(() => {
+    if (effectiveUserId) {
+      fetchWorklogs(effectiveUserId, selectedDate);
+      fetchWeeklyWorklogs(effectiveUserId);
+    }
+  }, [effectiveUserId, selectedDate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    if (!firestore || !user) {
-      toast({
-        title: "Erro de Autenticação",
-        description: "Você precisa estar conectado para registrar worklogs.",
-        variant: "destructive"
-      });
-      return;
-    }
 
     const totalMinutes = (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
     if (totalMinutes <= 0) return;
 
     setIsSubmitting(true);
     try {
-      await addWorklogFirebase(firestore, user.uid, {
+      await addWorklog(effectiveUserId, {
         taskId: isJiraLog && jiraId.trim() ? jiraId.trim().toUpperCase() : undefined,
         title: title.trim(),
         durationMinutes: totalMinutes
@@ -164,9 +168,8 @@ export default function DailyTimesheet() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore) return;
     try {
-      await deleteWorklogFirebase(firestore, id);
+      await deleteWorklog(id);
       toast({
         title: "Worklog Removido",
         description: "O registro foi excluído permanentemente."
@@ -181,7 +184,6 @@ export default function DailyTimesheet() {
   };
 
   const handleEditDuration = async (id: string, currentMinutes: number) => {
-    if (!firestore) return;
     const manualMinutesStr = window.prompt("Alterar tempo gasto nesta atividade (em minutos):", currentMinutes.toString());
     if (manualMinutesStr === null) {
       return;
@@ -197,7 +199,7 @@ export default function DailyTimesheet() {
     }
 
     try {
-      await updateWorklogFirebase(firestore, id, durationMinutes);
+      await updateWorklog(id, durationMinutes);
       toast({
         title: "Tempo Atualizado",
         description: "A duração foi atualizada com sucesso."
@@ -257,7 +259,7 @@ export default function DailyTimesheet() {
         title: "Configuração Salva",
         description: "Suas credenciais do Jira foram atualizadas."
       });
-      // Auto trigger sync after database update completes
+      // Executa a sincronização logo após salvar
       setTimeout(() => {
         handleJiraSync();
       }, 300);
@@ -280,107 +282,161 @@ export default function DailyTimesheet() {
       setIsJiraConfigModalOpen(true);
       return;
     }
-    if (!firestore || !user) return;
 
     setIsSyncing(true);
     try {
-      const jql = `worklogAuthor = currentUser() AND worklogDate = "${selectedDate}"`;
-      const { issues } = await fetchJiraIssues(settings.domain, settings.token, jql);
+      // 1. Tenta obter o usuário autenticado no Jira para matching perfeito de worklogs
+      let jiraUser: any = null;
+      try {
+        const valRes = await userApi.validateJiraToken(settings.domain, settings.token);
+        if (valRes && valRes.valid && valRes.user) {
+          jiraUser = valRes.user;
+        }
+      } catch (e) {
+        console.warn("Could not fetch Jira myself info:", e);
+      }
+
+      // 2. Busca issues com worklogs - Estratégia multi-query robusta
+      let issues: JiraIssue[] = [];
+      let querySuccess = false;
+
+      // Query Primária (Jira Cloud ou Server com plugin de worklog)
+      try {
+        const primaryJql = `worklogAuthor = currentUser() AND worklogDate = "${selectedDate}"`;
+        const res = await fetchJiraIssues(settings.domain, settings.token, primaryJql);
+        if (res && res.issues) {
+          issues = res.issues;
+          querySuccess = true;
+        }
+      } catch (primaryErr) {
+        console.warn("Primary worklog query failed, trying standard fallback queries:", primaryErr);
+      }
+
+      // Se a query primária falhou ou não retornou nada, tenta fallbacks padrão do Jira Server / Data Center
+      if (!querySuccess || issues.length === 0) {
+        const fallbackQueries: string[] = [];
+        if (jiraUser?.name) {
+          fallbackQueries.push(`worklogAuthor = "${jiraUser.name}" AND updated >= "${selectedDate}"`);
+          fallbackQueries.push(`assignee = "${jiraUser.name}" AND updated >= "${selectedDate}"`);
+        }
+        fallbackQueries.push(`assignee = currentUser() AND updated >= "${selectedDate}"`);
+        fallbackQueries.push(`updated >= "${selectedDate}"`);
+
+        for (const q of fallbackQueries) {
+          try {
+            const res = await fetchJiraIssues(settings.domain, settings.token, q);
+            if (res && res.issues && res.issues.length > 0) {
+              issues = res.issues;
+              break;
+            }
+          } catch (err) {
+            console.warn(`Fallback JQL query "${q}" failed:`, err);
+          }
+        }
+      }
 
       if (issues.length === 0) {
         toast({
           title: "Sincronização",
-          description: "Nenhuma atividade encontrada no Jira para a data selecionada."
+          description: `Nenhuma atividade encontrada no Jira para a data ${selectedDate.split('-').reverse().join('/')}.`
         });
         return;
       }
 
+      // 3. Extrai worklogs da data filtrando ESTRITAMENTE para o usuário logado
       const tempLogs: any[] = [];
 
+      const jName = (jiraUser?.name || '').toLowerCase().trim();
+      const jKey = (jiraUser?.key || '').toLowerCase().trim();
+      const jEmail = (jiraUser?.emailAddress || '').toLowerCase().trim();
+      const jAccountId = (jiraUser?.accountId || '').toLowerCase().trim();
+      const jDisplayName = (jiraUser?.displayName || '').toLowerCase().trim();
+
+      const profEmail = (userProfile?.email || user?.email || '').toLowerCase().trim();
+      const profEmailUser = profEmail.includes('@') ? profEmail.split('@')[0] : '';
+      const profName = (userProfile?.name || user?.displayName || '').toLowerCase().trim();
+      const profJiraId = (userProfile?.jiraAccountId || '').toLowerCase().trim();
+
       for (const issue of issues) {
-        // Find worklogs on the selected date (accounting for browser local time zone shifts)
         const dateWorklogs = (issue.worklogs || []).filter((wl: any) => {
           return matchesWorklogDate(wl.started, selectedDate);
         });
 
         for (const wl of dateWorklogs) {
           const duration = wl.timeSpentSeconds > 0 ? Math.max(1, Math.round(wl.timeSpentSeconds / 60)) : 60;
-          
-          // Determine if this log matches the user
-          const author = wl.author;
+          const author = wl.author || {};
+          const authorName = (author.displayName || author.name || author.key || '').trim();
+          const authorEmail = (author.emailAddress || '').toLowerCase().trim();
+          const authorId = (author.accountId || '').toLowerCase().trim();
+          const authorKey = (author.key || '').toLowerCase().trim();
+          const authorUsername = (author.name || '').toLowerCase().trim();
+          const authorDisplay = (author.displayName || '').toLowerCase().trim();
+
           let isUserLog = false;
-          if (author) {
-            const authorEmail = (author.emailAddress || '').toLowerCase();
-            const authorName = (author.name || '').toLowerCase();
-            const authorDisplayName = (author.displayName || '').toLowerCase();
-            
-            const userEmail = (user.email || '').toLowerCase();
-            const userDisplayName = (user.displayName || '').toLowerCase();
-            
-            const profileEmail = (userProfile?.email || '').toLowerCase();
-            const profileName = (userProfile?.name || '').toLowerCase();
-            
-            if (
-              (userEmail && authorEmail && authorEmail === userEmail) ||
-              (profileEmail && authorEmail && authorEmail === profileEmail) ||
-              (userEmail && authorName && authorName === userEmail.split('@')[0]) ||
-              (profileEmail && authorName && authorName === profileEmail.split('@')[0]) ||
-              (userDisplayName && matchesNameFuzzy(authorDisplayName, userDisplayName)) ||
-              (profileName && matchesNameFuzzy(authorDisplayName, profileName)) ||
-              (userDisplayName && matchesNameFuzzy(authorName, userDisplayName)) ||
-              (profileName && matchesNameFuzzy(authorName, profileName))
-            ) {
+
+          // Se temos o perfil do Jira autenticado via token, usamos matching exato
+          if (jiraUser) {
+            if (jName && (authorUsername === jName || authorKey === jName)) isUserLog = true;
+            else if (jKey && (authorKey === jKey || authorUsername === jKey)) isUserLog = true;
+            else if (jAccountId && authorId === jAccountId) isUserLog = true;
+            else if (jEmail && authorEmail === jEmail) isUserLog = true;
+            else if (jDisplayName && authorDisplay === jDisplayName) isUserLog = true;
+            else if (jDisplayName && matchesNameFuzzy(authorDisplay, jDisplayName)) isUserLog = true;
+          } else {
+            // Fallback usando o perfil local / Firebase
+            if (profJiraId && (authorId === profJiraId || authorUsername === profJiraId || authorKey === profJiraId)) {
+              isUserLog = true;
+            } else if (profEmail && authorEmail === profEmail) {
+              isUserLog = true;
+            } else if (profEmailUser && profEmailUser.length >= 3 && (authorUsername === profEmailUser || authorKey === profEmailUser)) {
+              isUserLog = true;
+            } else if (profName && (authorDisplay === profName || matchesNameFuzzy(authorDisplay, profName))) {
               isUserLog = true;
             }
           }
 
-          // Fallback to true if there is only 1 worklog on the day (to be safe)
-          if (!isUserLog && dateWorklogs.length === 1) {
-            isUserLog = true;
+          // FILTRA ESTRITAMENTE: Não inclui worklogs de outros membros
+          if (!isUserLog) {
+            continue;
           }
 
-          // Only add to the list if it belongs to the current user
-          if (isUserLog) {
-            tempLogs.push({
-              id: wl.id || `${issue.key}_${wl.started}_${Math.random()}`,
-              taskId: issue.key,
-              title: issue.title,
-              durationMinutes: duration,
-              comment: wl.comment || '',
-              authorName: wl.author?.displayName || wl.author?.name || 'Desconhecido',
-              isUserLog: true
-            });
-          }
+          tempLogs.push({
+            id: wl.id ? String(wl.id) : `${issue.key}_${wl.started}_${Math.random().toString(36).substring(2, 7)}`,
+            taskId: issue.key,
+            title: issue.title,
+            durationMinutes: duration,
+            comment: wl.comment || '',
+            authorName: authorName || 'Você',
+            isUserLog: true
+          });
         }
       }
 
       if (tempLogs.length === 0) {
         toast({
-          title: "Sincronização",
-          description: "Nenhum worklog encontrado para a data selecionada no Jira."
+          title: "Sincronização do Jira",
+          description: `Nenhum lançamento de horas seu foi encontrado no Jira para a data ${selectedDate.split('-').reverse().join('/')}.`
         });
         return;
       }
 
       setSyncableLogs(tempLogs);
-      // Pre-check logs that are determined to be the user's
-      const prechecked = tempLogs.filter(l => l.isUserLog).map(l => l.id);
-      setSelectedLogIds(prechecked.length > 0 ? prechecked : tempLogs.map(l => l.id));
+      setSelectedLogIds(tempLogs.map(l => l.id));
       setIsSyncModalOpen(true);
     } catch (err: any) {
-      console.error(err);
+      console.error('Erro na sincronização do Jira:', err);
       const errMsg = String(err?.message || '');
-      if (errMsg.includes('400') || errMsg.includes('401') || errMsg.includes('API')) {
+      if (errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('token')) {
         toast({
           title: "Erro de Conexão",
-          description: "Suas credenciais de conexão do Jira parecem inválidas. Por favor, revise-as.",
+          description: "Suas credenciais do Jira parecem inválidas ou expiradas. Por favor, revise-as.",
           variant: "destructive"
         });
         setIsJiraConfigModalOpen(true);
       } else {
         toast({
           title: "Erro de Sincronização",
-          description: "Não foi possível buscar os dados do Jira.",
+          description: errMsg.length > 120 ? "Não foi possível buscar os dados do Jira. Verifique sua conexão e o domínio informado." : errMsg,
           variant: "destructive"
         });
       }
@@ -390,7 +446,6 @@ export default function DailyTimesheet() {
   };
 
   const handleImportSelected = async () => {
-    if (!firestore || !user) return;
     setIsSyncing(true);
     let added = 0;
     try {
@@ -398,11 +453,16 @@ export default function DailyTimesheet() {
 
       for (const log of logsToImport) {
         const displayTitle = log.comment ? `${log.title} - ${log.comment}` : log.title;
-        // Check if exact worklog (same ID or key/duration/title) is already in the list to avoid duplicate insertions
-        const exists = worklogs.some(w => w.date === selectedDate && w.taskId === log.taskId && w.durationMinutes === log.durationMinutes && w.title.includes(log.comment || log.title));
+        // Evita duplicatas se já existe exatamente no mesmo dia
+        const exists = worklogs.some(w => 
+          w.date === selectedDate && 
+          w.taskId === log.taskId && 
+          w.durationMinutes === log.durationMinutes && 
+          (w.title === displayTitle || w.title.includes(log.title))
+        );
         
         if (!exists) {
-          await addWorklogFirebase(firestore, user.uid, {
+          await addWorklog(effectiveUserId, {
             taskId: log.taskId,
             title: displayTitle,
             durationMinutes: log.durationMinutes
@@ -411,20 +471,20 @@ export default function DailyTimesheet() {
         }
       }
 
-      // Refresh worklogs in the local state/UI
-      await fetchWorklogs(firestore, user.uid, selectedDate);
-      await fetchWeeklyWorklogs(firestore, user.uid);
+      // Atualiza listagem local
+      await fetchWorklogs(effectiveUserId, selectedDate);
+      await fetchWeeklyWorklogs(effectiveUserId);
 
       toast({
         title: "Jira Sincronizado",
-        description: `${added} registros importados com sucesso.`
+        description: `${added} ${added === 1 ? 'registro importado' : 'registros importados'} com sucesso.`
       });
       setIsSyncModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       toast({
         title: "Erro ao Importar",
-        description: "Não foi possível salvar os registros selecionados.",
+        description: err?.message || "Não foi possível salvar os registros selecionados.",
         variant: "destructive"
       });
     } finally {
@@ -514,6 +574,17 @@ export default function DailyTimesheet() {
           >
             <RefreshCw className={cn("h-3 w-3", isSyncing && "animate-spin")} />
             Sincronizar Jira
+          </Button>
+
+          {/* Settings Button */}
+          <Button
+            onClick={() => setIsJiraConfigModalOpen(true)}
+            size="xs"
+            variant="ghost"
+            className="h-7.5 w-7.5 p-0 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+            title="Configurar Conexão Jira"
+          >
+            <Settings2 className="h-3.5 w-3.5" />
           </Button>
 
           <div className="flex items-center gap-1 bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl">
@@ -773,17 +844,27 @@ export default function DailyTimesheet() {
 
       {/* JIRA WORKLOG IMPORT DIALOG */}
       <Dialog open={isSyncModalOpen} onOpenChange={setIsSyncModalOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[2rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl p-6 font-sans">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-50 leading-none font-headline italic">
-              Sincronizar Lançamentos
-            </DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">
-              Selecione os worklogs do Jira para {selectedDate.split('-').reverse().join('/')}
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[840px] md:max-w-[940px] w-[95vw] rounded-[2.5rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-6 md:p-8 font-sans max-h-[90vh] flex flex-col">
+          <DialogHeader className="shrink-0 pb-4 border-b border-slate-100 dark:border-slate-800/80">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <DialogTitle className="text-2xl md:text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-50 font-headline italic flex items-center gap-2.5">
+                  <Sparkles className="h-6 w-6 text-indigo-500 not-italic" />
+                  Sincronizar <span className="text-indigo-600 dark:text-indigo-400 not-italic">Lançamentos</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+                  Seus worklogs encontrados no Jira para {selectedDate.split('-').reverse().join('/')}
+                </DialogDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="px-3 py-1 text-[10px] font-black uppercase tracking-wider bg-indigo-50/50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200/50">
+                  {syncableLogs.length} {syncableLogs.length === 1 ? 'lançamento encontrado' : 'lançamentos encontrados'}
+                </Badge>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="py-4 max-h-[300px] overflow-y-auto space-y-2.5 custom-scrollbar pr-1">
+          <div className="flex-1 min-h-[220px] max-h-[55vh] overflow-y-auto space-y-3 py-4 pr-2 custom-scrollbar">
             {syncableLogs.map(log => {
               const isChecked = selectedLogIds.includes(log.id);
               const h = Math.floor(log.durationMinutes / 60);
@@ -800,39 +881,43 @@ export default function DailyTimesheet() {
                     }
                   }}
                   className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none",
+                    "flex items-start sm:items-center justify-between gap-4 p-4 rounded-2xl border transition-all cursor-pointer select-none",
                     isChecked
-                      ? "bg-indigo-50/40 border-indigo-200 dark:bg-indigo-950/20 dark:border-indigo-800"
-                      : "bg-slate-50/50 border-slate-100 dark:bg-slate-950/40 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                      ? "bg-indigo-50/60 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-700 shadow-xs ring-1 ring-indigo-500/20"
+                      : "bg-slate-50/60 border-slate-100 dark:bg-slate-950/40 dark:border-slate-800/80 hover:bg-slate-100/60 dark:hover:bg-slate-900/60"
                   )}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={() => {}} // Handled by parent div onClick
-                    className="h-4.5 w-4.5 rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer"
-                  />
-                  
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[8px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded">
-                        {log.taskId}
-                      </span>
-                      <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 truncate max-w-[150px] uppercase tracking-wider">
-                        {log.authorName}
-                      </span>
-                    </div>
-                    <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate mt-1">
-                      {log.title}
-                    </p>
-                    {log.comment && (
-                      <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate mt-0.5 italic">
-                        "{log.comment}"
+                  <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {}} // Handled by parent div onClick
+                      className="mt-1 sm:mt-0 h-5 w-5 rounded-lg border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500/30 cursor-pointer shrink-0"
+                    />
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md">
+                          {log.taskId}
+                        </span>
+                        {log.authorName && (
+                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[200px]">
+                            • {log.authorName}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs md:text-sm font-bold text-slate-900 dark:text-slate-100 truncate mt-1">
+                        {log.title}
                       </p>
-                    )}
+                      {log.comment && (
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 mt-1 italic bg-white/60 dark:bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-100/80 dark:border-slate-800/40">
+                          "{log.comment}"
+                        </p>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="text-[10px] font-black text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg shrink-0">
+                  <div className="text-xs md:text-sm font-black text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-3.5 py-1.5 rounded-xl border border-indigo-100 dark:border-indigo-900/50 shadow-xs shrink-0 self-start sm:self-center">
                     {h > 0 ? `${h}h ` : ''}{m}m
                   </div>
                 </div>
@@ -840,39 +925,55 @@ export default function DailyTimesheet() {
             })}
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between sm:justify-between gap-4">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSelectedLogIds(syncableLogs.map(l => l.id))}
-                className="text-[9px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 transition-colors"
-              >
-                Todos
-              </button>
-              <span className="text-slate-300 dark:text-slate-700 text-xs">|</span>
-              <button
-                onClick={() => setSelectedLogIds([])}
-                className="text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-600 dark:text-slate-400 transition-colors"
-              >
-                Nenhum
-              </button>
+          <DialogFooter className="shrink-0 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setSelectedLogIds(syncableLogs.map(l => l.id))}
+                  className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 h-8 px-2.5"
+                >
+                  Selecionar Todos
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setSelectedLogIds([])}
+                  className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:text-slate-500 h-8 px-2.5"
+                >
+                  Limpar
+                </Button>
+              </div>
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                {selectedTotalMinutes > 0 && (
+                  <>Total: <strong className="text-slate-900 dark:text-white font-black">{Math.floor(selectedTotalMinutes / 60)}h {selectedTotalMinutes % 60}m</strong></>
+                )}
+              </span>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full sm:w-auto justify-end">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsSyncModalOpen(false)}
-                className="h-9 rounded-xl text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-800"
+                className="h-10 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-800"
               >
                 Cancelar
               </Button>
               <Button
                 size="sm"
                 onClick={handleImportSelected}
-                disabled={selectedLogIds.length === 0}
-                className="h-9 rounded-xl text-[9px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-500 dark:hover:bg-indigo-600"
+                disabled={selectedLogIds.length === 0 || isSyncing}
+                className="h-10 px-6 rounded-xl text-[10px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white dark:bg-indigo-500 dark:hover:bg-indigo-600 shadow-md shadow-indigo-500/20"
               >
-                Importar ({selectedLogIds.length})
+                {isSyncing ? (
+                  <AgileSpinner size="sm" variant="white" />
+                ) : (
+                  <>Importar ({selectedLogIds.length})</>
+                )}
               </Button>
             </div>
           </DialogFooter>
@@ -896,22 +997,22 @@ export default function DailyTimesheet() {
               <Input 
                 value={configJiraUrl} 
                 onChange={(e) => setConfigJiraUrl(e.target.value)} 
-                placeholder="Ex: https://seu-dominio.atlassian.net" 
+                placeholder="Ex: jiraproducao.totvs.com.br ou seu-dominio.atlassian.net" 
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 font-semibold text-sm focus:bg-white dark:focus:bg-slate-950 dark:text-slate-100 transition-all focus:ring-primary/20"
               />
-              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 italic leading-normal">Informe a URL completa do seu Jira Cloud.</p>
+              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 italic leading-normal">Informe o domínio ou URL do seu Jira (Server/Data Center ou Cloud).</p>
             </div>
             
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">API Token / Token de Acesso</Label>
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Personal Access Token (PAT) / API Token</Label>
               <Input 
                 type="password"
                 value={configJiraToken} 
                 onChange={(e) => setConfigJiraToken(e.target.value)} 
-                placeholder="Cole seu token aqui..." 
+                placeholder="Cole seu Personal Access Token ou API Token aqui..." 
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 font-semibold text-sm focus:bg-white dark:focus:bg-slate-950 dark:text-slate-100 transition-all focus:ring-primary/20"
               />
-              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 italic leading-normal">Insira o Token de API Pessoal gerado no Atlassian Account.</p>
+              <p className="text-[8.5px] text-slate-400 dark:text-slate-500 italic leading-normal">Insira seu Personal Access Token (PAT) do Jira Server ou Token do Jira Cloud.</p>
             </div>
           </div>
           <DialogFooter className="p-6 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800/60">

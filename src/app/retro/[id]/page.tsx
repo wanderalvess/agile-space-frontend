@@ -16,6 +16,7 @@ import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi } from '../api';
+import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
 
 export default function RetroRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -23,7 +24,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   
   const router = useRouter();
   const { toast } = useToast();
-  const { auth, user, isUserLoading } = useFirebase();
+  const { user, isUserLoading } = useFirebase();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   const [boardData, setBoardData] = useState<RetroBoardType | null>(null);
@@ -41,6 +42,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const currentUser = useMemo(() => participants?.find(p => p.id === user?.uid) || null, [participants, user]);
   const isCurrentUserCreator = useMemo(() => !!(user && boardData && user.uid === boardData.creatorId), [user, boardData]);
+
+  const [showStats, setShowStats] = useState(true);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
@@ -873,6 +876,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         showFloatingButton={true} 
         externalTriggerSignal={feedbackSignal} 
       />
+      <SprintStatsDialog open={showStats} onClose={() => setShowStats(false)} />
     </>
   );
 }

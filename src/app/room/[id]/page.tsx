@@ -30,7 +30,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const roomId = resolvedParams.id;
   const router = useRouter();
   const { toast } = useToast();
-  const { auth, user, isUserLoading } = useFirebase();
+  const { user, isUserLoading } = useFirebase();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   useEffect(() => {
@@ -893,6 +893,16 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
 
     pokerApi.saveOrUpdateRoom(updates).then(() => {
+      const activeIssue = roomData.issuesQueue![currentIndex];
+      if (activeIssue && activeIssue.key && roomData.team) {
+        const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
+        fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points_estimated: Number(points) })
+        }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+      }
+
       const lastRound = votingRounds.find(r => r.issueId === roomData.activeIssueId);
       if (lastRound) {
         pokerApi.saveRound(roomId, {
@@ -1156,6 +1166,16 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       ...roomData,
       issuesQueue: newQueue
     }).then(() => {
+      const activeIssue = roomData.issuesQueue![currentIndex];
+      if (activeIssue && activeIssue.key && roomData.team) {
+        const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
+        fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points_estimated: Number(points) })
+        }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+      }
+
       handleAsyncClear(issueId);
       toast({ title: "Estimativa Consolidada!" });
     }).catch(err => console.error(err));

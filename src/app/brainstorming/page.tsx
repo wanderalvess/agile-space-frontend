@@ -64,7 +64,17 @@ export default function BrainstormingHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!user || isCreating) return;
+    if (isCreating) return;
+
+    if (!user || !user.uid) {
+      console.error("[brainstorming] Criar sala abortado: usuário sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({

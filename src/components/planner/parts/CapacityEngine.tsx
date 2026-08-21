@@ -40,6 +40,7 @@ interface CapacityEngineProps {
   onUpdateMember: (id: string, field: keyof TeamMember, value: any) => void;
   onAddMember: () => void;
   onRemoveMember: (id: string) => void;
+  onImportRoster?: () => void;
   isReadOnly?: boolean;
 }
 
@@ -208,13 +209,24 @@ export function CapacityEngine({
                   </div>
                 ))}
                 {!isReadOnly && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full h-12 rounded-[1.5rem] border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-[10px] tracking-widest hover:border-violet-200 dark:hover:border-violet-850 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 hover:text-violet-600 dark:hover:text-violet-400 transition-all gap-2"
-                    onClick={onAddMember}
-                  >
-                    <Plus className="h-4 w-4" /> Adicionar Membro
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    {onImportRoster && (
+                      <Button
+                        variant="outline"
+                        className="w-full h-10 rounded-[1.2rem] border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/20 text-indigo-600 dark:text-indigo-400 font-black uppercase text-[10px] tracking-widest hover:bg-indigo-100 transition-all gap-1.5"
+                        onClick={onImportRoster}
+                      >
+                        <Users className="h-3.5 w-3.5" /> Carregar Integrantes do Time
+                      </Button>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-10 rounded-[1.2rem] border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 font-black uppercase text-[10px] tracking-widest hover:border-violet-200 dark:hover:border-violet-850 hover:bg-violet-50/50 dark:hover:bg-violet-950/20 hover:text-violet-600 dark:hover:text-violet-400 transition-all gap-2"
+                      onClick={onAddMember}
+                    >
+                      <Plus className="h-4 w-4" /> Adicionar Membro
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>

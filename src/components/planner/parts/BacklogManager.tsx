@@ -29,6 +29,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useUserContext } from '@/context/UserContext';
 import { PlannerTask, PlannerTaskCard } from './PlannerTaskCard';
 import { PokerSessionPicker } from '../../poker/PokerSessionPicker';
 
@@ -40,6 +41,7 @@ interface BacklogManagerProps {
   onBatchImport: (text: string) => void;
   onPokerImport: (room: any) => void;
   isReadOnly?: boolean;
+  squadId?: string;
 }
 
 export function BacklogManager({
@@ -50,7 +52,10 @@ export function BacklogManager({
   onBatchImport,
   onPokerImport,
   isReadOnly = false,
+  squadId,
 }: BacklogManagerProps) {
+  const { userProfile } = useUserContext();
+  const activeSquad = squadId || userProfile?.squadId || 'DDWMISSI';
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskDevHours, setNewTaskDevHours] = useState('');
   const [newTaskQaHours, setNewTaskQaHours] = useState('');
@@ -187,6 +192,29 @@ export function BacklogManager({
       <div className="flex-1 p-6 space-y-4 bg-white/30 dark:bg-slate-950/30 custom-scrollbar overflow-y-auto min-h-0">
         {!isReadOnly && tasks.length > 0 && (
           <div className="flex justify-end gap-2 mb-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={async () => {
+                try {
+                  const items = await import('@/app/work-items-api').then(m => m.workItemsApi.getBacklogEstimated(activeSquad));
+                  const newTasks = items.map(item => ({
+                    id: crypto.randomUUID(),
+                    name: item.title,
+                    devHours: item.pointsEstimated,
+                    qaHours: 0,
+                    description: item.description,
+                    link: item.jiraKey
+                  }));
+                  onBatchImport(newTasks.map((t: any) => `${t.name} | ${t.link} | ${t.description}`).join('\n'));
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-850 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-xl gap-2 shadow-sm"
+            >
+              📥 Importar do Backlog Jira
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 

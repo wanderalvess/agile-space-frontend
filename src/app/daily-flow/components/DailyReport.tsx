@@ -6,11 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useDailyStore } from '@/store/useDailyStore';
-import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
 import { dailyFlowApi } from '../api';
 
 export default function DailyReport() {
-  const { firestore, user } = useFirebase();
+  const { userProfile } = useUserContext();
+  const currentUserId = userProfile?.id || userProfile?.email || 'user';
   const { toast } = useToast();
   const { worklogs, weeklyWorklogs, selectedDate } = useDailyStore();
   const [yesterday, setYesterday] = useState('');
@@ -43,39 +44,31 @@ export default function DailyReport() {
       const grouped: Record<string, { title: string; duration: number; isJira: boolean; taskId?: string }> = {};
       logsToFormat.forEach(log => {
         const key = log.taskId || log.title;
-        if (grouped[key]) {
-          grouped[key].duration += log.durationMinutes;
-        } else {
+        if (!grouped[key]) {
           grouped[key] = {
             title: log.title,
-            duration: log.durationMinutes,
+            duration: 0,
             isJira: log.isJira,
             taskId: log.taskId
           };
         }
+        grouped[key].duration += log.durationMinutes;
       });
-      return Object.values(grouped).map(log => {
-        const durationStr = `${log.duration}m`;
-        return log.isJira && log.taskId
-          ? `• [${log.taskId}] ${log.title} (${durationStr})`
-          : `• [Manual] ${log.title} (${durationStr})`;
-      });
+
+      return Object.values(grouped).map(item => {
+        const h = Math.floor(item.duration / 60);
+        const m = item.duration % 60;
+        const timeStr = `${h > 0 ? `${h}h ` : ''}${m}m`;
+        const prefix = item.taskId ? `[${item.taskId}] ` : '';
+        return `- ${prefix}${item.title} (${timeStr})`;
+      }).join('\n');
     };
 
     if (yesterdayLogs.length > 0) {
-      const yesterdayLines = formatLogs(yesterdayLogs);
-      setYesterday(prev => {
-        const prefix = prev ? prev.trim() + '\n' : '';
-        return prefix + yesterdayLines.join('\n');
-      });
+      setYesterday(formatLogs(yesterdayLogs));
     }
-
     if (todayLogs.length > 0) {
-      const todayLines = formatLogs(todayLogs);
-      setToday(prev => {
-        const prefix = prev ? prev.trim() + '\n' : '';
-        return prefix + todayLines.join('\n');
-      });
+      setToday(formatLogs(todayLogs));
     }
 
     toast({
@@ -128,35 +121,28 @@ export default function DailyReport() {
     }
     
     // Save report to Spring Boot
-    if (user) {
-      try {
-        await dailyFlowApi.saveOrUpdateDailyReport({
-          userId: user.uid,
-          yesterday: yesterday.trim(),
-          today: today.trim(),
-          blockers: blockers.trim(),
-          date: selectedDate
-        });
+    try {
+      await dailyFlowApi.saveOrUpdateDailyReport({
+        userId: currentUserId,
+        yesterday: yesterday.trim(),
+        today: today.trim(),
+        blockers: blockers.trim(),
+        date: selectedDate
+      });
 
-        // Refresh the dashboard dailies history list instantly
-        useDailyStore.getState().fetchDailyReports(null, user.uid);
-        
-        toast({
-          title: "Daily Salva & Copiada!",
-          description: "Relatório registrado no Spring Boot e copiado com sucesso."
-        });
-      } catch (err) {
-        console.error("Erro ao salvar daily report:", err);
-        toast({
-          title: "Erro ao Salvar",
-          description: "O status foi copiado, mas houve um erro ao persistir no Spring Boot.",
-          variant: "destructive"
-        });
-      }
-    } else {
+      // Refresh the dashboard dailies history list instantly
+      useDailyStore.getState().fetchDailyReports(currentUserId);
+      
       toast({
-        title: "Copiado com Sucesso!",
-        description: "O status foi copiado, mas conecte-se para habilitar o salvamento em nuvem."
+        title: "Daily Salva & Copiada!",
+        description: "Relatório registrado no Spring Boot e copiado com sucesso."
+      });
+    } catch (err) {
+      console.error("Erro ao salvar daily report:", err);
+      toast({
+        title: "Erro ao Salvar",
+        description: "O status foi copiado, mas houve um erro ao persistir no Spring Boot.",
+        variant: "destructive"
       });
     }
   };

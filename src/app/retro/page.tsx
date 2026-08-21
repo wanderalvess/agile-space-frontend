@@ -42,7 +42,7 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function RetroHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user } = useFirebase();
+  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -77,7 +77,17 @@ export default function RetroHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!auth.currentUser || isCreating) return;
+    if (isCreating) return;
+
+    if (!user || !user.uid) {
+      console.error("[retro] Tentativa de criação de quadro abortada: usuário nulo ou sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade. Por favor, defina seu perfil e tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({
@@ -118,7 +128,7 @@ export default function RetroHubPage() {
 
     const newBoard = {
       id: crypto.randomUUID(),
-      creatorId: auth.currentUser.uid,
+      creatorId: user.uid,
       isCardsRevealed: false,
       isAuthorsRevealed: false,
       votingStatus: 'disabled' as const,
@@ -126,7 +136,7 @@ export default function RetroHubPage() {
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
-      participantIds: [auth.currentUser.uid],
+      participantIds: [user.uid],
       columns,
       templateKey: template,
     };
@@ -138,14 +148,20 @@ export default function RetroHubPage() {
         setIsSetupOpen(false);
         router.push(`/retro/${docRef.id}`);
       } else {
+        console.error("[retro] Resposta da API ao criar quadro não veio com ID válido:", docRef);
         setIsCreating(false);
+        toast({
+          title: "Erro na Criação",
+          description: "O servidor não retornou um ID para o novo quadro.",
+          variant: "destructive"
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating retro board: ", error);
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar o quadro no momento.",
+        description: error?.message || "Não foi possível iniciar o quadro no momento.",
         variant: "destructive"
       });
     }

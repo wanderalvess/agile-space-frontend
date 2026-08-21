@@ -233,14 +233,25 @@ export default function PerformanceDashboard() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col gap-4 overflow-y-auto no-scrollbar pb-6 animate-in fade-in duration-300">
+    <div className="w-full h-full flex flex-col gap-6 overflow-y-auto no-scrollbar pb-6 animate-in fade-in duration-300">
       
-      {/* PASSO 1: Barra de Filtros (Topo) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/70 dark:bg-slate-900/60 border border-slate-200/50 dark:border-slate-800/40 rounded-2xl p-3 shadow-xs shrink-0">
-        <div className="flex items-center gap-1.5">
-          <Filter className="h-4 w-4 text-indigo-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Parâmetros Analíticos</span>
+      {/* Header Banner Performance */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-5 md:p-6 shadow-sm shrink-0">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              PERFORMANCE & HÁBITOS
+            </span>
+            <span className="text-xs text-slate-400 font-mono">Métricas de Foco</span>
+          </div>
+          <h2 className="text-xl md:text-2xl font-black italic tracking-tight text-slate-900 dark:text-white uppercase font-headline">
+            Produtividade & Alocação de Tempo
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+            Acompanhe o tempo investido em codificação, revisões e reuniões com comparativo de metas diárias.
+          </p>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
           {/* Period Filter */}
           <div className="flex items-center gap-1">

@@ -94,12 +94,15 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function PokerHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user } = useFirebase();
+  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+
   // Setup State
   const [title, setTitle] = useState('');
   const [team, setTeam] = useState('');
@@ -135,8 +138,25 @@ export default function PokerHubPage() {
     if (userTeam) setTeam(userTeam);
   }, [userProfile, teamTouched]);
 
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const data = await pokerApi.listRooms();
+        setRooms(data);
+      } catch (err) {
+        console.error("Erro ao listar salas", err);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+    fetchRooms();
+  }, []);
+
   const SETUP_TOTAL = SETUP_GROUPS.reduce((n, g) => n + g.items.length, 0);
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
+
+  const mySquadRooms = rooms.filter(r => r.team && r.team === (userProfile?.squadId || userProfile?.team));
+  const myParticipatedRooms = rooms.filter(r => user?.uid && (r.participantIds?.includes(user.uid) || r.creatorId === user.uid));
 
   const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
@@ -159,7 +179,17 @@ export default function PokerHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!auth.currentUser || isCreating) return;
+    if (isCreating) return;
+
+    if (!user || !user.uid) {
+      console.error("[poker] Tentativa de criação de sala abortada: usuário nulo ou sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade. Por favor, defina seu perfil e tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({
@@ -198,14 +228,14 @@ export default function PokerHubPage() {
     const newRoom = {
       id: roomId,
       votesRevealed: false,
-      creatorId: auth.currentUser.uid,
+      creatorId: user.uid,
       timer: { status: 'stopped', endTime: null, initialDuration: 120, remainingOnPause: 120 },
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
       issuesQueue: backlogIssues,
       activeIssueId: backlogIssues[0]?.id || null,
-      participantIds: [auth.currentUser.uid],
+      participantIds: [user.uid],
       mode,
       deckType,
       revealedIssues: [],
@@ -224,14 +254,20 @@ export default function PokerHubPage() {
         setIsSetupOpen(false);
         router.push(`/room/${docRef.id}`);
       } else {
+        console.error("[poker] Resposta da API ao criar sala não veio com ID válido:", docRef);
         setIsCreating(false);
+        toast({
+          title: "Erro na Criação",
+          description: "O servidor não retornou um ID para a nova sala.",
+          variant: "destructive"
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating poker room: ", error);
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar a sala no momento.",
+        description: error?.message || "Não foi possível iniciar a sala no momento.",
         variant: "destructive"
       });
     }
@@ -301,7 +337,28 @@ export default function PokerHubPage() {
         }}
         onJoinSession={(id) => router.push(`/room/${id}`)}
         isCreating={isCreating}
-      />
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold">Sessões da Minha Squad</h3>
+            {loadingRooms ? <p>Carregando...</p> : mySquadRooms.length === 0 ? <p className="text-muted-foreground">Nenhuma sessão encontrada.</p> : mySquadRooms.map(r => (
+               <div key={r.id} className="p-4 border rounded shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900" onClick={() => router.push(`/room/${r.id}`)}>
+                 <h4 className="font-bold">{r.title}</h4>
+                 <p className="text-sm text-gray-500">{r.team}</p>
+               </div>
+            ))}
+          </div>
+          <div className="space-y-4">
+            <h3 className="text-xl font-bold">Minhas Sessões Participadas</h3>
+            {loadingRooms ? <p>Carregando...</p> : myParticipatedRooms.length === 0 ? <p className="text-muted-foreground">Nenhuma sessão encontrada.</p> : myParticipatedRooms.map(r => (
+               <div key={r.id} className="p-4 border rounded shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900" onClick={() => router.push(`/room/${r.id}`)}>
+                 <h4 className="font-bold">{r.title}</h4>
+                 <p className="text-sm text-gray-500">{r.team}</p>
+               </div>
+            ))}
+          </div>
+        </div>
+      </ToolHubLayout>
 
       <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
         <DialogContent className="sm:max-w-[1100px] max-h-[94vh] overflow-y-auto gap-2 p-5 sm:p-6 rounded-[2rem] border border-border shadow-2xl bg-card text-card-foreground">

@@ -6,6 +6,7 @@ import { Timer, Cloud, CloudDownload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
 import { FocusTimer } from '@/components/workspace/FocusTimer';
 import { KanbanCardData } from '@/components/workspace/types';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
@@ -18,22 +19,25 @@ import { focusApi, FocusSessionData } from '@/app/focus/api';
 export default function FocusPage() {
   const router = useRouter();
   const { user } = useFirebase();
+  const { userProfile, isInitializing } = useUserContext();
   const { toast } = useToast();
   const [isJiraModalOpen, setIsJiraModalOpen] = useState(false);
+
+  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid || '';
 
   const [cards, setCards] = useState<KanbanCardData[]>([]);
   const [isKanbanLoading, setIsKanbanLoading] = useState(true);
   const [dbSessions, setDbSessions] = useState<FocusSessionData[]>([]);
 
   const loadFocusData = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     try {
       const [cardsList, sessionsList] = await Promise.all([
-        workspaceApi.getKanbanCards(user.uid),
-        focusApi.getSessions(user.uid)
+        workspaceApi.getKanbanCards(effectiveUserId),
+        focusApi.getSessions(effectiveUserId)
       ]);
-      setCards(cardsList);
-      setDbSessions(sessionsList);
+      setCards(cardsList || []);
+      setDbSessions(sessionsList || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -42,13 +46,13 @@ export default function FocusPage() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       loadFocusData();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const handleImportJira = async (issues: JiraIssue[]) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const mapJiraToFocusCategory = (type: string, title: string): string => {
       const t = type.toLowerCase();
@@ -73,7 +77,7 @@ export default function FocusPage() {
       let importedCount = 0;
       for (const issue of issues) {
         const category = mapJiraToFocusCategory(issue.type || '', issue.title || '');
-        await workspaceApi.saveKanbanCard(user.uid, {
+        await workspaceApi.saveKanbanCard(effectiveUserId, {
           id: issue.key,
           title: issue.title,
           status: 'todo',
@@ -91,9 +95,9 @@ export default function FocusPage() {
   };
 
   const handleSessionComplete = async (taskId: string | null, durationMinutes: number, title: string, category: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     try {
-      await focusApi.saveSession(user.uid, {
+      await focusApi.saveSession(effectiveUserId, {
         durationMinutes,
         taskCategory: category
       });
@@ -105,15 +109,13 @@ export default function FocusPage() {
   };
 
   const handleClearHistory = async () => {
-    // Para simplificar, o clear history de hoje não fará deleção em batch no Postgres
-    // a menos que seja estritamente necessário. Podemos deixar em branco ou implementar no futuro.
     toast({ title: 'Aviso', description: 'Função simplificada na versão PostgreSQL.' });
   };
 
   const handleAddTask = async (title: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     try {
-      await workspaceApi.saveKanbanCard(user.uid, {
+      await workspaceApi.saveKanbanCard(effectiveUserId, {
         title,
         status: 'todo',
         tag: 'Manual'
@@ -138,12 +140,12 @@ export default function FocusPage() {
   };
 
   const handleEditTask = async (taskId: string, currentTitle: string) => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     const newTitle = window.prompt("Editar título da tarefa:", currentTitle);
     if (newTitle === null || !newTitle.trim()) return;
     
     try {
-      await workspaceApi.saveKanbanCard(user.uid, {
+      await workspaceApi.saveKanbanCard(effectiveUserId, {
         id: taskId,
         title: newTitle.trim()
       });

@@ -4,6 +4,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings } from 'lucide-react';
 import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
+import { useToast } from '@/hooks/use-toast';
+import { squadApi } from '@/app/squad/api';
 import { sprintPlanningApi } from '../../app/sprint-planner/api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,7 +28,47 @@ interface SprintPlannerContentProps {
 
 export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentProps) {
   const { user } = useFirebase();
+  const { userProfile } = useUserContext();
+  const { toast } = useToast();
   const router = useRouter();
+  const activeSquadId = userProfile?.squadId || 'DDWMISSI';
+
+  const handleImportRosterFromSquad = async () => {
+    try {
+      const roster = await squadApi.getMembers(activeSquadId);
+      if (!roster || roster.length === 0) {
+        toast({
+          title: 'Roster Vazio',
+          description: `Nenhum membro encontrado na squad ${activeSquadId}.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const importedMembers: TeamMember[] = roster.map(m => ({
+        id: m.jiraAccountId,
+        name: m.displayName,
+        role: (m.role || '').toLowerCase().includes('qa') ? 'qa' : 'dev',
+        focusFactor: 100,
+        daysOff: 0,
+        hoursPerDay: m.capacityHoursPerDay ?? 8,
+      }));
+
+      setSprintMembers(importedMembers);
+      setIsDetailedMode(true);
+
+      toast({
+        title: 'Roster Sincronizado!',
+        description: `${importedMembers.length} integrantes carregados com a capacidade calibrada do gestor.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Erro ao Buscar Roster',
+        description: err?.message || 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   // Capacity Engine State
   const [workingDays, setWorkingDays] = useState<number>(10);
@@ -125,6 +168,19 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
         importedPokerRoomIds
       };
       const saved = await sprintPlanningApi.saveOrUpdatePlanner(payload);
+      
+      // Phase 3: commit to backend
+      if (saved && saved.id) {
+        try {
+          const { workItemsApi } = await import('@/app/work-items-api');
+          await Promise.all(tasks.map(t => {
+            if (t.link && t.link.includes('-')) {
+              return workItemsApi.commitWorkItem(activeSquadId, t.link, saved.id).catch(() => {});
+            }
+          }));
+        } catch(e) {}
+      }
+
       setSaveStatus('saved');
       if (!shareId && saved && saved.id) {
         localStorage.setItem('sprint_planner_creator_id', user?.uid || 'anonymous');
@@ -281,6 +337,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
             onUpdateMember={handleUpdateMember}
             onAddMember={() => setSprintMembers([...sprintMembers, { id: crypto.randomUUID(), name: '', role: 'dev', focusFactor: 70, daysOff: 0, hoursPerDay: 8 }])}
             onRemoveMember={(id) => setSprintMembers(sprintMembers.filter(m => m.id !== id))}
+            onImportRoster={handleImportRosterFromSquad}
             isReadOnly={isReadOnly}
           />
 

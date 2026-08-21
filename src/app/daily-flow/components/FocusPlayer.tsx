@@ -7,18 +7,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDailyStore } from '@/store/useDailyStore';
-import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
 
 export default function FocusPlayer() {
-  const { firestore, user } = useFirebase();
+  const { userProfile } = useUserContext();
+  const currentUserId = userProfile?.id || userProfile?.email || 'user';
   const { toast } = useToast();
   
   const [isJiraModalOpen, setIsJiraModalOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const { tasks, activeTaskId, setActiveTaskId, addTask, addWorklogFirebase, setTasks } = useDailyStore();
+  const { tasks, activeTaskId, setActiveTaskId, addTask, addWorklog, setTasks } = useDailyStore();
   const activeTask = isMounted ? tasks.find(t => t.id === activeTaskId) : null;
 
   const {
@@ -130,30 +131,28 @@ export default function FocusPlayer() {
 
     const taskTitle = activeTask ? activeTask.title : 'Foco Geral';
     
-    if (firestore && user) {
-      try {
-        await addWorklogFirebase(firestore, user.uid, {
-          taskId: activeTaskId || undefined,
-          title: taskTitle,
-          durationMinutes: finalMinutes
-        });
-        toast({
-          title: "Tempo Registrado",
-          description: `${finalMinutes}m salvos com sucesso no Firebase.`
-        });
-        
-        // Remover da fila de foco e limpar tarefa ativa
-        if (activeTaskId) {
-          setTasks(tasks.filter(t => t.id !== activeTaskId));
-          setActiveTaskId(null);
-        }
-      } catch (err) {
-        toast({
-          title: "Erro ao Salvar",
-          description: "Não foi possível persistir o registro de foco no Firebase.",
-          variant: "destructive"
-        });
+    try {
+      await addWorklog(currentUserId, {
+        taskId: activeTaskId || undefined,
+        title: taskTitle,
+        durationMinutes: finalMinutes
+      });
+      toast({
+        title: "Tempo Registrado",
+        description: `${finalMinutes}m salvos com sucesso.`
+      });
+      
+      // Remover da fila de foco e limpar tarefa ativa
+      if (activeTaskId) {
+        setTasks(tasks.filter(t => t.id !== activeTaskId));
+        setActiveTaskId(null);
       }
+    } catch (err) {
+      toast({
+        title: "Erro ao Salvar",
+        description: "Não foi possível registrar o tempo de foco.",
+        variant: "destructive"
+      });
     }
 
     resetTimer();
@@ -203,20 +202,20 @@ export default function FocusPlayer() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white border border-primary/20 dark:border-primary/30 rounded-[2.5rem] shadow-2xl shadow-[0_20px_50px_rgba(249,115,22,0.08)] dark:shadow-[0_20px_50px_rgba(249,115,22,0.03)] p-5 overflow-hidden justify-between select-none">
+    <div className="flex flex-col h-full bg-white/80 backdrop-blur-xl dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl shadow-sm p-4 overflow-hidden justify-between select-none">
       {/* Header */}
-      <div className="flex items-center justify-between shrink-0 mb-3">
+      <div className="flex items-center justify-between shrink-0 mb-3 border-b border-slate-100 dark:border-slate-800/50 pb-2">
         <div className="flex items-center gap-1.5">
-          <Moon className="h-4 w-4 text-orange-500" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Player de Foco</span>
+          <Moon className="h-3.5 w-3.5 text-orange-500" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Player de Foco</span>
         </div>
-        <span className="text-[8px] font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+        <span className="text-[8px] font-black text-orange-600 dark:text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
           Pomodoro
         </span>
       </div>
 
       {/* Circular Progress Timer */}
-      <div className="relative flex flex-col items-center justify-center shrink-0 py-1.5">
+      <div className="relative flex flex-col items-center justify-center shrink-0 py-1">
         <div className="relative w-20 h-20 flex items-center justify-center">
           <svg viewBox="0 0 160 160" className="w-full h-full transform -rotate-90">
              <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-slate-200 dark:text-slate-800/40" />
@@ -228,7 +227,7 @@ export default function FocusPlayer() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="font-black italic tracking-tighter text-xl text-slate-900 dark:text-white select-none">
+            <span className="font-black italic tracking-tighter text-xl text-slate-900 dark:text-white select-none font-headline">
               {String(minutesDisplay).padStart(2, '0')}:{String(secondsDisplay).padStart(2, '0')}
             </span>
           </div>
@@ -236,42 +235,44 @@ export default function FocusPlayer() {
       </div>
 
       {/* Control Buttons */}
-      <div className="flex items-center justify-center gap-2.5 shrink-0 mb-3">
+      <div className="flex items-center justify-center gap-2 shrink-0 mb-2.5">
         <button 
           onClick={resetTimer} 
-          className="h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center"
+          className="h-8 w-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-colors"
+          title="Reiniciar Timer"
         >
-          <RotateCcw className="h-4 w-4" />
+          <RotateCcw className="h-3.5 w-3.5" />
         </button>
         
         <button 
           onClick={handlePlayPause} 
           className={cn(
-            "h-11 w-11 rounded-xl shadow-lg transition-all active:scale-95 flex items-center justify-center", 
-            isTimerRunning ? "bg-slate-800 dark:bg-white text-white dark:text-black hover:bg-slate-700 dark:hover:bg-white/90" : "bg-orange-600 hover:bg-orange-700 text-white"
+            "h-10 w-10 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center", 
+            isTimerRunning ? "bg-slate-800 dark:bg-white text-white dark:text-black hover:bg-slate-700 dark:hover:bg-white/90" : "bg-orange-600 hover:bg-orange-500 text-white"
           )}
         >
-          {isTimerRunning ? <Pause className="h-4.5 w-4.5 text-current" /> : <Play className="h-4.5 w-4.5 fill-current text-current ml-0.5" />}
+          {isTimerRunning ? <Pause className="h-4 w-4 text-current" /> : <Play className="h-4 w-4 fill-current text-current ml-0.5" />}
         </button>
 
         <button
           onClick={handleComplete}
-          className="h-9 w-9 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 shadow-sm flex items-center justify-center"
+          className="h-8 w-8 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 shadow-xs flex items-center justify-center transition-colors"
+          title="Concluir Ciclo"
         >
-          <CheckCircle className="h-4 w-4" />
+          <CheckCircle className="h-3.5 w-3.5" />
         </button>
 
         <button 
           onClick={toggleOpen} 
           className={cn(
-            "h-9 w-9 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-all flex items-center justify-center",
+            "h-8 w-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center justify-center",
             isFocusActive 
-              ? "text-orange-500 border-orange-500/30 bg-orange-500/10" 
-              : "text-muted-foreground"
+              ? "text-orange-500 border border-orange-500/30 bg-orange-500/10" 
+              : "text-slate-400 dark:text-slate-500"
           )}
-          title="Calmaria - Sons e Spotify"
+          title="Calmaria - Sons e Foco"
         >
-          <Headphones className="h-4 w-4" />
+          <Headphones className="h-3.5 w-3.5" />
         </button>
       </div>
 

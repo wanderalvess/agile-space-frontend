@@ -284,9 +284,12 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const updateTask = useCallback(async (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => {
     if (!id || !session) return;
     const currentTasks = session.tasks || [];
+    let updatedTaskContent: ShowcaseTask | null = null;
     const newTasks = currentTasks.map((t: any) => {
       if (t.id === taskId) {
-        return typeof updates === 'function' ? updates(t) : { ...t, ...updates };
+        const result = typeof updates === 'function' ? updates(t) : { ...t, ...updates };
+        updatedTaskContent = result;
+        return result;
       }
       return t;
     });
@@ -296,6 +299,22 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         ...session,
         tasks: newTasks
       });
+
+      // Phase 3: Backend decision push
+      if (updatedTaskContent && updatedTaskContent.key && updatedTaskContent.key.includes('-')) {
+        const hasDecisionChanged = typeof updates === 'object' && ('decision' in updates || 'feedback' in updates);
+        if (hasDecisionChanged) {
+          let backendStatus = 'committed';
+          if (updatedTaskContent.decision === 'approved') backendStatus = 'delivered';
+          else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
+          else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
+
+          const activeSquad = session?.squadName || session?.team || userProfile?.squadId || 'DDWMISSI';
+          const { workItemsApi } = await import('@/app/work-items-api');
+          workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '').catch(() => {});
+        }
+      }
+
     } catch (err) {
       console.error(err);
     }
