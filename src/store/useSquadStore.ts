@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { squadApi } from '@/app/squad/api';
 import { fetchAllJiraIssues, type JiraIssue } from '@/services/jiraService';
+import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import type {
   SquadConfig, SquadIssueSnapshot, SquadMetricsRollup, SquadMemberMetric, SquadMember,
   SquadDailySnapshot, SquadSprintHistoryEntry, SquadIssueWorklogCache
@@ -31,7 +32,7 @@ const UNMAPPED_SPRINT_ID = 'UNMAPPED';
 // (codificação/code review/teste) via campos nativos do Jira, não customfield.
 // `worklog` só entra quando rankingEnabled — é o único campo que carrega
 // hora POR PESSOA (quem logou), e ranking nasce desligado por padrão.
-const SQUAD_SYNC_FIELDS_BASE = ['issuetype', 'status', 'updated', 'duedate', 'assignee', 'parent', 'timeoriginalestimate', 'timeestimate', 'timespent', 'aggregatetimeoriginalestimate', 'aggregatetimeestimate', 'aggregatetimespent'];
+const SQUAD_SYNC_FIELDS_BASE = ['summary', 'issuetype', 'status', 'created', 'updated', 'duedate', 'assignee', 'parent', 'timeoriginalestimate', 'timeestimate', 'timespent', 'aggregatetimeoriginalestimate', 'aggregatetimeestimate', 'aggregatetimespent', 'customfield_10015', 'customfield_10014', 'startDate'];
 const SQUAD_SYNC_FIELDS_WITH_WORKLOG = [...SQUAD_SYNC_FIELDS_BASE, 'worklog'];
 
 // Firestore aceita no máximo 500 operações por batch. Uma sprint ativa
@@ -75,15 +76,37 @@ interface SquadStoreState {
   isForceResyncingSprint: boolean;
 
   fetchSquad: (squadId: string) => Promise<void>;
-  fetchSquadDetail: (squadId: string) => Promise<void>;
-  fetchMembers: (squadId: string, uid: string) => Promise<void>;
+  fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<void>;
   claimMember: (squadId: string, jiraAccountId: string, uid: string) => Promise<void>;
-  saveMemberCapacity: (squadId: string, jiraAccountId: string, updates: { displayName: string; capacityHoursPerDay: number }) => Promise<void>;
+  saveMemberCapacity: (
+    squadId: string,
+    jiraAccountId: string,
+    updates: {
+      displayName?: string;
+      role?: string;
+      email?: string;
+      capacityHoursPerDay?: number;
+      systemCalculatedCapacityHoursPerDay?: number;
+      calibrationNotes?: string;
+      overrideType?: string;
+    }
+  ) => Promise<void>;
+  batchUpdateMembers: (squadId: string, members: SquadMember[]) => Promise<void>;
   fetchMyIssues: (squadId: string, jiraAccountId: string) => Promise<void>;
   fetchDailySnapshots: (squadId: string) => Promise<void>;
   saveSquadConfig: (
     squadId: string,
-    updates: { jiraProjectKey: string; syncJql: string; rankingEnabled: boolean; defaultDailyCapacityHours: number; jiraDomain?: string; sprintFieldId?: string }
+    updates: {
+      jiraProjectKey: string;
+      syncJql: string;
+      rankingEnabled: boolean;
+      defaultDailyCapacityHours: number;
+      jiraDomain?: string;
+      sprintFieldId?: string;
+      capacityCalculationMethod?: string;
+      capacityJql?: string;
+      capacityFormula?: string;
+    }
   ) => Promise<void>;
   syncSquad: (uid: string, squadId: string, forceFull?: boolean) => Promise<void>;
   // Cache-only — troca qual sprint a tela mostra sem chamar o Jira.
@@ -384,14 +407,27 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   },
 
   // Roster é legível por qualquer membro do squad (não é dado sensível) —
-  // chame isto pra qualquer papel, diferente de fetchSquadDetail.
-  fetchMembers: async (squadId, uid) => {
+  // Identifica automaticamente quem é o usuário atual no squad (auto-binding por UID, email, Jira ID ou nome).
+  fetchMembers: async (squadId, uid, userHints) => {
     if (!squadId) return;
     try {
       const members = await squadApi.getMembers(squadId);
+      const userEmail = (userHints?.email || (uid && uid.includes('@') ? uid : '')).toLowerCase().trim();
+      const userJiraId = (userHints?.jiraAccountId || (uid && !uid.includes('@') ? uid : '')).trim();
+      const userName = (userHints?.name || '').toLowerCase().trim();
+
+      const myClaim = members.find(m => {
+        if (uid && m.claimedByUid === uid) return true;
+        if (userJiraId && m.jiraAccountId === userJiraId) return true;
+        if (userEmail && m.email && m.email.toLowerCase().trim() === userEmail) return true;
+        if (userEmail && m.jiraAccountId && m.jiraAccountId.toLowerCase().trim() === userEmail) return true;
+        if (userName && m.displayName && m.displayName.toLowerCase().trim() === userName) return true;
+        return false;
+      }) || null;
+
       set({
         members,
-        myClaim: members.find(m => m.claimedByUid === uid) || null,
+        myClaim,
       });
     } catch (err) {
       console.error('Erro ao buscar roster do squad:', err);
@@ -404,18 +440,33 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     await get().fetchMembers(squadId, uid);
   },
 
-  // SQUAD_PEOPLE_ADMIN_ROLES only — nome/capacidade de uma pessoa específica do roster.
   saveMemberCapacity: async (squadId, jiraAccountId, updates) => {
-    await squadApi.saveMember(squadId, jiraAccountId, {
+    const payload = {
       jiraAccountId,
-      displayName: updates.displayName,
-      capacityHoursPerDay: updates.capacityHoursPerDay,
+      ...(updates.displayName !== undefined ? { displayName: updates.displayName } : {}),
+      ...(updates.role !== undefined ? { role: updates.role } : {}),
+      ...(updates.email !== undefined ? { email: updates.email } : {}),
+      ...(updates.capacityHoursPerDay !== undefined ? { capacityHoursPerDay: updates.capacityHoursPerDay } : {}),
+      ...(updates.systemCalculatedCapacityHoursPerDay !== undefined ? { systemCalculatedCapacityHoursPerDay: updates.systemCalculatedCapacityHoursPerDay } : {}),
+      ...(updates.calibrationNotes !== undefined ? { calibrationNotes: updates.calibrationNotes } : {}),
+      ...(updates.overrideType !== undefined ? { overrideType: updates.overrideType } : {}),
       updatedAt: new Date().toISOString(),
-    });
+    };
+    await squadApi.saveMember(squadId, jiraAccountId, payload);
     set(state => ({
       members: state.members.map(m => m.jiraAccountId === jiraAccountId
-        ? { ...m, displayName: updates.displayName, capacityHoursPerDay: updates.capacityHoursPerDay }
+        ? { ...m, ...payload }
         : m),
+    }));
+  },
+
+  batchUpdateMembers: async (squadId, updatedMembers) => {
+    await squadApi.batchUpsertMembers(squadId, updatedMembers);
+    set(state => ({
+      members: state.members.map(m => {
+        const found = updatedMembers.find(u => u.jiraAccountId === m.jiraAccountId);
+        return found ? { ...m, ...found } : m;
+      }),
     }));
   },
 
@@ -456,10 +507,14 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     const rankingJustEnabled = updates.rankingEnabled && !current?.rankingEnabled;
     const payload: Partial<SquadConfig> = {
       squadId,
+      name: current?.name || squadId,
       jiraProjectKey: updates.jiraProjectKey.trim(),
       syncJql: updates.syncJql.trim(),
       rankingEnabled: updates.rankingEnabled,
       defaultDailyCapacityHours: updates.defaultDailyCapacityHours,
+      ...(updates.capacityCalculationMethod ? { capacityCalculationMethod: updates.capacityCalculationMethod } : {}),
+      ...(updates.capacityJql !== undefined ? { capacityJql: updates.capacityJql } : {}),
+      ...(updates.capacityFormula !== undefined ? { capacityFormula: updates.capacityFormula } : {}),
       ...(updates.jiraDomain ? { jiraDomain: updates.jiraDomain.trim() } : {}),
       ...(updates.sprintFieldId ? { sprintFieldId: updates.sprintFieldId.trim() } : {}),
       ...(rankingJustEnabled ? { rankingEnabledAt: new Date().toISOString() } : {}),
@@ -473,22 +528,39 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     set({ isSyncing: true, syncError: null });
     try {
       // Config do squad: agora vem da API REST
-      const config = await squadApi.getSquad(squadId);
-      if (!config) {
-        throw new Error('Configure o squad (projeto e JQL do Jira) antes de sincronizar.');
+      let config = await squadApi.getSquad(squadId);
+      const defaultProjKey = config?.jiraProjectKey && config.jiraProjectKey !== 'MISSI'
+        ? config.jiraProjectKey
+        : (squadId === 'MISSI' ? 'DDWMISSI' : squadId);
+
+      if (!config || !config.jiraProjectKey || config.jiraProjectKey === 'MISSI') {
+        const defaultConfig: SquadConfig = {
+          squadId,
+          jiraProjectKey: defaultProjKey,
+          syncJql: `project = "${defaultProjKey}" AND sprint in openSprints()`,
+          defaultDailyCapacityHours: 6,
+          rankingEnabled: false,
+          ...(config || {}),
+        };
+        defaultConfig.jiraProjectKey = defaultProjKey;
+        if (!config?.syncJql || config.syncJql.includes('project = "MISSI"') || config.syncJql.includes('project = MISSI')) {
+          defaultConfig.syncJql = `project = "${defaultProjKey}" AND sprint in openSprints()`;
+        }
+        try {
+          config = await squadApi.saveSquad(squadId, defaultConfig);
+          set(state => ({ config }));
+        } catch (e) {
+          config = defaultConfig;
+        }
       }
 
-      // PAT do Jira: ainda no Firestore (config pessoal do usuário)
-      // TODO: migrar junto ao módulo de configurações do usuário
-      const { getDoc, doc } = await import('firebase/firestore');
-      const { initializeFirebase } = await import('@/firebase');
-      const { firestore: fs } = initializeFirebase();
-      const jiraSettingsSnap = await getDoc(doc(fs, 'users', uid, 'config', 'jira'));
-      if (!jiraSettingsSnap.exists()) {
-        throw new Error('Configure seu Personal Access Token do Jira em Configurações antes de sincronizar.');
+      // Obtém credenciais do Jira (Spring Boot, localStorage ou Firestore)
+      const jiraCreds = await getJiraCredentials(uid);
+      if (!jiraCreds || !jiraCreds.token) {
+        throw new Error('Configure seu Token de Acesso do Jira em Conexão Jira antes de sincronizar.');
       }
 
-      const { domain: personalDomain, token } = jiraSettingsSnap.data() as { domain: string; token: string };
+      const { domain: personalDomain, token } = jiraCreds;
       const domain = config.jiraDomain || personalDomain;
       const rankingEnabled = !!config.rankingEnabled;
       const sprintFieldConfigured = !!config.sprintFieldId;
@@ -532,6 +604,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         }
         return {
           key: issue.key,
+          jiraKey: issue.key,
+          title: issue.title || issue.key,
           type: issue.type,
           isBug: isBugType(issue.type),
           status: issue.status,
@@ -542,6 +616,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
           updatedAtJira: issue.updated || '',
           staleSinceDays: daysSince(issue.updated || ''),
           dueDate: issue.dueDate || '',
+          targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
+          targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
           assigneeId: issue.assigneeId || '',
           assigneeName: issue.assignee || '',
           parentKey: issue.parentKey || '',
@@ -591,9 +667,11 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
             sprintMeta.set(parsed.id, { ...parsed, count: (existing?.count || 0) + 1 });
           }
           return {
-            key: issue.key, type: issue.type, isBug: isBugType(issue.type), status: issue.status, statusCategory,
+            key: issue.key, title: issue.title || issue.key, type: issue.type, isBug: isBugType(issue.type), status: issue.status, statusCategory,
             estimateSec: issue.timeEstimate || 0, remainingSec: issue.timeRemaining || 0, loggedSec: issue.timeSpent || 0,
             updatedAtJira: issue.updated || '', staleSinceDays: daysSince(issue.updated || ''), dueDate: issue.dueDate || '',
+            targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
+            targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
             assigneeId: issue.assigneeId || '', assigneeName: issue.assignee || '',
             parentKey: issue.parentKey || '', parentTitle: issue.parentTitle || '',
             sprintId: parsed?.id || UNMAPPED_SPRINT_ID, sprintName: parsed?.name || '',
@@ -687,6 +765,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
           const existingWorklogCache = await squadApi.getWorklogCache(squadId, isMigrationSync ? undefined : sprintId);
           const worklogEntries: SquadIssueWorklogCache[] = groupRawIssues.map(issue => ({
             key: issue.key,
+            jiraKey: issue.key,
             sprintId,
             worklogByAuthor: extractWorklogByAuthor(issue) as any,
             worklogAuthorNames: extractWorklogAuthorNames(issue) as any,
@@ -836,8 +915,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     try {
       const [viewedRollup, issuesForSprint, myIssuesForSprint] = await Promise.all([
         squadApi.getRollup(squadId),
-        opts.isLeadershipViewer ? squadApi.getIssues(squadId, sprintId) : Promise.resolve([]),
-        opts.myClaimedAssigneeId
+        squadApi.getIssues(squadId, sprintId),
+        opts?.myClaimedAssigneeId
           ? squadApi.getIssuesByAssignee(squadId, opts.myClaimedAssigneeId).then(all => all.filter(s => s.sprintId === sprintId))
           : Promise.resolve([]),
       ]);
@@ -858,14 +937,11 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       const config = await squadApi.getSquad(squadId);
       if (!config) throw new Error('Squad sem configuração.');
 
-      // PAT do Jira: ainda no Firestore (config pessoal do usuário)
-      const { getDoc: _getDoc, doc: _doc } = await import('firebase/firestore');
-      const { initializeFirebase } = await import('@/firebase');
-      const { firestore: fs } = initializeFirebase();
-      const jiraSettingsSnap = await _getDoc(_doc(fs, 'users', uid, 'config', 'jira'));
-      if (!jiraSettingsSnap.exists()) throw new Error('Configure seu Personal Access Token do Jira antes.');
+      // Obtém credenciais do Jira (Spring Boot, localStorage ou Firestore)
+      const jiraCreds = await getJiraCredentials(uid);
+      if (!jiraCreds || !jiraCreds.token) throw new Error('Configure seu Token de Acesso do Jira antes.');
 
-      const { domain: personalDomain, token } = jiraSettingsSnap.data() as { domain: string; token: string };
+      const { domain: personalDomain, token } = jiraCreds;
       const domain = config.jiraDomain || personalDomain;
       const rankingEnabled = !!config.rankingEnabled;
       const baseFields = rankingEnabled ? SQUAD_SYNC_FIELDS_WITH_WORKLOG : SQUAD_SYNC_FIELDS_BASE;

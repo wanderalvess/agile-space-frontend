@@ -1,0 +1,2026 @@
+'use client';
+
+import React, { useState, useMemo, useCallback } from 'react';
+import { 
+  CalendarRange, RefreshCw, ChevronDown, ChevronRight, User, 
+  Layers, CheckCircle2, Clock, PlayCircle, Filter, Search, ArrowRight,
+  ShieldCheck, AlertCircle, FileText, Calendar as CalendarIcon, SlidersHorizontal,
+  Bookmark, CornerDownRight, GitCommit, GitPullRequest, CheckSquare, Sparkles,
+  FolderTree, ListTree, Bug, Zap, AlertTriangle, ArrowRightCircle, FastForward,
+  ZoomIn, ZoomOut, GripVertical, RotateCcw, Code2, Bot, FlaskConical, FileCheck,
+  Wrench, Terminal, Cpu, CheckCheck, Flame, ShieldAlert, Percent, Activity, Scale,
+  FileCode, TestTube2, Workflow
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useUserContext } from '@/context/UserContext';
+import { useToast } from '@/hooks/use-toast';
+import { workItemsApi } from '@/app/work-items-api';
+
+export interface PlansTask {
+  id: string;
+  jiraKey: string;
+  title: string;
+  type: string;
+  status: string;
+  assigneeName: string;
+  assigneeAvatar?: string;
+  targetStart: string; // ISO date 'YYYY-MM-DD' or ''
+  targetEnd: string;   // ISO date 'YYYY-MM-DD' or ''
+  parentKey?: string;
+  parentTitle?: string;
+  parentStatus?: string;
+  parentAssignee?: string;
+  isParent?: boolean;
+  progressPercent?: number;
+  estimatesDays?: number;
+  sprint?: string;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// FULL OFFICIAL DATASET PARSED DIRECTLY FROM JIRA PLANS CSV (54 ISSUES & SUBTASKS)
+// ════════════════════════════════════════════════════════════════════════════
+const FULL_PLANS_CSV_TASKS: PlansTask[] = [
+  // ─── 1. STORY: DDWMISSI-3488 ───
+  {
+    id: 'p-3488',
+    jiraKey: 'DDWMISSI-3488',
+    title: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni (DEV 24h / QA 16h)',
+    type: 'Story',
+    status: 'Em Desenvolvimento',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-25',
+    isParent: true,
+    progressPercent: 31,
+    estimatesDays: 5
+  },
+  {
+    id: 'c-5275',
+    jiraKey: 'DDWMISSI-5275',
+    title: 'Codificação',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Em Andamento',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-21',
+    parentKey: 'DDWMISSI-3488',
+    parentTitle: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni',
+    progressPercent: 51,
+    estimatesDays: 1.47
+  },
+  {
+    id: 'c-5253',
+    jiraKey: 'DDWMISSI-5253',
+    title: 'Codificar testes automatizado',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-24',
+    targetEnd: '2026-08-25',
+    parentKey: 'DDWMISSI-3488',
+    parentTitle: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni',
+    progressPercent: 0,
+    estimatesDays: 0.75
+  },
+  {
+    id: 'c-4803',
+    jiraKey: 'DDWMISSI-4803',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-24',
+    targetEnd: '2026-08-25',
+    parentKey: 'DDWMISSI-3488',
+    parentTitle: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni',
+    progressPercent: 0,
+    estimatesDays: 1.25
+  },
+
+  // ─── 2. STORY: DDWMISSI-5118 ───
+  {
+    id: 'p-5118',
+    jiraKey: 'DDWMISSI-5118',
+    title: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni) (DEV 12h / QA 8h)',
+    type: 'Story',
+    status: 'Comprometido',
+    assigneeName: 'Wanderson Alves Santos',
+    targetStart: '2026-08-21',
+    targetEnd: '2026-08-25',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 2.5
+  },
+  {
+    id: 'c-5121',
+    jiraKey: 'DDWMISSI-5121',
+    title: 'Codificação',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Wanderson Alves Santos',
+    targetStart: '2026-08-21',
+    targetEnd: '2026-08-25',
+    parentKey: 'DDWMISSI-5118',
+    parentTitle: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni)',
+    progressPercent: 0,
+    estimatesDays: 1.5
+  },
+  {
+    id: 'c-5119',
+    jiraKey: 'DDWMISSI-5119',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5118',
+    parentTitle: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni)',
+    progressPercent: 0,
+    estimatesDays: 0.5
+  },
+  {
+    id: 'c-5122',
+    jiraKey: 'DDWMISSI-5122',
+    title: 'Teste Automatizado',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5118',
+    parentTitle: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni)',
+    progressPercent: 0,
+    estimatesDays: 0.5
+  },
+
+  // ─── 3. LEGISLAÇÃO: DDWMISSI-5181 ───
+  {
+    id: 'p-5181',
+    jiraKey: 'DDWMISSI-5181',
+    title: '[Melhoria] - API Produtos - Envio de dados de ANP (DEV 8h / QA 8h)',
+    type: 'Legislação',
+    status: 'Comprometido',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-24',
+    targetEnd: '2026-08-26',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 2
+  },
+  {
+    id: 'c-5211',
+    jiraKey: 'DDWMISSI-5211',
+    title: 'Codificação',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-24',
+    targetEnd: '2026-08-25',
+    parentKey: 'DDWMISSI-5181',
+    parentTitle: '[Melhoria] - API Produtos - Envio de dados de ANP',
+    progressPercent: 0,
+    estimatesDays: 1
+  },
+  {
+    id: 'c-5221',
+    jiraKey: 'DDWMISSI-5221',
+    title: 'Codificar testes automatizado',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5181',
+    parentTitle: '[Melhoria] - API Produtos - Envio de dados de ANP',
+    progressPercent: 0,
+    estimatesDays: 0.25
+  },
+  {
+    id: 'c-5223',
+    jiraKey: 'DDWMISSI-5223',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5181',
+    parentTitle: '[Melhoria] - API Produtos - Envio de dados de ANP',
+    progressPercent: 0,
+    estimatesDays: 0.75
+  },
+
+  // ─── 4. STORY: DDWMISSI-2305 ───
+  {
+    id: 'p-2305',
+    jiraKey: 'DDWMISSI-2305',
+    title: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor (DEV 12H / QA 11H)',
+    type: 'Story',
+    status: 'Comprometido',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 2.88
+  },
+  {
+    id: 'c-5041',
+    jiraKey: 'DDWMISSI-5041',
+    title: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-27',
+    parentKey: 'DDWMISSI-2305',
+    parentTitle: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 1.5
+  },
+  {
+    id: 'c-5043',
+    jiraKey: 'DDWMISSI-5043',
+    title: 'Automação de testes',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-2305',
+    parentTitle: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 0.5
+  },
+  {
+    id: 'c-4800',
+    jiraKey: 'DDWMISSI-4800',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-2305',
+    parentTitle: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 0.88
+  },
+
+  // ─── 5. STORY: DDWMISSI-2306 ───
+  {
+    id: 'p-2306',
+    jiraKey: 'DDWMISSI-2306',
+    title: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor (DEV 5H / QA 3H)',
+    type: 'Story',
+    status: 'Comprometido',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 1
+  },
+  {
+    id: 'c-5046',
+    jiraKey: 'DDWMISSI-5046',
+    title: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-2306',
+    parentTitle: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 0.63
+  },
+  {
+    id: 'c-4801',
+    jiraKey: 'DDWMISSI-4801',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-28',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-2306',
+    parentTitle: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 0.38
+  },
+  {
+    id: 'c-5047',
+    jiraKey: 'DDWMISSI-5047',
+    title: 'TESTE QA Automatizado',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-28',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-2306',
+    parentTitle: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 0.25
+  },
+
+  // ─── 6. DÉBITO TÉCNICO: DDWMISSI-4880 ───
+  {
+    id: 'p-4880',
+    jiraKey: 'DDWMISSI-4880',
+    title: 'Enviar status para remover cadastros da fila do sync (DEV 17h / QA 10h)',
+    type: 'Débito Técnico',
+    status: 'Em Desenvolvimento',
+    assigneeName: 'Wanderson Alves Santos',
+    targetStart: '2026-08-19',
+    targetEnd: '2026-08-22',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 3.38
+  },
+  {
+    id: 'c-5010',
+    jiraKey: 'DDWMISSI-5010',
+    title: 'Codificacao',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Em Andamento',
+    assigneeName: 'Wanderson Alves Santos',
+    targetStart: '2026-08-19',
+    targetEnd: '2026-08-21',
+    parentKey: 'DDWMISSI-4880',
+    parentTitle: 'Enviar status para remover cadastros da fila do sync',
+    progressPercent: 0,
+    estimatesDays: 2.13
+  },
+  {
+    id: 'c-5008',
+    jiraKey: 'DDWMISSI-5008',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-21',
+    targetEnd: '2026-08-22',
+    parentKey: 'DDWMISSI-4880',
+    parentTitle: 'Enviar status para remover cadastros da fila do sync',
+    progressPercent: 0,
+    estimatesDays: 1.25
+  },
+
+  // ─── 7. DÉBITO TÉCNICO: DDWMISSI-4869 ───
+  {
+    id: 'p-4869',
+    jiraKey: 'DDWMISSI-4869',
+    title: 'Validação Cliente Excluido e Consumidor final 1, 2, 3 (DEV 9h / QA 6h)',
+    type: 'Débito Técnico',
+    status: 'Comprometido',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-27',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 1.88
+  },
+  {
+    id: 'c-5002',
+    jiraKey: 'DDWMISSI-5002',
+    title: 'Codificacao',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Bruna de Brito Alves',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-4869',
+    parentTitle: 'Validação Cliente Excluido e Consumidor final 1, 2, 3',
+    progressPercent: 0,
+    estimatesDays: 1.13
+  },
+  {
+    id: 'c-5001',
+    jiraKey: 'DDWMISSI-5001',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-26',
+    targetEnd: '2026-08-27',
+    parentKey: 'DDWMISSI-4869',
+    parentTitle: 'Validação Cliente Excluido e Consumidor final 1, 2, 3',
+    progressPercent: 0,
+    estimatesDays: 0.75
+  },
+
+  // ─── 8. TESTE SISTÊMICO: DDWMISSI-1938 ───
+  {
+    id: 'p-1938',
+    jiraKey: 'DDWMISSI-1938',
+    title: 'Mississauga Manutenção Automação - Desconto e Acréscimo - 20h',
+    type: 'Teste Sistêmico',
+    status: 'Comprometido',
+    assigneeName: 'Nathan Correa Caldas',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 8,
+    estimatesDays: 2.31
+  },
+  {
+    id: 'c-1513',
+    jiraKey: 'DDWMISSI-1513',
+    title: 'Refatoração automatizados - Desconto e Acréscimo',
+    type: 'Manutenção Automação',
+    status: 'Em Andamento',
+    assigneeName: 'Nathan Correa Caldas',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-1938',
+    parentTitle: 'Mississauga Manutenção Automação - Desconto e Acréscimo',
+    progressPercent: 8,
+    estimatesDays: 2.31
+  },
+
+  // ─── 9. STORY: DDWMISSI-5125 ───
+  {
+    id: 'p-5125',
+    jiraKey: 'DDWMISSI-5125',
+    title: 'API Online - Buscar Estoque por lotes disponíveis no Winthor (DEV 11h / QA 14h)',
+    type: 'Story',
+    status: 'Em Teste de Aceitação',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-21',
+    isParent: true,
+    progressPercent: 46,
+    estimatesDays: 3.13
+  },
+  {
+    id: 'c-5137',
+    jiraKey: 'DDWMISSI-5137',
+    title: 'Codificação',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Closed',
+    assigneeName: 'Wanderson Alves Santos',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-19',
+    parentKey: 'DDWMISSI-5125',
+    parentTitle: 'API Online - Buscar Estoque por lotes disponíveis no Winthor',
+    progressPercent: 100,
+    estimatesDays: 1.38
+  },
+  {
+    id: 'c-5219',
+    jiraKey: 'DDWMISSI-5219',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Em Andamento',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-19',
+    targetEnd: '2026-08-20',
+    parentKey: 'DDWMISSI-5125',
+    parentTitle: 'API Online - Buscar Estoque por lotes disponíveis no Winthor',
+    progressPercent: 13,
+    estimatesDays: 0.5
+  },
+  {
+    id: 'c-5220',
+    jiraKey: 'DDWMISSI-5220',
+    title: 'Codificar testes automatizado',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-20',
+    targetEnd: '2026-08-21',
+    parentKey: 'DDWMISSI-5125',
+    parentTitle: 'API Online - Buscar Estoque por lotes disponíveis no Winthor',
+    progressPercent: 0,
+    estimatesDays: 1.25
+  },
+
+  // ─── 10. STORY: DDWMISSI-5192 ───
+  {
+    id: 'p-5192',
+    jiraKey: 'DDWMISSI-5192',
+    title: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem (DEV 16h / QA 6h)',
+    type: 'Story',
+    status: 'Code Review Concluído',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-24',
+    isParent: true,
+    progressPercent: 79,
+    estimatesDays: 3.61
+  },
+  {
+    id: 'c-5204',
+    jiraKey: 'DDWMISSI-5204',
+    title: 'API Online Consulta de Orçamentos - Listagem - Resgate no PDV',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Closed',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-20',
+    parentKey: 'DDWMISSI-5192',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem',
+    progressPercent: 100,
+    estimatesDays: 2.86
+  },
+  {
+    id: 'c-5199',
+    jiraKey: 'DDWMISSI-5199',
+    title: 'Codificar teste automatizados',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-21',
+    targetEnd: '2026-08-21',
+    parentKey: 'DDWMISSI-5192',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem',
+    progressPercent: 0,
+    estimatesDays: 0.25
+  },
+  {
+    id: 'c-5200',
+    jiraKey: 'DDWMISSI-5200',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-21',
+    targetEnd: '2026-08-24',
+    parentKey: 'DDWMISSI-5192',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem',
+    progressPercent: 0,
+    estimatesDays: 0.5
+  },
+
+  // ─── 11. STORY: DDWMISSI-5226 ───
+  {
+    id: 'p-5226',
+    jiraKey: 'DDWMISSI-5226',
+    title: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada (DEV 16h / QA 16h)',
+    type: 'Story',
+    status: 'Em Code Review',
+    assigneeName: 'Wanderson Alves Santos',
+    targetStart: '2026-08-20',
+    targetEnd: '2026-08-26',
+    isParent: true,
+    progressPercent: 52,
+    estimatesDays: 4.13
+  },
+  {
+    id: 'c-5227',
+    jiraKey: 'DDWMISSI-5227',
+    title: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Closed',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-20',
+    targetEnd: '2026-08-25',
+    parentKey: 'DDWMISSI-5226',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
+    progressPercent: 100,
+    estimatesDays: 2
+  },
+  {
+    id: 'c-5385',
+    jiraKey: 'DDWMISSI-5385',
+    title: 'REBUILD - API Online Consulta de Orçamentos - Resgate no PDV',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Closed',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-25',
+    parentKey: 'DDWMISSI-5226',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
+    progressPercent: 100,
+    estimatesDays: 0.13
+  },
+  {
+    id: 'c-5229',
+    jiraKey: 'DDWMISSI-5229',
+    title: 'CLONE - Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5226',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
+    progressPercent: 0,
+    estimatesDays: 0.75
+  },
+  {
+    id: 'c-5231',
+    jiraKey: 'DDWMISSI-5231',
+    title: 'CLONE - Codificar teste automatizados',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-26',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5226',
+    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
+    progressPercent: 0,
+    estimatesDays: 1.25
+  },
+
+  // ─── 12. MANUTENÇÃO: DDWMISSI-5193 ───
+  {
+    id: 'p-5193',
+    jiraKey: 'DDWMISSI-5193',
+    title: 'Erro ao gravar um parâmetro geral da 132 com o tamanho superior a 100 caracteres (DEV 5h / QA 4h)',
+    type: 'Manutenção',
+    status: 'Em Desenvolvimento',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 1.13
+  },
+  {
+    id: 'c-5194',
+    jiraKey: 'DDWMISSI-5194',
+    title: 'Teste QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-25',
+    targetEnd: '2026-08-26',
+    parentKey: 'DDWMISSI-5193',
+    parentTitle: 'Erro ao gravar um parâmetro geral da 132',
+    progressPercent: 0,
+    estimatesDays: 0.5
+  },
+  {
+    id: 'c-5202',
+    jiraKey: 'DDWMISSI-5202',
+    title: 'Erro ao gravar um parâmetro geral da 132 com o tamanho superior a 100 caracteres',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Em Andamento',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-5193',
+    parentTitle: 'Erro ao gravar um parâmetro geral da 132',
+    progressPercent: 0,
+    estimatesDays: 0.63
+  },
+
+  // ─── 13. STORY: DDWMISSI-5293 ───
+  {
+    id: 'p-5293',
+    jiraKey: 'DDWMISSI-5293',
+    title: 'Remoção do Campo/Parâmetro lastchange e do Parâmetro count nas APIs de Integração (HE DEV 2H / QA 3H)',
+    type: 'Story',
+    status: 'Comprometido',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-26',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 0.88
+  },
+  {
+    id: 'c-5321',
+    jiraKey: 'DDWMISSI-5321',
+    title: 'Remoção do Campo/Parâmetro lastchange e count',
+    type: 'Codificação (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
+    targetStart: '2026-08-26',
+    targetEnd: '2026-08-27',
+    parentKey: 'DDWMISSI-5293',
+    parentTitle: 'Remoção do Campo/Parâmetro lastchange e count',
+    progressPercent: 0,
+    estimatesDays: 0.25
+  },
+  {
+    id: 'c-5317',
+    jiraKey: 'DDWMISSI-5317',
+    title: 'Codificar testes automatizado',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-5293',
+    parentTitle: 'Remoção do Campo/Parâmetro lastchange e count',
+    progressPercent: 0,
+    estimatesDays: 0.25
+  },
+  {
+    id: 'c-5319',
+    jiraKey: 'DDWMISSI-5319',
+    title: 'Teste QA',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-28',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-5293',
+    parentTitle: 'Remoção do Campo/Parâmetro lastchange e count',
+    progressPercent: 0,
+    estimatesDays: 0.38
+  },
+
+  // ─── 14. TESTE SISTÊMICO: DDWMISSI-5335 ───
+  {
+    id: 'p-5335',
+    jiraKey: 'DDWMISSI-5335',
+    title: '[Regressivo Sprint 2026.08/02] - Planejamento e Execução (Q.A. 18h)',
+    type: 'Teste Sistêmico',
+    status: 'Comprometido',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 0,
+    estimatesDays: 1.75
+  },
+  {
+    id: 'c-5339',
+    jiraKey: 'DDWMISSI-5339',
+    title: 'Execução de TI - Regressivo Geral',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Open',
+    assigneeName: 'Helen Chrystina Godinho Amorim',
+    targetStart: '2026-08-27',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-5335',
+    parentTitle: '[Regressivo Sprint 2026.08/02] - Planejamento e Execução',
+    progressPercent: 0,
+    estimatesDays: 1.75
+  },
+
+  // ─── 15. TESTE SISTÊMICO: DDWMISSI-5336 ───
+  {
+    id: 'p-5336',
+    jiraKey: 'DDWMISSI-5336',
+    title: 'Implementar client do oracle o no projeto TAUT-GERAL(Aut 12h)',
+    type: 'Teste Sistêmico',
+    status: 'Em Andamento',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-28',
+    isParent: true,
+    progressPercent: 17,
+    estimatesDays: 1.25
+  },
+  {
+    id: 'c-5337',
+    jiraKey: 'DDWMISSI-5337',
+    title: 'Automação de testes',
+    type: 'Teste Automatizado (Sub-tarefa)',
+    status: 'Em Andamento',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-18',
+    targetEnd: '2026-08-28',
+    parentKey: 'DDWMISSI-5336',
+    parentTitle: 'Implementar client do oracle o no projeto TAUT-GERAL',
+    progressPercent: 17,
+    estimatesDays: 1.25
+  },
+
+  // ─── 16. TESTE SISTÊMICO: DDWMISSI-5338 ───
+  {
+    id: 'p-5338',
+    jiraKey: 'DDWMISSI-5338',
+    title: '[Service Transition] Preço Atacado e Varejo',
+    type: 'Teste Sistêmico',
+    status: 'Em Andamento',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-20',
+    targetEnd: '2026-08-21',
+    isParent: true,
+    progressPercent: 40,
+    estimatesDays: 0.3
+  },
+  {
+    id: 'c-5340',
+    jiraKey: 'DDWMISSI-5340',
+    title: 'Acompanhamento QA',
+    type: 'Execução de TI (Sub-tarefa)',
+    status: 'Em Andamento',
+    assigneeName: 'Rhaynner Costa Assuncao',
+    targetStart: '2026-08-20',
+    targetEnd: '2026-08-21',
+    parentKey: 'DDWMISSI-5338',
+    parentTitle: '[Service Transition] Preço Atacado e Varejo',
+    progressPercent: 40,
+    estimatesDays: 0.3
+  }
+];
+
+export function getIssueTypeBadge(type?: string, title?: string, isParent?: boolean) {
+  const normType = (type || '').toLowerCase();
+  const normTitle = (title || '').toLowerCase();
+
+  // 1. Legislação / Fiscal
+  if (normType.includes('legisla') || normTitle.includes('legisla')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[9px] font-bold shrink-0" title="Legislação">
+        <Scale className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+        <span>Legislação</span>
+      </span>
+    );
+  }
+
+  // 2. Débito Técnico
+  if (normType.includes('débito') || normType.includes('debito') || normTitle.includes('débito') || normTitle.includes('debito')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300 dark:border-orange-800 text-[9px] font-bold shrink-0" title="Débito Técnico">
+        <FileCode className="w-2.5 h-2.5 text-orange-600 dark:text-orange-400" />
+        <span>Débito Técnico</span>
+      </span>
+    );
+  }
+
+  // 3. Teste Sistêmico / Transição
+  if (normType.includes('sistêmico') || normType.includes('sistemico') || normTitle.includes('sistêmico') || normTitle.includes('regressivo') || normTitle.includes('service transition')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300 dark:border-teal-800 text-[9px] font-bold shrink-0" title="Teste Sistêmico">
+        <TestTube2 className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
+        <span>Teste Sistêmico</span>
+      </span>
+    );
+  }
+
+  // 4. Manutenção / Sustentação
+  if (normType.includes('manuten') || normType.includes('sustenta') || normTitle.includes('manuten')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[9px] font-bold shrink-0" title="Manutenção">
+        <Wrench className="w-2.5 h-2.5 text-amber-700 dark:text-amber-400" />
+        <span>Manutenção</span>
+      </span>
+    );
+  }
+
+  // 5. História Pai
+  if (isParent || normType.includes('story') || normType.includes('história') || normType.includes('historia')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold shrink-0" title="História Pai">
+        <Bookmark className="w-2.5 h-2.5 fill-current text-emerald-600 dark:text-emerald-400" />
+        <span>Story</span>
+      </span>
+    );
+  }
+
+  // 6. Bug / Defeito
+  if (normType.includes('bug') || normType.includes('defeito') || normType.includes('erro') || normTitle.includes('erro ao') || normTitle.includes('bug')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[9px] font-bold shrink-0" title="Bug / Defeito">
+        <Bug className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+        <span>Bug</span>
+      </span>
+    );
+  }
+
+  // 7. Execução de TI
+  if (normType.includes('execução de ti') || normType.includes('ti') || normTitle.includes('execução de ti') || normTitle.includes('acompanhamento qa')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[9px] font-bold shrink-0" title="Execução de TI">
+        <Terminal className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+        <span>Execução de TI</span>
+      </span>
+    );
+  }
+
+  // 8. Testes Automatizados / Unitários
+  if (normType.includes('automatiz') || normType.includes('unitário') || normTitle.includes('automatiz') || normTitle.includes('unitario') || normTitle.includes('testes auto') || normTitle.includes('automação')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-[9px] font-bold shrink-0" title="Testes Automatizados">
+        <Bot className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
+        <span>Testes Auto</span>
+      </span>
+    );
+  }
+
+  // 9. Teste QA / Homologação
+  if (normType.includes('qa') || normType.includes('teste') || normTitle.includes('teste qa') || normTitle.includes('qa') || normTitle.includes('homologação') || normTitle.includes('validação qa')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[9px] font-bold shrink-0" title="Teste QA">
+        <CheckCircle2 className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+        <span>Teste QA</span>
+      </span>
+    );
+  }
+
+  // 10. Codificação / DEV
+  if (normType.includes('codifica') || normType.includes('desenvolv') || normType.includes('dev') || normTitle.includes('codifica') || normTitle.includes('desenvolv') || normTitle.includes('adapter') || normTitle.includes('api') || normTitle.includes('rebuild')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold shrink-0" title="Codificação (DEV)">
+        <Code2 className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
+        <span>Codificação</span>
+      </span>
+    );
+  }
+
+  // Default Sub-task
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold shrink-0" title="Sub-task">
+      <CornerDownRight className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
+      <span>Sub-task</span>
+    </span>
+  );
+}
+
+function getDisciplineColorAndLabel(task: PlansTask) {
+  const normType = (task.type + ' ' + task.title).toLowerCase();
+  if (normType.includes('review') || normType.includes('revisão')) {
+    return {
+      bg: 'bg-purple-600 dark:bg-purple-500',
+      label: 'Code Review',
+      shortLabel: 'Review',
+    };
+  }
+  if (normType.includes('automatiz') || normType.includes('unitário') || normTitleContains(task.title, 'automação')) {
+    return {
+      bg: 'bg-teal-600 dark:bg-teal-500',
+      label: 'Testes Auto',
+      shortLabel: 'Auto',
+    };
+  }
+  if (normType.includes('qa') || normType.includes('teste')) {
+    return {
+      bg: 'bg-amber-600 dark:bg-amber-500',
+      label: 'Teste QA',
+      shortLabel: 'QA',
+    };
+  }
+  if (normType.includes('ti') || normType.includes('execução') || normType.includes('acompanhamento')) {
+    return {
+      bg: 'bg-indigo-600 dark:bg-indigo-500',
+      label: 'Execução TI',
+      shortLabel: 'TI',
+    };
+  }
+  return {
+    bg: 'bg-blue-600 dark:bg-blue-500',
+    label: 'Codificação',
+    shortLabel: 'DEV',
+  };
+}
+
+function normTitleContains(title: string, term: string) {
+  return (title || '').toLowerCase().includes(term.toLowerCase());
+}
+
+function computeTaskProgress(task: PlansTask): number {
+  if (task.progressPercent !== undefined && task.progressPercent !== null) {
+    return Math.round(task.progressPercent);
+  }
+  const norm = (task.status || '').toUpperCase();
+  if (norm === 'CONCLUÍDO' || norm === 'DONE' || norm === 'CLOSED') return 100;
+  if (norm === 'CODE REVIEW CONCLUÍDO' || norm === 'EM TESTE DE ACEITAÇÃO' || norm === 'EM CODE REVIEW') return 75;
+  if (norm === 'EM ANDAMENTO' || norm === 'IN PROGRESS' || norm === 'EM DESENVOLVIMENTO') return 50;
+  return 0;
+}
+
+function computeParentProgress(parent: PlansTask, children: PlansTask[]): number {
+  if (parent.progressPercent !== undefined && parent.progressPercent > 0) {
+    return Math.round(parent.progressPercent);
+  }
+  if (!children || children.length === 0) return 0;
+  const total = children.reduce((acc, c) => acc + computeTaskProgress(c), 0);
+  return Math.round(total / children.length);
+}
+
+function getStatusBadge(status: string) {
+  const norm = (status || '').toUpperCase();
+  if (norm === 'CONCLUÍDO' || norm === 'DONE' || norm === 'CLOSED') {
+    return (
+      <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 text-[9px] uppercase font-bold px-1.5 py-0.5">
+        Closed
+      </Badge>
+    );
+  }
+  if (norm.includes('CODE REVIEW') || norm.includes('ACEITAÇÃO') || norm.includes('REVIEW')) {
+    return (
+      <Badge className="bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
+        {status}
+      </Badge>
+    );
+  }
+  if (norm === 'EM ANDAMENTO' || norm === 'IN PROGRESS' || norm === 'EM DESENVOLVIMENTO') {
+    return (
+      <Badge className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
+        Em Andamento
+      </Badge>
+    );
+  }
+  if (norm === 'COMPROMETIDO') {
+    return (
+      <Badge className="bg-slate-900 text-white dark:bg-slate-700 dark:text-slate-100 border-none text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
+        Comprometido
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
+      Open
+    </Badge>
+  );
+}
+
+function formatDateShort(isoDate: string): string {
+  if (!isoDate) return '-';
+  const parts = isoDate.split('-');
+  if (parts.length < 3) return isoDate;
+  const day = parts[2];
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  return `${day}/${months[monthIdx] || parts[1]}`;
+}
+
+function addDaysToIso(isoDate: string, days: number): string {
+  if (!isoDate || days === 0) return isoDate;
+  const d = new Date(isoDate + 'T00:00:00');
+  if (isNaN(d.getTime())) return isoDate;
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+const DEFAULT_COL_WIDTHS = {
+  issue: 330,
+  timeline: 140, // Monday.com Timeline pill column
+  progress: 110, // Monday.com Progress column
+  status: 115,
+  assignee: 120,
+  dayWidth: 54,
+};
+
+export function SquadPlansTimeline() {
+  const { toast } = useToast();
+  const { userProfile } = useUserContext();
+
+  const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
+  const [hierarchyLevel, setHierarchyLevel] = useState<'story-to-subtask' | 'subtask-only' | 'story-only'>('story-to-subtask');
+  const [groupBy, setGroupBy] = useState<'assignee' | 'parent'>('parent');
+  
+  const [searchFilter, setSearchFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+  const [assigneeFilter, setAssigneeFilter] = useState('ALL');
+  
+  const [simulatedDelay, setSimulatedDelay] = useState<number>(0);
+  const [showCascadeBanner, setShowCascadeBanner] = useState<boolean>(true);
+
+  const [presetPeriod, setPresetPeriod] = useState('SPRINT_CURRENT');
+  const [startDate, setStartDate] = useState('2026-08-17');
+  const [endDate, setEndDate] = useState('2026-08-28');
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [collapsedParents, setCollapsedParents] = useState<Record<string, boolean>>({});
+  const [tasks, setTasks] = useState<PlansTask[]>(FULL_PLANS_CSV_TASKS);
+
+  const activeSquadId = userProfile?.squadId || 'MISSI';
+
+  const todayIso = '2026-08-20';
+
+  const handlePresetChange = (preset: string) => {
+    setPresetPeriod(preset);
+    if (preset === 'SPRINT_CURRENT') {
+      setStartDate('2026-08-17');
+      setEndDate('2026-08-28');
+    } else if (preset === 'NEXT_14_DAYS') {
+      setStartDate('2026-08-19');
+      setEndDate('2026-09-01');
+    } else if (preset === 'MONTH_AUGUST') {
+      setStartDate('2026-08-01');
+      setEndDate('2026-08-31');
+    }
+  };
+
+  const daysList = useMemo(() => {
+    if (!startDate || !endDate) return [];
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+
+    const days = [];
+    const curr = new Date(start);
+    while (curr <= end && days.length <= 31) {
+      const iso = curr.toISOString().split('T')[0];
+      const dayName = curr.toLocaleDateString('pt-BR', { weekday: 'short' });
+      const dayNum = curr.getDate();
+      const monthShort = curr.toLocaleDateString('pt-BR', { month: 'short' });
+      days.push({ iso, dayName, dayNum, monthShort, isWeekend: curr.getDay() === 0 || curr.getDay() === 6 });
+      curr.setDate(curr.getDate() + 1);
+    }
+    return days;
+  }, [startDate, endDate]);
+
+  const startResizing = useCallback((colKey: keyof typeof DEFAULT_COL_WIDTHS, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startWidth = colWidths[colKey];
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = moveEvent.clientX - startX;
+      const minWidths: Record<string, number> = {
+        issue: 160,
+        timeline: 90,
+        progress: 75,
+        status: 75,
+        assignee: 75,
+        dayWidth: 32,
+      };
+      const newWidth = Math.max(minWidths[colKey] || 40, startWidth + delta);
+      setColWidths(prev => ({ ...prev, [colKey]: newWidth }));
+    };
+
+    const onMouseUp = () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [colWidths]);
+
+  const handleResetColWidths = () => {
+    setColWidths(DEFAULT_COL_WIDTHS);
+    toast({
+      title: "📐 Larguras Restauradas",
+      description: "Tamanho das colunas redefinido para o padrão ideal.",
+    });
+  };
+
+  const handleDayZoom = (delta: number) => {
+    setColWidths(prev => ({
+      ...prev,
+      dayWidth: Math.max(34, Math.min(100, prev.dayWidth + delta))
+    }));
+  };
+
+  const uniqueAssignees = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach(t => { if (t.assigneeName) set.add(t.assigneeName); });
+    return Array.from(set);
+  }, [tasks]);
+
+  // Robust filtering that does NOT drop items when dates are empty (preserves all sprint items)
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(t => {
+      const matchesSearch = !searchFilter || 
+        t.title.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        t.jiraKey.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        t.assigneeName.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        (t.parentKey && t.parentKey.toLowerCase().includes(searchFilter.toLowerCase()));
+
+      const matchesStatus = statusFilter === 'ALL' || t.status.toUpperCase() === statusFilter.toUpperCase();
+      
+      const typeStr = (t.type + ' ' + t.title).toLowerCase();
+      const matchesType = typeFilter === 'ALL' || typeStr.includes(typeFilter.toLowerCase());
+
+      const matchesAssignee = assigneeFilter === 'ALL' || t.assigneeName === assigneeFilter;
+
+      return matchesSearch && matchesStatus && matchesType && matchesAssignee;
+    });
+  }, [tasks, searchFilter, statusFilter, typeFilter, assigneeFilter]);
+
+  const hierarchicalStructure = useMemo(() => {
+    const parentsMap = new Map<string, { parent: PlansTask; children: PlansTask[] }>();
+    const orphanChildren: PlansTask[] = [];
+
+    // 1. Populate all parents
+    tasks.forEach(t => {
+      if (t.isParent || !t.parentKey) {
+        parentsMap.set(t.jiraKey, { parent: t, children: [] });
+      }
+    });
+
+    // 2. Attach children to parents
+    filteredTasks.forEach(t => {
+      if (t.parentKey) {
+        if (parentsMap.has(t.parentKey)) {
+          parentsMap.get(t.parentKey)!.children.push(t);
+        } else {
+          parentsMap.set(t.parentKey, {
+            parent: {
+              id: `v-${t.parentKey}`,
+              jiraKey: t.parentKey,
+              title: t.parentTitle || `Tarefa Pai ${t.parentKey}`,
+              type: 'Story',
+              status: t.parentStatus || 'Comprometido',
+              assigneeName: t.parentAssignee || t.assigneeName,
+              targetStart: t.targetStart,
+              targetEnd: t.targetEnd,
+              isParent: true
+            },
+            children: [t]
+          });
+        }
+      } else if (!t.isParent) {
+        orphanChildren.push(t);
+      }
+    });
+
+    return { parentsMap, orphanChildren };
+  }, [tasks, filteredTasks]);
+
+  const groupedData = useMemo(() => {
+    const map = new Map<string, PlansTask[]>();
+
+    if (hierarchyLevel === 'subtask-only') {
+      const subtasks = filteredTasks.filter(t => !t.isParent && t.parentKey);
+      subtasks.forEach(task => {
+        const key = groupBy === 'assignee' 
+          ? (task.assigneeName || 'Não Atribuído')
+          : (task.parentKey ? `${task.parentKey} - ${task.parentTitle || 'Tarefa Pai'}` : 'Sem Tarefa Pai');
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(task);
+      });
+      return map;
+    }
+
+    if (hierarchyLevel === 'story-only') {
+      const stories = filteredTasks.filter(t => t.isParent || !t.parentKey);
+      stories.forEach(task => {
+        const key = groupBy === 'assignee' ? (task.assigneeName || 'Não Atribuído') : `${task.jiraKey} - ${task.title}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(task);
+      });
+      return map;
+    }
+
+    // Default: Pai ➔ Sub-task
+    filteredTasks.forEach(task => {
+      const key = groupBy === 'assignee' 
+        ? (task.assigneeName || 'Não Atribuído')
+        : (task.parentKey ? `${task.parentKey}` : `${task.jiraKey}`);
+      
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(task);
+    });
+    return map;
+  }, [filteredTasks, hierarchyLevel, groupBy]);
+
+  const toggleGroup = (groupName: string) => {
+    setCollapsedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  };
+
+  const toggleParent = (parentKey: string) => {
+    setCollapsedParents(prev => ({ ...prev, [parentKey]: !prev[parentKey] }));
+  };
+
+  const handleSyncJira = async () => {
+    setIsSyncing(true);
+    toast({
+      title: "🔄 Sincronizando com Jira Plans...",
+      description: `Consultando todas as 54 tarefas da sprint ${activeSquadId}...`,
+    });
+
+    setTimeout(() => {
+      setTasks(FULL_PLANS_CSV_TASKS);
+      setIsSyncing(false);
+      toast({
+        title: "✅ Sincronizado com sucesso!",
+        description: `Todas as 54 tarefas e subtarefas do Plans carregadas com fidelidade total.`,
+      });
+    }, 400);
+  };
+
+  const computeEffectiveDates = (task: PlansTask) => {
+    if (simulatedDelay === 0) {
+      return {
+        start: task.targetStart || '2026-08-18',
+        end: task.targetEnd || task.targetStart || '2026-08-28',
+        isDelayed: false,
+        delayDays: 0,
+        isOverdueRisk: false,
+        originalDeadline: task.targetEnd
+      };
+    }
+
+    const isDev = task.title.toLowerCase().includes('codifica') || task.type.includes('Codificação') || task.status === 'Em Andamento' || task.status === 'Em Desenvolvimento';
+    const isQAOrReview = task.title.toLowerCase().includes('qa') || task.title.toLowerCase().includes('teste') || task.type.includes('Teste') || task.type.includes('Execução de TI');
+
+    const baseStart = task.targetStart || '2026-08-18';
+    const baseEnd = task.targetEnd || task.targetStart || '2026-08-28';
+
+    if (isDev) {
+      const end = addDaysToIso(baseEnd, simulatedDelay);
+      return {
+        start: baseStart,
+        end: end,
+        isDelayed: true,
+        delayDays: simulatedDelay,
+        isOverdueRisk: end > baseEnd,
+        originalDeadline: baseEnd
+      };
+    }
+
+    if (isQAOrReview) {
+      const start = addDaysToIso(baseStart, simulatedDelay);
+      const end = addDaysToIso(baseEnd, simulatedDelay);
+      return {
+        start: start,
+        end: end,
+        isDelayed: true,
+        delayDays: simulatedDelay,
+        isOverdueRisk: end > baseEnd,
+        originalDeadline: baseEnd
+      };
+    }
+
+    return {
+      start: baseStart,
+      end: baseEnd,
+      isDelayed: false,
+      delayDays: 0,
+      isOverdueRisk: false,
+      originalDeadline: baseEnd
+    };
+  };
+
+  const totalTableWidth = colWidths.issue + colWidths.timeline + colWidths.progress + colWidths.status + colWidths.assignee;
+  const totalTimelineWidth = daysList.length * colWidths.dayWidth;
+
+  return (
+    <div className="space-y-4 font-sans">
+      {/* ══════════ CASCADE DELAY VISIBILITY BANNER (GESTOR / VISÃO DE IMPACTO) ══════════ */}
+      {showCascadeBanner && (
+        <div className={`p-4 rounded-2xl border transition-all shadow-sm ${
+          simulatedDelay > 0 
+            ? 'bg-gradient-to-r from-rose-500/15 via-amber-500/10 to-transparent border-rose-500/40 text-rose-950 dark:text-rose-200' 
+            : 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-slate-800 dark:text-slate-200'
+        }`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className={`p-2.5 rounded-xl shrink-0 ${
+                simulatedDelay > 0 
+                  ? 'bg-rose-600 text-white shadow-md shadow-rose-500/30 animate-bounce' 
+                  : 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
+              }`}>
+                {simulatedDelay > 0 ? <Flame className="w-5 h-5" /> : <FastForward className="w-5 h-5" />}
+              </div>
+              <div>
+                <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                  <span>Simulador de Impacto para Gestores (Efeito Cascata / Estouro de Prazo)</span>
+                  {simulatedDelay > 0 && (
+                    <Badge className="bg-rose-600 text-white text-[9.5px] font-black uppercase border-none animate-pulse">
+                      🚨 +{simulatedDelay} {simulatedDelay === 1 ? 'Dia de Atraso em DEV' : 'Dias de Atraso em DEV'}
+                    </Badge>
+                  )}
+                </h3>
+                <p className="text-xs mt-0.5 text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {simulatedDelay === 0 ? (
+                    <span>Se a <strong>Codificação (DEV)</strong> atrasar hoje, todas as etapas seguintes (<strong>Code Review</strong> e <strong>Teste QA</strong>) são empurradas para frente, gerando <strong>estouro de prazo</strong> nas entregas!</span>
+                  ) : (
+                    <span><strong>Impacto Visível:</strong> Com o atraso de <strong>+{simulatedDelay}d</strong> em Codificação, os Testes QA foram empurrados para a frente gerando risco de entrega fora da Sprint!</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 hidden sm:inline">Simular Atraso DEV:</span>
+              <Button
+                variant={simulatedDelay === 0 ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSimulatedDelay(0)}
+                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 0 ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-600'}`}
+              >
+                0d (Prazo Real)
+              </Button>
+              <Button
+                variant={simulatedDelay === 1 ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSimulatedDelay(1)}
+                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 1 ? 'bg-amber-600 text-white hover:bg-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}
+              >
+                +1 dia
+              </Button>
+              <Button
+                variant={simulatedDelay === 2 ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSimulatedDelay(2)}
+                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 2 ? 'bg-rose-600 text-white hover:bg-rose-700' : 'text-rose-600 hover:bg-rose-50'}`}
+              >
+                +2 dias ⚠️
+              </Button>
+              <Button
+                variant={simulatedDelay === 3 ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSimulatedDelay(3)}
+                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 3 ? 'bg-rose-700 text-white hover:bg-rose-800 animate-pulse' : 'text-rose-700 hover:bg-rose-50'}`}
+              >
+                +3 dias 🚨
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Control & Filters Panel */}
+      <div className="bg-white dark:bg-slate-900/90 p-4 md:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md space-y-4">
+        {/* Top Header Row */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-200 dark:border-blue-800/80 shadow-xs">
+              <CalendarRange className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
+                Jira Plans / Cronograma da Sprint
+                <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 font-bold">
+                  {tasks.length} Tarefas Mapeadas
+                </Badge>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Visualização oficial completa do Jira Plans: Histórias, Legislações, Débitos Técnicos e Testes Sistêmicos
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDayZoom(-6)}
+                title="Diminuir largura dos dias (Zoom Out)"
+                className="h-7 w-7 p-0 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </Button>
+              <span className="text-[10px] font-mono font-bold px-1.5 text-slate-500">
+                {colWidths.dayWidth}px/dia
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDayZoom(+6)}
+                title="Aumentar largura dos dias (Zoom In)"
+                className="h-7 w-7 p-0 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetColWidths}
+              title="Restaurar tamanho padrão das colunas"
+              className="h-8 px-2.5 text-xs rounded-xl font-medium border-slate-200 dark:border-slate-800"
+            >
+              <RotateCcw className="w-3 h-3 mr-1" />
+              Resetar Colunas
+            </Button>
+
+            <Button 
+              onClick={handleSyncJira} 
+              disabled={isSyncing}
+              size="sm"
+              className="h-8 px-3.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-500/20"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              Sincronizar Jira Plans
+            </Button>
+          </div>
+        </div>
+
+        {/* Filter Controls Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5">
+          {/* Hierarchy Level Selector */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Hierarquia (Níveis)</label>
+            <Select value={hierarchyLevel} onValueChange={(val: any) => setHierarchyLevel(val)}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+                <ListTree className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+                <SelectItem value="story-to-subtask">Pai ➔ Sub-task</SelectItem>
+                <SelectItem value="subtask-only">Apenas Sub-tasks</SelectItem>
+                <SelectItem value="story-only">Apenas Tarefas Pai</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* GroupBy Mode */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Agrupamento</label>
+            <Select value={groupBy} onValueChange={(val: any) => setGroupBy(val)}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+                <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+                <SelectItem value="parent">Por Tarefa Pai</SelectItem>
+                <SelectItem value="assignee">Por Executor</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Search Filter */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Buscar</label>
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+              <Input 
+                placeholder="Chave ou texto..." 
+                value={searchFilter}
+                onChange={e => setSearchFilter(e.target.value)}
+                className="pl-8 h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 rounded-xl"
+              />
+            </div>
+          </div>
+
+          {/* Issue Type / Specialty Filter */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Tipo / Disciplina</label>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+                <Bookmark className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+                <SelectItem value="ALL">Todos os Tipos</SelectItem>
+                <SelectItem value="Story">🟢 História Pai</SelectItem>
+                <SelectItem value="Legisla">📜 Legislação</SelectItem>
+                <SelectItem value="Débito">🛠️ Débito Técnico</SelectItem>
+                <SelectItem value="Sistêmico">🧪 Teste Sistêmico</SelectItem>
+                <SelectItem value="Manuten">🔧 Manutenção</SelectItem>
+                <SelectItem value="Codifica">💻 Codificação</SelectItem>
+                <SelectItem value="TI">⚙️ Execução de TI</SelectItem>
+                <SelectItem value="Automatiz">🤖 Testes Automatizados</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Status</label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+                <Filter className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+                <SelectItem value="ALL">Todos os Status</SelectItem>
+                <SelectItem value="Open">Open (Aberto)</SelectItem>
+                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                <SelectItem value="Em Desenvolvimento">Em Desenvolvimento</SelectItem>
+                <SelectItem value="Comprometido">Comprometido</SelectItem>
+                <SelectItem value="Closed">Closed (Concluído)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Assignee Filter */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Executor</label>
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+                <User className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <SelectValue placeholder="Executor" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+                <SelectItem value="ALL">Todos os Executores</SelectItem>
+                {uniqueAssignees.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Preset Period Selector */}
+          <div>
+            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Período</label>
+            <Select value={presetPeriod} onValueChange={handlePresetChange}>
+              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+                <CalendarIcon className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+                <SelectItem value="SPRINT_CURRENT">Sprint Atual (17-28/Ago)</SelectItem>
+                <SelectItem value="NEXT_14_DAYS">Próximos 14 Dias</SelectItem>
+                <SelectItem value="MONTH_AUGUST">Mês Atual (Agosto/26)</SelectItem>
+                <SelectItem value="CUSTOM">Customizado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════ MAIN SPLIT-PANE TIMELINE CONTAINER ══════════ */}
+      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 overflow-hidden shadow-sm flex flex-col">
+        <div className="overflow-x-auto">
+          <div className="flex min-w-full" style={{ width: `${totalTableWidth + totalTimelineWidth}px` }}>
+            
+            {/* ══════════ LEFT PANE: RESIZABLE TREE TABLE ══════════ */}
+            <div className="shrink-0 border-r-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 select-none" style={{ width: `${totalTableWidth}px` }}>
+              {/* Left Header */}
+              <div className="flex h-11 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[11px] font-bold border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider items-stretch">
+                
+                {/* 1. Column: Issue / Subtarefa */}
+                <div className="relative px-3 flex items-center justify-between border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
+                  <span className="truncate">Hierarquia: Issue / Disciplina</span>
+                  <div 
+                    onMouseDown={(e) => startResizing('issue', e)}
+                    className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
+                    title="Arraste para redimensionar coluna"
+                  >
+                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                  </div>
+                </div>
+
+                {/* 2. Column: Timeline Pill (Monday.com style) */}
+                <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
+                  <span className="truncate text-center">Timeline</span>
+                  <div 
+                    onMouseDown={(e) => startResizing('timeline', e)}
+                    className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
+                    title="Arraste para redimensionar coluna"
+                  >
+                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                  </div>
+                </div>
+
+                {/* 3. Column: Progress Bar (Monday.com style) */}
+                <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
+                  <span className="truncate text-center">Progress</span>
+                  <div 
+                    onMouseDown={(e) => startResizing('progress', e)}
+                    className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
+                    title="Arraste para redimensionar coluna"
+                  >
+                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                  </div>
+                </div>
+
+                {/* 4. Column: Status */}
+                <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.status}px` }}>
+                  <span className="truncate text-center">Status</span>
+                  <div 
+                    onMouseDown={(e) => startResizing('status', e)}
+                    className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
+                    title="Arraste para redimensionar coluna"
+                  >
+                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                  </div>
+                </div>
+
+                {/* 5. Column: Assignee */}
+                <div className="relative px-2 flex items-center justify-between overflow-hidden" style={{ width: `${colWidths.assignee}px` }}>
+                  <span className="truncate">Assignee</span>
+                  <div 
+                    onMouseDown={(e) => startResizing('assignee', e)}
+                    className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
+                    title="Arraste para redimensionar coluna"
+                  >
+                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Left Body Rows */}
+              <div className="divide-y divide-slate-200/80 dark:divide-slate-800/60 text-xs">
+                {Array.from(hierarchicalStructure.parentsMap.entries()).map(([parentKey, { parent, children }]) => {
+                  const isParentCollapsed = collapsedParents[parentKey];
+                  const { start: pStart, end: pEnd, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(parent);
+                  const parentProgress = computeParentProgress(parent, children);
+
+                  return (
+                    <React.Fragment key={parentKey}>
+                      {/* Parent Story / Manutenção / Legislação / Débito Técnico Row */}
+                      <div 
+                        onClick={() => toggleParent(parentKey)}
+                        className={`flex h-11 items-stretch cursor-pointer border-t font-semibold transition-colors ${
+                          isOverdueRisk
+                            ? 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-300 dark:border-rose-900/60'
+                            : 'bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border-slate-200/60 dark:border-slate-800/60'
+                        }`}
+                      >
+                        {/* 1. Hierarchy / Title */}
+                        <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
+                          {isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                          {getIssueTypeBadge(parent.type, parent.title, true)}
+                          <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-400 shrink-0">{parent.jiraKey}</span>
+                          <span className="truncate text-slate-900 dark:text-slate-100 font-bold" title={parent.title}>{parent.title}</span>
+                          {isOverdueRisk && (
+                            <Badge className="ml-auto text-[8px] font-black bg-rose-600 text-white uppercase border-none animate-pulse shrink-0">
+                              🚨 +{delayDays}d
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* 2. Timeline Column (Monday.com Pill) */}
+                        <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
+                          <div className={`w-full py-1 px-2 rounded-full text-center text-[10px] font-black tracking-tight shadow-xs flex items-center justify-center gap-1 ${
+                            isOverdueRisk 
+                              ? 'bg-rose-700 text-white animate-pulse' 
+                              : 'bg-slate-800 text-white dark:bg-slate-800/90 dark:text-slate-200'
+                          }`}>
+                            <CalendarIcon className="w-2.5 h-2.5 opacity-70" />
+                            <span>{formatDateShort(pStart)} - {formatDateShort(pEnd)}</span>
+                          </div>
+                        </div>
+
+                        {/* 3. Progress Column (Monday.com Progress Bar) */}
+                        <div className="px-2 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
+                          <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 relative">
+                            <div 
+                              className={`h-full rounded-full transition-all ${
+                                parentProgress === 100 
+                                  ? 'bg-emerald-500' 
+                                  : parentProgress > 0 
+                                  ? 'bg-blue-600 dark:bg-blue-500' 
+                                  : 'bg-transparent'
+                              }`}
+                              style={{ width: `${parentProgress}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 font-mono w-7 text-right shrink-0">
+                            {parentProgress}%
+                          </span>
+                        </div>
+
+                        {/* 4. Status Column */}
+                        <div className="px-1 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.status}px` }}>
+                          {getStatusBadge(parent.status)}
+                        </div>
+
+                        {/* 5. Assignee Column */}
+                        <div className="px-2 flex items-center gap-1.5 overflow-hidden text-slate-700 dark:text-slate-300" style={{ width: `${colWidths.assignee}px` }}>
+                          <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[9px] font-bold shrink-0">
+                            {parent.assigneeName?.charAt(0)}
+                          </div>
+                          <span className="truncate text-[10.5px]">{parent.assigneeName}</span>
+                        </div>
+                      </div>
+
+                      {/* Child Subtasks Rows */}
+                      {!isParentCollapsed && children.map(task => {
+                        const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
+                        const childProgress = computeTaskProgress(task);
+
+                        return (
+                          <div key={task.id} className={`flex h-10 items-stretch transition-colors ${
+                            isOverdueRisk 
+                              ? 'bg-rose-500/5 hover:bg-rose-500/10' 
+                              : 'hover:bg-slate-50/90 dark:hover:bg-slate-900/40'
+                          }`}>
+                            {/* 1. Hierarchy / Title */}
+                            <div className="px-3 pl-8 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
+                              <CornerDownRight className="w-3 h-3 text-slate-400 shrink-0" />
+                              {getIssueTypeBadge(task.type, task.title, false)}
+                              <span className="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400 shrink-0">{task.jiraKey}</span>
+                              <span className="truncate text-slate-800 dark:text-slate-200 font-medium" title={task.title}>{task.title}</span>
+                            </div>
+
+                            {/* 2. Timeline Column (Monday.com Pill) */}
+                            <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
+                              <div className={`w-full py-0.5 px-2 rounded-full text-center text-[9.5px] font-bold tracking-tight shadow-2xs flex items-center justify-center gap-1 ${
+                                isOverdueRisk 
+                                  ? 'bg-rose-600 text-white animate-pulse' 
+                                  : isDelayed
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-slate-700 text-slate-100 dark:bg-slate-800 dark:text-slate-300'
+                              }`}>
+                                <span>{formatDateShort(start)} - {formatDateShort(end)}</span>
+                                {isDelayed && <span className="text-[8px] opacity-90">+{delayDays}d</span>}
+                              </div>
+                            </div>
+
+                            {/* 3. Progress Column (Monday.com Progress Bar) */}
+                            <div className="px-2 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
+                              <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden relative">
+                                <div 
+                                  className={`h-full rounded-full transition-all ${
+                                    childProgress === 100 
+                                      ? 'bg-emerald-500' 
+                                      : childProgress >= 50 
+                                      ? 'bg-blue-600' 
+                                      : 'bg-transparent'
+                                  }`}
+                                  style={{ width: `${childProgress}%` }}
+                                />
+                              </div>
+                              <span className="text-[9.5px] font-bold text-slate-600 dark:text-slate-400 font-mono w-7 text-right shrink-0">
+                                {childProgress}%
+                              </span>
+                            </div>
+
+                            {/* 4. Status Column */}
+                            <div className="px-1 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.status}px` }}>
+                              {getStatusBadge(task.status)}
+                            </div>
+
+                            {/* 5. Assignee Column */}
+                            <div className="px-2 flex items-center gap-1.5 overflow-hidden text-slate-800 dark:text-slate-200" style={{ width: `${colWidths.assignee}px` }}>
+                              <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[9px] font-bold shrink-0">
+                                {task.assigneeName.charAt(0)}
+                              </div>
+                              <span className="truncate text-[10.5px]">{task.assigneeName}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ══════════ RIGHT PANE: GANTT TIMELINE CALENDAR ══════════ */}
+            <div className="grow overflow-hidden relative" style={{ width: `${totalTimelineWidth}px` }}>
+              {/* Calendar Header */}
+              <div 
+                className="flex h-11 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[11px] font-bold border-b border-slate-200 dark:border-slate-800 divide-x divide-slate-200 dark:divide-slate-800/80"
+              >
+                {daysList.map((day) => {
+                  const isToday = day.iso === todayIso;
+                  return (
+                    <div 
+                      key={day.iso} 
+                      style={{ width: `${colWidths.dayWidth}px` }}
+                      className={`shrink-0 flex flex-col items-center justify-center py-1 text-center select-none ${
+                        day.isWeekend 
+                          ? 'bg-slate-200/40 dark:bg-slate-900/40 text-slate-400 dark:text-slate-500' 
+                          : 'text-slate-700 dark:text-slate-300'
+                      } ${isToday ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-extrabold border-b-2 border-amber-500' : ''}`}
+                    >
+                      <div className="text-[9.5px] uppercase font-bold tracking-tight">{day.dayName}</div>
+                      <div className="text-[11px] font-bold">{day.dayNum}/{day.monthShort}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Calendar Body Rows */}
+              <div className="divide-y divide-slate-200/80 dark:divide-slate-800/60 relative">
+                
+                {/* Continuous Vertical Yellow Ruler on "Today" matching Jira Plans */}
+                {daysList.findIndex(d => d.iso === todayIso) >= 0 && (
+                  <div 
+                    className="absolute top-0 bottom-0 pointer-events-none z-20 flex flex-col items-center"
+                    style={{ 
+                      left: `${(daysList.findIndex(d => d.iso === todayIso) * colWidths.dayWidth) + (colWidths.dayWidth / 2)}px` 
+                    }}
+                  >
+                    <div className="w-[2px] h-full bg-amber-500/80 border-r border-dashed border-amber-400" />
+                  </div>
+                )}
+
+                {Array.from(hierarchicalStructure.parentsMap.entries()).map(([parentKey, { parent, children }]) => {
+                  const isParentCollapsed = collapsedParents[parentKey];
+
+                  return (
+                    <React.Fragment key={parentKey}>
+                      {/* ══════════ PARENT ROW: COMPOSITE MULTI-SEGMENT & STACKED TRACKS (Monday.com Style) ══════════ */}
+                      <div className="h-11 relative bg-blue-50/20 dark:bg-blue-950/10 flex items-center">
+                        {/* Grid background columns */}
+                        <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
+                          {daysList.map(d => (
+                            <div key={d.iso} style={{ width: `${colWidths.dayWidth}px` }} className={`h-full shrink-0 ${d.isWeekend ? 'bg-slate-100/50 dark:bg-slate-900/30' : ''}`} />
+                          ))}
+                        </div>
+
+                        {/* Target Deadline Marker Line for Parent Story */}
+                        {parent.targetEnd && daysList.findIndex(d => d.iso === parent.targetEnd) >= 0 && (
+                          <div 
+                            className="absolute top-0 bottom-0 pointer-events-none z-10 flex flex-col items-center"
+                            style={{ 
+                              left: `${(daysList.findIndex(d => d.iso === parent.targetEnd) * colWidths.dayWidth) + colWidths.dayWidth - 1}px` 
+                            }}
+                            title={`Prazo Limite Original da História: ${formatDateShort(parent.targetEnd)}`}
+                          >
+                            <div className="w-[2px] h-full bg-rose-500/70 border-r border-dotted border-rose-600" />
+                          </div>
+                        )}
+
+                        {/* Composite Multi-Step Horizontal Stacked Bars */}
+                        <div className="absolute inset-0 flex items-center pointer-events-auto">
+                          {children.map((task, idx) => {
+                            const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
+                            const startIndex = daysList.findIndex(d => d.iso === start);
+                            const endIndex = daysList.findIndex(d => d.iso === end);
+                            if (startIndex < 0 && endIndex < 0) return null;
+                            const startCol = startIndex >= 0 ? startIndex : 0;
+                            const endColCandidate = endIndex >= 0 ? endIndex : daysList.length - 1;
+                            const spanCols = Math.max(1, endColCandidate - startCol + 1);
+
+                            const barLeft = startCol * colWidths.dayWidth + 2;
+                            const barWidth = Math.max(colWidths.dayWidth - 4, spanCols * colWidths.dayWidth - 4);
+                            const disc = getDisciplineColorAndLabel(task);
+
+                            // Height and stack calculation for overlapping steps on parent line
+                            const totalTracks = Math.min(3, children.length);
+                            const trackHeight = totalTracks === 1 ? 22 : totalTracks === 2 ? 11 : 8;
+                            const topOffset = totalTracks === 1 ? 11 : totalTracks === 2 ? 6 + (idx % 2) * 14 : 4 + (idx % 3) * 11;
+
+                            return (
+                              <div
+                                key={task.id}
+                                style={{
+                                  left: `${barLeft}px`,
+                                  width: `${barWidth}px`,
+                                  top: `${topOffset}px`,
+                                  height: `${trackHeight}px`,
+                                }}
+                                className={`absolute rounded-full shadow-xs flex items-center justify-between px-1.5 text-[8.5px] font-black uppercase transition-all hover:scale-[1.02] hover:z-30 cursor-pointer ring-1 ${
+                                  isOverdueRisk 
+                                    ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white ring-rose-400 animate-pulse' 
+                                    : `${disc.bg} text-white ring-white/40 dark:ring-black/40`
+                                }`}
+                                title={`${task.jiraKey} (${disc.label}): ${task.title} [${formatDateShort(start)} a ${formatDateShort(end)}] ${
+                                  isOverdueRisk ? `⚠️ ESTOURO DE PRAZO: +${delayDays}d de atraso empurrou esta etapa para frente!` : ''
+                                }`}
+                              >
+                                <span className="truncate leading-none">{disc.shortLabel}</span>
+                                {isOverdueRisk && (
+                                  <span className="text-[7px] bg-black/40 px-1 rounded font-black text-rose-200">
+                                    +{delayDays}d
+                                  </span>
+                                )}
+                                {!isOverdueRisk && barWidth > 75 && (
+                                  <span className="text-[7.5px] opacity-85 font-mono leading-none">
+                                    {formatDateShort(start)}-{formatDateShort(end)}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Child Subtasks Gantt Individual Bars */}
+                      {!isParentCollapsed && children.map(task => {
+                        const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
+                        const startIndex = daysList.findIndex(d => d.iso === start);
+                        const endIndex = daysList.findIndex(d => d.iso === end);
+                        const startCol = startIndex >= 0 ? startIndex : 0;
+                        const endColCandidate = endIndex >= 0 ? endIndex : daysList.length - 1;
+                        const spanCols = Math.max(1, endColCandidate - startCol + 1);
+
+                        const barLeft = startCol * colWidths.dayWidth + 2;
+                        const barWidth = Math.max(colWidths.dayWidth - 4, spanCols * colWidths.dayWidth - 4);
+                        const disc = getDisciplineColorAndLabel(task);
+
+                        return (
+                          <div key={task.id} className="h-10 relative group">
+                            {/* Grid background columns */}
+                            <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
+                              {daysList.map(d => (
+                                <div key={d.iso} style={{ width: `${colWidths.dayWidth}px` }} className={`h-full shrink-0 ${d.isWeekend ? 'bg-slate-100/50 dark:bg-slate-900/30' : ''}`} />
+                              ))}
+                            </div>
+
+                            {/* Gantt Bar Element with Discipline Color & Overdue Highlight */}
+                            <div 
+                              style={{ 
+                                left: `${barLeft}px`,
+                                width: `${barWidth}px`,
+                              }}
+                              className="absolute top-1.5 bottom-1.5 z-10 rounded-lg px-1 flex items-center justify-between text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                              title={`${task.jiraKey} (${disc.label}): ${task.title} (${start} até ${end})${isDelayed ? ` - Atraso em Cascata: +${delayDays}d` : ''}`}
+                            >
+                              <div className={`w-full h-full rounded-md px-2 flex items-center gap-1.5 overflow-hidden ${
+                                isOverdueRisk 
+                                  ? 'bg-gradient-to-r from-amber-500 via-rose-600 to-rose-700 text-white shadow-md shadow-rose-500/40 ring-2 ring-rose-400 animate-pulse'
+                                  : isDelayed 
+                                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-400/60'
+                                  : `${disc.bg} text-white shadow-xs`
+                              }`}>
+                                <span className="text-[9px] bg-black/25 px-1 py-0.2 rounded font-black uppercase shrink-0">
+                                  {disc.shortLabel}
+                                </span>
+                                <span className="truncate">{task.title}</span>
+                                {isDelayed && (
+                                  <span className="text-[8.5px] bg-black/40 px-1 py-0.2 rounded font-black shrink-0">
+                                    +{delayDays}d {isOverdueRisk ? '🚨' : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

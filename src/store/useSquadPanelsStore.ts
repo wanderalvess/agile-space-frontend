@@ -12,6 +12,7 @@ import {
   Firestore
 } from 'firebase/firestore';
 import { fetchJiraIssues, fetchAllJiraIssues } from '@/services/jiraService';
+import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import type { SquadPanel, SquadPanelChartType, SquadPanelGroupBy, SquadPanelAggregateMetric, SquadPanelResultRow, SquadPanelIssueRow } from '@/lib/types';
 
 // Painel é uma ferramenta ad-hoc, não o sync principal do squad — limites bem
@@ -151,11 +152,11 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
     const ref = doc(firestore, 'squads', squadId, 'panels', panelId);
 
     try {
-      const jiraSettingsSnap = await getDoc(doc(firestore, 'users', uid, 'config', 'jira'));
-      if (!jiraSettingsSnap.exists()) {
-        throw new Error('Configure seu Personal Access Token do Jira em Configurações antes de rodar o painel.');
+      const jiraCreds = await getJiraCredentials(uid);
+      if (!jiraCreds || !jiraCreds.token) {
+        throw new Error('Configure seu Token de Acesso do Jira em Conexão Jira antes de rodar o painel.');
       }
-      const { domain, token } = jiraSettingsSnap.data() as { domain: string; token: string };
+      const { domain, token } = jiraCreds;
 
       // Firestore rejeita `undefined` em campo (setDoc lança) — pra "limpar"
       // um campo que não se aplica ao chartType atual (ex: editou de tabela

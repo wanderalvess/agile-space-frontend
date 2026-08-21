@@ -23,7 +23,14 @@ export const squadApi = {
   },
 
   async saveSquad(squadId: string, data: Partial<SquadConfig>): Promise<SquadConfig> {
-    return req<SquadConfig>(`/squads/${squadId}`, { method: 'POST', body: JSON.stringify({ ...data, id: squadId }) });
+    return req<SquadConfig>(`/squads/${squadId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        id: squadId,
+        name: data.name || (data as any)?.squadName || squadId
+      })
+    });
   },
 
   // ----- Metrics Rollup -----
@@ -52,7 +59,17 @@ export const squadApi = {
   },
 
   async batchUpsertIssues(squadId: string, snapshots: SquadIssueSnapshot[]): Promise<SquadIssueSnapshot[]> {
-    return req<SquadIssueSnapshot[]>(`/squads/${squadId}/issues/batch`, { method: 'POST', body: JSON.stringify(snapshots) });
+    const formatted = snapshots.map(s => {
+      const issueKey = s.jiraKey || s.key || (s as any).jira_key || '';
+      return {
+        ...s,
+        jiraKey: issueKey,
+        key: issueKey,
+        dbId: `${squadId}_${issueKey}`,
+        squadId,
+      };
+    });
+    return req<SquadIssueSnapshot[]>(`/squads/${squadId}/issues/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   async batchDeleteIssues(squadId: string, keys: string[]): Promise<void> {
@@ -101,7 +118,17 @@ export const squadApi = {
   },
 
   async batchUpsertWorklogCache(squadId: string, entries: SquadIssueWorklogCache[]): Promise<SquadIssueWorklogCache[]> {
-    return req<SquadIssueWorklogCache[]>(`/squads/${squadId}/worklog-cache/batch`, { method: 'POST', body: JSON.stringify(entries) });
+    const formatted = entries.map(e => {
+      const issueKey = e.jiraKey || (e as any).key || (e as any).jira_key || '';
+      return {
+        ...e,
+        jiraKey: issueKey,
+        key: issueKey,
+        dbId: `${squadId}_${issueKey}`,
+        squadId,
+      };
+    });
+    return req<SquadIssueWorklogCache[]>(`/squads/${squadId}/worklog-cache/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   async deleteWorklogCacheEntry(squadId: string, jiraKey: string): Promise<void> {
