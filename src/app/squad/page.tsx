@@ -31,7 +31,7 @@ import Link from 'next/link';
 const FocusPlayer = dynamic(() => import('@/app/daily-flow/components/FocusPlayer'), { ssr: false });
 const DailyTimesheet = dynamic(() => import('@/app/daily-flow/components/DailyTimesheet'), { ssr: false });
 const DailyReport = dynamic(() => import('@/app/daily-flow/components/DailyReport'), { ssr: false });
-const PerformanceDashboard = dynamic(() => import('@/app/daily-flow/components/PerformanceDashboard'), { ssr: false });
+const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
 const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/SquadDashboardView').then(mod => mod.SquadDashboardView), { ssr: false });
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
 
@@ -875,7 +875,7 @@ function SquadHubContent() {
              ═══════════════════════════════════════════════════════════════════ */}
           {activeTab === 'performance' && (
             <div className="animate-in fade-in duration-300">
-              <PerformanceDashboard />
+              <SquadPerformanceView />
             </div>
           )}
 
