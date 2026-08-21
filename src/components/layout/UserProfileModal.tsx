@@ -307,16 +307,18 @@ export function UserProfileModal() {
           <div className="relative p-8 pb-6 flex items-center justify-between">
             <div className="space-y-1">
               <DialogTitle className="text-3xl font-black uppercase tracking-tighter italic text-white leading-none">
-                <div dangerouslySetInnerHTML={{ __html: isInitializing ? 'Sincronizando...' : 'Minha <span class="text-indigo-400 not-italic">Identidade</span>' }} className="contents" />
+                <span dangerouslySetInnerHTML={{ __html: isInitializing ? 'Sincronizando...' : 'Minha <span class="text-indigo-400 not-italic">Identidade</span>' }} className="contents" />
               </DialogTitle>
-              <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest mt-2 flex items-center gap-2">
-                Gestão de Perfil & Integração Jira API
+              <div className="flex items-center gap-2 mt-2">
+                <DialogDescription className="text-white/40 text-[10px] font-bold uppercase tracking-widest">
+                  Gestão de Perfil & Integração Jira API
+                </DialogDescription>
                 {jiraToken && (
                   <Badge className="bg-emerald-500/20 text-emerald-300 border-none text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
                     Jira Ativo
                   </Badge>
                 )}
-              </DialogDescription>
+              </div>
             </div>
             
             <div className="relative shrink-0">

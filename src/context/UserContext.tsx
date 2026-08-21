@@ -51,19 +51,6 @@ function writeCachedProfile(uid: string | null, profile: UserProfile) {
   localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ uid, profile }));
 }
 
-// Perfil de Fallback padrão para ambiente local / sem Firebase
-const DEFAULT_DEV_PROFILE: UserProfile = {
-  id: 'wanderson.alves@empresa.com.br',
-  name: 'Wanderson Alves',
-  email: 'wanderson.alves@empresa.com.br',
-  role: 'Product Owner' as any,
-  squadId: 'DDWMISSI',
-  isGuest: true,
-  avatarSeed: 'Felix',
-  team: 'DDWMISSI',
-  dailyHours: 8
-};
-
 export function UserProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -152,14 +139,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, email?: string, avatarSeed?: string) => {
-    const uid = email || 'wanderson.alves@empresa.com.br';
+    const uid = email || `${name.toLowerCase().replace(/\s+/g, '.')}-${Date.now()}`;
     const newProfile: UserProfile = {
       id: uid,
       name,
       role,
-      squadId: squadId || 'DDWMISSI',
-      email: email || 'wanderson.alves@empresa.com.br',
-      isGuest: true,
+      squadId: squadId || '',
+      email: email || '',
+      isGuest: false,
       avatarSeed: avatarSeed || 'Felix'
     };
     

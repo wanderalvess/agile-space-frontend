@@ -14,26 +14,36 @@ export interface DailyReportData {
 
 export const dailyFlowApi = {
   async listWorklogs(userId: string, date: string): Promise<Worklog[]> {
-    const params = new URLSearchParams();
-    params.append('userId', userId);
-    params.append('date', date);
+    try {
+      const params = new URLSearchParams();
+      params.append('userId', userId);
+      params.append('date', date);
 
-    const res = await fetch(`${API_BASE_URL}/daily/worklogs?${params.toString()}`);
-    if (!res.ok) throw new Error('Falha ao listar registros de tempo');
-    return res.json();
+      const res = await fetch(`${API_BASE_URL}/daily/worklogs?${params.toString()}`);
+      if (!res.ok) return [];
+      return res.json();
+    } catch (err) {
+      console.warn('Backend offline ou inacessível ao buscar worklogs:', err);
+      return [];
+    }
   },
 
   async listWeeklyWorklogs(userId: string, dates: string[]): Promise<Worklog[]> {
-    const params = new URLSearchParams();
-    params.append('userId', userId);
+    try {
+      const params = new URLSearchParams();
+      params.append('userId', userId);
 
-    const res = await fetch(`${API_BASE_URL}/daily/worklogs/weekly?${params.toString()}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dates),
-    });
-    if (!res.ok) throw new Error('Falha ao listar registros de tempo semanais');
-    return res.json();
+      const res = await fetch(`${API_BASE_URL}/daily/worklogs/weekly?${params.toString()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dates),
+      });
+      if (!res.ok) return [];
+      return res.json();
+    } catch (err) {
+      console.warn('Backend offline ou inacessível ao buscar worklogs semanais:', err);
+      return [];
+    }
   },
 
   async saveOrUpdateWorklog(log: Partial<Worklog>): Promise<Worklog> {
@@ -54,12 +64,17 @@ export const dailyFlowApi = {
   },
 
   async listDailyReports(userId: string): Promise<DailyReportData[]> {
-    const params = new URLSearchParams();
-    params.append('userId', userId);
+    try {
+      const params = new URLSearchParams();
+      params.append('userId', userId);
 
-    const res = await fetch(`${API_BASE_URL}/daily/reports?${params.toString()}`);
-    if (!res.ok) throw new Error('Falha ao obter histórico de daily reports');
-    return res.json();
+      const res = await fetch(`${API_BASE_URL}/daily/reports?${params.toString()}`);
+      if (!res.ok) return [];
+      return res.json();
+    } catch (err) {
+      console.warn('Backend offline ou inacessível ao buscar daily reports:', err);
+      return [];
+    }
   },
 
   async saveOrUpdateDailyReport(report: DailyReportData): Promise<DailyReportData> {

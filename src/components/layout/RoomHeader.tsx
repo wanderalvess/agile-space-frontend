@@ -11,7 +11,8 @@ import {
   Home,
   LayoutGrid,
   MessageSquareHeart,
-  Headphones
+  Headphones,
+  Building2
 } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
@@ -209,6 +210,9 @@ export function RoomHeader({
                 <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
                   <Settings className="h-4 w-4 text-primary" aria-hidden="true" /> Meu Perfil
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push('/projects')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
+                  <Building2 className="h-4 w-4 text-blue-600" aria-hidden="true" /> Projetos & Governança
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/workspace')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
                   <LayoutGrid className="h-4 w-4 text-primary" aria-hidden="true" /> Meu Workspace
                 </DropdownMenuItem>
@@ -216,13 +220,13 @@ export function RoomHeader({
                   <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" /> Manual de Uso
                 </DropdownMenuItem>
                 <div className="h-px bg-slate-100 my-2 mx-2" aria-hidden="true" />
-                <DropdownMenuItem onClick={logout} className="rounded-xl font-bold text-xs p-3 text-red-500 hover:bg-red-50 cursor-pointer gap-2">
+                <DropdownMenuItem onClick={() => { logout(); router.push('/login'); }} className="rounded-xl font-bold text-xs p-3 text-red-500 hover:bg-red-50 cursor-pointer gap-2">
                   <LogOut className="h-4 w-4" aria-hidden="true" /> Sair da Conta
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="sm" onClick={() => requestIdentity()} className="rounded-xl font-black uppercase text-[9px] tracking-widest px-4 h-9 shadow-lg shadow-primary/20">
+            <Button size="sm" onClick={() => router.push('/login')} className="rounded-xl font-black uppercase text-[9px] tracking-widest px-4 h-9 shadow-lg shadow-primary/20">
               Entrar
             </Button>
           )}
