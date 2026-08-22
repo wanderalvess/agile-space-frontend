@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { useToast } from '@/hooks/use-toast';
 import type { UserProfile, GlobalRole, SquadMember } from '@/lib/types';
 import { userApi } from '@/app/users/api';
+import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/auth-client';
 
 interface UserContextType {
   userProfile: UserProfile | null;
@@ -51,37 +53,19 @@ function writeCachedProfile(uid: string | null, profile: UserProfile) {
   localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ uid, profile }));
 }
 
-// Perfil de Fallback padrão para ambiente local / sem Firebase
-const DEFAULT_DEV_PROFILE: UserProfile = {
-  id: 'wanderson.alves@empresa.com.br',
-  name: 'Wanderson Alves',
-  email: 'wanderson.alves@empresa.com.br',
-  role: 'Product Owner' as any,
-  squadId: 'DDWMISSI',
-  isGuest: true,
-  avatarSeed: 'Felix',
-  team: 'DDWMISSI',
-  dailyHours: 8
-};
-
 export function UserProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const { session, isLoading: isAuthLoading, logout: authLogout } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isIdentityRequested, setIsIdentityRequested] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [isPublicExploration, setIsPublicExplorationState] = useState(true);
+  const [isPublicExploration, setIsPublicExplorationState] = useState(false);
   const [userSquads, setUserSquads] = useState<SquadMember[]>([]);
   const pendingCallback = useRef<(() => void) | null>(null);
 
-  useEffect(() => {
-    setIsPublicExplorationState(true);
-    try {
-      localStorage.setItem(PUBLIC_EXPLORATION_KEY, '1');
-    } catch {}
-  }, []);
-
-  const mustOnboard = false;
+  // Perfil completo (squad/role definidos) até que o usuário finalize o onboarding pós-login
+  const mustOnboard = !!userProfile && !userProfile.squadId;
 
   const setIsPublicExploration = (value: boolean) => {
     setIsPublicExplorationState(value);
@@ -91,19 +75,34 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch {}
   };
 
-  // Inicialização do perfil (sem qualquer dependência de Firebase Auth)
+  // Deriva o perfil da sessão autenticada (JWT), não mais de um nome auto-declarado no localStorage.
+  // Campos cosméticos (avatar, carga horária) continuam vindo do cache local do dispositivo.
   useEffect(() => {
-    const cached = readCachedProfile();
-    const isComplete = cached?.profile?.name && cached?.profile?.role && cached?.profile?.squadId;
+    if (isAuthLoading) return;
 
-    if (cached && isComplete) {
-      setUserProfile(cached.profile);
-    } else {
+    if (!session) {
       setUserProfile(null);
+      setIsInitializing(false);
+      return;
     }
 
+    const cached = readCachedProfile();
+    const cachedForUser = cached?.uid === session.id ? cached.profile : null;
+
+    const profile: UserProfile = {
+      id: session.id,
+      name: session.name,
+      email: session.email,
+      role: (session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
+      squadId: session.activeProjectId || cachedForUser?.squadId || '',
+      isGuest: false,
+      avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',
+      dailyHours: cachedForUser?.dailyHours,
+    };
+
+    setUserProfile(profile);
     setIsInitializing(false);
-  }, []);
+  }, [session, isAuthLoading]);
 
   // Carrega automaticamente as Squads e papéis vinculados ao usuário logado (por e-mail ou ID)
   useEffect(() => {
@@ -113,7 +112,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const fetchUserSquads = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-        const res = await fetch(`${apiUrl}/squads/by-user?identifier=${encodeURIComponent(identifier)}`);
+        const res = await authFetch(`${apiUrl}/squads/by-user?identifier=${encodeURIComponent(identifier)}`);
         if (res.ok) {
           const data: SquadMember[] = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -151,49 +150,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsIdentityRequested(true);
   };
 
-  const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, email?: string, avatarSeed?: string) => {
-    const uid = email || 'wanderson.alves@empresa.com.br';
-    const newProfile: UserProfile = {
-      id: uid,
-      name,
-      role,
-      squadId: squadId || 'DDWMISSI',
-      email: email || 'wanderson.alves@empresa.com.br',
-      isGuest: true,
-      avatarSeed: avatarSeed || 'Felix'
-    };
-    
-    setIsIdentityRequested(false);
-    setIsEditProfileOpen(false);
-    setIsPublicExploration(true);
-    writeCachedProfile(uid, newProfile);
-    setUserProfile(newProfile);
-
+  // Mantido pela assinatura consumida pelo UserProfileModal (conclusão de onboarding pós-login);
+  // e-mail não é mais aceito aqui — a identidade vem da sessão autenticada, não de texto livre.
+  const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, _email?: string, avatarSeed?: string) => {
+    await updateProfile({ name, role, squadId, avatarSeed });
     if (pendingCallback.current) {
       const cb = pendingCallback.current;
       pendingCallback.current = null;
       setTimeout(cb, 0);
     }
-
-    try {
-      await userApi.saveUser({
-        id: uid,
-        name: newProfile.name,
-        role: newProfile.role,
-        squadId: newProfile.squadId,
-        email: newProfile.email,
-        isGuest: true,
-        avatarSeed: newProfile.avatarSeed,
-      });
-    } catch (err) {
-      console.warn("Aviso ao salvar perfil no Postgres:", err);
-    }
   };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!userProfile) return;
-    
-    const newProfile = { ...userProfile, ...updates };
+
+    // id/email são a identidade autenticada (JWT) — não editáveis via este formulário
+    const { id: _ignoredId, email: _ignoredEmail, ...safeUpdates } = updates;
+    const newProfile = { ...userProfile, ...safeUpdates };
     setUserProfile(newProfile);
     setIsIdentityRequested(false);
     setIsEditProfileOpen(false);
@@ -207,7 +180,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         role: newProfile.role,
         squadId: newProfile.squadId,
         email: newProfile.email,
-        isGuest: true,
+        isGuest: false,
         avatarSeed: newProfile.avatarSeed,
       });
     } catch (err) {
@@ -218,6 +191,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     localStorage.removeItem(GUEST_STORAGE_KEY);
     setUserProfile(null);
+    authLogout();
   };
 
   const loginWithGoogle = () => {

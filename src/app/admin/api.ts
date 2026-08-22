@@ -23,10 +23,12 @@ export interface AuditLogData {
   createdAt?: string;
 }
 
+import { authFetch } from '@/lib/auth-client';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -41,14 +43,14 @@ export const adminApi = {
   },
 
   async getConfig(key: string): Promise<string> {
-    const res = await fetch(`${API_BASE_URL}/admin/configs/${key}`);
+    const res = await authFetch(`${API_BASE_URL}/admin/configs/${key}`);
     if (res.status === 404) return '';
     if (!res.ok) throw new Error(`Admin Config error ${res.status}`);
     return res.text();
   },
 
   async setConfig(key: string, value: string): Promise<void> {
-    await fetch(`${API_BASE_URL}/admin/configs/${key}`, {
+    await authFetch(`${API_BASE_URL}/admin/configs/${key}`, {
       method: 'POST',
       body: value
     });

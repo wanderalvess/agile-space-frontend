@@ -1,4 +1,5 @@
 import { Worklog } from '@/store/useDailyStore';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -18,7 +19,7 @@ export const dailyFlowApi = {
     params.append('userId', userId);
     params.append('date', date);
 
-    const res = await fetch(`${API_BASE_URL}/daily/worklogs?${params.toString()}`);
+    const res = await authFetch(`${API_BASE_URL}/daily/worklogs?${params.toString()}`);
     if (!res.ok) throw new Error('Falha ao listar registros de tempo');
     return res.json();
   },
@@ -27,7 +28,7 @@ export const dailyFlowApi = {
     const params = new URLSearchParams();
     params.append('userId', userId);
 
-    const res = await fetch(`${API_BASE_URL}/daily/worklogs/weekly?${params.toString()}`, {
+    const res = await authFetch(`${API_BASE_URL}/daily/worklogs/weekly?${params.toString()}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dates),
@@ -37,7 +38,7 @@ export const dailyFlowApi = {
   },
 
   async saveOrUpdateWorklog(log: Partial<Worklog>): Promise<Worklog> {
-    const res = await fetch(`${API_BASE_URL}/daily/worklogs`, {
+    const res = await authFetch(`${API_BASE_URL}/daily/worklogs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(log),
@@ -47,7 +48,7 @@ export const dailyFlowApi = {
   },
 
   async deleteWorklog(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/daily/worklogs/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/daily/worklogs/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao excluir registro de tempo');
@@ -57,13 +58,13 @@ export const dailyFlowApi = {
     const params = new URLSearchParams();
     params.append('userId', userId);
 
-    const res = await fetch(`${API_BASE_URL}/daily/reports?${params.toString()}`);
+    const res = await authFetch(`${API_BASE_URL}/daily/reports?${params.toString()}`);
     if (!res.ok) throw new Error('Falha ao obter histórico de daily reports');
     return res.json();
   },
 
   async saveOrUpdateDailyReport(report: DailyReportData): Promise<DailyReportData> {
-    const res = await fetch(`${API_BASE_URL}/daily/reports`, {
+    const res = await authFetch(`${API_BASE_URL}/daily/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(report),

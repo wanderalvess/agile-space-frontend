@@ -1,3 +1,5 @@
+import { authFetch } from '@/lib/auth-client';
+
 export interface FeedbackData {
   id?: string;
   toolName: string;
@@ -11,7 +13,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/a
 
 export const feedbackApi = {
   async saveFeedback(feedback: FeedbackData): Promise<FeedbackData> {
-    const res = await fetch(`${API_BASE_URL}/feedbacks`, {
+    const res = await authFetch(`${API_BASE_URL}/feedbacks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(feedback),

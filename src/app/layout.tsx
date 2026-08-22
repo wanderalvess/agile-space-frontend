@@ -10,6 +10,8 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { IdentityGatekeeper } from '@/components/auth/IdentityGatekeeper';
 import { BackendHealthGatekeeper } from '@/components/layout/BackendHealthGatekeeper';
 import { GlobalAnnouncementListener } from '@/components/admin/GlobalAnnouncementListener';
@@ -91,18 +93,22 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <ThemeProvider>
             <SystemConfigProvider>
-              <UserProvider>
-                <BackendHealthGatekeeper>
-                  <IdentityGatekeeper>
-                    <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
-                      <Header />
-                      <main className="flex flex-1 w-full overflow-x-hidden">{children}</main>
-                      <GlobalAnnouncementListener />
-                      <Calmaria />
-                    </div>
-                  </IdentityGatekeeper>
-                </BackendHealthGatekeeper>
-              </UserProvider>
+              <AuthProvider>
+                <AuthGuard>
+                  <UserProvider>
+                    <BackendHealthGatekeeper>
+                      <IdentityGatekeeper>
+                        <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
+                          <Header />
+                          <main className="flex flex-1 w-full overflow-x-hidden">{children}</main>
+                          <GlobalAnnouncementListener />
+                          <Calmaria />
+                        </div>
+                      </IdentityGatekeeper>
+                    </BackendHealthGatekeeper>
+                  </UserProvider>
+                </AuthGuard>
+              </AuthProvider>
             </SystemConfigProvider>
             <MonacoConfig />
           </ThemeProvider>

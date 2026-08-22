@@ -12,11 +12,13 @@ import { useToast } from '@/hooks/use-toast';
 import { NotFound } from '@/components/NotFound';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
 import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { pokerApi } from '../api';
+import { authFetch } from '@/lib/auth-client';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -95,8 +97,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     reloadRoomData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId;
-    
+    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId
+      + '?token=' + encodeURIComponent(getAuthToken() || '');
+
     console.log("Conectando ao WebSocket do Poker Room:", wsUrl);
     let socket = new WebSocket(wsUrl);
 
@@ -896,7 +899,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       const activeIssue = roomData.issuesQueue![currentIndex];
       if (activeIssue && activeIssue.key && roomData.team) {
         const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
-        fetch(url, {
+        authFetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ points_estimated: Number(points) })
@@ -1169,7 +1172,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       const activeIssue = roomData.issuesQueue![currentIndex];
       if (activeIssue && activeIssue.key && roomData.team) {
         const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
-        fetch(url, {
+        authFetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ points_estimated: Number(points) })

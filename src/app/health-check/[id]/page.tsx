@@ -14,6 +14,7 @@ import { DEFAULT_HEALTH_CHECK_DIMENSIONS } from '@/lib/health-check-defaults';
 import { NotFound } from '@/components/NotFound';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 
 export default function HealthCheckPage({ params }: { params: Promise<{ id: string }> }) {
@@ -90,7 +91,8 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     reloadBoardData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/health-check/') + boardId;
+    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/health-check/') + boardId
+      + '?token=' + encodeURIComponent(getAuthToken() || '');
 
     let socket: WebSocket | null = null;
     let isSubscribed = true;

@@ -53,7 +53,10 @@ export async function POST(req: Request) {
         // Tenta carregar do Spring Boot / PostgreSQL
         try {
           const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-          const res = await fetch(`${backendUrl}/knowledge?size=50`);
+          const authHeader = req.headers.get('authorization');
+          const res = await fetch(`${backendUrl}/knowledge?size=50`, {
+            headers: authHeader ? { Authorization: authHeader } : {},
+          });
           if (res.ok) {
             const page = await res.json();
             const docs = page.content || (Array.isArray(page) ? page : []);

@@ -57,6 +57,7 @@ import {
   SheetTrigger,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { authFetch } from '@/lib/auth-client';
 
 interface ChatMessage {
   id: string;
@@ -226,7 +227,7 @@ function ChatContent({ chatId }: { chatId: string }) {
     }
 
     try {
-      const response = await fetch('/api/ai/chat', {
+      const response = await authFetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages, apiKey: userApiKey, userId: user?.uid })

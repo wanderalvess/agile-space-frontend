@@ -4,6 +4,8 @@
  * Utilizado pelo Daily Timesheet, Scrum Poker e Sprint Showcase.
  */
 
+import { authFetch } from '@/lib/auth-client';
+
 export interface JiraIssue {
   key: string;
   title: string;
@@ -422,7 +424,7 @@ export const fetchJiraIssues = async (
 
   let res: Response;
   try {
-    res = await fetch('/api/jira/search', {
+    res = await authFetch('/api/jira/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

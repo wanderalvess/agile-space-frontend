@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { ROLES, GlobalRole } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -148,7 +149,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
     } catch {}
 
     try {
-      const res = await fetch(`${API_BASE}/admin/jira/preview-project`, {
+      const res = await authFetch(`${API_BASE}/admin/jira/preview-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectKey, jiraDomain, token, estimationUnit }),
@@ -234,7 +235,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
         members: previewData.members.filter(m => m.selected)
       };
 
-      const res = await fetch(`${API_BASE}/admin/jira/confirm-sync`, {
+      const res = await authFetch(`${API_BASE}/admin/jira/confirm-sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

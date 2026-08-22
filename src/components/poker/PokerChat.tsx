@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { knowledgeApi } from '@/app/knowledge/api';
 import { analyzeDocument, TechnicalExtraction } from '@/lib/tech-extractor';
+import { authFetch } from '@/lib/auth-client';
 import { Copy, Check } from 'lucide-react';
 
 interface ExtractedDoc extends KnowledgeDocument {
@@ -202,7 +203,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const storedApiKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
 
       try {
-        const aiRes = await fetch('/api/ai/chat', {
+        const aiRes = await authFetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

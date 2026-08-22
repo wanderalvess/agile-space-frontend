@@ -18,6 +18,7 @@ import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { MuralPhase } from '@/components/brainstorming/MuralPhase';
 import { DiagramPhase } from '@/components/brainstorming/DiagramPhase';
@@ -102,7 +103,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     reloadBoardData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/brainstorming/') + boardId;
+    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/brainstorming/') + boardId
+      + '?token=' + encodeURIComponent(getAuthToken() || '');
 
     let socket: WebSocket | null = null;
     let isSubscribed = true;

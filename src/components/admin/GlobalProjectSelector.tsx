@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUserContext } from '@/context/UserContext';
+import { authFetch } from '@/lib/auth-client';
 
 const STORAGE_KEY = 'agileSpace_activeSquadId';
 
@@ -42,7 +43,7 @@ export function GlobalProjectSelector() {
   useEffect(() => {
     if (isLeadership) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-      fetch(`${apiUrl}/squads`)
+      authFetch(`${apiUrl}/squads`)
         .then(r => r.ok ? r.json() : [])
         .then(data => {
           if (Array.isArray(data)) setAllSquads(data);

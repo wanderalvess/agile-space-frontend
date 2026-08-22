@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import type { SquadMember } from '@/lib/types';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -47,7 +48,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/squads/${squadId}/members`);
+      const res = await authFetch(`${API_BASE}/squads/${squadId}/members`);
       if (res.ok) {
         const data = await res.json();
         setMembers(data);
@@ -74,7 +75,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/admin/jira/sync-project`, {
+      const res = await authFetch(`${API_BASE}/admin/jira/sync-project`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +124,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
 
     try {
       const updatedMember = { ...member, role: newRoleValue };
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE}/squads/${squadId}/members/${encodeURIComponent(member.jiraAccountId)}`,
         {
           method: 'POST',
@@ -158,7 +159,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
 
     setActionLoading(jiraAccountId);
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE}/squads/${squadId}/members/${encodeURIComponent(jiraAccountId)}`,
         { method: 'DELETE' }
       );
@@ -200,7 +201,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
     };
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE}/squads/${squadId}/members/${encodeURIComponent(generatedAccountId)}`,
         {
           method: 'POST',

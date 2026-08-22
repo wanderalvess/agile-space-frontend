@@ -2,11 +2,12 @@ import type {
   SquadConfig, SquadMetricsRollup, SquadIssueSnapshot, SquadMember,
   SquadMemberMetric, SquadDailySnapshot, SquadIssueWorklogCache
 } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });

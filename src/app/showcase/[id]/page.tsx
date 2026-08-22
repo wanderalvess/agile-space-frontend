@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { JiraIssue } from '@/services/jiraService';
 import { RoomHeader } from '@/components/layout/RoomHeader';
+import { getAuthToken } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 
 // New Refactored Components & Utils

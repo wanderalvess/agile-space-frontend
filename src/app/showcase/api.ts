@@ -1,10 +1,11 @@
 import { ShowcaseSession } from '@/components/showcase/types';
+import { authFetch, getAuthToken } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8002/ws';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -35,6 +36,6 @@ export const showcaseApi = {
   },
 
   getWebSocketUrl(id: string): string {
-    return `${WS_BASE_URL}/showcase/${id}`;
+    return `${WS_BASE_URL}/showcase/${id}?token=${encodeURIComponent(getAuthToken() || '')}`;
   }
 };

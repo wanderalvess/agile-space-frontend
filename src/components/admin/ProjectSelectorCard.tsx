@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -27,7 +28,7 @@ export function ProjectSelectorCard({ selectedSquadId, onSelectSquad }: ProjectS
   const fetchSquads = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/squads`);
+      const res = await authFetch(`${API_BASE}/squads`);
       if (res.ok) {
         const data = await res.json();
         setSquads(data);

@@ -1,4 +1,5 @@
 import { KnowledgeDocument } from '@/lib/knowledge-types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -18,19 +19,19 @@ export const knowledgeApi = {
     params.append('page', page.toString());
     params.append('size', size.toString());
 
-    const res = await fetch(`${API_BASE_URL}/knowledge?${params.toString()}`);
+    const res = await authFetch(`${API_BASE_URL}/knowledge?${params.toString()}`);
     if (!res.ok) throw new Error('Falha ao listar documentos da base de conhecimento');
     return res.json();
   },
 
   async getDocumentById(id: string): Promise<KnowledgeDocument> {
-    const res = await fetch(`${API_BASE_URL}/knowledge/${id}`);
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}`);
     if (!res.ok) throw new Error('Falha ao carregar o documento');
     return res.json();
   },
 
   async saveOrUpdateDocument(doc: Partial<KnowledgeDocument>): Promise<KnowledgeDocument> {
-    const res = await fetch(`${API_BASE_URL}/knowledge`, {
+    const res = await authFetch(`${API_BASE_URL}/knowledge`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(doc),
@@ -40,7 +41,7 @@ export const knowledgeApi = {
   },
 
   async updateDocument(id: string, doc: Partial<KnowledgeDocument>): Promise<KnowledgeDocument> {
-    const res = await fetch(`${API_BASE_URL}/knowledge/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(doc),
@@ -52,14 +53,14 @@ export const knowledgeApi = {
   async deleteDocument(id: string, deletedBy: string): Promise<void> {
     const params = new URLSearchParams();
     params.append('deletedBy', deletedBy);
-    const res = await fetch(`${API_BASE_URL}/knowledge/${id}?${params.toString()}`, {
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}?${params.toString()}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao excluir o documento');
   },
 
   async incrementViews(id: string): Promise<KnowledgeDocument> {
-    const res = await fetch(`${API_BASE_URL}/knowledge/${id}/view`, {
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}/view`, {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Falha ao registrar visualização');

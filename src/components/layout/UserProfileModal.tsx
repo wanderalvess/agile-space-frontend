@@ -50,6 +50,7 @@ import { cn } from '@/lib/utils';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { userApi } from '@/app/users/api';
 import { Badge } from '@/components/ui/badge';
+import { authFetch } from '@/lib/auth-client';
 
 export function UserProfileModal() {
   const {
@@ -96,7 +97,7 @@ export function UserProfileModal() {
   useEffect(() => {
     if (isOpen) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-      fetch(`${apiUrl}/squads`)
+      authFetch(`${apiUrl}/squads`)
         .then(r => r.ok ? r.json() : [])
         .then(data => {
           if (Array.isArray(data)) {
@@ -198,7 +199,7 @@ export function UserProfileModal() {
         try {
           const id = resolvedEmail || jiraUser.name || jiraUser.key || jiraUser.accountId;
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-          const res = await fetch(`${apiUrl}/squads/by-user?identifier=${encodeURIComponent(id)}`);
+          const res = await authFetch(`${apiUrl}/squads/by-user?identifier=${encodeURIComponent(id)}`);
           if (res.ok) {
             const data: SquadMember[] = await res.json();
             if (Array.isArray(data) && data.length > 0) {

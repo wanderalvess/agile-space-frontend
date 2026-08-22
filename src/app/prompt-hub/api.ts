@@ -1,4 +1,5 @@
 import { PromptItem, PromptComment } from './types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -18,19 +19,19 @@ export const promptApi = {
     params.append('page', page.toString());
     params.append('size', size.toString());
 
-    const res = await fetch(`${API_BASE_URL}/prompts?${params.toString()}`);
+    const res = await authFetch(`${API_BASE_URL}/prompts?${params.toString()}`);
     if (!res.ok) throw new Error('Falha ao listar prompts');
     return res.json();
   },
 
   async getPromptById(id: string): Promise<PromptItem> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${id}`);
+    const res = await authFetch(`${API_BASE_URL}/prompts/${id}`);
     if (!res.ok) throw new Error('Falha ao carregar o prompt');
     return res.json();
   },
 
   async createPrompt(prompt: Partial<PromptItem>): Promise<PromptItem> {
-    const res = await fetch(`${API_BASE_URL}/prompts`, {
+    const res = await authFetch(`${API_BASE_URL}/prompts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prompt),
@@ -40,7 +41,7 @@ export const promptApi = {
   },
 
   async updatePrompt(id: string, prompt: Partial<PromptItem>): Promise<PromptItem> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prompt),
@@ -50,14 +51,14 @@ export const promptApi = {
   },
 
   async deletePrompt(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao deletar o prompt');
   },
 
   async usePrompt(id: string): Promise<PromptItem> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${id}/use`, {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${id}/use`, {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Falha ao contabilizar uso');
@@ -65,7 +66,7 @@ export const promptApi = {
   },
 
   async forkPrompt(id: string): Promise<PromptItem> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${id}/fork`, {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${id}/fork`, {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Falha ao clonar o prompt');
@@ -73,13 +74,13 @@ export const promptApi = {
   },
 
   async getComments(promptId: string): Promise<PromptComment[]> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${promptId}/comments`);
+    const res = await authFetch(`${API_BASE_URL}/prompts/${promptId}/comments`);
     if (!res.ok) throw new Error('Falha ao carregar comentários');
     return res.json();
   },
 
   async addComment(promptId: string, comment: Partial<PromptComment>): Promise<PromptComment> {
-    const res = await fetch(`${API_BASE_URL}/prompts/${promptId}/comments`, {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${promptId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(comment),

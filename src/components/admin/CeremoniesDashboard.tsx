@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { workItemsApi } from '@/app/work-items-api';
 import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -19,7 +20,7 @@ export function CeremoniesDashboard() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/squads`)
+    authFetch(`${API_BASE}/squads`)
       .then(res => res.ok ? res.json() : [])
       .then(data => {
         setSquads(data);

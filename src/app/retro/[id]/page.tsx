@@ -16,6 +16,7 @@ import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi } from '../api';
+import { getAuthToken } from '@/lib/auth-client';
 import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
 
 export default function RetroRoomPage({ params }: { params: Promise<{ id: string }> }) {
@@ -78,8 +79,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
     // WebSocket Nativo para refresh em tempo real
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/retro/') + boardId;
-    
+    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/retro/') + boardId
+      + '?token=' + encodeURIComponent(getAuthToken() || '');
+
     console.log("Conectando ao WebSocket do Board Retro:", wsUrl);
     let socket = new WebSocket(wsUrl);
 

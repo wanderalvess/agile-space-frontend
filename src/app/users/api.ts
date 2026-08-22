@@ -1,4 +1,5 @@
 import { UserProfile } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 export interface UserJiraConfig {
   userId?: string;
@@ -17,7 +18,7 @@ export interface UserTdnConfig {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -146,7 +147,7 @@ export const userApi = {
   },
 
   async getMyself(domain: string, token: string): Promise<any> {
-    const res = await fetch(`${API_BASE_URL}/jira/myself`, {
+    const res = await authFetch(`${API_BASE_URL}/jira/myself`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ domain, token })

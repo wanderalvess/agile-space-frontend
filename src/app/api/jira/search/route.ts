@@ -10,12 +10,14 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    
-    // Encaminha a chamada para o Spring Boot centralizado
+    const authHeader = req.headers.get('authorization');
+
+    // Encaminha a chamada para o Spring Boot centralizado, repassando o Bearer token do usuário
     const response = await fetch(`${API_BASE_URL}/jira/search`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
       },
       body: JSON.stringify(body)
     });

@@ -1,17 +1,18 @@
 import { BrainstormingBoard, BrainstormingIdea, BrainstormingGroup, Participant } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export const brainstormingApi = {
   // --- Boards ---
   async getBoard(id: string): Promise<BrainstormingBoard> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${id}`);
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}`);
     if (!res.ok) throw new Error('Falha ao obter dados do mural de Brainstorming');
     return res.json();
   },
 
   async saveOrUpdateBoard(board: Partial<BrainstormingBoard>): Promise<BrainstormingBoard> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(board),
@@ -21,13 +22,13 @@ export const brainstormingApi = {
   },
 
   async listBoards(): Promise<BrainstormingBoard[]> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings`);
+    const res = await authFetch(`${API_BASE_URL}/brainstormings`);
     if (!res.ok) throw new Error('Falha ao listar murais');
     return res.json();
   },
 
   async deleteBoard(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao deletar mural');
@@ -35,13 +36,13 @@ export const brainstormingApi = {
 
   // --- Participants ---
   async getParticipants(boardId: string): Promise<Participant[]> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/participants`);
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/participants`);
     if (!res.ok) throw new Error('Falha ao obter participantes');
     return res.json();
   },
 
   async joinBoard(boardId: string, participant: Partial<Participant>): Promise<Participant> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/participants`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/participants`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(participant),
@@ -51,7 +52,7 @@ export const brainstormingApi = {
   },
 
   async leaveBoard(boardId: string, userId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/participants/${userId}`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/participants/${userId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao sair do mural');
@@ -59,13 +60,13 @@ export const brainstormingApi = {
 
   // --- Ideas ---
   async getIdeas(boardId: string): Promise<BrainstormingIdea[]> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas`);
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas`);
     if (!res.ok) throw new Error('Falha ao obter ideias');
     return res.json();
   },
 
   async saveOrUpdateIdea(boardId: string, idea: Partial<BrainstormingIdea>): Promise<BrainstormingIdea> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(idea),
@@ -75,7 +76,7 @@ export const brainstormingApi = {
   },
 
   async deleteIdea(boardId: string, ideaId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas/${ideaId}`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas/${ideaId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao deletar ideia');
@@ -83,13 +84,13 @@ export const brainstormingApi = {
 
   // --- Groups ---
   async getGroups(boardId: string): Promise<BrainstormingGroup[]> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/groups`);
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/groups`);
     if (!res.ok) throw new Error('Falha ao obter grupos');
     return res.json();
   },
 
   async saveOrUpdateGroup(boardId: string, group: Partial<BrainstormingGroup>): Promise<BrainstormingGroup> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/groups`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/groups`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(group),
@@ -99,7 +100,7 @@ export const brainstormingApi = {
   },
 
   async deleteGroup(boardId: string, groupId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/brainstormings/${boardId}/groups/${groupId}`, {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/groups/${groupId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao deletar grupo');

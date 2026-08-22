@@ -25,6 +25,7 @@ import {
 import { cn } from '@/lib/utils';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { ROLES, SQUADS, AVATAR_SEEDS, PREDEFINED_AVATARS, GlobalRole } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 interface ProfileSettingsProps {
   profile: any;
@@ -43,7 +44,7 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
 
   React.useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    fetch(`${apiUrl}/squads`)
+    authFetch(`${apiUrl}/squads`)
       .then(r => r.ok ? r.json() : [])
       .then(data => {
         if (Array.isArray(data)) {

@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useJiraSettings, getJiraCredentials } from '@/hooks/useJiraSettings';
 import Link from 'next/link';
+import { authFetch } from '@/lib/auth-client';
 
 // Dynamic imports for Daily Flow components
 const FocusPlayer = dynamic(() => import('@/app/daily-flow/components/FocusPlayer'), { ssr: false });
@@ -232,7 +233,7 @@ function SquadHubContent() {
     if (userProfile?.squadId && userIdentifier) {
       const fetchTasks = async () => {
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(userProfile.squadId)}/assignee/${encodeURIComponent(userIdentifier)}`);
+          const res = await authFetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(userProfile.squadId)}/assignee/${encodeURIComponent(userIdentifier)}`);
           if (res.ok) {
             const data = await res.json();
             setAssignedTasks(data);
