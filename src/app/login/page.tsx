@@ -163,8 +163,8 @@ export default function LoginPage() {
                 <Building2 className="w-4 h-4" />
               </div>
               <div>
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Sincronização Jira Profields</h4>
-                <p className="text-xs text-slate-400 mt-0.5">Mapeamento automático de papéis de liderança e governança do projeto.</p>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Papéis Sincronizados com o Jira</h4>
+                <p className="text-xs text-slate-400 mt-0.5">Seu cargo e projeto já vêm preenchidos automaticamente ao entrar.</p>
               </div>
             </div>
 
@@ -183,7 +183,7 @@ export default function LoginPage() {
         <div className="relative z-10 flex items-center justify-between text-xs text-slate-500 pt-6 border-t border-slate-800/80">
           <span>© {new Date().getFullYear()} Espaço Ágil</span>
           <span className="flex items-center gap-1 text-slate-400">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> PostgreSQL & JWT Seguro
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Login Seguro
           </span>
         </div>
 
