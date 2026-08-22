@@ -45,7 +45,7 @@ export default function LoginPage() {
       const hasActiveProject = session.activeProjectId
         && allProjects.some(p => p.id.toUpperCase() === session.activeProjectId!.toUpperCase());
 
-      router.push(hasActiveProject ? '/' : '/admin?tab=projects&onboarding=true');
+      router.push(hasActiveProject ? '/' : '/onboarding');
     } catch {
       router.push('/');
     }

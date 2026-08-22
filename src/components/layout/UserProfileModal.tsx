@@ -90,7 +90,7 @@ export function UserProfileModal() {
   const [dynamicSquads, setDynamicSquads] = useState<string[]>([]);
   const [isSquadsLoaded, setIsSquadsLoaded] = useState(false);
 
-  const isOpen = isEditProfileOpen || ((mustOnboard || isIdentityRequested) && !isPublicExploration);
+  const isOpen = isEditProfileOpen || (isIdentityRequested && !isPublicExploration);
   const isNewUser = !userProfile || userProfile.isGuest || !userProfile.name;
 
   // Carrega squads da API

@@ -19,6 +19,13 @@ interface RegisterPayload {
   jiraAccountId?: string;
 }
 
+interface CreateProjectPayload {
+  id: string;
+  name: string;
+  segmentName?: string;
+  tribeName?: string;
+}
+
 interface AuthContextType {
   session: AuthResponse | null;
   isAuthenticated: boolean;
@@ -27,6 +34,8 @@ interface AuthContextType {
   register: (payload: RegisterPayload) => Promise<AuthResponse>;
   logout: () => void;
   switchProject: (projectId: string) => Promise<void>;
+  createProject: (payload: CreateProjectPayload) => Promise<AuthResponse>;
+  joinProject: (projectKey: string, roleName: string) => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -122,6 +131,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(data);
   }, []);
 
+  const createProject = useCallback(async (payload: CreateProjectPayload) => {
+    const res = await authFetch(`${API_BASE_URL}/projects`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      throw new Error(await parseErrorMessage(res, 'Não foi possível criar o projeto'));
+    }
+    const data: AuthResponse = await res.json();
+    setSession(data);
+    return data;
+  }, []);
+
+  const joinProject = useCallback(async (projectKey: string, roleName: string) => {
+    const res = await authFetch(
+      `${API_BASE_URL}/projects/${encodeURIComponent(projectKey)}/join?roleName=${encodeURIComponent(roleName)}`,
+      { method: 'POST' }
+    );
+    if (!res.ok) {
+      throw new Error(await parseErrorMessage(res, 'Não foi possível entrar no projeto'));
+    }
+    const data: AuthResponse = await res.json();
+    setSession(data);
+    return data;
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -132,6 +168,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         switchProject,
+        createProject,
+        joinProject,
       }}
     >
       {children}
