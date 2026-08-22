@@ -53,7 +53,7 @@ export const ROLES: GlobalRole[] = [
   'SME'
 ];
 
-export const SQUADS = ['Varejo', 'MISSI', 'Sem Time'];
+export const SQUADS: string[] = [];
 
 export const PREDEFINED_AVATARS: Record<string, any> = {
   Felix: {

@@ -23,8 +23,8 @@ interface AuthContextType {
   session: AuthResponse | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthResponse>;
+  register: (payload: RegisterPayload) => Promise<AuthResponse>;
   logout: () => void;
   switchProject: (projectId: string) => Promise<void>;
 }
@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data: AuthResponse = await res.json();
     setAuthToken(data.token);
     setSession(data);
+    return data;
   }, []);
 
   const register = useCallback(async (payload: RegisterPayload) => {
@@ -107,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data: AuthResponse = await res.json();
     setAuthToken(data.token);
     setSession(data);
+    return data;
   }, []);
 
   const switchProject = useCallback(async (projectId: string) => {

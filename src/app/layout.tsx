@@ -100,7 +100,7 @@ export default function RootLayout({
                       <IdentityGatekeeper>
                         <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
                           <Header />
-                          <main className="flex flex-1 w-full overflow-x-hidden">{children}</main>
+                          <main className="flex flex-col flex-1 w-full overflow-x-hidden">{children}</main>
                           <GlobalAnnouncementListener />
                           <Calmaria />
                         </div>

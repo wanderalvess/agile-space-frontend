@@ -150,8 +150,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsIdentityRequested(true);
   };
 
-  // Mantido pela assinatura consumida pelo UserProfileModal (conclusão de onboarding pós-login);
-  // e-mail não é mais aceito aqui — a identidade vem da sessão autenticada, não de texto livre.
+  // Mantido pela assinatura consumida pelo UserProfileModal e pela tela de login
+  // (conclusão de onboarding pós-login); e-mail não é aceito aqui — a identidade
+  // vem da sessão autenticada, não de texto livre.
   const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, _email?: string, avatarSeed?: string) => {
     await updateProfile({ name, role, squadId, avatarSeed });
     if (pendingCallback.current) {

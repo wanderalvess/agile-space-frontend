@@ -52,6 +52,7 @@ export function Header() {
   // Oculta o header global em módulos que possuem seu próprio cabeçalho ou sidebar dedicada
   const isMinimalLayout =
     pathname === '/' ||
+    pathname === '/login' ||
     pathname.startsWith('/jolt') ||
     pathname.startsWith('/manual') ||
     pathname.startsWith('/room') ||
