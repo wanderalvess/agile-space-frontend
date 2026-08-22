@@ -60,7 +60,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isIdentityRequested, setIsIdentityRequested] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
-  const [isPublicExploration, setIsPublicExplorationState] = useState(false);
+  const [isPublicExploration, setIsPublicExplorationState] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem(PUBLIC_EXPLORATION_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const [userSquads, setUserSquads] = useState<SquadMember[]>([]);
   const pendingCallback = useRef<(() => void) | null>(null);
 
