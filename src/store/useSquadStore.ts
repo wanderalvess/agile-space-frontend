@@ -965,6 +965,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         statusCategory: issue.statusCategory || 'unknown',
         estimateSec: issue.timeEstimate || 0, remainingSec: issue.timeRemaining || 0, loggedSec: issue.timeSpent || 0,
         updatedAtJira: issue.updated || '', staleSinceDays: daysSince(issue.updated || ''), dueDate: issue.dueDate || '',
+        targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
+        targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
         assigneeId: issue.assigneeId || '', assigneeName: issue.assignee || '',
         parentKey: issue.parentKey || '', parentTitle: issue.parentTitle || '',
         sprintId: targetSprintId, sprintName: '', syncedAt,

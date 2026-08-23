@@ -15,9 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
-import { workItemsApi } from '@/app/work-items-api';
+import { useSquadStore } from '@/store/useSquadStore';
+import type { SquadIssueSnapshot } from '@/lib/types';
 
 export interface PlansTask {
   id: string;
@@ -39,782 +39,23 @@ export interface PlansTask {
   sprint?: string;
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// FULL OFFICIAL DATASET PARSED DIRECTLY FROM JIRA PLANS CSV (54 ISSUES & SUBTASKS)
-// ════════════════════════════════════════════════════════════════════════════
-const FULL_PLANS_CSV_TASKS: PlansTask[] = [
-  // ─── 1. STORY: DDWMISSI-3488 ───
-  {
-    id: 'p-3488',
-    jiraKey: 'DDWMISSI-3488',
-    title: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni (DEV 24h / QA 16h)',
-    type: 'Story',
-    status: 'Em Desenvolvimento',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-25',
-    isParent: true,
-    progressPercent: 31,
-    estimatesDays: 5
-  },
-  {
-    id: 'c-5275',
-    jiraKey: 'DDWMISSI-5275',
-    title: 'Codificação',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Em Andamento',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-21',
-    parentKey: 'DDWMISSI-3488',
-    parentTitle: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni',
-    progressPercent: 51,
-    estimatesDays: 1.47
-  },
-  {
-    id: 'c-5253',
-    jiraKey: 'DDWMISSI-5253',
-    title: 'Codificar testes automatizado',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-24',
-    targetEnd: '2026-08-25',
-    parentKey: 'DDWMISSI-3488',
-    parentTitle: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni',
-    progressPercent: 0,
-    estimatesDays: 0.75
-  },
-  {
-    id: 'c-4803',
-    jiraKey: 'DDWMISSI-4803',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-24',
-    targetEnd: '2026-08-25',
-    parentKey: 'DDWMISSI-3488',
-    parentTitle: '[API] Integração e Envio de Preços Promocionais e Tablóides (Rotinas 2017 e 2011) para o PDV Omni',
-    progressPercent: 0,
-    estimatesDays: 1.25
-  },
-
-  // ─── 2. STORY: DDWMISSI-5118 ───
-  {
-    id: 'p-5118',
-    jiraKey: 'DDWMISSI-5118',
-    title: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni) (DEV 12h / QA 8h)',
-    type: 'Story',
-    status: 'Comprometido',
-    assigneeName: 'Wanderson Alves Santos',
-    targetStart: '2026-08-21',
-    targetEnd: '2026-08-25',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 2.5
-  },
-  {
-    id: 'c-5121',
-    jiraKey: 'DDWMISSI-5121',
-    title: 'Codificação',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Wanderson Alves Santos',
-    targetStart: '2026-08-21',
-    targetEnd: '2026-08-25',
-    parentKey: 'DDWMISSI-5118',
-    parentTitle: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni)',
-    progressPercent: 0,
-    estimatesDays: 1.5
-  },
-  {
-    id: 'c-5119',
-    jiraKey: 'DDWMISSI-5119',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5118',
-    parentTitle: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni)',
-    progressPercent: 0,
-    estimatesDays: 0.5
-  },
-  {
-    id: 'c-5122',
-    jiraKey: 'DDWMISSI-5122',
-    title: 'Teste Automatizado',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5118',
-    parentTitle: '[SIM V2] - Exportação e Conversão de Parâmetros (De/Para WinThor para PDV Omni)',
-    progressPercent: 0,
-    estimatesDays: 0.5
-  },
-
-  // ─── 3. LEGISLAÇÃO: DDWMISSI-5181 ───
-  {
-    id: 'p-5181',
-    jiraKey: 'DDWMISSI-5181',
-    title: '[Melhoria] - API Produtos - Envio de dados de ANP (DEV 8h / QA 8h)',
-    type: 'Legislação',
-    status: 'Comprometido',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-24',
-    targetEnd: '2026-08-26',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 2
-  },
-  {
-    id: 'c-5211',
-    jiraKey: 'DDWMISSI-5211',
-    title: 'Codificação',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-24',
-    targetEnd: '2026-08-25',
-    parentKey: 'DDWMISSI-5181',
-    parentTitle: '[Melhoria] - API Produtos - Envio de dados de ANP',
-    progressPercent: 0,
-    estimatesDays: 1
-  },
-  {
-    id: 'c-5221',
-    jiraKey: 'DDWMISSI-5221',
-    title: 'Codificar testes automatizado',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5181',
-    parentTitle: '[Melhoria] - API Produtos - Envio de dados de ANP',
-    progressPercent: 0,
-    estimatesDays: 0.25
-  },
-  {
-    id: 'c-5223',
-    jiraKey: 'DDWMISSI-5223',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5181',
-    parentTitle: '[Melhoria] - API Produtos - Envio de dados de ANP',
-    progressPercent: 0,
-    estimatesDays: 0.75
-  },
-
-  // ─── 4. STORY: DDWMISSI-2305 ───
-  {
-    id: 'p-2305',
-    jiraKey: 'DDWMISSI-2305',
-    title: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor (DEV 12H / QA 11H)',
-    type: 'Story',
-    status: 'Comprometido',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 2.88
-  },
-  {
-    id: 'c-5041',
-    jiraKey: 'DDWMISSI-5041',
-    title: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-27',
-    parentKey: 'DDWMISSI-2305',
-    parentTitle: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 1.5
-  },
-  {
-    id: 'c-5043',
-    jiraKey: 'DDWMISSI-5043',
-    title: 'Automação de testes',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-2305',
-    parentTitle: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 0.5
-  },
-  {
-    id: 'c-4800',
-    jiraKey: 'DDWMISSI-4800',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-2305',
-    parentTitle: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 0.88
-  },
-
-  // ─── 5. STORY: DDWMISSI-2306 ───
-  {
-    id: 'p-2306',
-    jiraKey: 'DDWMISSI-2306',
-    title: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor (DEV 5H / QA 3H)',
-    type: 'Story',
-    status: 'Comprometido',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 1
-  },
-  {
-    id: 'c-5046',
-    jiraKey: 'DDWMISSI-5046',
-    title: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-2306',
-    parentTitle: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 0.63
-  },
-  {
-    id: 'c-4801',
-    jiraKey: 'DDWMISSI-4801',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-28',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-2306',
-    parentTitle: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 0.38
-  },
-  {
-    id: 'c-5047',
-    jiraKey: 'DDWMISSI-5047',
-    title: 'TESTE QA Automatizado',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-28',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-2306',
-    parentTitle: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 0.25
-  },
-
-  // ─── 6. DÉBITO TÉCNICO: DDWMISSI-4880 ───
-  {
-    id: 'p-4880',
-    jiraKey: 'DDWMISSI-4880',
-    title: 'Enviar status para remover cadastros da fila do sync (DEV 17h / QA 10h)',
-    type: 'Débito Técnico',
-    status: 'Em Desenvolvimento',
-    assigneeName: 'Wanderson Alves Santos',
-    targetStart: '2026-08-19',
-    targetEnd: '2026-08-22',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 3.38
-  },
-  {
-    id: 'c-5010',
-    jiraKey: 'DDWMISSI-5010',
-    title: 'Codificacao',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Em Andamento',
-    assigneeName: 'Wanderson Alves Santos',
-    targetStart: '2026-08-19',
-    targetEnd: '2026-08-21',
-    parentKey: 'DDWMISSI-4880',
-    parentTitle: 'Enviar status para remover cadastros da fila do sync',
-    progressPercent: 0,
-    estimatesDays: 2.13
-  },
-  {
-    id: 'c-5008',
-    jiraKey: 'DDWMISSI-5008',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-21',
-    targetEnd: '2026-08-22',
-    parentKey: 'DDWMISSI-4880',
-    parentTitle: 'Enviar status para remover cadastros da fila do sync',
-    progressPercent: 0,
-    estimatesDays: 1.25
-  },
-
-  // ─── 7. DÉBITO TÉCNICO: DDWMISSI-4869 ───
-  {
-    id: 'p-4869',
-    jiraKey: 'DDWMISSI-4869',
-    title: 'Validação Cliente Excluido e Consumidor final 1, 2, 3 (DEV 9h / QA 6h)',
-    type: 'Débito Técnico',
-    status: 'Comprometido',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-27',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 1.88
-  },
-  {
-    id: 'c-5002',
-    jiraKey: 'DDWMISSI-5002',
-    title: 'Codificacao',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Bruna de Brito Alves',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-4869',
-    parentTitle: 'Validação Cliente Excluido e Consumidor final 1, 2, 3',
-    progressPercent: 0,
-    estimatesDays: 1.13
-  },
-  {
-    id: 'c-5001',
-    jiraKey: 'DDWMISSI-5001',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-26',
-    targetEnd: '2026-08-27',
-    parentKey: 'DDWMISSI-4869',
-    parentTitle: 'Validação Cliente Excluido e Consumidor final 1, 2, 3',
-    progressPercent: 0,
-    estimatesDays: 0.75
-  },
-
-  // ─── 8. TESTE SISTÊMICO: DDWMISSI-1938 ───
-  {
-    id: 'p-1938',
-    jiraKey: 'DDWMISSI-1938',
-    title: 'Mississauga Manutenção Automação - Desconto e Acréscimo - 20h',
-    type: 'Teste Sistêmico',
-    status: 'Comprometido',
-    assigneeName: 'Nathan Correa Caldas',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 8,
-    estimatesDays: 2.31
-  },
-  {
-    id: 'c-1513',
-    jiraKey: 'DDWMISSI-1513',
-    title: 'Refatoração automatizados - Desconto e Acréscimo',
-    type: 'Manutenção Automação',
-    status: 'Em Andamento',
-    assigneeName: 'Nathan Correa Caldas',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-1938',
-    parentTitle: 'Mississauga Manutenção Automação - Desconto e Acréscimo',
-    progressPercent: 8,
-    estimatesDays: 2.31
-  },
-
-  // ─── 9. STORY: DDWMISSI-5125 ───
-  {
-    id: 'p-5125',
-    jiraKey: 'DDWMISSI-5125',
-    title: 'API Online - Buscar Estoque por lotes disponíveis no Winthor (DEV 11h / QA 14h)',
-    type: 'Story',
-    status: 'Em Teste de Aceitação',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-21',
-    isParent: true,
-    progressPercent: 46,
-    estimatesDays: 3.13
-  },
-  {
-    id: 'c-5137',
-    jiraKey: 'DDWMISSI-5137',
-    title: 'Codificação',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Closed',
-    assigneeName: 'Wanderson Alves Santos',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-19',
-    parentKey: 'DDWMISSI-5125',
-    parentTitle: 'API Online - Buscar Estoque por lotes disponíveis no Winthor',
-    progressPercent: 100,
-    estimatesDays: 1.38
-  },
-  {
-    id: 'c-5219',
-    jiraKey: 'DDWMISSI-5219',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Em Andamento',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-19',
-    targetEnd: '2026-08-20',
-    parentKey: 'DDWMISSI-5125',
-    parentTitle: 'API Online - Buscar Estoque por lotes disponíveis no Winthor',
-    progressPercent: 13,
-    estimatesDays: 0.5
-  },
-  {
-    id: 'c-5220',
-    jiraKey: 'DDWMISSI-5220',
-    title: 'Codificar testes automatizado',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-20',
-    targetEnd: '2026-08-21',
-    parentKey: 'DDWMISSI-5125',
-    parentTitle: 'API Online - Buscar Estoque por lotes disponíveis no Winthor',
-    progressPercent: 0,
-    estimatesDays: 1.25
-  },
-
-  // ─── 10. STORY: DDWMISSI-5192 ───
-  {
-    id: 'p-5192',
-    jiraKey: 'DDWMISSI-5192',
-    title: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem (DEV 16h / QA 6h)',
-    type: 'Story',
-    status: 'Code Review Concluído',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-24',
-    isParent: true,
-    progressPercent: 79,
-    estimatesDays: 3.61
-  },
-  {
-    id: 'c-5204',
-    jiraKey: 'DDWMISSI-5204',
-    title: 'API Online Consulta de Orçamentos - Listagem - Resgate no PDV',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Closed',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-20',
-    parentKey: 'DDWMISSI-5192',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem',
-    progressPercent: 100,
-    estimatesDays: 2.86
-  },
-  {
-    id: 'c-5199',
-    jiraKey: 'DDWMISSI-5199',
-    title: 'Codificar teste automatizados',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-21',
-    targetEnd: '2026-08-21',
-    parentKey: 'DDWMISSI-5192',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem',
-    progressPercent: 0,
-    estimatesDays: 0.25
-  },
-  {
-    id: 'c-5200',
-    jiraKey: 'DDWMISSI-5200',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-21',
-    targetEnd: '2026-08-24',
-    parentKey: 'DDWMISSI-5192',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Listagem',
-    progressPercent: 0,
-    estimatesDays: 0.5
-  },
-
-  // ─── 11. STORY: DDWMISSI-5226 ───
-  {
-    id: 'p-5226',
-    jiraKey: 'DDWMISSI-5226',
-    title: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada (DEV 16h / QA 16h)',
-    type: 'Story',
-    status: 'Em Code Review',
-    assigneeName: 'Wanderson Alves Santos',
-    targetStart: '2026-08-20',
-    targetEnd: '2026-08-26',
-    isParent: true,
-    progressPercent: 52,
-    estimatesDays: 4.13
-  },
-  {
-    id: 'c-5227',
-    jiraKey: 'DDWMISSI-5227',
-    title: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Closed',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-20',
-    targetEnd: '2026-08-25',
-    parentKey: 'DDWMISSI-5226',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
-    progressPercent: 100,
-    estimatesDays: 2
-  },
-  {
-    id: 'c-5385',
-    jiraKey: 'DDWMISSI-5385',
-    title: 'REBUILD - API Online Consulta de Orçamentos - Resgate no PDV',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Closed',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-25',
-    parentKey: 'DDWMISSI-5226',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
-    progressPercent: 100,
-    estimatesDays: 0.13
-  },
-  {
-    id: 'c-5229',
-    jiraKey: 'DDWMISSI-5229',
-    title: 'CLONE - Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5226',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
-    progressPercent: 0,
-    estimatesDays: 0.75
-  },
-  {
-    id: 'c-5231',
-    jiraKey: 'DDWMISSI-5231',
-    title: 'CLONE - Codificar teste automatizados',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-26',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5226',
-    parentTitle: 'API Online Consulta de Orçamentos - Resgate no PDV - Consulta Detalhada',
-    progressPercent: 0,
-    estimatesDays: 1.25
-  },
-
-  // ─── 12. MANUTENÇÃO: DDWMISSI-5193 ───
-  {
-    id: 'p-5193',
-    jiraKey: 'DDWMISSI-5193',
-    title: 'Erro ao gravar um parâmetro geral da 132 com o tamanho superior a 100 caracteres (DEV 5h / QA 4h)',
-    type: 'Manutenção',
-    status: 'Em Desenvolvimento',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 1.13
-  },
-  {
-    id: 'c-5194',
-    jiraKey: 'DDWMISSI-5194',
-    title: 'Teste QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-25',
-    targetEnd: '2026-08-26',
-    parentKey: 'DDWMISSI-5193',
-    parentTitle: 'Erro ao gravar um parâmetro geral da 132',
-    progressPercent: 0,
-    estimatesDays: 0.5
-  },
-  {
-    id: 'c-5202',
-    jiraKey: 'DDWMISSI-5202',
-    title: 'Erro ao gravar um parâmetro geral da 132 com o tamanho superior a 100 caracteres',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Em Andamento',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-5193',
-    parentTitle: 'Erro ao gravar um parâmetro geral da 132',
-    progressPercent: 0,
-    estimatesDays: 0.63
-  },
-
-  // ─── 13. STORY: DDWMISSI-5293 ───
-  {
-    id: 'p-5293',
-    jiraKey: 'DDWMISSI-5293',
-    title: 'Remoção do Campo/Parâmetro lastchange e do Parâmetro count nas APIs de Integração (HE DEV 2H / QA 3H)',
-    type: 'Story',
-    status: 'Comprometido',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-26',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 0.88
-  },
-  {
-    id: 'c-5321',
-    jiraKey: 'DDWMISSI-5321',
-    title: 'Remoção do Campo/Parâmetro lastchange e count',
-    type: 'Codificação (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Anderson Marcelo Wanderley Pereira da Silva',
-    targetStart: '2026-08-26',
-    targetEnd: '2026-08-27',
-    parentKey: 'DDWMISSI-5293',
-    parentTitle: 'Remoção do Campo/Parâmetro lastchange e count',
-    progressPercent: 0,
-    estimatesDays: 0.25
-  },
-  {
-    id: 'c-5317',
-    jiraKey: 'DDWMISSI-5317',
-    title: 'Codificar testes automatizado',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-5293',
-    parentTitle: 'Remoção do Campo/Parâmetro lastchange e count',
-    progressPercent: 0,
-    estimatesDays: 0.25
-  },
-  {
-    id: 'c-5319',
-    jiraKey: 'DDWMISSI-5319',
-    title: 'Teste QA',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-28',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-5293',
-    parentTitle: 'Remoção do Campo/Parâmetro lastchange e count',
-    progressPercent: 0,
-    estimatesDays: 0.38
-  },
-
-  // ─── 14. TESTE SISTÊMICO: DDWMISSI-5335 ───
-  {
-    id: 'p-5335',
-    jiraKey: 'DDWMISSI-5335',
-    title: '[Regressivo Sprint 2026.08/02] - Planejamento e Execução (Q.A. 18h)',
-    type: 'Teste Sistêmico',
-    status: 'Comprometido',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 0,
-    estimatesDays: 1.75
-  },
-  {
-    id: 'c-5339',
-    jiraKey: 'DDWMISSI-5339',
-    title: 'Execução de TI - Regressivo Geral',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Open',
-    assigneeName: 'Helen Chrystina Godinho Amorim',
-    targetStart: '2026-08-27',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-5335',
-    parentTitle: '[Regressivo Sprint 2026.08/02] - Planejamento e Execução',
-    progressPercent: 0,
-    estimatesDays: 1.75
-  },
-
-  // ─── 15. TESTE SISTÊMICO: DDWMISSI-5336 ───
-  {
-    id: 'p-5336',
-    jiraKey: 'DDWMISSI-5336',
-    title: 'Implementar client do oracle o no projeto TAUT-GERAL(Aut 12h)',
-    type: 'Teste Sistêmico',
-    status: 'Em Andamento',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-28',
-    isParent: true,
-    progressPercent: 17,
-    estimatesDays: 1.25
-  },
-  {
-    id: 'c-5337',
-    jiraKey: 'DDWMISSI-5337',
-    title: 'Automação de testes',
-    type: 'Teste Automatizado (Sub-tarefa)',
-    status: 'Em Andamento',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-18',
-    targetEnd: '2026-08-28',
-    parentKey: 'DDWMISSI-5336',
-    parentTitle: 'Implementar client do oracle o no projeto TAUT-GERAL',
-    progressPercent: 17,
-    estimatesDays: 1.25
-  },
-
-  // ─── 16. TESTE SISTÊMICO: DDWMISSI-5338 ───
-  {
-    id: 'p-5338',
-    jiraKey: 'DDWMISSI-5338',
-    title: '[Service Transition] Preço Atacado e Varejo',
-    type: 'Teste Sistêmico',
-    status: 'Em Andamento',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-20',
-    targetEnd: '2026-08-21',
-    isParent: true,
-    progressPercent: 40,
-    estimatesDays: 0.3
-  },
-  {
-    id: 'c-5340',
-    jiraKey: 'DDWMISSI-5340',
-    title: 'Acompanhamento QA',
-    type: 'Execução de TI (Sub-tarefa)',
-    status: 'Em Andamento',
-    assigneeName: 'Rhaynner Costa Assuncao',
-    targetStart: '2026-08-20',
-    targetEnd: '2026-08-21',
-    parentKey: 'DDWMISSI-5338',
-    parentTitle: '[Service Transition] Preço Atacado e Varejo',
-    progressPercent: 40,
-    estimatesDays: 0.3
-  }
-];
+function squadIssueToPlansTask(snapshot: SquadIssueSnapshot): PlansTask {
+  const jiraKey = snapshot.jiraKey || snapshot.key;
+  return {
+    id: jiraKey,
+    jiraKey,
+    title: snapshot.title || jiraKey,
+    type: snapshot.type || '',
+    status: snapshot.status || '',
+    assigneeName: snapshot.assigneeName || '',
+    targetStart: snapshot.targetStart || snapshot.dueDate || '',
+    targetEnd: snapshot.targetEnd || snapshot.dueDate || '',
+    parentKey: snapshot.parentKey || undefined,
+    parentTitle: snapshot.parentTitle || undefined,
+    isParent: !snapshot.parentKey,
+    sprint: snapshot.sprintName || undefined,
+  };
+}
 
 export function getIssueTypeBadge(type?: string, title?: string, isParent?: boolean) {
   const normType = (type || '').toLowerCase();
@@ -1054,46 +295,82 @@ const DEFAULT_COL_WIDTHS = {
   dayWidth: 54,
 };
 
+function getLocalDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function timeAgo(iso?: string): string {
+  if (!iso) return 'nunca';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms)) return 'nunca';
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return 'agora mesmo';
+  if (minutes < 60) return `${minutes} min atrás`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h atrás`;
+  return `${Math.floor(hours / 24)}d atrás`;
+}
+
 export function SquadPlansTimeline() {
   const { toast } = useToast();
-  const { userProfile } = useUserContext();
+  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing } = useSquadStore();
+
+  const activeIssues = viewingSprintId ? viewedIssuesSnapshot : issuesSnapshot;
+  const activeRollup = viewingSprintId ? viewedRollup : rollup;
+
+  const tasks = useMemo(() => activeIssues.map(squadIssueToPlansTask), [activeIssues]);
+
+  const today = new Date();
+  const todayIso = getLocalDateStr(today);
+
+  const sprintWindow = useMemo(() => {
+    const meta = activeRollup?.extraMetrics as Record<string, unknown> | undefined;
+    const start = (meta?.activeSprintStart as string) || '';
+    const end = (meta?.activeSprintEnd as string) || '';
+    if (start && end) return { start, end };
+    const fallbackEnd = new Date(today);
+    fallbackEnd.setDate(fallbackEnd.getDate() + 13);
+    return { start: todayIso, end: getLocalDateStr(fallbackEnd) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRollup, todayIso]);
 
   const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
   const [hierarchyLevel, setHierarchyLevel] = useState<'story-to-subtask' | 'subtask-only' | 'story-only'>('story-to-subtask');
   const [groupBy, setGroupBy] = useState<'assignee' | 'parent'>('parent');
-  
+
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
-  
+
   const [simulatedDelay, setSimulatedDelay] = useState<number>(0);
   const [showCascadeBanner, setShowCascadeBanner] = useState<boolean>(true);
 
   const [presetPeriod, setPresetPeriod] = useState('SPRINT_CURRENT');
-  const [startDate, setStartDate] = useState('2026-08-17');
-  const [endDate, setEndDate] = useState('2026-08-28');
+  const [startDate, setStartDate] = useState(sprintWindow.start);
+  const [endDate, setEndDate] = useState(sprintWindow.end);
 
-  const [isSyncing, setIsSyncing] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [collapsedParents, setCollapsedParents] = useState<Record<string, boolean>>({});
-  const [tasks, setTasks] = useState<PlansTask[]>(FULL_PLANS_CSV_TASKS);
-
-  const activeSquadId = userProfile?.squadId || 'MISSI';
-
-  const todayIso = '2026-08-20';
 
   const handlePresetChange = (preset: string) => {
     setPresetPeriod(preset);
     if (preset === 'SPRINT_CURRENT') {
-      setStartDate('2026-08-17');
-      setEndDate('2026-08-28');
+      setStartDate(sprintWindow.start);
+      setEndDate(sprintWindow.end);
     } else if (preset === 'NEXT_14_DAYS') {
-      setStartDate('2026-08-19');
-      setEndDate('2026-09-01');
-    } else if (preset === 'MONTH_AUGUST') {
-      setStartDate('2026-08-01');
-      setEndDate('2026-08-31');
+      const end = new Date(today);
+      end.setDate(end.getDate() + 14);
+      setStartDate(todayIso);
+      setEndDate(getLocalDateStr(end));
+    } else if (preset === 'CURRENT_MONTH') {
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      setStartDate(getLocalDateStr(first));
+      setEndDate(getLocalDateStr(last));
     }
   };
 
@@ -1275,28 +552,11 @@ export function SquadPlansTimeline() {
     setCollapsedParents(prev => ({ ...prev, [parentKey]: !prev[parentKey] }));
   };
 
-  const handleSyncJira = async () => {
-    setIsSyncing(true);
-    toast({
-      title: "🔄 Sincronizando com Jira Plans...",
-      description: `Consultando todas as 54 tarefas da sprint ${activeSquadId}...`,
-    });
-
-    setTimeout(() => {
-      setTasks(FULL_PLANS_CSV_TASKS);
-      setIsSyncing(false);
-      toast({
-        title: "✅ Sincronizado com sucesso!",
-        description: `Todas as 54 tarefas e subtarefas do Plans carregadas com fidelidade total.`,
-      });
-    }, 400);
-  };
-
   const computeEffectiveDates = (task: PlansTask) => {
     if (simulatedDelay === 0) {
       return {
-        start: task.targetStart || '2026-08-18',
-        end: task.targetEnd || task.targetStart || '2026-08-28',
+        start: task.targetStart || startDate,
+        end: task.targetEnd || task.targetStart || endDate,
         isDelayed: false,
         delayDays: 0,
         isOverdueRisk: false,
@@ -1307,8 +567,8 @@ export function SquadPlansTimeline() {
     const isDev = task.title.toLowerCase().includes('codifica') || task.type.includes('Codificação') || task.status === 'Em Andamento' || task.status === 'Em Desenvolvimento';
     const isQAOrReview = task.title.toLowerCase().includes('qa') || task.title.toLowerCase().includes('teste') || task.type.includes('Teste') || task.type.includes('Execução de TI');
 
-    const baseStart = task.targetStart || '2026-08-18';
-    const baseEnd = task.targetEnd || task.targetStart || '2026-08-28';
+    const baseStart = task.targetStart || startDate;
+    const baseEnd = task.targetEnd || task.targetStart || endDate;
 
     if (isDev) {
       const end = addDaysToIso(baseEnd, simulatedDelay);
@@ -1481,15 +741,13 @@ export function SquadPlansTimeline() {
               Resetar Colunas
             </Button>
 
-            <Button 
-              onClick={handleSyncJira} 
-              disabled={isSyncing}
-              size="sm"
-              className="h-8 px-3.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-sm shadow-blue-500/20"
+            <div
+              className="h-8 px-3 flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
+              title="Este cronograma usa o mesmo dado sincronizado da aba Squad Pulse. Use o botão Sincronizar no topo do Hub para atualizar."
             >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              Sincronizar Jira Plans
-            </Button>
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
+              {isSyncing ? 'Sincronizando…' : `Sincronizado ${timeAgo(config?.lastSyncAt)}`}
+            </div>
           </div>
         </div>
 
@@ -1607,9 +865,9 @@ export function SquadPlansTimeline() {
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="SPRINT_CURRENT">Sprint Atual (17-28/Ago)</SelectItem>
+                <SelectItem value="SPRINT_CURRENT">Sprint Atual ({sprintWindow.start} a {sprintWindow.end})</SelectItem>
                 <SelectItem value="NEXT_14_DAYS">Próximos 14 Dias</SelectItem>
-                <SelectItem value="MONTH_AUGUST">Mês Atual (Agosto/26)</SelectItem>
+                <SelectItem value="CURRENT_MONTH">Mês Atual</SelectItem>
                 <SelectItem value="CUSTOM">Customizado</SelectItem>
               </SelectContent>
             </Select>
