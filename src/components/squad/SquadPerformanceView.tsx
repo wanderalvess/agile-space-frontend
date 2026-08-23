@@ -135,7 +135,7 @@ export function SquadPerformanceView() {
       const focadoMinutes = dayLogs.filter(w => !w.isJira).reduce((sum, w) => sum + w.durationMinutes, 0);
       const jiraMinutes = dayLogs.filter(w => w.isJira).reduce((sum, w) => sum + w.durationMinutes, 0);
       
-      const snapLoggedHours = snap ? parseFloat((snap.loggedTotalSec / 3600).toFixed(1)) : 0;
+      const snapLoggedHours = snap ? parseFloat((snap.loggedSec / 3600).toFixed(1)) : 0;
       const totalLoggedHours = snapLoggedHours > 0 
         ? snapLoggedHours 
         : parseFloat(((focadoMinutes + jiraMinutes) / 60).toFixed(1));
@@ -246,7 +246,7 @@ export function SquadPerformanceView() {
       if (dObj.getDay() === 0 || dObj.getDay() === 6) return;
       
       const snap = dailySnapshots.find(s => s.snapshotDate === dStr);
-      if (snap && snap.loggedTotalSec >= 14400) {
+      if (snap && snap.loggedSec >= 14400) {
         count++;
       } else {
         const dayLogs = baseWorklogs.filter(w => w.date === dStr);
@@ -286,21 +286,23 @@ export function SquadPerformanceView() {
     }
 
     return members.map(m => {
-      const metric = memberMetrics.find(mm => mm.jiraAccountId === m.jiraAccountId);
+      const metric = memberMetrics.find(mm => mm.assigneeId === m.jiraAccountId);
       const myItems = activeIssues.filter(iss => iss.assigneeId === m.jiraAccountId || iss.assigneeName === m.displayName);
       const doneCount = myItems.filter(iss => iss.status?.toLowerCase().includes('done') || iss.status?.toLowerCase().includes('concluído')).length;
       const totalCount = myItems.length;
-      const loggedSec = metric?.loggedTotalSec || myItems.reduce((sum, i) => sum + (i.loggedSec || 0), 0);
-      const loggedHours = (loggedSec / 3600).toFixed(1);
-      const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : (metric?.doneCount ? 100 : 0);
+      const loggedHours = metric?.hoursLogged != null
+        ? metric.hoursLogged.toFixed(1)
+        : (myItems.reduce((sum, i) => sum + (i.loggedSec || 0), 0) / 3600).toFixed(1);
+      const metricTotalCount = (metric?.issuesCompleted || 0) + (metric?.issuesInProgress || 0);
+      const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : (metric?.issuesCompleted ? 100 : 0);
 
       return {
         jiraAccountId: m.jiraAccountId,
-        displayName: m.displayName || m.name || 'Membro',
+        displayName: m.displayName || 'Membro',
         role: m.role || 'Desenvolvedor',
         capacityHoursPerDay: m.capacityHoursPerDay || 8,
-        doneIssues: doneCount || metric?.doneCount || 0,
-        totalIssues: totalCount || metric?.totalCount || 0,
+        doneIssues: doneCount || metric?.issuesCompleted || 0,
+        totalIssues: totalCount || metricTotalCount || 0,
         loggedHours,
         progress
       };

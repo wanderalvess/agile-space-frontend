@@ -76,6 +76,9 @@ interface SquadStoreState {
   isForceResyncingSprint: boolean;
 
   fetchSquad: (squadId: string) => Promise<void>;
+  // Só chame isto se o viewer for SQUAD_LEADERSHIP_VIEW_ROLES — sem Firestore rules
+  // o controle de visibilidade é feito no próprio componente (isLeadershipViewer).
+  fetchSquadDetail: (squadId: string) => Promise<void>;
   fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<void>;
   claimMember: (squadId: string, jiraAccountId: string, uid: string) => Promise<void>;
   saveMemberCapacity: (
@@ -536,10 +539,12 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       if (!config || !config.jiraProjectKey || config.jiraProjectKey === 'MISSI') {
         const defaultConfig: SquadConfig = {
           squadId,
+          name: squadId,
           jiraProjectKey: defaultProjKey,
           syncJql: `project = "${defaultProjKey}" AND sprint in openSprints()`,
           defaultDailyCapacityHours: 6,
           rankingEnabled: false,
+          updatedAt: new Date().toISOString(),
           ...(config || {}),
         };
         defaultConfig.jiraProjectKey = defaultProjKey;
@@ -692,7 +697,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       const rosterSeeds: SquadMember[] = [];
       seenAssignees.forEach((name, id) => {
         if (!rosterMap.has(id)) {
-          const seed: SquadMember = { jiraAccountId: id, displayName: name || id, capacityHoursPerDay: defaultCapacity, updatedAt: syncedAt };
+          const seed: SquadMember = { dbId: `${squadId}_${id}`, squadId, jiraAccountId: id, displayName: name || id, capacityHoursPerDay: defaultCapacity, updatedAt: syncedAt };
           rosterMap.set(id, seed);
           rosterSeeds.push(seed);
         }
@@ -788,37 +793,38 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         // --- rollup desta partição ---
         const totalIssues = mergedSnapshots.length;
         const doneIssues = mergedSnapshots.filter(s => s.statusCategory === 'done').length;
-        const bugCount = mergedSnapshots.filter(s => s.isBug).length;
-        const staleCount = mergedSnapshots.filter(s => s.statusCategory !== 'done' && s.staleSinceDays > STALE_THRESHOLD_DAYS).length;
-        const estimatedHours = mergedSnapshots.reduce((sum, s) => sum + s.estimateSec, 0) / 3600;
-        const loggedHours = mergedSnapshots.reduce((sum, s) => sum + s.loggedSec, 0) / 3600;
-        const remainingHours = mergedSnapshots.reduce((sum, s) => sum + s.remainingSec, 0) / 3600;
+        const inProgressIssues = mergedSnapshots.filter(s => s.statusCategory === 'indeterminate').length;
+        const bugIssues = mergedSnapshots.filter(s => s.isBug).length;
+        const staleIssues = mergedSnapshots.filter(s => s.statusCategory !== 'done' && s.staleSinceDays > STALE_THRESHOLD_DAYS).length;
+        const estimateTotalSec = mergedSnapshots.reduce((sum, s) => sum + s.estimateSec, 0);
+        const loggedTotalSec = mergedSnapshots.reduce((sum, s) => sum + s.loggedSec, 0);
+        const remainingTotalSec = mergedSnapshots.reduce((sum, s) => sum + s.remainingSec, 0);
         const byType: Record<string, number> = {};
         mergedSnapshots.forEach(s => { byType[s.type] = (byType[s.type] || 0) + 1; });
         const byStatus: Record<string, number> = {};
         mergedSnapshots.forEach(s => { byStatus[s.status] = (byStatus[s.status] || 0) + 1; });
         const openWithDueDate = mergedSnapshots.filter(s => s.statusCategory !== 'done' && s.dueDate);
-        const overdueCount = openWithDueDate.filter(s => daysUntil(s.dueDate) < 0).length;
-        const dueSoonCount = openWithDueDate.filter(s => { const d = daysUntil(s.dueDate); return d >= 0 && d <= DUE_SOON_THRESHOLD_DAYS; }).length;
+        const overdueIssues = openWithDueDate.filter(s => daysUntil(s.dueDate) < 0).length;
+        const dueSoonIssues = openWithDueDate.filter(s => { const d = daysUntil(s.dueDate); return d >= 0 && d <= DUE_SOON_THRESHOLD_DAYS; }).length;
 
         const meta = sprintMeta.get(sprintId);
         const sprintWorkdays = meta ? countWorkdays(meta.startDate, meta.endDate) : 0;
 
         const rollupForGroup: SquadMetricsRollup = {
+          squadId,
+          sprintId,
           computedAt: syncedAt,
-          sourceIssueCount: totalIssues,
-          totalIssues, doneIssues, estimatedHours, loggedHours, remainingHours,
-          bugCount, bugRatio: totalIssues > 0 ? bugCount / totalIssues : 0,
-          staleCount, staleThresholdDays: STALE_THRESHOLD_DAYS,
-          overdueCount, dueSoonCount, dueSoonThresholdDays: DUE_SOON_THRESHOLD_DAYS,
-          byType, byStatus, sprintId, state: 'active',
-          ...(meta && sprintWorkdays > 0 ? {
-            activeSprintName: meta.name, activeSprintStart: meta.startDate,
-            activeSprintEnd: meta.endDate, sprintWorkdays,
-          } : {}),
+          totalIssues, doneIssues, inProgressIssues, bugIssues, staleIssues,
+          overdueIssues, dueSoonIssues,
+          estimateTotalSec, loggedTotalSec, remainingTotalSec,
+          ...(meta && sprintWorkdays > 0 ? { sprintName: meta.name, workdaysTotal: sprintWorkdays } : {}),
+          extraMetrics: {
+            byType, byStatus,
+            ...(meta && sprintWorkdays > 0 ? { activeSprintStart: meta.startDate, activeSprintEnd: meta.endDate } : {}),
+          },
         };
 
-        await squadApi.saveRollup(squadId, { ...rollupForGroup, squadId });
+        await squadApi.saveRollup(squadId, rollupForGroup);
 
         if (sprintId === effectiveSprintId) {
           rollupForActiveSprint = rollupForGroup;
@@ -842,10 +848,10 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         else updatedSprintHistory.push(historyEntry);
       }
 
-      // Congela sprint anterior se houve troca nesta sync FULL
+      // Congela sprint anterior se houve troca nesta sync FULL — o estado
+      // "encerrada" vive só em sprintHistory (SquadMetricsRollup não tem
+      // coluna state/closedAt na entity Postgres).
       if (isFull && config.activeSprintId && config.activeSprintId !== effectiveSprintId && config.activeSprintId !== UNMAPPED_SPRINT_ID) {
-        const prevRollup = await squadApi.getRollup(squadId);
-        if (prevRollup) await squadApi.saveRollup(squadId, { ...prevRollup, state: 'closed', closedAt: syncedAt } as any);
         const idx = updatedSprintHistory.findIndex(h => h.sprintId === config.activeSprintId);
         if (idx >= 0) updatedSprintHistory[idx] = { ...updatedSprintHistory[idx], state: 'closed', closedAt: syncedAt };
       }
@@ -856,17 +862,17 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       // Daily snapshot
       if (rollupForActiveSprint) {
         const dailySnapshot: SquadDailySnapshot = {
-          date: todayStr(),
+          squadId,
+          snapshotDate: todayStr(),
           totalIssues: rollupForActiveSprint.totalIssues,
           doneIssues: rollupForActiveSprint.doneIssues,
-          loggedHours: rollupForActiveSprint.loggedHours,
-          estimatedHours: rollupForActiveSprint.estimatedHours,
-          remainingHours: rollupForActiveSprint.remainingHours,
-          bugCount: rollupForActiveSprint.bugCount,
-          staleCount: rollupForActiveSprint.staleCount,
-          computedAt: syncedAt,
+          inProgressIssues: rollupForActiveSprint.inProgressIssues,
+          bugIssues: rollupForActiveSprint.bugIssues,
+          staleIssues: rollupForActiveSprint.staleIssues,
+          loggedSec: rollupForActiveSprint.loggedTotalSec,
+          syncedAt,
         };
-        await squadApi.batchUpsertDailySnapshots(squadId, [{ ...dailySnapshot, snapshotDate: dailySnapshot.date } as any]);
+        await squadApi.batchUpsertDailySnapshots(squadId, [dailySnapshot]);
       }
 
       // Atualiza config do squad
@@ -991,27 +997,27 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
 
       const totalIssues = snapshots.length;
       const doneIssues = snapshots.filter(s => s.statusCategory === 'done').length;
-      const bugCount = snapshots.filter(s => s.isBug).length;
-      const staleCount = snapshots.filter(s => s.statusCategory !== 'done' && s.staleSinceDays > STALE_THRESHOLD_DAYS).length;
+      const inProgressIssues = snapshots.filter(s => s.statusCategory === 'indeterminate').length;
+      const bugIssues = snapshots.filter(s => s.isBug).length;
+      const staleIssues = snapshots.filter(s => s.statusCategory !== 'done' && s.staleSinceDays > STALE_THRESHOLD_DAYS).length;
       const byType: Record<string, number> = {};
       snapshots.forEach(s => { byType[s.type] = (byType[s.type] || 0) + 1; });
       const byStatus: Record<string, number> = {};
       snapshots.forEach(s => { byStatus[s.status] = (byStatus[s.status] || 0) + 1; });
       const openWithDueDate = snapshots.filter(s => s.statusCategory !== 'done' && s.dueDate);
       const rollupForSprint: SquadMetricsRollup = {
+        squadId,
+        sprintId: targetSprintId,
         computedAt: syncedAt,
-        sourceIssueCount: totalIssues, totalIssues, doneIssues,
-        estimatedHours: snapshots.reduce((sum, s) => sum + s.estimateSec, 0) / 3600,
-        loggedHours: snapshots.reduce((sum, s) => sum + s.loggedSec, 0) / 3600,
-        remainingHours: snapshots.reduce((sum, s) => sum + s.remainingSec, 0) / 3600,
-        bugCount, bugRatio: totalIssues > 0 ? bugCount / totalIssues : 0,
-        staleCount, staleThresholdDays: STALE_THRESHOLD_DAYS,
-        overdueCount: openWithDueDate.filter(s => daysUntil(s.dueDate) < 0).length,
-        dueSoonCount: openWithDueDate.filter(s => { const d = daysUntil(s.dueDate); return d >= 0 && d <= DUE_SOON_THRESHOLD_DAYS; }).length,
-        dueSoonThresholdDays: DUE_SOON_THRESHOLD_DAYS,
-        byType, byStatus, sprintId: targetSprintId, state: 'closed', closedAt: syncedAt,
+        totalIssues, doneIssues, inProgressIssues, bugIssues, staleIssues,
+        estimateTotalSec: snapshots.reduce((sum, s) => sum + s.estimateSec, 0),
+        loggedTotalSec: snapshots.reduce((sum, s) => sum + s.loggedSec, 0),
+        remainingTotalSec: snapshots.reduce((sum, s) => sum + s.remainingSec, 0),
+        overdueIssues: openWithDueDate.filter(s => daysUntil(s.dueDate) < 0).length,
+        dueSoonIssues: openWithDueDate.filter(s => { const d = daysUntil(s.dueDate); return d >= 0 && d <= DUE_SOON_THRESHOLD_DAYS; }).length,
+        extraMetrics: { byType, byStatus },
       };
-      await squadApi.saveRollup(squadId, { ...rollupForSprint, squadId });
+      await squadApi.saveRollup(squadId, rollupForSprint);
 
       const sprintHistory = [...(config.sprintHistory || [])];
       const idx = sprintHistory.findIndex(h => h.sprintId === targetSprintId);

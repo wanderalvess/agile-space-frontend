@@ -241,6 +241,7 @@ export interface UserProfile {
   avatarSeed?: string;
   dailyHours?: number; // Carga horária individual
   googleAccessToken?: string; // Cache de sincronização
+  jiraAccountId?: string; // vem de users.jira_account_id (Postgres) — vincula ao assignee/worklog do Jira
 }
 
 export type IssueStatus = 'pending' | 'active' | 'completed';
@@ -834,6 +835,7 @@ export const SQUAD_PEOPLE_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Maste
 
 export type SquadConfig = {
   squadId: string; // mesmo valor de userProfile.squadId (ex: 'MISSI', 'Varejo')
+  name: string; // nome de exibição do squad (coluna 'name' da entity Squad, obrigatória)
   jiraProjectKey: string;
   syncJql: string; // ex: 'project = MISSI AND sprint in openSprints()'
   // Só usado pelo sync AGENDADO (functions/src/squadSync.ts), que não tem um
@@ -910,6 +912,7 @@ export type SquadSprintHistoryEntry = {
 // (história é só o pai; codificação/code review/teste é que carregam hora).
 export type SquadIssueSnapshot = {
   key: string;
+  jiraKey?: string; // mesmo valor de `key` — nome espelhando a coluna jira_key da entity Postgres
   title?: string;
   type: string;
   isBug: boolean;
@@ -946,6 +949,7 @@ export type SquadIssueSnapshot = {
 // mais logou hora nela; aqui não tem essa exceção, é sempre leadership-only.
 export type SquadIssueWorklogCache = {
   key: string;
+  jiraKey?: string; // mesmo valor de `key` — nome espelhando a coluna jira_key da entity Postgres
   sprintId: string;
   worklogByAuthor: Record<string, number>; // assigneeId -> horas
   worklogAuthorNames: Record<string, string>; // assigneeId -> displayName
@@ -956,62 +960,58 @@ export type SquadIssueWorklogCache = {
 // Rollup agregado — sem nome/hora por pessoa, visível a QUALQUER membro do
 // squad (mesma regra desde o v1). Nunca adicionar campo nominal aqui; dado
 // nominal vai em SquadMemberMetric, que tem regra de leitura mais restrita.
+// Espelha 1:1 a entity Postgres SquadMetricsRollup (squad_metrics_rollup) —
+// PK é squadId, tempos em segundos (não horas). Métricas sem coluna fixa
+// (byType/byStatus/datas da sprint) vão dentro de `extraMetrics` (jsonb).
 export type SquadMetricsRollup = {
-  computedAt: string;
-  sourceIssueCount: number;
+  squadId: string;
+  sprintId?: string;
+  sprintName?: string;
   totalIssues: number;
   doneIssues: number;
-  estimatedHours: number; // soma de estimateSec do escopo, em horas
-  loggedHours: number; // soma de loggedSec do escopo, em horas
-  remainingHours: number; // soma de remainingSec do escopo, em horas
-  bugCount: number;
-  bugRatio: number; // bugCount / totalIssues
-  staleCount: number; // statusCategory != done && staleSinceDays > staleThresholdDays
-  staleThresholdDays: number;
+  inProgressIssues: number;
+  bugIssues: number;
+  // statusCategory != done && staleSinceDays > staleThresholdDays (threshold é constante client-side)
+  staleIssues: number;
   // Prazos — dueDate setado e no passado / perto de vencer, só entre issues
   // não concluídas. "Itens parados" (acima) é sobre falta de movimento;
   // isto é sobre vencimento, são coisas diferentes.
-  overdueCount: number;
-  dueSoonCount: number;
-  dueSoonThresholdDays: number;
-  byType: Record<string, number>;
-  // Quadro da sprint sem nome — contagem por status (tipo CFD simplificado).
-  // Único jeito de dar a Dev/QA uma visão de "onde as issues estão" sem
-  // reusar issuesSnapshot (que carrega assigneeName e é leadership-only nas
-  // rules — Firestore não redige campo por regra, então não dá pra expor só
-  // parte do doc pra quem não é liderança).
-  byStatus: Record<string, number>;
-  // Só populado quando SquadConfig.sprintFieldId está configurado — extraído
-  // da sprint ACTIVE encontrada nas issues sincronizadas.
-  activeSprintName?: string;
-  activeSprintStart?: string;
-  activeSprintEnd?: string;
-  sprintWorkdays?: number; // dias úteis reais entre start/end — usado na capacidade em vez do fallback fixo
-  // Doc id desta collection deixou de ser sempre 'current' — agora também
-  // grava um doc por sprintId (squads/{squadId}/metricsRollup/{sprintId}),
-  // que é o que o seletor de sprint lê. 'current' continua sendo escrito
-  // como espelho do que está ativo agora, sem mudança pros leitores antigos.
-  sprintId?: string;
-  state?: 'active' | 'closed'; // marcador AUTORITATIVO — nunca inferido de campo por-issue
-  closedAt?: string;
+  dueSoonIssues: number;
+  overdueIssues: number;
+  estimateTotalSec: number; // soma de estimateSec do escopo
+  remainingTotalSec: number; // soma de remainingSec do escopo
+  loggedTotalSec: number; // soma de loggedSec do escopo
+  workdaysTotal?: number; // dias úteis reais entre start/end da sprint ativa
+  workdaysRemaining?: number;
+  computedAt: string;
+  // Campo de overflow (jsonb) pra métricas extras sem coluna fixa — quadro
+  // por status (CFD simplificado), composição por tipo, datas da sprint.
+  extraMetrics?: {
+    byType?: Record<string, number>;
+    byStatus?: Record<string, number>;
+    activeSprintStart?: string;
+    activeSprintEnd?: string;
+    [key: string]: unknown;
+  };
 };
 
-// Um doc por dia (id = 'YYYY-MM-DD'), gravado/atualizado a cada sync daquele
-// dia — várias syncs no mesmo dia atualizam o MESMO doc (merge), não criam
-// duplicata. `loggedHours`/`doneIssues` aqui são CUMULATIVOS (mesma
-// semântica do rollup principal, é a mesma soma no momento da sync) — pra
-// ver "produtividade DAQUELE dia" a tela calcula o delta entre um dia e o
-// anterior (hoje.loggedHours - ontem.loggedHours), não lê o valor direto.
+// Um doc por dia (id = {squadId}_{date}), gravado/atualizado a cada sync
+// daquele dia — várias syncs no mesmo dia atualizam o MESMO doc (upsert por
+// dbId), não criam duplicata. `loggedSec`/`doneIssues` aqui são CUMULATIVOS
+// (mesma semântica do rollup principal, é a mesma soma no momento da sync) —
+// pra ver "produtividade DAQUELE dia" a tela calcula o delta entre um dia e o
+// anterior (hoje.loggedSec - ontem.loggedSec), não lê o valor direto.
+// Espelha a entity Postgres SquadDailySnapshot (squad_daily_snapshots).
 export type SquadDailySnapshot = {
-  date: string; // YYYY-MM-DD
-  totalIssues: number;
+  squadId: string;
+  snapshotDate: string; // YYYY-MM-DD
   doneIssues: number;
-  loggedHours: number;
-  estimatedHours: number;
-  remainingHours: number;
-  bugCount: number;
-  staleCount: number;
-  computedAt: string;
+  inProgressIssues: number;
+  totalIssues: number;
+  bugIssues: number;
+  staleIssues: number;
+  loggedSec: number;
+  syncedAt?: string;
 };
 
 // v2 — agregado POR PESSOA. Só existe/é populado quando SquadConfig.rankingEnabled

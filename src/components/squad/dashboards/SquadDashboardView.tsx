@@ -29,6 +29,7 @@ import {
   AlertCircle,
   Layers,
   Code,
+  TrendingUp,
 } from "lucide-react";
 import {
   PieChart,

@@ -82,14 +82,14 @@ export function TimesheetWidget() {
                 <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">Conectado ao Jira</span>
               </div>
             </div>
-            {user && (
+            {userProfile && (
               <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 text-[9px] font-extrabold uppercase tracking-wider py-0.5 px-2">
                 Sincronizado
               </Badge>
             )}
           </div>
 
-          {user ? (
+          {userProfile ? (
             <div className="space-y-4">
               {/* Hoje */}
               <div>

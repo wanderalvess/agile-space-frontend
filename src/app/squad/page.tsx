@@ -347,7 +347,7 @@ function SquadHubContent() {
   for (let i = 1; i < dailySnapshots.length; i++) {
     const prev = dailySnapshots[i - 1];
     const curr = dailySnapshots[i];
-    const loggedDelta = Math.max(0, (curr.loggedTotalSec - prev.loggedTotalSec) / 3600);
+    const loggedDelta = Math.max(0, (curr.loggedSec - prev.loggedSec) / 3600);
     const doneDelta = Math.max(0, curr.doneIssues - prev.doneIssues);
     dailyDeltas.push({ date: curr.snapshotDate, loggedDelta, doneDelta });
   }
@@ -629,7 +629,7 @@ function SquadHubContent() {
                       SQUAD PULSE & QUADRO
                     </Badge>
                     <span className="text-xs text-slate-400 font-mono">
-                      {displayRollup?.activeSprintName || config?.activeSprintId || squadId}
+                      {displayRollup?.sprintName || config?.activeSprintId || squadId}
                     </span>
                   </div>
                   <h2 className="text-xl md:text-2xl font-black italic tracking-tight uppercase font-headline text-slate-900 dark:text-white">
@@ -640,14 +640,14 @@ function SquadHubContent() {
                   </p>
                 </div>
 
-                {displayRollup?.activeSprintStart && displayRollup?.activeSprintEnd && (
+                {displayRollup?.extraMetrics?.activeSprintStart && displayRollup?.extraMetrics?.activeSprintEnd && (
                   <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 px-4 py-2.5 rounded-2xl shrink-0 text-xs">
                     <CalendarRange className="h-4 w-4 text-indigo-500 shrink-0" />
                     <div>
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Período da Sprint</p>
                       <p className="text-xs font-black text-slate-800 dark:text-slate-200">
-                        {formatShortDate(displayRollup.activeSprintStart)} → {formatShortDate(displayRollup.activeSprintEnd)}
-                        {!!displayRollup.sprintWorkdays && <span className="text-slate-400 font-normal ml-1">({displayRollup.sprintWorkdays} dias úteis)</span>}
+                        {formatShortDate(displayRollup.extraMetrics.activeSprintStart as string)} → {formatShortDate(displayRollup.extraMetrics.activeSprintEnd as string)}
+                        {!!displayRollup.workdaysTotal && <span className="text-slate-400 font-normal ml-1">({displayRollup.workdaysTotal} dias úteis)</span>}
                       </p>
                     </div>
                   </div>

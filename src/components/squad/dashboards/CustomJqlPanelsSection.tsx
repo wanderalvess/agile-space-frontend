@@ -165,7 +165,7 @@ export function CustomJqlPanelsSection() {
   // 3. Execução real do painel JQL (via Jira API ou fallback inteligente nos dados da squad)
   const executePanelQuery = useCallback(
     async (panel: CustomJqlPanel): Promise<CustomJqlPanel> => {
-      const creds = getJiraCredentials();
+      const creds = await getJiraCredentials(userProfile?.id || userProfile?.email || "");
       let matchedIssues: Array<{
         key: string;
         title: string;
@@ -181,7 +181,7 @@ export function CustomJqlPanelsSection() {
           if (Array.isArray(res)) {
             matchedIssues = res.map((i) => ({
               key: i.key,
-              title: i.title,
+              title: i.title || i.key,
               status: i.status,
               type: i.type,
               assignee: i.assignee || "Não Atribuído",
@@ -204,12 +204,13 @@ export function CustomJqlPanelsSection() {
             return true;
           })
           .map((iss) => ({
-            key: iss.jiraKey,
-            title: iss.title,
+            key: iss.jiraKey || iss.key,
+            title: iss.title || iss.jiraKey || iss.key,
             status: iss.status,
             type: iss.type || "Story",
             assignee: iss.assigneeName || "Não Atribuído",
-            priority: iss.priority || "Medium",
+            // squad não rastreia prioridade (sem coluna correspondente na API) — fixo em "Medium"
+            priority: "Medium",
           }));
       }
 
@@ -479,7 +480,7 @@ export function CustomJqlPanelsSection() {
                       {panel.chartType === "bar" && panel.resultRows && (
                         <SimpleBarChart
                           title=""
-                          data={panel.resultRows}
+                          data={panel.resultRows.map((r) => ({ name: r.label, value: r.value }))}
                           defaultColor="hsl(var(--primary))"
                           height={190}
                         />

@@ -352,9 +352,9 @@ export default function DailyTimesheet() {
       const jAccountId = (jiraUser?.accountId || '').toLowerCase().trim();
       const jDisplayName = (jiraUser?.displayName || '').toLowerCase().trim();
 
-      const profEmail = (userProfile?.email || user?.email || '').toLowerCase().trim();
+      const profEmail = (userProfile?.email || '').toLowerCase().trim();
       const profEmailUser = profEmail.includes('@') ? profEmail.split('@')[0] : '';
-      const profName = (userProfile?.name || user?.displayName || '').toLowerCase().trim();
+      const profName = (userProfile?.name || '').toLowerCase().trim();
       const profJiraId = (userProfile?.jiraAccountId || '').toLowerCase().trim();
 
       for (const issue of issues) {

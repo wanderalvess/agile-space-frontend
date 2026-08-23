@@ -53,10 +53,10 @@ interface ZephyrTestCase {
 
 export function ZephyrExplorer() {
   const { toast } = useToast();
-  const { jiraSettings, saveJiraSettings } = useJiraSettings();
+  const { settings: jiraSettings, saveSettings: saveJiraSettings } = useJiraSettings();
 
   const [testCaseKey, setTestCaseKey] = useState('');
-  const [patToken, setPatToken] = useState(jiraSettings?.pat || '');
+  const [patToken, setPatToken] = useState(jiraSettings?.token || '');
   const [loading, setLoading] = useState(false);
   const [testCaseData, setTestCaseData] = useState<ZephyrTestCase | null>(null);
   const [copied, setCopied] = useState(false);
@@ -83,7 +83,7 @@ export function ZephyrExplorer() {
 
     try {
       // Salva PAT para conveniência do usuário
-      saveJiraSettings({ pat: patToken.trim() });
+      saveJiraSettings({ domain: jiraSettings?.domain || '', token: patToken.trim() });
 
       const res = await fetch('/api/jira/testcase', {
         method: 'POST',

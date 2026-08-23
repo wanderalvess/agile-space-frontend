@@ -3,6 +3,7 @@ export type KnowledgeDocCategory = 'Técnico' | 'Processo' | 'Produto' | 'Outro'
 
 export interface KnowledgeDocument {
   id: string;
+  tdnId?: string; // ID vindo da importação externa do TDN/Confluence (coluna 'tdn_id', única e opcional)
   title: string;
   content: string;
   category: string; // Mudado para string para permitir flexibilidade total de caminhos

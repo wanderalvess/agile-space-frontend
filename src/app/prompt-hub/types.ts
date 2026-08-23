@@ -60,6 +60,18 @@ export interface PromptCollection {
   updatedAt: string;
 }
 
+/** Espelha a entity Postgres PromptComment (prompt_comments). */
+export interface PromptComment {
+  id: string;
+  content: string;
+  authorId: string;
+  authorName?: string;
+  authorRole?: string;
+  authorSquad?: string;
+  authorAvatar?: string;
+  createdAt: string;
+}
+
 export interface PromptFilters {
   search: string;
   type: PromptType | 'all';

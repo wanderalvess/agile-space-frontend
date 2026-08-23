@@ -63,6 +63,7 @@ export function CapacityEngine({
   onUpdateMember,
   onAddMember,
   onRemoveMember,
+  onImportRoster,
   isReadOnly = false,
 }: CapacityEngineProps) {
   return (
