@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
-
 export type PromptVisibility = 'private' | 'public' | 'role' | 'squad';
 export type PromptType = 'prompt' | 'gem' | 'agent' | 'instruction' | 'skill' | 'workflow' | 'mcp' | 'resource';
 export type InitiativeStatus = 'ideacao' | 'planejamento' | 'desenvolvimento' | 'producao' | 'arquivado';
@@ -34,9 +32,9 @@ export interface PromptItem {
   tags: string[];
   
   // Timestamps
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  
+  createdAt: string;
+  updatedAt: string;
+
   // UI Helpers (Client-side)
   isFavorited?: boolean;
 }
@@ -58,8 +56,8 @@ export interface PromptCollection {
   ownerName: string;
   ownerSquad?: string;
 
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PromptFilters {

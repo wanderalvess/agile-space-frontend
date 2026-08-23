@@ -22,7 +22,7 @@ export function IdentityGatekeeper({ children }: { children: React.ReactNode }) 
     }
   }, [mustOnboard, isInitializing, pathname, router]);
 
-  // Enquanto inicializa o Firebase/Auth, não bloqueamos para evitar flashes indesejados
+  // Enquanto inicializa a sessão, não bloqueamos para evitar flashes indesejados
   // O Header já lida com o estado de carregamento visual
   if (isInitializing) {
     return <>{children}</>;

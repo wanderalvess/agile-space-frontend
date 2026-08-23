@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '../api';
 import { ActionPlanBoard, ActionPlanTask } from '@/lib/types';
 import { RoomHeader } from '@/components/layout/RoomHeader';
@@ -17,7 +17,7 @@ export default function ActionPlanSessionPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user, isUserLoading } = useFirebase();
+  const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, requestIdentity } = useUserContext();
 
   const id = params.id as string;
@@ -30,10 +30,10 @@ export default function ActionPlanSessionPage() {
 
   // --- Auth & Identity Logic ---
   useEffect(() => {
-    if (!isUserLoading && !userProfile) {
+    if (!isLoading && !userProfile) {
       requestIdentity();
     }
-  }, [isUserLoading, userProfile, requestIdentity]);
+  }, [isLoading, userProfile, requestIdentity]);
 
   const fetchBoardAndTasks = React.useCallback(async () => {
     try {
@@ -57,9 +57,9 @@ export default function ActionPlanSessionPage() {
 
   // --- Board & Tasks Data Logic ---
   useEffect(() => {
-    if (!user || !userProfile) return;
+    if (!isAuthenticated || !userProfile) return;
     fetchBoardAndTasks();
-  }, [user, userProfile, fetchBoardAndTasks]);
+  }, [isAuthenticated, userProfile, fetchBoardAndTasks]);
 
   if (loading) {
     return (

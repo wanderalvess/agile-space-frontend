@@ -1,18 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy, 
-  limit, 
-  getCountFromServer,
-  Timestamp
-} from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { 
-  TrendingUp, 
+import { adminApi } from '@/app/admin/api';
+import {
+  TrendingUp,
   Users, 
   Rocket, 
   Target, 
@@ -43,7 +34,6 @@ interface Stats {
 }
 
 export function GrowthDashboard() {
-  const { firestore } = useFirebase();
   const [stats, setStats] = useState<Stats>({
     users: 0,
     rooms: 0,
@@ -57,42 +47,36 @@ export function GrowthDashboard() {
   });
 
   useEffect(() => {
-    if (!firestore) return;
+    let cancelled = false;
 
     const loadStats = async () => {
       try {
-        const [
-          uCount, rCount, bCount, pCount, hCount, brCount, cCount, fCount
-        ] = await Promise.all([
-          getCountFromServer(collection(firestore, 'users')),
-          getCountFromServer(collection(firestore, 'rooms')),
-          getCountFromServer(collection(firestore, 'retro_boards')),
-          getCountFromServer(collection(firestore, 'sprint_plannings')),
-          getCountFromServer(collection(firestore, 'health_checks')),
-          getCountFromServer(collection(firestore, 'brainstorming_boards')),
-          getCountFromServer(collection(firestore, 'daily_checkins')),
-          getCountFromServer(collection(firestore, 'feedbacks'))
-        ]);
+        const data = await adminApi.getStats();
+        if (cancelled) return;
 
         setStats({
-          users: uCount.data().count,
-          rooms: rCount.data().count,
-          retros: bCount.data().count,
-          plannings: pCount.data().count,
-          health: hCount.data().count,
-          brainstorming: brCount.data().count,
-          checkins: cCount.data().count,
-          feedbacks: fCount.data().count,
+          users: data.totalUsers,
+          rooms: data.totalPokerRooms,
+          retros: data.totalRetroBoards,
+          plannings: data.totalSprintPlannings,
+          health: data.totalHealthCheckBoards,
+          brainstorming: data.totalBrainstormingBoards,
+          checkins: data.totalDailyCheckins,
+          feedbacks: data.totalFeedbacks,
           loading: false
         });
       } catch (e) {
         console.error("GrowthDashboard: Error loading stats:", e);
-        setStats(prev => ({ ...prev, loading: false }));
+        if (!cancelled) setStats(prev => ({ ...prev, loading: false }));
       }
     };
 
     loadStats();
-  }, [firestore]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (stats.loading) {
     return (

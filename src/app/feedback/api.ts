@@ -6,6 +6,7 @@ export interface FeedbackData {
   score: number;
   comment: string;
   userId?: string;
+  status?: string;
   createdAt?: string;
 }
 
@@ -20,5 +21,29 @@ export const feedbackApi = {
     });
     if (!res.ok) throw new Error(`Feedback API error ${res.status}`);
     return res.json();
+  },
+
+  async listFeedbacks(status?: string): Promise<FeedbackData[]> {
+    const url = status
+      ? `${API_BASE_URL}/feedbacks?status=${encodeURIComponent(status)}`
+      : `${API_BASE_URL}/feedbacks`;
+    const res = await authFetch(url);
+    if (!res.ok) throw new Error(`Feedback API error ${res.status}`);
+    return res.json();
+  },
+
+  async updateStatus(id: string, status: string): Promise<FeedbackData> {
+    const res = await authFetch(`${API_BASE_URL}/feedbacks/${id}/status?status=${encodeURIComponent(status)}`, {
+      method: 'PATCH',
+    });
+    if (!res.ok) throw new Error(`Feedback API error ${res.status}`);
+    return res.json();
+  },
+
+  async deleteFeedback(id: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/feedbacks/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error(`Feedback API error ${res.status}`);
   }
 };

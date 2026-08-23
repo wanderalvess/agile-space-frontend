@@ -1,8 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { publicApi } from '@/app/admin/api';
 
 interface SystemConfig {
   companyName: string;
@@ -28,38 +27,50 @@ const DEFAULT_CONFIG: SystemConfig = {
 };
 
 export function SystemConfigProvider({ children }: { children: ReactNode }) {
-  const { firestore } = useFirebase();
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore) return;
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(doc(firestore, 'system_configs', 'global'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as SystemConfig;
+    (async () => {
+      try {
+        const configs = await publicApi.getSystemConfig();
+
+        if (cancelled) return;
+
+        const data: SystemConfig = {
+          companyName: configs.companyName || DEFAULT_CONFIG.companyName,
+          primaryColor: configs.primaryColor || DEFAULT_CONFIG.primaryColor,
+          logoUrl: configs.logoUrl || DEFAULT_CONFIG.logoUrl,
+          allowAnonymous: configs.allowAnonymous ? configs.allowAnonymous === 'true' : DEFAULT_CONFIG.allowAnonymous,
+          maintenanceMode: configs.maintenanceMode ? configs.maintenanceMode === 'true' : DEFAULT_CONFIG.maintenanceMode,
+        };
+
         setConfig(data);
         applyTheme(data);
+      } catch (error) {
+        console.error("SystemConfigProvider: Error fetching configs:", error);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      setIsLoading(false);
-    }, (error) => {
-      console.error("SystemConfigProvider: Error fetching configs:", error);
-      setIsLoading(false);
-    });
+    })();
 
-    return () => unsubscribe();
-  }, [firestore]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const applyTheme = (data: SystemConfig) => {
     if (typeof window === 'undefined') return;
-    
+
     const root = document.documentElement;
-    
+
     // Aplicar Cor Primária (HSL)
     if (data.primaryColor) {
       root.style.setProperty('--primary', data.primaryColor);
     }
-    
+
     // Atualizar Título da Página Dinamicamente (Opcional)
     if (data.companyName) {
       document.title = `${data.companyName} | Gestão Ágil`;

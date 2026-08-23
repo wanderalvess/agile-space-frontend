@@ -14,7 +14,7 @@ import {
   ArrowRight,
   GraduationCap
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { PromptDashboard } from './components/Dashboard';
@@ -24,7 +24,7 @@ import { useRouter } from 'next/navigation';
 
 export default function PromptHubPage() {
   const router = useRouter();
-  const { user, isUserLoading: authLoading } = useFirebase();
+  const { session, isLoading: authLoading } = useAuth();
   const { userProfile, setIsEditProfileOpen, mustOnboard, isPublicExploration, setIsPublicExploration } = useUserContext();
 
   const [showPublicOnly, setShowPublicOnly] = React.useState(false);
@@ -40,11 +40,11 @@ export default function PromptHubPage() {
 
   // Se o usuário logou, desativa automaticamente a visualização de "somente público"
   React.useEffect(() => {
-    if (user) {
+    if (session) {
       setShowPublicOnly(false);
       setIsPublicExploration(false);
     }
-  }, [user, setIsPublicExploration]);
+  }, [session, setIsPublicExploration]);
 
   const handleShowPublic = () => {
     setShowPublicOnly(true);
@@ -120,7 +120,7 @@ export default function PromptHubPage() {
   }
 
   // 3. User Unauthenticated: Landing Page Hub
-  if (!user && !showPublicOnly) {
+  if (!session && !showPublicOnly) {
     return (
       <ToolHubLayout
         title="Biblioteca de IA"
@@ -156,5 +156,5 @@ export default function PromptHubPage() {
   }
 
   // 4. User Authenticated & Complete: Immersive Dashboard
-  return <PromptDashboard userProfile={userProfile} isPublicView={showPublicOnly || !user} />;
+  return <PromptDashboard userProfile={userProfile} isPublicView={showPublicOnly || !session} />;
 }

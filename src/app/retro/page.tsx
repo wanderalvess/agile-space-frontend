@@ -17,7 +17,6 @@ import {
   ListTodo,
   Trash2
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { retroApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -42,7 +41,6 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function RetroHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -67,7 +65,7 @@ export default function RetroHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -79,7 +77,7 @@ export default function RetroHubPage() {
   const handleCreate = async () => {
     if (isCreating) return;
 
-    if (!user || !user.uid) {
+    if (!userProfile || !userProfile.id) {
       console.error("[retro] Tentativa de criação de quadro abortada: usuário nulo ou sem ID.");
       toast({
         title: "Perfil Não Identificado",
@@ -128,7 +126,7 @@ export default function RetroHubPage() {
 
     const newBoard = {
       id: crypto.randomUUID(),
-      creatorId: user.uid,
+      creatorId: userProfile.id,
       isCardsRevealed: false,
       isAuthorsRevealed: false,
       votingStatus: 'disabled' as const,
@@ -136,7 +134,7 @@ export default function RetroHubPage() {
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
-      participantIds: [user.uid],
+      participantIds: [userProfile.id],
       columns,
       templateKey: template,
     };
@@ -223,7 +221,7 @@ export default function RetroHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);

@@ -118,12 +118,12 @@ const SECURITY_PILLARS = [
 ];
 
 const DATA_CATEGORIES = [
-  { category: "Perfil de Usuário", data: "Nome, email, avatar, role, squad", storage: "Firestore", access: "Próprio usuário + Admin" },
-  { category: "Notas Rápidas", data: "Conteúdo de texto, cor, status de pin", storage: "Firestore (subcoleção do UID)", access: "Somente o usuário" },
-  { category: "Salas (Poker/Retro/Health)", data: "Configurações, votos, feedbacks", storage: "Firestore (coleção compartilhada)", access: "Participantes da sala" },
-  { category: "Conversas com Assistente", data: "Mensagens, histórico de consultas", storage: "Firestore (filtrado por userId)", access: "Somente o usuário" },
-  { category: "Uso de Tokens do Motor", data: "Contagem de tokens consumidos", storage: "Firestore", access: "Usuário + Admin (métricas)" },
-  { category: "Tickets de Suporte", data: "Assunto, descrição, respostas", storage: "Firestore", access: "Usuário criador + Admin" },
+  { category: "Perfil de Usuário", data: "Nome, email, avatar, role, squad", storage: "PostgreSQL", access: "Próprio usuário + Admin" },
+  { category: "Notas Rápidas", data: "Conteúdo de texto, cor, status de pin", storage: "PostgreSQL (por usuário)", access: "Somente o usuário" },
+  { category: "Salas (Poker/Retro/Health)", data: "Configurações, votos, feedbacks", storage: "PostgreSQL (tabela compartilhada)", access: "Participantes da sala" },
+  { category: "Conversas com Assistente", data: "Mensagens, histórico de consultas", storage: "PostgreSQL (filtrado por userId)", access: "Somente o usuário" },
+  { category: "Uso de Tokens do Motor", data: "Contagem de tokens consumidos", storage: "PostgreSQL", access: "Usuário + Admin (métricas)" },
+  { category: "Tickets de Suporte", data: "Assunto, descrição, respostas", storage: "PostgreSQL", access: "Usuário criador + Admin" },
 ];
 
 export default function GovernancePage() {
@@ -187,8 +187,6 @@ export default function GovernancePage() {
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-2xl">
                 Este documento descreve como o Espaço Ágil protege seus dados, gerencia acessos e 
                 garante a segurança da sua operação. Todas as informações aqui são reais e verificáveis.
-              </p>
-            </section>>das as informações aqui são reais e verificáveis.
               </p>
             </section>
 
@@ -381,6 +379,7 @@ export default function GovernancePage() {
                   </Button>
                 </div>
               </div>
+            </section>
           </main>
         </div>
       </div>

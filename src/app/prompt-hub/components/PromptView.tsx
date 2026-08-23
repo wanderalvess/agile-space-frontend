@@ -27,7 +27,7 @@ import { getTypeMeta, getStatusMeta, getImpactMeta, getVisibilityMeta } from '..
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { promptApi } from '../api';
 
 interface PromptViewProps {
@@ -91,7 +91,7 @@ export function PromptView({
   onSelectTag,
   userProfile
 }: PromptViewProps) {
-  const { user } = useFirebase();
+  const { session } = useAuth();
 
   const [variableValues, setVariableValues] = React.useState<Record<string, string>>({});
   const [comments, setComments] = React.useState<CommentItem[]>([]);
@@ -124,7 +124,7 @@ export function PromptView({
   }, [prompt?.content, variableValues]);
 
   const fetchComments = React.useCallback(async () => {
-    if (!prompt?.id || !isOpen || !user) {
+    if (!prompt?.id || !isOpen || !session) {
       setComments([]);
       return;
     }
@@ -135,7 +135,7 @@ export function PromptView({
       console.warn('Discussão indisponível para este item:', err.message);
       setComments([]);
     }
-  }, [prompt?.id, isOpen, user]);
+  }, [prompt?.id, isOpen, session]);
 
   React.useEffect(() => {
     fetchComments();
@@ -198,13 +198,13 @@ export function PromptView({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newComment.trim() || !prompt?.id) return;
+    if (!session || !newComment.trim() || !prompt?.id) return;
 
     setIsPosting(true);
     try {
       await promptApi.addComment(prompt.id, {
-        authorId: user.uid,
-        authorName: userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Membro',
+        authorId: session.id,
+        authorName: userProfile?.name || session.name || 'Membro',
         authorRole: userProfile?.role || 'Engenheiro',
         authorSquad: userProfile?.squadId || 'Squad Geral',
         authorAvatar: userProfile?.avatarSeed || '',
@@ -453,7 +453,7 @@ export function PromptView({
               )}
             </h3>
 
-            {!user ? (
+            {!session ? (
               <p className="text-sm text-muted-foreground">Entre para participar da discussão.</p>
             ) : (
               <>
@@ -493,7 +493,7 @@ export function PromptView({
                               </span>
                             ) : null}
                           </span>
-                          {comment.authorId === user.uid && (
+                          {comment.authorId === session.id && (
                             <button
                               onClick={() => handleDeleteComment(comment.id)}
                               className="text-muted-foreground hover:text-destructive"

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { GlobalSearch } from '@/components/knowledge/GlobalSearch';
 import { 
@@ -31,7 +31,7 @@ export default function KnowledgeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isUserLoading } = useFirebase();
+  const { session, isLoading: isUserLoading } = useAuth();
   const { userProfile, isInitializing } = useUserContext();
   const router = useRouter();
   const pathname = usePathname();
@@ -45,7 +45,7 @@ export default function KnowledgeLayout({
     { label: 'Ajustes', path: '/knowledge/settings', icon: Settings },
   ];
 
-  const effectiveUser = user || userProfile;
+  const effectiveUser = session || userProfile;
 
   // Se não está logado, renderiza apenas o children (a page.tsx cuida da tela de "Identidade Necessária")
   if (!effectiveUser && !isInitializing && !isUserLoading) {

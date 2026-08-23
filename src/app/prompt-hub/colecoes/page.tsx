@@ -1,19 +1,8 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Layers, Plus, Lock, Globe, MoreVertical } from 'lucide-react';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  doc,
-  setDoc,
-  deleteDoc,
-  serverTimestamp
-} from 'firebase/firestore';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { useUserContext } from '@/context/UserContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
@@ -29,112 +18,122 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { CollectionEditor } from '../components/CollectionEditor';
 import type { PromptCollection, PromptItem } from '../types';
+import { promptApi, promptCollectionApi, type PromptCollectionDTO } from '../api';
+
+/** Adapta o formato do backend (itens embutidos) para o formato que a UI e o
+ *  CollectionEditor já conhecem (lista ordenada de IDs). */
+function toUiCollection(dto: PromptCollectionDTO): PromptCollection {
+  return {
+    id: dto.id,
+    name: dto.name,
+    description: dto.description,
+    itemIds: (dto.items || []).map(item => item.id),
+    visibility: dto.visibility === 'public' ? 'public' : 'private',
+    ownerId: dto.ownerId,
+    ownerName: dto.ownerName,
+    createdAt: dto.createdAt,
+    updatedAt: dto.createdAt
+  };
+}
 
 export default function CollectionsPage() {
   const router = useRouter();
-  const { firestore, user, isUserLoading } = useFirebase();
-  const { userProfile } = useUserContext();
+  const { userProfile, isInitializing } = useUserContext();
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editing, setEditing] = useState<PromptCollection | null>(null);
 
-  const publicQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'prompt_collections'),
-      where('visibility', '==', 'public'),
-      orderBy('updatedAt', 'desc')
-    );
-  }, [firestore]);
+  const [collectionsDto, setCollectionsDto] = useState<PromptCollectionDTO[]>([]);
+  const [availableItems, setAvailableItems] = useState<PromptItem[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  const mineQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(
-      collection(firestore, 'prompt_collections'),
-      where('ownerId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
-    );
-  }, [firestore, user]);
+  const userId = userProfile?.id;
 
-  // Itens disponíveis para montar a trilha: os públicos e os meus.
-  const itemsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(
-      collection(firestore, 'prompt_hub'),
-      where('visibility', '==', 'public'),
-      orderBy('updatedAt', 'desc')
-    );
-  }, [firestore]);
+  const loadData = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      const publicRes = await promptCollectionApi.listCollections('public', undefined, 0, 100);
+      let mineContent: PromptCollectionDTO[] = [];
+      if (userId) {
+        const mineRes = await promptCollectionApi.listCollections(undefined, userId, 0, 100);
+        mineContent = mineRes.content;
+      }
 
-  const myItemsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(
-      collection(firestore, 'prompt_hub'),
-      where('authorId', '==', user.uid),
-      orderBy('updatedAt', 'desc')
-    );
-  }, [firestore, user]);
+      const map = new Map<string, PromptCollectionDTO>();
+      publicRes.content.forEach(c => map.set(c.id, c));
+      mineContent.forEach(c => map.set(c.id, c));
+      setCollectionsDto(Array.from(map.values()));
 
-  const { data: publicCollections, isLoading: loadingPublic } =
-    useCollection<PromptCollection>(publicQuery, { silent: true });
-  const { data: myCollections, isLoading: loadingMine } =
-    useCollection<PromptCollection>(mineQuery, { silent: true });
-  const { data: publicItems } = useCollection<PromptItem>(itemsQuery, { silent: true });
-  const { data: myItems } = useCollection<PromptItem>(myItemsQuery, { silent: true });
+      // Itens disponíveis para montar a trilha: os públicos e os meus.
+      const publicItemsRes = await promptApi.listPrompts(undefined, undefined, 0, 100);
+      let myItemsContent: PromptItem[] = [];
+      if (userId) {
+        const myItemsRes = await promptApi.listPrompts(undefined, userId, 0, 100);
+        myItemsContent = myItemsRes.content;
+      }
+      const itemsMap = new Map<string, PromptItem>();
+      publicItemsRes.content.forEach(i => itemsMap.set(i.id, i));
+      myItemsContent.forEach(i => itemsMap.set(i.id, i));
+      setAvailableItems(Array.from(itemsMap.values()));
+    } catch (err: any) {
+      console.error('Erro ao buscar coleções', err);
+      toast.error('Não foi possível carregar as coleções');
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [userId]);
 
-  const collections = useMemo(() => {
-    const map = new Map<string, PromptCollection>();
-    publicCollections?.forEach(c => map.set(c.id, c));
-    myCollections?.forEach(c => map.set(c.id, c));
-    return Array.from(map.values());
-  }, [publicCollections, myCollections]);
+  useEffect(() => {
+    if (isInitializing) return;
+    loadData();
+  }, [isInitializing, loadData]);
 
-  const availableItems = useMemo(() => {
-    const map = new Map<string, PromptItem>();
-    publicItems?.forEach(i => map.set(i.id, i));
-    myItems?.forEach(i => map.set(i.id, i));
-    return Array.from(map.values());
-  }, [publicItems, myItems]);
+  const collections = useMemo(() => collectionsDto.map(toUiCollection), [collectionsDto]);
 
   React.useEffect(() => {
     document.title = 'Coleções | Biblioteca de IA';
   }, []);
 
   const handleSave = async (data: Partial<PromptCollection>) => {
-    if (!firestore || !user) return;
+    if (!userProfile?.id) return;
     const loadingToast = toast.loading('Salvando coleção...');
     try {
-      const id = data.id || `col_${Date.now()}_${user.uid}`;
-      const payload: any = {
-        ...data,
-        id,
-        ownerId: user.uid,
-        ownerName: userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Membro',
-        ownerSquad: userProfile?.squadId || '',
-        updatedAt: serverTimestamp()
+      const payload = {
+        name: data.name,
+        description: data.description,
+        visibility: data.visibility,
+        ownerId: userProfile.id,
+        ownerName: userProfile.name || 'Membro',
+        items: (data.itemIds || []).map(id => ({ id }))
       };
-      if (!data.id) payload.createdAt = serverTimestamp();
 
-      await setDoc(doc(firestore, 'prompt_collections', id), payload, { merge: true });
+      if (data.id) {
+        await promptCollectionApi.updateCollection(data.id, payload);
+      } else {
+        await promptCollectionApi.createCollection(payload);
+      }
+
       toast.success(data.id ? 'Coleção atualizada' : 'Coleção criada', { id: loadingToast });
       setIsEditorOpen(false);
       setEditing(null);
+      loadData();
     } catch (err: any) {
       toast.error('Erro ao salvar', { id: loadingToast, description: err.message });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore || !confirm('Excluir esta coleção? Os itens continuam na biblioteca.')) return;
+    if (!confirm('Excluir esta coleção? Os itens continuam na biblioteca.')) return;
     try {
-      await deleteDoc(doc(firestore, 'prompt_collections', id));
+      await promptCollectionApi.deleteCollection(id);
       toast.success('Coleção removida');
+      loadData();
     } catch (err: any) {
       toast.error('Erro ao remover', { description: err.message });
     }
   };
 
-  if (isUserLoading || loadingPublic || (user && loadingMine)) {
+  if (isInitializing || isLoadingData) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <EliteSpinner size="lg" variant="indigo" />
@@ -154,7 +153,7 @@ export default function CollectionsPage() {
               <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Voltar à biblioteca</span>
             </Button>
-            {user && (
+            {userProfile && (
               <Button
                 size="sm"
                 onClick={() => {
@@ -184,7 +183,7 @@ export default function CollectionsPage() {
             <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
               Monte a primeira trilha reunindo os itens que alguém precisa seguir em sequência.
             </p>
-            {user && (
+            {userProfile && (
               <Button
                 size="sm"
                 className="mt-5 gap-2"
@@ -201,7 +200,7 @@ export default function CollectionsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {collections.map(item => {
-              const isOwner = item.ownerId === user?.uid;
+              const isOwner = item.ownerId === userProfile?.id;
               const VisibilityIcon = item.visibility === 'public' ? Globe : Lock;
 
               return (

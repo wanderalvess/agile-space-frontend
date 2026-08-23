@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { promptApi } from '../api';
 import { PromptItem } from '../types';
 import { PromptView } from '../components/PromptView';
@@ -18,7 +18,7 @@ const deniedMessage = (isSignedIn: boolean) =>
 export default function SharedPromptPage(props: { params: Promise<{ id: string }> }) {
   const params = React.use(props.params);
   const router = useRouter();
-  const { user, isUserLoading: authLoading } = useFirebase();
+  const { session, isLoading: authLoading } = useAuth();
   const [prompt, setPrompt] = useState<PromptItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,10 +31,10 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
         const data = await promptApi.getPromptById(params.id);
 
         // Itens não públicos são visíveis apenas para o autor.
-        if (data.visibility === 'public' || data.authorId === user?.uid) {
+        if (data.visibility === 'public' || data.authorId === session?.id) {
           setPrompt(data);
         } else {
-          setError(deniedMessage(!!user));
+          setError(deniedMessage(!!session));
         }
       } catch (e: any) {
         console.error(e);
@@ -45,7 +45,7 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
     }
     
     load();
-  }, [params.id, user, authLoading]);
+  }, [params.id, session, authLoading]);
 
   if (authLoading || loading) {
     return (
@@ -78,7 +78,7 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
       <PromptView 
         prompt={prompt} 
         isOpen={!!prompt} 
-        isOwner={user?.uid === prompt?.authorId}
+        isOwner={session?.id === prompt?.authorId}
         onClose={() => router.push('/prompt-hub')}
         onCopy={() => {}}
       />

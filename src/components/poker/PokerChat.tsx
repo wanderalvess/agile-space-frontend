@@ -24,13 +24,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { collection, query, limit, getDocs, orderBy, where, doc, getDoc } from 'firebase/firestore';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
 import { useToast } from '@/hooks/use-toast';
 import { searchKnowledgeBase } from '@/services/oracleService';
 import { KnowledgeDocument } from '@/lib/knowledge-types';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -66,7 +65,7 @@ interface PokerChatProps {
 }
 
 export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }: PokerChatProps) {
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const { settings: tdnSettings } = useTdnSettings();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -264,7 +263,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
   };
 
   const handleImport = async (tdnResult: TdnSearchResult) => {
-    if (!tdnSettings || !user || !firestore) return;
+    if (!tdnSettings || !session) return;
 
     setIsImporting(tdnResult.id);
     try {
@@ -272,7 +271,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const fullContent = await getTdnPageContent(tdnSettings.baseUrl, tdnSettings.token, tdnResult.id);
 
       // Import to KB
-      await importTdnToKnowledgeBase(firestore, user.uid, {
+      await importTdnToKnowledgeBase(session.id, {
         id: fullContent.id,
         title: fullContent.title,
         content: fullContent.content,

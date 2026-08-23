@@ -8,7 +8,7 @@ import { useUserContext } from '@/context/UserContext';
 import { ShowcaseDashboard } from '@/components/showcase/ShowcaseDashboard';
 import { ShowcaseSession } from '@/components/showcase/types';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { showcaseApi } from '@/app/showcase/api';
 import {
   Dialog,
@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 export default function ShowcaseHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const { requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -63,7 +63,7 @@ export default function ShowcaseHubPage() {
         name: name.trim(),
         sprintName: sprintName.trim(),
         tasks: [],
-        createdBy: user?.uid || 'anonymous',
+        createdBy: session?.id || 'anonymous',
         status: 'planning',
       });
 
@@ -77,7 +77,7 @@ export default function ShowcaseHubPage() {
           type: 'showcase',
           title: name.trim(),
           team: sprintName.trim() || 'Sprint Review',
-          createdBy: user?.uid,
+          createdBy: session?.id,
           createdAt: new Date().toISOString(),
         });
         localStorage.setItem(ROOMS_META_KEY, JSON.stringify(rooms));
@@ -110,7 +110,7 @@ export default function ShowcaseHubPage() {
           sessions={dbSessions || []}
           isLoading={isSessionsLoading}
           onNewSession={() => {
-            if (!user) {
+            if (!session) {
               requestIdentity(() => setIsSetupOpen(true));
             } else {
               setIsSetupOpen(true);

@@ -100,9 +100,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '../ui/badge';
-import { useFirebase } from '@/firebase';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
+import { pokerApi } from '../../app/room/api';
 import { TopicQueue } from './TopicQueue';
 import { cn } from '@/lib/utils';
 import { RoomHeader } from '@/components/layout/RoomHeader';
@@ -275,7 +273,6 @@ const PokerRoomComponent = ({
   creatorId,
 }: PokerRoomProps) => {
   const { toast } = useToast();
-  const { firestore, user } = useFirebase();
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
@@ -476,8 +473,8 @@ const PokerRoomComponent = ({
     setIsFacilitatorSettingsOpen(false);
   };
 
-  const handleExportTasksToWorkspace = () => {
-    if (issuesQueue.length === 0 || !firestore || !user) {
+  const handleExportTasksToWorkspace = async () => {
+    if (issuesQueue.length === 0) {
       toast({ title: "Nenhuma tarefa para exportar", variant: "destructive" });
       return;
     }
@@ -489,10 +486,17 @@ const PokerRoomComponent = ({
       stats: stats || {}
     };
 
-    const roomRef = doc(firestore, 'rooms', roomId);
-    updateDocumentNonBlocking(roomRef, { summary });
-
-    toast({ title: "Histórico sincronizado!", description: "O resumo da sessão foi atualizado para todos no Workspace." });
+    try {
+      // saveOrUpdateRoom persiste o registro inteiro (sem PATCH parcial no
+      // backend), então buscamos o estado atual da sala antes de gravar só o
+      // resumo por cima, evitando sobrescrever os demais campos com valores vazios.
+      const currentRoom = await pokerApi.getRoom(roomId);
+      await pokerApi.saveOrUpdateRoom({ ...currentRoom, summary });
+      toast({ title: "Histórico sincronizado!", description: "O resumo da sessão foi atualizado para todos no Workspace." });
+    } catch (err) {
+      console.error('Erro ao sincronizar resumo da sessão:', err);
+      toast({ title: "Erro ao sincronizar", description: "Não foi possível atualizar o resumo da sessão.", variant: "destructive" });
+    }
   };
 
   const getCalculatedPoints = () => {

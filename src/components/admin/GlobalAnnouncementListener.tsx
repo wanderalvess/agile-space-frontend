@@ -1,63 +1,64 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, Timestamp } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { publicApi } from '@/app/admin/api';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Megaphone, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
+// Janela de "novidade": só exibimos o anúncio mais recente se ele tiver sido
+// criado nos últimos 5 minutos, para evitar "spam" de alertas antigos a cada login.
+const FRESHNESS_WINDOW_MS = 5 * 60 * 1000;
+
 export function GlobalAnnouncementListener() {
-  const { firestore, user } = useFirebase();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [activeAnnouncement, setActiveAnnouncement] = useState<{ id: string, message: string, type: string } | null>(null);
 
   useEffect(() => {
-    // Only listen if firestore is available AND user is signed in (even anonymously)
-    // This prevents permission-denied errors on the landing page for guests
-    if (!firestore || !user) return;
+    // Só busca se o usuário estiver autenticado — evita chamada desnecessária na tela de login
+    if (!isAuthenticated) return;
 
-    // Ouve o anúncio mais recente criado nos últimos 5 minutos para evitar "spam" de alertas antigos no login
-    const fiveMinutesAgo = new Timestamp(Math.floor(Date.now() / 1000) - 300, 0);
-    const q = query(
-      collection(firestore, 'global_announcements'),
-      orderBy('timestamp', 'desc'),
-      limit(1)
-    );
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const data = change.doc.data();
-          
-          // Só exibe se for um anúncio novo (criado após o mount do componente)
-          if (data.timestamp && data.timestamp.toMillis() > Date.now() - 5000) {
-             setActiveAnnouncement({
-               id: change.doc.id,
-               message: data.message,
-               type: data.type || 'info'
-             });
-             
-             // Também dispara um toast para garantir visibilidade
-             toast({
-               title: "ANÚNCIO GLOBAL",
-               description: data.message,
-               duration: 10000,
-             });
-          }
+    (async () => {
+      try {
+        const announcements = await publicApi.getAnnouncements();
+        if (cancelled || !announcements || announcements.length === 0) return;
+
+        const latest = announcements[0];
+        const createdAtMs = latest.createdAt ? new Date(latest.createdAt).getTime() : 0;
+
+        // Só exibe se for um anúncio recente, para evitar reexibir alertas antigos
+        if (createdAtMs && createdAtMs > Date.now() - FRESHNESS_WINDOW_MS) {
+          setActiveAnnouncement({
+            id: latest.id || '',
+            message: latest.content,
+            type: 'info'
+          });
+
+          // Também dispara um toast para garantir visibilidade
+          toast({
+            title: "ANÚNCIO GLOBAL",
+            description: latest.content,
+            duration: 10000,
+          });
         }
-      });
-    }, (error) => {
-      console.error("GlobalAnnouncementListener: error in snapshot listener:", error);
-    });
+      } catch (error) {
+        console.error("GlobalAnnouncementListener: error fetching announcements:", error);
+      }
+    })();
 
-    return () => unsubscribe();
-  }, [firestore, user, toast]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, toast]);
 
   return (
     <AnimatePresence>
       {activeAnnouncement && (
-        <motion.div 
+        <motion.div
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -100, opacity: 0 }}
@@ -71,7 +72,7 @@ export function GlobalAnnouncementListener() {
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-1">Comunicado Oficial Espaço Ágil</p>
               <p className="text-sm font-bold leading-tight">{activeAnnouncement.message}</p>
             </div>
-            <button 
+            <button
               onClick={() => setActiveAnnouncement(null)}
               className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
             >

@@ -1,53 +1,32 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo, use, Suspense } from 'react';
+import React, { useEffect, useRef, useState, useCallback, use, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Send, 
-  Bot, 
-  User, 
-  RotateCcw, 
-  Copy, 
-  Trash2, 
-  Sparkles, 
-  Paperclip, 
-  ShieldCheck,
+import {
+  Send,
+  Bot,
+  User,
+  Copy,
+  Trash2,
+  Paperclip,
   Plus,
-  History,
   X,
   ChevronRight,
   Menu,
-  BookOpen,
-  Globe,
   Download,
   Loader2,
   AlertCircle,
-  Link2,
   Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { searchKnowledgeBase } from '@/services/oracleService';
 import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
 import { KnowledgeDocument } from '@/lib/knowledge-types';
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  getDocs, 
-  addDoc, 
-  setDoc,
-  increment,
-  serverTimestamp,
-  deleteDoc,
-  updateDoc
-} from 'firebase/firestore';
+import { knowledgeChatApi, KnowledgeConversationDTO } from '../api';
 import { useRouter } from 'next/navigation';
 import {
   Sheet,
@@ -68,18 +47,37 @@ interface ChatMessage {
   tdnResults?: TdnSearchResult[];
 }
 
+function buildTitle(prompt: string): string {
+  return prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '');
+}
+
+/** Deriva uma prévia curta a partir do blob JSON de mensagens da conversa, para exibir na sidebar. */
+function getPreview(conv: KnowledgeConversationDTO): string {
+  try {
+    const parsed = conv.messages ? JSON.parse(conv.messages) : [];
+    if (!Array.isArray(parsed) || parsed.length === 0) return '';
+    const last = parsed[parsed.length - 1];
+    return typeof last?.content === 'string' ? last.content : '';
+  } catch {
+    return '';
+  }
+}
+
 function ChatContent({ chatId }: { chatId: string }) {
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const { settings: tdnSettings } = useTdnSettings();
   const [userApiKey, setUserApiKey] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [conversations, setConversations] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<KnowledgeConversationDTO[]>([]);
+  // ID real da conversa no backend. Null enquanto a conversa ainda não existe lá
+  // (ex.: chatId veio da tela de landing, que gera um slug local antes de qualquer persistência).
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const isMounted = useRef(true);
@@ -89,53 +87,52 @@ function ChatContent({ chatId }: { chatId: string }) {
     return () => { isMounted.current = false; };
   }, []);
 
-  // Carregar chave de API
+  // Carregar chave de API (configurações de IA do usuário)
   useEffect(() => {
     async function loadKey() {
-      if (!firestore || !user) return;
+      if (!session) return;
       try {
-        const configDoc = await getDoc(doc(firestore, 'knowledge_user_configs', user.uid, 'ai', 'settings'));
-        if (configDoc.exists()) {
-          const data = configDoc.data();
-          if (isMounted.current) setUserApiKey(data.geminiKey || data.apiKey || null);
-        }
+        const settings = await knowledgeChatApi.getAiSettings();
+        if (isMounted.current) setUserApiKey(settings.byokApiKey || null);
       } catch (e) {}
     }
     loadKey();
-  }, [firestore, user]);
+  }, [session]);
 
-  // Carregar histórico local da sessão
-  useEffect(() => {
-    const saved = localStorage.getItem(`chat-history-${chatId}`);
-    if (saved) {
-      try { setMessages(JSON.parse(saved)); } catch (e) {}
-    } else {
-      setMessages([]);
-    }
-  }, [chatId]);
-
-  useEffect(() => {
-    if (messages.length > 0 && chatId !== 'new') {
-      localStorage.setItem(`chat-history-${chatId}`, JSON.stringify(messages));
-    }
-  }, [messages, chatId]);
+  const refreshConversations = useCallback(async () => {
+    if (!session) return;
+    try {
+      const list = await knowledgeChatApi.listConversations();
+      if (isMounted.current) setConversations(list);
+    } catch (e) {}
+  }, [session]);
 
   // Carregar lista de conversas
   useEffect(() => {
-    async function fetchConversations() {
-      if (!firestore || !user) return;
+    refreshConversations();
+  }, [refreshConversations]);
+
+  // Carregar a conversa atual do backend. Se o chatId não corresponder a uma
+  // conversa persistida ainda (ex.: slug recém-gerado pela landing page),
+  // segue com a sessão vazia — ela será criada no backend no primeiro envio.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadConversation() {
+      if (!session) return;
       try {
-        const q = query(
-          collection(firestore, 'knowledge_conversations'),
-          where('userId', '==', user.uid),
-          orderBy('updatedAt', 'desc')
-        );
-        const snap = await getDocs(q);
-        if (isMounted.current) setConversations(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (e) {}
+        const conv = await knowledgeChatApi.getConversation(chatId);
+        if (cancelled) return;
+        setConversationId(conv.id);
+        setMessages(conv.messages ? JSON.parse(conv.messages) : []);
+      } catch (e) {
+        if (cancelled) return;
+        setConversationId(null);
+        setMessages([]);
+      }
     }
-    fetchConversations();
-  }, [firestore, user, messages]);
+    loadConversation();
+    return () => { cancelled = true; };
+  }, [chatId, session]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -144,16 +141,11 @@ function ChatContent({ chatId }: { chatId: string }) {
   }, [messages]);
 
   const createNewChat = async () => {
-    if (!firestore || !user) return;
+    if (!session) return;
     try {
-      const newChat = await addDoc(collection(firestore, 'knowledge_conversations'), {
-        userId: user.uid,
-        title: 'Nova Consulta de Conhecimento',
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(),
-        lastMessage: ''
-      });
-      router.push(`/knowledge/chat/${newChat.id}`);
+      const created = await knowledgeChatApi.createConversation('Nova Consulta de Conhecimento');
+      refreshConversations();
+      router.push(`/knowledge/chat/${created.id}`);
     } catch (e) {
       toast({ title: "Erro", description: "Falha ao criar chat.", variant: "destructive" });
     }
@@ -161,9 +153,8 @@ function ChatContent({ chatId }: { chatId: string }) {
 
   const deleteConversation = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!firestore) return;
     try {
-      await deleteDoc(doc(firestore, 'knowledge_conversations', id));
+      await knowledgeChatApi.deleteConversation(id);
       if (id === chatId) router.push('/knowledge/chat/new');
       setConversations(prev => prev.filter(c => c.id !== id));
       toast({ title: "Removido", description: "Sessão deletada." });
@@ -176,14 +167,33 @@ function ChatContent({ chatId }: { chatId: string }) {
 
     const prompt = input.trim();
     const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', content: prompt, timestamp: Date.now() };
+    const wasEmpty = messages.length === 0;
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput('');
     setIsLoading(true);
 
+    // Garante que a conversa exista no backend antes de persistir mensagens:
+    // cria-a com o título derivado do primeiro prompt, ou renomeia uma
+    // conversa já existente mas ainda vazia (equivalente ao antigo rename automático).
+    let activeConversationId = conversationId;
+    try {
+      if (!activeConversationId) {
+        const created = await knowledgeChatApi.createConversation(buildTitle(prompt));
+        activeConversationId = created.id;
+        setConversationId(created.id);
+        router.replace(`/knowledge/chat/${created.id}`);
+      } else if (wasEmpty) {
+        await knowledgeChatApi.renameConversation(activeConversationId, buildTitle(prompt));
+      }
+      await knowledgeChatApi.appendMessage(activeConversationId, userMsg);
+    } catch (e) {
+      // Segue com a conversa em memória mesmo se a persistência falhar.
+    }
+
     if (!userApiKey) {
       try {
-        const localResults = await searchKnowledgeBase(firestore!, prompt);
+        const localResults = await searchKnowledgeBase(undefined, prompt);
         let tdnResults: TdnSearchResult[] = [];
         if (tdnSettings?.baseUrl && tdnSettings?.token) {
           try {
@@ -200,28 +210,26 @@ function ChatContent({ chatId }: { chatId: string }) {
           content = `Sua chave de acesso ao motor não está configurada e não encontramos resultados diretos na Base Local nem no TDN. Por favor, configure sua chave de API nas configurações.`;
         }
 
-        const assistantMsg: ChatMessage = { 
-          id: (Date.now() + 1).toString(), 
-          role: 'assistant', 
+        const assistantMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
           content,
           timestamp: Date.now(),
           docs: localResults,
           tdnResults
         };
-        
+
         const finalMessages = [...newMessages, assistantMsg];
         setMessages(finalMessages);
 
-        if (messages.length === 0 && firestore && chatId !== 'new') {
-          const title = prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '');
-          await updateDoc(doc(firestore, 'knowledge_conversations', chatId), {
-            title, lastMessage: prompt, updatedAt: serverTimestamp()
-          });
+        if (activeConversationId) {
+          try { await knowledgeChatApi.appendMessage(activeConversationId, assistantMsg); } catch (e) {}
         }
       } catch (err: any) {
          toast({ title: "Erro na Busca", description: "Falha ao buscar nas bases.", variant: "destructive" });
       } finally {
         setIsLoading(false);
+        refreshConversations();
       }
       return;
     }
@@ -230,57 +238,46 @@ function ChatContent({ chatId }: { chatId: string }) {
       const response = await authFetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, apiKey: userApiKey, userId: user?.uid })
+        body: JSON.stringify({ messages: newMessages, apiKey: userApiKey, userId: session?.id })
       });
       if (!response.ok) throw new Error('Falha na resposta.');
       const data = await response.json();
-      const assistantMsg: ChatMessage = { 
-        id: (Date.now() + 1).toString(), 
-        role: 'assistant', 
-        content: String(data.content || data.text || '') 
+      const assistantMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: String(data.content || data.text || '')
       };
       const finalMessages = [...newMessages, assistantMsg];
       setMessages(finalMessages);
 
-      // Registrar Uso de Tokens via Cliente (Autenticado)
-      if (user && firestore && data.usage) {
-        try {
-          const usageRef = doc(firestore, 'knowledge_token_usage', user.uid);
-          const monthKey = new Date().toISOString().slice(0, 7); // yyyy-mm
-          
-          await setDoc(usageRef, {
-            userId: user.uid,
-            totalPromptTokens: increment(data.usage.promptTokens || 0),
-            totalCompletionTokens: increment(data.usage.completionTokens || 0),
-            lastActive: serverTimestamp(),
-            [`history.${monthKey}.promptTokens`]: increment(data.usage.promptTokens || 0),
-            [`history.${monthKey}.completionTokens`]: increment(data.usage.completionTokens || 0),
-          }, { merge: true });
-        } catch (usageErr: any) {
-          console.warn("⚠️ [Chat] Falha ao registrar tokens localmente:", usageErr.message);
-        }
+      if (activeConversationId) {
+        try { await knowledgeChatApi.appendMessage(activeConversationId, assistantMsg); } catch (e) {}
       }
 
-      if (messages.length === 0 && firestore && chatId !== 'new') {
-        const title = prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '');
-        await updateDoc(doc(firestore, 'knowledge_conversations', chatId), {
-          title, lastMessage: prompt, updatedAt: serverTimestamp()
-        });
+      // Registrar uso de tokens no backend (substitui o antigo write direto no Firestore)
+      if (session && data.usage) {
+        try {
+          const tokens = (data.usage.promptTokens || 0) + (data.usage.completionTokens || 0);
+          await knowledgeChatApi.incrementTokenUsage(tokens);
+        } catch (usageErr: any) {
+          console.warn("⚠️ [Chat] Falha ao registrar tokens:", usageErr.message);
+        }
       }
     } catch (err: any) {
       toast({ title: "Erro no Motor", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
+      refreshConversations();
     }
   };
 
   const handleImport = async (tdnResult: TdnSearchResult) => {
-    if (!tdnSettings || !user || !firestore) return;
-    
+    if (!tdnSettings || !session) return;
+
     setIsImporting(tdnResult.id);
     try {
       const fullContent = await getTdnPageContent(tdnSettings.baseUrl, tdnSettings.token, tdnResult.id);
-      await importTdnToKnowledgeBase(firestore, user.uid, {
+      await importTdnToKnowledgeBase(session.id, {
         id: fullContent.id,
         title: fullContent.title,
         content: fullContent.content,
@@ -298,15 +295,15 @@ function ChatContent({ chatId }: { chatId: string }) {
 
   return (
     <div className="flex h-full w-full bg-[#fcfcfd] dark:bg-slate-950 overflow-hidden relative">
-      
+
       {/* Sidebar Persistente Estilo Gemini/ChatGPT */}
       <aside className={cn(
         "hidden md:flex flex-col bg-slate-50/80 dark:bg-slate-900/40 backdrop-blur-xl border-r border-slate-100 dark:border-slate-800 transition-all duration-500 overflow-hidden shrink-0",
         isSidebarOpen ? "w-72" : "w-0"
       )}>
         <div className="p-5 h-full flex flex-col gap-4 min-w-[288px]">
-          <Button 
-            onClick={createNewChat} 
+          <Button
+            onClick={createNewChat}
             className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 text-[10px] font-black uppercase tracking-widest gap-2 shadow-sm"
           >
             <Plus className="h-4 w-4 text-cyan-600" /> Nova Consulta
@@ -317,8 +314,8 @@ function ChatContent({ chatId }: { chatId: string }) {
             <ScrollArea className="flex-1 -mx-2 px-2">
               <div className="space-y-1">
                 {conversations.map((conv) => (
-                  <div 
-                    key={conv.id} 
+                  <div
+                    key={conv.id}
                     onClick={() => router.push(`/knowledge/chat/${conv.id}`)}
                     className={cn(
                       "group p-3 rounded-xl cursor-pointer transition-all border border-transparent",
@@ -330,10 +327,10 @@ function ChatContent({ chatId }: { chatId: string }) {
                         <p className={cn("text-[11px] font-black uppercase tracking-tight truncate", chatId === conv.id ? "text-cyan-600 dark:text-cyan-400" : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100")}>
                           {conv.title}
                         </p>
-                        <p className="text-[9px] font-medium text-slate-500 dark:text-slate-500 truncate mt-0.5 italic">{conv.lastMessage}</p>
+                        <p className="text-[9px] font-medium text-slate-500 dark:text-slate-500 truncate mt-0.5 italic">{getPreview(conv)}</p>
                       </div>
-                      <button 
-                        onClick={(e) => deleteConversation(e, conv.id)} 
+                      <button
+                        onClick={(e) => deleteConversation(e, conv.id)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-slate-500 hover:text-rose-500 transition-all"
                       >
                         <X className="h-3 w-3" />
@@ -346,19 +343,19 @@ function ChatContent({ chatId }: { chatId: string }) {
           </div>
 
           <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-             <Button 
-               variant="ghost" 
-               onClick={() => { setMessages([]); localStorage.removeItem(`chat-history-${chatId}`); }}
+             <Button
+               variant="ghost"
+               onClick={() => setMessages([])}
                className="w-full h-10 mb-4 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-[9px] font-black uppercase tracking-widest gap-2 transition-all"
              >
                <Trash2 className="h-4 w-4" /> Limpar Conversa
              </Button>
              <div className="flex items-center gap-3 px-2">
                 <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xs border border-indigo-100 dark:border-indigo-900">
-                   {user?.displayName?.charAt(0) || 'U'}
+                   {session?.name?.charAt(0) || 'U'}
                 </div>
                 <div className="flex flex-col min-w-0">
-                   <span className="text-[10px] font-black text-slate-900 dark:text-slate-100 truncate uppercase">{user?.displayName || 'Usuário'}</span>
+                   <span className="text-[10px] font-black text-slate-900 dark:text-slate-100 truncate uppercase">{session?.name || 'Usuário'}</span>
                    <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate">Acesso Avançado Pro</span>
                 </div>
              </div>
@@ -367,7 +364,7 @@ function ChatContent({ chatId }: { chatId: string }) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 h-full relative bg-white dark:bg-slate-950">
-        
+
         {/* Mobile Sidebar Trigger (Floating) */}
         <div className="md:hidden absolute top-4 left-4 z-50">
           <Sheet>
@@ -392,9 +389,9 @@ function ChatContent({ chatId }: { chatId: string }) {
                    </div>
                 </ScrollArea>
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => { setMessages([]); localStorage.removeItem(`chat-history-${chatId}`); }}
+                  <Button
+                    variant="ghost"
+                    onClick={() => setMessages([])}
                     className="w-full h-10 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-[9px] font-black uppercase tracking-widest gap-2 transition-all"
                   >
                     <Trash2 className="h-4 w-4" /> Limpar Conversa
@@ -420,7 +417,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                   <h3 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">O que vamos descobrir hoje?</h3>
                   <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">Motor de Agilidade • Espaço Ágil</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mt-10">
                    {[
                      "Quais os processos de deploy?",
@@ -428,7 +425,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                      "Quais as regras da Governança?",
                      "Explique o motor Jolt."
                    ].map(suggestion => (
-                     <button 
+                     <button
                        key={suggestion}
                        onClick={() => { setInput(suggestion); }}
                        className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-900 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100 transition-all text-left shadow-sm"
@@ -441,8 +438,8 @@ function ChatContent({ chatId }: { chatId: string }) {
             )}
 
             {messages.map((m) => (
-              <div 
-                key={m.id} 
+              <div
+                key={m.id}
                 className={cn(
                   "flex gap-4 w-full group",
                   m.role === 'user' ? "flex-row-reverse" : "flex-row"
@@ -454,19 +451,19 @@ function ChatContent({ chatId }: { chatId: string }) {
                 )}>
                   {m.role === 'user' ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5 text-cyan-600" />}
                 </div>
-                
+
                 <div className={cn(
                   "flex flex-col gap-2 max-w-[80%]",
                   m.role === 'user' ? "items-end" : "items-start"
                 )}>
                   <div className={cn(
                     "relative px-6 py-5 rounded-3xl text-[14px] leading-relaxed",
-                    m.role === 'user' 
-                      ? "bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-tr-xl" 
+                    m.role === 'user'
+                      ? "bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-tr-xl"
                       : "bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-xl shadow-sm"
                   )}>
                     <div className="whitespace-pre-wrap break-words font-medium">{m.content}</div>
-                    
+
                     {/* Documents & Results Rendering */}
                     {(m.docs || m.tdnResults) && (
                       <div className="mt-6 space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
@@ -478,7 +475,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                             </div>
                             <div className="grid gap-2">
                               {m.docs.map((docItem) => (
-                                <div 
+                                <div
                                   key={docItem.id}
                                   onClick={() => window.open(`/knowledge/kb?id=${docItem.id}`, '_blank')}
                                   className="bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl hover:bg-white dark:hover:bg-slate-900 hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer group/card flex items-center justify-between"
@@ -502,11 +499,11 @@ function ChatContent({ chatId }: { chatId: string }) {
                             </div>
                             <div className="grid gap-2">
                               {m.tdnResults.map((tdn) => (
-                                <div 
+                                <div
                                   key={tdn.id}
                                   className="bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between group/tdn"
                                 >
-                                  <div 
+                                  <div
                                     className="flex-1 cursor-pointer"
                                     onClick={() => window.open(tdn.link, '_blank')}
                                   >
@@ -517,9 +514,9 @@ function ChatContent({ chatId }: { chatId: string }) {
                                       <span className="text-[9px] font-medium text-slate-400 italic">Fonte Externa</span>
                                     </div>
                                   </div>
-                                  <Button 
-                                    size="icon" 
-                                    variant="ghost" 
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
                                     className="h-9 w-9 rounded-xl hover:bg-white dark:hover:bg-slate-900 text-slate-400 hover:text-cyan-600 shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-800"
                                     onClick={() => handleImport(tdn)}
                                     disabled={isImporting === tdn.id}
@@ -542,10 +539,10 @@ function ChatContent({ chatId }: { chatId: string }) {
                             <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Busca Simples Ativa</span>
                           </div>
                           <p className="text-[11px] text-rose-900/60 dark:text-rose-300/60 font-medium leading-relaxed">Sua chave de acesso ao motor não foi detectada. Estou operando no modo de busca indexada. Para análise avançada, configure sua chave.</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => router.push('/knowledge/settings')} 
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push('/knowledge/settings')}
                             className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/30 transition-all"
                           >
                              <Settings className="h-3.5 w-3.5 mr-2" /> Configurar Chave
@@ -554,7 +551,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                     )}
 
                     {/* Quick Copy Button */}
-                    <button 
+                    <button
                       onClick={() => { navigator.clipboard.writeText(m.content); toast({ title: "Copiado!" }); }}
                       className="absolute -left-10 top-2 p-2 opacity-0 group-hover:opacity-100 text-slate-300 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all"
                     >
@@ -574,7 +571,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                 </div>
               </div>
             )}
-            
+
             {/* Âncora para scroll automático */}
             <div ref={messagesEndRef} className="h-1" />
           </div>
@@ -586,23 +583,23 @@ function ChatContent({ chatId }: { chatId: string }) {
             <form onSubmit={onFormSubmit} className="relative group">
               <div className="absolute inset-0 bg-slate-100/50 dark:bg-slate-900/20 rounded-[2.5rem] opacity-0 group-focus-within:opacity-100 transition-opacity" />
               <div className="relative flex items-center bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-1.5 pl-3 focus-within:border-slate-900 dark:focus-within:border-slate-100 focus-within:shadow-lg transition-all">
-                <Button 
-                  type="button" 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   className="h-10 w-10 rounded-full text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 shrink-0"
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
-                <input 
-                  value={input} 
-                  onChange={(e) => setInput(e.target.value)} 
-                  placeholder="Pergunte qualquer coisa sobre a Espaço Ágil..." 
-                  className="flex-1 border-none focus:outline-none text-[13px] font-bold h-12 bg-transparent px-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500" 
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Pergunte qualquer coisa sobre a Espaço Ágil..."
+                  className="flex-1 border-none focus:outline-none text-[13px] font-bold h-12 bg-transparent px-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
-                <Button 
-                  type="submit" 
-                  disabled={isLoading || !input.trim()} 
+                <Button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
                   className="h-10 w-10 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-slate-200 text-white dark:text-slate-900 rounded-full flex items-center justify-center p-0 transition-all disabled:opacity-30 active:scale-95 shrink-0"
                 >
                   {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

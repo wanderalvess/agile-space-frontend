@@ -27,9 +27,6 @@ import mermaid from 'mermaid';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useUserContext } from '@/context/UserContext';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
-import { useFirebase, useDoc, useMemoFirebase } from '@/firebase';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -68,7 +65,6 @@ const DEFAULT_DIAGRAM = `sequenceDiagram
 export default function ArchitectureBoardPage() {
   const { toast } = useToast();
   const { userProfile, isInitializing: isUserInitializing } = useUserContext();
-  const { firestore, user } = useFirebase();
   const [code, setCode] = useState(DEFAULT_DIAGRAM);
   const [svg, setSvg] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -85,11 +81,6 @@ export default function ArchitectureBoardPage() {
       }
     };
   }, []);
-
-  // Firestore Sync removed for this tool
-  const docRef = null;
-  const isRemoteLoading = false;
-  const remoteData = null;
 
   useEffect(() => {
     setIsHydrated(true);
@@ -262,10 +253,10 @@ export default function ArchitectureBoardPage() {
 
                     <div className="space-y-4 p-6 bg-blue-50/50 rounded-[2rem] border border-blue-100">
                       <h3 className="font-black text-xs uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2 italic">
-                        Sincronização em Nuvem
+                        Salvamento Automático Local
                       </h3>
                       <p className="text-[11px] text-blue-800/80 font-bold leading-relaxed">
-                        No modo **VISUAL** (Excalidraw), seus desenhos são salvos automaticamente na nuvem e podem ser exportados em alta definição. O estilo "sketch" facilita a prototipagem rápida de ideias sem a rigidez de ferramentas tradicionais.
+                        No modo **VISUAL** (Excalidraw), seus desenhos são salvos automaticamente neste navegador e podem ser exportados em alta definição. O estilo "sketch" facilita a prototipagem rápida de ideias sem a rigidez de ferramentas tradicionais.
                       </p>
                     </div>
                   </div>

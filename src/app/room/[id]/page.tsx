@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { DeckType, Participant, Role, Room, Vote, VotingRound, Issue, GlobalRole, ConfidenceLevel } from '@/lib/types';
 import { PokerRoom } from '@/components/poker/PokerRoom';
 import { AsyncPokerRoom } from '@/components/poker/AsyncPokerRoom';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { NotFound } from '@/components/NotFound';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
@@ -32,14 +32,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const roomId = resolvedParams.id;
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isUserLoading } = useFirebase();
+  const { session, isLoading } = useAuth();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   useEffect(() => {
-    if (!isUserLoading && !userProfile) {
+    if (!isLoading && !userProfile) {
       requestIdentity();
     }
-  }, [isUserLoading, userProfile, requestIdentity]);
+  }, [isLoading, userProfile, requestIdentity]);
 
   // Fallback seguro de offset de relógio local/servidor
   const clockOffset = 0;
@@ -59,8 +59,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
 
   const reactionsEnabled = !!roomData?.settings?.reactions;
-  const currentUser = useMemo(() => participants?.find(p => p.id === user?.uid && p.roomId === roomId) || null, [participants, user, roomId]);
-  const isCurrentUserFacilitator = useMemo(() => !!(user && roomData && (user.uid === roomData.creatorId || currentUser?.role === 'organizador')), [user, roomData, currentUser]);
+  const currentUser = useMemo(() => participants?.find(p => p.id === session?.id && p.roomId === roomId) || null, [participants, session, roomId]);
+  const isCurrentUserFacilitator = useMemo(() => !!(session && roomData && (session.id === roomData.creatorId || currentUser?.role === 'organizador')), [session, roomData, currentUser]);
   
   const currentUserVote = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.value || null, [votes, currentUser]);
   const currentUserConfidence = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.confidence || null, [votes, currentUser]);
@@ -70,7 +70,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }, []);
 
   const reloadRoomData = useCallback(async () => {
-    if (!user) return;
+    if (!session) return;
     try {
       const [room, partsList, votesList, roundsList] = await Promise.all([
         pokerApi.getRoom(roomId),
@@ -88,11 +88,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       setIsRoomLoading(false);
       setAreParticipantsLoading(false);
     }
-  }, [roomId, user]);
+  }, [roomId, session]);
 
   // Conexão WebSocket e Carga Inicial
   useEffect(() => {
-    if (!user) return;
+    if (!session) return;
 
     reloadRoomData();
 
@@ -207,7 +207,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     return () => {
       socket.close();
     };
-  }, [roomId, user, reloadRoomData]);
+  }, [roomId, session, reloadRoomData]);
 
   useEffect(() => {
     setHasJoined(false);
@@ -242,33 +242,33 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   };
 
   useEffect(() => {
-    if (isUserLoading || !user || !userProfile || !roomData || hasJoined) {
+    if (isLoading || !session || !userProfile || !roomData || hasJoined) {
       return;
     }
 
     const runJoin = async () => {
       try {
         const existingParts = await pokerApi.getParticipants(roomId);
-        const alreadyInThisRoom = existingParts.some(p => p.id === user.uid);
+        const alreadyInThisRoom = existingParts.some(p => p.id === session.id);
 
         if (!alreadyInThisRoom) {
           const newParticipant: Participant = {
-            id: user.uid,
+            id: session.id,
             roomId: roomId,
             nickname: userProfile.name,
             email: userProfile.email || '',
             role: mapGlobalToPokerRole(userProfile.role),
             globalRole: userProfile.role,
-            isFacilitator: user.uid === roomData.creatorId,
+            isFacilitator: session.id === roomData.creatorId,
           };
           await pokerApi.joinRoom(roomId, newParticipant);
         }
 
         const currentParticipantIds = roomData.participantIds || [];
-        if (!currentParticipantIds.includes(user.uid)) {
+        if (!currentParticipantIds.includes(session.id)) {
           await pokerApi.saveOrUpdateRoom({
             ...roomData,
-            participantIds: [...currentParticipantIds, user.uid]
+            participantIds: [...currentParticipantIds, session.id]
           });
         }
         reloadRoomData();
@@ -283,12 +283,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     };
 
     runJoin();
-  }, [user, userProfile, roomData, isUserLoading, roomId, hasJoined, toast, reloadRoomData]);
+  }, [session, userProfile, roomData, isLoading, roomId, hasJoined, toast, reloadRoomData]);
 
   // 3.1 SINCRONIZAÇÃO DE PERFIL
   const lastSyncedProfileRef = useRef<{ name: string; role: string; email?: string } | null>(null);
   useEffect(() => {
-    if (!user || !userProfile || !currentUser) return;
+    if (!session || !userProfile || !currentUser) return;
 
     if (
       lastSyncedProfileRef.current && 
@@ -322,7 +322,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         email: userProfile.email || ''
       };
     }
-  }, [user, userProfile, currentUser, roomId]);
+  }, [session, userProfile, currentUser, roomId]);
 
   useEffect(() => {
     setHasJoined(!!currentUser);
@@ -1259,15 +1259,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }, [isCurrentUserFacilitator, roomId, roomData]);
 
   const handleClaimFacilitator = useCallback(async () => {
-    if (!roomData || !user || !participants) return;
+    if (!roomData || !session || !participants) return;
 
     try {
       await pokerApi.saveOrUpdateRoom({
         ...roomData,
-        creatorId: user.uid
+        creatorId: session.id
       });
 
-      const p = participants.find(part => part.id === user.uid);
+      const p = participants.find(part => part.id === session.id);
       if (p) {
         await pokerApi.joinRoom(roomId, {
           ...p,
@@ -1281,7 +1281,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         description: `${userProfile?.name} agora é o organizador da sala.`,
       });
 
-      const staleFacilitators = participants.filter(p => p.id !== user.uid && (p.isFacilitator || p.role === 'organizador'));
+      const staleFacilitators = participants.filter(p => p.id !== session.id && (p.isFacilitator || p.role === 'organizador'));
       staleFacilitators.forEach(p => {
         pokerApi.joinRoom(roomId, { ...p, isFacilitator: false, role: 'dev' }).catch(console.error);
       });
@@ -1294,7 +1294,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         variant: "destructive"
       });
     }
-  }, [roomData, user, participants, userProfile, toast, reloadRoomData, roomId]);
+  }, [roomData, session, participants, userProfile, toast, reloadRoomData, roomId]);
 
   const handleLeaveRoom = useCallback(() => {
     if (!currentUser) return;
@@ -1402,7 +1402,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const stableAsyncClear = useStableCallback(handleAsyncClear);
   const stableAsyncCompleteIssue = useStableCallback(handleAsyncCompleteIssue);
 
-  if (isUserLoading || isInitializing || isRoomLoading || areParticipantsLoading || !user || !userProfile) {
+  if (isLoading || isInitializing || isRoomLoading || areParticipantsLoading || !session || !userProfile) {
     if (!userProfile) {
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sala" />;
     }

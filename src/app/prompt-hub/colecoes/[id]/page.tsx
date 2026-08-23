@@ -3,96 +3,64 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Layers, Lock, Globe, ShieldAlert, EyeOff } from 'lucide-react';
-import { doc, getDoc, getDocs, collection, query, where, documentId, updateDoc, increment } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { useUserContext } from '@/context/UserContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import { PromptCard } from '../../components/PromptCard';
-import type { PromptCollection, PromptItem } from '../../types';
-
-/** Firestore aceita no máximo 30 valores por consulta `in`. */
-const IN_LIMIT = 30;
+import { promptApi, promptCollectionApi, type PromptCollectionDTO } from '../../api';
 
 export default function CollectionDetailPage(props: { params: Promise<{ id: string }> }) {
   const params = React.use(props.params);
   const router = useRouter();
-  const { firestore, user, isUserLoading } = useFirebase();
+  const { userProfile, isInitializing } = useUserContext();
 
-  const [data, setData] = React.useState<PromptCollection | null>(null);
-  const [items, setItems] = React.useState<PromptItem[]>([]);
+  const [data, setData] = React.useState<PromptCollectionDTO | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
 
   React.useEffect(() => {
-    if (authPending()) return;
+    if (isInitializing) return;
 
     async function load() {
       try {
-        const snap = await getDoc(doc(firestore, 'prompt_collections', params.id));
-        if (!snap.exists()) {
-          setError('Coleção não encontrada.');
-          return;
-        }
-
-        const collectionData = { ...(snap.data() as PromptCollection), id: snap.id };
-        setData(collectionData);
-
-        const ids = collectionData.itemIds || [];
-        if (ids.length === 0) {
-          setItems([]);
-          return;
-        }
-
-        // Busca em blocos por causa do limite do operador `in`. Itens que a
-        // pessoa não pode ler simplesmente não voltam — as regras continuam
-        // valendo dentro da coleção.
-        const found: PromptItem[] = [];
-        for (let i = 0; i < ids.length; i += IN_LIMIT) {
-          const bloco = ids.slice(i, i + IN_LIMIT);
-          const snapshot = await getDocs(
-            query(collection(firestore, 'prompt_hub'), where(documentId(), 'in', bloco))
-          );
-          snapshot.forEach(d => found.push({ ...(d.data() as PromptItem), id: d.id }));
-        }
-
-        // Reordena conforme a trilha definida por quem montou a coleção.
-        const byId = new Map(found.map(item => [item.id, item]));
-        setItems(ids.map(id => byId.get(id)).filter((i): i is PromptItem => !!i));
+        const result = await promptCollectionApi.getCollection(params.id);
+        setData(result);
       } catch (err: any) {
         console.error(err);
-        setError(
-          err?.code === 'permission-denied'
-            ? 'Esta coleção não é pública.'
-            : 'Erro ao carregar a coleção.'
-        );
+        setError('Coleção não encontrada ou erro ao carregar.');
       } finally {
         setLoading(false);
       }
     }
 
-    function authPending() {
-      return isUserLoading || !firestore;
-    }
-
     load();
-  }, [firestore, params.id, isUserLoading, user]);
+  }, [params.id, isInitializing]);
 
   React.useEffect(() => {
     document.title = data?.name ? `${data.name} | Coleções` : 'Coleção | Biblioteca de IA';
   }, [data?.name]);
 
   const handleCopy = async (id: string) => {
-    if (!firestore || !user) return;
     try {
-      await updateDoc(doc(firestore, 'prompt_hub', id), { useCount: increment(1) });
+      await promptApi.usePrompt(id);
+      setData(prev =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map(item =>
+                item.id === id ? { ...item, useCount: (item.useCount || 0) + 1 } : item
+              )
+            }
+          : prev
+      );
     } catch (err) {
       console.warn('Não foi possível atualizar o contador de uso.', err);
     }
   };
 
-  if (isUserLoading || loading) {
+  if (isInitializing || loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <EliteSpinner size="lg" variant="indigo" />
@@ -114,7 +82,15 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
   }
 
   const VisibilityIcon = data.visibility === 'public' ? Globe : Lock;
-  const hidden = (data.itemIds?.length || 0) - items.length;
+
+  // Os itens já vêm embutidos na resposta — sem consulta separada, a coleção
+  // não muda a visibilidade de quem publicou, então itens privados de outra
+  // pessoa continuam escondidos aqui mesmo estando na trilha.
+  const allItems = data.items || [];
+  const visibleItems = allItems.filter(
+    item => item.visibility === 'public' || item.authorId === userProfile?.id
+  );
+  const hidden = allItems.length - visibleItems.length;
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
@@ -143,10 +119,10 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
               {data.visibility === 'public' ? 'Público' : 'Somente eu'}
             </span>
             <span>·</span>
-            <span>Por {data.ownerId === user?.uid ? 'você' : data.ownerName || 'Membro'}</span>
+            <span>Por {data.ownerId === userProfile?.id ? 'você' : data.ownerName || 'Membro'}</span>
             <span>·</span>
             <span>
-              {items.length} {items.length === 1 ? 'item' : 'itens'}
+              {visibleItems.length} {visibleItems.length === 1 ? 'item' : 'itens'}
             </span>
           </div>
 
@@ -167,7 +143,7 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
           </p>
         )}
 
-        {items.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
             <h2 className="text-base font-semibold text-foreground">Nada para mostrar</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -176,7 +152,7 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
           </div>
         ) : (
           <ol className="space-y-4">
-            {items.map((item, index) => (
+            {visibleItems.map((item, index) => (
               <li key={item.id} className="flex gap-4">
                 <span className="mt-4 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
                   {index + 1}
@@ -184,7 +160,7 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
                 <div className="min-w-0 flex-1">
                   <PromptCard
                     prompt={item}
-                    isOwner={item.authorId === user?.uid}
+                    isOwner={item.authorId === userProfile?.id}
                     isReadOnly
                     onFork={() => router.push(`/prompt-hub/${item.id}`)}
                     onView={() => router.push(`/prompt-hub/${item.id}`)}

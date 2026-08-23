@@ -1,23 +1,15 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  query, 
-  orderBy, 
-  limit, 
-  onSnapshot,
-  getCountFromServer
-} from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { 
-  Brain, 
-  Cpu, 
-  Zap, 
-  History, 
-  Users, 
-  Search, 
+import { knowledgeChatApi, KnowledgeTokenUsageDTO } from '@/app/knowledge/chat/api';
+import { knowledgeApi } from '@/app/knowledge/api';
+import {
+  Brain,
+  Cpu,
+  Zap,
+  History,
+  Users,
+  Search,
   Activity,
   ArrowUpRight,
   Sparkles,
@@ -29,41 +21,36 @@ import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface TokenUsage {
-  id: string;
-  userId: string;
-  totalPromptTokens: number;
-  totalCompletionTokens: number;
-  lastActive: any;
-}
-
 export function IntelligenceHubMonitor() {
-  const { firestore } = useFirebase();
-  const [usageData, setUsageData] = useState<TokenUsage[]>([]);
+  const [usageData, setUsageData] = useState<KnowledgeTokenUsageDTO[]>([]);
   const [totalDocs, setTotalDocs] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Sem realtime aqui por decisão de produto: busca única ao montar, sem onSnapshot/polling.
   useEffect(() => {
-    if (!firestore) return;
+    let cancelled = false;
 
-    // Load Usage Data
-    const q = query(collection(firestore, 'knowledge_token_usage'), orderBy('totalPromptTokens', 'desc'), limit(10));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as TokenUsage));
-      setUsageData(data);
-      setLoading(false);
-    });
+    async function loadData() {
+      try {
+        const [usage, docsPage] = await Promise.all([
+          knowledgeChatApi.getTopTokenUsage(),
+          knowledgeApi.listDocuments(undefined, undefined, 0, 1),
+        ]);
+        if (cancelled) return;
+        setUsageData(usage);
+        setTotalDocs(docsPage.totalElements);
+      } catch (e) {
+        console.error('Erro ao carregar dados do Centro de Conhecimento:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
 
-    // Load KB Stats
-    getCountFromServer(collection(firestore, 'knowledge_kb')).then(snap => {
-      setTotalDocs(snap.data().count);
-    });
+    loadData();
+    return () => { cancelled = true; };
+  }, []);
 
-    return () => unsubscribe();
-  }, [firestore]);
-
-  const totalPrompt = usageData.reduce((acc, curr) => acc + (curr.totalPromptTokens || 0), 0);
-  const totalCompletion = usageData.reduce((acc, curr) => acc + (curr.totalCompletionTokens || 0), 0);
+  const totalTokens = usageData.reduce((acc, curr) => acc + (curr.totalTokens || 0), 0);
 
   if (loading) {
     return (
@@ -78,24 +65,24 @@ export function IntelligenceHubMonitor() {
     <div className="space-y-10">
       {/* Overview de Inteligência */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <MetricCard 
-          title="Base de Conhecimento" 
-          value={totalDocs} 
-          subtitle="Documentos Indexados" 
+        <MetricCard
+          title="Base de Conhecimento"
+          value={totalDocs}
+          subtitle="Documentos Indexados"
           icon={<Database className="h-6 w-6 text-blue-500" />}
           color="bg-blue-50"
         />
-        <MetricCard 
-          title="Tokens Consumidos" 
-          value={(totalPrompt + totalCompletion).toLocaleString()} 
-          subtitle="Prompt + Resposta" 
+        <MetricCard
+          title="Tokens Consumidos"
+          value={totalTokens.toLocaleString()}
+          subtitle="Top 10 Usuários"
           icon={<Cpu className="h-6 w-6 text-primary" />}
           color="bg-primary/5"
         />
-        <MetricCard 
-          title="Usuários Ativos (Motor)" 
-          value={usageData.length} 
-          subtitle="Engajamento Semanal" 
+        <MetricCard
+          title="Usuários Ativos (Motor)"
+          value={usageData.length}
+          subtitle="Engajamento Semanal"
           icon={<Users className="h-6 w-6 text-emerald-500" />}
           color="bg-emerald-50"
         />
@@ -114,19 +101,19 @@ export function IntelligenceHubMonitor() {
             <CardContent className="p-10">
                <div className="space-y-6">
                   {usageData.map((u, idx) => (
-                    <div key={u.id} className="group p-5 bg-slate-50 hover:bg-white hover:shadow-lg rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
+                    <div key={u.userId} className="group p-5 bg-slate-50 hover:bg-white hover:shadow-lg rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
                        <div className="flex items-center gap-4">
                           <span className="text-[10px] font-black text-slate-300">#0{idx + 1}</span>
                           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-900 font-black italic">
-                             {u.userId.substring(0, 2).toUpperCase()}
+                             {(u.userName || u.userId).substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                             <p className="text-[11px] font-black uppercase text-slate-900 leading-none truncate w-32">{u.userId}</p>
-                             <p className="text-[9px] font-medium text-slate-400 mt-1 uppercase tracking-widest">Ativo em: {u.lastActive?.toDate ? u.lastActive.toDate().toLocaleDateString('pt-BR') : 'Recentemente'}</p>
+                             <p className="text-[11px] font-black uppercase text-slate-900 leading-none truncate w-32">{u.userName || u.userId}</p>
+                             <p className="text-[9px] font-medium text-slate-400 mt-1 uppercase tracking-widest">Ativo em: {u.updatedAt ? new Date(u.updatedAt).toLocaleDateString('pt-BR') : 'Recentemente'}</p>
                           </div>
                        </div>
                        <div className="text-right">
-                          <p className="text-lg font-black italic text-primary leading-none">{(u.totalPromptTokens + u.totalCompletionTokens).toLocaleString()}</p>
+                          <p className="text-lg font-black italic text-primary leading-none">{u.totalTokens.toLocaleString()}</p>
                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] mt-1">TOKENS</p>
                        </div>
                     </div>
@@ -149,7 +136,7 @@ export function IntelligenceHubMonitor() {
                         <Badge className="bg-emerald-500/10 text-emerald-400 border-none mt-2 font-black uppercase text-[8px] tracking-widest">Motor Ativo - Online</Badge>
                      </div>
                   </div>
-                  
+
                   <div className="space-y-6">
                      <HealthRow label="Latência do Assistente" value="~1.2s" status="optimal" />
                      <HealthRow label="Assertividade de Respostas" value="> 98%" status="optimal" />

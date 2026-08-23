@@ -6,7 +6,7 @@ import {
   CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +37,7 @@ import { showcaseApi } from '../api';
 export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { user } = useFirebase();
+  const { session: authSession } = useAuth();
   const { userProfile } = useUserContext();
   const { toast } = useToast();
 
@@ -233,12 +233,12 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       status: 'In Progress',
       priority: 'Medium',
       points: 0,
-      assignee: user?.displayName || userProfile?.name || '',
+      assignee: authSession?.name || userProfile?.name || '',
       url: '',
       evidence: {
         problem: '',
         solution: '',
-        dev: user?.displayName || userProfile?.name || '',
+        dev: authSession?.name || userProfile?.name || '',
         qa: '',
         screenshot: '',
         video: '',
@@ -406,8 +406,8 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       feedback,
       approvedAt: decision === 'approved' ? now : undefined,
       decidedAt: now,
-      decidedBy: user?.uid || '',
-      decidedByName: userProfile?.name || user?.displayName || user?.email || '',
+      decidedBy: authSession?.id || '',
+      decidedByName: userProfile?.name || authSession?.name || authSession?.email || '',
     });
     if (currentIndex < filteredTasks.length - 1) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);

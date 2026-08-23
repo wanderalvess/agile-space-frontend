@@ -27,8 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ShowcaseSession, ShowcaseTask } from './types';
-import { useFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { showcaseApi } from '@/app/showcase/api';
 
 interface ShowcaseDashboardProps {
   sessions: ShowcaseSession[];
@@ -48,7 +47,6 @@ export function ShowcaseDashboard({
   isCreating
 }: ShowcaseDashboardProps) {
   const router = useRouter();
-  const { firestore } = useFirebase();
 
   // Local state for join room ID
   const [joinId, setJoinId] = useState('');
@@ -61,10 +59,10 @@ export function ShowcaseDashboard({
     || Array(CHECKLIST_LENGTH).fill(false);
 
   const toggleChecklistItem = (index: number) => {
-    if (!firestore || !lastSessionForChecklist) return;
+    if (!lastSessionForChecklist) return;
     const updated = [...checklist];
     updated[index] = !updated[index];
-    updateDoc(doc(firestore, 'showcase_sessions', lastSessionForChecklist.id), { readinessChecklist: updated }).catch(e => {
+    showcaseApi.saveSession({ ...lastSessionForChecklist, readinessChecklist: updated }).catch(e => {
       console.error('Error saving checklist state', e);
     });
   };
@@ -512,8 +510,8 @@ export function ShowcaseDashboard({
                         <div className="flex items-center gap-1 text-[10px] text-slate-400">
                           <CalendarDays className="h-3.5 w-3.5" />
                           <span>
-                            {session.createdAt?.toDate 
-                              ? formatDistanceToNow(session.createdAt.toDate(), { addSuffix: true, locale: ptBR })
+                            {session.createdAt
+                              ? formatDistanceToNow(new Date(session.createdAt), { addSuffix: true, locale: ptBR })
                               : 'Recentemente'
                             }
                           </span>

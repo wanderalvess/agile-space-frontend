@@ -5,6 +5,13 @@ export interface AdminStats {
   totalVaultSecrets: number;
   totalFocusSessions: number;
   totalKanbanCards: number;
+  totalReleases: number;
+  totalPokerRooms: number;
+  totalRetroBoards: number;
+  totalSprintPlannings: number;
+  totalHealthCheckBoards: number;
+  totalBrainstormingBoards: number;
+  totalDailyCheckins: number;
 }
 
 export interface Announcement {
@@ -84,5 +91,22 @@ export const adminApi = {
 
   async getSessions(): Promise<any[]> {
     return req<any[]>('/admin/sessions');
+  }
+};
+
+// Lidos antes do login (branding, banner de anúncio) — sem JWT, isento do
+// gate de role=ADMIN que protege /admin/*. Usa fetch puro (não authFetch)
+// porque essas telas rodam acima do AuthProvider na árvore de providers.
+export const publicApi = {
+  async getSystemConfig(): Promise<Record<string, string>> {
+    const res = await fetch(`${API_BASE_URL}/public/system-config`);
+    if (!res.ok) throw new Error(`Public config error ${res.status}`);
+    return res.json();
+  },
+
+  async getAnnouncements(): Promise<Announcement[]> {
+    const res = await fetch(`${API_BASE_URL}/public/announcements`);
+    if (!res.ok) throw new Error(`Public announcements error ${res.status}`);
+    return res.json();
   }
 };

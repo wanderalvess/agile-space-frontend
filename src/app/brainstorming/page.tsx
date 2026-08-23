@@ -15,7 +15,6 @@ import {
   BarChart3,
   ListTodo
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { brainstormingApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -37,7 +36,6 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function BrainstormingHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -54,7 +52,7 @@ export default function BrainstormingHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -66,7 +64,7 @@ export default function BrainstormingHubPage() {
   const handleCreate = async () => {
     if (isCreating) return;
 
-    if (!user || !user.uid) {
+    if (!userProfile || !userProfile.id) {
       console.error("[brainstorming] Criar sala abortado: usuário sem ID.");
       toast({
         title: "Perfil Não Identificado",
@@ -88,14 +86,14 @@ export default function BrainstormingHubPage() {
     setIsCreating(true);
 
     const newBoard = {
-      creatorId: user.uid,
+      creatorId: userProfile.id,
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
       phase: 'ideation' as const,
       settings: { isAnonymous: false },
       timer: { status: 'stopped', endTime: null, initialDuration: 600, remainingOnPause: 600 },
-      participantIds: [user.uid]
+      participantIds: [userProfile.id]
     };
 
     try {
@@ -181,7 +179,7 @@ export default function BrainstormingHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);

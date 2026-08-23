@@ -1,13 +1,13 @@
 "use client";
 
 import React from 'react';
-import { 
-  Trash2, 
-  RotateCcw, 
-  Trash, 
-  History, 
-  FileText, 
-  Database, 
+import {
+  Trash2,
+  RotateCcw,
+  Trash,
+  History,
+  FileText,
+  Database,
   Clock,
   ArrowLeft,
   ShieldAlert,
@@ -15,8 +15,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { knowledgeApi } from '@/app/knowledge/api';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -26,14 +26,16 @@ import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 
 export default function TrashPage() {
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = React.useState("");
+  const [trashDocs, setTrashDocs] = React.useState<KnowledgeDocument[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const formatDocDate = (dateVal: any) => {
     if (!dateVal) return '---';
     try {
-      const date = dateVal.toDate ? dateVal.toDate() : new Date(dateVal);
+      const date = new Date(dateVal);
       if (isNaN(date.getTime())) return '---';
       return formatDistanceToNow(date, { locale: ptBR, addSuffix: true });
     } catch (e) {
@@ -41,55 +43,65 @@ export default function TrashPage() {
     }
   };
 
-  const trashQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'knowledge_kb'), orderBy('updatedAt', 'desc'));
-  }, [firestore, user]);
+  const fetchTrash = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await knowledgeApi.listDocuments(undefined, undefined, 0, 100, 'deleted');
+      setTrashDocs(res.content || []);
+    } catch (error) {
+      toast.error("Erro ao carregar a lixeira.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-  const { data: allDocs, isLoading } = useCollection<KnowledgeDocument>(trashQuery);
-  const trashDocs = allDocs?.filter(d => d.status === 'trash') || [];
-  
-  const filteredTrash = trashDocs.filter(d => 
+  React.useEffect(() => {
+    fetchTrash();
+  }, [fetchTrash]);
+
+  const filteredTrash = trashDocs.filter(d =>
     d.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleRestore = async (id: string) => {
-    if (!firestore) return;
+  const handleRestore = async (docItem: KnowledgeDocument) => {
     try {
-      await updateDoc(doc(firestore, 'knowledge_kb', id), {
-        status: 'indexed',
-        updatedAt: serverTimestamp(),
-        deletedAt: null,
-        deletedBy: null
+      // O endpoint PUT substitui o documento inteiro (não é um PATCH parcial),
+      // então reenviamos o registro completo só com o status alterado —
+      // mandar apenas { status } apagaria título/conteúdo/tags no backend.
+      await knowledgeApi.updateDocument(docItem.id, {
+        ...docItem,
+        status: 'published',
+        updatedBy: session?.id,
       });
+      setTrashDocs(prev => prev.filter(d => d.id !== docItem.id));
       toast.success("Documento restaurado com sucesso!");
     } catch (error) {
       toast.error("Erro ao restaurar.");
     }
   };
 
-  const handlePermanentDelete = async (id: string) => {
-    if (!firestore || !window.confirm("Esta ação é irreversível. Deseja realmente excluir permanentemente?")) return;
-    try {
-      await deleteDoc(doc(firestore, 'knowledge_kb', id));
-      toast.success("Documento excluído permanentemente.");
-    } catch (error) {
-      toast.error("Erro ao excluir permanentemente.");
-    }
+  // ATENÇÃO — gap de backend: o endpoint DELETE /api/knowledge/{id} faz apenas
+  // soft-delete (seta status="deleted"). Não existe endpoint de hard-delete.
+  // Chamá-lo novamente aqui num documento que já está com status="deleted" não
+  // teria efeito real (nenhuma exclusão definitiva ocorre), então o botão fica
+  // desabilitado até que um endpoint de exclusão definitiva seja definido no
+  // backend, em vez de fingir uma ação que não acontece de verdade.
+  const handlePermanentDelete = (id: string) => {
+    toast.info("Exclusão permanente ainda não é suportada pelo backend — apenas a exclusão reversível (lixeira) está disponível no momento.");
   };
 
   return (
     <div className="px-4 md:px-10 lg:px-16 pt-4 lg:pt-6 pb-12 max-w-[1600px] mx-auto animate-in fade-in duration-700 bg-transparent min-h-full relative overflow-hidden">
        {/* Glow ambient background effects matching KB/Admin page */}
        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-rose-100 dark:bg-rose-950/20 rounded-full blur-[120px] pointer-events-none -z-10" />
-       
+
        <div className="space-y-6 md:space-y-8 relative z-10">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
              <div className="space-y-3">
-                <Button 
-                 variant="ghost" 
-                 onClick={() => router.back()} 
+                <Button
+                 variant="ghost"
+                 onClick={() => router.back()}
                  className="gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100 -ml-4 text-xs font-bold uppercase tracking-wider"
                 >
                    <ArrowLeft className="h-4 w-4" /> Voltar ao Painel
@@ -111,8 +123,8 @@ export default function TrashPage() {
 
              <div className="relative w-full md:w-80">
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-rose-500 transition-colors" />
-                 <Input 
-                   placeholder="Localizar na lixeira..." 
+                 <Input
+                   placeholder="Localizar na lixeira..."
                    className="pl-12 w-full h-11 rounded-xl bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 shadow-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-rose-500 transition-all"
                    value={searchTerm}
                    onChange={(e) => setSearchTerm(e.target.value)}
@@ -152,17 +164,18 @@ export default function TrashPage() {
                      </div>
 
                      <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                         <Button 
-                           variant="outline" 
-                           onClick={() => handleRestore(docItem.id)}
+                         <Button
+                           variant="outline"
+                           onClick={() => handleRestore(docItem)}
                            className="h-9 px-4 rounded-xl border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-300 font-black uppercase text-[8px] tracking-wider gap-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-500/20 shadow-none transition-all"
                          >
                             <RotateCcw className="h-3.5 w-3.5" /> Restaurar
                          </Button>
-                         <Button 
-                           variant="ghost" 
+                         <Button
+                           variant="ghost"
                            onClick={() => handlePermanentDelete(docItem.id)}
-                           className="h-9 w-9 rounded-xl text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-none transition-all"
+                           title="Exclusão permanente ainda não suportada pelo backend"
+                           className="h-9 w-9 rounded-xl text-slate-300 dark:text-slate-700 hover:text-rose-600 dark:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-none transition-all cursor-not-allowed"
                          >
                             <Trash2 className="h-4 w-4" />
                          </Button>
@@ -179,7 +192,7 @@ export default function TrashPage() {
              </div>
              <h4 className="text-sm font-black uppercase italic tracking-tighter text-rose-600 dark:text-rose-500 leading-none">Aviso Estrutural</h4>
              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 max-w-4xl leading-relaxed uppercase tracking-wider">
-                Documentos em estado de descarte são mantidos por 30 dias antes da purga automática. 
+                Documentos em estado de descarte são mantidos por 30 dias antes da purga automática.
                 A restauração recupera todos os metadados técnicos originais.
              </p>
           </div>

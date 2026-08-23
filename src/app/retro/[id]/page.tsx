@@ -4,8 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useMemo, useEffect, useCallback, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useAuth } from '@/context/AuthContext';
 import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, TimerState, RetroParticipant, TeamRole, GlobalRole } from '@/lib/types';
 import { RETRO_TEMPLATES } from '@/lib/types';
 import { RetroBoard } from '@/components/retro/RetroBoard';
@@ -25,7 +24,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   
   const router = useRouter();
   const { toast } = useToast();
-  const { user, isUserLoading } = useFirebase();
+  const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   const [boardData, setBoardData] = useState<RetroBoardType | null>(null);
@@ -41,8 +40,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
-  const currentUser = useMemo(() => participants?.find(p => p.id === user?.uid) || null, [participants, user]);
-  const isCurrentUserCreator = useMemo(() => !!(user && boardData && user.uid === boardData.creatorId), [user, boardData]);
+  const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile]);
+  const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
 
   const [showStats, setShowStats] = useState(true);
 
@@ -52,7 +51,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   // Centralized data loading
   const reloadBoardData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated) return;
     try {
       const [board, cardsList, participantsList] = await Promise.all([
         retroApi.getBoard(boardId),
@@ -69,11 +68,11 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       setAreCardsLoading(false);
       setAreParticipantsLoading(false);
     }
-  }, [boardId, user]);
+  }, [boardId, isAuthenticated]);
 
   // Initial load and WebSocket connection
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated) return;
 
     reloadBoardData();
 
@@ -167,7 +166,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     return () => {
       socket.close();
     };
-  }, [boardId, user, reloadBoardData]);
+  }, [boardId, isAuthenticated, reloadBoardData]);
 
   // Listener para cancelar merge com ESC
   useEffect(() => {
@@ -217,16 +216,10 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId]);
 
   useEffect(() => {
-    if (!isUserLoading && !userProfile) {
+    if (!isLoading && !userProfile) {
       requestIdentity();
     }
-  }, [isUserLoading, userProfile, requestIdentity]);
-
-  useEffect(() => {
-    if (!isUserLoading && !user && !userProfile) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [isUserLoading, user, auth, userProfile]);
+  }, [isLoading, userProfile, requestIdentity]);
 
   // Mapeamento de Papel Global para Papel de Retro/Health
   const mapGlobalToTeamRole = (role: GlobalRole): TeamRole => {
@@ -260,35 +253,35 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     // Sincronização automática com a identidade global
-    if (user && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined) {
+    if (isAuthenticated && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined) {
       const newParticipant: RetroParticipant = {
-        id: user.uid,
+        id: userProfile.id,
         boardId: boardId,
         nickname: userProfile.name,
         role: mapGlobalToTeamRole(userProfile.role),
         globalRole: userProfile.role,
-        isCreator: user.uid === boardData.creatorId,
+        isCreator: userProfile.id === boardData.creatorId,
       };
 
       retroApi.addOrUpdateParticipant(boardId, newParticipant).then(() => {
         // Registrar ID no boardData localmente e no servidor se for novo
         const currentParticipantIds = boardData.participantIds || [];
-        if (!currentParticipantIds.includes(user.uid)) {
+        if (!currentParticipantIds.includes(userProfile.id)) {
           retroApi.saveOrUpdateBoard({
             ...boardData,
-            participantIds: [...currentParticipantIds, user.uid]
+            participantIds: [...currentParticipantIds, userProfile.id]
           });
         }
       }).catch(err => {
         console.error("Erro ao registrar participante:", err);
       });
     }
-  }, [user, boardData, userProfile, currentUser, areParticipantsLoading, boardId, hasJoined]);
+  }, [isAuthenticated, boardData, userProfile, currentUser, areParticipantsLoading, boardId, hasJoined]);
 
   // 3.1 SINCRONIZAÇÃO DE PERFIL
   const lastSyncedProfileRef = useRef<{ name: string; role: string } | null>(null);
   useEffect(() => {
-    if (!user || !userProfile || !boardId || !currentUser) return;
+    if (!isAuthenticated || !userProfile || !boardId || !currentUser) return;
 
     if (lastSyncedProfileRef.current && lastSyncedProfileRef.current.name === userProfile.name && lastSyncedProfileRef.current.role === userProfile.role) return;
 
@@ -307,7 +300,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     } else {
       lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role };
     }
-  }, [user, userProfile, boardId, currentUser]);
+  }, [isAuthenticated, userProfile, boardId, currentUser]);
 
   useEffect(() => {
     setHasJoined(!!currentUser);
@@ -341,7 +334,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   };
 
   const handleAddCard = useCallback((content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => {
-    if (!user || !boardId) return;
+    if (!isAuthenticated || !userProfile || !boardId) return;
 
     const tempId = `temp-${Date.now()}`;
     const newCard: RetroCardType = {
@@ -349,7 +342,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       boardId,
       columnKey,
       content,
-      authorId: user.uid,
+      authorId: userProfile.id,
       votes: [],
       order: Date.now(),
       assignee,
@@ -363,7 +356,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       boardId,
       columnKey,
       content,
-      authorId: user.uid,
+      authorId: userProfile.id,
       votes: [],
       order: newCard.order,
       assignee: assignee || undefined,
@@ -372,7 +365,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       console.error(err);
       if (cards) setOptimisticCards(cards);
     });
-  }, [user, boardId, cards]);
+  }, [isAuthenticated, userProfile, boardId, cards]);
   
   const handleDeleteCard = useCallback((cardId: string) => {
     if (!boardId) return;
@@ -420,19 +413,19 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardData]);
   
   const handleToggleVote = useCallback((cardId: string, currentVotes: string[]) => {
-    if (!boardId || !user || !cards) return;
+    if (!boardId || !isAuthenticated || !userProfile || !cards) return;
     const current = cards.find(c => c.id === cardId);
     if (!current) return;
 
-    const newVotes = currentVotes.includes(user.uid)
-      ? currentVotes.filter(uid => uid !== user.uid)
-      : [...currentVotes, user.uid];
-      
+    const newVotes = currentVotes.includes(userProfile.id)
+      ? currentVotes.filter(uid => uid !== userProfile.id)
+      : [...currentVotes, userProfile.id];
+
     retroApi.saveOrUpdateCard(boardId, {
       ...current,
       votes: newVotes
     }).catch(err => console.error(err));
-  }, [boardId, user, cards]);
+  }, [boardId, isAuthenticated, userProfile, cards]);
 
   const handleToggleActionDone = useCallback((cardId: string, isDone: boolean) => {
     if (!boardId || !cards) return;
@@ -450,7 +443,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId, cards]);
 
   const handleImportActions = useCallback(async (sourceBoard: RetroBoardType, pendingCards: RetroCardType[]) => {
-    if (!boardId || !user || !boardData || pendingCards.length === 0) return;
+    if (!boardId || !isAuthenticated || !userProfile || !boardData || pendingCards.length === 0) return;
 
     const destColumns = boardData.columns && boardData.columns.length > 0 ? boardData.columns : RETRO_TEMPLATES.classic;
     const destActionColumn = destColumns.find(c => c.theme === 'action');
@@ -472,7 +465,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           boardId,
           columnKey: destActionColumn.id,
           content: sourceCard.content,
-          authorId: user.uid,
+          authorId: userProfile.id,
           votes: [],
           order,
           assignee: sourceCard.assignee || undefined,
@@ -499,7 +492,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         variant: "destructive"
       });
     }
-  }, [boardId, user, boardData, cards, toast]);
+  }, [boardId, isAuthenticated, userProfile, boardData, cards, toast]);
 
   const handleMergeCards = useCallback(async (sourceId: string, targetId: string) => {
     if (!boardId || !cards || !boardData) return;
@@ -664,13 +657,13 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId, boardData, toast]);
 
   const handleClaimCreator = useCallback(() => {
-    if (!boardData || !user || !participants) return;
-    
+    if (!boardData || !isAuthenticated || !userProfile || !participants) return;
+
     retroApi.saveOrUpdateBoard({
       ...boardData,
-      creatorId: user.uid
+      creatorId: userProfile.id
     }).then(async () => {
-      const p = participants.find(part => part.id === user.uid);
+      const p = participants.find(part => part.id === userProfile.id);
       if (p) {
         await retroApi.addOrUpdateParticipant(boardId, { ...p, isCreator: true });
       }
@@ -687,7 +680,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         variant: "destructive"
       });
     });
-  }, [boardData, user, participants, userProfile, toast, boardId]);
+  }, [boardData, isAuthenticated, userProfile, participants, toast, boardId]);
 
   const handleLeaveRoom = () => {
     if (!currentUser) return;
@@ -807,7 +800,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }).catch(err => console.error(err));
   }, [boardData]);
 
-  if (isUserLoading || isInitializing || isBoardLoading || areCardsLoading || areParticipantsLoading || !user || !userProfile) {
+  if (isLoading || isInitializing || isBoardLoading || areCardsLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
     if (!userProfile) {
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar no quadro" />;
     }
@@ -832,8 +825,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         boardData={boardData}
         cards={optimisticCards}
         participants={participants || []}
-        currentUserId={user.uid}
-        currentUser={user}
+        currentUserId={userProfile.id}
+        currentUser={{ uid: userProfile.id }}
         currentParticipant={currentUser}
         isCurrentUserCreator={isCurrentUserCreator}
         isAuthorsRevealed={boardData.isAuthorsRevealed === true}

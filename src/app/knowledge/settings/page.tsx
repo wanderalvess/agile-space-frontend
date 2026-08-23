@@ -24,42 +24,33 @@ import {
   History
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { knowledgeChatApi, KnowledgeTokenUsageDTO } from '../chat/api';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function KnowledgeSettingsPage() {
-  const { firestore, user } = useFirebase();
-  const [config, setConfig] = useState({
-    geminiKey: "",
-    openaiKey: "",
-    anthropicKey: ""
-  });
+  const { session } = useAuth();
+  const [model, setModel] = useState('');
+  const [byokApiKey, setByokApiKey] = useState('');
 
-  const [usage, setUsage] = useState<any>(null);
-  const [showKeys, setShowKeys] = useState<{ [key: string]: boolean }>({});
+  const [usage, setUsage] = useState<KnowledgeTokenUsageDTO | null>(null);
+  const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Carregar chaves de API
+  // Carregar configurações de IA (modelo + chave BYOK)
   useEffect(() => {
     async function loadConfig() {
-      if (!firestore || !user) return;
+      if (!session) return;
       setIsLoading(true);
       try {
-        const configDoc = await getDoc(doc(firestore, 'knowledge_user_configs', user.uid, 'ai', 'settings'));
-        if (configDoc.exists()) {
-          const data = configDoc.data();
-          setConfig({
-            geminiKey: data.apiKey || data.geminiKey || "",
-            openaiKey: data.openaiKey || "",
-            anthropicKey: data.anthropicKey || ""
-          });
-        }
+        const settings = await knowledgeChatApi.getAiSettings();
+        setModel(settings.model || '');
+        setByokApiKey(settings.byokApiKey || '');
       } catch (e) {
         console.error("Erro ao carregar config:", e);
       } finally {
@@ -67,31 +58,28 @@ export default function KnowledgeSettingsPage() {
       }
     }
     loadConfig();
-  }, [firestore, user]);
+  }, [session]);
 
-  // Monitorar consumo de tokens em tempo real
+  // Consumo de tokens: busca única no carregamento (sem realtime — decisão de produto).
   useEffect(() => {
-    if (!firestore || !user) return;
-    const unsub = onSnapshot(doc(firestore, 'knowledge_token_usage', user.uid), (doc) => {
-      if (doc.exists()) {
-        setUsage(doc.data());
+    async function loadUsage() {
+      if (!session) return;
+      try {
+        const data = await knowledgeChatApi.getTokenUsage();
+        setUsage(data);
+      } catch (e) {
+        console.error("Erro ao carregar consumo de tokens:", e);
       }
-    });
-    return () => unsub();
-  }, [firestore, user]);
+    }
+    loadUsage();
+  }, [session]);
 
   const handleSave = async () => {
-    if (!firestore || !user) return;
+    if (!session) return;
     setIsSaving(true);
     try {
-      await setDoc(doc(firestore, 'knowledge_user_configs', user.uid, 'ai', 'settings'), {
-        apiKey: config.geminiKey,
-        geminiKey: config.geminiKey,
-        openaiKey: config.openaiKey,
-        anthropicKey: config.anthropicKey,
-        updatedAt: serverTimestamp(),
-      }, { merge: true });
-      toast({ title: "Chaves de API Atualizadas!", description: "Suas chaves de acesso foram sincronizadas com segurança." });
+      await knowledgeChatApi.saveAiSettings({ model, byokApiKey });
+      toast({ title: "Chave de API Atualizada!", description: "Sua chave de acesso foi sincronizada com segurança." });
     } catch (e) {
       toast({ title: "Erro ao salvar", description: "Falha na sincronização.", variant: "destructive" });
     } finally {
@@ -100,13 +88,10 @@ export default function KnowledgeSettingsPage() {
   };
 
   const providers = [
-    { id: 'gemini', name: 'Google Gemini', keyField: 'geminiKey', icon: Sparkles, color: 'cyan', link: 'https://aistudio.google.com/app/apikey', placeholder: 'AIzaSy...' },
-    { id: 'openai', name: 'OpenAI GPT-4o', keyField: 'openaiKey', icon: Zap, color: 'emerald', link: 'https://platform.openai.com/api-keys', placeholder: 'sk-proj-...' },
-    { id: 'anthropic', name: 'Anthropic Claude', keyField: 'anthropicKey', icon: Brain, color: 'amber', link: 'https://console.anthropic.com/settings/keys', placeholder: 'sk-ant-...' }
+    { id: 'gemini', name: 'Google Gemini', modelValue: 'gemini', icon: Sparkles, color: 'cyan', link: 'https://aistudio.google.com/app/apikey', placeholder: 'AIzaSy...' },
+    { id: 'openai', name: 'OpenAI GPT-4o', modelValue: 'openai', icon: Zap, color: 'emerald', link: 'https://platform.openai.com/api-keys', placeholder: 'sk-proj-...' },
+    { id: 'anthropic', name: 'Anthropic Claude', modelValue: 'anthropic', icon: Brain, color: 'amber', link: 'https://console.anthropic.com/settings/keys', placeholder: 'sk-ant-...' }
   ];
-
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
-  const monthlyData = usage?.history?.[currentMonthKey] || { promptTokens: 0, candidateTokens: 0 };
 
   return (
     <div className="px-10 lg:px-16 py-4 lg:py-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full bg-white dark:bg-slate-950 pb-32">
@@ -116,7 +101,7 @@ export default function KnowledgeSettingsPage() {
                Configurações da <span className="text-cyan-600 not-italic">Plataforma</span>
             </h1>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium max-w-lg leading-relaxed uppercase tracking-wide">
-               Gerencie chaves de API e monitore o consumo de tokens dos motores.
+               Gerencie sua chave de API e monitore o consumo de tokens do motor.
             </p>
          </div>
          <div className="flex items-center gap-3">
@@ -131,36 +116,51 @@ export default function KnowledgeSettingsPage() {
           {isLoading ? (
             <div className="py-40 flex flex-col items-center justify-center gap-6 bg-slate-50 dark:bg-slate-900/40 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800">
               <EliteSpinner size="lg" variant="indigo" />
-              <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Recuperando Chaves Cifradas...</span>
+              <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Recuperando Chave Cifrada...</span>
             </div>
-          ) : providers.map((provider) => (
-            <div key={provider.id} className="p-6 bg-slate-50 dark:bg-slate-900/40 border-2 border-slate-100 dark:border-slate-800 rounded-[2rem] space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shadow-lg", provider.id === 'gemini' ? "bg-slate-900 dark:bg-slate-950 text-cyan-400" : "bg-emerald-900 text-white")}>
-                      <provider.icon className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 italic leading-none">{provider.name}</h3>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-1 italic">Canal Ativo</p>
-                    </div>
-                  </div>
-                  <a href={provider.link} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase tracking-widest text-cyan-600 flex items-center gap-1">Obter Chave <ExternalLink className="h-3 w-3" /></a>
+          ) : (
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/40 border-2 border-slate-100 dark:border-slate-800 rounded-[2rem] space-y-6">
+              <div className="space-y-3">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-1">Motor Preferido</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {providers.map((provider) => (
+                    <button
+                      key={provider.id}
+                      onClick={() => setModel(provider.modelValue)}
+                      className={cn(
+                        "p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all",
+                        model === provider.modelValue
+                          ? "border-slate-900 dark:border-slate-100 bg-white dark:bg-slate-900 shadow-lg"
+                          : "border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700"
+                      )}
+                    >
+                      <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shadow-lg", provider.id === 'gemini' ? "bg-slate-900 dark:bg-slate-950 text-cyan-400" : "bg-emerald-900 text-white")}>
+                        <provider.icon className="h-6 w-6" />
+                      </div>
+                      <h3 className="text-[11px] font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 text-center leading-tight">{provider.name}</h3>
+                      <a href={provider.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[8px] font-black uppercase tracking-widest text-cyan-600 flex items-center gap-1">Obter Chave <ExternalLink className="h-3 w-3" /></a>
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-1">Chave de API (BYOK)</p>
                 <div className="relative">
                   <Input
-                    type={showKeys[provider.id] ? "text" : "password"}
-                    value={config[provider.keyField as keyof typeof config]}
-                    onChange={(e) => setConfig({ ...config, [provider.keyField]: e.target.value })}
-                    placeholder={provider.placeholder}
+                    type={showKey ? "text" : "password"}
+                    value={byokApiKey}
+                    onChange={(e) => setByokApiKey(e.target.value)}
+                    placeholder="Cole sua chave de API aqui..."
                     className="h-12 pl-4 pr-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-mono text-sm text-slate-900 dark:text-slate-100 shadow-inner"
                   />
-                  <button onClick={() => setShowKeys(prev => ({ ...prev, [provider.id]: !prev[provider.id] }))} className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
-                    {showKeys[provider.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  <button onClick={() => setShowKey(prev => !prev)} className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
+                    {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+              </div>
             </div>
-          ))}
+          )}
         </div>
 
         <div className="lg:col-span-4 space-y-6">
@@ -169,7 +169,7 @@ export default function KnowledgeSettingsPage() {
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-1000">
               <Activity className="h-32 w-32 text-cyan-400" />
             </div>
-            
+
             <div className="space-y-2 relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full mb-4">
                  <Coins className="h-3.5 w-3.5" />
@@ -182,31 +182,13 @@ export default function KnowledgeSettingsPage() {
             <div className="space-y-8 relative z-10">
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-1">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Entrada (Perguntas)</p>
-                   <p className="text-sm font-black italic">{(usage?.totalPromptTokens ?? 0).toLocaleString()} <span className="text-[9px] not-italic opacity-40 ml-1">TK</span></p>
+                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Consumido</p>
+                   <p className="text-sm font-black italic">{(usage?.totalTokens ?? 0).toLocaleString()} <span className="text-[9px] not-italic opacity-40 ml-1">TK</span></p>
                 </div>
-                <div className="flex items-center justify-between px-1">
-                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saída (Respostas)</p>
-                   <p className="text-sm font-black italic">{(usage?.totalCompletionTokens ?? 0).toLocaleString()} <span className="text-[9px] not-italic opacity-40 ml-1">TK</span></p>
-                </div>
-              </div>
-
-              <div className="pt-8 border-t border-white/10 space-y-4">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-cyan-400">Atividade este Mês</p>
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                        <p className="text-[12px] font-black">{(monthlyData?.promptTokens ?? 0).toLocaleString()}</p>
-                        <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Prompt</p>
-                    </div>
-                    <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-                        <p className="text-[12px] font-black font-headline text-cyan-400">{(monthlyData?.completionTokens ?? 0).toLocaleString()}</p>
-                        <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Completion</p>
-                    </div>
-                 </div>
               </div>
 
               <div className="flex items-center gap-3 text-[9px] font-black uppercase text-slate-500 italic mt-6">
-                 <History className="h-4 w-4" /> Último pulso: {usage?.lastActive ? formatDistanceToNow(usage.lastActive.toDate(), { locale: ptBR, addSuffix: true }) : '---'}
+                 <History className="h-4 w-4" /> Último pulso: {usage?.updatedAt ? formatDistanceToNow(new Date(usage.updatedAt), { locale: ptBR, addSuffix: true }) : '---'}
               </div>
             </div>
           </Card>
@@ -217,7 +199,7 @@ export default function KnowledgeSettingsPage() {
                <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100">Sobre o Consumo</h4>
             </div>
             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 leading-relaxed uppercase">
-              O monitoramento de tokens auxilia no controle de custos de sua chave BYOK. Os valores são atualizados em tempo real a cada interação com o Assistente de Agilidade.
+              O monitoramento de tokens auxilia no controle de custos de sua chave BYOK. Os valores são atualizados a cada interação com o Assistente de Agilidade.
             </p>
           </div>
         </div>

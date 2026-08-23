@@ -32,7 +32,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
-import { User } from 'firebase/auth';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -45,7 +44,9 @@ interface RetroCardProps {
   onUpdate: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
-  currentUser: User;
+  // Antes vinha tipado como `User` do firebase/auth; só o `uid` é lido aqui,
+  // então um shape mínimo evita a dependência de um SDK que não existe mais.
+  currentUser: { uid: string };
   votingStatus: 'disabled' | 'active' | 'finished';
   participants: RetroParticipant[];
   isAuthorsRevealed: boolean;

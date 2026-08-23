@@ -6,6 +6,25 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+// Raw backend shape for /api/squads/{squadId}/panels — deliberately NOT the
+// rich `SquadPanel` type from '@/lib/types' (that one models the UI's JQL
+// panel domain: chartType/groupBy/aggregateMetric/resultRows/etc). The
+// backend entity only knows name/type/config(opaque TEXT)/visibility; the
+// store is responsible for packing/unpacking the richer shape into `config`.
+export interface SquadPanelRecord {
+  id: string;
+  squadId: string;
+  ownerId: string;
+  name: string;
+  type: string;
+  config: string;
+  visibility: 'PRIVATE' | 'SQUAD';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SquadPanelWritableFields = Pick<SquadPanelRecord, 'name' | 'type' | 'config' | 'visibility'>;
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -134,5 +153,26 @@ export const squadApi = {
 
   async deleteWorklogCacheEntry(squadId: string, jiraKey: string): Promise<void> {
     return req<void>(`/squads/${squadId}/worklog-cache/${encodeURIComponent(jiraKey)}`, { method: 'DELETE' });
+  },
+
+  // ----- Panels (ad-hoc JQL dashboard widgets) -----
+  // Shape mirrors the backend entity 1:1 — `config` is an opaque TEXT/JSON
+  // blob the caller owns (see useSquadPanelsStore for the rich domain shape
+  // it packs in/out of that string). `ownerId` is never sent on create; the
+  // backend stamps it from the JWT.
+  async listPanels(squadId: string): Promise<SquadPanelRecord[]> {
+    return req<SquadPanelRecord[]>(`/squads/${squadId}/panels`);
+  },
+
+  async createPanel(squadId: string, data: SquadPanelWritableFields): Promise<SquadPanelRecord> {
+    return req<SquadPanelRecord>(`/squads/${squadId}/panels`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async updatePanel(squadId: string, panelId: string, data: Partial<SquadPanelWritableFields>): Promise<SquadPanelRecord> {
+    return req<SquadPanelRecord>(`/squads/${squadId}/panels/${panelId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  async deletePanel(squadId: string, panelId: string): Promise<void> {
+    return req<void>(`/squads/${squadId}/panels/${panelId}`, { method: 'DELETE' });
   },
 };

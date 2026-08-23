@@ -383,7 +383,7 @@ export default function DailyTimesheet() {
             else if (jDisplayName && authorDisplay === jDisplayName) isUserLog = true;
             else if (jDisplayName && matchesNameFuzzy(authorDisplay, jDisplayName)) isUserLog = true;
           } else {
-            // Fallback usando o perfil local / Firebase
+            // Fallback usando o perfil local
             if (profJiraId && (authorId === profJiraId || authorUsername === profJiraId || authorKey === profJiraId)) {
               isUserLog = true;
             } else if (profEmail && authorEmail === profEmail) {

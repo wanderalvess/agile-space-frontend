@@ -86,5 +86,12 @@ export const dailyFlowApi = {
     });
     if (!res.ok) throw new Error('Falha ao salvar daily report');
     return res.json();
+  },
+
+  async deleteDailyReport(id: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/daily/reports/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Falha ao excluir daily report');
   }
 };

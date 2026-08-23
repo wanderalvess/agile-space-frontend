@@ -45,7 +45,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { knowledgeApi } from '../api';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
@@ -119,7 +119,7 @@ function htmlToPlainText(html: string): string {
 }
 
 function KBExplorerContent() {
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   
@@ -190,7 +190,7 @@ function KBExplorerContent() {
   };
 
   const handleSyncActiveDocument = async () => {
-    if (!selectedFile || !user) return;
+    if (!selectedFile || !session) return;
     
     if (!selectedFile.tdnId) {
       toast.error("Apenas documentos importados do TDN podem ser sincronizados automaticamente.");
@@ -207,7 +207,7 @@ function KBExplorerContent() {
 
     try {
       const fullContent = await getTdnPageContent(tdnSettings.baseUrl, tdnSettings.token, pageId);
-      await importTdnToKnowledgeBase(null, user.uid, {
+      await importTdnToKnowledgeBase(session.id, {
         id: pageId,
         title: fullContent.title || selectedFile.title.replace('[TDN] ', ''),
         content: fullContent.content || '',
@@ -241,7 +241,7 @@ function KBExplorerContent() {
 
   // Funções de Gestão em lote e individuais
   const handleSyncManuals = async () => {
-    if (!user) return;
+    if (!session) return;
     setIsSyncing(true);
     
     const tdnDocs = documents?.filter(d => d.tdnId != null) || [];
@@ -264,7 +264,7 @@ function KBExplorerContent() {
       const pageId = docItem.tdnId!;
       try {
         const fullContent = await getTdnPageContent(tdnSettings.baseUrl, tdnSettings.token, pageId);
-        await importTdnToKnowledgeBase(null, user.uid, {
+        await importTdnToKnowledgeBase(session.id, {
           id: pageId,
           title: fullContent.title || docItem.title.replace('[TDN] ', ''),
           content: fullContent.content || '',
@@ -274,9 +274,9 @@ function KBExplorerContent() {
         });
         tdnCount++;
       } catch (err: any) {
-        failedDocsList.push({ 
-          title: docItem.title, 
-          reason: err.message || "Erro desconhecido" 
+        failedDocsList.push({
+          title: docItem.title,
+          reason: err.message || "Erro desconhecido"
         });
       }
     }
@@ -291,7 +291,7 @@ function KBExplorerContent() {
   };
 
   const handleSyncMultiple = async () => {
-    if (selectedIds.size === 0 || !user || !tdnSettings) return;
+    if (selectedIds.size === 0 || !session || !tdnSettings) return;
     setIsSyncing(true);
     let tdnCount = 0;
     const failedDocsList: { title: string; reason: string }[] = [];
@@ -302,7 +302,7 @@ function KBExplorerContent() {
       const pageId = docItem.tdnId;
       try {
         const fullContent = await getTdnPageContent(tdnSettings.baseUrl, tdnSettings.token, pageId);
-        await importTdnToKnowledgeBase(null, user.uid, {
+        await importTdnToKnowledgeBase(session.id, {
           id: pageId,
           title: fullContent.title || docItem.title.replace('[TDN] ', '') || 'Documento',
           content: fullContent.content || '',
@@ -345,7 +345,7 @@ function KBExplorerContent() {
 
     try {
       for (const id of Array.from(selectedIds)) {
-        await knowledgeApi.deleteDocument(id, user?.uid || 'user');
+        await knowledgeApi.deleteDocument(id, session?.id || 'user');
       }
       toast.success(`${selectedIds.size} documentos movidos para a lixeira.`);
       setSelectedIds(new Set());
@@ -358,7 +358,7 @@ function KBExplorerContent() {
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja mover este documento para a lixeira?")) return;
     try {
-      await knowledgeApi.deleteDocument(id, user?.uid || 'user');
+      await knowledgeApi.deleteDocument(id, session?.id || 'user');
       toast.success("Documento movido para a lixeira.");
       fetchDocuments();
     } catch (err) {
@@ -411,7 +411,7 @@ function KBExplorerContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchDocuments = React.useCallback(async () => {
-    if (!user) return;
+    if (!session) return;
     setIsLoading(true);
     try {
       const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 200);
@@ -422,7 +422,7 @@ function KBExplorerContent() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [session]);
 
   useEffect(() => {
     fetchDocuments();

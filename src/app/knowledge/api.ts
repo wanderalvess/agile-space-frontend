@@ -12,10 +12,11 @@ export interface PageResponse<T> {
 }
 
 export const knowledgeApi = {
-  async listDocuments(query?: string, tags?: string[], page = 0, size = 50): Promise<PageResponse<KnowledgeDocument>> {
+  async listDocuments(query?: string, tags?: string[], page = 0, size = 50, status?: string): Promise<PageResponse<KnowledgeDocument>> {
     const params = new URLSearchParams();
     if (query) params.append('query', query);
     if (tags && tags.length > 0) params.append('tags', tags.join(','));
+    if (status) params.append('status', status);
     params.append('page', page.toString());
     params.append('size', size.toString());
 

@@ -12,7 +12,6 @@ import {
   Sparkles,
   ArrowRightIcon
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { actionPlanApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -34,7 +33,6 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function ActionPlanHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -51,7 +49,7 @@ export default function ActionPlanHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -63,7 +61,7 @@ export default function ActionPlanHubPage() {
   const handleCreate = async () => {
     if (isCreating) return;
 
-    if (!user || !user.uid) {
+    if (!userProfile || !userProfile.id) {
       console.error("[action-plan] Criar plano abortado: usuário sem ID.");
       toast({
         title: "Perfil Não Identificado",
@@ -85,11 +83,11 @@ export default function ActionPlanHubPage() {
     setIsCreating(true);
 
     const newPlan = {
-      creatorId: user.uid,
+      creatorId: userProfile.id,
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       settings: { isPublic: true },
-      participantIds: [user.uid]
+      participantIds: [userProfile.id]
     };
 
     try {
@@ -190,7 +188,7 @@ export default function ActionPlanHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);

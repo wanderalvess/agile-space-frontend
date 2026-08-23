@@ -24,5 +24,11 @@ export const sprintPlanningApi = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao deletar planejamento');
+  },
+
+  async listReadyForPoker(limit = 20): Promise<any[]> {
+    const res = await authFetch(`${API_BASE_URL}/sprint-plannings?readyForPoker=true&limit=${limit}`);
+    if (!res.ok) throw new Error('Falha ao carregar planejamentos prontos para o poker');
+    return res.json();
   }
 };

@@ -12,7 +12,7 @@ import {
   TooltipTrigger
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { feedbackApi } from '@/app/feedback/api';
 
 interface FeedbackWidgetProps {
@@ -35,7 +35,7 @@ export function FeedbackWidget({
   const [score, setScore] = useState<number | null>(null);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
 
   const handleClose = (val: boolean) => {
     setIsOpen(val);
@@ -71,7 +71,7 @@ export function FeedbackWidget({
         toolName: toolName,
         score: score ?? -1, // -1 representa uma sugestão sem nota atribuída
         comment: comment.trim(),
-        userId: user?.uid || 'anonymous',
+        userId: session?.id || 'anonymous',
       });
       localStorage.setItem(`feedback_sent_${toolName}`, Date.now().toString());
       setStep(3);

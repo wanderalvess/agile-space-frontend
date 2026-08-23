@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ArrowLeft, Database, Check, SkipForward, X } from 'lucide-react';
 import { PromptItem } from '../types';
+import { promptApi } from '../api';
 
 // Visibilidade 'role' e 'squad' existe no tipo, mas nenhuma consulta do Hub as
 // carrega ainda — itens semeados com esses valores ficariam invisíveis para todos.
@@ -71,14 +71,8 @@ const INITIAL_PROMPTS: Partial<PromptItem>[] = [
 
 type SeedResult = { title: string; outcome: 'created' | 'skipped' | 'failed'; detail?: string };
 
-const seedIdFor = (title?: string) =>
-  `seed_${title?.toLowerCase()
-    .replace(/\//g, '_')
-    .replace(/[^a-z0-9]/g, '_')
-    .replace(/__+/g, '_')}`;
-
 export default function SeedPromptsPage() {
-  const { firestore, user, isUserLoading } = useFirebase();
+  const { session, isLoading: isUserLoading } = useAuth();
   const { userProfile } = useUserContext();
   const router = useRouter();
 
@@ -88,36 +82,36 @@ export default function SeedPromptsPage() {
   const isAdmin = userProfile?.role === 'admin';
 
   async function runSeed() {
-    if (!firestore || !user || !isAdmin) return;
+    if (!session || !isAdmin) return;
 
     setIsRunning(true);
     const collected: SeedResult[] = [];
 
-    for (const prompt of INITIAL_PROMPTS) {
-      const id = seedIdFor(prompt.title);
-      const ref = doc(firestore, 'prompt_hub', id);
+    try {
+      // Não sobrescreve item existente: o seed é para popular biblioteca vazia,
+      // não para reverter edições feitas depois. Sem ID determinístico como no
+      // Firestore (o Postgres gera UUID no servidor), a checagem de duplicidade
+      // agora é por título entre os itens públicos já cadastrados.
+      const existing = await promptApi.listPrompts(undefined, undefined, 0, 200);
+      const existingTitles = new Set(existing.content.map(p => p.title));
 
-      try {
-        // Não sobrescreve item existente: o seed é para popular biblioteca vazia,
-        // não para reverter edições feitas depois.
-        const snap = await getDoc(ref);
-        if (snap.exists()) {
+      for (const prompt of INITIAL_PROMPTS) {
+        if (existingTitles.has(prompt.title!)) {
           collected.push({ title: prompt.title!, outcome: 'skipped', detail: 'já existe' });
           continue;
         }
 
-        await setDoc(ref, {
-          ...prompt,
-          id,
-          authorId: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-        collected.push({ title: prompt.title!, outcome: 'created' });
-      } catch (err: any) {
-        console.error(`Falha ao semear "${prompt.title}":`, err);
-        collected.push({ title: prompt.title!, outcome: 'failed', detail: err?.code || 'erro desconhecido' });
+        try {
+          await promptApi.createPrompt({ ...prompt, authorId: session.id });
+          collected.push({ title: prompt.title!, outcome: 'created' });
+        } catch (err: any) {
+          console.error(`Falha ao semear "${prompt.title}":`, err);
+          collected.push({ title: prompt.title!, outcome: 'failed', detail: err?.message || 'erro desconhecido' });
+        }
       }
+    } catch (err: any) {
+      console.error('Falha ao verificar itens existentes antes do seed:', err);
+      collected.push({ title: 'Verificação de duplicidade', outcome: 'failed', detail: err?.message || 'erro desconhecido' });
     }
 
     setResults(collected);

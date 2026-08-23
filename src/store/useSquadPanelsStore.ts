@@ -1,16 +1,5 @@
 import { create } from 'zustand';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  deleteDoc,
-  deleteField,
-  query,
-  where,
-  setDoc,
-  Firestore
-} from 'firebase/firestore';
+import { squadApi, type SquadPanelRecord } from '@/app/squad/api';
 import { fetchJiraIssues, fetchAllJiraIssues } from '@/services/jiraService';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import type { SquadPanel, SquadPanelChartType, SquadPanelGroupBy, SquadPanelAggregateMetric, SquadPanelResultRow, SquadPanelIssueRow } from '@/lib/types';
@@ -60,22 +49,89 @@ function extractMetricSeconds(issue: any, metric: SquadPanelAggregateMetric): nu
   }
 }
 
+// Tudo que o backend não conhece (é um blob TEXT opaco pra ele) vive aqui —
+// serializado dentro de SquadPanelRecord.config. `ownerName` precisa entrar
+// aqui também: o backend só guarda ownerId (do JWT), então pra exibir "quem
+// criou" num painel de visibilidade squad, a gente carrega o nome dentro do
+// próprio blob.
+interface PanelConfigBlob {
+  jql: string;
+  groupBy: SquadPanelGroupBy;
+  aggregateMetric: SquadPanelAggregateMetric;
+  ownerName: string;
+  resultTotal?: number;
+  resultRows?: SquadPanelResultRow[];
+  resultIssues?: SquadPanelIssueRow[];
+  lastRunAt?: string;
+  lastRunError?: string;
+}
+
+function parseConfig(raw: string): Partial<PanelConfigBlob> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+// PUT substitui `config` inteiro (não faz merge no backend) — então toda
+// escrita precisa montar o blob completo. Undefined nunca aparece no JSON
+// final (JSON.stringify já omite a chave), o que substitui o antigo sentinel
+// deleteField() do Firestore: basta não incluir o campo pra "limpar" ele.
+function buildConfig(fields: PanelConfigBlob): string {
+  return JSON.stringify(fields);
+}
+
+function toFrontendPanel(record: SquadPanelRecord): SquadPanel {
+  const cfg = parseConfig(record.config);
+  return {
+    id: record.id,
+    squadId: record.squadId,
+    ownerId: record.ownerId,
+    ownerName: cfg.ownerName || record.ownerId,
+    title: record.name,
+    jql: cfg.jql || '',
+    chartType: (record.type as SquadPanelChartType) || 'number',
+    groupBy: cfg.groupBy || 'none',
+    aggregateMetric: cfg.aggregateMetric || 'count',
+    visibility: record.visibility === 'SQUAD' ? 'squad' : 'private',
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    lastRunAt: cfg.lastRunAt,
+    lastRunError: cfg.lastRunError,
+    resultTotal: cfg.resultTotal,
+    resultRows: cfg.resultRows,
+    resultIssues: cfg.resultIssues,
+  };
+}
+
+// Backend responde 403 (SecurityException) quando quem chama PUT/DELETE não
+// é o dono do painel — mesma regra pra painel squad ou privado. Mensagem
+// amigável aqui, e ainda assim relança pro caller poder tratar/togglear UI.
+function friendlyErrorMessage(err: any, forbiddenMessage: string): string {
+  if (typeof err?.message === 'string' && err.message.includes('403')) return forbiddenMessage;
+  return err?.message || 'Erro ao comunicar com o servidor.';
+}
+
 interface SquadPanelsState {
   panels: SquadPanel[];
   isLoading: boolean;
   runningIds: Set<string>;
+  panelsError: string | null;
 
-  fetchPanels: (firestore: Firestore, squadId: string, uid: string) => Promise<void>;
+  fetchPanels: (squadId: string) => Promise<void>;
   createPanel: (
-    firestore: Firestore, squadId: string, uid: string, ownerName: string,
+    squadId: string, ownerName: string,
     input: { title: string; jql: string; chartType: SquadPanelChartType; groupBy: SquadPanelGroupBy; aggregateMetric: SquadPanelAggregateMetric; visibility: 'private' | 'squad' }
   ) => Promise<string>;
   updatePanel: (
-    firestore: Firestore, squadId: string, panelId: string,
+    squadId: string, panelId: string,
     updates: Partial<Pick<SquadPanel, 'title' | 'jql' | 'chartType' | 'groupBy' | 'aggregateMetric' | 'visibility'>>
   ) => Promise<void>;
-  deletePanel: (firestore: Firestore, squadId: string, panelId: string) => Promise<void>;
-  runPanel: (firestore: Firestore, squadId: string, panelId: string, uid: string) => Promise<void>;
+  deletePanel: (squadId: string, panelId: string) => Promise<void>;
+  runPanel: (squadId: string, panelId: string, uid: string) => Promise<void>;
   reset: () => void;
 }
 
@@ -83,73 +139,114 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
   panels: [],
   isLoading: false,
   runningIds: new Set(),
+  panelsError: null,
 
-  // Rules só permitem OR simples num doc (dono OU squad-visível) — Firestore
-  // não faz OR entre campos diferentes numa query só, então roda duas
-  // queries e mescla/deduplica aqui.
-  fetchPanels: async (firestore, squadId, uid) => {
-    if (!squadId || !uid) return;
-    set({ isLoading: true });
+  // O merge "meus painéis privados + painéis squad-visíveis" agora é feito
+  // no backend (a partir do JWT) — GET /api/squads/{squadId}/panels já volta
+  // exatamente o conjunto certo, sem precisar rodar duas queries e deduplicar
+  // aqui como fazia a versão Firestore.
+  fetchPanels: async (squadId) => {
+    if (!squadId) return;
+    set({ isLoading: true, panelsError: null });
     try {
-      const col = collection(firestore, 'squads', squadId, 'panels');
-      const [mineSnap, squadSnap] = await Promise.all([
-        getDocs(query(col, where('ownerId', '==', uid))),
-        getDocs(query(col, where('visibility', '==', 'squad'))),
-      ]);
-      const byId = new Map<string, SquadPanel>();
-      [...mineSnap.docs, ...squadSnap.docs].forEach(d => byId.set(d.id, { id: d.id, ...d.data() } as SquadPanel));
-      set({
-        panels: Array.from(byId.values()).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')),
-      });
-    } catch (err) {
+      const records = await squadApi.listPanels(squadId);
+      const panels = records
+        .map(toFrontendPanel)
+        .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      set({ panels });
+    } catch (err: any) {
       console.error('Erro ao buscar painéis:', err);
+      set({ panelsError: err?.message || 'Erro ao buscar painéis.' });
     } finally {
       set({ isLoading: false });
     }
   },
 
-  createPanel: async (firestore, squadId, uid, ownerName, input) => {
-    const ref = doc(collection(firestore, 'squads', squadId, 'panels'));
-    const now = new Date().toISOString();
-    const panel: SquadPanel = {
-      id: ref.id,
-      squadId,
-      ownerId: uid,
-      ownerName,
-      title: input.title.trim(),
-      jql: input.jql.trim(),
-      chartType: input.chartType,
-      groupBy: input.groupBy,
-      aggregateMetric: input.aggregateMetric,
-      visibility: input.visibility,
-      createdAt: now,
-      updatedAt: now,
+  createPanel: async (squadId, ownerName, input) => {
+    const payload = {
+      name: input.title.trim(),
+      type: input.chartType,
+      visibility: (input.visibility === 'squad' ? 'SQUAD' : 'PRIVATE') as 'PRIVATE' | 'SQUAD',
+      config: buildConfig({
+        jql: input.jql.trim(),
+        groupBy: input.groupBy,
+        aggregateMetric: input.aggregateMetric,
+        ownerName,
+      }),
     };
-    await setDoc(ref, panel);
-    set(state => ({ panels: [panel, ...state.panels] }));
-    return ref.id;
+    try {
+      const saved = await squadApi.createPanel(squadId, payload);
+      const panel = toFrontendPanel(saved);
+      set(state => ({ panels: [panel, ...state.panels] }));
+      return panel.id;
+    } catch (err: any) {
+      const message = friendlyErrorMessage(err, 'Você não tem permissão para criar painéis neste squad.');
+      set({ panelsError: message });
+      throw err;
+    }
   },
 
-  updatePanel: async (firestore, squadId, panelId, updates) => {
-    const ref = doc(firestore, 'squads', squadId, 'panels', panelId);
-    const payload = { ...updates, updatedAt: new Date().toISOString() };
-    await setDoc(ref, payload, { merge: true });
-    set(state => ({ panels: state.panels.map(p => p.id === panelId ? { ...p, ...payload } : p) }));
+  updatePanel: async (squadId, panelId, updates) => {
+    const current = get().panels.find(p => p.id === panelId);
+    const payload: Partial<Pick<SquadPanelRecord, 'name' | 'type' | 'config' | 'visibility'>> = {};
+
+    if (updates.title !== undefined) payload.name = updates.title.trim();
+    if (updates.chartType !== undefined) payload.type = updates.chartType;
+    if (updates.visibility !== undefined) payload.visibility = updates.visibility === 'squad' ? 'SQUAD' : 'PRIVATE';
+
+    // `config` é reescrito por inteiro — sempre parte do que já existia
+    // localmente pra não perder jql/groupBy/aggregateMetric/resultados
+    // cacheados que esta chamada não está mexendo.
+    if (updates.jql !== undefined || updates.groupBy !== undefined || updates.aggregateMetric !== undefined) {
+      payload.config = buildConfig({
+        jql: updates.jql !== undefined ? updates.jql.trim() : (current?.jql || ''),
+        groupBy: updates.groupBy !== undefined ? updates.groupBy : (current?.groupBy || 'none'),
+        aggregateMetric: updates.aggregateMetric !== undefined ? updates.aggregateMetric : (current?.aggregateMetric || 'count'),
+        ownerName: current?.ownerName || '',
+        resultTotal: current?.resultTotal,
+        resultRows: current?.resultRows,
+        resultIssues: current?.resultIssues,
+        lastRunAt: current?.lastRunAt,
+        lastRunError: current?.lastRunError,
+      });
+    }
+
+    try {
+      const saved = await squadApi.updatePanel(squadId, panelId, payload);
+      const panel = toFrontendPanel(saved);
+      set(state => ({ panels: state.panels.map(p => p.id === panelId ? panel : p) }));
+    } catch (err: any) {
+      const message = friendlyErrorMessage(err, 'Apenas o dono do painel pode editá-lo.');
+      set({ panelsError: message });
+      throw err;
+    }
   },
 
-  deletePanel: async (firestore, squadId, panelId) => {
-    await deleteDoc(doc(firestore, 'squads', squadId, 'panels', panelId));
-    set(state => ({ panels: state.panels.filter(p => p.id !== panelId) }));
+  deletePanel: async (squadId, panelId) => {
+    try {
+      await squadApi.deletePanel(squadId, panelId);
+      set(state => ({ panels: state.panels.filter(p => p.id !== panelId) }));
+    } catch (err: any) {
+      const message = friendlyErrorMessage(err, 'Apenas o dono do painel pode excluí-lo.');
+      set({ panelsError: message });
+      throw err;
+    }
   },
 
   // Só o dono chama isto de verdade (UI só mostra o botão pro dono) — roda
   // com o PAT pessoal de quem está logado, nunca o de outra pessoa.
-  runPanel: async (firestore, squadId, panelId, uid) => {
+  runPanel: async (squadId, panelId, uid) => {
     const panel = get().panels.find(p => p.id === panelId);
     if (!panel) return;
 
     set(state => ({ runningIds: new Set(state.runningIds).add(panelId) }));
-    const ref = doc(firestore, 'squads', squadId, 'panels', panelId);
+
+    const baseConfig = {
+      jql: panel.jql,
+      groupBy: panel.groupBy,
+      aggregateMetric: panel.aggregateMetric,
+      ownerName: panel.ownerName,
+    };
 
     try {
       const jiraCreds = await getJiraCredentials(uid);
@@ -158,20 +255,13 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
       }
       const { domain, token } = jiraCreds;
 
-      // Firestore rejeita `undefined` em campo (setDoc lança) — pra "limpar"
-      // um campo que não se aplica ao chartType atual (ex: editou de tabela
-      // pra número), usa o sentinel deleteField() na escrita; localmente
-      // `undefined` já é inofensivo, então o estado em memória usa direto.
-      let localUpdate: Partial<SquadPanel> = {};
-      let firestoreUpdate: Record<string, unknown> = {};
-      const lastRunAt = new Date().toISOString();
+      let resultUpdate: Partial<PanelConfigBlob> = {};
 
       if (panel.chartType === 'number') {
         // `total` já vem exato na primeira página — não precisa paginar tudo
         // só pra contar.
         const { total } = await fetchJiraIssues(domain, token, panel.jql, { maxResults: 1, fields: ['issuetype'] });
-        localUpdate = { resultTotal: total, resultRows: undefined, resultIssues: undefined };
-        firestoreUpdate = { resultTotal: total, resultRows: deleteField(), resultIssues: deleteField() };
+        resultUpdate = { resultTotal: total };
       } else if (panel.chartType === 'table') {
         const { issues, total } = await fetchJiraIssues(domain, token, panel.jql, {
           maxResults: PANEL_TABLE_LIMIT, fields: ['summary', 'issuetype', 'status', 'parent'],
@@ -180,8 +270,7 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
           key: i.key, title: i.title, status: i.status, type: i.type,
           parentKey: i.parentKey || '', parentTitle: i.parentTitle || '',
         }));
-        localUpdate = { resultTotal: total, resultIssues, resultRows: undefined };
-        firestoreUpdate = { resultTotal: total, resultIssues, resultRows: deleteField() };
+        resultUpdate = { resultTotal: total, resultIssues };
       } else {
         // bar/pie: agrupa por campo escolhido — precisa de todas as issues
         // no escopo (paginado, capado em PANEL_GROUP_MAX_PAGES). Métrica
@@ -201,16 +290,28 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
         const resultRows: SquadPanelResultRow[] = Array.from(totals.entries())
           .map(([label, value]) => ({ label, value: metric === 'count' ? value : Math.round(value * 10) / 10 }))
           .sort((a, b) => b.value - a.value);
-        localUpdate = { resultTotal: total, resultRows, resultIssues: undefined };
-        firestoreUpdate = { resultTotal: total, resultRows, resultIssues: deleteField() };
+        resultUpdate = { resultTotal: total, resultRows };
       }
 
-      await setDoc(ref, { ...firestoreUpdate, lastRunAt, lastRunError: '' }, { merge: true });
-      set(state => ({ panels: state.panels.map(p => p.id === panelId ? { ...p, ...localUpdate, lastRunAt, lastRunError: '' } : p) }));
+      const lastRunAt = new Date().toISOString();
+      const saved = await squadApi.updatePanel(squadId, panelId, {
+        config: buildConfig({ ...baseConfig, ...resultUpdate, lastRunAt, lastRunError: '' }),
+      });
+      const mapped = toFrontendPanel(saved);
+      set(state => ({ panels: state.panels.map(p => p.id === panelId ? mapped : p) }));
     } catch (err: any) {
       const message = err?.message || 'Erro ao rodar o painel.';
       try {
-        await setDoc(ref, { lastRunError: message }, { merge: true });
+        await squadApi.updatePanel(squadId, panelId, {
+          config: buildConfig({
+            ...baseConfig,
+            resultTotal: panel.resultTotal,
+            resultRows: panel.resultRows,
+            resultIssues: panel.resultIssues,
+            lastRunAt: panel.lastRunAt,
+            lastRunError: message,
+          }),
+        });
       } catch {
         // se nem isso gravar, o erro em tela já basta
       }
@@ -225,5 +326,5 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
     }
   },
 
-  reset: () => set({ panels: [], isLoading: false, runningIds: new Set() }),
+  reset: () => set({ panels: [], isLoading: false, runningIds: new Set(), panelsError: null }),
 }));

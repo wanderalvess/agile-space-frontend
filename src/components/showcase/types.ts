@@ -1,4 +1,3 @@
-import { Timestamp } from 'firebase/firestore';
 import React from 'react';
 import { Clock, CheckCircle2, AlertTriangle, Ban } from 'lucide-react';
 
@@ -61,8 +60,8 @@ export interface ShowcaseSession {
   squadName?: string; 
   period?: string;
   members?: SessionMember[];
-  tasks: ShowcaseTask[]; 
-  createdAt: Timestamp | null; 
+  tasks: ShowcaseTask[];
+  createdAt: string | null;
   status: string;
   presentationBackground?: string;
   presentationTheme?: 'cinematic' | 'minimalist' | 'corporate' | 'glass';

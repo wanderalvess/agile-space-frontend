@@ -1,12 +1,5 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
-import { firebaseConfig } from '@/firebase/config';
-
-// Inicialização segura para ambiente Server (Next.js Edge/Node)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const firestore = getFirestore(app);
 
 export const runtime = 'nodejs';
 
@@ -50,7 +43,8 @@ export async function POST(req: Request) {
       if (serverContextCache.data && (now - serverContextCache.lastFetch < CONTEXT_CACHE_TTL)) {
         context = serverContextCache.data;
       } else {
-        // Tenta carregar do Spring Boot / PostgreSQL
+        // Carrega o contexto RAG do Spring Boot / PostgreSQL (única fonte —
+        // o fallback direto ao Firestore foi removido).
         try {
           const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
           const authHeader = req.headers.get('authorization');
@@ -64,28 +58,11 @@ export async function POST(req: Request) {
               context = docs.map((d: any) => `--- DOCUMENTO: ${d.title} (${d.fullPath || d.category || ''}) ---\n${d.content}\n`).join('\n');
               serverContextCache = { data: context, lastFetch: now };
             }
+          } else {
+            console.warn(`[API] Base de Conhecimento REST retornou status ${res.status}`);
           }
         } catch (err) {
           console.warn('[API] Erro ao buscar conhecimento via Spring Boot PostgreSQL:', err);
-        }
-
-        // Fallback para Firestore se o contexto continuar vazio
-        if (!context) {
-          try {
-            const q = query(collection(firestore, 'knowledge_kb'), orderBy('updatedAt', 'desc'), limit(50));
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) {
-              snapshot.docs.forEach(doc => {
-                const data = doc.data();
-                if (data.status !== 'trash') {
-                  context += `\n--- DOCUMENTO: ${data.title} (${data.fullPath || data.category}) ---\n${data.content}\n`;
-                }
-              });
-              serverContextCache = { data: context, lastFetch: now };
-            }
-          } catch (dbError: any) {
-            console.error("[API] Erro ao buscar contexto Firestore:", dbError);
-          }
         }
       }
     }

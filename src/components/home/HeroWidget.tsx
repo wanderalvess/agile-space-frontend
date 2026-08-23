@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUserContext } from '@/context/UserContext';
-import { useFirebase } from '@/firebase';
 import { useDailyStore } from '@/store/useDailyStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -45,7 +44,6 @@ export function HeroWidget() {
   const { toggleOpen, isTimerRunning, activeSounds } = useCalmariaStore();
   const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
-  const { user, firestore } = useFirebase();
   const {
     worklogs,
     weeklyWorklogs,
@@ -83,11 +81,11 @@ export function HeroWidget() {
   }, []);
 
   useEffect(() => {
-    if (user?.uid) {
-      fetchWorklogs(user.uid, selectedDate);
-      fetchWeeklyWorklogs(user.uid);
+    if (userProfile?.id) {
+      fetchWorklogs(userProfile.id, selectedDate);
+      fetchWeeklyWorklogs(userProfile.id);
     }
-  }, [user?.uid, selectedDate]);
+  }, [userProfile?.id, selectedDate]);
 
   const userName = userProfile?.name?.split(' ')[0] || 'Visitante';
 
@@ -228,7 +226,7 @@ export function HeroWidget() {
                 </span>
               </div>
             </div>
-            {user && (
+            {userProfile && (
               <Badge
                 variant="outline"
                 className="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/50 text-emerald-600 dark:text-emerald-400 text-[9px] font-extrabold uppercase tracking-wider py-0.5 px-2"
@@ -239,7 +237,7 @@ export function HeroWidget() {
           </div>
 
           {/* Content: logged vs guest */}
-          {user ? (
+          {userProfile ? (
             <div className="flex-1 flex flex-col gap-4">
 
               {/* Today stat */}

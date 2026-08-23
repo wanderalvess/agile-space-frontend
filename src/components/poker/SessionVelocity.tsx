@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, doc, getDoc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { pokerApi } from '@/app/room/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -21,16 +20,14 @@ interface SessionRow {
 
 /**
  * Velocity entre sessões: usa o histórico local de salas (localStorage) e lê o
- * `summary` de cada sala via getDoc (leitura individual é permitida). Mostra a
- * tendência de pontos/tarefas das últimas sessões do time. Sem listar a
- * coleção (que é admin-only). Aditivo/informativo — não altera o fluxo.
+ * `summary` de cada sala via REST (GET /api/poker/{id}). Mostra a tendência de
+ * pontos/tarefas das últimas sessões do time. Sem listar a coleção completa
+ * (que é admin-only). Aditivo/informativo — não altera o fluxo.
  */
 export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
-  const { firestore } = useFirebase();
   const [rows, setRows] = useState<SessionRow[] | null>(null);
 
   useEffect(() => {
-    if (!firestore) return;
     let cancelled = false;
 
     (async () => {
@@ -49,9 +46,8 @@ export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
 
       const results = await Promise.all(pokerIds.map(async id => {
         try {
-          const snap = await getDoc(doc(collection(firestore, 'rooms'), id));
-          if (!snap.exists()) return null;
-          const d: any = snap.data();
+          const d: any = await pokerApi.getRoom(id);
+          if (!d) return null;
           const s = d.summary?.stats;
           if (!s) return null;
           return {
@@ -72,7 +68,7 @@ export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
     })();
 
     return () => { cancelled = true; };
-  }, [firestore, currentRoomId]);
+  }, [currentRoomId]);
 
   if (!rows || rows.length === 0) return null;
 

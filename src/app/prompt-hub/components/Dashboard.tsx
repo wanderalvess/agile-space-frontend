@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { PromptItem, PromptFilters } from '../types';
 import { TYPE_ORDER, getTypeMeta, SORT_OPTIONS, type SortKey } from '../constants';
 import { PromptCard } from './PromptCard';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import { promptApi } from '../api';
@@ -56,7 +56,7 @@ export function PromptDashboard({
   userProfile: any;
   isPublicView?: boolean;
 }) {
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const router = useRouter();
   const { requestIdentity } = useUserContext();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
@@ -82,7 +82,7 @@ export function PromptDashboard({
   // Carrega favoritos do LocalStorage
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(`favorites_${user?.uid || 'anonymous'}`);
+      const saved = localStorage.getItem(`favorites_${session?.id || 'anonymous'}`);
       if (saved) {
         try {
           setFavoriteIds(new Set(JSON.parse(saved)));
@@ -91,15 +91,15 @@ export function PromptDashboard({
         }
       }
     }
-  }, [user]);
+  }, [session]);
 
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const publicResponse = await promptApi.listPrompts(undefined, undefined, 0, 100);
       let myResponseContent: PromptItem[] = [];
-      if (user?.uid && !isPublicView) {
-        const myResponse = await promptApi.listPrompts(undefined, user.uid, 0, 100);
+      if (session?.id && !isPublicView) {
+        const myResponse = await promptApi.listPrompts(undefined, session.id, 0, 100);
         myResponseContent = myResponse.content;
       }
       
@@ -119,7 +119,7 @@ export function PromptDashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [user, isPublicView, favoriteIds]);
+  }, [session, isPublicView, favoriteIds]);
 
   React.useEffect(() => {
     loadData();
@@ -131,7 +131,7 @@ export function PromptDashboard({
     const searchTerm = filters.search.trim().toLowerCase();
 
     return rawPrompts.filter(item => {
-      const isOwner = item.authorId === user?.uid;
+      const isOwner = item.authorId === session?.id;
       if (!isOwner && item.visibility !== 'public') return false;
 
       if (filters.visibility === 'public' && item.visibility !== 'public') return false;
@@ -161,7 +161,7 @@ export function PromptDashboard({
 
       return true;
     });
-  }, [rawPrompts, filters.visibility, filters.onlyFavorites, filters.tags, filters.search, user?.uid]);
+  }, [rawPrompts, filters.visibility, filters.onlyFavorites, filters.tags, filters.search, session?.id]);
 
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -221,14 +221,14 @@ export function PromptDashboard({
     }));
 
   const handleSave = async (data: Partial<PromptItem>) => {
-    if (!user) return;
+    if (!session) return;
     const loadingToast = toast.loading('Salvando...');
     try {
       const { isFavorited: _ignored, ...promptData } = data;
       const payload = {
         ...promptData,
-        authorId: user.uid,
-        authorName: userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Membro',
+        authorId: session.id,
+        authorName: userProfile?.name || session.name || 'Membro',
         authorRole: userProfile?.role || 'Engenheiro',
         authorSquad: userProfile?.squadId || 'Squad Geral',
         authorAvatar: userProfile?.avatarSeed || '',
@@ -276,7 +276,7 @@ export function PromptDashboard({
   };
 
   const handleToggleFavorite = async (id: string) => {
-    if (!user) {
+    if (!session) {
       requestIdentity?.();
       return;
     }
@@ -290,7 +290,7 @@ export function PromptDashboard({
     }
 
     try {
-      localStorage.setItem(`favorites_${user.uid}`, JSON.stringify(Array.from(newFavorites)));
+      localStorage.setItem(`favorites_${session.id}`, JSON.stringify(Array.from(newFavorites)));
       setFavoriteIds(newFavorites);
       setRawPrompts(prev => prev.map(p => p.id === id ? { ...p, isFavorited: !wasFavorited } : p));
       toast.success(wasFavorited ? 'Removido dos favoritos' : 'Adicionado aos favoritos');
@@ -306,7 +306,7 @@ export function PromptDashboard({
   };
 
   const handleFork = async (source: PromptItem) => {
-    if (!user) {
+    if (!session) {
       requestIdentity?.();
       return;
     }
@@ -317,8 +317,8 @@ export function PromptDashboard({
         id: undefined,
         title: `Cópia de ${source.title}`,
         visibility: 'private',
-        authorId: user.uid,
-        authorName: userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Membro',
+        authorId: session.id,
+        authorName: userProfile?.name || session.name || 'Membro',
         authorRole: userProfile?.role || 'Engenheiro',
         authorSquad: userProfile?.squadId || 'Squad Geral',
         authorAvatar: userProfile?.avatarSeed || '',
@@ -561,7 +561,7 @@ export function PromptDashboard({
                     <PromptCard
                       key={`highlight-${prompt.id}`}
                       prompt={prompt}
-                      isOwner={prompt.authorId === user?.uid}
+                      isOwner={prompt.authorId === session?.id}
                       isReadOnly={isPublicView}
                       onFork={handleFork}
                       onEdit={handleEdit}
@@ -626,7 +626,7 @@ export function PromptDashboard({
                     <PromptCard
                       key={prompt.id}
                       prompt={prompt}
-                      isOwner={prompt.authorId === user?.uid}
+                      isOwner={prompt.authorId === session?.id}
                       isReadOnly={isPublicView}
                       onFork={handleFork}
                       onEdit={handleEdit}
@@ -669,7 +669,7 @@ export function PromptDashboard({
         onClose={() => setViewingPrompt(null)}
         prompt={currentViewingPrompt}
         onCopy={handleCopy}
-        isOwner={currentViewingPrompt?.authorId === user?.uid}
+        isOwner={currentViewingPrompt?.authorId === session?.id}
         isReadOnly={isPublicView}
         onEdit={handleEdit}
         onDelete={handleDelete}

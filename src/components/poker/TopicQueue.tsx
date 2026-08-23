@@ -55,8 +55,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { sprintPlanningApi } from '@/app/sprint-planner/api';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
 import { JiraIssue } from '@/services/jiraService';
@@ -139,7 +138,6 @@ export function TopicQueue({
   const [isPlanningImportOpen, setIsPlanningImportOpen] = useState(false);
   const [plannings, setPlannings] = useState<any[]>([]);
   const [isLoadingPlannings, setIsLoadingPlannings] = useState(false);
-  const { firestore } = useFirebase();
 
   // --- Jira Import State (Managed by Dialog) ---
   const [isJiraImportOpen, setIsJiraImportOpen] = useState(false);
@@ -193,17 +191,10 @@ export function TopicQueue({
   };
 
   const fetchPlannings = async () => {
-    if (!firestore) return;
     setIsLoadingPlannings(true);
     try {
-      const planningsQuery = query(
-        collection(firestore, 'sprint_plannings'),
-        where('isReadyForPoker', '==', true),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      );
-      const snapshot = await getDocs(planningsQuery);
-      setPlannings(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      const results = await sprintPlanningApi.listReadyForPoker(20);
+      setPlannings(results);
     } catch (error) {
       console.error('Erro ao buscar planejamentos do Sprint Planner:', error);
       toast({ title: 'Erro ao buscar planejamentos', description: 'Não foi possível carregar os planejamentos do Sprint Planner.', variant: 'destructive' });
@@ -1058,7 +1049,7 @@ export function TopicQueue({
                   <div>
                     <h4 className="font-bold text-sm text-foreground">{plan.title || 'Sem Título'}</h4>
                     <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
-                      {plan.tasks?.length || 0} Tarefas • Criado em {plan.createdAt?.toDate?.() ? new Date(plan.createdAt.toDate()).toLocaleDateString() : 'Data desconhecida'}
+                      {plan.tasks?.length || 0} Tarefas • Criado em {plan.createdAt ? new Date(plan.createdAt).toLocaleDateString() : 'Data desconhecida'}
                     </p>
                   </div>
                   <Button

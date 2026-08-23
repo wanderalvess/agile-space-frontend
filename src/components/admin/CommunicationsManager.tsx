@@ -79,8 +79,6 @@ export function CommunicationsManager() {
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Escaneando Canais de Comunicação...</p>
       </div>
     );
-  } </div>
-    );
   }
 
   return (

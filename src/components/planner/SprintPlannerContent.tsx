@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Settings } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { squadApi } from '@/app/squad/api';
@@ -27,7 +26,6 @@ interface SprintPlannerContentProps {
 }
 
 export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentProps) {
-  const { user } = useFirebase();
   const { userProfile } = useUserContext();
   const { toast } = useToast();
   const router = useRouter();
@@ -164,7 +162,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
           defaultQaHoursPerDay
         },
         title: plannerTitle,
-        createdBy: shareId ? undefined : (user?.uid || 'anonymous'),
+        createdBy: shareId ? undefined : (userProfile?.id || 'anonymous'),
         importedPokerRoomIds
       };
       const saved = await sprintPlanningApi.saveOrUpdatePlanner(payload);
@@ -183,7 +181,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
 
       setSaveStatus('saved');
       if (!shareId && saved && saved.id) {
-        localStorage.setItem('sprint_planner_creator_id', user?.uid || 'anonymous');
+        localStorage.setItem('sprint_planner_creator_id', userProfile?.id || 'anonymous');
         setShareId(saved.id);
         router.push(`/sprint-planner/${saved.id}`);
       }

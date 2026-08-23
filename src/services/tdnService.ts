@@ -203,14 +203,26 @@ export function parseConfluenceMacros(html: string): string {
   return content;
 }
 
+type TdnDocInput = { id: string; title: string; content: string; space?: string; link: string; labels?: string[] };
+
 /**
- * Import a TDN document to the local Knowledge Base
+ * Import a TDN document to the local Knowledge Base (via REST /api/knowledge).
+ *
+ * Overloaded to keep the legacy 3-arg call shape (`firestore, userId, tdnDoc`)
+ * working for call sites not yet migrated off Firestore in this pass, while
+ * offering the new 2-arg shape (`userId, tdnDoc`) for migrated callers.
  */
+export async function importTdnToKnowledgeBase(userId: string, tdnDoc: TdnDocInput): Promise<string>;
+/** @deprecated Legacy signature — the first argument (formerly a Firestore instance) is ignored. */
+export async function importTdnToKnowledgeBase(legacyFirestoreArg: unknown, userId: string, tdnDoc: TdnDocInput): Promise<string>;
 export async function importTdnToKnowledgeBase(
-  firestore: any,
-  userId: string,
-  tdnDoc: { id: string; title: string; content: string; space?: string; link: string; labels?: string[] }
+  arg1: unknown,
+  arg2: unknown,
+  arg3?: TdnDocInput
 ): Promise<string> {
+  const userId = (arg3 ? arg2 : arg1) as string;
+  const tdnDoc = (arg3 ? arg3 : arg2) as TdnDocInput;
+
   // Clean and structure Confluence macro contents
   let cleanContent = parseConfluenceMacros(tdnDoc.content);
 

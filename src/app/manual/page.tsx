@@ -623,7 +623,7 @@ export default function ManualPage() {
                       {[
                         { icon: HelpCircle, title: "Help First", desc: "Nenhuma funcionalidade é lançada sem um guia 'Como Usar' embutido." },
                         { icon: Fingerprint, title: "Privacy Radical", desc: "Dados sensíveis são anônimos por design para fomentar a honestidade." },
-                        { icon: Zap, title: "Real-Time Sync", desc: "A tecnologia Firebase garante latência zero em todas as salas." },
+                        { icon: Zap, title: "Real-Time Sync", desc: "Sincronização via WebSocket garante latência mínima em todas as salas." },
                         { icon: Download, title: "Export Ready", desc: "Saídas processadas em PDF e CSV para facilitar a governança corporativa." }
                       ].map((rule, i) => (
                         <div key={i} className="p-6 bg-white dark:bg-slate-900/5 backdrop-blur-md rounded-3xl border border-white/10 space-y-4">

@@ -89,3 +89,96 @@ export const promptApi = {
     return res.json();
   }
 };
+
+/**
+ * Formato retornado pelo backend para uma Coleção — os itens já vêm embutidos
+ * (join `ManyToMany`), não há mais subcoleção separada para buscar à parte.
+ */
+export interface PromptCollectionDTO {
+  id: string;
+  name: string;
+  description?: string;
+  visibility: string;
+  ownerId: string;
+  ownerName: string;
+  items: PromptItem[];
+  createdAt: string;
+}
+
+/** Payload de criação/atualização: os itens só precisam trazer o `id`, o backend resolve o resto. */
+export interface PromptCollectionPayload {
+  name?: string;
+  description?: string;
+  visibility?: string;
+  ownerId?: string;
+  ownerName?: string;
+  items?: { id: string }[];
+}
+
+export const promptCollectionApi = {
+  async listCollections(
+    visibility?: string,
+    ownerId?: string,
+    page = 0,
+    size = 50
+  ): Promise<PageResponse<PromptCollectionDTO>> {
+    const params = new URLSearchParams();
+    if (visibility) params.append('visibility', visibility);
+    if (ownerId) params.append('ownerId', ownerId);
+    params.append('page', page.toString());
+    params.append('size', size.toString());
+
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections?${params.toString()}`);
+    if (!res.ok) throw new Error('Falha ao listar coleções');
+    return res.json();
+  },
+
+  async getCollection(id: string): Promise<PromptCollectionDTO> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections/${id}`);
+    if (!res.ok) throw new Error('Falha ao carregar a coleção');
+    return res.json();
+  },
+
+  async createCollection(data: PromptCollectionPayload): Promise<PromptCollectionDTO> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Falha ao criar a coleção');
+    return res.json();
+  },
+
+  async updateCollection(id: string, data: PromptCollectionPayload): Promise<PromptCollectionDTO> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Falha ao atualizar a coleção');
+    return res.json();
+  },
+
+  async deleteCollection(id: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Falha ao remover a coleção');
+  },
+
+  async addItemToCollection(collectionId: string, promptId: string): Promise<PromptCollectionDTO> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections/${collectionId}/items/${promptId}`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Falha ao adicionar item à coleção');
+    return res.json();
+  },
+
+  async removeItemFromCollection(collectionId: string, promptId: string): Promise<PromptCollectionDTO> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/collections/${collectionId}/items/${promptId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Falha ao remover item da coleção');
+    return res.json();
+  }
+};

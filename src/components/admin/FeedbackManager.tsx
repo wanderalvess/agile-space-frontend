@@ -1,43 +1,31 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  deleteDoc,
-  query,
-  orderBy,
-  limit,
-  onSnapshot,
-  Timestamp
-} from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { feedbackApi, FeedbackData } from '@/app/feedback/api';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
-import { 
-  Search, 
-  Trash2, 
-  Filter, 
-  Download, 
-  CheckCircle2, 
-  Clock, 
+import {
+  Search,
+  Trash2,
+  Filter,
+  Download,
+  CheckCircle2,
+  Clock,
   AlertCircle,
   MoreVertical,
   ChevronDown,
@@ -48,8 +36,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
 import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
-import { logSystemEvent } from '@/lib/audit';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -58,28 +45,20 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 
-interface Feedback {
-  id: string;
-  tool: string;
-  score: number;
-  comment: string;
-  userEmail: string;
-  timestamp: any;
-  status: 'new' | 'reviewed' | 'addressed' | 'archived';
-  version?: string;
-  userAgent?: string;
-  pathname?: string;
+interface Feedback extends FeedbackData {
+  status: string;
 }
 
-const STATUS_CONFIG = {
-  new: { label: 'Novo', color: 'bg-blue-500', icon: Clock },
-  reviewed: { label: 'Em Análise', color: 'bg-amber-500', icon: AlertCircle },
-  addressed: { label: 'Resolvido', color: 'bg-emerald-500', icon: CheckCircle2 },
-  archived: { label: 'Arquivado', color: 'bg-slate-400', icon: Trash2 },
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
+  OPEN: { label: 'Novo', color: 'bg-blue-500', icon: Clock },
+  REVIEWED: { label: 'Em Análise', color: 'bg-amber-500', icon: AlertCircle },
+  ADDRESSED: { label: 'Resolvido', color: 'bg-emerald-500', icon: CheckCircle2 },
+  ARCHIVED: { label: 'Arquivado', color: 'bg-slate-400', icon: Trash2 },
 };
 
+const getStatusConfig = (status: string) => STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
+
 export function FeedbackManager() {
-  const { firestore, user: currentUser } = useFirebase();
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,34 +67,38 @@ export function FeedbackManager() {
   const [scoreFilter, setScoreFilter] = useState<string>('all');
 
   useEffect(() => {
-    if (!firestore) return;
+    let cancelled = false;
 
-    const q = query(collection(firestore, 'feedbacks'), orderBy('timestamp', 'desc'), limit(200));
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data(),
-        status: doc.data().status || 'new' // Fallback para antigos
-      } as Feedback));
-      setFeedbacks(data);
-      setLoading(false);
-    });
+    (async () => {
+      try {
+        const data = await feedbackApi.listFeedbacks();
+        if (!cancelled) {
+          setFeedbacks(data.map(f => ({ ...f, status: f.status || 'OPEN' })));
+        }
+      } catch (e) {
+        console.error('FeedbackManager: error loading feedbacks:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
-    return () => unsubscribe();
-  }, [firestore]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const tools = useMemo(() => {
-    const set = new Set(feedbacks.map(f => f.tool));
+    const set = new Set(feedbacks.map(f => f.toolName));
     return Array.from(set).sort();
   }, [feedbacks]);
 
   const filteredFeedbacks = useMemo(() => {
     return feedbacks.filter(f => {
-      const matchSearch = (f.comment || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (f.userEmail || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = (f.comment || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (f.userId || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchStatus = statusFilter === 'all' || f.status === statusFilter;
-      const matchTool = toolFilter === 'all' || f.tool === toolFilter;
-      
+      const matchTool = toolFilter === 'all' || f.toolName === toolFilter;
+
       let matchScore = true;
       if (scoreFilter === 'promoters') matchScore = f.score >= 9;
       else if (scoreFilter === 'neutrals') matchScore = f.score >= 7 && f.score <= 8;
@@ -126,20 +109,21 @@ export function FeedbackManager() {
     });
   }, [feedbacks, searchTerm, statusFilter, toolFilter, scoreFilter]);
 
-  const handleUpdateStatus = async (id: string, status: Feedback['status']) => {
-    if (!firestore) return;
+  const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      await updateDoc(doc(firestore, 'feedbacks', id), { status });
-      toast({ title: "Status atualizado", description: `Feedback marcado como ${STATUS_CONFIG[status].label}.` });
+      await feedbackApi.updateStatus(id, status);
+      setFeedbacks(prev => prev.map(f => (f.id === id ? { ...f, status } : f)));
+      toast({ title: "Status atualizado", description: `Feedback marcado como ${getStatusConfig(status).label}.` });
     } catch (e) {
       toast({ variant: "destructive", title: "Erro ao atualizar" });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore || !confirm("Deseja realmente excluir este feedback?")) return;
+    if (!confirm("Deseja realmente excluir este feedback?")) return;
     try {
-      await deleteDoc(doc(firestore, 'feedbacks', id));
+      await feedbackApi.deleteFeedback(id);
+      setFeedbacks(prev => prev.filter(f => f.id !== id));
       toast({ title: "Feedback excluído" });
     } catch (e) {
       toast({ variant: "destructive", title: "Erro ao excluir" });
@@ -148,18 +132,16 @@ export function FeedbackManager() {
 
   const exportToCSV = () => {
     if (filteredFeedbacks.length === 0) return;
-    const headers = ["Data", "Ferramenta", "Nota", "Status", "Usuário", "Comentário", "Versão", "Path"];
+    const headers = ["Data", "Ferramenta", "Nota", "Status", "Usuário", "Comentário"];
     const rows = filteredFeedbacks.map(f => {
-      const date = f.timestamp instanceof Timestamp ? f.timestamp.toDate().toLocaleString('pt-BR') : 'N/A';
+      const date = f.createdAt ? new Date(f.createdAt).toLocaleString('pt-BR') : 'N/A';
       return [
-        date, 
-        f.tool, 
-        f.score === -1 ? "Sugestão" : f.score, 
-        f.status, 
-        f.userEmail, 
+        date,
+        f.toolName,
+        f.score === -1 ? "Sugestão" : f.score,
+        f.status,
+        f.userId || 'N/A',
         `"${(f.comment || '').replace(/"/g, '""')}"`,
-        f.version || 'N/A',
-        f.pathname || 'N/A'
       ];
     });
     const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
@@ -188,14 +170,14 @@ export function FeedbackManager() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <div className="lg:col-span-2 relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-          <Input 
-            placeholder="Buscar em comentários ou e-mails..." 
+          <Input
+            placeholder="Buscar em comentários ou usuários..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-12 h-12 bg-white border-slate-200 rounded-xl shadow-sm"
           />
         </div>
-        
+
         <Select value={toolFilter} onValueChange={setToolFilter}>
           <SelectTrigger className="h-12 bg-white border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest">
             <SelectValue placeholder="Ferramenta" />
@@ -239,8 +221,8 @@ export function FeedbackManager() {
              onClick={() => setScoreFilter(tab.id)}
              className={cn(
                "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border",
-               scoreFilter === tab.id 
-                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105" 
+               scoreFilter === tab.id
+                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105"
                 : cn("bg-white border-slate-200 text-slate-400 hover:border-primary/40", tab.color)
              )}
            >
@@ -274,18 +256,15 @@ export function FeedbackManager() {
                   <TableCell className="py-4 pl-8">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-bold text-slate-900 italic">
-                        {f.timestamp instanceof Timestamp ? f.timestamp.toDate().toLocaleDateString('pt-BR') : 'Agora'}
+                        {f.createdAt ? new Date(f.createdAt).toLocaleDateString('pt-BR') : 'Agora'}
                       </span>
                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight">
-                        {f.timestamp instanceof Timestamp ? f.timestamp.toDate().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        {f.createdAt ? new Date(f.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black text-primary uppercase tracking-tighter truncate max-w-[140px]">{f.tool}</span>
-                      {f.version && <Badge variant="outline" className="w-fit text-[7px] font-black px-1 py-0 border-slate-100 text-slate-400">{f.version}</Badge>}
-                    </div>
+                    <span className="text-[10px] font-black text-primary uppercase tracking-tighter truncate max-w-[140px] block">{f.toolName}</span>
                   </TableCell>
                   <TableCell className="py-4 text-center">
                     {f.score === -1 ? (
@@ -304,7 +283,7 @@ export function FeedbackManager() {
                       <p className="text-[12px] font-medium text-slate-700 leading-snug line-clamp-2 italic group-hover:line-clamp-none transition-all">
                         {f.comment ? `"${f.comment}"` : <span className="text-slate-300">Sem comentário</span>}
                       </p>
-                      <span className="text-[8px] font-bold text-slate-400 truncate">{f.userEmail}</span>
+                      <span className="text-[8px] font-bold text-slate-400 truncate">{f.userId}</span>
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
@@ -312,19 +291,19 @@ export function FeedbackManager() {
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className={cn(
                           "h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest gap-2 border border-transparent hover:border-slate-200 transition-all",
-                          STATUS_CONFIG[f.status].color.replace('bg-', 'text-')
+                          getStatusConfig(f.status).color.replace('bg-', 'text-')
                         )}>
-                          {React.createElement(STATUS_CONFIG[f.status].icon, { className: "h-3.5 w-3.5" })}
-                          {STATUS_CONFIG[f.status].label}
+                          {React.createElement(getStatusConfig(f.status).icon, { className: "h-3.5 w-3.5" })}
+                          {getStatusConfig(f.status).label}
                           <ChevronDown className="h-3 w-3 opacity-50" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="rounded-xl border-slate-200 shadow-2xl p-1">
                         <DropdownMenuLabel className="text-[8px] font-black uppercase tracking-widest text-slate-400 p-2">Alterar Status</DropdownMenuLabel>
                         {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                          <DropdownMenuItem 
-                            key={key} 
-                            onClick={() => handleUpdateStatus(f.id, key as Feedback['status'])}
+                          <DropdownMenuItem
+                            key={key}
+                            onClick={() => handleUpdateStatus(f.id!, key)}
                             className="rounded-lg text-[10px] font-bold uppercase tracking-widest gap-3 p-2 cursor-pointer"
                           >
                              <div className={cn("w-2 h-2 rounded-full", config.color)} />
@@ -336,10 +315,10 @@ export function FeedbackManager() {
                   </TableCell>
                   <TableCell className="py-4 text-right pr-8">
                     <div className="flex items-center justify-end gap-1">
-                       <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDelete(f.id)}
+                       <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(f.id!)}
                         className="h-9 w-9 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
                       >
                         <Trash2 className="h-4 w-4" />

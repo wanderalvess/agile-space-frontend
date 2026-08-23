@@ -69,7 +69,7 @@ import {
   ListPlus,
   Shield
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -94,7 +94,7 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function PokerHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -130,8 +130,8 @@ export default function PokerHubPage() {
     if (isSetupOpen) setTemplates(listTemplates());
   }, [isSetupOpen]);
 
-  // Preenche o squad com o time do usuário assim que o perfil carregar do
-  // Firestore (chega async) — só se o campo ainda não foi editado à mão.
+  // Preenche o squad com o time do usuário assim que o perfil carregar
+  // (chega async) — só se o campo ainda não foi editado à mão.
   useEffect(() => {
     if (teamTouched) return;
     const userTeam = userProfile?.squadId || userProfile?.team;
@@ -156,7 +156,7 @@ export default function PokerHubPage() {
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
 
   const mySquadRooms = rooms.filter(r => r.team && r.team === (userProfile?.squadId || userProfile?.team));
-  const myParticipatedRooms = rooms.filter(r => user?.uid && (r.participantIds?.includes(user.uid) || r.creatorId === user.uid));
+  const myParticipatedRooms = rooms.filter(r => session?.id && (r.participantIds?.includes(session.id) || r.creatorId === session.id));
 
   const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
@@ -169,7 +169,7 @@ export default function PokerHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: session?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -181,7 +181,7 @@ export default function PokerHubPage() {
   const handleCreate = async () => {
     if (isCreating) return;
 
-    if (!user || !user.uid) {
+    if (!session || !session.id) {
       console.error("[poker] Tentativa de criação de sala abortada: usuário nulo ou sem ID.");
       toast({
         title: "Perfil Não Identificado",
@@ -228,14 +228,14 @@ export default function PokerHubPage() {
     const newRoom = {
       id: roomId,
       votesRevealed: false,
-      creatorId: user.uid,
+      creatorId: session.id,
       timer: { status: 'stopped', endTime: null, initialDuration: 120, remainingOnPause: 120 },
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
       issuesQueue: backlogIssues,
       activeIssueId: backlogIssues[0]?.id || null,
-      participantIds: [user.uid],
+      participantIds: [session.id],
       mode,
       deckType,
       revealedIssues: [],
@@ -329,7 +329,7 @@ export default function PokerHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!session) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);

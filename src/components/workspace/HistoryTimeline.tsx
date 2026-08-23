@@ -59,7 +59,7 @@ export function HistoryTimeline({ items, isLoading, userId }: HistoryTimelinePro
             {isLoading ? (
               <div className="p-20 flex flex-col items-center justify-center space-y-6">
                 <AgileSpinner size="lg" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 animate-pulse">Sincronizando registros do Firebase...</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 animate-pulse">Carregando histórico de cerimônias...</p>
               </div>
             ) : !items || items.length === 0 ? (
               <div className="p-20 text-center space-y-4 opacity-30">

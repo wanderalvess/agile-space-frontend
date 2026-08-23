@@ -18,10 +18,9 @@ import {
    HelpCircle
 } from 'lucide-react';
 import { KnowledgeGuide } from '@/components/knowledge/KnowledgeGuide';
-import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
-import { collection, query, orderBy, limit, doc, where } from 'firebase/firestore';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import { formatDistanceToNow } from 'date-fns';
@@ -32,13 +31,13 @@ import Link from 'next/link';
 
 export default function KnowledgeDashboard() {
    const router = useRouter();
-   const { user, isUserLoading } = useFirebase();
+   const { isLoading } = useAuth();
 
    React.useEffect(() => {
-      if (!isUserLoading) {
+      if (!isLoading) {
          router.replace('/knowledge/chat');
       }
-   }, [isUserLoading, router]);
+   }, [isLoading, router]);
 
    return (
       <div className="flex-1 min-h-screen flex items-center justify-center bg-white">

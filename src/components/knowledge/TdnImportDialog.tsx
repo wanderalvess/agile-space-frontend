@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
 interface TdnImportDialogProps {
@@ -25,7 +25,7 @@ interface TdnImportDialogProps {
 }
 
 export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = [] }: TdnImportDialogProps) {
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const { settings, loading: loadingSettings, saveSettings } = useTdnSettings();
 
   const [showConfig, setShowConfig] = useState(false);
@@ -101,14 +101,14 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
   };
 
   const handleImport = async (item: TdnSearchResult) => {
-    if (!firestore || !user) {
+    if (!session) {
       toast.error('Usuário não autenticado.');
       return;
     }
     setImportingId(item.id);
     try {
       const fullContent = await getTdnPageContent(baseUrl, token, item.id);
-      await importTdnToKnowledgeBase(firestore, user.uid, {
+      await importTdnToKnowledgeBase(session.id, {
         id: item.id,
         title: item.title,
         content: fullContent.content || '',

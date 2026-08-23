@@ -33,9 +33,8 @@ import { Separator } from '../ui/separator';
 import { cn } from '@/lib/utils';
 import { ToastAction } from "@/components/ui/toast";
 import { Logo } from '../Logo';
-import { useFirebase } from '@/firebase';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { workspaceApi } from '@/app/workspace/api';
 import { EliteSpinner } from '../ui/EliteSpinner';
 import Link from 'next/link';
 import { copyToClipboard } from '@/lib/copy-to-clipboard';
@@ -73,7 +72,7 @@ export function HealthCheckResults({
 }: HealthCheckResultsProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const [isExporting, setIsExporting] = useState(false);
   const [hasExported, setHasExported] = useState(false);
 
@@ -88,7 +87,7 @@ export function HealthCheckResults({
   };
 
   const handleExportActionsToWorkspace = async () => {
-    if (!results || !firestore || !user) return;
+    if (!results || !session) return;
     setIsExporting(true);
 
     const dimensionsMap = new Map(dimensions.map(d => [d.key, d.title]));
@@ -118,21 +117,20 @@ export function HealthCheckResults({
         else if (scaleType === 'emojis') isCritical = (vals['sad'] || 0) > 0;
         else if (scaleType === 'numbers_5') isCritical = (vals['1'] || 0) > 0 || (vals['2'] || 0) > 0;
 
-        const severity = isCritical ? 'critica' : 'media';
+        const severity: 'critica' | 'media' = isCritical ? 'critica' : 'media';
         const statusLabel = isCritical ? 'Crítico' : 'Alerta';
-        
+
         const cardData = {
           title: `Melhorar: ${dimTitle}`,
           description: `Ação gerada pelo ${statusLabel} no Radar de Saúde.`,
-          status: 'todo',
+          status: 'todo' as const,
           priority: severity,
           tag: 'Saúde da Squad',
           originLink: `/health-check/${boardId}`,
-          updatedAt: new Date().toISOString(),
           exportedAt: new Date().toISOString(),
         };
 
-        addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'kanban'), cardData);
+        await workspaceApi.saveKanbanCard(session.id, cardData);
       }
 
       toast({ 

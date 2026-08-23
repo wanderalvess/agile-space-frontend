@@ -35,8 +35,8 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { knowledgeApi } from '@/app/knowledge/api';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
@@ -174,21 +174,23 @@ function NewAssetContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get('id');
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
 
-  const kbQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'knowledge_kb'), orderBy('updatedAt', 'desc'));
-  }, [firestore, user]);
+  const [allDocs, setAllDocs] = useState<KnowledgeDocument[]>([]);
 
-  const { data: allDocs } = useCollection<KnowledgeDocument>(kbQuery);
+  useEffect(() => {
+    if (!session) return;
+    knowledgeApi.listDocuments(undefined, undefined, 0, 200)
+      .then(response => setAllDocs(response.content))
+      .catch(err => console.error('Erro ao carregar sugestões de caminho:', err));
+  }, [session]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     category: 'Processo',
     fullPath: '',
     content: '',
-    importance: 1,
     status: 'published'
   });
 
@@ -213,29 +215,28 @@ function NewAssetContent() {
   });
 
   useEffect(() => {
-    if (assetId && firestore) {
+    if (assetId) {
       const loadAsset = async () => {
-        const docRef = doc(firestore, 'knowledge_kb', assetId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        try {
+          const data = await knowledgeApi.getDocumentById(assetId);
           const loadedData = {
             title: data.title || '',
             category: data.category || 'Processo',
             fullPath: data.fullPath || '',
             content: data.content || '',
-            importance: data.importance || 1,
             status: data.status || 'published'
           };
           setFormData(loadedData);
           if (editor) {
             editor.commands.setContent(data.content || '');
           }
+        } catch (err: any) {
+          toast.error('Erro ao carregar o documento: ' + err.message);
         }
       };
       loadAsset();
     }
-  }, [assetId, firestore, editor]);
+  }, [assetId, editor]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -273,7 +274,7 @@ function NewAssetContent() {
   };
 
   const handleSave = async () => {
-    if (!firestore || !user) return;
+    if (!session) return;
     if (!formData.title || !formData.content) {
         toast.error('Preencha título e conteúdo');
         return;
@@ -281,19 +282,22 @@ function NewAssetContent() {
     setIsLoading(true);
 
     try {
-      const docId = assetId || doc(collection(firestore, 'knowledge_kb')).id;
-      const docRef = doc(firestore, 'knowledge_kb', docId);
-
-      const payload = {
-        ...formData,
-        id: docId,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid,
+      const payload: Partial<KnowledgeDocument> = {
+        title: formData.title,
+        category: formData.category,
+        fullPath: formData.fullPath,
+        content: formData.content,
+        status: formData.status as KnowledgeDocument['status'],
+        updatedBy: session.id,
+        authorId: session.id,
         byteSize: new Blob([formData.content]).size,
-        ...(assetId ? {} : { createdAt: serverTimestamp(), createdBy: user.uid })
       };
 
-      await setDoc(docRef, payload, { merge: true });
+      if (assetId) {
+        await knowledgeApi.updateDocument(assetId, payload);
+      } else {
+        await knowledgeApi.saveOrUpdateDocument(payload);
+      }
       toast.success(assetId ? 'Documento atualizado' : 'Documento salvo');
       router.push('/knowledge/kb');
     } catch (error: any) {

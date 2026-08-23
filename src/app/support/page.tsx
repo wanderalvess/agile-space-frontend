@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, 
-  MessageSquareHeart, 
-  Send, 
-  CheckCircle2, 
-  LifeBuoy, 
-  Bug, 
-  Lightbulb, 
+import {
+  ArrowLeft,
+  MessageSquareHeart,
+  Send,
+  CheckCircle2,
+  LifeBuoy,
+  Bug,
+  Lightbulb,
   HelpCircle,
   Sparkles,
   Rocket,
@@ -21,17 +21,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useFirebase } from '@/firebase';
-import { 
-  collection, 
-  addDoc, 
-  serverTimestamp, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot,
-  Timestamp 
-} from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { supportApi, type SupportTicket, type SupportTicketReply } from './api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Footer } from '@/components/layout/Footer';
 import { RoomHeader } from '@/components/layout/RoomHeader';
@@ -45,59 +36,74 @@ type TicketType = 'feedback' | 'bug' | 'suggestion' | 'support';
 
 export default function SupportPage() {
   const router = useRouter();
-  const { firestore, user } = useFirebase();
+  const { session, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
-  
+
   const [ticketType, setTicketType] = useState<TicketType>('support');
   const [description, setDescription] = useState('');
   const [subject, setSubject] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState('new');
-  
+
+  const types = [
+    { id: 'support', label: 'Suporte', icon: <LifeBuoy className="h-4 w-4" />, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { id: 'bug', label: 'Bug/Erro', icon: <Bug className="h-4 w-4" />, color: 'text-rose-500', bg: 'bg-rose-50' },
+    { id: 'suggestion', label: 'Sugestão', icon: <Lightbulb className="h-4 w-4" />, color: 'text-amber-500', bg: 'bg-amber-50' },
+    { id: 'feedback', label: 'Elogio', icon: <MessageSquareHeart className="h-4 w-4" />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  ];
+
   // Lista de tickets do usuário
-  const [myTickets, setMyTickets] = useState<any[]>([]);
+  const [myTickets, setMyTickets] = useState<SupportTicket[]>([]);
+  const [isLoadingTickets, setIsLoadingTickets] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
 
-  // Escuta os tickets do usuário logado
-  React.useEffect(() => {
-    if (!firestore || !user) return;
+  // Busca os tickets do usuário logado uma única vez (sem realtime)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMyTickets([]);
+      setIsLoadingTickets(false);
+      return;
+    }
 
-    const q = query(
-      collection(firestore, 'support_tickets'),
-      where('userId', '==', user.uid),
-      orderBy('timestamp', 'desc')
-    );
+    let cancelled = false;
+    setIsLoadingTickets(true);
+    setFetchError(false);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setMyTickets(docs);
-    }, (error) => {
-      console.error("Erro ao buscar tickets:", error);
-    });
+    supportApi.listMine()
+      .then((tickets) => {
+        if (cancelled) return;
+        const sorted = [...tickets].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setMyTickets(sorted);
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar tickets:", error);
+        if (!cancelled) setFetchError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingTickets(false);
+      });
 
-    return () => unsubscribe();
-  }, [firestore, user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || !subject.trim() || !user || !firestore) return;
+    if (!description.trim() || !subject.trim() || !isAuthenticated) return;
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(firestore, 'support_tickets'), {
-        userId: user.uid,
-        userEmail: user.email || 'Anônimo',
-        userName: user.displayName || 'Usuário',
-        subject: subject.trim(),
-        description: description.trim(),
-        type: ticketType,
-        status: 'open',
-        timestamp: serverTimestamp(),
-        replies: []
+      const typeLabel = types.find((t) => t.id === ticketType)?.label || 'Suporte';
+      const created = await supportApi.createTicket({
+        subject: `[${typeLabel}] ${subject.trim()}`,
+        message: description.trim(),
+        requesterName: session?.name,
       });
+
+      setMyTickets((prev) => [created, ...prev]);
 
       toast({
         title: "Solicitação Enviada",
@@ -106,7 +112,7 @@ export default function SupportPage() {
 
       setDescription('');
       setSubject('');
-      setActiveTab('history');
+      setIsSuccess(true);
     } catch (error) {
       console.error("Erro ao enviar ticket:", error);
       toast({
@@ -118,13 +124,6 @@ export default function SupportPage() {
       setIsSubmitting(false);
     }
   };
-
-  const types = [
-    { id: 'support', label: 'Suporte', icon: <LifeBuoy className="h-4 w-4" />, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { id: 'bug', label: 'Bug/Erro', icon: <Bug className="h-4 w-4" />, color: 'text-rose-500', bg: 'bg-rose-50' },
-    { id: 'suggestion', label: 'Sugestão', icon: <Lightbulb className="h-4 w-4" />, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { id: 'feedback', label: 'Elogio', icon: <MessageSquareHeart className="h-4 w-4" />, color: 'text-emerald-500', bg: 'bg-emerald-50' },
-  ];
 
   return (
     <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
@@ -187,8 +186,8 @@ export default function SupportPage() {
                              <h3 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Ticket Enviado!</h3>
                              <p className="text-slate-500 dark:text-slate-400 font-medium italic uppercase text-xs tracking-widest">ID de rastreio gerado no painel administrativo</p>
                            </div>
-                           <Button 
-                             variant="outline" 
+                           <Button
+                             variant="outline"
                              onClick={() => setIsSuccess(false)}
                              className="rounded-xl border-2 border-slate-200 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 font-black uppercase tracking-widest text-[10px] h-12 px-8"
                            >
@@ -207,8 +206,8 @@ export default function SupportPage() {
                                    onClick={() => setTicketType(type.id as TicketType)}
                                    className={cn(
                                      "flex flex-col items-center justify-center p-6 rounded-3xl border-2 transition-all gap-3 active:scale-95",
-                                     ticketType === type.id 
-                                       ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-lg shadow-primary/10" 
+                                     ticketType === type.id
+                                       ? "border-primary bg-primary/5 dark:bg-primary/10 shadow-lg shadow-primary/10"
                                        : "border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 text-slate-400 grayscale hover:grayscale-0"
                                    )}
                                  >
@@ -226,7 +225,7 @@ export default function SupportPage() {
                            <div className="space-y-6">
                              <div className="space-y-2">
                                <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 ml-1">Assunto</label>
-                               <Input 
+                               <Input
                                  placeholder="Resumo em uma frase..."
                                  value={subject}
                                  onChange={(e) => setSubject(e.target.value)}
@@ -236,7 +235,7 @@ export default function SupportPage() {
 
                              <div className="space-y-2">
                                <label className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 ml-1">Descrição Detalhada</label>
-                               <Textarea 
+                               <Textarea
                                  placeholder="Nos conte mais detalhes sobre sua solicitação..."
                                  value={description}
                                  onChange={(e) => setDescription(e.target.value)}
@@ -247,8 +246,8 @@ export default function SupportPage() {
                            </div>
 
                            <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex flex-col md:flex-row items-center gap-6">
-                             <Button 
-                               type="submit" 
+                             <Button
+                               type="submit"
                                disabled={isSubmitting || !description.trim()}
                                className="w-full md:w-auto h-16 px-12 rounded-2xl bg-primary hover:bg-primary/90 text-white font-black uppercase text-[12px] tracking-[0.3em] shadow-2xl shadow-primary/20 transition-all active:scale-95 gap-3"
                              >
@@ -279,6 +278,10 @@ export default function SupportPage() {
                       </div>
                       <Button onClick={() => window.location.reload()} variant="outline" className="rounded-xl border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 dark:hover:bg-rose-950/50 font-black uppercase tracking-widest text-[10px]">Tentar Novamente</Button>
                    </Card>
+                 ) : isLoadingTickets ? (
+                   <div className="grid grid-cols-1 gap-6">
+                      {[0, 1].map((i) => <div key={i} className="h-32 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-[2.5rem]" />)}
+                   </div>
                  ) : myTickets.length === 0 ? (
                    <Card className="border-slate-200 dark:border-slate-700 border-dashed rounded-[3rem] p-20 flex flex-col items-center justify-center text-center space-y-6 bg-white/50 dark:bg-slate-900/50">
                       <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600">
@@ -297,7 +300,7 @@ export default function SupportPage() {
                  )}
                </TabsContent>
             </Tabs>
-          </motion.div>
+          </main>
 
           <aside className="xl:col-span-4 space-y-8">
             <Card className="border-none bg-indigo-600 dark:bg-indigo-700 text-white rounded-[2.5rem] p-10 shadow-xl shadow-indigo-600/20 relative overflow-hidden group min-h-[300px] flex flex-col justify-center">
@@ -308,8 +311,8 @@ export default function SupportPage() {
                     <Badge className="bg-white/20 text-white border-none uppercase text-[8px] font-black tracking-widest px-3 py-1">Self-Service</Badge>
                     <h3 className="text-3xl font-black uppercase tracking-tighter italic font-headline">Dúvidas Técnicas?</h3>
                     <p className="text-white/70 text-base font-medium leading-relaxed">Consulte o manual oficial para guias passo-a-passo de cada ferramenta do Espaço Ágil.</p>
-                    <Button 
-                      variant="link" 
+                    <Button
+                      variant="link"
                       onClick={() => router.push('/manual')}
                       className="text-white p-0 text-[10px] font-black uppercase tracking-[0.3em] flex items-center gap-2 hover:translate-x-2 transition-transform"
                     >
@@ -327,8 +330,8 @@ export default function SupportPage() {
                     <p className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-widest">Build v3.4.0 stable</p>
                  </div>
                  <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Confira as últimas melhorias e correções feitas na plataforma em nosso registro oficial.</p>
-                 <Button 
-                   variant="outline" 
+                 <Button
+                   variant="outline"
                    onClick={() => router.push('/changelog')}
                    className="h-12 px-8 rounded-xl text-[10px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm"
                  >
@@ -345,8 +348,6 @@ export default function SupportPage() {
             </Card>
           </aside>
         </div>
-      </main>
-        </div>
       </div>
 
       <Footer className="mt-8 shrink-0" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
@@ -357,16 +358,16 @@ export default function SupportPage() {
 
 function History({ className }: { className?: string }) {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" 
-      height="24" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
       <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -376,17 +377,28 @@ function History({ className }: { className?: string }) {
   );
 }
 
-function UserTicketItem({ ticket }: { ticket: any }) {
-  const date = ticket.timestamp instanceof Timestamp ? ticket.timestamp.toDate().toLocaleString('pt-BR') : 'Agora';
+function UserTicketItem({ ticket }: { ticket: SupportTicket }) {
+  const date = ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('pt-BR') : 'Agora';
   const [isOpen, setIsOpen] = useState(false);
+  const [replies, setReplies] = useState<SupportTicketReply[]>([]);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
 
   const statusMap: Record<string, { label: string, color: string, bg: string }> = {
-    'open': { label: 'Em Análise', color: 'text-rose-500', bg: 'bg-rose-50' },
-    'pending': { label: 'Processando', color: 'text-amber-500', bg: 'bg-amber-50' },
-    'resolved': { label: 'Resolvido', color: 'text-emerald-500', bg: 'bg-emerald-50' }
+    'OPEN': { label: 'Em Análise', color: 'text-rose-500', bg: 'bg-rose-50' },
+    'IN_PROGRESS': { label: 'Processando', color: 'text-amber-500', bg: 'bg-amber-50' },
+    'CLOSED': { label: 'Resolvido', color: 'text-emerald-500', bg: 'bg-emerald-50' }
   };
 
-  const status = statusMap[ticket.status] || statusMap['open'];
+  const status = statusMap[ticket.status] || statusMap['OPEN'];
+
+  useEffect(() => {
+    if (!isOpen || replies.length > 0) return;
+    setIsLoadingReplies(true);
+    supportApi.getReplies(ticket.id)
+      .then(setReplies)
+      .catch((error) => console.error('Erro ao buscar respostas do ticket:', error))
+      .finally(() => setIsLoadingReplies(false));
+  }, [isOpen, ticket.id, replies.length]);
 
   return (
     <Card className="border-none bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-black/30 transition-all overflow-hidden border border-slate-100 dark:border-slate-700">
@@ -409,7 +421,7 @@ function UserTicketItem({ ticket }: { ticket: any }) {
                    <p className="text-[9px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest leading-none mb-1">Enviado em</p>
                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{date}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsOpen(!isOpen)}
                   className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-primary transition-all ml-4"
                 >
@@ -428,22 +440,24 @@ function UserTicketItem({ ticket }: { ticket: any }) {
               >
                 <div className="pt-6 border-t border-slate-100 dark:border-slate-700 space-y-8">
                    <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl border border-slate-100 dark:border-slate-700">
-                      <p className="text-[12px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed italic">"{ticket.description}"</p>
+                      <p className="text-[12px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed italic">"{ticket.message}"</p>
                    </div>
 
-                   {ticket.replies && ticket.replies.length > 0 && (
+                   {isLoadingReplies ? (
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Carregando respostas...</p>
+                   ) : replies.length > 0 && (
                       <div className="space-y-4">
                          <div className="flex items-center gap-2">
                            <MessageCircle className="h-3.5 w-3.5 text-emerald-500" />
                            <h6 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Respostas da Governança</h6>
                          </div>
                          <div className="space-y-4 relative pl-4 border-l-2 border-emerald-100/50 dark:border-emerald-800/30">
-                            {ticket.replies.map((reply: any, idx: number) => (
-                               <div key={idx} className="bg-emerald-50/40 dark:bg-emerald-950/20 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 animate-in fade-in slide-in-from-left-2 duration-500">
+                            {replies.map((reply) => (
+                               <div key={reply.id} className="bg-emerald-50/40 dark:bg-emerald-950/20 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-800/30 animate-in fade-in slide-in-from-left-2 duration-500">
                                   <p className="text-xs font-bold text-slate-800 dark:text-slate-300 mb-2 leading-relaxed">{reply.message}</p>
                                   <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest opacity-60 italic">
-                                     <span>Agent: {reply.adminEmail.split('@')[0]}</span>
-                                     <span>{new Date(reply.timestamp).toLocaleString('pt-BR')}</span>
+                                     <span>Agent: {(reply.authorName || 'Equipe').split('@')[0]}</span>
+                                     <span>{reply.createdAt ? new Date(reply.createdAt).toLocaleString('pt-BR') : ''}</span>
                                   </div>
                                </div>
                             ))}

@@ -28,9 +28,9 @@ const nextConfig: NextConfig = {
   async headers() {
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.firebaseapp.com https://*.googleapis.com https://apis.google.com https://cdn.jsdelivr.net;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.googleapis.com https://apis.google.com https://cdn.jsdelivr.net;
       worker-src 'self' blob: data: 'unsafe-inline' https://cdn.jsdelivr.net;
-      connect-src 'self' http://localhost:* ws://localhost:* https://ipapi.co https://*.firebaseapp.com https://*.googleapis.com https://*.firebase.google.com https://firebaseinstallations.googleapis.com https://cdn.jsdelivr.net https://api.github.com https://raw.githubusercontent.com https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://images.unsplash.com https://picsum.photos https://placehold.co;
+      connect-src 'self' http://localhost:* ws://localhost:* https://ipapi.co https://*.googleapis.com https://cdn.jsdelivr.net https://api.github.com https://raw.githubusercontent.com https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://images.unsplash.com https://picsum.photos https://placehold.co;
       img-src 'self' blob: data: https://images.unsplash.com https://picsum.photos https://placehold.co https://lh3.googleusercontent.com https://dl.dropboxusercontent.com;
       media-src 'self' https: data: blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      frame-src 'self' https://*.firebaseapp.com https://*.google.com;
+      frame-src 'self' https://*.google.com;
       frame-ancestors 'self';
       upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();

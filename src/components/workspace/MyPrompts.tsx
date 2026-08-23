@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  Plus,
+  Search,
   Lock,
   Sparkles,
   Terminal,
@@ -13,92 +13,98 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where, serverTimestamp, setDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 import { PromptItem } from '@/app/prompt-hub/types';
+import { promptApi } from '@/app/prompt-hub/api';
 import { deletePromptWithChildren } from '@/app/prompt-hub/deletePrompt';
 import { PromptCard } from '@/app/prompt-hub/components/PromptCard';
 import { PromptEditor } from '@/app/prompt-hub/components/PromptEditor';
 import { PromptView } from '@/app/prompt-hub/components/PromptView';
 
 export function MyPrompts({ userProfile }: { userProfile: any }) {
-  const { firestore, user } = useFirebase();
-  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid;
+  const { session } = useAuth();
+  const effectiveUserId = userProfile?.id || userProfile?.email || session?.id;
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<PromptItem | null>(null);
   const [viewingPrompt, setViewingPrompt] = useState<PromptItem | null>(null);
   const [search, setSearch] = useState('');
 
-  // Filtra só por autoria para usar o índice (authorId, updatedAt) que existe.
-  // visibility + authorId + updatedAt não tem índice composto e falharia.
-  const promptsQuery = useMemoFirebase(() => {
-    if (!firestore || !effectiveUserId) return null;
-    return query(
-      collection(firestore, 'prompt_hub'),
-      where('authorId', '==', effectiveUserId),
-      orderBy('updatedAt', 'desc')
-    );
-  }, [firestore, effectiveUserId]);
+  const [rawPrompts, setRawPrompts] = useState<PromptItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: rawPrompts, isLoading } = useCollection<PromptItem>(promptsQuery, { silent: true });
+  const loadPrompts = useCallback(async () => {
+    if (!effectiveUserId) {
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await promptApi.listPrompts(undefined, effectiveUserId, 0, 100);
+      setRawPrompts(response.content);
+    } catch (err: any) {
+      console.error('Erro ao carregar prompts do usuário', err);
+      toast.error('Erro ao carregar seus prompts.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [effectiveUserId]);
+
+  useEffect(() => {
+    loadPrompts();
+  }, [loadPrompts]);
 
   const filteredPrompts = useMemo(() => {
-    if (!rawPrompts || !effectiveUserId) return [];
-    
-    // Filtra apenas os prompts do usuário logado
-    const userPrompts = rawPrompts.filter(item => item.authorId === effectiveUserId);
-    
-    if (!search) return userPrompts;
-    
+    if (!rawPrompts) return [];
+
+    if (!search) return rawPrompts;
+
     const searchLower = search.toLowerCase();
-    return userPrompts.filter(item => 
-      item.title.toLowerCase().includes(searchLower) || 
+    return rawPrompts.filter(item =>
+      item.title.toLowerCase().includes(searchLower) ||
       item.content?.toLowerCase().includes(searchLower) ||
       item.tags.some(t => t.toLowerCase().includes(searchLower))
     );
-  }, [rawPrompts, search, effectiveUserId]);
+  }, [rawPrompts, search]);
 
   const handleSave = async (data: Partial<PromptItem>) => {
-    if (!firestore || !effectiveUserId) return;
-    
+    if (!effectiveUserId) return;
+
     const loadingToast = toast.loading('Salvando...');
     try {
-      const id = data.id || `prompt_${Date.now()}_${effectiveUserId}`;
-      const payload = {
+      const payload: Partial<PromptItem> = {
         ...data,
-        id,
         authorId: effectiveUserId,
-        authorName: userProfile?.name || user?.displayName || user?.email?.split('@')[0] || 'Membro',
+        authorName: userProfile?.name || session?.name || session?.email?.split('@')[0] || 'Membro',
         authorRole: userProfile?.role || 'Colaborador',
         authorSquad: userProfile?.squadId || 'Squad Geral',
         authorAvatar: userProfile?.avatarSeed || '',
-        updatedAt: serverTimestamp()
       };
+      delete (payload as any).id;
+      delete (payload as any).createdAt;
+      delete (payload as any).updatedAt;
 
-      if (!data.id) {
-        (payload as any).createdAt = serverTimestamp();
-        (payload as any).useCount = 0;
-        (payload as any).forkCount = 0;
+      if (data.id) {
+        await promptApi.updatePrompt(data.id, payload);
+      } else {
+        await promptApi.createPrompt(payload);
       }
-
-      await setDoc(doc(firestore, 'prompt_hub', id), payload, { merge: true });
       toast.success('Prompt salvo com sucesso!', { id: loadingToast });
       setIsEditorOpen(false);
       setEditingPrompt(null);
+      loadPrompts();
     } catch (err: any) {
       toast.error('Erro ao salvar: ' + err.message, { id: loadingToast });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!firestore || !confirm('Deseja realmente excluir este prompt?')) return;
+    if (!confirm('Deseja realmente excluir este prompt?')) return;
     try {
-      // Remove também os comentários pendurados no item — o Firestore não
-      // apaga subcoleção em cascata.
-      await deletePromptWithChildren(firestore, id, effectiveUserId);
+      await deletePromptWithChildren(id);
       toast.success('Prompt removido.');
+      loadPrompts();
     } catch (err: any) {
       toast.error('Erro ao remover: ' + err.message);
     }
@@ -127,14 +133,14 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
         <div className="flex items-center gap-3">
           <div className="relative w-full md:w-64">
             <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input 
+            <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Filtrar prompts..."
               className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-primary/10 text-xs font-bold"
             />
           </div>
-          <Button 
+          <Button
             onClick={() => {
               setEditingPrompt(null);
               setIsEditorOpen(true);
@@ -159,12 +165,12 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
           </div>
         ) : (
           filteredPrompts.map(prompt => (
-            <PromptCard 
-              key={prompt.id} 
-              prompt={prompt} 
+            <PromptCard
+              key={prompt.id}
+              prompt={prompt}
               isOwner={true}
-              // Sem estrela aqui: favoritos vivem em users/{uid}/prompt_favorites
-              // e este painel não assina essa coleção.
+              // Sem estrela aqui: favoritos vivem em localStorage do navegador
+              // e este painel não os carrega.
               isReadOnly={true}
               onFork={() => {}}
               onEdit={() => {
@@ -179,7 +185,7 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
         )}
       </div>
 
-      <PromptEditor 
+      <PromptEditor
         isOpen={isEditorOpen}
         onClose={() => {
           setIsEditorOpen(false);
@@ -188,7 +194,7 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
         onSave={handleSave}
         initialData={editingPrompt}
       />
-      
+
       <PromptView
         isOpen={!!viewingPrompt}
         onClose={() => setViewingPrompt(null)}

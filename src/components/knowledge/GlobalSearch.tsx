@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  FileText, 
-  BookMarked, 
+import {
+  Search,
+  FileText,
+  BookMarked,
   ExternalLink,
   ChevronRight,
   Clock,
@@ -17,17 +17,17 @@ import {
   SearchIcon,
   ShieldCheck
 } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogDescription 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { knowledgeApi } from '@/app/knowledge/api';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
@@ -36,28 +36,45 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
   const router = useRouter();
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const [search, setSearch] = useState("");
-  
-  const kbQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'knowledge_kb'), orderBy('updatedAt', 'desc'), limit(100));
-  }, [firestore, user]);
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data: documents, isLoading } = useCollection<KnowledgeDocument>(kbQuery);
+  // Busca via API REST (Spring Boot / PostgreSQL) em vez de assinatura realtime
+  // do Firestore. Sem termo, traz os documentos mais recentes; com termo,
+  // dispara a busca no backend após um pequeno debounce (evita 1 request por tecla).
+  useEffect(() => {
+    if (!open || !session) return;
+
+    let cancelled = false;
+    setIsLoading(true);
+
+    const trimmed = search.trim();
+    const handle = setTimeout(async () => {
+      try {
+        const response = await knowledgeApi.listDocuments(trimmed || undefined, undefined, 0, 100);
+        if (!cancelled) setDocuments(response.content);
+      } catch (error) {
+        console.error('Erro ao buscar na base de conhecimento:', error);
+        if (!cancelled) setDocuments([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }, trimmed === "" ? 0 : SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [open, session, search]);
 
   const filteredResults = React.useMemo(() => {
-    if (!documents) return [];
-    if (search.trim() === "") return documents.slice(0, 5);
-    const q = search.toLowerCase();
-    return documents.filter(doc => 
-      doc.title.toLowerCase().includes(q) ||
-      (doc.content && doc.content.toLowerCase().includes(q)) ||
-      (doc.category && doc.category.toLowerCase().includes(q)) ||
-      (doc.fullPath && doc.fullPath.toLowerCase().includes(q))
-    );
+    return search.trim() === "" ? documents.slice(0, 5) : documents;
   }, [documents, search]);
 
   const handleSelect = (doc: KnowledgeDocument) => {
@@ -68,7 +85,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
   const formatDocDate = (updatedAt: any) => {
     if (!updatedAt) return '---';
     try {
-      const date = updatedAt.toDate ? updatedAt.toDate() : new Date(updatedAt);
+      const date = new Date(updatedAt);
       if (isNaN(date.getTime())) return '---';
       return formatDistanceToNow(date, { locale: ptBR, addSuffix: true });
     } catch (e) {
@@ -91,10 +108,10 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0 overflow-hidden border border-white/20 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-3xl shadow-[0_40px_120px_rgba(0,0,0,0.15)] rounded-[3.5rem] animate-in zoom-in-95 duration-300">
         <div className="flex flex-col h-[650px] relative">
-          
+
           {/* MESH GRADIENT INSIDE DIALOG */}
           <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
-          
+
           {/* COMMAND INPUT HEADER */}
           <div className="p-10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-8 bg-white/40 dark:bg-slate-900/10 relative z-10">
             <div className="w-16 h-16 bg-slate-950 rounded-[1.5rem] flex items-center justify-center text-cyan-400 shadow-2xl shadow-indigo-500/20 relative group overflow-hidden shrink-0">
@@ -103,10 +120,10 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
             </div>
             <div className="flex-1 flex flex-col">
                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 dark:text-indigo-400 mb-1">Interface de Busca de Conhecimento</span>
-               <input 
+               <input
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
-                 placeholder="O QUE VOCÊ DESEJA LOCALIZAR?" 
+                 placeholder="O QUE VOCÊ DESEJA LOCALIZAR?"
                  className="bg-transparent text-3xl font-black placeholder:text-slate-200 dark:placeholder:text-slate-700 focus:outline-none h-14 uppercase tracking-tighter italic text-slate-955 dark:text-slate-100 transition-all"
                  autoFocus
                />
@@ -136,7 +153,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-3 py-1 bg-slate-50 dark:bg-slate-900 rounded-lg">Filtro Ativo: "{search}"</span>
                    )}
                 </div>
-                
+
                 {filteredResults.map((doc) => (
                    <button
                     key={doc.id}
@@ -183,9 +200,9 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                     <h5 className="text-3xl font-black text-slate-955 dark:text-slate-100 uppercase italic tracking-tighter">Vácuo de Detecção</h5>
                     <p className="text-[12px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-[0.2em] max-w-sm mx-auto leading-relaxed">Nenhum ativo correlacionado a <span className="text-slate-955 dark:text-slate-100">"{search}"</span> foi identificado na base de conhecimento.</p>
                  </div>
-                 <Button 
-                   onClick={() => setSearch("")} 
-                   variant="outline" 
+                 <Button
+                   onClick={() => setSearch("")}
+                   variant="outline"
                    className="h-14 px-8 rounded-2xl border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest hover:bg-slate-950 dark:hover:bg-slate-100 hover:text-white dark:hover:text-slate-900 hover:border-slate-950 dark:hover:border-slate-100 transition-all shadow-sm"
                  >
                    Resetar Parâmetros

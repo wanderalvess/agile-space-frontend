@@ -1,43 +1,57 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, GitFork, Library, User } from 'lucide-react';
-import { collection, query, where, orderBy, doc, updateDoc, increment } from 'firebase/firestore';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { promptApi } from '../../api';
 import { PromptCard } from '../../components/PromptCard';
 import type { PromptItem } from '../../types';
 
 export default function AuthorPage(props: { params: Promise<{ authorId: string }> }) {
   const params = React.use(props.params);
   const router = useRouter();
-  const { firestore, user, isUserLoading } = useFirebase();
+  const { session, isLoading: isUserLoading } = useAuth();
 
-  const isSelf = !!user && user.uid === params.authorId;
+  const isSelf = !!session && session.id === params.authorId;
 
-  // No próprio perfil trazemos tudo (o índice authorId + updatedAt já existe).
-  // No perfil de outra pessoa, só o que é público — a regra de leitura nega o
-  // resto, então a consulta precisa fixar visibility para não ser recusada.
-  const itemsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    const colRef = collection(firestore, 'prompt_hub');
+  const [items, setItems] = useState<PromptItem[] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-    return isSelf
-      ? query(colRef, where('authorId', '==', params.authorId), orderBy('updatedAt', 'desc'))
-      : query(
-          colRef,
-          where('authorId', '==', params.authorId),
-          where('visibility', '==', 'public'),
-          orderBy('updatedAt', 'desc')
-        );
-  }, [firestore, params.authorId, isSelf]);
+  // No próprio perfil trazemos tudo. No perfil de outra pessoa, o endpoint
+  // /api/prompts?authorId= devolve todos os itens do autor independente da
+  // visibilidade (o filtro por dono é responsabilidade de quem consome) —
+  // então replicamos aqui a regra que antes vinha da query do Firestore,
+  // mostrando só os públicos.
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
 
-  const { data: items, isLoading } = useCollection<PromptItem>(itemsQuery);
+    promptApi.listPrompts(undefined, params.authorId, 0, 200)
+      .then(response => {
+        if (cancelled) return;
+        const content = isSelf
+          ? response.content
+          : response.content.filter(item => item.visibility === 'public');
+        setItems(content);
+      })
+      .catch(err => {
+        console.error('Erro ao carregar itens do autor', err);
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.authorId, isSelf]);
 
   const author = items?.[0];
   const totals = React.useMemo(() => {
@@ -56,9 +70,13 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
   }, [author?.authorName]);
 
   const handleCopy = async (id: string) => {
-    if (!firestore || !user) return;
+    if (!session) return;
     try {
-      await updateDoc(doc(firestore, 'prompt_hub', id), { useCount: increment(1) });
+      await promptApi.usePrompt(id);
+      // O backend já incrementa o contador; atualizamos o estado local para
+      // refletir na hora, já que a busca aqui é pontual (não é mais um
+      // listener em tempo real como era com o Firestore).
+      setItems(prev => prev ? prev.map(item => item.id === id ? { ...item, useCount: (item.useCount || 0) + 1 } : item) : prev);
     } catch (err) {
       console.warn('Não foi possível atualizar o contador de uso.', err);
     }
@@ -150,7 +168,7 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
               <PromptCard
                 key={item.id}
                 prompt={item}
-                isOwner={item.authorId === user?.uid}
+                isOwner={item.authorId === session?.id}
                 isReadOnly
                 onFork={() => router.push(`/prompt-hub/${item.id}`)}
                 onView={() => router.push(`/prompt-hub/${item.id}`)}

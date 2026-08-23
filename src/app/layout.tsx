@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster"
 // precisa do próprio provider — o Toaster acima é o do Radix e só renderiza os
 // toasts criados por useToast().
 import { Toaster as SonnerToaster } from 'sonner'
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
@@ -90,29 +89,27 @@ export default function RootLayout({
             `
           }}
         />
-        <FirebaseClientProvider>
-          <ThemeProvider>
-            <SystemConfigProvider>
-              <AuthProvider>
-                <AuthGuard>
-                  <UserProvider>
-                    <BackendHealthGatekeeper>
-                      <IdentityGatekeeper>
-                        <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
-                          <Header />
-                          <main className="flex flex-col flex-1 w-full overflow-x-hidden">{children}</main>
-                          <GlobalAnnouncementListener />
-                          <Calmaria />
-                        </div>
-                      </IdentityGatekeeper>
-                    </BackendHealthGatekeeper>
-                  </UserProvider>
-                </AuthGuard>
-              </AuthProvider>
-            </SystemConfigProvider>
-            <MonacoConfig />
-          </ThemeProvider>
-        </FirebaseClientProvider>
+        <ThemeProvider>
+          <SystemConfigProvider>
+            <AuthProvider>
+              <AuthGuard>
+                <UserProvider>
+                  <BackendHealthGatekeeper>
+                    <IdentityGatekeeper>
+                      <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
+                        <Header />
+                        <main className="flex flex-col flex-1 w-full overflow-x-hidden">{children}</main>
+                        <GlobalAnnouncementListener />
+                        <Calmaria />
+                      </div>
+                    </IdentityGatekeeper>
+                  </BackendHealthGatekeeper>
+                </UserProvider>
+              </AuthGuard>
+            </AuthProvider>
+          </SystemConfigProvider>
+          <MonacoConfig />
+        </ThemeProvider>
 
         <Toaster />
         <SonnerToaster position="bottom-right" richColors closeButton theme="system" />

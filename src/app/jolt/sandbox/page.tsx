@@ -1,9 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, query, doc, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { 
   Select, 
@@ -49,8 +46,9 @@ import { JoltPanel } from '@/components/jolt/JoltPanel';
 import { GithubIntegrationBar } from '@/components/jolt/GithubIntegrationBar';
 import Link from 'next/link';
 
+const LAYOUTS_STORAGE_KEY_PREFIX = 'agileSpace_jolt_layouts';
+
 export default function JoltSandboxPage() {
-  const { firestore, user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
   const { toast } = useToast();
 
@@ -385,18 +383,27 @@ export default function JoltSandboxPage() {
     }
   }, [joltSpec, inputJson]);
 
-  const layoutsQuery = useMemoFirebase(
-    () => {
-      if (!firestore || !user || !isHydrated) return null;
-      return query(
-        collection(firestore, 'users', user.uid, 'dev_tools'), 
-        where('toolType', '==', 'jolt')
-      );
-    },
-    [firestore, !!user, isHydrated]
-  );
-  
-  const { data: savedLayouts, isLoading: isLoadingLayouts } = useCollection<any>(layoutsQuery);
+  const [savedLayouts, setSavedLayouts] = useState<any[]>([]);
+
+  const getLayoutsStorageKey = useCallback(() => {
+    return userProfile?.id ? `${LAYOUTS_STORAGE_KEY_PREFIX}_${userProfile.id}` : LAYOUTS_STORAGE_KEY_PREFIX;
+  }, [userProfile?.id]);
+
+  const loadLayoutsFromStorage = useCallback((): any[] => {
+    try {
+      const raw = localStorage.getItem(getLayoutsStorageKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [getLayoutsStorageKey]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    setSavedLayouts(loadLayoutsFromStorage());
+  }, [isHydrated, loadLayoutsFromStorage]);
 
   const sortedLayouts = useMemo(() => {
     if (!savedLayouts) return [];
@@ -428,7 +435,6 @@ export default function JoltSandboxPage() {
       requestIdentity(() => handleSaveLayout());
       return;
     }
-    if (!user || !firestore) return;
     if (!currentTitle.trim()) { toast({ title: "Nome ausente", variant: "destructive" }); return; }
 
     setIsSaving(true);
@@ -440,17 +446,24 @@ export default function JoltSandboxPage() {
         joltSpec: joltSpec,
         lastInput: inputJson,
         updatedAt: new Date().toISOString(),
-        creatorId: user.uid,
+        creatorId: userProfile.id,
         authorName: userProfile.name,
       };
-      
+
+      const key = getLayoutsStorageKey();
+      const current = loadLayoutsFromStorage();
+
+      let updated: any[];
       if (selectedLayoutId) {
-        updateDocumentNonBlocking(doc(firestore, 'users', user.uid, 'dev_tools', selectedLayoutId), layoutData);
-        toast({ title: "Atualizado na Nuvem!" });
+        updated = current.map(l => l.id === selectedLayoutId ? { ...l, ...layoutData, id: selectedLayoutId } : l);
+        toast({ title: "Atualizado!" });
       } else {
-        addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'dev_tools'), layoutData);
-        toast({ title: "Salvo na Nuvem!" });
+        updated = [...current, { id: crypto.randomUUID(), ...layoutData }];
+        toast({ title: "Salvo!" });
       }
+
+      localStorage.setItem(key, JSON.stringify(updated));
+      setSavedLayouts(updated);
     } catch (e: any) {
       toast({ title: "Erro ao salvar", variant: "destructive" });
     } finally {
@@ -459,8 +472,12 @@ export default function JoltSandboxPage() {
   };
 
   const handleDeleteLayout = async () => {
-    if (!selectedLayoutId || !firestore || !user) return;
-    deleteDocumentNonBlocking(doc(firestore, 'users', user.uid, 'dev_tools', selectedLayoutId));
+    if (!selectedLayoutId) return;
+    const key = getLayoutsStorageKey();
+    const current = loadLayoutsFromStorage();
+    const updated = current.filter(l => l.id !== selectedLayoutId);
+    localStorage.setItem(key, JSON.stringify(updated));
+    setSavedLayouts(updated);
     setSelectedLayoutId(null);
     setIsDeleteDialogOpen(false);
     toast({ title: "Layout Excluído" });
@@ -595,9 +612,9 @@ export default function JoltSandboxPage() {
             
             {/* Cloud layouts dropdown */}
             <div className="flex items-center gap-2 flex-1 max-w-[280px] ml-4">
-              <Select onValueChange={handleLoadLayout} value={selectedLayoutId || ""} disabled={isLoadingLayouts}>
+              <Select onValueChange={handleLoadLayout} value={selectedLayoutId || ""}>
                 <SelectTrigger className="h-9 w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest rounded-xl px-4 text-slate-700 dark:text-slate-300">
-                  <SelectValue placeholder={isLoadingLayouts ? "Carregando..." : "MEUS LAYOUTS"} />
+                  <SelectValue placeholder="MEUS LAYOUTS" />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                   {sortedLayouts.map(layout => (
@@ -740,7 +757,7 @@ export default function JoltSandboxPage() {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-xl font-black uppercase tracking-tight italic">Excluir Layout?</AlertDialogTitle>
               <AlertDialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                O layout <strong className="text-slate-800 dark:text-slate-200">"{currentTitle}"</strong> será removido permanentemente da nuvem.
+                O layout <strong className="text-slate-800 dark:text-slate-200">"{currentTitle}"</strong> será removido permanentemente.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

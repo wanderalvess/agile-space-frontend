@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useMemo, use, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { healthCheckApi } from '../api';
 import type { HealthCheckBoard as HealthCheckBoardType, HealthCheckParticipant, HealthCheckVote, HealthCheckVoteValue, TeamRole, GlobalRole } from '@/lib/types';
 import { HealthCheckVotingBoard } from '@/components/health-check/HealthCheckVotingBoard';
@@ -21,7 +21,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   const resolvedParams = use(params);
   const boardId = resolvedParams.id;
   
-  const { user, isUserLoading } = useFirebase();
+  const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, isInitializing } = useUserContext();
   const { toast } = useToast();
   const router = useRouter();
@@ -39,14 +39,14 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     setFeedbackSignal(Date.now());
   }, []);
 
-  const currentUser = useMemo(() => participants?.find(p => p.id === user?.uid) || null, [participants, user?.uid]);
+  const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile?.id]);
   const userVotes = useMemo(() => votes?.filter(v => v.participantId === currentUser?.id) || [], [votes, currentUser?.id]);
   const allVotes = votes;
 
   const isCurrentUserCreator = useMemo(() => {
-    if (!user || !boardData) return false;
-    return user.uid === boardData.creatorId;
-  }, [user?.uid, boardData?.creatorId]);
+    if (!userProfile || !boardData) return false;
+    return userProfile.id === boardData.creatorId;
+  }, [userProfile?.id, boardData?.creatorId]);
 
   const boardDimensions = boardData?.dimensions || DEFAULT_HEALTH_CHECK_DIMENSIONS;
 
@@ -66,7 +66,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   };
 
   const reloadBoardData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated) return;
     try {
       const [board, partsList, votesList] = await Promise.all([
         healthCheckApi.getBoard(boardId),
@@ -82,11 +82,11 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
       setIsBoardLoading(false);
       setAreParticipantsLoading(false);
     }
-  }, [boardId, user]);
+  }, [boardId, isAuthenticated]);
 
   // Conexão WebSocket Nativa e Carga Inicial
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated) return;
 
     reloadBoardData();
 
@@ -169,26 +169,26 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
         socket.close();
       }
     };
-  }, [boardId, reloadBoardData, user]);
+  }, [boardId, reloadBoardData, isAuthenticated]);
 
   // Auto-join como participante
   useEffect(() => {
-    if (isUserLoading || areParticipantsLoading || !user || !userProfile || !boardData || !participants) {
+    if (isLoading || areParticipantsLoading || !isAuthenticated || !userProfile || !boardData || !participants) {
       return;
     }
 
-    const isAlreadyParticipant = participants.some(p => p.id === user.uid);
+    const isAlreadyParticipant = participants.some(p => p.id === userProfile.id);
     if (isAlreadyParticipant) return;
 
     const newParticipant: HealthCheckParticipant = {
-      id: user.uid,
+      id: userProfile.id,
       boardId: boardId,
       nickname: userProfile.name,
       role: mapGlobalToTeamRole(userProfile.role),
     };
-    
+
     healthCheckApi.joinBoard(boardId, newParticipant).catch(e => console.error("Erro ao entrar no radar:", e));
-  }, [isUserLoading, areParticipantsLoading, user, userProfile, boardData, participants, boardId]);
+  }, [isLoading, areParticipantsLoading, isAuthenticated, userProfile, boardData, participants, boardId]);
 
   // Título Dinâmico da Aba
   useEffect(() => {
@@ -204,10 +204,10 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   }, [boardData]);
 
   const handleVote = async (dimensionKey: string, value: HealthCheckVoteValue, comment?: string) => {
-    if (!user || !currentUser) return;
+    if (!userProfile || !currentUser) return;
     const newVote: Partial<HealthCheckVote> = {
       boardId: boardId,
-      participantId: user.uid,
+      participantId: userProfile.id,
       participantRole: currentUser.role,
       dimensionKey,
       value,
@@ -306,7 +306,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
   // --- Render Logic ---
 
-  if (isUserLoading || isInitializing || isBoardLoading || areParticipantsLoading || !user || !userProfile) {
+  if (isLoading || isInitializing || isBoardLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
     if (!userProfile) {
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar no radar" />;
     }

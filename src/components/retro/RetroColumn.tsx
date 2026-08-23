@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect, memo } from 'react';
-import { User } from 'firebase/auth';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RetroCard as RetroCardType, RetroColumnKey, RetroBoard as RetroBoardType, RetroParticipant, RetroColumnTheme, RetroColumnDef } from "@/lib/types";
 import { AddRetroCard } from "./AddRetroCard";
@@ -19,9 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
+import { retroApi } from '../../app/retro/api';
 
 // Theme-based configuration mapping
 const THEME_CONFIG: Record<RetroColumnTheme, {
@@ -98,7 +95,7 @@ interface RetroColumnProps {
   allCards: RetroCardType[];
   boardId: string;
   boardData: RetroBoardType;
-  currentUser: User;
+  currentUser: { uid: string };
   isCreator: boolean;
   isCardsRevealed: boolean;
   onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => void;
@@ -153,7 +150,6 @@ function RetroColumnComponent({
 }: RetroColumnProps) {
   const isSortedByVotes = boardData.columnSorts?.[columnKey] || false;
   const { toast } = useToast();
-  const { firestore, user } = useFirebase();
   const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Inline title editing state
@@ -175,14 +171,13 @@ function RetroColumnComponent({
   const handleTitleSave = () => {
     setIsEditingTitle(false);
     const newTitle = editedTitle.trim();
-    if (!newTitle || newTitle === title || !firestore || !boardData.columns) return;
+    if (!newTitle || newTitle === title || !boardData.columns) return;
 
     // Update the column title in the columns array
     const updatedColumns = boardData.columns.map(col =>
       col.id === columnKey ? { ...col, title: newTitle } : col
     );
-    const boardRef = doc(firestore, 'retro_boards', boardId);
-    updateDocumentNonBlocking(boardRef, { columns: updatedColumns });
+    retroApi.saveOrUpdateBoard({ ...boardData, columns: updatedColumns }).catch(err => console.error(err));
     toast({ title: "Título atualizado!", description: `Coluna renomeada para "${newTitle}".` });
   };
 
@@ -215,7 +210,7 @@ function RetroColumnComponent({
   const cardIds = useMemo(() => sortedCards.map(c => c.id), [sortedCards]);
 
   const handleExportToWorkspace = () => {
-    if (cards.length === 0 || !firestore || !user) {
+    if (cards.length === 0) {
       toast({ title: "Nenhuma ação para exportar", variant: "destructive" });
       return;
     }
@@ -237,8 +232,7 @@ function RetroColumnComponent({
       actionItems
     };
 
-    const boardRef = doc(firestore, 'retro_boards', boardId);
-    updateDocumentNonBlocking(boardRef, { summary });
+    retroApi.saveOrUpdateBoard({ ...boardData, summary }).catch(err => console.error(err));
 
     toast({
       title: "Resumo Sincronizado!",
@@ -409,13 +403,13 @@ function RetroColumnComponent({
                     key={card.id}
                     card={card}
                     isCardsRevealed={isCardsRevealed}
-                    isAuthor={card.authorId === user?.uid}
+                    isAuthor={card.authorId === currentUser?.uid}
                     isCreator={isCreator}
                     onDelete={onDeleteCard}
                     onUpdate={onUpdateCard}
                     onToggleVote={onToggleVote as any}
                     onToggleDone={onToggleDone}
-                    currentUser={user as any}
+                    currentUser={currentUser}
                     theme={theme}
                     votingStatus={votingStatus}
                     participants={participants}

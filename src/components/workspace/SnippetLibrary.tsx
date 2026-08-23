@@ -2,18 +2,15 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 
-import { 
-  Plus, 
-  Search, 
-  Code, 
-  Copy, 
-  Trash2, 
-  Terminal, 
+import {
+  Plus,
+  Search,
+  Code,
+  Copy,
+  Trash2,
+  Terminal,
   FileCode,
-  Tag,
-  Eye,
   Pencil,
-  ChevronDown,
   Loader2
 } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
@@ -22,8 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, serverTimestamp, setDoc, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { workspaceApi, Snippet } from '@/app/workspace/api';
 import { useUserContext } from '@/context/UserContext';
 import { toast } from 'sonner';
 import { EliteSpinner } from '@/components/ui/EliteSpinner';
@@ -36,46 +32,52 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 
-interface Snippet {
-  id: string;
-  title: string;
-  description: string;
-  code: string;
-  language: string;
-  tags: string[];
-  updatedAt: Timestamp;
-}
-
 const LANGUAGES = [
   'javascript', 'typescript', 'python', 'sql', 'bash', 'json', 'html', 'css', 'java', 'csharp', 'other'
 ];
 
 export function SnippetLibrary() {
-  const { firestore, user } = useFirebase();
   const { userProfile } = useUserContext();
-  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid;
+  const effectiveUserId = userProfile?.id || userProfile?.email;
+
+  const [snippets, setSnippets] = useState<Snippet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
   const [search, setSearch] = useState('');
 
   const [formData, setFormData] = useState({
     title: '',
-    description: '',
-    code: '',
-    language: 'javascript',
-    tags: ''
+    content: '',
+    language: 'javascript'
   });
 
-  const snippetsQuery = useMemoFirebase(() => {
-    if (!firestore || !effectiveUserId) return null;
-    return query(
-      collection(firestore, 'users', effectiveUserId, 'snippets'),
-      orderBy('updatedAt', 'desc')
-    );
-  }, [firestore, effectiveUserId]);
+  useEffect(() => {
+    let cancelled = false;
 
-  const { data: snippets, isLoading } = useCollection<Snippet>(snippetsQuery);
-  
+    const loadSnippets = async () => {
+      if (!effectiveUserId) {
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const data = await workspaceApi.getSnippets(effectiveUserId);
+        if (cancelled) return;
+        data.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        setSnippets(data);
+      } catch (err) {
+        console.error('Erro ao buscar snippets:', err);
+        if (!cancelled) toast.error('Erro ao carregar snippets.');
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadSnippets();
+    return () => { cancelled = true; };
+  }, [effectiveUserId]);
+
   useEffect(() => {
     const handleNewSnippetEvent = () => {
       handleOpenEditor();
@@ -88,13 +90,12 @@ export function SnippetLibrary() {
   const filteredSnippets = useMemo(() => {
     if (!snippets) return [];
     if (!search) return snippets;
-    
+
     const searchLower = search.toLowerCase();
-    return snippets.filter(item => 
-      item.title.toLowerCase().includes(searchLower) || 
-      item.description.toLowerCase().includes(searchLower) ||
-      item.code.toLowerCase().includes(searchLower) ||
-      item.tags.some(t => t.toLowerCase().includes(searchLower))
+    return snippets.filter(item =>
+      item.title.toLowerCase().includes(searchLower) ||
+      (item.content || '').toLowerCase().includes(searchLower) ||
+      (item.language || '').toLowerCase().includes(searchLower)
     );
   }, [snippets, search]);
 
@@ -103,41 +104,37 @@ export function SnippetLibrary() {
       setEditingSnippet(snippet);
       setFormData({
         title: snippet.title,
-        description: snippet.description,
-        code: snippet.code,
-        language: snippet.language,
-        tags: snippet.tags.join(', ')
+        content: snippet.content || '',
+        language: snippet.language || 'javascript'
       });
     } else {
       setEditingSnippet(null);
       setFormData({
         title: '',
-        description: '',
-        code: '',
-        language: 'javascript',
-        tags: ''
+        content: '',
+        language: 'javascript'
       });
     }
     setIsEditorOpen(true);
   };
 
   const handleSave = async () => {
-    if (!firestore || !effectiveUserId) return;
-    if (!formData.title.trim() || !formData.code.trim()) return;
+    if (!effectiveUserId) return;
+    if (!formData.title.trim() || !formData.content.trim()) return;
 
-    const id = editingSnippet?.id || `snippet_${Date.now()}`;
-    const payload = {
-      id,
+    const payload: Partial<Snippet> = {
+      id: editingSnippet?.id,
       title: formData.title.trim(),
-      description: formData.description.trim(),
-      code: formData.code.trim(),
-      language: formData.language,
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-      updatedAt: serverTimestamp()
+      content: formData.content.trim(),
+      language: formData.language
     };
 
     try {
-      await setDoc(doc(firestore, 'users', effectiveUserId, 'snippets', id), payload, { merge: true });
+      const saved = await workspaceApi.saveSnippet(effectiveUserId, payload);
+      setSnippets(prev => {
+        const exists = prev.some(s => s.id === saved.id);
+        return exists ? prev.map(s => s.id === saved.id ? saved : s) : [saved, ...prev];
+      });
       toast.success('Snippet salvo com sucesso!');
       setIsEditorOpen(false);
     } catch (err: any) {
@@ -145,10 +142,11 @@ export function SnippetLibrary() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!firestore || !effectiveUserId || !confirm('Deseja realmente excluir este snippet?')) return;
+  const handleDelete = async (id?: string) => {
+    if (!id || !confirm('Deseja realmente excluir este snippet?')) return;
     try {
-      await deleteDoc(doc(firestore, 'users', effectiveUserId, 'snippets', id));
+      await workspaceApi.deleteSnippet(id);
+      setSnippets(prev => prev.filter(s => s.id !== id));
       toast.success('Snippet removido.');
     } catch (err: any) {
       toast.error('Erro ao remover: ' + err.message);
@@ -183,14 +181,14 @@ export function SnippetLibrary() {
         <div className="flex items-center gap-3">
           <div className="relative w-full md:w-72 group">
             <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-            <Input 
+            <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar snippet por título, tag ou código..."
+              placeholder="Buscar snippet por título, linguagem ou código..."
               className="h-12 pl-10 rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-4 focus:ring-indigo-500/5 text-xs font-bold"
             />
           </div>
-          <Button 
+          <Button
             onClick={() => handleOpenEditor()}
             className="h-12 px-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-black transition-all gap-2 shrink-0"
           >
@@ -230,13 +228,13 @@ export function SnippetLibrary() {
                         </div>
                      </div>
                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button 
+                        <button
                           onClick={() => handleOpenEditor(snippet)}
                           className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"
                         >
                            <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(snippet.id)}
                           className="p-2 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
                         >
@@ -245,26 +243,16 @@ export function SnippetLibrary() {
                      </div>
                   </div>
 
-                  <p className="text-[10px] font-medium text-slate-500 leading-relaxed line-clamp-2">{snippet.description}</p>
-                  
                   <div className="relative rounded-2xl bg-slate-950 p-4 font-mono text-[11px] text-slate-300 overflow-hidden group/code">
-                     <div className="max-h-32 overflow-hidden mask-fade-bottom">
-                        <pre className="whitespace-pre-wrap break-all leading-tight">{snippet.code}</pre>
+                     <div className="max-h-40 overflow-hidden mask-fade-bottom">
+                        <pre className="whitespace-pre-wrap break-all leading-tight">{snippet.content}</pre>
                      </div>
-                     <button 
-                        onClick={() => handleCopyCode(snippet.code)}
+                     <button
+                        onClick={() => handleCopyCode(snippet.content)}
                         className="absolute right-3 top-3 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white opacity-0 group-hover/code:opacity-100 transition-all active:scale-90"
                      >
                         <Copy className="h-3.5 w-3.5" />
                      </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                     {snippet.tags.map(tag => (
-                        <span key={tag} className="text-[8px] font-black uppercase tracking-widest px-2.5 py-1 bg-slate-50 text-slate-400 rounded-lg border border-slate-100 flex items-center gap-1">
-                           <Tag className="h-2 w-2" /> {tag}
-                        </span>
-                     ))}
                   </div>
                </div>
             </div>
@@ -280,13 +268,13 @@ export function SnippetLibrary() {
               {editingSnippet ? 'Ajustar' : 'Novo'} <span className="text-indigo-500 not-italic">Snippet</span>
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-8">
             <div className="space-y-6">
                <div className="space-y-2">
                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título do Snippet</Label>
-                 <Input 
-                   value={formData.title} 
+                 <Input
+                   value={formData.title}
                    onChange={e => setFormData({...formData, title: e.target.value})}
                    placeholder="Ex: API Fetch Wrapper"
                    className="h-12 rounded-xl font-bold border-2 border-slate-100 focus:border-indigo-500/20"
@@ -294,37 +282,16 @@ export function SnippetLibrary() {
                </div>
 
                <div className="space-y-2">
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrição</Label>
-                 <Textarea 
-                   value={formData.description} 
-                   onChange={e => setFormData({...formData, description: e.target.value})}
-                   placeholder="Para que serve este código?"
-                   className="min-h-[80px] rounded-xl text-sm border-2 border-slate-100 focus:border-indigo-500/20"
-                 />
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Linguagem</Label>
-                    <select 
-                      value={formData.language}
-                      onChange={e => setFormData({...formData, language: e.target.value})}
-                      className="w-full h-11 rounded-xl border-2 border-slate-100 bg-white font-bold text-xs px-3 focus:border-indigo-500/20 outline-none"
-                    >
-                      {LANGUAGES.map(lang => (
-                        <option key={lang} value={lang}>{lang.toUpperCase()}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Tags (separadas por vírgula)</Label>
-                    <Input 
-                      value={formData.tags} 
-                      onChange={e => setFormData({...formData, tags: e.target.value})}
-                      placeholder="React, Hook, Auth"
-                      className="h-11 rounded-xl font-bold border-2 border-slate-100 focus:border-indigo-500/20"
-                    />
-                  </div>
+                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Linguagem</Label>
+                 <select
+                   value={formData.language}
+                   onChange={e => setFormData({...formData, language: e.target.value})}
+                   className="w-full h-11 rounded-xl border-2 border-slate-100 bg-white font-bold text-xs px-3 focus:border-indigo-500/20 outline-none"
+                 >
+                   {LANGUAGES.map(lang => (
+                     <option key={lang} value={lang}>{lang.toUpperCase()}</option>
+                   ))}
+                 </select>
                </div>
             </div>
 
@@ -338,8 +305,8 @@ export function SnippetLibrary() {
                    height="100%"
                    language={formData.language}
                    theme="vs-dark"
-                   value={formData.code}
-                   onChange={(value) => setFormData({ ...formData, code: value || '' })}
+                   value={formData.content}
+                   onChange={(value) => setFormData({ ...formData, content: value || '' })}
                    options={{
                      minimap: { enabled: false },
                      fontSize: 12,
@@ -372,9 +339,9 @@ export function SnippetLibrary() {
 
           <DialogFooter className="p-8 bg-slate-50 border-t border-slate-100">
             <Button variant="ghost" onClick={() => setIsEditorOpen(false)} className="font-black text-[10px] uppercase tracking-widest">Cancelar</Button>
-            <Button 
-              onClick={handleSave} 
-              disabled={!formData.title.trim() || !formData.code.trim()} 
+            <Button
+              onClick={handleSave}
+              disabled={!formData.title.trim() || !formData.content.trim()}
               className="h-12 px-8 font-black text-[10px] uppercase tracking-widest rounded-xl bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 hover:bg-indigo-700"
             >
               Salvar Snippet

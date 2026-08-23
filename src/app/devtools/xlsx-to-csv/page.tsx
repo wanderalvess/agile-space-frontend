@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { initializeFirebase } from '@/firebase';
+import { getAuthToken } from '@/lib/auth-client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -104,16 +104,16 @@ export default function XlsxToCsvPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Configurações Globais do Jira (Firebase Firestore)
+  // Configurações Globais do Jira (Postgres via Spring Boot)
   const { settings: jiraGlobalSettings } = useJiraSettings();
 
   // Carregar credenciais e histórico no primeiro acesso
   useEffect(() => {
-    // 1. Tentar ler do Perfil do Firebase
+    // 1. Tentar ler do Perfil salvo no backend
     if (jiraGlobalSettings?.token) {
       setJiraPat(jiraGlobalSettings.token);
     } else if (typeof window !== 'undefined') {
-      // 2. Se não houver token no Firebase, ler do LocalStorage
+      // 2. Se não houver token salvo, ler do LocalStorage
       const savedPat = localStorage.getItem('totvs_jira_pat');
       if (savedPat) setJiraPat(savedPat);
     }
@@ -325,8 +325,7 @@ export default function XlsxToCsvPage() {
     }
 
     // Método 2: Fallback para o Proxy Server-side
-    const { auth } = initializeFirebase();
-    const idToken = await auth.currentUser?.getIdToken();
+    const idToken = getAuthToken();
     const res = await fetch('/api/jira/testcase', {
       method: 'POST',
       headers: {

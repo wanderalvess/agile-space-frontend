@@ -1,17 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  doc, 
-  getDoc, 
-  setDoc,
-  serverTimestamp
-} from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { 
-  Palette, 
-  Building2, 
-  Image as ImageIcon, 
+import { useAuth } from '@/context/AuthContext';
+import { adminApi } from '@/app/admin/api';
+import {
+  Palette,
+  Building2,
+  Image as ImageIcon,
   Save,
   RotateCcw,
   Globe,
@@ -33,7 +28,6 @@ interface SystemConfig {
   logoUrl: string;
   allowAnonymous: boolean;
   maintenanceMode: boolean;
-  updatedAt?: any;
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
@@ -45,23 +39,32 @@ const DEFAULT_CONFIG: SystemConfig = {
 };
 
 export function SystemConfigManager() {
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!firestore) return;
     loadConfig();
-  }, [firestore]);
+  }, []);
 
   const loadConfig = async () => {
     try {
-      const docRef = doc(firestore!, 'system_configs', 'global');
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        setConfig(snap.data() as SystemConfig);
-      }
+      const [companyName, primaryColor, logoUrl, allowAnonymous, maintenanceMode] = await Promise.all([
+        adminApi.getConfig('companyName'),
+        adminApi.getConfig('primaryColor'),
+        adminApi.getConfig('logoUrl'),
+        adminApi.getConfig('allowAnonymous'),
+        adminApi.getConfig('maintenanceMode'),
+      ]);
+
+      setConfig({
+        companyName: companyName || DEFAULT_CONFIG.companyName,
+        primaryColor: primaryColor || DEFAULT_CONFIG.primaryColor,
+        logoUrl: logoUrl || DEFAULT_CONFIG.logoUrl,
+        allowAnonymous: allowAnonymous ? allowAnonymous === 'true' : DEFAULT_CONFIG.allowAnonymous,
+        maintenanceMode: maintenanceMode ? maintenanceMode === 'true' : DEFAULT_CONFIG.maintenanceMode,
+      });
     } catch (e) {
       console.error("Error loading config:", e);
     } finally {
@@ -70,19 +73,21 @@ export function SystemConfigManager() {
   };
 
   const handleSave = async () => {
-    if (!firestore) return;
     setSaving(true);
     try {
-      await setDoc(doc(firestore, 'system_configs', 'global'), {
-        ...config,
-        updatedAt: serverTimestamp()
-      });
-      
-      await logSystemEvent(firestore, {
+      await Promise.all([
+        adminApi.setConfig('companyName', config.companyName),
+        adminApi.setConfig('primaryColor', config.primaryColor),
+        adminApi.setConfig('logoUrl', config.logoUrl),
+        adminApi.setConfig('allowAnonymous', String(config.allowAnonymous)),
+        adminApi.setConfig('maintenanceMode', String(config.maintenanceMode)),
+      ]);
+
+      await logSystemEvent({
         content: `CONFIGURAÇÃO DE SISTEMA ALTERADA: Cores, Nome ou Permissões atualizadas.`,
         type: 'admin',
         severity: 'warning',
-        userEmail: user?.email,
+        userEmail: session?.email,
         module: 'SystemConfig'
       });
 
@@ -112,7 +117,7 @@ export function SystemConfigManager() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Identidade Visual (Branding) */}
         <Card className="border-slate-200/60 rounded-[2rem] bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
           <CardHeader className="p-5 border-b border-slate-50 flex items-center gap-4">
@@ -125,7 +130,7 @@ export function SystemConfigManager() {
           <CardContent className="p-5 space-y-5">
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-2">Nome da Empresa / Instância</label>
-              <Input 
+              <Input
                 value={config.companyName}
                 onChange={(e) => setConfig({ ...config, companyName: e.target.value })}
                 placeholder="Ex: Agile Squad Solutions"
@@ -136,14 +141,14 @@ export function SystemConfigManager() {
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-2">Cor Primária (Formato HSL)</label>
               <div className="flex gap-4">
-                <Input 
+                <Input
                   value={config.primaryColor}
                   onChange={(e) => setConfig({ ...config, primaryColor: e.target.value })}
                   placeholder="Ex: 24 93% 53%"
                   className="h-11 bg-slate-50 border-slate-200 rounded-xl font-mono text-xs"
                 />
-                <div 
-                  className="w-11 h-11 rounded-xl shadow-xl border-4 border-white shrink-0" 
+                <div
+                  className="w-11 h-11 rounded-xl shadow-xl border-4 border-white shrink-0"
                   style={{ backgroundColor: `hsl(${config.primaryColor})` }}
                 />
               </div>
@@ -154,7 +159,7 @@ export function SystemConfigManager() {
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-2">URL do Logo (SVG ou PNG Transparente)</label>
               <div className="relative group">
                 <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input 
+                <Input
                   value={config.logoUrl}
                   onChange={(e) => setConfig({ ...config, logoUrl: e.target.value })}
                   placeholder="https://suaempresa.com/logo.svg"
@@ -211,16 +216,16 @@ export function SystemConfigManager() {
 
           {/* Action Bar */}
           <div className="flex gap-4">
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               disabled={saving}
               className="flex-[2] h-12 rounded-xl bg-slate-900 hover:bg-primary text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-2xl active:scale-95 transition-all gap-3"
             >
               {saving ? 'PROCESSANDO...' : 'ATUALIZAR SISTEMA'}
               <Save className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={resetToDefault}
               className="flex-1 h-12 rounded-xl border-slate-200 text-slate-400 font-black uppercase text-[9px] tracking-widest hover:bg-slate-50 transition-all gap-2"
             >

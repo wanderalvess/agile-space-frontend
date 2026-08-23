@@ -15,7 +15,6 @@ import {
   BarChart3,
   History
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { healthCheckApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -28,7 +27,6 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function HealthCheckHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -43,7 +41,7 @@ export default function HealthCheckHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -55,7 +53,7 @@ export default function HealthCheckHubPage() {
   const handleCreate = async (dimensions: HealthCheckDimension[], sprintName: string, team: string, scaleType: HealthCheckScaleType) => {
     if (isCreating) return;
 
-    if (!user || !user.uid) {
+    if (!userProfile || !userProfile.id) {
       console.error("[health-check] Criar board abortado: usuário sem ID.");
       toast({
         title: "Perfil Não Identificado",
@@ -67,14 +65,14 @@ export default function HealthCheckHubPage() {
     setIsCreating(true);
     
     const newHealthCheck = {
-      creatorId: user.uid,
+      creatorId: userProfile.id,
       status: 'collecting' as const,
       createdAt: new Date().toISOString(),
       dimensions,
       scaleType,
       sprintName: sprintName || '',
       team: team || userProfile?.squadId || userProfile?.team || 'Squad Geral',
-      participantIds: [user.uid]
+      participantIds: [userProfile.id]
     };
 
     try {
@@ -153,7 +151,7 @@ export default function HealthCheckHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);

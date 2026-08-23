@@ -18,21 +18,11 @@ import {
   Brain,
   Palette
 } from 'lucide-react';
-import { 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  orderBy, 
-  limit, 
-  serverTimestamp, 
-  doc, 
-  updateDoc, 
-  Timestamp 
-} from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { logSystemEvent } from '@/lib/audit';
+import { adminApi } from '@/app/admin/api';
+import { supportApi, type SupportTicket, type SupportTicketReply, type SupportTicketStatus } from '@/app/support/api';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Card, 
@@ -112,7 +102,7 @@ export function NpsBar({ label, count, total, color }: any) {
 }
 
 export function FeedbackItem({ feedback }: any) {
-  const date = feedback.timestamp instanceof Timestamp ? feedback.timestamp.toDate().toLocaleDateString('pt-BR') : 'Agora';
+  const date = feedback.createdAt ? new Date(feedback.createdAt).toLocaleDateString('pt-BR') : 'Agora';
   return (
     <div className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 dark:border-slate-800 hover:border-primary/20 transition-all space-y-4">
       <div className="flex justify-between items-start">
@@ -130,26 +120,19 @@ export function FeedbackItem({ feedback }: any) {
   );
 }
 
-export function TicketItem({ ticket, onClick }: any) {
-  const date = ticket.timestamp instanceof Timestamp ? ticket.timestamp.toDate().toLocaleDateString('pt-BR') : 'Agora';
-  const typeLabels: Record<string, string> = {
-    'support': 'SUPORTE',
-    'bug': 'BUG/ERRO',
-    'suggestion': 'SUGESTÃO',
-    'feedback': 'ELOGIO'
-  };
+export function TicketItem({ ticket, onClick }: { ticket: SupportTicket; onClick?: () => void }) {
+  const date = ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString('pt-BR') : 'Agora';
 
-  const typeColors: Record<string, string> = {
-    'support': 'bg-blue-100 text-blue-700',
-    'bug': 'bg-rose-100 text-rose-700',
-    'suggestion': 'bg-amber-100 text-amber-700',
-    'feedback': 'bg-emerald-100 text-emerald-700'
+  const statusLabels: Record<string, string> = {
+    'OPEN': 'ABERTO',
+    'IN_PROGRESS': 'EM ANDAMENTO',
+    'CLOSED': 'RESOLVIDO'
   };
 
   const statusColors: Record<string, string> = {
-    'open': 'text-rose-500 border-rose-200 bg-rose-50',
-    'pending': 'text-amber-500 border-amber-200 bg-amber-50',
-    'resolved': 'text-emerald-500 border-emerald-200 bg-emerald-50'
+    'OPEN': 'text-rose-500 border-rose-200 bg-rose-50',
+    'IN_PROGRESS': 'text-amber-500 border-amber-200 bg-amber-50',
+    'CLOSED': 'text-emerald-500 border-emerald-200 bg-emerald-50'
   };
 
   return (
@@ -158,69 +141,75 @@ export function TicketItem({ ticket, onClick }: any) {
       className="p-6 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/5 transition-all space-y-4 shadow-sm cursor-pointer group"
     >
       <div className="flex justify-between items-start">
-        <Badge className={cn("text-[8px] font-black px-2 py-0.5 border-none", typeColors[ticket.type] || 'bg-slate-100')}>
-          {typeLabels[ticket.type] || 'TICKET'}
+        <Badge variant="outline" className={cn("text-[7px] font-black uppercase tracking-widest px-1.5 border-none", statusColors[ticket.status] || 'bg-slate-100')}>
+          {statusLabels[ticket.status] || ticket.status}
         </Badge>
         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{date}</span>
       </div>
       <div className="space-y-1">
         <h5 className="text-[12px] font-black uppercase text-slate-900 dark:text-slate-100 leading-tight italic group-hover:text-primary transition-colors">{ticket.subject}</h5>
         <p className="text-[11px] leading-relaxed text-slate-600 font-medium line-clamp-3">
-          {ticket.description}
+          {ticket.message}
         </p>
       </div>
       <div className="pt-2 border-t border-slate-50 flex items-center justify-between">
-        <p className="text-[8px] font-black text-slate-400 group-hover:text-primary/60 uppercase tracking-tighter truncate max-w-[120px] transition-colors">
-          {ticket.userEmail}
+        <p className="text-[8px] font-black text-slate-400 group-hover:text-primary/60 uppercase tracking-tighter truncate max-w-[160px] transition-colors">
+          {ticket.requesterName || ticket.requesterEmail}
         </p>
-        <Badge variant="outline" className={cn("text-[7px] font-black uppercase tracking-widest px-1.5", statusColors[ticket.status] || 'border-slate-100 dark:border-slate-800')}>
-          {ticket.status === 'open' ? 'ABERTO' : ticket.status === 'pending' ? 'PENDENTE' : 'RESOLVIDO'}
-        </Badge>
       </div>
     </div>
   );
 }
 
-export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any) {
-  const { firestore, user } = useFirebase();
+export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: { open: boolean; onOpenChange: (open: boolean) => void; ticket: SupportTicket | null; onUpdate: () => void }) {
+  const { session } = useAuth();
   const [reply, setReply] = useState('');
-  const [status, setStatus] = useState(ticket?.status || 'open');
+  const [status, setStatus] = useState<SupportTicketStatus>(ticket?.status || 'OPEN');
   const [isUpdating, setIsUpdating] = useState(false);
+  const [replies, setReplies] = useState<SupportTicketReply[]>([]);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (ticket) setStatus(ticket.status);
   }, [ticket]);
 
+  useEffect(() => {
+    if (!open || !ticket) {
+      setReplies([]);
+      return;
+    }
+    setIsLoadingReplies(true);
+    supportApi.getReplies(ticket.id)
+      .then(setReplies)
+      .catch((error) => console.error('Erro ao buscar respostas do ticket:', error))
+      .finally(() => setIsLoadingReplies(false));
+  }, [open, ticket]);
+
   if (!ticket) return null;
 
   const handleUpdate = async () => {
-    if (!firestore) return;
     setIsUpdating(true);
     try {
-      const ticketRef = doc(firestore, 'support_tickets', ticket.id);
-      const newReplies = [...(ticket.replies || [])];
-
       if (reply.trim()) {
-        newReplies.push({
+        const created = await supportApi.addReply(ticket.id, {
           message: reply.trim(),
-          adminEmail: user?.email,
-          timestamp: new Date().toISOString()
+          authorName: session?.name || session?.email,
         });
+        setReplies((prev) => [...prev, created]);
 
-        await logSystemEvent(firestore, {
+        await logSystemEvent({
           content: `Admin respondeu ticket [${ticket.id}]: "${reply.substring(0, 30)}..."`,
           type: 'admin',
           severity: 'info',
-          userEmail: user?.email,
+          userEmail: session?.email,
           module: 'SupportTickets'
         });
       }
 
-      await updateDoc(ticketRef, {
-        status: status,
-        replies: newReplies
-      });
+      if (status !== ticket.status) {
+        await supportApi.updateStatus(ticket.id, status);
+      }
 
       toast({ title: "Ticket atualizado", description: "As mudanças foram salvas com sucesso." });
       setReply('');
@@ -233,7 +222,13 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any
     }
   };
 
-  const date = ticket.timestamp instanceof Timestamp ? ticket.timestamp.toDate().toLocaleString('pt-BR') : 'Agora';
+  const date = ticket.createdAt ? new Date(ticket.createdAt).toLocaleString('pt-BR') : 'Agora';
+
+  const statusBadgeColors: Record<string, string> = {
+    'OPEN': 'bg-rose-500 text-white',
+    'IN_PROGRESS': 'bg-amber-500 text-white',
+    'CLOSED': 'bg-emerald-500 text-white'
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -254,12 +249,8 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any
             </div>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <Badge className={cn("text-[9px] font-black uppercase px-3 py-1 border-none shadow-sm",
-              ticket.type === 'bug' ? 'bg-rose-500 text-white' :
-                ticket.type === 'suggestion' ? 'bg-amber-500 text-white' :
-                  'bg-indigo-600 text-white'
-            )}>
-              {ticket.type}
+            <Badge className={cn("text-[9px] font-black uppercase px-3 py-1 border-none shadow-sm", statusBadgeColors[ticket.status] || 'bg-indigo-600 text-white')}>
+              {ticket.status}
             </Badge>
             <p className="text-[9px] font-black text-slate-400 tracking-widest uppercase">{date}</p>
           </div>
@@ -275,18 +266,20 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any
               </h4>
               <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-200 dark:border-slate-800/60 shadow-sm border-l-4 border-l-primary group hover:border-primary/20 transition-all">
                 <p className="text-[13px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap italic">
-                  "{ticket.description}"
+                  "{ticket.message}"
                 </p>
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                   <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-500">?</div>
-                  <p className="text-[9px] font-black text-primary/60 uppercase tracking-tighter truncate">{ticket.userEmail}</p>
+                  <p className="text-[9px] font-black text-primary/60 uppercase tracking-tighter truncate">{ticket.requesterName || ticket.requesterEmail}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {ticket.replies?.map((r: any, idx: number) => (
-            <div key={idx} className="relative pl-10">
+          {isLoadingReplies ? (
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-10">Carregando respostas...</p>
+          ) : replies.map((r) => (
+            <div key={r.id} className="relative pl-10">
               <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-200" />
               <div className="absolute left-[11px] top-1 w-2.5 h-2.5 rounded-full border-2 border-emerald-500 bg-white dark:bg-slate-900 z-10" />
               <div className="space-y-4">
@@ -296,8 +289,8 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any
                 <div className="bg-emerald-50/40 backdrop-blur-sm rounded-[2rem] p-6 border border-emerald-100 ml-4 group shadow-sm hover:bg-emerald-50/60 transition-all">
                   <p className="text-[13px] font-bold text-slate-900 dark:text-slate-100 leading-relaxed">{r.message}</p>
                   <div className="mt-4 pt-3 border-t border-emerald-100/50 flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                    <span className="text-emerald-700/60">{r.adminEmail}</span>
-                    <span className="text-slate-400 italic">{new Date(r.timestamp).toLocaleString('pt-BR')}</span>
+                    <span className="text-emerald-700/60">{r.authorName}</span>
+                    <span className="text-slate-400 italic">{r.createdAt ? new Date(r.createdAt).toLocaleString('pt-BR') : ''}</span>
                   </div>
                 </div>
               </div>
@@ -314,13 +307,13 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: any
               </div>
               <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
                 {[
-                  { id: 'open', label: 'Aberto', color: 'bg-rose-500' },
-                  { id: 'pending', label: 'Pendente', color: 'bg-amber-500' },
-                  { id: 'resolved', label: 'Resolvido', color: 'bg-emerald-500' }
+                  { id: 'OPEN', label: 'Aberto', color: 'bg-rose-500' },
+                  { id: 'IN_PROGRESS', label: 'Em Andamento', color: 'bg-amber-500' },
+                  { id: 'CLOSED', label: 'Resolvido', color: 'bg-emerald-500' }
                 ].map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => setStatus(s.id)}
+                    onClick={() => setStatus(s.id as SupportTicketStatus)}
                     className={cn(
                       "text-[8px] font-black uppercase px-4 py-2 rounded-lg transition-all",
                       status === s.id ? `${s.color} text-white shadow-lg` : "text-slate-400 hover:bg-white dark:bg-slate-900 hover:text-slate-600"

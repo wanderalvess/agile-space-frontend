@@ -62,13 +62,15 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Badge } from '@/components/ui/badge';
-import { collection, query, where } from 'firebase/firestore';
 import { workspaceApi } from '@/app/workspace/api';
+import { pokerApi } from '@/app/room/api';
+import { retroApi } from '@/app/retro/api';
+import { healthCheckApi } from '@/app/health-check/api';
 import Link from 'next/link';
 
 // Workspace V3 Components & Types
@@ -82,22 +84,22 @@ import { KanbanCardData, KanbanStatus, KanbanPriority, StickyNote, HistoryItem }
 
 export default function WorkspacePage() {
   const router = useRouter();
-  const { firestore, auth, user, isUserLoading } = useFirebase();
+  const { session } = useAuth();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const { toast } = useToast();
   const { userProfile, updateProfile, requestIdentity, isInitializing } = useUserContext();
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
 
-  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid || '';
+  const effectiveUserId = userProfile?.id || userProfile?.email || session?.id || '';
 
   // Authentication Guard & Page Title
   useEffect(() => {
     document.title = `Meu Espaço | Espaço Ágil`;
-    if (!isInitializing && !userProfile && !user) {
+    if (!isInitializing && !userProfile && !session) {
       requestIdentity();
     }
-  }, [userProfile, user, isInitializing, requestIdentity]);
+  }, [userProfile, session, isInitializing, requestIdentity]);
 
   const [cards, setCards] = useState<KanbanCardData[]>([]);
   const [isKanbanLoading, setIsKanbanLoading] = useState(true);
@@ -107,25 +109,51 @@ export default function WorkspacePage() {
 
   const [userLinks, setUserLinks] = useState<any[]>([]);
 
-  // Firestore Queries para Históricos colaborativos
-  const pokerHistoryQuery = useMemoFirebase(() => (firestore && effectiveUserId) ? query(collection(firestore, 'rooms'), where('participantIds', 'array-contains', effectiveUserId)) : null, [firestore, effectiveUserId]);
-  const { data: pokerHistory, isLoading: isLoadingPoker } = useCollection<any>(pokerHistoryQuery);
+  // Históricos colaborativos: busca as listas completas via REST e filtra no
+  // cliente pelas salas/quadros em que o usuário é participante ou criador —
+  // mesmo padrão de "minhas sessões" já adotado em src/app/room/page.tsx.
+  const [pokerHistory, setPokerHistory] = useState<any[]>([]);
+  const [retroHistory, setRetroHistory] = useState<any[]>([]);
+  const [healthHistory, setHealthHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
-  const retroHistoryQuery = useMemoFirebase(() => (firestore && effectiveUserId) ? query(collection(firestore, 'retro_boards'), where('participantIds', 'array-contains', effectiveUserId)) : null, [firestore, effectiveUserId]);
-  const { data: retroHistory, isLoading: isLoadingRetro } = useCollection<any>(retroHistoryQuery);
+  useEffect(() => {
+    if (!effectiveUserId) return;
+    let cancelled = false;
 
-  const healthHistoryQuery = useMemoFirebase(() => (firestore && effectiveUserId) ? query(collection(firestore, 'health_checks'), where('participantIds', 'array-contains', effectiveUserId)) : null, [firestore, effectiveUserId]);
-  const { data: healthHistory, isLoading: isLoadingHealth } = useCollection<any>(healthHistoryQuery);
+    const fetchHistory = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const [rooms, retros, healths] = await Promise.all([
+          pokerApi.listRooms(),
+          retroApi.listBoards(),
+          healthCheckApi.listBoards(),
+        ]);
+        if (cancelled) return;
+        const isMine = (r: any) => r.participantIds?.includes(effectiveUserId) || r.creatorId === effectiveUserId;
+        setPokerHistory((rooms || []).filter(isMine));
+        setRetroHistory((retros || []).filter(isMine));
+        setHealthHistory((healths || []).filter(isMine));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setIsLoadingHistory(false);
+      }
+    };
+
+    fetchHistory();
+    return () => { cancelled = true; };
+  }, [effectiveUserId]);
 
   const mergedHistory = useMemo(() => {
-    if (isLoadingPoker || isLoadingRetro || isLoadingHealth) return null;
+    if (isLoadingHistory) return null;
     const all = [
       ...(pokerHistory || []).map(r => ({ ...r, type: 'poker', roomId: r.id })),
       ...(retroHistory || []).map(r => ({ ...r, type: 'retro', roomId: r.id })),
       ...(healthHistory || []).map(r => ({ ...r, type: 'health', roomId: r.id })),
     ];
     return all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [pokerHistory, retroHistory, healthHistory, isLoadingPoker, isLoadingRetro, isLoadingHealth]);
+  }, [pokerHistory, retroHistory, healthHistory, isLoadingHistory]);
 
   const loadWorkspaceData = async () => {
     if (!effectiveUserId) return;
@@ -179,7 +207,7 @@ export default function WorkspacePage() {
     );
   }
 
-  if (!userProfile && !user) {
+  if (!userProfile && !session) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white dark:bg-slate-950">
         <AgileSpinner size="lg" variant="primary" title="Autenticação Requerida" subtitle="Por favor, conecte-se para acessar o seu Espaço Privado." />
@@ -476,7 +504,7 @@ export default function WorkspacePage() {
               <TabsContent value="history" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
                 <HistoryTimeline
                   items={mergedHistory}
-                  isLoading={isLoadingPoker || isLoadingRetro || isLoadingHealth}
+                  isLoading={isLoadingHistory}
                   userId={effectiveUserId}
                 />
               </TabsContent>

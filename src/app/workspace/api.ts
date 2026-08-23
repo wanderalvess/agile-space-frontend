@@ -9,6 +9,15 @@ export interface QuickLink {
   createdAt?: string;
 }
 
+export interface Snippet {
+  id?: string;
+  userId?: string;
+  title: string;
+  content: string;
+  language: string;
+  createdAt?: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -80,5 +89,21 @@ export const workspaceApi = {
 
   async deleteQuickLink(id: string): Promise<void> {
     return req<void>(`/workspace/links/${id}`, { method: 'DELETE' });
+  },
+
+  // --- Snippets ---
+  async getSnippets(userId: string): Promise<Snippet[]> {
+    return req<Snippet[]>(`/workspace/${userId}/snippets`);
+  },
+
+  async saveSnippet(userId: string, snippet: Partial<Snippet>): Promise<Snippet> {
+    return req<Snippet>(`/workspace/${userId}/snippets`, {
+      method: 'POST',
+      body: JSON.stringify(snippet)
+    });
+  },
+
+  async deleteSnippet(id: string): Promise<void> {
+    return req<void>(`/workspace/snippets/${id}`, { method: 'DELETE' });
   }
 };

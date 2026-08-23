@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Timer, Cloud, CloudDownload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { FocusTimer } from '@/components/workspace/FocusTimer';
 import { KanbanCardData } from '@/components/workspace/types';
@@ -18,12 +18,12 @@ import { focusApi, FocusSessionData } from '@/app/focus/api';
 
 export default function FocusPage() {
   const router = useRouter();
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const { userProfile, isInitializing } = useUserContext();
   const { toast } = useToast();
   const [isJiraModalOpen, setIsJiraModalOpen] = useState(false);
 
-  const effectiveUserId = userProfile?.id || userProfile?.email || user?.uid || '';
+  const effectiveUserId = userProfile?.id || userProfile?.email || session?.id || '';
 
   const [cards, setCards] = useState<KanbanCardData[]>([]);
   const [isKanbanLoading, setIsKanbanLoading] = useState(true);
