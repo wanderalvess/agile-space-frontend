@@ -6,7 +6,7 @@ import {
   Layers, CheckCircle2, Clock, PlayCircle, Filter, Search, ArrowRight,
   ShieldCheck, AlertCircle, FileText, Calendar as CalendarIcon, SlidersHorizontal,
   Bookmark, CornerDownRight, GitCommit, GitPullRequest, CheckSquare, Sparkles,
-  FolderTree, ListTree, Bug, Zap, AlertTriangle, ArrowRightCircle, FastForward,
+  FolderTree, ListTree, Bug, Zap, AlertTriangle, ArrowRightCircle, X,
   ZoomIn, ZoomOut, GripVertical, RotateCcw, Code2, Bot, FlaskConical, FileCheck,
   Wrench, Terminal, Cpu, CheckCheck, Flame, ShieldAlert, Percent, Activity, Scale,
   FileCode, TestTube2, Workflow
@@ -381,7 +381,6 @@ export function SquadPlansTimeline() {
   const [activeDelayTaskId, setActiveDelayTaskId] = useState<string | null>(null);
   const [activeDelayDays, setActiveDelayDays] = useState<number>(0);
   const [openDelayPickerFor, setOpenDelayPickerFor] = useState<string | null>(null);
-  const [showCascadeBanner, setShowCascadeBanner] = useState<boolean>(true);
 
   const [presetPeriod, setPresetPeriod] = useState('SPRINT_CURRENT');
   const [startDate, setStartDate] = useState(sprintWindow.start);
@@ -643,64 +642,11 @@ export function SquadPlansTimeline() {
   const totalTableWidth = colWidths.issue + colWidths.timeline + colWidths.progress + colWidths.status + colWidths.assignee;
   const totalTimelineWidth = daysList.length * colWidths.dayWidth;
 
+  const activeDelayTask = activeDelayTaskId ? tasks.find(t => t.id === activeDelayTaskId) : null;
+  const isDelaySimActive = !!activeDelayTask && activeDelayDays > 0;
+
   return (
     <div className="space-y-4 font-sans">
-      {/* ══════════ CASCADE DELAY VISIBILITY BANNER (GESTOR / VISÃO DE IMPACTO) ══════════ */}
-      {/* Status passivo — a única forma de ativar/trocar a simulação é o ícone de
-          relógio na linha da fase; o banner só reflete o que já foi escolhido ali,
-          pra não ter dois controles fazendo a mesma coisa. */}
-      {showCascadeBanner && (() => {
-        const activeTask = activeDelayTaskId ? tasks.find(t => t.id === activeDelayTaskId) : null;
-        const isActive = !!activeTask && activeDelayDays > 0;
-        return (
-          <div className={`p-4 rounded-2xl border transition-all shadow-sm ${
-            isActive
-              ? 'bg-gradient-to-r from-rose-500/15 via-amber-500/10 to-transparent border-rose-500/40 text-rose-950 dark:text-rose-200'
-              : 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-slate-800 dark:text-slate-200'
-          }`}>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className={`p-2.5 rounded-xl shrink-0 ${
-                  isActive
-                    ? 'bg-rose-600 text-white shadow-md shadow-rose-500/30 animate-bounce'
-                    : 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
-                }`}>
-                  {isActive ? <Flame className="w-5 h-5" /> : <FastForward className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-                    <span>Simulador de Impacto para Gestores (Efeito Cascata / Estouro de Prazo)</span>
-                    {isActive && (
-                      <Badge className="bg-rose-600 text-white text-[9.5px] font-black uppercase border-none animate-pulse">
-                        🚨 +{activeDelayDays} {activeDelayDays === 1 ? 'Dia' : 'Dias'} em {activeTask!.jiraKey}
-                      </Badge>
-                    )}
-                  </h3>
-                  <p className="text-xs mt-0.5 text-slate-600 dark:text-slate-300 leading-relaxed">
-                    {!isActive ? (
-                      <span>Clique no ícone de <strong><Clock className="w-3 h-3 inline -mt-0.5" /></strong> em qualquer fase da tabela pra simular o atraso dela — só as fases seguintes da <strong>mesma história</strong> são empurradas junto, o resto do board fica parado.</span>
-                    ) : (
-                      <span><strong>Impacto Visível:</strong> {activeTask!.title} ({activeTask!.parentTitle || activeTask!.parentKey}) atrasou <strong>+{activeDelayDays}d</strong>, empurrando as fases seguintes dessa história para frente.</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {isActive && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setActiveDelayTaskId(null); setActiveDelayDays(0); }}
-                  className="h-8 px-3 text-[10px] font-bold rounded-xl shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-                >
-                  Limpar simulação
-                </Button>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Control & Filters Panel */}
       <div className="bg-white dark:bg-slate-900/90 p-4 md:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md space-y-4">
         {/* Top Header Row */}
@@ -723,6 +669,23 @@ export function SquadPlansTimeline() {
           </div>
 
           <div className="flex items-center gap-2">
+            {isDelaySimActive && (
+              <div
+                className="h-8 pl-2.5 pr-1.5 flex items-center gap-1.5 text-[10px] font-bold text-rose-700 dark:text-rose-300 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 animate-pulse"
+                title={`${activeDelayTask!.title} atrasou +${activeDelayDays}d — fases seguintes da mesma história empurradas junto`}
+              >
+                <Flame className="w-3.5 h-3.5" />
+                +{activeDelayDays}d em {activeDelayTask!.jiraKey}
+                <button
+                  onClick={() => { setActiveDelayTaskId(null); setActiveDelayDays(0); }}
+                  className="ml-0.5 p-0.5 rounded-md hover:bg-rose-200 dark:hover:bg-rose-900"
+                  title="Limpar simulação"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
             <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700">
               <Button
                 variant="ghost"
