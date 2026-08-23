@@ -69,7 +69,7 @@ export function GlobalProjectSelector() {
   if (displaySquads.length === 0 && !isLeadership) return null;
 
   const activeSquad = displaySquads.find((s) => s.squadId === activeSquadId);
-  const label = activeSquad ? activeSquad.squadId : (activeSquadId || 'Selecionar Projeto');
+  const label = activeSquad ? activeSquad.squadId : (activeSquadId || 'Projeto');
 
   return (
     <DropdownMenu>
@@ -77,9 +77,9 @@ export function GlobalProjectSelector() {
         <Button
           variant="outline"
           size="sm"
-          className="h-7 rounded-xl text-[10px] font-black uppercase tracking-widest border-slate-300/80 dark:border-slate-700/80 bg-slate-100/80 dark:bg-slate-850 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 gap-1.5 shadow-sm"
+          className="h-7 rounded-xl text-[10px] font-black uppercase tracking-widest border-slate-300/80 dark:border-slate-700/80 bg-slate-100/80 dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 gap-1.5 shadow-sm"
         >
-          <FolderKanban className="h-3 w-3 text-orange-500" />
+          <FolderKanban className="h-3 w-3 text-primary" />
           <span className="max-w-[120px] truncate">{label}</span>
           <ChevronDown className="h-3 w-3 opacity-60" />
         </Button>

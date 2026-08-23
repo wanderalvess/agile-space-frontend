@@ -66,6 +66,7 @@ export function Header() {
     pathname.startsWith('/showcase') ||
     pathname.startsWith('/daily-flow') ||
     pathname.startsWith('/squad') ||
+    pathname.startsWith('/qa') ||
     pathname.startsWith('/knowledge') ||
     pathname.startsWith('/governance') ||
     pathname.startsWith('/changelog') ||

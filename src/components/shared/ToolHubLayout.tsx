@@ -99,6 +99,7 @@ export function ToolHubLayout({
 
   const getThemeClasses = (color: string) => {
     const maps: Record<string, string> = {
+      primary: "bg-primary hover:bg-primary/90 shadow-primary/20 text-white",
       amber: "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 text-white",
       emerald: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 text-white",
       rose: "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20 text-white",
@@ -112,6 +113,7 @@ export function ToolHubLayout({
 
   const getGlowClasses = (color: string) => {
     const maps: Record<string, string> = {
+      primary: "bg-primary/10",
       amber: "bg-amber-500/10",
       emerald: "bg-emerald-500/10",
       rose: "bg-rose-500/10",
@@ -125,6 +127,7 @@ export function ToolHubLayout({
 
   const getIconColor = (color: string) => {
     const maps: Record<string, string> = {
+      primary: "text-primary",
       amber: "text-amber-500 dark:text-amber-400",
       emerald: "text-emerald-600 dark:text-emerald-400",
       rose: "text-rose-500 dark:text-rose-400",
