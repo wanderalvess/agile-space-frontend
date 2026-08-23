@@ -286,6 +286,36 @@ function addDaysToIso(isoDate: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
+// Empacota as fases de uma história na menor quantidade de faixas horizontais
+// possível: duas fases só dividem faixa quando as datas efetivas realmente se
+// cruzam (ex: atraso em cascata empurrou uma por cima da outra). Sequência
+// normal, sem sobreposição, fica tudo numa linha só — efeito de "linha
+// contínua" por história.
+function packChildrenIntoTracks(
+  children: PlansTask[],
+  computeEffectiveDates: (task: PlansTask) => { start: string; end: string }
+): { trackOf: Map<string, number>; totalTracks: number } {
+  const withDates = children
+    .map(task => ({ task, ...computeEffectiveDates(task) }))
+    .sort((a, b) => a.start.localeCompare(b.start));
+
+  const trackEnds: string[] = [];
+  const trackOf = new Map<string, number>();
+
+  for (const { task, start, end } of withDates) {
+    let track = trackEnds.findIndex(lastEnd => lastEnd <= start);
+    if (track === -1) {
+      track = trackEnds.length;
+      trackEnds.push(end);
+    } else {
+      trackEnds[track] = end;
+    }
+    trackOf.set(task.id, track);
+  }
+
+  return { trackOf, totalTracks: Math.max(1, trackEnds.length) };
+}
+
 const DEFAULT_COL_WIDTHS = {
   issue: 330,
   timeline: 140, // Monday.com Timeline pill column
@@ -950,16 +980,21 @@ export function SquadPlansTimeline() {
               {/* Left Body Rows */}
               <div className="divide-y divide-slate-200/80 dark:divide-slate-800/60 text-xs">
                 {Array.from(hierarchicalStructure.parentsMap.entries()).map(([parentKey, { parent, children }]) => {
-                  const isParentCollapsed = collapsedParents[parentKey];
+                  const isParentCollapsed = hierarchyLevel === 'story-only'
+                    ? true
+                    : hierarchyLevel === 'subtask-only'
+                    ? false
+                    : collapsedParents[parentKey];
                   const { start: pStart, end: pEnd, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(parent);
                   const parentProgress = computeParentProgress(parent, children);
 
                   return (
                     <React.Fragment key={parentKey}>
                       {/* Parent Story / Manutenção / Legislação / Débito Técnico Row */}
-                      <div 
-                        onClick={() => toggleParent(parentKey)}
-                        className={`flex h-11 items-stretch cursor-pointer border-t font-semibold transition-colors ${
+                      {hierarchyLevel !== 'subtask-only' && (
+                      <div
+                        onClick={() => { if (hierarchyLevel === 'story-to-subtask') toggleParent(parentKey); }}
+                        className={`flex h-11 items-stretch border-t font-semibold transition-colors ${hierarchyLevel === 'story-to-subtask' ? 'cursor-pointer' : ''} ${
                           isOverdueRisk
                             ? 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-300 dark:border-rose-900/60'
                             : 'bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border-slate-200/60 dark:border-slate-800/60'
@@ -967,7 +1002,7 @@ export function SquadPlansTimeline() {
                       >
                         {/* 1. Hierarchy / Title */}
                         <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
-                          {isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                          {hierarchyLevel === 'story-to-subtask' && (isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />)}
                           {getIssueTypeBadge(parent.type, parent.title, true)}
                           <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-400 shrink-0">{parent.jiraKey}</span>
                           <span className="truncate text-slate-900 dark:text-slate-100 font-bold" title={parent.title}>{parent.title}</span>
@@ -981,8 +1016,8 @@ export function SquadPlansTimeline() {
                         {/* 2. Timeline Column (Monday.com Pill) */}
                         <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
                           <div className={`w-full py-1 px-2 rounded-full text-center text-[10px] font-black tracking-tight shadow-xs flex items-center justify-center gap-1 ${
-                            isOverdueRisk 
-                              ? 'bg-rose-700 text-white animate-pulse' 
+                            isOverdueRisk
+                              ? 'bg-rose-700 text-white animate-pulse'
                               : 'bg-slate-800 text-white dark:bg-slate-800/90 dark:text-slate-200'
                           }`}>
                             <CalendarIcon className="w-2.5 h-2.5 opacity-70" />
@@ -993,12 +1028,12 @@ export function SquadPlansTimeline() {
                         {/* 3. Progress Column (Monday.com Progress Bar) */}
                         <div className="px-2 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
                           <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 relative">
-                            <div 
+                            <div
                               className={`h-full rounded-full transition-all ${
-                                parentProgress === 100 
-                                  ? 'bg-emerald-500' 
-                                  : parentProgress > 0 
-                                  ? 'bg-blue-600 dark:bg-blue-500' 
+                                parentProgress === 100
+                                  ? 'bg-emerald-500'
+                                  : parentProgress > 0
+                                  ? 'bg-blue-600 dark:bg-blue-500'
                                   : 'bg-transparent'
                               }`}
                               style={{ width: `${parentProgress}%` }}
@@ -1022,6 +1057,7 @@ export function SquadPlansTimeline() {
                           <span className="truncate text-[10.5px]">{parent.assigneeName}</span>
                         </div>
                       </div>
+                      )}
 
                       {/* Child Subtasks Rows */}
                       {!isParentCollapsed && children.map(task => {
@@ -1137,11 +1173,18 @@ export function SquadPlansTimeline() {
                 )}
 
                 {Array.from(hierarchicalStructure.parentsMap.entries()).map(([parentKey, { parent, children }]) => {
-                  const isParentCollapsed = collapsedParents[parentKey];
+                  const isParentCollapsed = hierarchyLevel === 'story-only'
+                    ? true
+                    : hierarchyLevel === 'subtask-only'
+                    ? false
+                    : collapsedParents[parentKey];
+                  const { trackOf, totalTracks } = packChildrenIntoTracks(children, computeEffectiveDates);
+                  const trackHeight = Math.max(8, Math.floor(36 / totalTracks));
 
                   return (
                     <React.Fragment key={parentKey}>
                       {/* ══════════ PARENT ROW: COMPOSITE MULTI-SEGMENT & STACKED TRACKS (Monday.com Style) ══════════ */}
+                      {hierarchyLevel !== 'subtask-only' && (
                       <div className="h-11 relative bg-blue-50/20 dark:bg-blue-950/10 flex items-center">
                         {/* Grid background columns */}
                         <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
@@ -1152,10 +1195,10 @@ export function SquadPlansTimeline() {
 
                         {/* Target Deadline Marker Line for Parent Story */}
                         {parent.targetEnd && daysList.findIndex(d => d.iso === parent.targetEnd) >= 0 && (
-                          <div 
+                          <div
                             className="absolute top-0 bottom-0 pointer-events-none z-10 flex flex-col items-center"
-                            style={{ 
-                              left: `${(daysList.findIndex(d => d.iso === parent.targetEnd) * colWidths.dayWidth) + colWidths.dayWidth - 1}px` 
+                            style={{
+                              left: `${(daysList.findIndex(d => d.iso === parent.targetEnd) * colWidths.dayWidth) + colWidths.dayWidth - 1}px`
                             }}
                             title={`Prazo Limite Original da História: ${formatDateShort(parent.targetEnd)}`}
                           >
@@ -1163,9 +1206,10 @@ export function SquadPlansTimeline() {
                           </div>
                         )}
 
-                        {/* Composite Multi-Step Horizontal Stacked Bars */}
+                        {/* Composite Multi-Step Horizontal Stacked Bars — mesma faixa quando as fases não
+                            se cruzam de verdade (packChildrenIntoTracks); só sobe faixa em atraso/cascata real */}
                         <div className="absolute inset-0 flex items-center pointer-events-auto">
-                          {children.map((task, idx) => {
+                          {children.map((task) => {
                             const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
                             const startIndex = daysList.findIndex(d => d.iso === start);
                             const endIndex = daysList.findIndex(d => d.iso === end);
@@ -1178,10 +1222,8 @@ export function SquadPlansTimeline() {
                             const barWidth = Math.max(colWidths.dayWidth - 4, spanCols * colWidths.dayWidth - 4);
                             const disc = getDisciplineColorAndLabel(task);
 
-                            // Height and stack calculation for overlapping steps on parent line
-                            const totalTracks = Math.min(3, children.length);
-                            const trackHeight = totalTracks === 1 ? 22 : totalTracks === 2 ? 11 : 8;
-                            const topOffset = totalTracks === 1 ? 11 : totalTracks === 2 ? 6 + (idx % 2) * 14 : 4 + (idx % 3) * 11;
+                            const track = trackOf.get(task.id) ?? 0;
+                            const topOffset = 4 + track * trackHeight;
 
                             return (
                               <div
@@ -1217,6 +1259,7 @@ export function SquadPlansTimeline() {
                           })}
                         </div>
                       </div>
+                      )}
 
                       {/* Child Subtasks Gantt Individual Bars */}
                       {!isParentCollapsed && children.map(task => {
