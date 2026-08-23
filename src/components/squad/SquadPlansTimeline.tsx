@@ -376,7 +376,11 @@ export function SquadPlansTimeline() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
 
-  const [simulatedDelay, setSimulatedDelay] = useState<number>(0);
+  // Simulação de atraso é por tarefa: só uma fase por vez pode estar "ativa";
+  // a cascata atinge apenas as fases seguintes da MESMA história, não o board inteiro.
+  const [activeDelayTaskId, setActiveDelayTaskId] = useState<string | null>(null);
+  const [activeDelayDays, setActiveDelayDays] = useState<number>(0);
+  const [openDelayPickerFor, setOpenDelayPickerFor] = useState<string | null>(null);
   const [showCascadeBanner, setShowCascadeBanner] = useState<boolean>(true);
 
   const [presetPeriod, setPresetPeriod] = useState('SPRINT_CURRENT');
@@ -582,57 +586,58 @@ export function SquadPlansTimeline() {
     setCollapsedParents(prev => ({ ...prev, [parentKey]: !prev[parentKey] }));
   };
 
-  const computeEffectiveDates = (task: PlansTask) => {
-    if (simulatedDelay === 0) {
-      return {
-        start: task.targetStart || startDate,
-        end: task.targetEnd || task.targetStart || endDate,
-        isDelayed: false,
-        delayDays: 0,
-        isOverdueRisk: false,
-        originalDeadline: task.targetEnd
-      };
+  // Cascata por história: só roda quando a tarefa ativa pertence a ESTA história.
+  // A tarefa ativa estica o próprio fim; qualquer fase que começava no mesmo dia
+  // ou depois dela (na ordem original) é empurrada junto (início E fim). Fases
+  // que já tinham terminado antes da ativa não são afetadas.
+  const computeStoryCascade = (parent: PlansTask, children: PlansTask[]) => {
+    const baseOf = (t: PlansTask) => ({
+      start: t.targetStart || startDate,
+      end: t.targetEnd || t.targetStart || endDate,
+    });
+
+    const idle = { isDelayed: false, delayDays: 0, isOverdueRisk: false };
+    const childDates = new Map<string, { start: string; end: string; isDelayed: boolean; delayDays: number; isOverdueRisk: boolean; originalDeadline: string }>();
+    const activeInThisStory = activeDelayTaskId !== null && activeDelayDays > 0 && children.some(c => c.id === activeDelayTaskId);
+
+    if (!activeInThisStory) {
+      children.forEach(c => {
+        const { start, end } = baseOf(c);
+        childDates.set(c.id, { start, end, ...idle, originalDeadline: end });
+      });
+    } else {
+      const activeBase = baseOf(children.find(c => c.id === activeDelayTaskId)!);
+      children.forEach(c => {
+        const { start: baseStart, end: baseEnd } = baseOf(c);
+        if (c.id === activeDelayTaskId) {
+          const end = addDaysToIso(baseEnd, activeDelayDays);
+          childDates.set(c.id, { start: baseStart, end, isDelayed: true, delayDays: activeDelayDays, isOverdueRisk: end > baseEnd, originalDeadline: baseEnd });
+        } else if (baseStart >= activeBase.start) {
+          const start = addDaysToIso(baseStart, activeDelayDays);
+          const end = addDaysToIso(baseEnd, activeDelayDays);
+          childDates.set(c.id, { start, end, isDelayed: true, delayDays: activeDelayDays, isOverdueRisk: end > baseEnd, originalDeadline: baseEnd });
+        } else {
+          childDates.set(c.id, { start: baseStart, end: baseEnd, ...idle, originalDeadline: baseEnd });
+        }
+      });
     }
 
-    const isDev = task.title.toLowerCase().includes('codifica') || task.type.includes('Codificação') || task.status === 'Em Andamento' || task.status === 'Em Desenvolvimento';
-    const isQAOrReview = task.title.toLowerCase().includes('qa') || task.title.toLowerCase().includes('teste') || task.type.includes('Teste') || task.type.includes('Execução de TI');
-
-    const baseStart = task.targetStart || startDate;
-    const baseEnd = task.targetEnd || task.targetStart || endDate;
-
-    if (isDev) {
-      const end = addDaysToIso(baseEnd, simulatedDelay);
-      return {
-        start: baseStart,
-        end: end,
-        isDelayed: true,
-        delayDays: simulatedDelay,
-        isOverdueRisk: end > baseEnd,
-        originalDeadline: baseEnd
-      };
+    const parentBase = baseOf(parent);
+    let parentDates: { start: string; end: string; isDelayed: boolean; delayDays: number; isOverdueRisk: boolean; originalDeadline: string };
+    if (activeInThisStory) {
+      const maxEnd = [...childDates.values()].reduce((max, d) => (d.end > max ? d.end : max), parentBase.end);
+      const isOverdueRisk = maxEnd > parentBase.end;
+      parentDates = { start: parentBase.start, end: maxEnd, isDelayed: isOverdueRisk, delayDays: activeDelayDays, isOverdueRisk, originalDeadline: parentBase.end };
+    } else {
+      parentDates = { start: parentBase.start, end: parentBase.end, ...idle, originalDeadline: parentBase.end };
     }
 
-    if (isQAOrReview) {
-      const start = addDaysToIso(baseStart, simulatedDelay);
-      const end = addDaysToIso(baseEnd, simulatedDelay);
-      return {
-        start: start,
-        end: end,
-        isDelayed: true,
-        delayDays: simulatedDelay,
-        isOverdueRisk: end > baseEnd,
-        originalDeadline: baseEnd
-      };
-    }
+    const getEffectiveDates = (task: PlansTask) =>
+      task.id === parent.id
+        ? parentDates
+        : childDates.get(task.id) ?? { ...baseOf(task), ...idle, originalDeadline: task.targetEnd || '' };
 
-    return {
-      start: baseStart,
-      end: baseEnd,
-      isDelayed: false,
-      delayDays: 0,
-      isOverdueRisk: false,
-      originalDeadline: baseEnd
-    };
+    return { childDates, parentDates, getEffectiveDates };
   };
 
   const totalTableWidth = colWidths.issue + colWidths.timeline + colWidths.progress + colWidths.status + colWidths.assignee;
@@ -641,78 +646,60 @@ export function SquadPlansTimeline() {
   return (
     <div className="space-y-4 font-sans">
       {/* ══════════ CASCADE DELAY VISIBILITY BANNER (GESTOR / VISÃO DE IMPACTO) ══════════ */}
-      {showCascadeBanner && (
-        <div className={`p-4 rounded-2xl border transition-all shadow-sm ${
-          simulatedDelay > 0 
-            ? 'bg-gradient-to-r from-rose-500/15 via-amber-500/10 to-transparent border-rose-500/40 text-rose-950 dark:text-rose-200' 
-            : 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-slate-800 dark:text-slate-200'
-        }`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className={`p-2.5 rounded-xl shrink-0 ${
-                simulatedDelay > 0 
-                  ? 'bg-rose-600 text-white shadow-md shadow-rose-500/30 animate-bounce' 
-                  : 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
-              }`}>
-                {simulatedDelay > 0 ? <Flame className="w-5 h-5" /> : <FastForward className="w-5 h-5" />}
+      {/* Status passivo — a única forma de ativar/trocar a simulação é o ícone de
+          relógio na linha da fase; o banner só reflete o que já foi escolhido ali,
+          pra não ter dois controles fazendo a mesma coisa. */}
+      {showCascadeBanner && (() => {
+        const activeTask = activeDelayTaskId ? tasks.find(t => t.id === activeDelayTaskId) : null;
+        const isActive = !!activeTask && activeDelayDays > 0;
+        return (
+          <div className={`p-4 rounded-2xl border transition-all shadow-sm ${
+            isActive
+              ? 'bg-gradient-to-r from-rose-500/15 via-amber-500/10 to-transparent border-rose-500/40 text-rose-950 dark:text-rose-200'
+              : 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50 text-slate-800 dark:text-slate-200'
+          }`}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className={`p-2.5 rounded-xl shrink-0 ${
+                  isActive
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-500/30 animate-bounce'
+                    : 'bg-blue-600/10 text-blue-600 dark:text-blue-400'
+                }`}>
+                  {isActive ? <Flame className="w-5 h-5" /> : <FastForward className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
+                    <span>Simulador de Impacto para Gestores (Efeito Cascata / Estouro de Prazo)</span>
+                    {isActive && (
+                      <Badge className="bg-rose-600 text-white text-[9.5px] font-black uppercase border-none animate-pulse">
+                        🚨 +{activeDelayDays} {activeDelayDays === 1 ? 'Dia' : 'Dias'} em {activeTask!.jiraKey}
+                      </Badge>
+                    )}
+                  </h3>
+                  <p className="text-xs mt-0.5 text-slate-600 dark:text-slate-300 leading-relaxed">
+                    {!isActive ? (
+                      <span>Clique no ícone de <strong><Clock className="w-3 h-3 inline -mt-0.5" /></strong> em qualquer fase da tabela pra simular o atraso dela — só as fases seguintes da <strong>mesma história</strong> são empurradas junto, o resto do board fica parado.</span>
+                    ) : (
+                      <span><strong>Impacto Visível:</strong> {activeTask!.title} ({activeTask!.parentTitle || activeTask!.parentKey}) atrasou <strong>+{activeDelayDays}d</strong>, empurrando as fases seguintes dessa história para frente.</span>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-                  <span>Simulador de Impacto para Gestores (Efeito Cascata / Estouro de Prazo)</span>
-                  {simulatedDelay > 0 && (
-                    <Badge className="bg-rose-600 text-white text-[9.5px] font-black uppercase border-none animate-pulse">
-                      🚨 +{simulatedDelay} {simulatedDelay === 1 ? 'Dia de Atraso em DEV' : 'Dias de Atraso em DEV'}
-                    </Badge>
-                  )}
-                </h3>
-                <p className="text-xs mt-0.5 text-slate-600 dark:text-slate-300 leading-relaxed">
-                  {simulatedDelay === 0 ? (
-                    <span>Se a <strong>Codificação (DEV)</strong> atrasar hoje, todas as etapas seguintes (<strong>Code Review</strong> e <strong>Teste QA</strong>) são empurradas para frente, gerando <strong>estouro de prazo</strong> nas entregas!</span>
-                  ) : (
-                    <span><strong>Impacto Visível:</strong> Com o atraso de <strong>+{simulatedDelay}d</strong> em Codificação, os Testes QA foram empurrados para a frente gerando risco de entrega fora da Sprint!</span>
-                  )}
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-1.5 shrink-0 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
-              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mr-1 hidden sm:inline">Simular Atraso DEV:</span>
-              <Button
-                variant={simulatedDelay === 0 ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSimulatedDelay(0)}
-                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 0 ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900' : 'text-slate-600'}`}
-              >
-                0d (Prazo Real)
-              </Button>
-              <Button
-                variant={simulatedDelay === 1 ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSimulatedDelay(1)}
-                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 1 ? 'bg-amber-600 text-white hover:bg-amber-700' : 'text-amber-600 hover:bg-amber-50'}`}
-              >
-                +1 dia
-              </Button>
-              <Button
-                variant={simulatedDelay === 2 ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSimulatedDelay(2)}
-                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 2 ? 'bg-rose-600 text-white hover:bg-rose-700' : 'text-rose-600 hover:bg-rose-50'}`}
-              >
-                +2 dias ⚠️
-              </Button>
-              <Button
-                variant={simulatedDelay === 3 ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSimulatedDelay(3)}
-                className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${simulatedDelay === 3 ? 'bg-rose-700 text-white hover:bg-rose-800 animate-pulse' : 'text-rose-700 hover:bg-rose-50'}`}
-              >
-                +3 dias 🚨
-              </Button>
+              {isActive && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setActiveDelayTaskId(null); setActiveDelayDays(0); }}
+                  className="h-8 px-3 text-[10px] font-bold rounded-xl shrink-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Limpar simulação
+                </Button>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Control & Filters Panel */}
       <div className="bg-white dark:bg-slate-900/90 p-4 md:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md space-y-4">
@@ -985,7 +972,8 @@ export function SquadPlansTimeline() {
                     : hierarchyLevel === 'subtask-only'
                     ? false
                     : collapsedParents[parentKey];
-                  const { start: pStart, end: pEnd, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(parent);
+                  const { getEffectiveDates } = computeStoryCascade(parent, children);
+                  const { start: pStart, end: pEnd, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(parent);
                   const parentProgress = computeParentProgress(parent, children);
 
                   return (
@@ -1061,13 +1049,13 @@ export function SquadPlansTimeline() {
 
                       {/* Child Subtasks Rows */}
                       {!isParentCollapsed && children.map(task => {
-                        const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
+                        const { start, end, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(task);
                         const childProgress = computeTaskProgress(task);
 
                         return (
-                          <div key={task.id} className={`flex h-10 items-stretch transition-colors ${
-                            isOverdueRisk 
-                              ? 'bg-rose-500/5 hover:bg-rose-500/10' 
+                          <div key={task.id} className={`relative flex h-10 items-stretch transition-colors ${
+                            isOverdueRisk
+                              ? 'bg-rose-500/5 hover:bg-rose-500/10'
                               : 'hover:bg-slate-50/90 dark:hover:bg-slate-900/40'
                           }`}>
                             {/* 1. Hierarchy / Title */}
@@ -1076,7 +1064,37 @@ export function SquadPlansTimeline() {
                               {getIssueTypeBadge(task.type, task.title, false)}
                               <span className="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400 shrink-0">{task.jiraKey}</span>
                               <span className="truncate text-slate-800 dark:text-slate-200 font-medium" title={task.title}>{task.title}</span>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setOpenDelayPickerFor(openDelayPickerFor === task.id ? null : task.id); }}
+                                className={`ml-auto shrink-0 p-1 rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                title="Simular atraso nesta fase"
+                              >
+                                <Clock className="w-3 h-3" />
+                              </button>
                             </div>
+
+                            {openDelayPickerFor === task.id && (
+                              <div className="absolute z-40 top-9 left-8 flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-1">
+                                {[0, 1, 2, 3].map(d => (
+                                  <button
+                                    key={d}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (d === 0) { setActiveDelayTaskId(null); setActiveDelayDays(0); }
+                                      else { setActiveDelayTaskId(task.id); setActiveDelayDays(d); }
+                                      setOpenDelayPickerFor(null);
+                                    }}
+                                    className={`h-6 px-2 text-[9.5px] font-bold rounded ${
+                                      d === 0 ? 'text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                      : d === 1 ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                                      : 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                                    }`}
+                                  >
+                                    {d === 0 ? '0d' : `+${d}d`}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
 
                             {/* 2. Timeline Column (Monday.com Pill) */}
                             <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
@@ -1178,7 +1196,8 @@ export function SquadPlansTimeline() {
                     : hierarchyLevel === 'subtask-only'
                     ? false
                     : collapsedParents[parentKey];
-                  const { trackOf, totalTracks } = packChildrenIntoTracks(children, computeEffectiveDates);
+                  const { getEffectiveDates } = computeStoryCascade(parent, children);
+                  const { trackOf, totalTracks } = packChildrenIntoTracks(children, getEffectiveDates);
                   const trackHeight = Math.max(8, Math.floor(36 / totalTracks));
 
                   return (
@@ -1210,7 +1229,7 @@ export function SquadPlansTimeline() {
                             se cruzam de verdade (packChildrenIntoTracks); só sobe faixa em atraso/cascata real */}
                         <div className="absolute inset-0 flex items-center pointer-events-auto">
                           {children.map((task) => {
-                            const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
+                            const { start, end, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(task);
                             const startIndex = daysList.findIndex(d => d.iso === start);
                             const endIndex = daysList.findIndex(d => d.iso === end);
                             if (startIndex < 0 && endIndex < 0) return null;
@@ -1263,7 +1282,7 @@ export function SquadPlansTimeline() {
 
                       {/* Child Subtasks Gantt Individual Bars */}
                       {!isParentCollapsed && children.map(task => {
-                        const { start, end, isDelayed, delayDays, isOverdueRisk } = computeEffectiveDates(task);
+                        const { start, end, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(task);
                         const startIndex = daysList.findIndex(d => d.iso === start);
                         const endIndex = daysList.findIndex(d => d.iso === end);
                         const startCol = startIndex >= 0 ? startIndex : 0;
