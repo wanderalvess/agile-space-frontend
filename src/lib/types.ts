@@ -1028,24 +1028,6 @@ export type SquadMemberMetric = {
   computedAt: string;
 };
 
-// Roster do squad — id do doc é o jiraAccountId (accountId/key do Jira, o
-// mesmo valor de SquadIssueSnapshot.assigneeId). Auto-semeado no sync (toda
-// pessoa vista como assignee ganha uma linha com a capacidade padrão do
-// squad); SQUAD_PEOPLE_ADMIN_ROLES ajusta capacidade individual depois —
-// resolve "cada pessoa tem uma quantidade de horas diferente".
-// `claimedByUid`: auto-claim — o próprio usuário reivindica qual linha do
-// roster é ele (só pode setar pro PRÓPRIO uid, e só se ainda não tiver
-// dono — ver firestore.rules), isso é o que permite a view "minhas issues"
-// (issuesSnapshot lido via isMyClaimedAssignee) sem precisar de mais nenhum
-// dado além do que o sync já traz.
-export type SquadMember = {
-  jiraAccountId: string;
-  displayName: string;
-  capacityHoursPerDay: number;
-  claimedByUid?: string;
-  updatedAt: string;
-};
-
 // --- Painéis customizados (v3) ---
 // "Cada user tem sua necessidade" — qualquer membro do squad monta o próprio
 // painel com JQL livre, roda com o PRÓPRIO PAT pessoal (mesma infra segura
