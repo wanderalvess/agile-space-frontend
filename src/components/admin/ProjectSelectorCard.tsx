@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { authFetch } from '@/lib/auth-client';
+import { useUserContext } from '@/context/UserContext';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -22,6 +23,7 @@ interface ProjectSelectorCardProps {
 }
 
 export function ProjectSelectorCard({ selectedSquadId, onSelectSquad }: ProjectSelectorCardProps) {
+  const { userProfile } = useUserContext();
   const [squads, setSquads] = useState<Squad[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,6 +44,13 @@ export function ProjectSelectorCard({ selectedSquadId, onSelectSquad }: ProjectS
   useEffect(() => {
     fetchSquads();
   }, [fetchSquads]);
+
+  useEffect(() => {
+    if (!loading && squads.length > 0 && !selectedSquadId) {
+      const userSquadMatch = squads.find(s => s.id === userProfile?.squadId || s.jiraProjectKey === userProfile?.squadId);
+      onSelectSquad(userSquadMatch ? userSquadMatch.id : squads[0].id);
+    }
+  }, [loading, squads, selectedSquadId, onSelectSquad, userProfile?.squadId]);
 
   return (
     <Card className="rounded-[2rem] border border-slate-200/50 dark:border-slate-800/50 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-sm h-full flex flex-col">

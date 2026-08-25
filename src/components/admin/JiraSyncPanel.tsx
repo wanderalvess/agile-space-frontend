@@ -34,6 +34,8 @@ import { cn } from '@/lib/utils';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { ROLES, GlobalRole } from '@/lib/types';
 import { authFetch } from '@/lib/auth-client';
+import { useUserContext } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -80,6 +82,8 @@ interface SyncResult {
 }
 
 export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
+  const { userProfile } = useUserContext();
+  const { session } = useAuth();
   const { toast } = useToast();
   const [projectKey, setProjectKey] = useState('');
   const [jiraDomain, setJiraDomain] = useState('');
@@ -99,8 +103,9 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
   // Carrega configurações salvas no localStorage ao montar o componente
   React.useEffect(() => {
     try {
-      const savedKey = localStorage.getItem('agileSpace_jiraSync_projectKey') || 'DDWMISSI';
-      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || 'jiraproducao.totvs.com.br';
+      const activeProject = userProfile?.squadId || session?.activeProjectId || localStorage.getItem('agileSpace_activeSquadId') || '';
+      const savedKey = localStorage.getItem('agileSpace_jiraSync_projectKey') || activeProject;
+      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || '';
       const savedToken = localStorage.getItem('agileSpace_jiraSync_token') || localStorage.getItem('agileSpace_jiraToken') || '';
       const savedUnit = localStorage.getItem('agileSpace_projectEstimationUnit') || 'SP';
 
@@ -109,7 +114,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
       setToken(savedToken);
       setEstimationUnit(savedUnit);
     } catch {}
-  }, []);
+  }, [userProfile?.squadId, session?.activeProjectId]);
 
   const handleKeyChange = (val: string) => {
     const upper = val.toUpperCase();
@@ -307,7 +312,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
                 <Input
                   value={jiraDomain}
                   onChange={(e) => handleDomainChange(e.target.value)}
-                  placeholder="Ex: jiraproducao.totvs.com.br"
+                  placeholder="Ex: jira.suaempresa.com.br"
                   required
                   className="rounded-xl text-xs h-10 bg-white/60 dark:bg-slate-900/60 border-slate-200/60 dark:border-slate-700/60"
                 />

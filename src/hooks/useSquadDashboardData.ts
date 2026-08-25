@@ -26,7 +26,7 @@ export interface SquadDashboardData {
 
 export function useSquadDashboardData(): SquadDashboardData {
   const { userProfile } = useUser();
-  const squadId = userProfile?.squadId || "DDWMISSI";
+  const squadId = userProfile?.squadId || "";
 
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

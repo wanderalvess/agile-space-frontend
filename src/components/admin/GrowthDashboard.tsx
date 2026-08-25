@@ -45,6 +45,7 @@ export function GrowthDashboard() {
     feedbacks: 0,
     loading: true
   });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,9 +66,12 @@ export function GrowthDashboard() {
           feedbacks: data.totalFeedbacks,
           loading: false
         });
-      } catch (e) {
-        console.error("GrowthDashboard: Error loading stats:", e);
-        if (!cancelled) setStats(prev => ({ ...prev, loading: false }));
+      } catch (e: any) {
+        console.warn("GrowthDashboard: Error loading stats:", e);
+        if (!cancelled) {
+          setError(e.message || 'Erro ao carregar estatísticas');
+          setStats(prev => ({ ...prev, loading: false }));
+        }
       }
     };
 
@@ -83,6 +87,15 @@ export function GrowthDashboard() {
       <div className="h-64 flex flex-col items-center justify-center gap-4">
         <AgileSpinner size="lg" />
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Compilando Métricas de Crescimento...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800/40 rounded-2xl text-center space-y-2">
+        <p className="text-sm font-bold text-red-600 dark:text-red-400">Não foi possível carregar as estatísticas de administração.</p>
+        <p className="text-xs text-red-500/80">{error}</p>
       </div>
     );
   }

@@ -8,7 +8,13 @@ import {
   ShieldCheck,
   Building2,
   Target,
-  FileText
+  FileText,
+  TrendingUp,
+  Settings2,
+  Megaphone,
+  MessageSquareHeart,
+  GitBranch,
+  Brain
 } from 'lucide-react';
 import { adminApi } from '@/app/admin/api';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +27,12 @@ import { AuditLogExplorer } from '@/components/admin/AuditLogExplorer';
 import { GovernanceHub } from '@/components/admin/GovernanceHub';
 import { CeremoniesDashboard } from '@/components/admin/CeremoniesDashboard';
 import { SessionMonitor } from '@/components/admin/SessionMonitor';
+import { GrowthDashboard } from '@/components/admin/GrowthDashboard';
+import { SystemConfigManager } from '@/components/admin/SystemConfigManager';
+import { CommunicationsManager } from '@/components/admin/CommunicationsManager';
+import { FeedbackManager } from '@/components/admin/FeedbackManager';
+import { ChangelogManager } from '@/components/admin/ChangelogManager';
+import { IntelligenceHubMonitor } from '@/components/admin/IntelligenceHubMonitor';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 
 export default function AdminDashboard() {
@@ -31,8 +43,8 @@ export default function AdminDashboard() {
 
   // Redirecionamento de Segurança
   useEffect(() => {
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!isInitializing && !isDev && (!userProfile || userProfile.role !== 'admin')) {
+    const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
+    if (!isInitializing && (!userProfile || !isAdmin)) {
       const timer = setTimeout(() => {
         router.replace('/');
       }, 100);
@@ -40,10 +52,26 @@ export default function AdminDashboard() {
     }
   }, [userProfile, isInitializing, router]);
 
-  const isDev = process.env.NODE_ENV === 'development';
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
 
   if (isInitializing) return <LoadingScreen />;
-  if (userProfile?.role !== 'admin' && !isDev) return null;
+  if (!userProfile || !isAdmin) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 font-body">
+        <ShieldCheck className="h-16 w-16 text-red-500 mb-4 animate-bounce" />
+        <h1 className="text-2xl font-black uppercase tracking-tight mb-2">Acesso Restrito</h1>
+        <p className="text-sm font-medium text-slate-500 max-w-md text-center mb-6">
+          Seu usuário ({userProfile?.email || 'não identificado'}) não possui privilégios de administrador para acessar este painel.
+        </p>
+        <button
+          onClick={() => router.replace('/')}
+          className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/90 transition-all text-xs uppercase tracking-wider"
+        >
+          Voltar ao Início
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
@@ -76,6 +104,12 @@ export default function AdminDashboard() {
                     { id: 'ceremonies', label: 'Analytics de Cerimônias', icon: <Target className="h-3.5 w-3.5" /> },
                     { id: 'sessions', label: 'Histórico de Sessões', icon: <FileText className="h-3.5 w-3.5" /> },
                     { id: 'users', label: 'Usuários & Cargos', icon: <Users className="h-3.5 w-3.5" /> },
+                    { id: 'growth', label: 'Crescimento & Métricas', icon: <TrendingUp className="h-3.5 w-3.5" /> },
+                    { id: 'communications', label: 'Anúncios & Avisos', icon: <Megaphone className="h-3.5 w-3.5" /> },
+                    { id: 'feedback', label: 'Feedbacks & NPS', icon: <MessageSquareHeart className="h-3.5 w-3.5" /> },
+                    { id: 'system', label: 'Configurações', icon: <Settings2 className="h-3.5 w-3.5" /> },
+                    { id: 'changelog', label: 'Engenharia & Releases', icon: <GitBranch className="h-3.5 w-3.5" /> },
+                    { id: 'intelligence', label: 'Motor AI & Conhecimento', icon: <Brain className="h-3.5 w-3.5" /> },
                     { id: 'audit', label: 'Auditoria & Logs', icon: <ShieldCheck className="h-3.5 w-3.5" /> },
                   ].map((tab) => (
                     <TabsTrigger
@@ -104,6 +138,24 @@ export default function AdminDashboard() {
                 </TabsContent>
                 <TabsContent value="users" className="outline-none focus-visible:ring-0">
                   <UserExplorer />
+                </TabsContent>
+                <TabsContent value="growth" className="outline-none focus-visible:ring-0">
+                  <GrowthDashboard />
+                </TabsContent>
+                <TabsContent value="communications" className="outline-none focus-visible:ring-0">
+                  <CommunicationsManager />
+                </TabsContent>
+                <TabsContent value="feedback" className="outline-none focus-visible:ring-0">
+                  <FeedbackManager />
+                </TabsContent>
+                <TabsContent value="system" className="outline-none focus-visible:ring-0">
+                  <SystemConfigManager />
+                </TabsContent>
+                <TabsContent value="changelog" className="outline-none focus-visible:ring-0">
+                  <ChangelogManager />
+                </TabsContent>
+                <TabsContent value="intelligence" className="outline-none focus-visible:ring-0">
+                  <IntelligenceHubMonitor />
                 </TabsContent>
                 <TabsContent value="audit" className="outline-none focus-visible:ring-0">
                   <AuditLogExplorer />

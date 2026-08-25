@@ -997,7 +997,7 @@ export default function DailyTimesheet() {
               <Input 
                 value={configJiraUrl} 
                 onChange={(e) => setConfigJiraUrl(e.target.value)} 
-                placeholder="Ex: jiraproducao.totvs.com.br ou seu-dominio.atlassian.net" 
+                placeholder="Ex: jira.suaempresa.com.br ou seu-dominio.atlassian.net" 
                 className="h-12 rounded-xl bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800/80 font-semibold text-sm focus:bg-white dark:focus:bg-slate-950 dark:text-slate-100 transition-all focus:ring-primary/20"
               />
               <p className="text-[8.5px] text-slate-400 dark:text-slate-500 italic leading-normal">Informe o domínio ou URL do seu Jira (Server/Data Center ou Cloud).</p>

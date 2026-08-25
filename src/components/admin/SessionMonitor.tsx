@@ -75,29 +75,49 @@ export function SessionMonitor() {
   };
 
   const handleDeleteSession = async (session: any) => {
-    // Para implementar a exclusão real no PostgreSQL seria necessário criar endpoint DELETE /admin/sessions/{id}
-    // Por enquanto, apenas removemos localmente do state
     if (!confirm(`Deseja realmente deletar a sessão "${session.title}"? Esta ação é irreversível.`)) return;
-    
-    setSessions(prev => prev.filter(s => s.id !== session.id));
-    setSelectedIds(prev => prev.filter(id => id !== session.id));
-    setTotalSessionsCount(prev => prev - 1);
-    toast({
-      title: "Sessão encerrada",
-      description: "A sala foi removida (simulação no frontend PostgreSQL).",
-    });
+
+    try {
+      await adminApi.deleteSession(session.id, session.type);
+      setSessions(prev => prev.filter(s => s.id !== session.id));
+      setSelectedIds(prev => prev.filter(id => id !== session.id));
+      setTotalSessionsCount(prev => Math.max(0, prev - 1));
+      toast({
+        title: "Sessão removida",
+        description: "A sala foi excluída com sucesso do PostgreSQL.",
+      });
+    } catch (error: any) {
+      console.error("Erro ao deletar sessão:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro na exclusão",
+        description: "Não foi possível remover a sessão do banco de dados.",
+      });
+    }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     if (!confirm(`Deseja excluir as ${selectedIds.length} sessões selecionadas? Esta ação é irreversível.`)) return;
 
+    const itemsToDelete = sessions.filter(s => selectedIds.includes(s.id));
+    let deletedCount = 0;
+
+    for (const item of itemsToDelete) {
+      try {
+        await adminApi.deleteSession(item.id, item.type);
+        deletedCount++;
+      } catch (err) {
+        console.error(`Erro ao deletar sessão ${item.id}:`, err);
+      }
+    }
+
     setSessions(prev => prev.filter(s => !selectedIds.includes(s.id)));
-    setTotalSessionsCount(prev => prev - selectedIds.length);
+    setTotalSessionsCount(prev => Math.max(0, prev - deletedCount));
     setSelectedIds([]);
     toast({
-      title: "Exclusão em massa",
-      description: `${selectedIds.length} sessões foram removidas (simulação).`,
+      title: "Exclusão em massa concluída",
+      description: `${deletedCount} sessões foram removidas do PostgreSQL.`,
     });
   };
 

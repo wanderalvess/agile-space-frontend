@@ -2,15 +2,25 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sparkles, FolderPlus, Users, RefreshCw, Loader2, ArrowRight } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Rocket,
+  Users,
+  RefreshCw,
+  Sparkles,
+  Loader2,
+  ArrowRight,
+  LayoutDashboard,
+  Link as LinkIcon,
+  CheckCircle2,
+  FolderPlus,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { useUserContext } from '@/context/UserContext';
 import { projectService, type ProjectDetail } from '@/services/projectService';
 import { ROLES } from '@/lib/types';
 
@@ -26,9 +36,9 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session, createProject, joinProject, switchProject } = useAuth();
+  const { mustOnboard, isInitializing } = useUserContext();
 
-  const [activeTab, setActiveTab] = useState<'create' | 'join' | 'jira'>('create');
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'create' | 'join' | 'jira' | null>(null);
 
   // --- Criar do zero ---
   const [projectName, setProjectName] = useState('');
@@ -44,9 +54,16 @@ export default function OnboardingPage() {
   const [joinRole, setJoinRole] = useState('');
 
   // --- Jira ---
-  const [jiraDomain, setJiraDomain] = useState('jiraproducao.totvs.com.br');
+  const [jiraDomain, setJiraDomain] = useState('');
   const [jiraKey, setJiraKey] = useState('');
   const [jiraToken, setJiraToken] = useState('');
+
+  // GUARDA DE ACESSO: Se o usuário já estiver configurado com projeto/squad, não permanece no onboarding.
+  useEffect(() => {
+    if (!isInitializing && !mustOnboard) {
+      router.replace('/');
+    }
+  }, [isInitializing, mustOnboard, router]);
 
   useEffect(() => {
     projectService.getAllProjects()
@@ -62,12 +79,13 @@ export default function OnboardingPage() {
     if (!keyEdited) setProjectKey(slugify(value));
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!projectName.trim() || !projectKey.trim()) {
       toast({ title: 'Preencha nome e chave do projeto', variant: 'destructive' });
       return;
     }
-    setLoading(true);
+    setLoadingAction('create');
     try {
       await createProject({
         id: projectKey.trim(),
@@ -75,21 +93,22 @@ export default function OnboardingPage() {
         segmentName: segmentName.trim() || undefined,
         tribeName: tribeName.trim() || undefined,
       });
-      toast({ title: 'Projeto criado!', description: `Você é o Agile Master de ${projectKey}.` });
+      toast({ title: 'Projeto criado com sucesso!', description: `Você é o Agile Master de ${projectKey.trim()}.` });
       router.push('/');
     } catch (err: any) {
       toast({ title: 'Não foi possível criar o projeto', description: err.message, variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
-  const handleJoin = async () => {
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedProjectKey || !joinRole) {
       toast({ title: 'Escolha o projeto e o seu papel nele', variant: 'destructive' });
       return;
     }
-    setLoading(true);
+    setLoadingAction('join');
     try {
       await joinProject(selectedProjectKey, joinRole);
       toast({ title: 'Pronto!', description: `Você entrou em ${selectedProjectKey} como ${joinRole}.` });
@@ -97,16 +116,17 @@ export default function OnboardingPage() {
     } catch (err: any) {
       toast({ title: 'Não foi possível entrar no projeto', description: err.message, variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
-  const handleJiraSync = async () => {
+  const handleJiraSync = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!jiraKey.trim() || !jiraToken.trim()) {
       toast({ title: 'Informe a chave do projeto e seu token do Jira', variant: 'destructive' });
       return;
     }
-    setLoading(true);
+    setLoadingAction('jira');
     try {
       const key = jiraKey.trim().toUpperCase();
       await projectService.syncProjectProfields(key, jiraDomain.trim(), jiraToken.trim());
@@ -117,17 +137,16 @@ export default function OnboardingPage() {
       } catch {
         toast({
           title: 'Projeto sincronizado',
-          description: 'Mas seu e-mail não apareceu entre os membros do Jira. Use a aba "Entrar em um projeto" pra se vincular manualmente.',
+          description: 'Seu e-mail não apareceu entre os membros do Jira. Selecione-o manualmente no cartão "Entrar em Projeto".',
         });
         const fresh = await projectService.getAllProjects();
         setAllProjects(fresh);
         setSelectedProjectKey(key);
-        setActiveTab('join');
       }
     } catch (err: any) {
       toast({ title: 'Falha na sincronização', description: err.message, variant: 'destructive' });
     } finally {
-      setLoading(false);
+      setLoadingAction(null);
     }
   };
 
@@ -136,159 +155,277 @@ export default function OnboardingPage() {
     return p ? `${p.name} (${p.id})` : '';
   }, [allProjects, selectedProjectKey]);
 
-  return (
-    <div className="min-h-dvh flex items-center justify-center p-3 sm:p-4 md:p-6 py-4">
-      <div className="w-full max-w-2xl space-y-3 sm:space-y-4">
+  if (isInitializing) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center p-6">
+        <div className="flex items-center gap-3 text-muted-foreground text-sm font-medium">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" /> Carregando perfil...
+        </div>
+      </div>
+    );
+  }
 
-        <div className="text-center space-y-1 sm:space-y-1.5">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-semibold">
-            <Sparkles className="w-3 h-3" /> Última etapa
-          </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight font-headline">
-            Olá, {session?.name?.split(' ')[0] || 'tudo bem'}! Qual projeto é o seu?
+  return (
+    <div className="w-full bg-background text-foreground flex flex-col items-center pt-0 pb-6 px-4 sm:px-6 relative overflow-x-hidden">
+      
+      {/* Luzes decorativas de fundo (Glassmorphism ambient glow) */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-primary/10 blur-[140px]" />
+        <div className="absolute -bottom-32 -right-32 w-[400px] h-[400px] rounded-full bg-blue-600/10 blur-[120px]" />
+      </div>
+
+      <div className="z-10 w-full max-w-7xl flex flex-col items-center gap-4 sm:gap-5 pt-0 pb-2">
+
+        {/* HEADER SECTION */}
+        <div className="text-center space-y-2 max-w-2xl">
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight font-headline text-foreground">
+            Bem-vindo ao Espaço Ágil
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
-            Sem isso o sistema não sabe em qual squad te colocar. Escolha uma das três opções abaixo.
+
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            O seu centro de comando para engenharia de elite. Selecione o ponto de partida para configurar seu esquadrão e maximizar a entrega de valor.
           </p>
         </div>
 
-        <Card className="border border-border bg-card shadow-xl rounded-2xl overflow-hidden">
-          <CardHeader className="p-3 sm:p-4 pb-3 border-b border-border/50 bg-muted/20">
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              <TabsList className="grid grid-cols-3 bg-muted/60 p-1 rounded-xl">
-                <TabsTrigger value="create" className="text-[11px] sm:text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-1.5 gap-1 sm:gap-1.5">
-                  <FolderPlus className="w-3.5 h-3.5" /> Criar novo
-                </TabsTrigger>
-                <TabsTrigger value="join" className="text-[11px] sm:text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-1.5 gap-1 sm:gap-1.5">
-                  <Users className="w-3.5 h-3.5" /> Já existe
-                </TabsTrigger>
-                <TabsTrigger value="jira" className="text-[11px] sm:text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-1.5 gap-1 sm:gap-1.5">
-                  <RefreshCw className="w-3.5 h-3.5" /> Sincronizar
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </CardHeader>
+        {/* BENTO GRID - 3 CARTÕES */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full mt-0">
 
-          <CardContent className="p-4 sm:p-6 space-y-4">
+          {/* CARTÃO 1: CRIAR NOVO PROJETO */}
+          <div className="bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-7 flex flex-col h-full shadow-lg hover:border-primary/40 transition-all duration-300 relative group overflow-hidden">
+            
+            <div className="flex justify-between items-start mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-inner">
+                <Rocket className="w-6 h-6" />
+              </div>
+              <span className="text-[10px] font-black tracking-wider text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full uppercase">
+                DO ZERO
+              </span>
+            </div>
 
-            {activeTab === 'create' && (
+            <div className="mb-5 space-y-1">
+              <h2 className="text-xl font-extrabold font-headline text-foreground flex items-center gap-2">
+                Criar Novo Projeto
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Inicie um novo esquadrão, configure cerimônias e defina seu backlog inicial. Ideal para novos produtos.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreate} className="flex-1 flex flex-col justify-between space-y-4">
               <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Não usa Jira, ou quer começar do zero? Cria um projeto vazio agora — você vira o Agile Master dele e pode convidar o resto do time depois.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nome do Projeto</Label>
+                  <Input
+                    placeholder="Ex: Squad Fênix"
+                    value={projectName}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    className="h-10 text-sm rounded-xl bg-background/50 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Chave no Sistema</Label>
+                  <Input
+                    placeholder="Ex: FENIX"
+                    value={projectKey}
+                    onChange={(e) => { setKeyEdited(true); setProjectKey(slugify(e.target.value)); }}
+                    className="h-10 text-sm font-mono uppercase rounded-xl bg-background/50 border-border"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium">Nome do projeto</Label>
-                    <Input placeholder="Ex: Squad Fênix" value={projectName} onChange={(e) => handleNameChange(e.target.value)} className="h-9 text-sm rounded-lg" />
+                    <Label className="text-[11px] font-semibold text-muted-foreground">Segmento</Label>
+                    <Input
+                      placeholder="Ex: Varejo"
+                      value={segmentName}
+                      onChange={(e) => setSegmentName(e.target.value)}
+                      className="h-9 text-xs rounded-lg bg-background/50"
+                    />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-medium">Chave <span className="text-muted-foreground font-normal text-[11px]">— no sistema</span></Label>
+                    <Label className="text-[11px] font-semibold text-muted-foreground">Tribo</Label>
                     <Input
-                      placeholder="Ex: FENIX"
-                      value={projectKey}
-                      onChange={(e) => { setKeyEdited(true); setProjectKey(slugify(e.target.value)); }}
-                      className="h-9 text-sm font-mono uppercase rounded-lg"
+                      placeholder="Ex: Distribuição"
+                      value={tribeName}
+                      onChange={(e) => setTribeName(e.target.value)}
+                      className="h-9 text-xs rounded-lg bg-background/50"
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">Segmento <span className="text-muted-foreground font-normal text-[11px]">(opcional)</span></Label>
-                    <Input placeholder="Ex: Varejo" value={segmentName} onChange={(e) => setSegmentName(e.target.value)} className="h-9 text-sm rounded-lg" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">Tribo <span className="text-muted-foreground font-normal text-[11px]">(opcional)</span></Label>
-                    <Input placeholder="Ex: Distribuição" value={tribeName} onChange={(e) => setTribeName(e.target.value)} className="h-9 text-sm rounded-lg" />
-                  </div>
-                </div>
-                <Button onClick={handleCreate} disabled={loading} className="w-full h-9 sm:h-10 rounded-lg text-sm font-bold gap-2 mt-1">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                  Criar projeto e continuar
-                </Button>
               </div>
-            )}
 
-            {activeTab === 'join' && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Alguém do seu time já configurou o projeto no sistema. Escolha ele na lista e diga qual é o seu papel.
-                </p>
-                {loadingProjects ? (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-3">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Carregando projetos...
-                  </div>
-                ) : !hasExistingProjects ? (
-                  <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3">
-                    Nenhum projeto cadastrado ainda no sistema. Use a aba "Criar novo" ou "Sincronizar".
-                  </p>
+              <Button
+                type="submit"
+                disabled={loadingAction !== null}
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-md transition-all text-xs tracking-wider uppercase flex items-center justify-center gap-2 mt-auto"
+              >
+                {loadingAction === 'create' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs font-medium">Projeto</Label>
-                        <Select value={selectedProjectKey} onValueChange={setSelectedProjectKey}>
-                          <SelectTrigger className="h-9 text-sm rounded-lg">
-                            <SelectValue placeholder="Selecione o projeto...">{selectedProjectLabel}</SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {allProjects.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>{p.name} ({p.id})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs font-medium">Seu papel na squad</Label>
-                        <Select value={joinRole} onValueChange={setJoinRole}>
-                          <SelectTrigger className="h-9 text-sm rounded-lg">
-                            <SelectValue placeholder="Selecione seu papel..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROLES.map((r) => (
-                              <SelectItem key={r} value={r}>{r}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <span>Começar</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
+
+          {/* CARTÃO 2: ENTRAR EM PROJETO EXISTENTE */}
+          <div className="bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-7 flex flex-col h-full shadow-lg hover:border-primary/40 transition-all duration-300 relative group overflow-hidden">
+            
+            <div className="flex justify-between items-start mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center shadow-inner">
+                <Users className="w-6 h-6" />
+              </div>
+              <span className="text-[10px] font-black tracking-wider text-blue-500 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full uppercase">
+                CONVITE
+              </span>
+            </div>
+
+            <div className="mb-5 space-y-1">
+              <h2 className="text-xl font-extrabold font-headline text-foreground flex items-center gap-2">
+                Entrar em Projeto Existente
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Junte-se ao seu time atual selecionando o projeto já cadastrado e informando seu papel na squad.
+              </p>
+            </div>
+
+            <form onSubmit={handleJoin} className="flex-1 flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                {loadingProjects ? (
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-8">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" /> Carregando projetos do sistema...
+                  </div>
+                ) : !hasExistingProjects ? (
+                  <div className="text-xs text-muted-foreground bg-muted/40 border border-border/40 rounded-xl p-4 text-center">
+                    Nenhum projeto cadastrado ainda no sistema. Crie um novo no cartão ao lado ou sincronize via Jira.
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Projeto</Label>
+                      <Select value={selectedProjectKey} onValueChange={setSelectedProjectKey}>
+                        <SelectTrigger className="h-10 text-sm rounded-xl bg-background/50 border-border">
+                          <SelectValue placeholder="Selecione o projeto...">{selectedProjectLabel}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allProjects.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.id})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">Papéis de liderança (PO, Tech Lead, Agile Master...) dão acesso à governança da squad.</p>
-                    <Button onClick={handleJoin} disabled={loading} className="w-full h-9 sm:h-10 rounded-lg text-sm font-bold gap-2 mt-1">
-                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-                      Entrar no projeto
-                    </Button>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Seu Papel na Squad</Label>
+                      <Select value={joinRole} onValueChange={setJoinRole}>
+                        <SelectTrigger className="h-10 text-sm rounded-xl bg-background/50 border-border">
+                          <SelectValue placeholder="Selecione seu papel..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ROLES.map((r) => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </>
                 )}
               </div>
-            )}
 
-            {activeTab === 'jira' && (
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground">
-                  Puxa os dados oficiais do projeto direto do Jira Profields (segmento, tribo, membros e cargos). Precisa de um Personal Access Token.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">Domínio Jira</Label>
-                    <Input value={jiraDomain} onChange={(e) => setJiraDomain(e.target.value)} className="h-9 text-sm rounded-lg" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">Chave do projeto</Label>
-                    <Input placeholder="Ex: DDWMISSI" value={jiraKey} onChange={(e) => setJiraKey(e.target.value)} className="h-9 text-sm font-mono uppercase rounded-lg" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium">Token de Acesso (PAT)</Label>
-                  <Input type="password" placeholder="Cole seu Personal Access Token" value={jiraToken} onChange={(e) => setJiraToken(e.target.value)} className="h-9 text-sm font-mono rounded-lg" />
-                </div>
-                <Button onClick={handleJiraSync} disabled={loading} className="w-full h-9 sm:h-10 rounded-lg text-sm font-bold gap-2 mt-1">
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  Sincronizar e continuar
-                </Button>
+              <Button
+                type="submit"
+                disabled={loadingAction !== null || !hasExistingProjects || loadingProjects}
+                className="w-full h-11 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 text-white font-bold rounded-xl shadow-md transition-all text-xs tracking-wider uppercase flex items-center justify-center gap-2 mt-auto"
+              >
+                {loadingAction === 'join' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Conectar</span>
+                    <LinkIcon className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
+
+          {/* CARTÃO 3: IMPORTAR DO JIRA */}
+          <div className="bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-7 flex flex-col h-full shadow-lg hover:border-primary/40 transition-all duration-300 relative group overflow-hidden">
+            
+            <div className="flex justify-between items-start mb-5">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center shadow-inner">
+                <RefreshCw className="w-6 h-6" />
               </div>
-            )}
+              <span className="text-[10px] font-black tracking-wider text-purple-500 bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full uppercase">
+                MIGRAÇÃO
+              </span>
+            </div>
 
-          </CardContent>
-        </Card>
+            <div className="mb-5 space-y-1">
+              <h2 className="text-xl font-extrabold font-headline text-foreground flex items-center gap-2">
+                Importar do Jira
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Sincronize epics, sprints e cards diretamente do Jira. Elimine fricção burocrática e migre seu workspace.
+              </p>
+            </div>
+
+            <form onSubmit={handleJiraSync} className="flex-1 flex flex-col justify-between space-y-4">
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Domínio Jira</Label>
+                  <Input
+                    value={jiraDomain}
+                    onChange={(e) => setJiraDomain(e.target.value)}
+                    className="h-10 text-sm rounded-xl bg-background/50 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Chave do Projeto Jira</Label>
+                  <Input
+                    placeholder="Ex: DDWMISSI"
+                    value={jiraKey}
+                    onChange={(e) => setJiraKey(e.target.value)}
+                    className="h-10 text-sm font-mono uppercase rounded-xl bg-background/50 border-border"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Token PAT (Personal Access Token)</Label>
+                  <Input
+                    type="password"
+                    placeholder="Token de acesso do Jira"
+                    value={jiraToken}
+                    onChange={(e) => setJiraToken(e.target.value)}
+                    className="h-10 text-sm font-mono rounded-xl bg-background/50 border-border"
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={loadingAction !== null}
+                className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition-all text-xs tracking-wider uppercase flex items-center justify-center gap-2 mt-auto"
+              >
+                {loadingAction === 'jira' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Configurar Integração</span>
+                    <RefreshCw className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+          </div>
+
+        </div>
+
       </div>
     </div>
   );

@@ -257,7 +257,7 @@ function SquadHubContent() {
     if (!squadId) return;
     try {
       if (jiraToken.trim()) {
-        const dom = jiraDomain.trim() || jiraSettings?.domain || 'jiraproducao.totvs.com.br';
+        const dom = jiraDomain.trim() || jiraSettings?.domain || '';
         await saveJiraSettings({ domain: dom, token: jiraToken.trim() });
       }
       await saveSquadConfig(squadId, {
@@ -959,7 +959,7 @@ function SquadHubContent() {
                   <Input
                     value={jiraDomain}
                     onChange={e => setJiraDomain(e.target.value)}
-                    placeholder="jiraproducao.totvs.com.br"
+                    placeholder="jira.suaempresa.com.br"
                     className="rounded-xl h-9 text-xs"
                   />
                 </div>

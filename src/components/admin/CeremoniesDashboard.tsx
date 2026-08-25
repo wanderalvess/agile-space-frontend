@@ -10,9 +10,14 @@ import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw, Loader2 } fro
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authFetch } from '@/lib/auth-client';
 
+import { useUserContext } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export function CeremoniesDashboard() {
+  const { userProfile } = useUserContext();
+  const { session } = useAuth();
   const [squads, setSquads] = useState<any[]>([]);
   const [selectedSquadId, setSelectedSquadId] = useState<string>('');
   const [sprintId, setSprintId] = useState<string>('');
@@ -25,14 +30,16 @@ export function CeremoniesDashboard() {
       .then(data => {
         setSquads(data);
         if (data.length > 0) {
-          setSelectedSquadId(data[0].id);
-          if (data[0].activeSprintId) {
-            setSprintId(data[0].activeSprintId);
+          const userActiveId = userProfile?.squadId || session?.activeProjectId;
+          const matchedSquad = data.find((s: any) => s.id === userActiveId) || data[0];
+          setSelectedSquadId(matchedSquad.id);
+          if (matchedSquad.activeSprintId) {
+            setSprintId(matchedSquad.activeSprintId);
           }
         }
       })
       .catch(() => {});
-  }, []);
+  }, [userProfile?.squadId, session?.activeProjectId]);
 
   const fetchStats = async () => {
     if (!selectedSquadId || !sprintId) return;

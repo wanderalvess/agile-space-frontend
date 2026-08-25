@@ -495,7 +495,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                           <div className="space-y-3">
                             <div className="flex items-center gap-2">
                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                               <span className="text-[9px] font-black uppercase tracking-widest text-cyan-500">TOTVS TDN Knowledge</span>
+                               <span className="text-[9px] font-black uppercase tracking-widest text-cyan-500">TDN Base de Conhecimento</span>
                             </div>
                             <div className="grid gap-2">
                               {m.tdnResults.map((tdn) => (

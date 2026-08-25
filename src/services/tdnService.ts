@@ -237,7 +237,7 @@ export async function importTdnToKnowledgeBase(
     category: 'Importado / TDN',
     status: 'published',
     authorId: userId,
-    tags: ['TDN', tdnDoc.space || 'TOTVS', ...(tdnDoc.labels || [])].filter(Boolean) as string[],
+    tags: ['TDN', tdnDoc.space || 'Wiki', ...(tdnDoc.labels || [])].filter(Boolean) as string[],
     byteSize: new Blob([content]).size,
   };
 

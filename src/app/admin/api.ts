@@ -91,6 +91,10 @@ export const adminApi = {
 
   async getSessions(): Promise<any[]> {
     return req<any[]>('/admin/sessions');
+  },
+
+  async deleteSession(id: string, type: string): Promise<void> {
+    return req<void>(`/admin/sessions/${encodeURIComponent(id)}?type=${encodeURIComponent(type)}`, { method: 'DELETE' });
   }
 };
 

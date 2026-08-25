@@ -171,7 +171,7 @@ export function ConnectivitySettings() {
                   <Globe className="h-6 w-6" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">TOTVS TDN</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">TDN / Confluence Wiki</h3>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Technical Knowledge Hub</p>
                 </div>
               </div>
@@ -186,7 +186,7 @@ export function ConnectivitySettings() {
                    <Input 
                     value={tdnUrl}
                     onChange={(e) => setTdnUrl(e.target.value)}
-                    placeholder="tdn.totvs.com"
+                    placeholder="wiki.suaempresa.com"
                     className="h-12 pl-11 rounded-xl border-slate-100 bg-slate-50/50 font-bold text-sm focus:bg-white focus:ring-cyan-500/10"
                   />
                 </div>
@@ -230,7 +230,7 @@ export function ConnectivitySettings() {
 
             <div className="p-4 rounded-2xl bg-cyan-50/50 border border-cyan-100/20">
               <p className="text-[10px] text-cyan-700/70 leading-relaxed font-bold">
-                Permite buscar documentações técnicas da TOTVS e importá-las para sua Wiki local com um clique.
+                Permite buscar documentações técnicas da empresa e importá-las para sua Wiki local com um clique.
               </p>
             </div>
           </div>

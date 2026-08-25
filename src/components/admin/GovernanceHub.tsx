@@ -1,13 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { JiraSyncPanel } from '@/components/admin/JiraSyncPanel';
 import { ProjectSelectorCard } from '@/components/admin/ProjectSelectorCard';
 import { SquadMembersTable } from '@/components/admin/SquadMembersTable';
 import { ShieldCheck } from 'lucide-react';
+import { useUserContext } from '@/context/UserContext';
+import { useAuth } from '@/context/AuthContext';
 
 export function GovernanceHub() {
-  const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null);
+  const { userProfile } = useUserContext();
+  const { session } = useAuth();
+  const activeProjectId = userProfile?.squadId || session?.activeProjectId || null;
+  const [selectedSquadId, setSelectedSquadId] = useState<string | null>(activeProjectId);
+
+  useEffect(() => {
+    if (activeProjectId && (!selectedSquadId || selectedSquadId === '')) {
+      setSelectedSquadId(activeProjectId);
+    }
+  }, [activeProjectId, selectedSquadId]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

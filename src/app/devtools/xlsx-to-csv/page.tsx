@@ -114,13 +114,13 @@ export default function XlsxToCsvPage() {
       setJiraPat(jiraGlobalSettings.token);
     } else if (typeof window !== 'undefined') {
       // 2. Se não houver token salvo, ler do LocalStorage
-      const savedPat = localStorage.getItem('totvs_jira_pat');
+      const savedPat = localStorage.getItem('jira_pat');
       if (savedPat) setJiraPat(savedPat);
     }
 
     // Carregar histórico de chaves recentes
     if (typeof window !== 'undefined') {
-      const savedKeys = localStorage.getItem('totvs_jira_recent_keys');
+      const savedKeys = localStorage.getItem('jira_recent_keys');
       if (savedKeys) {
         try {
           setRecentKeys(JSON.parse(savedKeys));
@@ -302,29 +302,7 @@ export default function XlsxToCsvPage() {
 
   // Buscar caso de teste único
   const fetchTestCase = async (key: string, pat: string) => {
-    try {
-      // Método 1: Chamada direta pelo Navegador (se CORS estiver liberado/extensão ativa)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-      const res = await fetch(`https://jiraproducao.totvs.com.br/rest/atm/1.0/testcase/${key}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${pat}`
-        },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        return await res.json();
-      }
-    } catch (_) {
-      console.warn(`[CORS] Chamada direta falhou para ${key}. Caindo para o fallback proxy...`);
-    }
-
-    // Método 2: Fallback para o Proxy Server-side
+    // Método 1: Chamada via Proxy Server-side
     const idToken = getAuthToken();
     const res = await fetch('/api/jira/testcase', {
       method: 'POST',
@@ -343,7 +321,7 @@ export default function XlsxToCsvPage() {
         errorMsg = errData.error || errorMsg;
       } catch (_) {
         if (errText.includes('cloudflare') || errText.includes('Attention Required')) {
-          errorMsg = `Acesso bloqueado pelo Cloudflare para ${key}. Use uma extensão de liberação de CORS (como "Allow CORS").`;
+          errorMsg = `Acesso bloqueado pelo firewall para ${key}.`;
         }
       }
       throw new Error(errorMsg);
@@ -352,12 +330,12 @@ export default function XlsxToCsvPage() {
     return await res.json();
   };
 
-  // Processar busca direta no Jira da TOTVS (Suporta múltiplos IDs separados por vírgula)
+  // Processar busca direta no Jira (Suporta múltiplos IDs separados por vírgula)
   const handleJiraImport = async () => {
     if (!jiraKey) {
       toast({
         title: "Código do caso necessário",
-        description: "Digite um ou mais IDs de casos de teste (ex: DDWMISSI-T267, DDWMISSI-T268).",
+        description: "Digite um ou mais IDs de casos de teste (ex: PROJ-T267, PROJ-T268).",
         variant: "destructive"
       });
       return;
@@ -734,7 +712,7 @@ export default function XlsxToCsvPage() {
                     activeTab === 'jira' ? "bg-white text-blue-600 shadow-md border border-slate-200/50" : "text-slate-500 hover:text-slate-800"
                   )}
                 >
-                  <Database className="h-3.5 w-3.5 inline mr-2" /> Importação Direta Jira (TOTVS)
+                  <Database className="h-3.5 w-3.5 inline mr-2" /> Importação Direta Jira
                 </button>
               </div>
 
@@ -789,7 +767,7 @@ export default function XlsxToCsvPage() {
                           <Key className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                           <input
                             type="password"
-                            placeholder="Insira seu Token do Jira TOTVS..."
+                            placeholder="Insira seu Token do Jira..."
                             value={jiraPat}
                             onChange={(e) => setJiraPat(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 h-11 text-xs focus:outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 text-slate-700 transition-all"
@@ -804,7 +782,7 @@ export default function XlsxToCsvPage() {
                           <FileSpreadsheet className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
                           <input
                             type="text"
-                            placeholder="Ex: DDWMISSI-T267, DDWMISSI-T268..."
+                            placeholder="Ex: PROJ-T267, PROJ-T268..."
                             value={jiraKey}
                             onChange={(e) => setJiraKey(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 h-11 text-xs font-bold uppercase tracking-wide focus:outline-none focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-100 text-slate-700 transition-all placeholder:normal-case placeholder:font-normal"
@@ -851,7 +829,7 @@ export default function XlsxToCsvPage() {
                         </div>
                         <h4 className="text-xs font-extrabold text-slate-700 leading-snug">Busca e Consolidação Inteligente</h4>
                         <p className="text-[10px] text-slate-400 leading-relaxed">
-                          Ao digitar múltiplos IDs (separados por vírgula), o **Zephyr Bridge** dispara requisições assíncronas em paralelo para a API Zephyr da TOTVS, agrupa todas as tabelas de passos e formata um único CSV unificado pronto para download.
+                          Ao digitar múltiplos IDs (separados por vírgula), o **Zephyr Bridge** dispara requisições assíncronas em paralelo para a API Zephyr do Jira, agrupa todas as tabelas de passos e formata um único CSV unificado pronto para download.
                         </p>
                       </div>
                       

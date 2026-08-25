@@ -67,6 +67,20 @@ const renderVersionIcon = (iconData: { name: string; className: string } | any) 
   return <IconComponent className={className} />;
 };
 
+import rawVersions from './versions.json';
+
+const DEFAULT_VERSIONS: AppReleaseItem[] = (rawVersions as any[]).map((v) => ({
+  tag: v.tag,
+  title: v.title,
+  description: v.description,
+  changes: v.changes || [],
+  type: v.type || 'patch',
+  displayDate: v.date || v.displayDate,
+  date: v.date || v.displayDate,
+  iconName: v.icon?.name || 'Sparkles',
+  iconClass: v.icon?.className || 'h-5 w-5 text-primary',
+}));
+
 export default function ChangelogPage() {
   const router = useRouter();
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
@@ -81,10 +95,14 @@ export default function ChangelogPage() {
     const loadData = async () => {
       try {
         const remoteReleases = await changelogApi.getPublishedReleases();
-        setVersions(remoteReleases || []);
+        if (remoteReleases && remoteReleases.length > 0) {
+          setVersions(remoteReleases);
+        } else {
+          setVersions(DEFAULT_VERSIONS);
+        }
       } catch (err) {
-        console.warn('Erro ao carregar changelog do backend:', err);
-        setVersions([]);
+        console.warn('Erro ao carregar changelog do backend, utilizando versões padrões:', err);
+        setVersions(DEFAULT_VERSIONS);
       } finally {
         setLoading(false);
       }

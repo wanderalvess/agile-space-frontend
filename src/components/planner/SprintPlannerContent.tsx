@@ -29,7 +29,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
   const { userProfile } = useUserContext();
   const { toast } = useToast();
   const router = useRouter();
-  const activeSquadId = userProfile?.squadId || 'DDWMISSI';
+  const activeSquadId = userProfile?.squadId || '';
 
   const handleImportRosterFromSquad = async () => {
     try {

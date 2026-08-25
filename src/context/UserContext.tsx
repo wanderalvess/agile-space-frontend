@@ -96,11 +96,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const cached = readCachedProfile();
     const cachedForUser = cached?.uid === session.id ? cached.profile : null;
 
+    const isSystemAdmin = session.role?.toUpperCase() === 'ADMIN' || session.role?.toLowerCase() === 'admin';
+
     const profile: UserProfile = {
       id: session.id,
       name: session.name,
       email: session.email,
-      role: (session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
+      role: (isSystemAdmin ? 'admin' : session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
       squadId: session.activeProjectId || cachedForUser?.squadId || '',
       isGuest: false,
       avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',
@@ -110,6 +112,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUserProfile(profile);
     setIsInitializing(false);
   }, [session, isAuthLoading]);
+
+  // Sincroniza o ID da squad ativa no localStorage para seletores e componentes administrativos
+  useEffect(() => {
+    if (userProfile?.squadId && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('agileSpace_activeSquadId', userProfile.squadId);
+      } catch {}
+    }
+  }, [userProfile?.squadId]);
 
   // Carrega automaticamente as Squads e papéis vinculados ao usuário logado (por e-mail ou ID)
   useEffect(() => {
@@ -129,11 +140,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
             const currentSquadMatch = data.find(s => s.squadId === userProfile.squadId) || data[0];
             if (currentSquadMatch) {
               const matchedRole = (currentSquadMatch.role as GlobalRole) || userProfile.role;
-              if (userProfile.squadId !== currentSquadMatch.squadId || userProfile.role !== matchedRole) {
+              const isCurrentAdmin = userProfile.role === 'admin' || session?.role?.toUpperCase() === 'ADMIN';
+              if (userProfile.squadId !== currentSquadMatch.squadId || (!isCurrentAdmin && userProfile.role !== matchedRole)) {
                 setUserProfile(prev => prev ? {
                   ...prev,
                   squadId: currentSquadMatch.squadId,
-                  role: matchedRole
+                  role: isCurrentAdmin ? 'admin' : matchedRole
                 } : null);
               }
             }

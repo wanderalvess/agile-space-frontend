@@ -25,7 +25,7 @@ export interface ProjectDetail {
   name: string;
   
   // 1. Informações Gerais
-  segmentName: string; // Ex: "Distribuição TOTVS Goiânia"
+  segmentName: string; // Ex: "Canal Corporativo"
   tribeName: string;   // Ex: "Distribuição"
   locality: string;    // Ex: "Goiânia"
   vicePresident: string; // Ex: "Marcelo Eduardo Sant'anna Cosentino"

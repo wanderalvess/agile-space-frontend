@@ -62,7 +62,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
   const handleSyncFromJira = async () => {
     setSyncingJira(true);
     try {
-      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || 'jiraproducao.totvs.com.br';
+      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || '';
       const savedToken = localStorage.getItem('agileSpace_jiraSync_token') || localStorage.getItem('agileSpace_jiraToken') || '';
       const savedUnit = localStorage.getItem('agileSpace_projectEstimationUnit') || 'SP';
 
@@ -314,7 +314,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
                 <Input
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="exemplo@totvs.com.br"
+                  placeholder="usuario@empresa.com.br"
                   className="h-9 rounded-xl text-xs bg-white/60 dark:bg-slate-900/60 border-slate-200/60 dark:border-slate-700/60"
                 />
               </div>

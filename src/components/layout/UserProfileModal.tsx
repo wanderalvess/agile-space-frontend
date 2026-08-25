@@ -83,7 +83,7 @@ export function UserProfileModal() {
   const [step, setStep] = useState(0); // 0 = auth, 1 = profile
 
   // Jira PAT Token & Domain
-  const [jiraDomain, setJiraDomain] = useState('jiraproducao.totvs.com.br');
+  const [jiraDomain, setJiraDomain] = useState('');
   const [jiraToken, setJiraToken] = useState('');
   const [jiraAccountDetails, setJiraAccountDetails] = useState<any | null>(null);
   
@@ -113,7 +113,7 @@ export function UserProfileModal() {
   // Carrega configurações de Jira salvas
   useEffect(() => {
     try {
-      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || localStorage.getItem('agileSpace_jiraDomain') || 'jiraproducao.totvs.com.br';
+      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || localStorage.getItem('agileSpace_jiraDomain') || '';
       const savedToken = localStorage.getItem('agileSpace_jiraSync_token') || localStorage.getItem('agileSpace_jiraToken') || '';
       setJiraDomain(savedDomain);
       setJiraToken(savedToken);
@@ -167,7 +167,7 @@ export function UserProfileModal() {
 
   const handleSyncFromJira = async (customToken?: string, customDomain?: string) => {
     const tokenToUse = (customToken || jiraToken || localStorage.getItem('agileSpace_jiraToken') || localStorage.getItem('agileSpace_jiraSync_token') || '').trim();
-    const domainToUse = (customDomain || jiraDomain || localStorage.getItem('agileSpace_jiraSync_domain') || 'jiraproducao.totvs.com.br').trim();
+    const domainToUse = (customDomain || jiraDomain || localStorage.getItem('agileSpace_jiraSync_domain') || '').trim();
 
     if (!tokenToUse) {
       toast({
@@ -184,7 +184,7 @@ export function UserProfileModal() {
       const jiraUser = await userApi.getMyself(domainToUse, tokenToUse);
       if (jiraUser) {
         if (jiraUser.displayName) setName(jiraUser.displayName);
-        const resolvedEmail = jiraUser.emailAddress || (jiraUser.name ? `${jiraUser.name}@totvs.com.br` : '');
+        const resolvedEmail = jiraUser.emailAddress || (jiraUser.name ? `${jiraUser.name}@empresa.com` : '');
         if (resolvedEmail) setEmail(resolvedEmail);
 
         // Salva tokens no localStorage
@@ -462,7 +462,7 @@ export function UserProfileModal() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 font-bold text-sm focus:bg-white dark:focus:bg-slate-950 dark:text-slate-100 transition-all"
-                      placeholder="exemplo@totvs.com.br"
+                      placeholder="usuario@empresa.com.br"
                     />
                   </div>
 
@@ -582,7 +582,7 @@ export function UserProfileModal() {
                     <Input
                       value={jiraDomain}
                       onChange={(e) => setJiraDomain(e.target.value)}
-                      placeholder="jiraproducao.totvs.com.br"
+                      placeholder="jira.suaempresa.com.br"
                       className="h-10 rounded-xl text-xs bg-white dark:bg-slate-900 font-medium"
                     />
                   </div>

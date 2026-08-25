@@ -55,7 +55,7 @@ export function BacklogManager({
   squadId,
 }: BacklogManagerProps) {
   const { userProfile } = useUserContext();
-  const activeSquad = squadId || userProfile?.squadId || 'DDWMISSI';
+  const activeSquad = squadId || userProfile?.squadId || '';
   const [newTaskName, setNewTaskName] = useState('');
   const [newTaskDevHours, setNewTaskDevHours] = useState('');
   const [newTaskQaHours, setNewTaskQaHours] = useState('');

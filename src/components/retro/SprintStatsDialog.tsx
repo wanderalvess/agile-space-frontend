@@ -17,7 +17,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const activeSquad = squadId || userProfile?.squadId || 'DDWMISSI';
+  const activeSquad = squadId || userProfile?.squadId || '';
   const activeSprint = sprintId || 'active';
 
   useEffect(() => {

@@ -455,7 +455,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                                 >
                                   <h4 className="text-[10px] font-bold text-slate-900 block truncate max-w-full group-hover:text-cyan-600 transition-colors" title={tdn.title}>{tdn.title}</h4>
                                   <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">{tdn.space || 'TOTVS'}</span>
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">{tdn.space || 'Wiki'}</span>
                                   </div>
                                 </div>
                                 <Button

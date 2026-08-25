@@ -117,7 +117,7 @@ const THEME_PIE_COLORS = [
 export function CustomJqlPanelsSection() {
   const { userProfile } = useUser();
   const { toast } = useToast();
-  const squadId = userProfile?.squadId || "DDWMISSI";
+  const squadId = userProfile?.squadId || "";
   const { issues: squadIssues, loading: squadLoading } = useSquadDashboardData();
 
   const storageKey = `agileSpace_custom_panels_${squadId}`;

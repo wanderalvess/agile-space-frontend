@@ -211,20 +211,20 @@ function KBExplorerContent() {
         id: pageId,
         title: fullContent.title || selectedFile.title.replace('[TDN] ', ''),
         content: fullContent.content || '',
-        space: fullContent.space || selectedFile.tags?.[1] || 'TOTVS',
+        space: fullContent.space || selectedFile.tags?.[1] || 'Wiki',
         link: fullContent.link || `https://${tdnSettings.baseUrl}/pages/viewpage.action?pageId=${pageId}`,
         labels: fullContent.labels || []
       });
       
       // Atualizar o estado local
       let cleanContent = parseConfluenceMacros(fullContent.content || '');
-      const sourceInfo = `\n\n---\n*Documento importado do TDN (${fullContent.space || 'TOTVS'})*\n*Link original: [${fullContent.link}](${fullContent.link})*`;
+      const sourceInfo = `\n\n---\n*Documento importado do TDN (${fullContent.space || 'Wiki'})*\n*Link original: [${fullContent.link}](${fullContent.link})*`;
 
       const updated = {
         ...selectedFile,
         title: `[TDN] ${fullContent.title}`,
         content: cleanContent + sourceInfo,
-        tags: ['TDN', fullContent.space || 'TOTVS', ...(fullContent.labels || [])].filter(Boolean) as string[],
+        tags: ['TDN', fullContent.space || 'Wiki', ...(fullContent.labels || [])].filter(Boolean) as string[],
         updatedAt: new Date().toISOString()
       };
       setSelectedFile(updated as any);
@@ -268,7 +268,7 @@ function KBExplorerContent() {
           id: pageId,
           title: fullContent.title || docItem.title.replace('[TDN] ', ''),
           content: fullContent.content || '',
-          space: fullContent.space || docItem.tags?.[1] || 'TOTVS',
+          space: fullContent.space || docItem.tags?.[1] || 'Wiki',
           link: fullContent.link || `https://${tdnSettings.baseUrl}/pages/viewpage.action?pageId=${pageId}`,
           labels: fullContent.labels || []
         });
@@ -306,7 +306,7 @@ function KBExplorerContent() {
           id: pageId,
           title: fullContent.title || docItem.title.replace('[TDN] ', '') || 'Documento',
           content: fullContent.content || '',
-          space: fullContent.space || docItem.tags?.[1] || 'TOTVS',
+          space: fullContent.space || docItem.tags?.[1] || 'Wiki',
           link: fullContent.link || `https://${tdnSettings.baseUrl}/pages/viewpage.action?pageId=${pageId}`,
           labels: fullContent.labels || []
         });

@@ -55,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
+import rawVersions from '@/app/changelog/versions.json';
 
 const AVAILABLE_ICONS = [
   { name: 'Zap', label: 'Raio (Patch / Fix)', className: 'h-5 w-5 text-indigo-500', defaultFor: 'patch' },
@@ -178,6 +179,24 @@ export function ChangelogManager() {
   }, [releases]);
 
   // Open Dialog for Create
+  const handleImportLegacy = async () => {
+    if (!confirm(`Deseja importar ${rawVersions.length} versões do histórico de engenharia para o banco de dados?`)) return;
+    try {
+      const res = await changelogApi.importLegacyReleases(rawVersions);
+      toast({
+        title: 'Importação concluída',
+        description: `${res.imported} novas versões foram salvas no banco de dados (${res.skipped} existentes mantidas).`
+      });
+      await loadReleases();
+    } catch (err: any) {
+      toast({
+        title: 'Erro na importação',
+        description: err.message || 'Falha ao importar histórico.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleOpenCreate = () => {
     setEditingItem(null);
     const calculatedTag = computeNextTag(latestTag, 'patch');
@@ -368,6 +387,16 @@ export function ChangelogManager() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-xl text-xs font-bold gap-2 border-slate-200 dark:border-slate-800"
+            onClick={handleImportLegacy}
+            title="Sincronizar todas as versões do arquivo de histórico com o banco de dados"
+          >
+            <UploadCloud className="h-4 w-4 text-primary" />
+            <span>Importar Histórico</span>
+          </Button>
+
           <Button
             className="h-10 px-5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider gap-2 shadow-lg shadow-primary/20"
             onClick={handleOpenCreate}

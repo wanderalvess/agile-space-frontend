@@ -246,7 +246,7 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         if (indEst) timeEstimate = parseInt(indEst, 10);
       }
 
-      // Tenta pegar o Dev Real de customfield_10046 (Jira TOTVS)
+      // Tenta pegar o Dev Real de customfield_10046 (Jira Custom Field)
       item.querySelectorAll('customfield').forEach((cf) => {
         const cfId = cf.getAttribute('id');
         const cfName = cf.querySelector('customfieldname')?.textContent?.toLowerCase() || '';

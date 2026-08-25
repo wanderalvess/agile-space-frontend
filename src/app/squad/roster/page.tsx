@@ -61,7 +61,7 @@ function RosterContent() {
   const { userProfile } = useUserContext();
   const { toast } = useToast();
 
-  const activeSquadId = squadIdFromUrl || userProfile?.squadId || 'DDWMISSI';
+  const activeSquadId = squadIdFromUrl || userProfile?.squadId || '';
 
   const {
     config,
