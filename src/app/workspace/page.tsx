@@ -337,7 +337,7 @@ export default function WorkspacePage() {
     try {
       await workspaceApi.saveKanbanCard(effectiveUserId, {
         title,
-        description: description || null,
+        description: description || undefined,
         status: 'todo',
         priority: 'media',
         tag: 'Nota Rápida'

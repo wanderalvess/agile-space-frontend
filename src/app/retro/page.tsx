@@ -130,7 +130,7 @@ export default function RetroHubPage() {
       isCardsRevealed: false,
       isAuthorsRevealed: false,
       votingStatus: 'disabled' as const,
-      timer: { status: 'stopped', endTime: null, initialDuration: 300, remainingOnPause: 300 },
+      timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),

@@ -15,6 +15,8 @@ export interface UserTdnConfig {
   label?: string;
 }
 
+import { req as resilientReq } from '@/lib/http-client';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -53,7 +55,7 @@ export const userApi = {
     try {
       return await req<UserProfile>(`/users/${id}`);
     } catch (e: any) {
-      if (e.message?.includes('404') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
+      if (e.status === 404 || e.message?.includes('404') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
         return null;
       }
       throw e;
@@ -78,7 +80,7 @@ export const userApi = {
         headers: callerHeaders(userId),
       });
     } catch (e: any) {
-      if (e.message?.includes('404') || e.message?.includes('403') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
+      if (e.status === 404 || e.status === 403 || e.message?.includes('404') || e.message?.includes('403') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
         return null;
       }
       throw e;
@@ -115,7 +117,7 @@ export const userApi = {
         headers: callerHeaders(userId),
       });
     } catch (e: any) {
-      if (e.message?.includes('404') || e.message?.includes('403') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
+      if (e.status === 404 || e.status === 403 || e.message?.includes('404') || e.message?.includes('403') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
         return null;
       }
       throw e;
@@ -149,14 +151,8 @@ export const userApi = {
   async getMyself(domain: string, token: string): Promise<any> {
     const res = await authFetch(`${API_BASE_URL}/jira/myself`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ domain, token })
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Falha ao buscar dados no Jira' }));
-      throw new Error(err?.error || err?.message || 'Falha ao buscar dados no Jira');
-    }
-    return res.json();
   },
 
   async validateJiraToken(domain: string, token: string): Promise<{ valid: boolean; user?: any; error?: string }> {

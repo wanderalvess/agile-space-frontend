@@ -10,13 +10,14 @@ export interface FeedbackData {
   createdAt?: string;
 }
 
+import { req } from '@/lib/http-client';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export const feedbackApi = {
   async saveFeedback(feedback: FeedbackData): Promise<FeedbackData> {
     const res = await authFetch(`${API_BASE_URL}/feedbacks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(feedback),
     });
     if (!res.ok) throw new Error(`Feedback API error ${res.status}`);

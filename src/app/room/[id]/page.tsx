@@ -15,10 +15,11 @@ import { useUserContext } from '@/context/UserContext';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { pokerApi } from '../api';
 import { authFetch } from '@/lib/auth-client';
+import { workItemsApi } from '@/app/work-items-api';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -58,16 +59,54 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [isRoomLoading, setIsRoomLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
 
-  const reactionsEnabled = !!roomData?.settings?.reactions;
+  const onlineParticipants = useMemo(() => {
+    const now = Date.now();
+    return (participants || []).filter(p => isParticipantOnline(p, now));
+  }, [participants]);
+
+  const hasActiveHost = useMemo(() => {
+    if (!roomData) return false;
+    return onlineParticipants.some(p => p.id === roomData.creatorId || p.role === 'organizador');
+  }, [roomData, onlineParticipants]);
+
   const currentUser = useMemo(() => participants?.find(p => p.id === session?.id && p.roomId === roomId) || null, [participants, session, roomId]);
-  const isCurrentUserFacilitator = useMemo(() => !!(session && roomData && (session.id === roomData.creatorId || currentUser?.role === 'organizador')), [session, roomData, currentUser]);
-  
+  const isCurrentUserFacilitator = useMemo(() => {
+    if (!session || !roomData) return false;
+    if (session.id === roomData.creatorId || currentUser?.role === 'organizador') return true;
+    // Fallback: se o criador/organizador cair ou sair, o primeiro integrante técnico online assume a facilitação temporária
+    if (!hasActiveHost && currentUser && currentUser.role !== 'spectator') {
+      const firstEligible = onlineParticipants.find(p => p.role !== 'spectator');
+      return firstEligible?.id === session.id;
+    }
+    return false;
+  }, [session, roomData, currentUser, hasActiveHost, onlineParticipants]);
+
+  const reactionsEnabled = !!roomData?.settings?.reactions;
+
+
   const currentUserVote = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.value || null, [votes, currentUser]);
   const currentUserConfidence = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.confidence || null, [votes, currentUser]);
+
+  // Desconexão instantânea ao fechar a aba/janela (beforeunload)
+  useEffect(() => {
+    if (!currentUser || !roomId) return;
+    const handleBeforeUnload = () => {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+      try {
+        navigator.sendBeacon(`${apiBase}/poker/${roomId}/participants/${currentUser.id}`);
+      } catch (e) {
+        // Fallback se sendBeacon não for suportado
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentUser, roomId]);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
   }, []);
+
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
   const reloadRoomData = useCallback(async () => {
     if (!session) return;
@@ -90,7 +129,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
   }, [roomId, session]);
 
-  // Conexão WebSocket e Carga Inicial
+  // Conexão WebSocket com Reconexão Automática e Carga Inicial
   useEffect(() => {
     if (!session) return;
 
@@ -101,7 +140,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       + '?token=' + encodeURIComponent(getAuthToken() || '');
 
     console.log("Conectando ao WebSocket do Poker Room:", wsUrl);
-    let socket = new WebSocket(wsUrl);
+    let socket: WebSocket | null = new WebSocket(wsUrl);
+    let reconnectTimer: NodeJS.Timeout;
 
     socket.onmessage = (event) => {
       try {
@@ -198,10 +238,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     };
 
     socket.onclose = () => {
-      console.warn("Conexão WebSocket fechada. Tentando reconectar...");
-      setTimeout(() => {
-        reloadRoomData();
-      }, 5000);
+      console.warn("Conexão WebSocket fechada. Tentando reconectar em 3s...");
+      reloadRoomData();
+      reconnectTimer = setTimeout(() => {
+        setReconnectTrigger(prev => prev + 1);
+      }, 3000);
     };
 
     return () => {
@@ -1320,7 +1361,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const serverNow = Date.now() + clockOffset;
     pokerApi.saveOrUpdateRoom({
       ...roomData,
-      timer: { status: 'running', endTime: String(serverNow + duration * 1000), initialDuration: duration, remainingOnPause: duration }
+      timer: { status: 'running', endTime: serverNow + duration * 1000, initialDuration: duration, remainingOnPause: duration }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 
@@ -1339,7 +1380,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const serverNow = Date.now() + clockOffset;
     pokerApi.saveOrUpdateRoom({
       ...roomData,
-      timer: { ...roomData.timer, status: 'running', endTime: String(serverNow + roomData.timer.remainingOnPause * 1000) }
+      timer: { ...roomData.timer, status: 'running', endTime: serverNow + roomData.timer.remainingOnPause * 1000 }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 

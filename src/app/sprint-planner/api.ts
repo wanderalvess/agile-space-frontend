@@ -12,11 +12,8 @@ export const sprintPlanningApi = {
   async saveOrUpdatePlanner(planner: any): Promise<any> {
     const res = await authFetch(`${API_BASE_URL}/sprint-plannings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(planner),
     });
-    if (!res.ok) throw new Error('Falha ao salvar planejamento');
-    return res.json();
   },
 
   async deletePlanner(id: string): Promise<void> {

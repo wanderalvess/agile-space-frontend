@@ -191,7 +191,7 @@ export default function FocusPage() {
       <main className="flex-1 flex flex-col overflow-hidden w-full px-4 pb-4 md:px-8 md:pb-8">
         <FocusTimer
           tasks={cards || []}
-          dbSessions={dbSessions || []}
+          dbSessions={(dbSessions || []) as any}
           onSessionComplete={handleSessionComplete} 
           onAddTask={handleAddTask} 
           onDeleteTask={handleDeleteTask}

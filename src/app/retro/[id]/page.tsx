@@ -707,7 +707,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       ...boardData,
       timer: {
         status: 'running',
-        endTime: String(Date.now() + duration * 1000),
+        endTime: Date.now() + duration * 1000,
         initialDuration: duration,
         remainingOnPause: duration,
       }
@@ -736,7 +736,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       timer: {
         ...timer,
         status: 'running',
-        endTime: String(Date.now() + timer.remainingOnPause * 1000),
+        endTime: Date.now() + timer.remainingOnPause * 1000,
       }
     }).catch(err => console.error(err));
   }, [boardData]);

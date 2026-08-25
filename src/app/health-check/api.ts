@@ -14,10 +14,9 @@ export const healthCheckApi = {
   async saveOrUpdateBoard(board: Partial<HealthCheckBoard>): Promise<HealthCheckBoard> {
     const res = await authFetch(`${API_BASE_URL}/health-checks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(board),
     });
-    if (!res.ok) throw new Error('Falha ao salvar Radar de Saúde');
+    if (!res.ok) throw new Error('Falha ao salvar radar');
     return res.json();
   },
 
@@ -31,7 +30,6 @@ export const healthCheckApi = {
     const res = await authFetch(`${API_BASE_URL}/health-checks/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao deletar radar');
   },
 
   // --- Participants ---
@@ -44,7 +42,6 @@ export const healthCheckApi = {
   async joinBoard(boardId: string, participant: Partial<HealthCheckParticipant>): Promise<HealthCheckParticipant> {
     const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/participants`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(participant),
     });
     if (!res.ok) throw new Error('Falha ao entrar no radar');
@@ -55,7 +52,6 @@ export const healthCheckApi = {
     const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/participants/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao sair do radar');
   },
 
   // --- Votes ---
@@ -71,7 +67,6 @@ export const healthCheckApi = {
   async saveVote(boardId: string, vote: Partial<HealthCheckVote>): Promise<HealthCheckVote> {
     const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/votes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vote),
     });
     if (!res.ok) throw new Error('Falha ao salvar voto');

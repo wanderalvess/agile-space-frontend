@@ -52,7 +52,7 @@ const SOUNDSCAPES: Soundscape[] = [
 
 export function FocusWidget() {
   const { config } = useSystemConfig();
-  const spotifyClientId = config.spotifyClientId || 'a2693d23e9cb4c42b971c458f5ad20b8';
+  const spotifyClientId = (config as any).spotifyClientId || 'a2693d23e9cb4c42b971c458f5ad20b8';
 
   const {
     activeTab, masterVolume, activeSounds,
@@ -62,7 +62,7 @@ export function FocusWidget() {
     startTimer, pauseTimer, resetTimer, setBaseMinutes,
     setSpotifyToken, setSpotifyUser, setSpotifyPlaylists, setSelectedPlaylistId,
     logoutSpotify, stopAll
-  } = useCalmariaStore();
+  } = useCalmariaStore() as any;
 
   const [spotifyLoading, setSpotifyLoading] = useState(false);
 
@@ -240,7 +240,7 @@ export function FocusWidget() {
                       <button onClick={logoutSpotify} className="text-[7.5px] font-black text-rose-450 uppercase">Sair</button>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto no-scrollbar">
-                      {spotifyPlaylists.map(pl => (
+                      {(spotifyPlaylists as any[]).map((pl: any) => (
                         <button
                           key={pl.id}
                           onClick={() => setSelectedPlaylistId(pl.id)}

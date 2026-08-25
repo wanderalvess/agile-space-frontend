@@ -422,7 +422,7 @@ export function UserProfileModal() {
                   <div className="flex items-center justify-between p-3 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30">
                     <div className="flex items-center gap-2.5">
                       <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                        <RefreshCw className={cn("h-4 w-4", isSyncingJira && "animate-spin")} />
+                        {isSyncingJira ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">Sincronizar com o Jira</p>

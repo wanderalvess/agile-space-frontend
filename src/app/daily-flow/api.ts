@@ -36,7 +36,6 @@ export const dailyFlowApi = {
 
       const res = await authFetch(`${API_BASE_URL}/daily/worklogs/weekly?${params.toString()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dates),
       });
       if (!res.ok) return [];
@@ -50,10 +49,9 @@ export const dailyFlowApi = {
   async saveOrUpdateWorklog(log: Partial<Worklog>): Promise<Worklog> {
     const res = await authFetch(`${API_BASE_URL}/daily/worklogs`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(log),
     });
-    if (!res.ok) throw new Error('Falha ao salvar registro de tempo');
+    if (!res.ok) throw new Error('Falha ao salvar worklog');
     return res.json();
   },
 
@@ -61,7 +59,7 @@ export const dailyFlowApi = {
     const res = await authFetch(`${API_BASE_URL}/daily/worklogs/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao excluir registro de tempo');
+    if (!res.ok) throw new Error('Falha ao excluir worklog');
   },
 
   async listDailyReports(userId: string): Promise<DailyReportData[]> {
@@ -81,7 +79,6 @@ export const dailyFlowApi = {
   async saveOrUpdateDailyReport(report: DailyReportData): Promise<DailyReportData> {
     const res = await authFetch(`${API_BASE_URL}/daily/reports`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(report),
     });
     if (!res.ok) throw new Error('Falha ao salvar daily report');

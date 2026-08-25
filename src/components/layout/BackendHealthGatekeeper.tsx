@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ServerCrash, RefreshCw } from 'lucide-react';
+import { ServerCrash, RefreshCw, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function BackendHealthGatekeeper({ children }: { children: React.ReactNode }) {
@@ -63,7 +63,7 @@ export function BackendHealthGatekeeper({ children }: { children: React.ReactNod
               disabled={isChecking}
               className="w-full h-14 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 font-black uppercase text-[11px] tracking-widest transition-all active:scale-95 flex items-center justify-center gap-3"
             >
-              <RefreshCw className={`h-4 w-4 ${isChecking ? 'animate-spin' : ''}`} />
+              {isChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {isChecking ? 'Tentando Reconectar...' : 'Tentar Novamente'}
             </Button>
           </div>

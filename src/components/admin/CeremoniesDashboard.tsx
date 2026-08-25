@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { workItemsApi } from '@/app/work-items-api';
-import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authFetch } from '@/lib/auth-client';
 
@@ -104,7 +104,7 @@ export function CeremoniesDashboard() {
               />
 
               <Button onClick={fetchStats} disabled={loading} className="h-10 rounded-xl px-4 text-xs font-bold">
-                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                 Atualizar
               </Button>
             </div>

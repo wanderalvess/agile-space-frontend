@@ -58,7 +58,7 @@ export function AgileSpinner({
       {(title || subtitle) && (
         <div className="flex flex-col items-center text-center space-y-1">
           {title && (
-            <h3 className="text-sm font-black uppercase tracking-tighter italic text-slate-800">
+            <h3 className="text-sm font-black uppercase tracking-tighter italic text-slate-800 dark:text-slate-100">
               {title}
             </h3>
           )}

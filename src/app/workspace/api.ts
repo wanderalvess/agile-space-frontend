@@ -20,6 +20,8 @@ export interface Snippet {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+import { req as resilientReq } from '@/lib/http-client';
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },

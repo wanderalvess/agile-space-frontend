@@ -6,7 +6,7 @@ import {
   MessageSquare,
   Sparkles,
   Send,
-  BrainCircuit,
+  Rocket,
   BookOpen,
   AlertCircle,
   X,
@@ -197,8 +197,10 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const allEndpoints = Array.from(new Set(localResults.flatMap(d => d.tech?.endpoints || [])));
       const allTables = Array.from(new Set(localResults.flatMap(d => d.tech?.tables || [])));
 
+      // [MOCK] Desativando chamadas de API temporariamente conforme solicitado
       // 4. Geração RAG via IA (Gemini API / /api/ai/chat)
       let responseText = '';
+      /*
       const storedApiKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
 
       try {
@@ -221,19 +223,24 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       } catch (aiErr) {
         console.warn('[PokerChat] Chamada para API de IA RAG falhou, utilizando fallback local:', aiErr);
       }
+      */
 
-      // Fallback determinístico caso a IA não retorne texto
+      // A chamada para API de IA RAG (Gemini) está desativada conforme solicitado.
+      // O sistema usará o fallback local determinístico com base nos resultados do backend.
+      responseText = '';
+
+      // Fallback determinístico (Sem usar API do Gemini)
       if (!responseText) {
         if (localResults.length > 0) {
           const topDoc = localResults[0];
-          responseText = `Encontrei **${localResults.length} documento(s)** relevante(s) na Base de Conhecimento.`;
+          responseText = `Encontrei **${localResults.length} documento(s)** relevante(s) na Base de Conhecimento interna.`;
           if (topDoc.tech?.bestSnippet) {
             responseText += `\n\n📌 **Trecho em Destaque (${topDoc.title}):**\n> "${topDoc.tech.bestSnippet}"`;
           }
         } else if (tdnResults.length > 0) {
           responseText = `Encontrei **${tdnResults.length} página(s)** correspondente(s) no TDN (Confluence):`;
         } else {
-          responseText = `Não encontrei nenhum documento exato para **"${userQuery}"**. Tente buscar por termos como nome da API, serviço ou tabela (ex: PCPEDC).`;
+          responseText = `Não encontrei nenhum documento exato para **"${userQuery}"** na base de conhecimento. Tente buscar por termos como nome da API, serviço ou tabela (ex: PCPEDC).`;
         }
       }
 
@@ -313,12 +320,12 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
             {/* Header */}
             <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-indigo-600 shadow-sm">
-                  <BrainCircuit className="h-6 w-6" />
+                <div className="h-10 w-10 rounded-2xl bg-indigo-500 border border-indigo-600 flex items-center justify-center text-white shadow-sm overflow-hidden group">
+                  <Rocket className="h-6 w-6 group-hover:-translate-y-1 group-hover:scale-110 transition-all duration-300" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Base de Conhecimento</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Mascote IA</span>
                     {tdnSettings?.token && (
                       <Badge variant="secondary" className="text-[8px] bg-emerald-50 text-emerald-600 border-emerald-100 uppercase font-black tracking-tighter h-4 px-1.5">
                         Motor Ativo

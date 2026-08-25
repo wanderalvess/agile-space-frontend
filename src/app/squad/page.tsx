@@ -113,7 +113,7 @@ function MemberCapacityRow({ member, onSave }: { member: SquadMember; onSave: (i
         <span className="text-[9px] text-slate-400">h/dia</span>
         <Button
           size="sm" variant="outline" className="h-7 text-[9px]"
-          onClick={() => onSave(member.jiraAccountId, { displayName: member.displayName, capacityHoursPerDay: capacity })}
+          onClick={() => onSave(member.jiraAccountId, { displayName: member.displayName, capacityHoursPerDay: capacity || 1 })}
         >
           Salvar
         </Button>

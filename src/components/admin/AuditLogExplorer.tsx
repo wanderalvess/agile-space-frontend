@@ -114,17 +114,17 @@ export function AuditLogExplorer() {
       </div>
 
       {/* Tabela de Auditoria */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+      <div className="bg-white/60 dark:bg-slate-900/40 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-xl shadow-xl shadow-slate-200/10 dark:shadow-slate-900/10 overflow-hidden">
         <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow className="hover:bg-transparent border-slate-100">
+          <TableHeader className="bg-slate-50/50 dark:bg-slate-950/20">
+            <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800/50">
               <TableHead className="w-[180px] pl-8 h-16 font-black uppercase text-[10px] tracking-widest text-slate-500">Data / Hora</TableHead>
               <TableHead className="w-[180px] h-16 font-black uppercase text-[10px] tracking-widest text-slate-500">Ação</TableHead>
               <TableHead className="w-[200px] h-16 font-black uppercase text-[10px] tracking-widest text-slate-500">Operador</TableHead>
               <TableHead className="h-16 font-black uppercase text-[10px] tracking-widest text-slate-500 pr-8">Detalhes</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="divide-y divide-slate-50 dark:divide-slate-800/30">
             <AnimatePresence mode="popLayout">
               {filteredEvents.length === 0 ? (
                 <TableRow>
@@ -133,9 +133,9 @@ export function AuditLogExplorer() {
                   </TableCell>
                 </TableRow>
               ) : filteredEvents.map((e) => (
-                <TableRow key={e.id || Math.random()} className="group hover:bg-slate-50/50 border-slate-100 transition-colors">
+                <TableRow key={e.id || Math.random()} className="group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 border-slate-100 dark:border-slate-800/50 transition-colors">
                   <TableCell className="py-4 pl-8">
-                    <span className="text-[11px] font-bold text-slate-700">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                       {e.createdAt ? new Date(e.createdAt).toLocaleString('pt-BR') : 'Recent'}
                     </span>
                   </TableCell>
@@ -145,10 +145,10 @@ export function AuditLogExplorer() {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-4">
-                    <span className="text-xs font-bold text-slate-900 lowercase italic">{e.performedBy}</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 lowercase italic">{e.performedBy}</span>
                   </TableCell>
                   <TableCell className="py-4 pr-8">
-                    <p className="text-[12px] font-medium text-slate-700 leading-snug line-clamp-2 italic group-hover:line-clamp-none transition-all">
+                    <p className="text-[12px] font-medium text-slate-700 dark:text-slate-300 leading-snug line-clamp-2 italic group-hover:line-clamp-none transition-all">
                       {e.details || '—'}
                     </p>
                   </TableCell>

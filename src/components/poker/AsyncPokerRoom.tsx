@@ -17,7 +17,7 @@ import { FacilitatorPanel } from './FacilitatorPanel';
 import { 
   ArrowLeft, Copy, Eye, Play, StopCircle, RefreshCcw, 
   HelpCircle, MoreVertical, Plus, CheckCircle2, ListChecks,
-  LayoutGrid, PanelLeftClose, Users, BrainCircuit, Sparkles
+  LayoutGrid, PanelLeftClose, Users, Rocket, Sparkles
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -169,7 +169,7 @@ const AsyncPokerRoomComponent = ({
           <div className="mb-4 delay-100 animate-in fade-in slide-in-from-top-4 duration-500">
             <RoomHeader 
               title={roomTitle || "Scrum Poker Assíncrono"} 
-              toolIcon={<BrainCircuit className="h-4 w-4" />}
+              toolIcon={<Rocket className="h-4 w-4" />}
               toolColorClass="text-indigo-600"
               onOpenFeedback={onOpenFeedback}
               badge={<Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.2em] bg-indigo-50 text-indigo-600 border-indigo-100 px-3 py-1 rounded-full shadow-sm">ASSÍNCRONO</Badge>}
@@ -224,7 +224,7 @@ const AsyncPokerRoomComponent = ({
              {pendingIssues.length === 0 && completedIssues.length === 0 ? (
                <div className="flex flex-col items-center justify-center py-32 text-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
                   <div className="w-32 h-32 bg-indigo-500/10 rounded-[3rem] flex items-center justify-center text-indigo-600 shadow-inner relative group">
-                    <BrainCircuit className="w-16 h-16 group-hover:scale-110 transition-transform duration-500" />
+                    <Rocket className="w-16 h-16 group-hover:-translate-y-2 transition-transform duration-500" />
                     <Sparkles className="absolute -top-2 -right-2 h-8 w-8 text-indigo-400 opacity-50 animate-pulse" />
                   </div>
                   <div className="max-w-md space-y-4">

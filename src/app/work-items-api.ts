@@ -18,19 +18,29 @@ export const workItemsApi = {
   async commitWorkItem(squadId: string, jiraKey: string, sprintId: string): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/work-items/${squadId}/${jiraKey}/commit`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sprint_id: sprintId }),
     });
-    if (!res.ok) throw new Error('Falha ao commitar work item');
   },
 
   async showcaseDecision(squadId: string, jiraKey: string, status: string, feedback: string): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/work-items/${squadId}/${jiraKey}/showcase-decision`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, feedback }),
     });
-    if (!res.ok) throw new Error('Falha ao enviar decisão de showcase');
+  },
+
+  async estimateWorkItem(squadId: string, jiraKey: string, points: number): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/work-items/${squadId}/${jiraKey}/estimate`, {
+      method: 'PUT',
+      body: JSON.stringify({ points_estimated: points }),
+    });
+    if (!res.ok) throw new Error('Falha ao estimar work item');
+  },
+
+  async getAssignedWorkItems(squadId: string, accountId: string): Promise<any[]> {
+    const res = await authFetch(`${API_BASE_URL}/work-items/${squadId}/assignee/${accountId}`);
+    if (!res.ok) throw new Error('Falha ao obter work items do usuário');
+    return res.json();
   },
 
   async getSprintStats(squadId: string, sprintId: string): Promise<any> {

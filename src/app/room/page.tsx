@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { listTemplates, type PokerTemplate } from '@/lib/poker-templates';
-import { DECKS, TSHIRT_UNIT_LABELS, type TshirtUnit } from '@/lib/types';
+import { DECKS, TSHIRT_UNIT_LABELS, type TshirtUnit, type DeckType, type Issue } from '@/lib/types';
 import { DEFAULT_ROOM_SETTINGS } from '@/lib/poker-utils';
 
 // Metadados dos baralhos para os cartões visuais do modal de configuração.
@@ -229,7 +229,7 @@ export default function PokerHubPage() {
       id: roomId,
       votesRevealed: false,
       creatorId: session.id,
-      timer: { status: 'stopped', endTime: null, initialDuration: 120, remainingOnPause: 120 },
+      timer: { status: 'stopped' as const, endTime: null, initialDuration: 120, remainingOnPause: 120 },
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
@@ -237,7 +237,7 @@ export default function PokerHubPage() {
       activeIssueId: backlogIssues[0]?.id || null,
       participantIds: [session.id],
       mode,
-      deckType,
+      deckType: deckType as DeckType,
       revealedIssues: [],
       settings: {
         ...DEFAULT_ROOM_SETTINGS,
@@ -248,7 +248,7 @@ export default function PokerHubPage() {
     };
 
     try {
-      const docRef = await pokerApi.saveOrUpdateRoom(newRoom);
+      const docRef = await pokerApi.saveOrUpdateRoom(newRoom as any);
       if (docRef && docRef.id) {
         saveRoomMeta(docRef.id, 'poker', title.trim(), team.trim() || 'Squad');
         setIsSetupOpen(false);

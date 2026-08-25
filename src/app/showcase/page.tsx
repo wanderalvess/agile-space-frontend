@@ -63,9 +63,8 @@ export default function ShowcaseHubPage() {
         name: name.trim(),
         sprintName: sprintName.trim(),
         tasks: [],
-        createdBy: session?.id || 'anonymous',
         status: 'planning',
-      });
+      } as any);
 
       // Salva no histórico local
       try {

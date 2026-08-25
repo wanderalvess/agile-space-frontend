@@ -34,20 +34,18 @@ export const knowledgeApi = {
   async saveOrUpdateDocument(doc: Partial<KnowledgeDocument>): Promise<KnowledgeDocument> {
     const res = await authFetch(`${API_BASE_URL}/knowledge`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(doc),
     });
-    if (!res.ok) throw new Error('Falha ao salvar/importar o documento');
+    if (!res.ok) throw new Error('Falha ao salvar documento');
     return res.json();
   },
 
   async updateDocument(id: string, doc: Partial<KnowledgeDocument>): Promise<KnowledgeDocument> {
     const res = await authFetch(`${API_BASE_URL}/knowledge/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(doc),
     });
-    if (!res.ok) throw new Error('Falha ao atualizar o documento');
+    if (!res.ok) throw new Error('Falha ao atualizar documento');
     return res.json();
   },
 
@@ -57,14 +55,13 @@ export const knowledgeApi = {
     const res = await authFetch(`${API_BASE_URL}/knowledge/${id}?${params.toString()}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao excluir o documento');
   },
 
   async incrementViews(id: string): Promise<KnowledgeDocument> {
     const res = await authFetch(`${API_BASE_URL}/knowledge/${id}/view`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Falha ao registrar visualização');
+    if (!res.ok) throw new Error('Falha ao incrementar visualizações');
     return res.json();
   }
 };

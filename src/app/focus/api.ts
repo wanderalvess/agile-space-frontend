@@ -8,6 +8,8 @@ export interface FocusSessionData {
   createdAt?: string;
 }
 
+import { req as resilientReq } from '@/lib/http-client';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {

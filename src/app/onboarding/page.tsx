@@ -137,69 +137,71 @@ export default function OnboardingPage() {
   }, [allProjects, selectedProjectKey]);
 
   return (
-    <div className="min-h-dvh flex items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-2xl space-y-6">
+    <div className="min-h-dvh flex items-center justify-center p-3 sm:p-4 md:p-6 py-4">
+      <div className="w-full max-w-2xl space-y-3 sm:space-y-4">
 
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold">
-            <Sparkles className="w-3.5 h-3.5" /> Última etapa
+        <div className="text-center space-y-1 sm:space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-semibold">
+            <Sparkles className="w-3 h-3" /> Última etapa
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-headline">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight font-headline">
             Olá, {session?.name?.split(' ')[0] || 'tudo bem'}! Qual projeto é o seu?
           </h1>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Sem isso o sistema não sabe em qual squad te colocar. Escolha uma das três opções abaixo — leva menos de um minuto.
+          <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
+            Sem isso o sistema não sabe em qual squad te colocar. Escolha uma das três opções abaixo.
           </p>
         </div>
 
         <Card className="border border-border bg-card shadow-xl rounded-2xl overflow-hidden">
-          <CardHeader className="pb-4 pt-6 px-6 border-b border-border/50 bg-muted/20">
+          <CardHeader className="p-3 sm:p-4 pb-3 border-b border-border/50 bg-muted/20">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
               <TabsList className="grid grid-cols-3 bg-muted/60 p-1 rounded-xl">
-                <TabsTrigger value="create" className="text-[11px] font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-2 gap-1.5">
+                <TabsTrigger value="create" className="text-[11px] sm:text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-1.5 gap-1 sm:gap-1.5">
                   <FolderPlus className="w-3.5 h-3.5" /> Criar novo
                 </TabsTrigger>
-                <TabsTrigger value="join" className="text-[11px] font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-2 gap-1.5">
+                <TabsTrigger value="join" className="text-[11px] sm:text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-1.5 gap-1 sm:gap-1.5">
                   <Users className="w-3.5 h-3.5" /> Já existe
                 </TabsTrigger>
-                <TabsTrigger value="jira" className="text-[11px] font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-2 gap-1.5">
+                <TabsTrigger value="jira" className="text-[11px] sm:text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg py-1.5 gap-1 sm:gap-1.5">
                   <RefreshCw className="w-3.5 h-3.5" /> Sincronizar
                 </TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
 
-          <CardContent className="p-6 space-y-5">
+          <CardContent className="p-4 sm:p-6 space-y-4">
 
             {activeTab === 'create' && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
                   Não usa Jira, ou quer começar do zero? Cria um projeto vazio agora — você vira o Agile Master dele e pode convidar o resto do time depois.
                 </p>
-                <div className="space-y-1.5">
-                  <Label>Nome do projeto</Label>
-                  <Input placeholder="Ex: Squad Fênix" value={projectName} onChange={(e) => handleNameChange(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Chave <span className="text-muted-foreground font-normal">— identifica o projeto no sistema, não dá pra mudar depois</span></Label>
-                  <Input
-                    placeholder="Ex: FENIX"
-                    value={projectKey}
-                    onChange={(e) => { setKeyEdited(true); setProjectKey(slugify(e.target.value)); }}
-                    className="font-mono uppercase"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Segmento <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                    <Input placeholder="Ex: Varejo" value={segmentName} onChange={(e) => setSegmentName(e.target.value)} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Nome do projeto</Label>
+                    <Input placeholder="Ex: Squad Fênix" value={projectName} onChange={(e) => handleNameChange(e.target.value)} className="h-9 text-sm rounded-lg" />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Tribo <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                    <Input placeholder="Ex: Distribuição" value={tribeName} onChange={(e) => setTribeName(e.target.value)} />
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Chave <span className="text-muted-foreground font-normal text-[11px]">— no sistema</span></Label>
+                    <Input
+                      placeholder="Ex: FENIX"
+                      value={projectKey}
+                      onChange={(e) => { setKeyEdited(true); setProjectKey(slugify(e.target.value)); }}
+                      className="h-9 text-sm font-mono uppercase rounded-lg"
+                    />
                   </div>
                 </div>
-                <Button onClick={handleCreate} disabled={loading} className="w-full h-11 rounded-xl font-bold gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Segmento <span className="text-muted-foreground font-normal text-[11px]">(opcional)</span></Label>
+                    <Input placeholder="Ex: Varejo" value={segmentName} onChange={(e) => setSegmentName(e.target.value)} className="h-9 text-sm rounded-lg" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Tribo <span className="text-muted-foreground font-normal text-[11px]">(opcional)</span></Label>
+                    <Input placeholder="Ex: Distribuição" value={tribeName} onChange={(e) => setTribeName(e.target.value)} className="h-9 text-sm rounded-lg" />
+                  </div>
+                </div>
+                <Button onClick={handleCreate} disabled={loading} className="w-full h-9 sm:h-10 rounded-lg text-sm font-bold gap-2 mt-1">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                   Criar projeto e continuar
                 </Button>
@@ -207,48 +209,50 @@ export default function OnboardingPage() {
             )}
 
             {activeTab === 'join' && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Alguém do seu time já configurou o projeto no sistema. Escolha ele na lista e diga qual é o seu papel — isso te dá acesso imediato às cerimônias da squad.
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Alguém do seu time já configurou o projeto no sistema. Escolha ele na lista e diga qual é o seu papel.
                 </p>
                 {loadingProjects ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground py-3">
                     <Loader2 className="w-4 h-4 animate-spin" /> Carregando projetos...
                   </div>
                 ) : !hasExistingProjects ? (
-                  <p className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-4">
+                  <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3">
                     Nenhum projeto cadastrado ainda no sistema. Use a aba "Criar novo" ou "Sincronizar".
                   </p>
                 ) : (
                   <>
-                    <div className="space-y-1.5">
-                      <Label>Projeto</Label>
-                      <Select value={selectedProjectKey} onValueChange={setSelectedProjectKey}>
-                        <SelectTrigger className="h-11 rounded-xl">
-                          <SelectValue placeholder="Selecione o projeto...">{selectedProjectLabel}</SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allProjects.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.id})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Projeto</Label>
+                        <Select value={selectedProjectKey} onValueChange={setSelectedProjectKey}>
+                          <SelectTrigger className="h-9 text-sm rounded-lg">
+                            <SelectValue placeholder="Selecione o projeto...">{selectedProjectLabel}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allProjects.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>{p.name} ({p.id})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-medium">Seu papel na squad</Label>
+                        <Select value={joinRole} onValueChange={setJoinRole}>
+                          <SelectTrigger className="h-9 text-sm rounded-lg">
+                            <SelectValue placeholder="Selecione seu papel..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLES.map((r) => (
+                              <SelectItem key={r} value={r}>{r}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>Seu papel na squad</Label>
-                      <Select value={joinRole} onValueChange={setJoinRole}>
-                        <SelectTrigger className="h-11 rounded-xl">
-                          <SelectValue placeholder="Selecione seu papel..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES.map((r) => (
-                            <SelectItem key={r} value={r}>{r}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">Papéis de liderança (PO, Tech Lead, Agile Master...) dão acesso à governança da squad.</p>
-                    </div>
-                    <Button onClick={handleJoin} disabled={loading} className="w-full h-11 rounded-xl font-bold gap-2">
+                    <p className="text-[11px] text-muted-foreground">Papéis de liderança (PO, Tech Lead, Agile Master...) dão acesso à governança da squad.</p>
+                    <Button onClick={handleJoin} disabled={loading} className="w-full h-9 sm:h-10 rounded-lg text-sm font-bold gap-2 mt-1">
                       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                       Entrar no projeto
                     </Button>
@@ -258,23 +262,25 @@ export default function OnboardingPage() {
             )}
 
             {activeTab === 'jira' && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Puxa os dados oficiais do projeto direto do Jira Profields (segmento, tribo, membros e cargos). Precisa de um Personal Access Token do Jira.
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  Puxa os dados oficiais do projeto direto do Jira Profields (segmento, tribo, membros e cargos). Precisa de um Personal Access Token.
                 </p>
-                <div className="space-y-1.5">
-                  <Label>Domínio Jira</Label>
-                  <Input value={jiraDomain} onChange={(e) => setJiraDomain(e.target.value)} className="h-11 rounded-xl" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Domínio Jira</Label>
+                    <Input value={jiraDomain} onChange={(e) => setJiraDomain(e.target.value)} className="h-9 text-sm rounded-lg" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium">Chave do projeto</Label>
+                    <Input placeholder="Ex: DDWMISSI" value={jiraKey} onChange={(e) => setJiraKey(e.target.value)} className="h-9 text-sm font-mono uppercase rounded-lg" />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Chave do projeto</Label>
-                  <Input placeholder="Ex: DDWMISSI" value={jiraKey} onChange={(e) => setJiraKey(e.target.value)} className="h-11 rounded-xl font-mono uppercase" />
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Token de Acesso (PAT)</Label>
+                  <Input type="password" placeholder="Cole seu Personal Access Token" value={jiraToken} onChange={(e) => setJiraToken(e.target.value)} className="h-9 text-sm font-mono rounded-lg" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Token de Acesso (PAT)</Label>
-                  <Input type="password" placeholder="Cole seu Personal Access Token" value={jiraToken} onChange={(e) => setJiraToken(e.target.value)} className="h-11 rounded-xl font-mono" />
-                </div>
-                <Button onClick={handleJiraSync} disabled={loading} className="w-full h-11 rounded-xl font-bold gap-2">
+                <Button onClick={handleJiraSync} disabled={loading} className="w-full h-9 sm:h-10 rounded-lg text-sm font-bold gap-2 mt-1">
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   Sincronizar e continuar
                 </Button>

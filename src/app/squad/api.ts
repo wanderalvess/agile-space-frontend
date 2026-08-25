@@ -56,7 +56,7 @@ export const squadApi = {
   // ----- Metrics Rollup -----
   async getRollup(squadId: string): Promise<SquadMetricsRollup | null> {
     try { return await req<SquadMetricsRollup>(`/squads/${squadId}/rollup`); }
-    catch (e: any) { if (e.message?.includes('404')) return null; throw e; }
+    catch (e: any) { if (e.status === 404 || e.message?.includes('404')) return null; throw e; }
   },
 
   async saveRollup(squadId: string, rollup: SquadMetricsRollup): Promise<SquadMetricsRollup> {
@@ -75,7 +75,7 @@ export const squadApi = {
 
   async getIssueByKey(squadId: string, jiraKey: string): Promise<SquadIssueSnapshot | null> {
     try { return await req<SquadIssueSnapshot>(`/squads/${squadId}/issues/${encodeURIComponent(jiraKey)}`); }
-    catch (e: any) { if (e.message?.includes('404')) return null; throw e; }
+    catch (e: any) { if (e.status === 404 || e.message?.includes('404')) return null; throw e; }
   },
 
   async batchUpsertIssues(squadId: string, snapshots: SquadIssueSnapshot[]): Promise<SquadIssueSnapshot[]> {

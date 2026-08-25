@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GitBranch,
+  Loader2,
   Rocket,
   Zap,
   Sparkles,
@@ -443,7 +444,7 @@ export function ChangelogManager() {
             className="h-8 px-2 text-slate-400 hover:text-slate-900 dark:hover:text-white"
             title="Recarregar"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>
@@ -452,7 +453,7 @@ export function ChangelogManager() {
       <div className="space-y-4">
         {loading ? (
           <div className="p-12 text-center text-slate-400 text-sm font-medium">
-            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
             Carregando versões do banco de dados...
           </div>
         ) : filteredReleases.length === 0 ? (

@@ -19,7 +19,7 @@ import { CapacityEngine, TeamMember } from './parts/CapacityEngine';
 import { BacklogManager } from './parts/BacklogManager';
 import type { PlannerTask } from './parts/PlannerTaskCard';
 import { PlannerGuide } from './PlannerGuide';
-import { HelpCircle, CalendarRange, Save } from 'lucide-react';
+import { HelpCircle, CalendarRange, Save, Loader2 } from 'lucide-react';
 
 interface SprintPlannerContentProps {
   initialPlannerId?: string | null;
@@ -296,7 +296,11 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
                 className="h-9 w-9 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                 title="SALVAR ALTERAÇÕES"
               >
-                <Save className={cn("h-4 w-4", isSaving && "animate-spin")} />
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
               </Button>
             )}
           </div>

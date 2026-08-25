@@ -108,6 +108,31 @@ export function BacklogManager({
     setShowAdvancedTaskForm(true);
   };
 
+  const [isImportingJira, setIsImportingJira] = useState(false);
+
+  const handleImportJiraBacklog = async () => {
+    setIsImportingJira(true);
+    try {
+      const items = await import('@/app/work-items-api').then(m => m.workItemsApi.getBacklogEstimated(activeSquad));
+      if (!items || items.length === 0) {
+        return;
+      }
+      const newTasks = items.map(item => ({
+        id: crypto.randomUUID(),
+        name: item.title,
+        devHours: item.pointsEstimated || 0,
+        qaHours: 0,
+        description: item.description || '',
+        link: item.jiraKey
+      }));
+      onBatchImport(newTasks.map((t: any) => `${t.name} | ${t.link} | ${t.description}`).join('\n'));
+    } catch (e) {
+      console.error("Erro ao importar do backlog Jira:", e);
+    } finally {
+      setIsImportingJira(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {!isReadOnly && (
@@ -195,22 +220,8 @@ export function BacklogManager({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={async () => {
-                try {
-                  const items = await import('@/app/work-items-api').then(m => m.workItemsApi.getBacklogEstimated(activeSquad));
-                  const newTasks = items.map(item => ({
-                    id: crypto.randomUUID(),
-                    name: item.title,
-                    devHours: item.pointsEstimated,
-                    qaHours: 0,
-                    description: item.description,
-                    link: item.jiraKey
-                  }));
-                  onBatchImport(newTasks.map((t: any) => `${t.name} | ${t.link} | ${t.description}`).join('\n'));
-                } catch (e) {
-                  console.error(e);
-                }
-              }}
+              disabled={isImportingJira}
+              onClick={handleImportJiraBacklog}
               className="h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-850 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-xl gap-2 shadow-sm"
             >
               📥 Importar do Backlog Jira
@@ -241,14 +252,22 @@ export function BacklogManager({
             </div>
             <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-800 dark:text-slate-100 mb-2">Workspace Vazio</h3>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em] max-w-[320px] leading-relaxed mb-10">
-              Pronto para construir o futuro? Comece adicionando tarefas ou importe dados do Poker.
+              Pronto para construir o futuro? Comece adicionando tarefas ou importe dados do Poker e Jira.
             </p>
             
             {!isReadOnly && (
               <div className="flex flex-col gap-4 w-full max-w-[320px]">
                 <Button 
-                  onClick={() => setShowPokerImport(true)}
+                  onClick={handleImportJiraBacklog}
+                  disabled={isImportingJira}
                   className="w-full bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[11px] h-16 rounded-[2rem] shadow-2xl shadow-violet-600/20 gap-3"
+                >
+                  <ListTodo className="h-5 w-5" /> Importar do Backlog Jira
+                </Button>
+                <Button 
+                  onClick={() => setShowPokerImport(true)}
+                  variant="outline"
+                  className="w-full h-14 text-[11px] font-black uppercase tracking-widest rounded-[2rem] border-2 border-slate-200 dark:border-slate-800 dark:text-slate-100 dark:hover:bg-slate-900 gap-3"
                 >
                   <Folders className="h-5 w-5" /> Importar do Poker
                 </Button>

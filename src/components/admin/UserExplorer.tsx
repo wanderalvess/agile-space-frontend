@@ -102,7 +102,7 @@ export function UserExplorer() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-slate-200/60 rounded-[2rem] bg-white shadow-xl shadow-slate-200/10 p-2 overflow-hidden">
+      <Card className="border border-slate-200/50 dark:border-slate-800/50 rounded-[2rem] bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-xl shadow-slate-200/10 dark:shadow-slate-900/10 p-2 overflow-hidden">
         <div className="flex flex-col md:flex-row items-center gap-2">
           <div className="relative flex-1 group w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-primary transition-colors" />
@@ -110,11 +110,11 @@ export function UserExplorer() {
               placeholder="Buscar por nome ou e-mail..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 h-12 bg-slate-50/50 border-transparent focus:bg-white focus:border-primary/20 rounded-xl font-medium transition-all"
+              className="pl-12 h-12 bg-slate-50/50 dark:bg-slate-800/50 border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary/20 rounded-xl font-medium transition-all"
             />
           </div>
           
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar gap-1">
+          <div className="flex bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar gap-1">
             {[
               { id: 'all', label: 'Todos' },
               { id: 'admin', label: 'Admins' },
@@ -137,7 +137,7 @@ export function UserExplorer() {
             ))}
           </div>
 
-          <Button variant="outline" size="icon" onClick={() => fetchUsers()} className="h-12 w-12 rounded-xl border-slate-200 hover:border-primary hover:text-primary transition-all shrink-0">
+          <Button variant="outline" size="icon" onClick={() => fetchUsers()} disabled={loading} className="h-12 w-12 rounded-xl border-slate-200/60 dark:border-slate-700/60 hover:border-primary hover:text-primary transition-all shrink-0">
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
           </Button>
         </div>
@@ -149,18 +149,25 @@ export function UserExplorer() {
         </p>
       </div>
 
-      <Card className="border-slate-200/60 rounded-[2rem] bg-white shadow-xl shadow-slate-200/10 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50/50">
-            <TableRow className="hover:bg-transparent border-slate-100">
-              <TableHead className="w-14 pl-8 py-4"><Checkbox checked={selectedIds.length === paginatedUsers.length && paginatedUsers.length > 0} onCheckedChange={toggleSelectAll} className="border-slate-300" /></TableHead>
-              <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Usuário / Identidade</TableHead>
-              <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Cargo / Nível</TableHead>
-              <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Equipe / Squad</TableHead>
-              <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Jira Account ID</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <Card className="border border-slate-200/50 dark:border-slate-800/50 rounded-[2rem] bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-xl shadow-slate-200/10 dark:shadow-slate-900/10 overflow-hidden min-h-[400px] flex flex-col relative">
+        {loading ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+            <AgileSpinner size="lg" title="Buscando Usuários" subtitle="Sincronizando com PostgreSQL..." />
+          </div>
+        ) : null}
+        
+        <div className="flex-1 overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-slate-50/50 dark:bg-slate-950/20">
+              <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800/50">
+                <TableHead className="w-14 pl-8 py-4"><Checkbox checked={selectedIds.length === paginatedUsers.length && paginatedUsers.length > 0} onCheckedChange={toggleSelectAll} className="border-slate-300 dark:border-slate-700" /></TableHead>
+                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Usuário / Identidade</TableHead>
+                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Cargo / Nível</TableHead>
+                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Equipe / Squad</TableHead>
+                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Jira Account ID</TableHead>
+              </TableRow>
+            </TableHeader>
+          <TableBody className="divide-y divide-slate-50 dark:divide-slate-800/30">
             <AnimatePresence mode="popLayout">
               {paginatedUsers.map((u, index) => {
                 const avatarConfig = PREDEFINED_AVATARS[u.avatarSeed || ''] || genConfig(u.avatarSeed || u.email || u.name || 'Felix');
@@ -171,17 +178,17 @@ export function UserExplorer() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.02 }}
-                    className={cn("group hover:bg-slate-50/50 border-slate-100 transition-colors", selectedIds.includes(u.id) && "bg-primary/5")}
+                    className={cn("group hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors", selectedIds.includes(u.id) && "bg-primary/5 dark:bg-primary/10")}
                   >
-                    <TableCell className="pl-8 py-2.5"><Checkbox checked={selectedIds.includes(u.id)} onCheckedChange={() => toggleSelect(u.id)} className="border-slate-300" /></TableCell>
+                    <TableCell className="pl-8 py-2.5"><Checkbox checked={selectedIds.includes(u.id)} onCheckedChange={() => toggleSelect(u.id)} className="border-slate-300 dark:border-slate-600" /></TableCell>
                     <TableCell className="py-2.5">
                       <div className="flex items-center gap-3">
                         <div className="relative">
-                          <NiceAvatar className="w-9 h-9 border-2 border-white shadow-md" {...avatarConfig} />
+                          <NiceAvatar className="w-9 h-9 border-2 border-white dark:border-slate-800 shadow-sm" {...avatarConfig} />
                           {u.role === 'admin' && <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full shadow-sm"><Zap className="h-2 w-2" /></div>}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 group-hover:text-primary transition-colors text-xs">{u.name || 'Sem Nome'}</span>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors text-xs">{u.name || 'Sem Nome'}</span>
                           <span className="text-[10px] font-medium text-slate-400 lowercase tracking-tight italic">{u.email}</span>
                         </div>
                       </div>
@@ -193,21 +200,21 @@ export function UserExplorer() {
                         disabled={updatingId === u.id}
                       >
                         <SelectTrigger className={cn(
-                          "h-7 w-32 rounded-lg border-transparent font-black text-[9px] uppercase tracking-widest transition-all", 
-                          u.role === 'admin' ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-500"
+                          "h-7 w-32 rounded-lg border-transparent font-black text-[9px] uppercase tracking-widest transition-all focus:ring-1 focus:ring-primary focus:ring-offset-0", 
+                          u.role === 'admin' ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-slate-100 dark:bg-slate-800/50 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50"
                         )}>
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="rounded-xl border-slate-200">
+                        <SelectContent className="rounded-xl border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
                           {ROLES.map(role => (
-                            <SelectItem key={role} value={role} className="text-[10px] font-black uppercase tracking-widest">
+                            <SelectItem key={role} value={role} className="text-[10px] font-black uppercase tracking-widest cursor-pointer">
                               {role}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="py-2.5"><Badge variant="ghost" className="bg-slate-50 text-slate-500 border-slate-200 text-[9px] font-black uppercase tracking-widest rounded-lg px-2 py-1">{u.squadId || u.team || 'Sem Squad'}</Badge></TableCell>
+                    <TableCell className="py-2.5"><Badge variant="ghost" className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 border-slate-200/50 dark:border-slate-700/50 text-[9px] font-black uppercase tracking-widest rounded-lg px-2 py-1">{u.squadId || u.team || 'Sem Squad'}</Badge></TableCell>
                     <TableCell className="py-2.5 text-[10px] font-mono text-slate-500">{u.jiraAccountId || '—'}</TableCell>
                   </motion.tr>
                 );
@@ -215,6 +222,7 @@ export function UserExplorer() {
             </AnimatePresence>
           </TableBody>
         </Table>
+        </div>
         {filteredUsers.length > visibleLimit && (
            <div className="p-4 border-t border-slate-50 flex justify-center">
              <Button variant="ghost" onClick={() => setVisibleLimit(prev => prev + 30)} className="text-[9px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-all gap-2">

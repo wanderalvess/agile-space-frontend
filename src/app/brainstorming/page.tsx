@@ -92,7 +92,7 @@ export default function BrainstormingHubPage() {
       createdAt: new Date().toISOString(),
       phase: 'ideation' as const,
       settings: { isAnonymous: false },
-      timer: { status: 'stopped', endTime: null, initialDuration: 600, remainingOnPause: 600 },
+      timer: { status: 'stopped' as const, endTime: null, initialDuration: 600, remainingOnPause: 600 },
       participantIds: [userProfile.id]
     };
 

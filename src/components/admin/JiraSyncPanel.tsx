@@ -13,7 +13,8 @@ import {
   Sparkles, 
   Building2, 
   HelpCircle,
-  Eye
+  Eye,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -271,23 +272,23 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
 
   return (
     <>
-      <Card className="rounded-xl border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm">
-        <CardHeader className="pb-4">
+      <Card className="rounded-[2rem] border border-slate-200/50 dark:border-slate-800/50 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-sm">
+        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/30 dark:bg-slate-950/20 rounded-t-[2rem]">
           <CardTitle className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 flex items-center justify-between">
             <span>Sincronização com o Jira</span>
-            <Badge variant="outline" className="text-[9px] font-black uppercase tracking-wider border-primary/30 text-primary">
+            <Badge className="bg-primary/10 text-primary border-none text-[9px] font-black uppercase tracking-wider px-2 py-0.5">
               Com Validação Prévia
             </Badge>
           </CardTitle>
-          <CardDescription className="text-[11px] text-slate-500">
+          <CardDescription className="text-[11px] text-slate-500 font-medium mt-1">
             Consulte os integrantes e cargos do Jira, revise e ajuste antes de gravar no PostgreSQL.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <form onSubmit={handlePreviewSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Chave do Projeto (Project Key)
                 </Label>
                 <Input
@@ -295,12 +296,12 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
                   onChange={(e) => handleKeyChange(e.target.value)}
                   placeholder="Ex: DDWMISSI"
                   required
-                  className="rounded-xl text-sm h-9"
+                  className="rounded-xl text-xs h-10 bg-white/60 dark:bg-slate-900/60 border-slate-200/60 dark:border-slate-700/60"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Domínio Jira
                 </Label>
                 <Input
@@ -308,18 +309,18 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
                   onChange={(e) => handleDomainChange(e.target.value)}
                   placeholder="Ex: jiraproducao.totvs.com.br"
                   required
-                  className="rounded-xl text-sm h-9"
+                  className="rounded-xl text-xs h-10 bg-white/60 dark:bg-slate-900/60 border-slate-200/60 dark:border-slate-700/60"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Unidade de Estimativa
                 </Label>
                 <select
                   value={estimationUnit}
                   onChange={(e) => setEstimationUnit(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full h-10 rounded-xl border border-slate-200/60 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/60 px-3 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="HOURS">Horas de Engenharia (h)</option>
                   <option value="SP">Story Points (Fibonacci: 1, 2, 3, 5, 8, 13...)</option>
@@ -329,7 +330,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                   Token de Acesso Jira (PAT)
                 </Label>
                 <Input
@@ -338,7 +339,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
                   onChange={(e) => handleTokenChange(e.target.value)}
                   placeholder="Cole o Personal Access Token"
                   required
-                  className="rounded-xl text-sm h-9"
+                  className="rounded-xl text-xs h-10 bg-white/60 dark:bg-slate-900/60 border-slate-200/60 dark:border-slate-700/60"
                 />
               </div>
             </div>
@@ -346,9 +347,9 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-10 gap-2 shadow-sm bg-primary hover:bg-primary/90 text-white"
+              className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11 gap-2 shadow-sm bg-primary hover:bg-primary/90 text-white transition-all hover:shadow-md"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               {loading ? 'Consultando API do Jira...' : 'Consultar e Pré-visualizar Integrantes'}
             </Button>
           </form>

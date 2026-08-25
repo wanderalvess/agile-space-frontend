@@ -93,7 +93,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           feedback: t.feedback || '',
         }));
         setSession({ 
-          id: data.id, ...data, tasks, 
+          ...data, tasks, 
           coverImage: data.coverImage || '', 
           squadName: data.squadName || '', 
           period: data.period || '',
@@ -285,7 +285,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const updateTask = useCallback(async (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => {
     if (!id || !session) return;
     const currentTasks = session.tasks || [];
-    let updatedTaskContent: ShowcaseTask | null = null;
+    let updatedTaskContent: any = null;
     const newTasks = currentTasks.map((t: any) => {
       if (t.id === taskId) {
         const result = typeof updates === 'function' ? updates(t) : { ...t, ...updates };
@@ -310,7 +310,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
           else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
 
-          const activeSquad = session?.squadName || session?.team || userProfile?.squadId || 'DDWMISSI';
+          const activeSquad = session?.squadName || (session as any)?.team || userProfile?.squadId || 'DDWMISSI';
           const { workItemsApi } = await import('@/app/work-items-api');
           workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '').catch(() => {});
         }

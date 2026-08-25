@@ -12,6 +12,8 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+import { req as resilientReq } from '@/lib/http-client';
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -34,7 +36,7 @@ export const vaultApi = {
     try {
       return await req<VaultSecret>(`/vault-secrets/${id}`);
     } catch (e: any) {
-      if (e.message?.includes('404')) return null;
+      if (e.status === 404 || e.message?.includes('404')) return null;
       throw e;
     }
   }

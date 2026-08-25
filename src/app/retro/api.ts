@@ -19,10 +19,9 @@ export const retroApi = {
   async saveOrUpdateBoard(board: Partial<RetroBoard>): Promise<RetroBoard> {
     const res = await authFetch(`${API_BASE_URL}/retros`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(board),
     });
-    if (!res.ok) throw new Error('Falha ao salvar configurações do quadro');
+    if (!res.ok) throw new Error('Falha ao salvar quadro');
     return res.json();
   },
 
@@ -35,10 +34,9 @@ export const retroApi = {
   async addOrUpdateParticipant(boardId: string, participant: Partial<RetroParticipant>): Promise<RetroParticipant> {
     const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/participants`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(participant),
     });
-    if (!res.ok) throw new Error('Falha ao registrar participante');
+    if (!res.ok) throw new Error('Falha ao adicionar participante');
     return res.json();
   },
 
@@ -46,7 +44,6 @@ export const retroApi = {
     const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/participants/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao remover participante');
   },
 
   async getCards(boardId: string): Promise<RetroCard[]> {
@@ -58,7 +55,6 @@ export const retroApi = {
   async saveOrUpdateCard(boardId: string, card: Partial<RetroCard>): Promise<RetroCard> {
     const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/cards`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(card),
     });
     if (!res.ok) throw new Error('Falha ao salvar cartão');
@@ -69,15 +65,12 @@ export const retroApi = {
     const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/cards/${cardId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao excluir cartão');
   },
 
   async importActions(boardId: string, cards: RetroCard[]): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/cards/import`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cards),
     });
-    if (!res.ok) throw new Error('Falha ao importar itens de ação');
   }
 };

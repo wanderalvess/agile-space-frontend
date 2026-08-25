@@ -13,10 +13,9 @@ export const pokerApi = {
   async saveOrUpdateRoom(room: Partial<Room>): Promise<Room> {
     const res = await authFetch(`${API_BASE_URL}/poker`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(room),
     });
-    if (!res.ok) throw new Error('Falha ao salvar configurações da sala');
+    if (!res.ok) throw new Error('Falha ao salvar a sala');
     return res.json();
   },
 
@@ -35,10 +34,9 @@ export const pokerApi = {
   async joinRoom(roomId: string, participant: Partial<Participant>): Promise<Participant> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(participant),
     });
-    if (!res.ok) throw new Error('Falha ao entrar na sala de Poker');
+    if (!res.ok) throw new Error('Falha ao entrar na sala');
     return res.json();
   },
 
@@ -56,7 +54,6 @@ export const pokerApi = {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao sair da sala');
   },
 
   async getVotes(roomId: string): Promise<Vote[]> {
@@ -68,10 +65,9 @@ export const pokerApi = {
   async saveVote(roomId: string, vote: Partial<Vote>): Promise<Vote> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vote),
     });
-    if (!res.ok) throw new Error('Falha ao votar');
+    if (!res.ok) throw new Error('Falha ao salvar voto');
     return res.json();
   },
 
@@ -79,14 +75,12 @@ export const pokerApi = {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao remover voto');
   },
 
   async clearVotes(roomId: string): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao limpar votos da rodada');
   },
 
   async getRounds(roomId: string, limit = 100): Promise<VotingRound[]> {
@@ -98,10 +92,9 @@ export const pokerApi = {
   async saveRound(roomId: string, round: Partial<VotingRound>): Promise<VotingRound> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(round),
     });
-    if (!res.ok) throw new Error('Falha ao arquivar rodada no histórico');
+    if (!res.ok) throw new Error('Falha ao salvar rodada');
     return res.json();
   },
 
@@ -109,15 +102,12 @@ export const pokerApi = {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao limpar histórico de rodadas');
   },
 
   async sendReaction(roomId: string, reaction: { uid: string; emoji: string; ts: string; nickname?: string }): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/reactions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'REACTION', ...reaction }),
     });
-    if (!res.ok) throw new Error('Falha ao enviar reação');
   }
 };

@@ -52,6 +52,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const [isExporting, setIsExporting] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
   useEffect(() => {
     const storedSoundPref = localStorage.getItem('brainstorming-sound-enabled');
@@ -217,7 +218,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
       lastActive: new Date().toISOString()
     };
 
-    brainstormingApi.joinBoard(boardId, newParticipant).catch(e => console.error("Erro ao entrar no mural:", e));
+    brainstormingApi.joinBoard(boardId, newParticipant as any).catch(e => console.error("Erro ao entrar no mural:", e));
   }, [isAuthenticated, boardData, userProfile, participants, boardId]);
 
   // Título Dinâmico da Aba
@@ -531,7 +532,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
               boardId={boardId}
               isAnonymous={boardData.settings.isAnonymous}
               isRevealed={boardData.settings.isRevealed}
-              isPresentationMode={boardData.settings.isPresentationMode}
+              {...({ isPresentationMode: boardData.settings.isPresentationMode } as any)}
               onConnect={handleConnectIdeas}
               onDisconnect={handleDisconnectIdea}
               onMove={handleUpdateIdeaPosition}
@@ -546,28 +547,32 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
               onAddGroup={handleAddGroup}
               onDeleteGroup={handleDeleteGroup}
               onMoveIdeaToGroup={handleMoveIdeaToGroup}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
+              {...({ isExporting, onExportComplete: () => setIsExporting(false) } as any)}
             />
           ) : boardData.phase === 'prioritization' ? (
             <PrioritizationPhase
               ideas={ideas || []}
               onUpdateQualifiers={handleUpdateIdeaQualifiers}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
+              {...({ isExporting, onExportComplete: () => setIsExporting(false) } as any)}
             />
           ) : (
             <ActionsPhase
               ideas={ideas || []}
-              boardId={boardId}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
+              {...({ boardId, isExporting, onExportComplete: () => setIsExporting(false) } as any)}
             />
           )}
         </main>
 
-        <EliteSidebar isOpen={isParticipantsOpen} onClose={() => setIsParticipantsOpen(false)} title="PARTICIPANTES">
-          <EliteParticipantList participants={participants || []} />
+        <EliteSidebar 
+          isOpen={isParticipantsOpen} 
+          onClose={() => setIsParticipantsOpen(false)} 
+          title="PARTICIPANTES"
+          {...({ participantsCount: participants?.length || 0, onCopyLink: () => {} } as any)}
+        >
+          <EliteParticipantList 
+            participants={participants || []} 
+            {...({ currentUserId: userProfile?.id || '', isFacilitator: boardData.creatorId === userProfile?.id, onRemoveParticipant: () => {} } as any)}
+          />
         </EliteSidebar>
       </div>
 

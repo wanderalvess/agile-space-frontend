@@ -162,8 +162,8 @@ export function PromptView({
 
   const formattedDate = prompt.updatedAt
     ? format(
-        prompt.updatedAt instanceof Date
-          ? prompt.updatedAt
+        (prompt.updatedAt as any) instanceof Date
+          ? (prompt.updatedAt as unknown as Date)
           : typeof prompt.updatedAt === 'string'
             ? new Date(prompt.updatedAt)
             : (prompt.updatedAt as any).toDate?.() || new Date(),
