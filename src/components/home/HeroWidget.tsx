@@ -18,6 +18,15 @@ import {
 } from 'lucide-react';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Settings, LogOut, User } from 'lucide-react';
 
 // Jira Icon SVG
 function JiraIcon({ className }: { className?: string }) {
@@ -43,7 +52,7 @@ export function HeroWidget() {
   const router = useRouter();
   const { toggleOpen, isTimerRunning, activeSounds } = useCalmariaStore();
   const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
-  const { userProfile, requestIdentity, isInitializing } = useUserContext();
+  const { userProfile, requestIdentity, isInitializing, setIsEditProfileOpen, logout } = useUserContext();
   const {
     worklogs,
     weeklyWorklogs,
@@ -158,6 +167,35 @@ export function HeroWidget() {
                 )}
               </Button>
               <ThemeToggle className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100">
+                    <User className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                  {userProfile ? (
+                    <>
+                      <DropdownMenuLabel className="font-bold">Meu Perfil</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="cursor-pointer rounded-lg">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Configurações</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={logout} className="cursor-pointer rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950 dark:focus:text-red-400">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem onClick={() => requestIdentity()} className="cursor-pointer rounded-lg">
+                      <Zap className="mr-2 h-4 w-4" />
+                      <span>Fazer Login</span>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 

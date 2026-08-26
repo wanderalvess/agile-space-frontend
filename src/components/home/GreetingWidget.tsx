@@ -3,11 +3,19 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
-import { Zap, Headphones } from 'lucide-react';
+import { Zap, Headphones, User, LogOut, Settings } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const DAILY_TIPS = [
   "Revise suas pendências antes de iniciar blocos de foco intensos.",
@@ -21,7 +29,7 @@ const DAILY_TIPS = [
 ];
 
 export function GreetingWidget() {
-  const { userProfile, requestIdentity, isInitializing } = useUserContext();
+  const { userProfile, requestIdentity, isInitializing, setIsEditProfileOpen, logout } = useUserContext();
   const [greeting, setGreeting] = useState('Olá');
   const { toggleOpen, isTimerRunning, activeSounds } = useCalmariaStore();
   const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
@@ -96,6 +104,35 @@ export function GreetingWidget() {
               )}
             </Button>
             <ThemeToggle className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100">
+                  <User className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                {userProfile ? (
+                  <>
+                    <DropdownMenuLabel className="font-bold">Meu Perfil</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="cursor-pointer rounded-lg">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configurações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="cursor-pointer rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950 dark:focus:text-red-400">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sair</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={() => requestIdentity()} className="cursor-pointer rounded-lg">
+                    <Zap className="mr-2 h-4 w-4" />
+                    <span>Fazer Login</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

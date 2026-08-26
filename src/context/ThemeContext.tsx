@@ -71,6 +71,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     // Add current variant class
     root.classList.add(`theme-${currentVariant}`);
+
+    // Clean any inline overrides so class tokens apply seamlessly
+    if (currentVariant !== 'default') {
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--ring');
+    }
   };
 
   // Sync classes on initial mount

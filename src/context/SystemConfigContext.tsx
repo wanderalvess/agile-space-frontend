@@ -20,7 +20,7 @@ const SystemConfigContext = createContext<SystemConfigContextType | undefined>(u
 
 const DEFAULT_CONFIG: SystemConfig = {
   companyName: 'Espaço Ágil',
-  primaryColor: '24 93% 53%',
+  primaryColor: '',
   logoUrl: '',
   allowAnonymous: true,
   maintenanceMode: false
@@ -41,7 +41,7 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
 
         const data: SystemConfig = {
           companyName: configs.companyName || DEFAULT_CONFIG.companyName,
-          primaryColor: configs.primaryColor || DEFAULT_CONFIG.primaryColor,
+          primaryColor: configs.primaryColor || '',
           logoUrl: configs.logoUrl || DEFAULT_CONFIG.logoUrl,
           allowAnonymous: configs.allowAnonymous ? configs.allowAnonymous === 'true' : DEFAULT_CONFIG.allowAnonymous,
           maintenanceMode: configs.maintenanceMode ? configs.maintenanceMode === 'true' : DEFAULT_CONFIG.maintenanceMode,
@@ -65,14 +65,21 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
     if (typeof window === 'undefined') return;
 
     const root = document.documentElement;
+    const currentVariant = localStorage.getItem('theme-variant') || 'default';
 
-    // Aplicar Cor Primária (HSL)
-    if (data.primaryColor) {
+    // Se o usuário estiver usando um tema com variante (Nebula, Cyberpunk, Midnight, Nordic),
+    // NUNCA sobrescrever com estilo inline a cor primária para não anular a classe do tema!
+    if (currentVariant !== 'default') {
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--ring');
+    } else if (data.primaryColor && data.primaryColor.trim() !== '') {
       root.style.setProperty('--primary', data.primaryColor);
+    } else {
+      root.style.removeProperty('--primary');
     }
 
     // Atualizar Título da Página Dinamicamente (Opcional)
-    if (data.companyName) {
+    if (data.companyName && data.companyName !== 'Espaço Ágil') {
       document.title = `${data.companyName} | Gestão Ágil`;
     }
   };

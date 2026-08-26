@@ -37,6 +37,7 @@ import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { userApi } from '@/app/users/api';
 import { useUserContext } from '@/context/UserContext';
+import { PasswordResetManager } from './PasswordResetManager';
 
 export function UserExplorer() {
   const { userProfile: currentUser } = useUserContext();
@@ -74,7 +75,9 @@ export function UserExplorer() {
     });
   }, [users, searchTerm, selectedRole]);
 
-  const paginatedUsers = filteredUsers.slice(0, visibleLimit);
+  const paginatedUsers = useMemo(() => {
+    return filteredUsers.slice(0, visibleLimit);
+  }, [filteredUsers, visibleLimit]);
 
   const handleUpdateUser = async (userId: string, data: Partial<UserProfile>) => {
     setUpdatingId(userId);
@@ -102,6 +105,7 @@ export function UserExplorer() {
 
   return (
     <div className="space-y-6">
+      <PasswordResetManager />
       <Card className="border border-slate-200/50 dark:border-slate-800/50 rounded-[2rem] bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-xl shadow-slate-200/10 dark:shadow-slate-900/10 p-2 overflow-hidden">
         <div className="flex flex-col md:flex-row items-center gap-2">
           <div className="relative flex-1 group w-full">

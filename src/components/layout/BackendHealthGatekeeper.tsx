@@ -12,8 +12,8 @@ export function BackendHealthGatekeeper({ children }: { children: React.ReactNod
     setIsChecking(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-      // Tentamos bater em um endpoint público leve do backend
-      await fetch(`${apiUrl}/squads`, { 
+      // Tentamos bater em um endpoint público do backend que não exige autenticação
+      await fetch(`${apiUrl}/public/system-config`, { 
         method: 'GET',
         headers: { 'Accept': 'application/json' },
         cache: 'no-store'

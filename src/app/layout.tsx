@@ -1,4 +1,3 @@
-import Script from 'next/script';
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
@@ -66,11 +65,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Espaço Ágil" />
         <link rel="apple-touch-icon" href="/icon.png" />
-      </head>
-      <body className="font-body antialiased bg-background text-foreground transition-colors duration-150" suppressHydrationWarning>
-        <Script
-          id="theme-initializer"
-          strategy="afterInteractive"
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -78,17 +73,27 @@ export default function RootLayout({
                   var savedTheme = localStorage.getItem('theme');
                   var theme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                   var variant = localStorage.getItem('theme-variant') || 'default';
+                  var root = document.documentElement;
                   if (theme === 'dark') {
-                    document.documentElement.classList.add('dark');
+                    root.classList.add('dark');
                   } else {
-                    document.documentElement.classList.remove('dark');
+                    root.classList.remove('dark');
                   }
-                  document.documentElement.classList.add('theme-' + variant);
+                  ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic'].forEach(function(v) {
+                    root.classList.remove('theme-' + v);
+                  });
+                  root.classList.add('theme-' + variant);
+                  if (variant !== 'default') {
+                    root.style.removeProperty('--primary');
+                    root.style.removeProperty('--ring');
+                  }
                 } catch (e) {}
               })();
             `
           }}
         />
+      </head>
+      <body className="font-body antialiased bg-background text-foreground transition-colors duration-150" suppressHydrationWarning>
         <ThemeProvider>
           <SystemConfigProvider>
             <AuthProvider>

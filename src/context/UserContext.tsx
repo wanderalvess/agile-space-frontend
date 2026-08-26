@@ -139,9 +139,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
             // Sincroniza a Squad ativa e o papel caso pertença à Squad
             const currentSquadMatch = data.find(s => s.squadId === userProfile.squadId) || data[0];
             if (currentSquadMatch) {
-              const matchedRole = (currentSquadMatch.role as GlobalRole) || userProfile.role;
+              const matchedRole = (currentSquadMatch.role && currentSquadMatch.role.trim() !== '') 
+                ? (currentSquadMatch.role as GlobalRole) 
+                : userProfile.role;
               const isCurrentAdmin = userProfile.role === 'admin' || session?.role?.toUpperCase() === 'ADMIN';
-              if (userProfile.squadId !== currentSquadMatch.squadId || (!isCurrentAdmin && userProfile.role !== matchedRole)) {
+              if (userProfile.squadId !== currentSquadMatch.squadId || (!isCurrentAdmin && matchedRole && userProfile.role !== matchedRole)) {
                 setUserProfile(prev => prev ? {
                   ...prev,
                   squadId: currentSquadMatch.squadId,

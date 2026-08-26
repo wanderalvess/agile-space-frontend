@@ -151,8 +151,16 @@ export const userApi = {
   async getMyself(domain: string, token: string): Promise<any> {
     const res = await authFetch(`${API_BASE_URL}/jira/myself`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({ domain, token })
     });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || `Erro HTTP ${res.status}`);
+    }
+    return res.json();
   },
 
   async validateJiraToken(domain: string, token: string): Promise<{ valid: boolean; user?: any; error?: string }> {

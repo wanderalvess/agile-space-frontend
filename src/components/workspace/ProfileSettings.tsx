@@ -39,21 +39,44 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   const [email, setEmail] = React.useState(profile?.email || '');
   const [avatarSeed, setAvatarSeed] = React.useState(profile?.avatarSeed || AVATAR_SEEDS[0]);
 
-  const [dynamicSquads, setDynamicSquads] = React.useState<string[]>([]);
+  interface SquadOption {
+    id: string;
+    name: string;
+  }
+  const [dynamicSquads, setDynamicSquads] = React.useState<SquadOption[]>([]);
   const [isSquadsLoaded, setIsSquadsLoaded] = React.useState(false);
 
   React.useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    authFetch(`${apiUrl}/squads`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => {
-        if (Array.isArray(data)) {
-          const mapped = data.map((s: any) => s.id || s.jiraProjectKey).filter(Boolean);
-          setDynamicSquads(mapped);
-        }
-      })
-      .catch(err => console.warn('Erro ao carregar projetos:', err))
-      .finally(() => setIsSquadsLoaded(true));
+    
+    Promise.all([
+      authFetch(`${apiUrl}/projects`).then(r => r.ok ? r.json() : []),
+      authFetch(`${apiUrl}/squads`).then(r => r.ok ? r.json() : [])
+    ])
+    .then(([projectsData, squadsData]) => {
+      const optionsMap = new Map<string, string>();
+      
+      if (Array.isArray(projectsData)) {
+        projectsData.forEach((p: any) => {
+          const id = String(p.id || p.jiraProjectKey || '').trim();
+          const name = String(p.name || p.id || '').trim();
+          if (id) optionsMap.set(id, name);
+        });
+      }
+
+      if (Array.isArray(squadsData)) {
+        squadsData.forEach((s: any) => {
+          const id = String(s.id || s.jiraProjectKey || '').trim();
+          const name = String(s.name || s.jiraProjectKey || s.id || '').trim();
+          if (id && !optionsMap.has(id)) optionsMap.set(id, name);
+        });
+      }
+
+      const mapped: SquadOption[] = Array.from(optionsMap.entries()).map(([id, name]) => ({ id, name }));
+      setDynamicSquads(mapped);
+    })
+    .catch(err => console.warn('Erro ao carregar tabela projects/squads:', err))
+    .finally(() => setIsSquadsLoaded(true));
   }, []);
 
   const handleSave = () => {
@@ -165,11 +188,11 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
                    </Label>
                     <div className="flex flex-col gap-2">
                       <Select 
-                        value={(dynamicSquads.includes(team) || SQUADS.includes(team)) ? team : (team ? 'other' : '')} 
+                        value={dynamicSquads.some(s => s.id === team) ? team : (team ? 'other' : '')} 
                         onValueChange={(v) => { if (v !== 'other') setTeam(v); else setTeam(''); }}
                       >
                         <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm">
-                          <SelectValue placeholder="Selecione..." />
+                          <SelectValue placeholder="Selecione o projeto..." />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-none shadow-2xl p-2 max-h-[300px]">
                           {!isSquadsLoaded && (
@@ -177,14 +200,14 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
                               Carregando projetos...
                             </SelectItem>
                           )}
-                          {isSquadsLoaded && Array.from(new Set([...dynamicSquads, ...(profile?.squadId && SQUADS.includes(profile.squadId) ? [profile.squadId] : [])])).map(s => (
-                            <SelectItem key={s} value={s} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{s}</SelectItem>
+                          {isSquadsLoaded && dynamicSquads.map(sq => (
+                            <SelectItem key={sq.id} value={sq.id} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{sq.name}</SelectItem>
                           ))}
                           <SelectItem value="other" className="text-[9px] font-black text-primary py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase border-t border-slate-100 mt-1">+ Digitar Novo</SelectItem>
                         </SelectContent>
                       </Select>
                      
-                      {(!dynamicSquads.includes(team) && !SQUADS.includes(team) || team === 'other' || team === '') && (
+                      {(!dynamicSquads.some(s => s.id === team) || team === 'other' || team === '') && (
                         <Input 
                           value={team === 'other' ? '' : team} 
                           onChange={(e) => setTeam(e.target.value)} 

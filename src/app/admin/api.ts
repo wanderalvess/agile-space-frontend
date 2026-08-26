@@ -30,6 +30,17 @@ export interface AuditLogData {
   createdAt?: string;
 }
 
+export interface PasswordResetRequest {
+  id: string;
+  userEmail: string;
+  userName?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  tempPassword?: string;
+  requestedAt: string;
+  approvedAt?: string;
+  approvedBy?: string;
+}
+
 import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
@@ -95,6 +106,16 @@ export const adminApi = {
 
   async deleteSession(id: string, type: string): Promise<void> {
     return req<void>(`/admin/sessions/${encodeURIComponent(id)}?type=${encodeURIComponent(type)}`, { method: 'DELETE' });
+  },
+
+  async getPasswordResets(): Promise<PasswordResetRequest[]> {
+    return req<PasswordResetRequest[]>('/admin/password-resets');
+  },
+
+  async approvePasswordReset(id: string): Promise<PasswordResetRequest> {
+    return req<PasswordResetRequest>(`/admin/password-resets/${encodeURIComponent(id)}/approve`, {
+      method: 'POST'
+    });
   }
 };
 
