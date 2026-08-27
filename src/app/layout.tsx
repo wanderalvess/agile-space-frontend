@@ -1,10 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
-// Boa parte do app (Prompt Hub, Knowledge, devtools) usa o toast do sonner, que
-// precisa do próprio provider — o Toaster acima é o do Radix e só renderiza os
-// toasts criados por useToast().
-import { Toaster as SonnerToaster } from 'sonner'
+import { Toaster } from 'sonner'
 import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
@@ -116,8 +112,7 @@ export default function RootLayout({
           <MonacoConfig />
         </ThemeProvider>
 
-        <Toaster />
-        <SonnerToaster position="bottom-right" richColors closeButton theme="system" />
+        <Toaster position="bottom-right" richColors closeButton theme="system" />
       </body>
     </html>
   );

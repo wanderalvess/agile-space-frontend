@@ -6,7 +6,7 @@ import { promptApi } from '../api';
 import { PromptItem } from '../types';
 import { PromptView } from '../components/PromptView';
 import { useRouter } from 'next/navigation';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -50,7 +50,7 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
   if (authLoading || loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-900">
-        <EliteSpinner size="lg" variant="indigo" />
+        <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
   }

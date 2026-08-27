@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Clock, Flame, PieChart as ChartIcon, ChevronDown, ChevronUp, Calendar, FileText, 
-  CheckCircle2, TrendingUp, Layers, Sparkles, Filter, ShieldCheck
+import {
+  Clock, Flame, PieChart as ChartIcon, ChevronDown, ChevronUp, Calendar, FileText,
+  CheckCircle2, TrendingUp, Layers, Sparkles, Filter, ShieldCheck, AlertTriangle
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -175,7 +175,7 @@ export default function PerformanceDashboard() {
   }).filter(c => c.value > 0);
 
   const finalCategoryData = categoryData.length > 0 ? categoryData : [
-    { name: 'Nenhum dado', value: 100, color: '#e2e8f0' }
+    { name: 'Nenhum dado', value: 100, color: 'hsl(var(--muted))' }
   ];
 
   // 6. Upgraded KPIs Calculations
@@ -408,19 +408,19 @@ export default function PerformanceDashboard() {
             {isMounted ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-800/30" />
-                  <XAxis dataKey="name" stroke="#94a3b8" fontSize={8.5} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={8.5} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)', 
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={8.5} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={8.5} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '12px',
                       fontSize: '9px',
-                      color: '#f8fafc',
+                      color: 'hsl(var(--card-foreground))',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                    }} 
-                    itemStyle={{ color: '#f8fafc' }}
+                    }}
+                    itemStyle={{ color: 'hsl(var(--card-foreground))' }}
                   />
                   <Legend 
                     verticalAlign="top" 
@@ -460,20 +460,20 @@ export default function PerformanceDashboard() {
                     dataKey="value"
                   >
                     {finalCategoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || '#e2e8f0'} />
+                      <Cell key={`cell-${index}`} fill={entry.color || 'hsl(var(--muted))'} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value) => `${value}%`}
-                    contentStyle={{ 
-                      backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                      border: '1px solid rgba(255, 255, 255, 0.1)', 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
                       borderRadius: '12px',
                       fontSize: '9px',
-                      color: '#f8fafc',
+                      color: 'hsl(var(--card-foreground))',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
                     }}
-                    itemStyle={{ color: '#f8fafc' }}
+                    itemStyle={{ color: 'hsl(var(--card-foreground))' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -561,8 +561,8 @@ export default function PerformanceDashboard() {
 
                       {item.blockers && item.blockers !== 'Nenhum' && (
                         <div>
-                          <h5 className="font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest text-[7.5px] mb-0.5 flex items-center gap-0.5">
-                            ⚠️ Impedimento:
+                          <h5 className="font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest text-[7.5px] mb-0.5 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3 inline" /> Impedimento:
                           </h5>
                           <p className="leading-relaxed pl-1.5 border-l-2 border-rose-100 dark:border-rose-950/20 text-rose-600 dark:text-rose-400 font-semibold">
                             {item.blockers}

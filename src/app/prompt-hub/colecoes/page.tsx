@@ -7,7 +7,7 @@ import { useUserContext } from '@/context/UserContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,7 +136,7 @@ export default function CollectionsPage() {
   if (isInitializing || isLoadingData) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <EliteSpinner size="lg" variant="indigo" />
+        <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
   }

@@ -1222,14 +1222,15 @@ const PokerRoomComponent = ({
               </Card>
             )}
 
-            {settings?.refinementNotes && isCurrentUserFacilitator && activeIssueId && !isSessionFinished && onUpdateRefinementNotes && (
+            {settings?.refinementNotes && activeIssueId && !isSessionFinished && (
               <div className="bg-white/60 dark:bg-card/60 backdrop-blur rounded-2xl border border-white/60 dark:border-border/40 p-4 shrink-0">
                 <RefinementNotes
                   devNotes={activeIssue?.devNotes || ''}
                   qaNotes={activeIssue?.qaNotes || ''}
-                  onUpdateNotes={onUpdateRefinementNotes}
+                  onUpdateNotes={isCurrentUserFacilitator ? onUpdateRefinementNotes : undefined}
                   activeIssueId={activeIssueId}
                   isTheaterMode={isTheaterMode}
+                  readOnly={!isCurrentUserFacilitator}
                 />
               </div>
             )}

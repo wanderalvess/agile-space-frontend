@@ -13,8 +13,8 @@ import {
 } from 'recharts';
 import { useSquadStore } from '@/store/useSquadStore';
 import { useDailyStore } from '@/store/useDailyStore';
-import { WidgetCard } from './dashboards/WidgetCard';
-import { KPICard } from './dashboards/KPICard';
+import { WidgetCard } from '@/components/ui/WidgetCard';
+import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -207,7 +207,7 @@ export function SquadPerformanceView() {
       };
     }).filter(c => c.value > 0);
 
-    return list.length > 0 ? list : [{ name: 'Sem registros', value: 100, color: '#e2e8f0' }];
+    return list.length > 0 ? list : [{ name: 'Sem registros', value: 100, color: 'hsl(var(--muted))' }];
   }, [filteredWorklogs, activeIssues]);
 
   // Cálculos de KPI Principais
@@ -514,19 +514,19 @@ export function SquadPerformanceView() {
           <div className="h-[230px] w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-800/40" />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
-                <YAxis yAxisId="left" stroke="#94a3b8" fontSize={9} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} />
+                <YAxis yAxisId="left" stroke="hsl(var(--muted-foreground))" fontSize={9} tickLine={false} axisLine={false} />
                 <YAxis yAxisId="right" orientation="right" stroke="#10b981" fontSize={9} tickLine={false} axisLine={false} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                    border: '1px solid rgba(255, 255, 255, 0.1)', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '14px',
                     fontSize: '10px',
-                    color: '#f8fafc',
+                    color: 'hsl(var(--card-foreground))',
                     boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)'
-                  }} 
+                  }}
                 />
                 <Legend 
                   verticalAlign="top" 
@@ -558,17 +558,17 @@ export function SquadPerformanceView() {
                   dataKey="value"
                 >
                   {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || '#e2e8f0'} />
+                    <Cell key={`cell-${index}`} fill={entry.color || 'hsl(var(--muted))'} />
                   ))}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   formatter={(value) => `${value}%`}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
-                    border: '1px solid rgba(255, 255, 255, 0.1)', 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
                     borderRadius: '12px',
                     fontSize: '10px',
-                    color: '#f8fafc'
+                    color: 'hsl(var(--card-foreground))'
                   }}
                 />
               </PieChart>

@@ -48,7 +48,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { knowledgeApi } from '../api';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
@@ -490,7 +490,7 @@ function KBExplorerContent() {
         <main className="flex-1 overflow-hidden flex flex-col">
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <EliteSpinner size="md" variant="indigo" />
+              <AgileSpinner size="md" variant="indigo" />
             </div>
           ) : selectedFile ? (
             /* ========================================================================= */
@@ -529,7 +529,7 @@ function KBExplorerContent() {
                       disabled={isSyncingDoc}
                       className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-900 shadow-xs"
                     >
-                      {isSyncingDoc ? <EliteSpinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />} 
+                      {isSyncingDoc ? <AgileSpinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />} 
                       {isSyncingDoc ? 'Sincronizando...' : 'Sincronizar'}
                     </Button>
                   )}
@@ -626,7 +626,7 @@ function KBExplorerContent() {
                           <Search className="h-4.5 w-4.5" /> Buscar e Importar TDN
                         </Button>
                         <Button onClick={handleSyncManuals} disabled={isSyncing} className="h-11 px-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-300/60 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all gap-2 justify-start shadow-none">
-                          {isSyncing ? <EliteSpinner size="xs" /> : <RefreshCw className="h-4.5 w-4.5" />} Sincronizar Manuais
+                          {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4.5 w-4.5" />} Sincronizar Manuais
                         </Button>
                         <Button onClick={() => router.push('/knowledge/trash')} className="h-11 px-4 bg-slate-100/85 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all gap-2 justify-start shadow-none">
                           <Trash2 className="h-4.5 w-4.5" /> Acessar Lixeira
@@ -796,7 +796,7 @@ function KBExplorerContent() {
                             disabled={isSyncing}
                             className="h-10 px-4 bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
                           >
-                            {isSyncing ? <EliteSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
+                            {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
                           </Button>
                           
                           <Button 
@@ -821,7 +821,7 @@ function KBExplorerContent() {
                   <div className="bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-[2.5rem] shadow-xl backdrop-blur-md overflow-hidden">
                     {isLoading ? (
                       <div className="py-40 flex flex-col items-center justify-center gap-4">
-                        <EliteSpinner size="md" variant="indigo" />
+                        <AgileSpinner size="md" variant="indigo" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 animate-pulse">Carregando Base...</span>
                       </div>
                     ) : (
@@ -1020,7 +1020,7 @@ export default function KBExplorerPage() {
   return (
     <Suspense fallback={
       <div className="flex h-full w-full items-center justify-center bg-white dark:bg-slate-950">
-        <EliteSpinner size="md" variant="indigo" />
+        <AgileSpinner size="md" variant="indigo" />
       </div>
     }>
       <KBExplorerContent />

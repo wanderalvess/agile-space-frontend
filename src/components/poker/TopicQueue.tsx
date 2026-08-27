@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Kanban, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass } from 'lucide-react';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -1032,7 +1032,7 @@ export function TopicQueue({
           <div className="py-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
             {isLoadingPlannings && (
               <div className="py-8 text-center text-muted-foreground text-xs uppercase tracking-widest flex flex-col items-center gap-4">
-                <EliteSpinner size="md" variant="emerald" />
+                <AgileSpinner size="md" variant="emerald" />
                 <span className="mt-2 animate-pulse">Buscando planejamentos...</span>
               </div>
             )}

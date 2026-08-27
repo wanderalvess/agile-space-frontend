@@ -51,7 +51,7 @@ export default function UrlEncoderPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#FDFDFD] font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">

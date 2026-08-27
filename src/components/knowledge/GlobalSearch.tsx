@@ -34,7 +34,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -137,7 +137,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
           <ScrollArea className="flex-1 p-8 relative z-10">
             {isLoading ? (
                <div className="py-32 flex flex-col items-center justify-center gap-8">
-                  <EliteSpinner variant="indigo" size="lg" />
+                  <AgileSpinner variant="indigo" size="lg" />
                   <p className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500 italic animate-pulse">Consultando Base de Conhecimento...</p>
                </div>
             ) : filteredResults.length > 0 ? (

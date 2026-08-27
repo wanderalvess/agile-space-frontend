@@ -20,7 +20,7 @@ import { knowledgeApi } from '@/app/knowledge/api';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
@@ -134,7 +134,7 @@ export default function TrashPage() {
 
           {isLoading ? (
             <div className="py-40 flex flex-col items-center justify-center gap-4">
-               <EliteSpinner variant="indigo" size="md" />
+               <AgileSpinner variant="indigo" size="md" />
                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 animate-pulse">Varrendo arquivos temporários...</span>
             </div>
           ) : filteredTrash.length === 0 ? (

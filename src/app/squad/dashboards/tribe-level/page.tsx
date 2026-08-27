@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DashboardFilters } from "@/components/squad/dashboards/DashboardFilters";
+import { DashboardFilters } from "@/components/ui/DashboardFilters";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
-import { WidgetCard } from "@/components/squad/dashboards/WidgetCard";
+import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
 import { projectService, ProjectDetail } from "@/services/projectService";

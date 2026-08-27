@@ -31,11 +31,10 @@ import { ExportHealthCheckDialog } from './ExportHealthCheckDialog';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { cn } from '@/lib/utils';
-import { ToastAction } from "@/components/ui/toast";
 import { Logo } from '../Logo';
 import { useAuth } from '@/context/AuthContext';
 import { workspaceApi } from '@/app/workspace/api';
-import { EliteSpinner } from '../ui/EliteSpinner';
+import { AgileSpinner } from '../ui/AgileSpinner';
 import Link from 'next/link';
 import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { RoomHeader } from '@/components/layout/RoomHeader';
@@ -133,14 +132,13 @@ export function HealthCheckResults({
         await workspaceApi.saveKanbanCard(session.id, cardData);
       }
 
-      toast({ 
-        title: "Plano de Ação Gerado!", 
+      toast({
+        title: "Plano de Ação Gerado!",
         description: `${attentionResults.length} tarefas foram criadas no seu Kanban pessoal.`,
-        action: (
-          <ToastAction altText="Ir para Kanban" onClick={() => router.push('/workspace')}>
-            Acessar Kanban
-          </ToastAction>
-        ),
+        action: {
+          label: "Acessar Kanban",
+          onClick: () => router.push('/workspace'),
+        },
       });
       setHasExported(true);
     } catch (e) {
@@ -478,7 +476,7 @@ export function HealthCheckResults({
                   disabled={isExporting}
                   className="h-12 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 bg-emerald-600 hover:bg-emerald-700 flex-1 sm:flex-initial rounded-2xl transition-all active:scale-95"
                 >
-                  {isExporting ? <EliteSpinner size="sm" variant="white" className="mr-2" /> : <TrendingUp className="mr-2 h-4 w-4" />}
+                  {isExporting ? <AgileSpinner size="sm" variant="white" className="mr-2" /> : <TrendingUp className="mr-2 h-4 w-4" />}
                   Gerar Plano de Ação
                 </Button>
               ) : (

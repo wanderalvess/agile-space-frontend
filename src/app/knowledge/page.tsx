@@ -22,7 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,7 @@ export default function KnowledgeDashboard() {
 
    return (
       <div className="flex-1 min-h-screen flex items-center justify-center bg-white">
-         <EliteSpinner title="Redirecionando" subtitle="Acessando Assistente de Agilidade..." />
+         <AgileSpinner title="Redirecionando" subtitle="Acessando Assistente de Agilidade..." />
       </div>
    );
 }

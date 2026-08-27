@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { WidgetCard } from "./WidgetCard";
-import { SimpleBarChart } from "./SimpleBarChart";
+import { WidgetCard } from "@/components/ui/WidgetCard";
+import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import {
   Plus,
   RefreshCw,

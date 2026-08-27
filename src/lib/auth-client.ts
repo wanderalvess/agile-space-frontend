@@ -56,6 +56,13 @@ export async function authFetch(input: RequestInfo | URL, init: RequestInit = {}
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
+  // fetch só define Content-Type sozinho para alguns tipos de body (Blob, FormData,
+  // URLSearchParams); uma string (JSON.stringify) cai em text/plain por padrão e o
+  // Spring rejeita com 415. FormData fica de fora aqui pois precisa do boundary
+  // multipart que o próprio fetch calcula — setar o header à mão quebraria o upload.
+  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   const response = await fetch(input, { ...init, headers });
 

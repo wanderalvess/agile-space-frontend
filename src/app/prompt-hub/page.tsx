@@ -18,7 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { PromptDashboard } from './components/Dashboard';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 
@@ -55,7 +55,7 @@ export default function PromptHubPage() {
   if (authLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-white">
-        <EliteSpinner size="lg" variant="indigo" />
+        <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
   }

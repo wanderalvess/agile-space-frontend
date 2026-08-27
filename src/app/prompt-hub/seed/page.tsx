@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { useRouter } from 'next/navigation';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, ArrowLeft, Database, Check, SkipForward, X } from 'lucide-react';
 import { PromptItem } from '../types';
@@ -121,7 +121,7 @@ export default function SeedPromptsPage() {
   if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-950">
-        <EliteSpinner size="lg" variant="indigo" />
+        <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
   }

@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { PromptItem } from '@/app/prompt-hub/types';
 import { promptApi } from '@/app/prompt-hub/api';
 import { deletePromptWithChildren } from '@/app/prompt-hub/deletePrompt';
@@ -113,7 +113,7 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center h-[60vh]">
-        <EliteSpinner size="md" variant="indigo" />
+        <AgileSpinner size="md" variant="indigo" />
       </div>
     );
   }

@@ -10,7 +10,7 @@ export default function DashboardsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-[#0B0E14] text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen w-full bg-background text-foreground flex flex-col font-sans">
       {/* Cabeçalho padrão unificado do Espaço Ágil */}
       <RoomHeader
         title="Gestão de Projetos Ágeis"

@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 
 export function DailyHelper({ userProfile }: { userProfile: any }) {
   const { toast } = useToast();
@@ -266,7 +266,7 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
 
               {isLoading ? (
                 <div className="h-64 flex flex-col items-center justify-center gap-4 text-slate-400">
-                  <EliteSpinner size="md" variant="indigo" />
+                  <AgileSpinner size="md" variant="indigo" />
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] animate-pulse">Sincronizando...</p>
                 </div>
               ) : myReports && myReports.length > 0 ? (
@@ -452,7 +452,7 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                           : "bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-700"
                       )}
                     >
-                      {isSubmitting ? <EliteSpinner size="xs" variant="white" /> : (
+                      {isSubmitting ? <AgileSpinner size="xs" variant="white" /> : (
                         <>
                           {editingReport ? <Pencil className="h-3 w-3" /> : <Send className="h-3 w-3" />}
                           {editingReport ? 'Salvar Alterações' : 'Enviar Status'}

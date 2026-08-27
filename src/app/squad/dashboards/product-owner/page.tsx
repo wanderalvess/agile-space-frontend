@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import { GaugeChart } from "@/components/squad/dashboards/GaugeChart";
-import { SimpleBarChart } from "@/components/squad/dashboards/SimpleBarChart";
-import { KPICard } from "@/components/squad/dashboards/KPICard";
-import { WidgetCard } from "@/components/squad/dashboards/WidgetCard";
+import { GaugeChart } from "@/components/ui/GaugeChart";
+import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
+import { KPICard } from "@/components/ui/KPICard";
+import { WidgetCard } from "@/components/ui/WidgetCard";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
-import { DashboardFilters, useProjectEstimationUnit } from "@/components/squad/dashboards/DashboardFilters";
+import { DashboardFilters, useProjectEstimationUnit } from "@/components/ui/DashboardFilters";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
 import { ListTodo, AlertTriangle, Layers, Target, CheckCircle2 } from "lucide-react";

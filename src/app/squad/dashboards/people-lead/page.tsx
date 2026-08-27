@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { DashboardFilters } from "@/components/squad/dashboards/DashboardFilters";
+import { DashboardFilters } from "@/components/ui/DashboardFilters";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
-import { WidgetCard } from "@/components/squad/dashboards/WidgetCard";
-import { KPICard } from "@/components/squad/dashboards/KPICard";
+import { WidgetCard } from "@/components/ui/WidgetCard";
+import { KPICard } from "@/components/ui/KPICard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
 import { Users2, Heart, ShieldCheck, UserCheck, AlertTriangle } from "lucide-react";

@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { promptApi } from '../../api';
 import { PromptCard } from '../../components/PromptCard';
 import type { PromptItem } from '../../types';
@@ -92,7 +92,7 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
   if (isUserLoading || isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <EliteSpinner size="lg" variant="indigo" />
+        <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
   }

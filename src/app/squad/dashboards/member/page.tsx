@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { DashboardFilters } from "@/components/squad/dashboards/DashboardFilters";
+import { DashboardFilters } from "@/components/ui/DashboardFilters";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
-import { GaugeChart } from "@/components/squad/dashboards/GaugeChart";
-import { SimpleBarChart } from "@/components/squad/dashboards/SimpleBarChart";
-import { KPICard } from "@/components/squad/dashboards/KPICard";
-import { WidgetCard } from "@/components/squad/dashboards/WidgetCard";
+import { GaugeChart } from "@/components/ui/GaugeChart";
+import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
+import { KPICard } from "@/components/ui/KPICard";
+import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
 import { useUser } from "@/context/UserContext";

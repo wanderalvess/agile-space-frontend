@@ -8,11 +8,11 @@ import {
   getDashboardRouteForRole,
   isUserLeadershipOrAdmin,
 } from "@/lib/dashboard-roles";
-import { DashboardFilters, useProjectEstimationUnit } from "./DashboardFilters";
-import { GaugeChart } from "./GaugeChart";
-import { SimpleBarChart } from "./SimpleBarChart";
-import { KPICard } from "./KPICard";
-import { WidgetCard } from "./WidgetCard";
+import { DashboardFilters, useProjectEstimationUnit } from "@/components/ui/DashboardFilters";
+import { GaugeChart } from "@/components/ui/GaugeChart";
+import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
+import { KPICard } from "@/components/ui/KPICard";
+import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "./CustomJqlPanelsSection";
 import {
   ListTodo,

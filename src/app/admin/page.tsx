@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '@/app/admin/api';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,12 +64,12 @@ export default function AdminDashboard() {
         <p className="text-sm font-medium text-slate-500 max-w-md text-center mb-6">
           Seu usuário ({userProfile?.email || 'não identificado'}) não possui privilégios de administrador para acessar este painel.
         </p>
-        <button
+        <Button
           onClick={() => router.replace('/')}
-          className="px-6 py-2.5 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/90 transition-all text-xs uppercase tracking-wider"
+          className="h-auto px-6 py-2.5 rounded-xl shadow-md text-xs uppercase tracking-wider"
         >
           Voltar ao Início
-        </button>
+        </Button>
       </div>
     );
   }

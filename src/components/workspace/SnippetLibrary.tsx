@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { workspaceApi, Snippet } from '@/app/workspace/api';
 import { useUserContext } from '@/context/UserContext';
 import { toast } from 'sonner';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import {
   Dialog,
   DialogContent,
@@ -161,7 +161,7 @@ export function SnippetLibrary() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center h-[60vh]">
-        <EliteSpinner size="md" variant="indigo" />
+        <AgileSpinner size="md" variant="indigo" />
       </div>
     );
   }

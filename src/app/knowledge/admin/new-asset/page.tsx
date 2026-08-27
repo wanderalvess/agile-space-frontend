@@ -40,7 +40,7 @@ import { knowledgeApi } from '@/app/knowledge/api';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -461,7 +461,7 @@ function NewAssetContent() {
 
 export default function KnowledgeAdminNewAssetPage() {
   return (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-950"><EliteSpinner size="md" variant="indigo" /></div>}>
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-950"><AgileSpinner size="md" variant="indigo" /></div>}>
       <NewAssetContent />
     </Suspense>
   );

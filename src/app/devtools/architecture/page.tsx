@@ -40,13 +40,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import dynamic from 'next/dynamic';
 
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 
 const ExcalidrawRoom = dynamic(
   () => import('@/components/architecture/ExcalidrawRoom'),
   { ssr: false, loading: () => (
     <div className="w-full h-full flex flex-col items-center justify-center bg-card rounded-xl border border-border/50 shadow-sm text-muted-foreground gap-4">
-      <EliteSpinner size="lg" />
+      <AgileSpinner size="lg" />
       <span className="text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">Carregando Whiteboard...</span>
     </div>
   )}

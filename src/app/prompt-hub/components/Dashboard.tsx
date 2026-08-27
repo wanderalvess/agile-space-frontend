@@ -25,7 +25,7 @@ import { TYPE_ORDER, getTypeMeta, SORT_OPTIONS, type SortKey } from '../constant
 import { PromptCard } from './PromptCard';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { promptApi } from '../api';
 import { PromptEditor } from './PromptEditor';
 import { PromptView } from './PromptView';
@@ -351,7 +351,7 @@ export function PromptDashboard({
   if (isLoading) {
     return (
       <div className="flex h-[80vh] flex-1 items-center justify-center bg-background">
-        <EliteSpinner size="md" variant="indigo" />
+        <AgileSpinner size="md" variant="indigo" />
       </div>
     );
   }

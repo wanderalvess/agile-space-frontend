@@ -26,7 +26,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { knowledgeChatApi, KnowledgeTokenUsageDTO } from '../chat/api';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -115,7 +115,7 @@ export default function KnowledgeSettingsPage() {
         <div className="lg:col-span-8 space-y-8">
           {isLoading ? (
             <div className="py-40 flex flex-col items-center justify-center gap-6 bg-slate-50 dark:bg-slate-900/40 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800">
-              <EliteSpinner size="lg" variant="indigo" />
+              <AgileSpinner size="lg" variant="indigo" />
               <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Recuperando Chave Cifrada...</span>
             </div>
           ) : (

@@ -2,19 +2,20 @@
 
 import React from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import { WidgetCard } from "./WidgetCard";
+import { WidgetCard } from "@/components/ui/WidgetCard";
 
 interface GaugeChartProps {
   title: string;
-  value: number; // Porcentagem (0-100)
+  value: number;
   color?: string;
   description?: string;
 }
 
-export function GaugeChart({ title, value, color = "#F97316", description }: GaugeChartProps) {
+export function GaugeChart({ title, value, color, description }: GaugeChartProps) {
+  const safeValue = Math.min(100, Math.max(0, Math.round(value || 0)));
   const data = [
-    { name: "Progresso", value: value },
-    { name: "Restante", value: Math.max(0, 100 - value) },
+    { name: "Progresso", value: safeValue },
+    { name: "Restante", value: 100 - safeValue },
   ];
 
   return (
@@ -35,22 +36,21 @@ export function GaugeChart({ title, value, color = "#F97316", description }: Gau
               stroke="none"
               cornerRadius={6}
             >
-              <Cell key="cell-0" fill={color} />
-              <Cell key="cell-1" fill="#242B3B" />
+              <Cell key="cell-0" fill={color || "hsl(var(--primary))"} />
+              <Cell key="cell-1" fill="hsl(var(--muted))" />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-        
-        {/* Texto central em destaque com contraste total */}
+
         <div className="z-10 text-center mt-10">
-          <span className="text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
-            {value}%
+          <span className="text-4xl font-extrabold tracking-tight text-foreground drop-shadow-sm font-headline">
+            {safeValue}%
           </span>
         </div>
       </div>
 
       {description && (
-        <div className="text-center text-xs font-medium text-slate-400 mt-2 border-t border-slate-800/40 pt-3">
+        <div className="text-center text-xs font-medium text-muted-foreground mt-2 border-t border-border/40 pt-3">
           {description}
         </div>
       )}

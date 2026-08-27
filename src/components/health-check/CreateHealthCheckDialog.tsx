@@ -28,7 +28,7 @@ import {
   HeartPulse,
   Code
 } from 'lucide-react';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { DEFAULT_HEALTH_CHECK_DIMENSIONS } from '@/lib/health-check-defaults';
 import { HealthCheckDimension, HealthCheckScaleType } from '@/lib/types';
 import { HEALTH_CHECK_TEMPLATES } from '@/lib/health-check-templates';
@@ -411,7 +411,7 @@ export function CreateHealthCheckDialog({ open, onOpenChange, onCreateBoard, isC
             <div className="flex gap-4 w-full sm:w-auto">
               <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-16 px-10 font-black uppercase text-[12px] tracking-widest rounded-2xl hover:bg-slate-100 hover:text-slate-900 transition-all">Cancelar</Button>
               <Button onClick={handleSubmit} disabled={isCreating || dimensions.length === 0} className="h-16 px-12 bg-rose-600 hover:bg-rose-700 font-black uppercase tracking-[0.3em] text-[12px] shadow-2xl shadow-rose-600/30 rounded-2xl active:scale-95 transition-all text-white flex-1 sm:flex-initial">
-                {isCreating ? <EliteSpinner size="sm" variant="white" className="mr-3" /> : <PartyPopper className="mr-3 h-6 w-6" />}
+                {isCreating ? <AgileSpinner size="sm" variant="white" className="mr-3" /> : <PartyPopper className="mr-3 h-6 w-6" />}
                 {isCreating ? 'Sincronizando...' : 'Lançar Radar'}
               </Button>
             </div>
