@@ -36,6 +36,7 @@ export const dailyFlowApi = {
 
       const res = await authFetch(`${API_BASE_URL}/daily/worklogs/weekly?${params.toString()}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dates),
       });
       if (!res.ok) return [];

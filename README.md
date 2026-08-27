@@ -108,3 +108,23 @@ Para entender as regras e configurações do projeto, consulte os arquivos abaix
    ```
 
 3. Acesse o aplicativo no seu navegador em [http://localhost:9002](http://localhost:9002).
+
+---
+
+## 🐳 Rodando com Docker
+
+Este repositório tem seu próprio `Dockerfile` (build standalone do Next.js, porta `9002`), mas a stack completa — frontend + backend + PostgreSQL dedicado — é orquestrada pelo `docker-compose.yml` do repositório [`agile-space-backend`](https://github.com/wanderalvess/agile-space-backend).
+
+Clone os dois repositórios lado a lado:
+```
+algum-diretorio/
+├── agile-space-backend/   (contém o docker-compose.yml)
+└── agile-space-frontend/  (este repo)
+```
+
+E rode a partir do `agile-space-backend`:
+```bash
+docker compose up -d --build
+```
+
+Detalhes completos (variáveis de ambiente, rebuild, isolamento de banco) no [README do backend](https://github.com/wanderalvess/agile-space-backend#-rodando-com-docker).
