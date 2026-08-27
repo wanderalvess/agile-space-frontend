@@ -1454,7 +1454,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   if (!currentUser) return <LoadingScreen message="Juntando-se à squad..." submessage="Validando sua identidade global" />;
 
   const mappedTimer = roomData.timer ? {
-    status: roomData.timer.status as any,
+    status: roomData.timer.status,
     initialDuration: roomData.timer.initialDuration || 120,
     remainingOnPause: roomData.timer.remainingOnPause || 120,
     endTime: roomData.timer.endTime ? Number(roomData.timer.endTime) : null

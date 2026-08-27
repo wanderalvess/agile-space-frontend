@@ -532,11 +532,11 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
               boardId={boardId}
               isAnonymous={boardData.settings.isAnonymous}
               isRevealed={boardData.settings.isRevealed}
-              {...({ isPresentationMode: boardData.settings.isPresentationMode } as any)}
-              onConnect={handleConnectIdeas}
-              onDisconnect={handleDisconnectIdea}
-              onMove={handleUpdateIdeaPosition}
-              currentUserId={userProfile?.id}
+              onVoteIdea={handleToggleVote}
+              onUpdateIdea={handleUpdateIdea}
+              onUpdatePosition={handleUpdateIdeaPosition}
+              onConnectIdeas={handleConnectIdeas}
+              onDisconnectIdea={handleDisconnectIdea}
               isExporting={isExporting}
               onExportComplete={() => setIsExporting(false)}
             />
@@ -547,31 +547,39 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
               onAddGroup={handleAddGroup}
               onDeleteGroup={handleDeleteGroup}
               onMoveIdeaToGroup={handleMoveIdeaToGroup}
-              {...({ isExporting, onExportComplete: () => setIsExporting(false) } as any)}
+              isAnonymous={boardData.settings.isAnonymous}
+              onVoteIdea={handleToggleVote}
             />
           ) : boardData.phase === 'prioritization' ? (
             <PrioritizationPhase
               ideas={ideas || []}
+              groups={groups || []}
               onUpdateQualifiers={handleUpdateIdeaQualifiers}
-              {...({ isExporting, onExportComplete: () => setIsExporting(false) } as any)}
+              isAnonymous={boardData.settings.isAnonymous}
             />
           ) : (
             <ActionsPhase
               ideas={ideas || []}
-              {...({ boardId, isExporting, onExportComplete: () => setIsExporting(false) } as any)}
+              groups={groups || []}
+              boardData={boardData}
+              onUpdateIdea={handleUpdateIdea}
+              onMoveIdea={handleMoveIdeaToGroup}
             />
           )}
         </main>
 
-        <EliteSidebar 
-          isOpen={isParticipantsOpen} 
-          onClose={() => setIsParticipantsOpen(false)} 
+        <EliteSidebar
+          isOpen={isParticipantsOpen}
+          onClose={() => setIsParticipantsOpen(false)}
           title="PARTICIPANTES"
-          {...({ participantsCount: participants?.length || 0, onCopyLink: () => {} } as any)}
+          participantsCount={participants?.length || 0}
+          onCopyLink={() => {}}
         >
-          <EliteParticipantList 
-            participants={participants || []} 
-            {...({ currentUserId: userProfile?.id || '', isFacilitator: boardData.creatorId === userProfile?.id, onRemoveParticipant: () => {} } as any)}
+          <EliteParticipantList
+            participants={participants || []}
+            currentUserId={userProfile?.id || ''}
+            isFacilitator={boardData.creatorId === userProfile?.id}
+            onRemoveParticipant={() => {}}
           />
         </EliteSidebar>
       </div>

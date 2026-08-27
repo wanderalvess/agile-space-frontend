@@ -310,7 +310,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
           else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
 
-          const activeSquad = session?.squadName || (session as any)?.team || userProfile?.squadId || '';
+          const activeSquad = session?.squadName || userProfile?.squadId || '';
           const { workItemsApi } = await import('@/app/work-items-api');
           workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '').catch(() => {});
         }
