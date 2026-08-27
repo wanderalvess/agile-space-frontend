@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { projectService, type ProjectDetail } from '@/services/projectService';
-import { ROLES } from '@/lib/types';
+import { CONTRIBUTOR_ROLES } from '@/lib/types';
 
 function slugify(name: string) {
   return name
@@ -326,11 +326,14 @@ export default function OnboardingPage() {
                           <SelectValue placeholder="Selecione seu papel..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {ROLES.map((r) => (
+                          {CONTRIBUTOR_ROLES.map((r) => (
                             <SelectItem key={r} value={r}>{r}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        É Product Owner, Tech Lead ou outro papel de liderança? Use o cartão "Importar do Jira" ao lado com seu token, ou peça pra um administrador te vincular — liderança não é autodeclarável aqui.
+                      </p>
                     </div>
                   </>
                 )}

@@ -57,6 +57,30 @@ export const ROLES: GlobalRole[] = [
   'Stakeholder / Observador'
 ];
 
+/**
+ * Subset de ROLES autodeclarável via join self-service num projeto existente (onboarding)
+ * ou editável livremente como "Cargo" no painel admin. Espelha
+ * JiraProfieldsService.SELF_SERVICE_JOIN_ROLE_NAMES no backend — papel de liderança
+ * (Agile Master, Tech Lead, Tribe Lead, Product Owner, etc) dá governança da squad e só
+ * entra por sync real do Jira ou vínculo manual de admin, nunca autodeclarado.
+ */
+export const CONTRIBUTOR_ROLES: GlobalRole[] = [
+  'Developer', 'Desenvolvedor(a)',
+  'QA', 'Analista de QA',
+  'Designer',
+  'UX',
+  'SME',
+  'Stakeholder / Observador'
+];
+
+/**
+ * Tier de autorização do sistema (User.role no backend) — controla acesso a /api/admin.
+ * Nunca confundir com GlobalRole (cargo de negócio, ex "Tech Lead"): campos e propósitos
+ * diferentes. Ver UserProfile.jobTitle para o cargo de negócio autodeclarado.
+ */
+export type AuthRole = 'ADMIN' | 'LEAD' | 'MEMBER';
+export const AUTH_ROLES: AuthRole[] = ['ADMIN', 'LEAD', 'MEMBER'];
+
 export function normalizeRole(roleInput?: string): GlobalRole {
   if (!roleInput) return 'Developer';
   const r = roleInput.trim();
@@ -258,6 +282,9 @@ export interface UserProfile {
   id: string;
   name: string;
   role: GlobalRole;
+  /** Cargo de negócio autodeclarado (ex: "Tech Lead"). Só existe na listagem admin
+   *  (GET /api/users, entidade crua) — auto-serviço, sem efeito de autorização. */
+  jobTitle?: GlobalRole;
   squadId: string;
   team?: string; // Mantido temporariamente para compatibilidade
   isGuest: boolean;

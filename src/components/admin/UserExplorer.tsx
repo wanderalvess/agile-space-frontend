@@ -29,7 +29,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { UserProfile, GlobalRole, ROLES } from '@/lib/types';
+import { UserProfile, GlobalRole, ROLES, AUTH_ROLES } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
@@ -70,7 +70,10 @@ export function UserExplorer() {
     return users.filter(u => {
       const matchSearch = (u.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
                           (u.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
-      const matchRole = selectedRole === 'all' || u.role === selectedRole;
+      // 'admin' filtra pelo tier de autorização real (u.role); os demais chips filtram
+      // pelo cargo de negócio (u.jobTitle) — campos e vocabulários diferentes.
+      const matchRole = selectedRole === 'all'
+        || (selectedRole === 'admin' ? (u.role || '').toUpperCase() === 'ADMIN' : u.jobTitle === selectedRole);
       return matchSearch && matchRole;
     });
   }, [users, searchTerm, selectedRole]);
@@ -166,7 +169,8 @@ export function UserExplorer() {
               <TableRow className="hover:bg-transparent border-slate-100 dark:border-slate-800/50">
                 <TableHead className="w-14 pl-8 py-4"><Checkbox checked={selectedIds.length === paginatedUsers.length && paginatedUsers.length > 0} onCheckedChange={toggleSelectAll} className="border-slate-300 dark:border-slate-700" /></TableHead>
                 <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Usuário / Identidade</TableHead>
-                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Cargo / Nível</TableHead>
+                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Cargo</TableHead>
+                <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Nível de Acesso</TableHead>
                 <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Equipe / Squad</TableHead>
                 <TableHead className="font-black uppercase text-[9px] tracking-widest text-slate-500 py-4">Jira Account ID</TableHead>
               </TableRow>
@@ -189,7 +193,7 @@ export function UserExplorer() {
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <NiceAvatar className="w-9 h-9 border-2 border-white dark:border-slate-800 shadow-sm" {...avatarConfig} />
-                          {u.role === 'admin' && <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full shadow-sm"><Zap className="h-2 w-2" /></div>}
+                          {(u.role || '').toUpperCase() === 'ADMIN' && <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full shadow-sm"><Zap className="h-2 w-2" /></div>}
                         </div>
                         <div className="flex flex-col">
                           <span className="font-bold text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors text-xs">{u.name || 'Sem Nome'}</span>
@@ -198,19 +202,39 @@ export function UserExplorer() {
                       </div>
                     </TableCell>
                     <TableCell className="py-2.5">
-                      <Select 
-                        defaultValue={u.role || 'Developer'} 
-                        onValueChange={(val) => handleUpdateUser(u.id, { role: val as GlobalRole })} 
+                      {/* Cargo de negócio — auto-serviço, sem efeito de autorização */}
+                      <Select
+                        defaultValue={u.jobTitle || undefined}
+                        onValueChange={(val) => handleUpdateUser(u.id, { jobTitle: val as GlobalRole })}
+                        disabled={updatingId === u.id}
+                      >
+                        <SelectTrigger className="h-7 w-32 rounded-lg border-transparent font-black text-[9px] uppercase tracking-widest transition-all focus:ring-1 focus:ring-primary focus:ring-offset-0 bg-slate-100 dark:bg-slate-800/50 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50">
+                          <SelectValue placeholder="Sem cargo" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
+                          {ROLES.map(role => (
+                            <SelectItem key={role} value={role} className="text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                              {role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      {/* Nível de autorização real — controla acesso a /admin no backend */}
+                      <Select
+                        defaultValue={(u.role || 'MEMBER').toUpperCase()}
+                        onValueChange={(val) => handleUpdateUser(u.id, { role: val } as Partial<UserProfile>)}
                         disabled={updatingId === u.id}
                       >
                         <SelectTrigger className={cn(
-                          "h-7 w-32 rounded-lg border-transparent font-black text-[9px] uppercase tracking-widest transition-all focus:ring-1 focus:ring-primary focus:ring-offset-0", 
-                          u.role === 'admin' ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-slate-100 dark:bg-slate-800/50 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50"
+                          "h-7 w-28 rounded-lg border-transparent font-black text-[9px] uppercase tracking-widest transition-all focus:ring-1 focus:ring-primary focus:ring-offset-0",
+                          (u.role || '').toUpperCase() === 'ADMIN' ? "bg-primary/10 text-primary hover:bg-primary/20" : "bg-slate-100 dark:bg-slate-800/50 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50"
                         )}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
-                          {ROLES.map(role => (
+                          {AUTH_ROLES.map(role => (
                             <SelectItem key={role} value={role} className="text-[10px] font-black uppercase tracking-widest cursor-pointer">
                               {role}
                             </SelectItem>
