@@ -1,40 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Zap, 
-  Target, 
-  Users, 
+import {
+  LayoutDashboard,
+  Zap,
+  Target,
   ShieldCheck,
   TrendingUp,
-  ArrowRight as ArrowRightIcon,
-  HeartPulse,
   Sparkles,
   CheckCircle2,
   AlertCircle,
   ListTodo,
-  Trash2
 } from 'lucide-react';
 import { retroApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { RETRO_TEMPLATES, RetroTemplateKey, RetroColumnDef, RetroColumnTheme } from '@/lib/types';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from '@/lib/utils';
+import { CreateRetroDialog, DEFAULT_SETUP_SETTINGS, SetupSettings } from '@/components/retro/CreateRetroDialog';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 
@@ -48,13 +32,23 @@ export default function RetroHubPage() {
   
   // Setup State
   const [title, setTitle] = useState('');
-  const [team, setTeam] = useState(userProfile?.squadId || userProfile?.team || '');
+  const [team, setTeam] = useState('');
   const [template, setTemplate] = useState<RetroTemplateKey>('classic');
   const [customColumns, setCustomColumns] = useState<{ title: string; theme: RetroColumnTheme }[]>([
     { title: '', theme: 'success' },
     { title: '', theme: 'warning' },
     { title: '', theme: 'action' },
   ]);
+  const [setupSettings, setSetupSettings] = useState<SetupSettings>(DEFAULT_SETUP_SETTINGS);
+
+  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
+  // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma
+  // edição manual nem um valor já preenchido por uma resolução anterior.
+  useEffect(() => {
+    if (team) return;
+    const userTeam = userProfile?.squadId || userProfile?.team;
+    if (userTeam) setTeam(userTeam);
+  }, [userProfile, team]);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -124,15 +118,17 @@ export default function RetroHubPage() {
       return;
     }
 
+    const resolvedTeam = team.trim() || 'Squad Geral';
+
     const newBoard = {
       id: crypto.randomUUID(),
       creatorId: userProfile.id,
       isCardsRevealed: false,
-      isAuthorsRevealed: false,
       votingStatus: 'disabled' as const,
+      ...setupSettings,
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),
-      team: team.trim() || 'Squad Geral',
+      team: resolvedTeam,
       createdAt: new Date().toISOString(),
       participantIds: [userProfile.id],
       columns,
@@ -142,7 +138,7 @@ export default function RetroHubPage() {
     try {
       const docRef = await retroApi.saveOrUpdateBoard(newBoard);
       if (docRef && docRef.id) {
-        saveRoomMeta(docRef.id, 'retro', title.trim(), team.trim() || 'Squad');
+        saveRoomMeta(docRef.id, 'retro', title.trim(), resolvedTeam);
         setIsSetupOpen(false);
         router.push(`/retro/${docRef.id}`);
       } else {
@@ -231,118 +227,26 @@ export default function RetroHubPage() {
         isCreating={isCreating}
       />
 
-      <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[3rem] border-none shadow-2xl bg-white/95 backdrop-blur-xl">
-          <DialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-600/20 text-white">
-               <HeartPulse className="h-6 w-6" />
-            </div>
-            <DialogTitle className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none">Novo Quadro</DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Escolha o formato ideal para seu time</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-6 font-sans">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título da Retro</Label>
-                <Input 
-                  placeholder="Ex: Fim da Sprint #42" 
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  className="h-12 rounded-2xl border-slate-100 focus:border-emerald-500 font-bold bg-slate-50/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Squad / Time</Label>
-                <Input 
-                  placeholder="Ex: Delta Force" 
-                  value={team}
-                  onChange={e => setTeam(e.target.value)}
-                  className="h-12 rounded-2xl border-slate-100 focus:border-emerald-500 font-bold bg-slate-50/50"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Template de Colunas</Label>
-              <Select value={template} onValueChange={(val: RetroTemplateKey) => setTemplate(val)}>
-                <SelectTrigger className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 font-bold">
-                  <SelectValue placeholder="Selecione um formato" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl border-slate-100 p-2">
-                  <SelectItem value="classic" className="rounded-xl font-bold py-3 px-4">🏆 Clássico (Parar, Começar, Continuar)</SelectItem>
-                  <SelectItem value="start_stop_continue" className="rounded-xl font-bold py-3 px-4">🔄 Começar, Parar, Continuar</SelectItem>
-                  <SelectItem value="four_ls" className="rounded-xl font-bold py-3 px-4">🍃 4L (Liked, Learned, Lacked...)</SelectItem>
-                  <SelectItem value="daki" className="rounded-xl font-bold py-3 px-4">💎 DAKI (Drop, Add, Keep, Improve)</SelectItem>
-                  <SelectItem value="sailboat" className="rounded-xl font-bold py-3 px-4">⛵ Sailboat (Vento, Sol, Âncora...)</SelectItem>
-                  <SelectItem value="starfish" className="rounded-xl font-bold py-3 px-4">⭐ Starfish (5 Estágios: Manter, Menos, Mais...)</SelectItem>
-                  <SelectItem value="mad_sad_glad" className="rounded-xl font-bold py-3 px-4">😤 Glad, Sad, Mad (Feliz, Triste, Irritado)</SelectItem>
-                  <SelectItem value="three_little_pigs" className="rounded-xl font-bold py-3 px-4">🐷 Três Porquinhos (Palha, Madeira, Tijolo)</SelectItem>
-                  <SelectItem value="speed_car" className="rounded-xl font-bold py-3 px-4">🏎️ Speed Car (Motor e Paraquedas)</SelectItem>
-                  <SelectItem value="custom" className="rounded-xl font-bold py-3 px-4 text-emerald-600">🛠️ Personalizado...</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {template === 'custom' && (
-              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Definição de Colunas</Label>
-                 <div className="grid grid-cols-1 gap-2">
-                    {customColumns.map((col, idx) => (
-                      <div key={idx} className="flex gap-2">
-                         <Input 
-                            value={col.title}
-                            onChange={(e) => {
-                              const newCols = [...customColumns];
-                              newCols[idx].title = e.target.value;
-                              setCustomColumns(newCols);
-                            }}
-                            placeholder={`Coluna ${idx + 1}`}
-                            className="h-11 rounded-xl border-slate-100 bg-slate-50/30 font-bold"
-                         />
-                         {customColumns.length > 2 && (
-                            <Button 
-                              variant="ghost" 
-                              onClick={() => setCustomColumns(customColumns.filter((_, i) => i !== idx))}
-                              className="h-11 w-11 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50"
-                            >
-                               <Trash2 className="h-4 w-4" />
-                            </Button>
-                         )}
-                      </div>
-                    ))}
-                    {customColumns.length < 5 && (
-                       <Button 
-                         variant="outline" 
-                         onClick={() => setCustomColumns([...customColumns, { title: '', theme: 'neutral' }])}
-                         className="h-11 rounded-xl border-dashed border-2 text-[10px] font-black uppercase tracking-[0.2em]"
-                       >
-                          + Adicionar Coluna
-                       </Button>
-                    )}
-                 </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="pt-6 border-t border-slate-100 flex-col gap-3">
-             <Button 
-               disabled={isCreating}
-               onClick={handleCreate}
-               className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/10 gap-3"
-             >
-               {isCreating ? 'Sincronizando...' : 'Abrir Sessão'}
-               <ArrowRightIcon className="h-4 w-4" />
-             </Button>
-             <button 
-               onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
-             >
-                Cancelar
-             </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateRetroDialog
+        open={isSetupOpen}
+        onOpenChange={setIsSetupOpen}
+        title={title}
+        onTitleChange={setTitle}
+        team={team}
+        onTeamChange={setTeam}
+        template={template}
+        onTemplateChange={setTemplate}
+        customColumns={customColumns}
+        onCustomColumnsChange={setCustomColumns}
+        setupSettings={setupSettings}
+        onSetupSettingsChange={setSetupSettings}
+        isCreating={isCreating}
+        onCreate={handleCreate}
+        onCancel={() => {
+          setIsSetupOpen(false);
+          setSetupSettings(DEFAULT_SETUP_SETTINGS);
+        }}
+      />
     </>
   );
 }

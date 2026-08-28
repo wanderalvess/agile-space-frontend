@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Lightbulb, 
@@ -41,7 +41,15 @@ export default function BrainstormingHubPage() {
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState('');
-  const [team, setTeam] = useState(userProfile?.squadId || userProfile?.team || '');
+  const [team, setTeam] = useState('');
+
+  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
+  // async) — só enquanto o campo estiver vazio, para não sobrescrever uma edição manual.
+  useEffect(() => {
+    if (team) return;
+    const userTeam = userProfile?.squadId || userProfile?.team;
+    if (userTeam) setTeam(userTeam);
+  }, [userProfile, team]);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -229,12 +237,14 @@ export default function BrainstormingHubPage() {
                {isCreating ? 'Sincronizando...' : 'Iniciar Jornada'}
                <ArrowRightIcon className="h-4 w-4" />
              </Button>
-             <button 
+             <Button
+               type="button"
+               variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
              >
                 Talvez depois
-             </button>
+             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

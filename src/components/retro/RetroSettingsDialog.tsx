@@ -27,24 +27,31 @@ interface RetroSettingsDialogProps {
   onToggleAutoSortOnVoteEnd: (value: boolean) => void;
 }
 
-function ToggleRow({ icon: Icon, id, title, desc, checked, onChange }: {
+const TOGGLE_ROW_ACCENTS = {
+  indigo: { active: 'border-indigo-200 bg-indigo-50/50', icon: 'text-indigo-600', switch: 'data-[state=checked]:bg-indigo-600' },
+  emerald: { active: 'border-emerald-200 bg-emerald-50/50', icon: 'text-emerald-600', switch: 'data-[state=checked]:bg-emerald-600' },
+} as const;
+
+export function ToggleRow({ icon: Icon, id, title, desc, checked, onChange, accent = 'indigo' }: {
   icon: LucideIcon; id: string; title: string; desc: string; checked: boolean; onChange: (v: boolean) => void;
+  accent?: keyof typeof TOGGLE_ROW_ACCENTS;
 }) {
+  const styles = TOGGLE_ROW_ACCENTS[accent];
   return (
     <div className={cn(
       "p-4 rounded-2xl border flex items-center justify-between gap-3 transition-all",
-      checked ? "border-indigo-200 bg-indigo-50/50" : "border-slate-100 bg-slate-50/50"
+      checked ? styles.active : "border-slate-100 bg-slate-50/50"
     )}>
       <div className="flex items-center gap-3 min-w-0">
         <div className="p-2 bg-white rounded-xl border border-slate-100 shrink-0">
-          <Icon className="h-4 w-4 text-indigo-600" />
+          <Icon className={cn("h-4 w-4", styles.icon)} />
         </div>
         <div className="min-w-0">
           <Label htmlFor={id} className="text-[11px] font-black uppercase tracking-widest text-slate-700 cursor-pointer block truncate">{title}</Label>
           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{desc}</p>
         </div>
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} className="shrink-0 data-[state=checked]:bg-indigo-600" />
+      <Switch id={id} checked={checked} onCheckedChange={onChange} className={cn("shrink-0", styles.switch)} />
     </div>
   );
 }
