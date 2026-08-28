@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,7 @@ const DailyReport = dynamic(() => import('@/app/daily-flow/components/DailyRepor
 const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
 const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/SquadDashboardView').then(mod => mod.SquadDashboardView), { ssr: false });
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
+const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard').then(mod => mod.SquadScrumBoard), { ssr: false });
 
 function formatShortDate(iso: string): string {
   const d = new Date(iso);
@@ -157,6 +158,7 @@ function SquadHubContent() {
   const [jiraDomain, setJiraDomain] = useState('');
   const [jiraToken, setJiraToken] = useState('');
   const [sprintFieldId, setSprintFieldId] = useState('');
+  const [rapidViewId, setRapidViewId] = useState<number | string>('11360');
   const [rankingEnabled, setRankingEnabled] = useState(false);
   const [capacityHours, setCapacityHours] = useState(6);
 
@@ -221,9 +223,11 @@ function SquadHubContent() {
       setCapacityHours(config.defaultDailyCapacityHours || 6);
       setJiraDomain(config.jiraDomain || '');
       setSprintFieldId(config.sprintFieldId || '');
+      setRapidViewId(config.rapidViewId || (activeKey === 'DDWMISSI' ? '11360' : ''));
     } else if (squadId) {
       setProjectKey(defaultKey);
       setJql(`project = "${defaultKey}" AND sprint in openSprints()`);
+      if (defaultKey === 'DDWMISSI') setRapidViewId('11360');
     }
   }, [config, squadId]);
 
@@ -267,6 +271,7 @@ function SquadHubContent() {
         defaultDailyCapacityHours: Number(capacityHours) || 6,
         jiraDomain: jiraDomain.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '') || undefined,
         sprintFieldId: sprintFieldId.trim() || undefined,
+        rapidViewId: rapidViewId ? Number(rapidViewId) || rapidViewId : undefined,
       });
       setIsSettingsOpen(false);
       toast({ title: 'Configuração salva', description: 'Squad e credenciais prontas para sincronizar com o Jira.' });
@@ -378,11 +383,14 @@ function SquadHubContent() {
                 <TabsTrigger value="overview" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
                   Visão Geral & Fluxos
                 </TabsTrigger>
+                <TabsTrigger value="board" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold">
+                  Quadro Scrum
+                </TabsTrigger>
                 <TabsTrigger value="plans" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-blue-600 dark:text-blue-400">
                   Plans / Cronograma
                 </TabsTrigger>
                 <TabsTrigger value="pulse" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Squad Pulse & Quadro
+                  Squad Pulse & Métricas
                 </TabsTrigger>
                 <TabsTrigger value="daily" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
                   Daily & Timesheet
@@ -396,7 +404,7 @@ function SquadHubContent() {
               </TabsList>
             </Tabs>
 
-            {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans') && (
+            {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans' || activeTab === 'board') && (
               <Select
                 value={viewingSprintId || 'CURRENT'}
                 onValueChange={(val) => selectSprint(squadId, val === 'CURRENT' ? null : val, { isLeadershipViewer, myClaimedAssigneeId: myClaim?.jiraAccountId })}
@@ -488,11 +496,11 @@ function SquadHubContent() {
                       <Timer className="h-4 w-4" /> Acessar Daily & Timesheet
                     </Button>
                     <Button
-                      onClick={() => setActiveTab('pulse')}
+                      onClick={() => setActiveTab('board')}
                       variant="outline"
                       className="rounded-2xl h-11 px-5 text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 gap-2 shadow-xs"
                     >
-                      <LayoutGrid className="h-4 w-4" /> Ver Quadro da Sprint
+                      <LayoutGrid className="h-4 w-4 text-indigo-500" /> Ver Quadro Scrum
                     </Button>
                   </div>
                 </div>
@@ -604,6 +612,20 @@ function SquadHubContent() {
                   </Button>
                 </Card>
               </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              ABA 1.5: QUADRO SCRUM (JIRA GREENHOPPER / RAPIDBOARD)
+             ═══════════════════════════════════════════════════════════════════ */}
+          {activeTab === 'board' && (
+            <div className="animate-in fade-in duration-300">
+              <SquadScrumBoard
+                squadId={squadId}
+                jiraProjectKey={config?.jiraProjectKey || projectKey || 'DDWMISSI'}
+                rapidViewId={config?.rapidViewId || rapidViewId || 11360}
+                jiraDomain={config?.jiraDomain || jiraDomain}
+              />
             </div>
           )}
 
@@ -898,6 +920,9 @@ function SquadHubContent() {
               <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
                 <Settings2 className="h-5 w-5 text-indigo-500" /> Configurações do Squad ({squadId})
               </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Configure os parâmetros de integração com o Jira, JQL e RapidBoard.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 text-xs mt-2">
               <div>
@@ -951,10 +976,10 @@ function SquadHubContent() {
                 <p className="text-[10px] text-slate-400 mt-1">Seu token pessoal do Jira utilizado para realizar as consultas e sincronizações.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    Domínio do Jira (Opcional)
+                    Domínio Jira (Opcional)
                   </label>
                   <Input
                     value={jiraDomain}
@@ -965,7 +990,18 @@ function SquadHubContent() {
                 </div>
                 <div>
                   <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    ID Campo Sprint (Opcional)
+                    ID do Quadro Jira
+                  </label>
+                  <Input
+                    value={rapidViewId}
+                    onChange={e => setRapidViewId(e.target.value)}
+                    placeholder="11360"
+                    className="rounded-xl h-9 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    ID Campo Sprint
                   </label>
                   <Input
                     value={sprintFieldId}
@@ -1020,6 +1056,9 @@ function SquadHubContent() {
               <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
                 <UserCog className="h-5 w-5 text-indigo-500" /> Gestão de Roster & Capacidade ({members.length})
               </DialogTitle>
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Ajuste a capacidade diária em horas e vincule membros da squad.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 mt-3">
               {members.length === 0 ? (

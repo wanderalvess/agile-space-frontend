@@ -530,6 +530,20 @@ export const fetchJiraIssues = async (
     // primária aqui, descrição só como fallback.
     const commentsText = commentsList.join(' ');
 
+    const toSafeString = (val: any): string => {
+      if (!val) return '';
+      if (typeof val === 'string') return val;
+      if (typeof val === 'number') return String(val);
+      if (typeof val === 'object') {
+        if (typeof val.value === 'string') return val.value;
+        if (typeof val.name === 'string') return val.name;
+        if (typeof val.key === 'string') return val.key;
+        if (typeof val.id === 'string' || typeof val.id === 'number') return String(val.id);
+        return '';
+      }
+      return '';
+    };
+
     return {
       key: issue.key,
       title: fields?.summary || issue.key,
@@ -541,12 +555,12 @@ export const fetchJiraIssues = async (
       priority: fields?.priority?.name || '',
       assignee: fields?.assignee?.displayName || '',
       assigneeId: fields?.assignee?.accountId || fields?.assignee?.key || '',
-      updated: fields?.updated || '',
-      dueDate: fields?.duedate || '',
-      targetStart: fields?.customfield_10015 || fields?.startDate || fields?.target_start || (fields?.created ? fields.created.substring(0, 10) : ''),
-      targetEnd: fields?.customfield_10014 || fields?.duedate || fields?.target_end || (fields?.updated ? fields.updated.substring(0, 10) : ''),
-      parentKey: fields?.parent?.key || '',
-      parentTitle: fields?.parent?.fields?.summary || '',
+      updated: toSafeString(fields?.updated),
+      dueDate: toSafeString(fields?.duedate),
+      targetStart: toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start) || (typeof fields?.created === 'string' ? fields.created.substring(0, 10) : ''),
+      targetEnd: toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end) || (typeof fields?.updated === 'string' ? fields.updated.substring(0, 10) : ''),
+      parentKey: toSafeString(fields?.parent?.key || (typeof fields?.parent === 'string' ? fields.parent : '')),
+      parentTitle: toSafeString(fields?.parent?.fields?.summary),
       labels: fields?.labels || [],
       points,
       planned: parsePlannedFromTitle(fields?.summary || ''),
@@ -564,7 +578,34 @@ export const fetchJiraIssues = async (
       versionMaster: cicdParsed.versionMaster,
       versionDevelop: cicdParsed.versionDevelop,
       versionRelease: cicdParsed.versionRelease,
-      sprintRaw: opts?.sprintFieldId ? fields?.[opts.sprintFieldId] : undefined,
+      sprintRaw: (() => {
+        if (opts?.sprintFieldId && fields?.[opts.sprintFieldId]) return fields[opts.sprintFieldId];
+        if (!fields) return undefined;
+        const candidateFields = [
+          'customfield_10005', 'customfield_10008', 'customfield_10007',
+          'customfield_10010', 'customfield_10020', 'customfield_10016',
+          'customfield_10100', 'customfield_10101', 'customfield_10004', 'sprint'
+        ];
+        for (const f of candidateFields) {
+          if (fields[f]) {
+            const val = fields[f];
+            if (Array.isArray(val) && val.length > 0) {
+              const first = val[0];
+              if (typeof first === 'string' && (first.includes('com.atlassian.greenhopper.service.sprint.Sprint') || first.includes('state='))) return val;
+              if (typeof first === 'object' && first !== null && ('startDate' in first || 'state' in first || 'name' in first)) return val;
+            }
+          }
+        }
+        for (const key of Object.keys(fields)) {
+          const val = fields[key];
+          if (Array.isArray(val) && val.length > 0) {
+            const first = val[0];
+            if (typeof first === 'string' && (first.includes('com.atlassian.greenhopper.service.sprint.Sprint') || (first.includes('[id=') && first.includes('startDate=')))) return val;
+            if (typeof first === 'object' && first !== null && ('startDate' in first || ('state' in first && 'name' in first))) return val;
+          }
+        }
+        return undefined;
+      })(),
     };
   });
 

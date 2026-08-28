@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { decryptSecret } from '@/lib/vault-crypto';
 import Link from 'next/link';
 import { vaultApi } from '@/app/vault/api';
+import { Footer } from '@/components/layout/Footer';
 
 export default function VaultReaderPage() {
   const { id } = useParams();
@@ -288,9 +289,10 @@ export default function VaultReaderPage() {
         </div>
       </main>
 
-      <footer className="py-6 text-center border-t border-slate-100 bg-white">
-        <p className="text-[9px] font-black uppercase tracking-[0.5em] text-slate-500">Protocolo Queimar-Após-Leitura • Segurança Espaço Ágil</p>
-      </footer>
+      <Footer 
+        className="mt-8 shrink-0" 
+        subtitle="Protocolo Queimar-Após-Leitura • Segurança Espaço Ágil" 
+      />
     </div>
   );
 }

@@ -79,21 +79,56 @@ export const squadApi = {
   },
 
   async batchUpsertIssues(squadId: string, snapshots: SquadIssueSnapshot[]): Promise<SquadIssueSnapshot[]> {
+    const toStr = (v: any): string => {
+      if (!v) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number') return String(v);
+      if (typeof v === 'object') {
+        if (typeof v.value === 'string') return v.value;
+        if (typeof v.name === 'string') return v.name;
+        if (typeof v.key === 'string') return v.key;
+        if (typeof v.id === 'string' || typeof v.id === 'number') return String(v.id);
+        return '';
+      }
+      return '';
+    };
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+    const toBool = (v: any): boolean => Boolean(v);
+
     const formatted = snapshots.map(s => {
-      const issueKey = s.jiraKey || s.key || (s as any).jira_key || '';
+      const issueKey = toStr(s.jiraKey || s.key || (s as any).jira_key);
       return {
-        ...s,
-        jiraKey: issueKey,
-        key: issueKey,
         dbId: `${squadId}_${issueKey}`,
         squadId,
+        jiraKey: issueKey,
+        key: issueKey,
+        type: toStr(s.type),
+        isBug: toBool(s.isBug),
+        status: toStr(s.status),
+        statusCategory: toStr(s.statusCategory) || 'unknown',
+        sprintId: toStr(s.sprintId),
+        sprintName: toStr(s.sprintName),
+        assigneeId: toStr(s.assigneeId),
+        assigneeName: toStr(s.assigneeName),
+        estimateSec: toNum(s.estimateSec),
+        remainingSec: toNum(s.remainingSec),
+        loggedSec: toNum(s.loggedSec),
+        staleSinceDays: toNum(s.staleSinceDays),
+        dueDate: toStr(s.dueDate),
+        targetStart: toStr(s.targetStart),
+        targetEnd: toStr(s.targetEnd),
+        parentKey: toStr(s.parentKey),
+        parentTitle: toStr(s.parentTitle),
+        updatedAtJira: toStr(s.updatedAtJira),
+        syncedAt: toStr(s.syncedAt),
       };
     });
     return req<SquadIssueSnapshot[]>(`/squads/${squadId}/issues/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
-  async batchDeleteIssues(squadId: string, keys: string[]): Promise<void> {
-    return req<void>(`/squads/${squadId}/issues/batch`, { method: 'DELETE', body: JSON.stringify(keys) });
+  async batchDeleteIssues(squadId: string, keys: (string | { key?: string })[]): Promise<void> {
+    const safeKeys = keys.map(k => (typeof k === 'string' ? k : (k && typeof k === 'object' && 'key' in k ? String(k.key) : ''))).filter(Boolean);
+    return req<void>(`/squads/${squadId}/issues/batch`, { method: 'DELETE', body: JSON.stringify(safeKeys) });
   },
 
   // ----- Members -----
@@ -109,7 +144,27 @@ export const squadApi = {
   },
 
   async batchUpsertMembers(squadId: string, members: SquadMember[]): Promise<SquadMember[]> {
-    return req<SquadMember[]>(`/squads/${squadId}/members/batch`, { method: 'POST', body: JSON.stringify(members) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+
+    const formatted = members.map(m => {
+      const accountId = toStr(m.jiraAccountId);
+      return {
+        dbId: `${squadId}_${accountId}`,
+        squadId,
+        jiraAccountId: accountId,
+        displayName: toStr(m.displayName) || accountId,
+        email: toStr(m.email) || null,
+        role: toStr(m.role) || null,
+        capacityHoursPerDay: toNum(m.capacityHoursPerDay) || null,
+        systemCalculatedCapacityHoursPerDay: toNum(m.systemCalculatedCapacityHoursPerDay) || null,
+        calibrationNotes: toStr(m.calibrationNotes) || null,
+        overrideType: toStr(m.overrideType) || null,
+        claimedByUid: toStr(m.claimedByUid) || null,
+        updatedAt: toStr(m.updatedAt) || new Date().toISOString(),
+      };
+    });
+    return req<SquadMember[]>(`/squads/${squadId}/members/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   // ----- Member Metrics -----
@@ -118,7 +173,25 @@ export const squadApi = {
   },
 
   async batchUpsertMemberMetrics(squadId: string, metrics: SquadMemberMetric[]): Promise<SquadMemberMetric[]> {
-    return req<SquadMemberMetric[]>(`/squads/${squadId}/member-metrics/batch`, { method: 'POST', body: JSON.stringify(metrics) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+
+    const formatted = metrics.map(m => {
+      const aid = toStr(m.assigneeId);
+      return {
+        dbId: `${squadId}_${aid}`,
+        squadId,
+        assigneeId: aid,
+        assigneeName: toStr(m.assigneeName) || aid,
+        issuesInProgress: toNum(m.issuesInProgress),
+        issuesCompleted: toNum(m.issuesCompleted),
+        hoursLogged: toNum(m.hoursLogged),
+        capacityHours: toNum(m.capacityHours),
+        utilizationPct: toNum(m.utilizationPct),
+        computedAt: toStr(m.computedAt) || new Date().toISOString(),
+      };
+    });
+    return req<SquadMemberMetric[]>(`/squads/${squadId}/member-metrics/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   // ----- Daily Snapshots -----
@@ -128,7 +201,25 @@ export const squadApi = {
   },
 
   async batchUpsertDailySnapshots(squadId: string, snapshots: SquadDailySnapshot[]): Promise<SquadDailySnapshot[]> {
-    return req<SquadDailySnapshot[]>(`/squads/${squadId}/daily-snapshots/batch`, { method: 'POST', body: JSON.stringify(snapshots) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+
+    const formatted = snapshots.map(s => {
+      const dateStr = toStr(s.snapshotDate);
+      return {
+        dbId: `${squadId}_${dateStr}`,
+        squadId,
+        snapshotDate: dateStr,
+        doneIssues: toNum(s.doneIssues),
+        inProgressIssues: toNum(s.inProgressIssues),
+        totalIssues: toNum(s.totalIssues),
+        bugIssues: toNum(s.bugIssues),
+        staleIssues: toNum(s.staleIssues),
+        loggedSec: toNum(s.loggedSec),
+        syncedAt: toStr(s.syncedAt),
+      };
+    });
+    return req<SquadDailySnapshot[]>(`/squads/${squadId}/daily-snapshots/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   // ----- Worklog Cache -----
@@ -138,14 +229,20 @@ export const squadApi = {
   },
 
   async batchUpsertWorklogCache(squadId: string, entries: SquadIssueWorklogCache[]): Promise<SquadIssueWorklogCache[]> {
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+
     const formatted = entries.map(e => {
-      const issueKey = e.jiraKey || (e as any).key || (e as any).jira_key || '';
+      const issueKey = toStr(e.jiraKey || (e as any).key || (e as any).jira_key);
       return {
-        ...e,
-        jiraKey: issueKey,
-        key: issueKey,
         dbId: `${squadId}_${issueKey}`,
         squadId,
+        jiraKey: issueKey,
+        key: issueKey,
+        sprintId: toStr(e.sprintId),
+        updatedAtJira: toStr(e.updatedAtJira),
+        syncedAt: toStr(e.syncedAt),
+        worklogByAuthor: e.worklogByAuthor || {},
+        worklogAuthorNames: e.worklogAuthorNames || {},
       };
     });
     return req<SquadIssueWorklogCache[]>(`/squads/${squadId}/worklog-cache/batch`, { method: 'POST', body: JSON.stringify(formatted) });

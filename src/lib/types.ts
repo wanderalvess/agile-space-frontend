@@ -912,6 +912,8 @@ export type SquadConfig = {
   // capacidade usa o fallback fixo de SPRINT_WORKDAYS_ASSUMED; com isso, usa
   // os dias úteis reais entre início/fim da sprint ativa.
   sprintFieldId?: string;
+  // ID do RapidBoard / Greenhopper Board (ex: 11360 para SCRUM Mississauga)
+  rapidViewId?: number | string;
   lastSyncAt?: string;
   lastSyncBy?: string; // uid de quem disparou
   lastSyncStatus?: 'success' | 'error';

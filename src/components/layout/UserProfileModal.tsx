@@ -722,9 +722,6 @@ export function UserProfileModal() {
 
         {activeTab === 'profile' && (
           <div className="shrink-0 px-6 py-3 border-t border-border/70 bg-card flex items-center justify-between transition-colors duration-300">
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest max-w-[260px] leading-tight">
-              Informações armazenadas de forma segura no PostgreSQL.
-            </p>
             <div className="flex gap-2">
                <Button
                 onClick={handleSave}

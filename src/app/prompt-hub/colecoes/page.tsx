@@ -296,7 +296,7 @@ export default function CollectionsPage() {
         availableItems={availableItems}
       />
 
-      <Footer />
+      <Footer className="mt-8 shrink-0" />
     </div>
   );
 }

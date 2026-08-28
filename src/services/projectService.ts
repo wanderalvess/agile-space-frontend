@@ -3,7 +3,7 @@
  * Serviço de integração com o módulo de Projetos e Governança Profields.
  */
 
-import { getAuthToken } from '@/lib/auth-client';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -87,20 +87,16 @@ export interface UserProjectAccess {
 }
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = getAuthToken();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-
-  const res = await fetch(`${API_BASE_URL}${url}`, {
-    headers,
-    ...options,
-  });
+  const res = await authFetch(`${API_BASE_URL}${url}`, options);
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => '');
-    throw new Error(errorText || `Erro na requisição (${res.status})`);
+    let errorMsg = errorText;
+    try {
+      const json = JSON.parse(errorText);
+      errorMsg = json.message || json.error || errorText;
+    } catch {}
+    throw new Error(errorMsg || `Erro na requisição (${res.status})`);
   }
 
   if (res.status === 204) return undefined as T;
@@ -136,21 +132,24 @@ export const projectService = {
     const params = new URLSearchParams();
     if (domain) params.append('domain', domain);
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
     if (jiraToken) {
       headers['X-Jira-Token'] = jiraToken;
     }
 
-    const res = await fetch(`${API_BASE_URL}/projects/sync/${encodeURIComponent(projectKey)}?${params.toString()}`, {
+    const res = await authFetch(`${API_BASE_URL}/projects/sync/${encodeURIComponent(projectKey)}?${params.toString()}`, {
       method: 'POST',
       headers,
     });
 
     if (!res.ok) {
       const errorText = await res.text().catch(() => '');
-      throw new Error(errorText || `Erro ao sincronizar projeto Profields (${res.status})`);
+      let errorMsg = errorText;
+      try {
+        const json = JSON.parse(errorText);
+        errorMsg = json.message || json.error || errorText;
+      } catch {}
+      throw new Error(errorMsg || `Erro ao sincronizar projeto Profields (${res.status})`);
     }
 
     return res.json();

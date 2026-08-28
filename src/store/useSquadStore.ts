@@ -32,7 +32,15 @@ const UNMAPPED_SPRINT_ID = 'UNMAPPED';
 // (codificação/code review/teste) via campos nativos do Jira, não customfield.
 // `worklog` só entra quando rankingEnabled — é o único campo que carrega
 // hora POR PESSOA (quem logou), e ranking nasce desligado por padrão.
-const SQUAD_SYNC_FIELDS_BASE = ['summary', 'issuetype', 'status', 'created', 'updated', 'duedate', 'assignee', 'parent', 'timeoriginalestimate', 'timeestimate', 'timespent', 'aggregatetimeoriginalestimate', 'aggregatetimeestimate', 'aggregatetimespent', 'customfield_10015', 'customfield_10014', 'startDate'];
+const SQUAD_SYNC_FIELDS_BASE = [
+  'summary', 'issuetype', 'status', 'created', 'updated', 'duedate',
+  'assignee', 'parent', 'timeoriginalestimate', 'timeestimate', 'timespent',
+  'aggregatetimeoriginalestimate', 'aggregatetimeestimate', 'aggregatetimespent',
+  'customfield_10015', 'customfield_10014', 'startDate',
+  'customfield_10005', 'customfield_10008', 'customfield_10007',
+  'customfield_10010', 'customfield_10020', 'customfield_10016',
+  'customfield_10100', 'customfield_10101', 'customfield_10004'
+];
 const SQUAD_SYNC_FIELDS_WITH_WORKLOG = [...SQUAD_SYNC_FIELDS_BASE, 'worklog'];
 
 // Firestore aceita no máximo 500 operações por batch. Uma sprint ativa
@@ -602,7 +610,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       const sprintMeta = new Map<string, ParsedSprint & { count: number }>();
       let snapshots: SquadIssueSnapshot[] = issues.map(issue => {
         const statusCategory = issue.statusCategory || 'unknown';
-        const parsed = sprintFieldConfigured ? parseSprintField(issue.sprintRaw) : null;
+        const parsed = parseSprintField(issue.sprintRaw);
         if (parsed) {
           const existing = sprintMeta.get(parsed.id);
           sprintMeta.set(parsed.id, { ...parsed, count: (existing?.count || 0) + 1 });
@@ -633,8 +641,10 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         };
       });
 
+      const hasAnySprint = sprintMeta.size > 0 || sprintFieldConfigured;
+
       // Parent-fallback: subtarefas s/ sprint próprio herdam do pai
-      if (sprintFieldConfigured) {
+      if (hasAnySprint) {
         const byKey = new Map(snapshots.map(s => [s.key, s]));
         for (const s of snapshots) {
           if (s.sprintId || !s.parentKey) continue;
@@ -651,14 +661,14 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
           }
         }
       }
-      if (!sprintFieldConfigured) {
+      if (!hasAnySprint) {
         snapshots = snapshots.map(s => ({ ...s, sprintId: UNMAPPED_SPRINT_ID, sprintName: '' }));
       } else {
         snapshots = snapshots.map(s => s.sprintId ? s : { ...s, sprintId: UNMAPPED_SPRINT_ID });
       }
 
       // --- Rollover: sprint efetiva mudou? ---
-      let effectiveSprintId = sprintFieldConfigured ? pickEffectiveSprint(sprintMeta) : UNMAPPED_SPRINT_ID;
+      let effectiveSprintId = hasAnySprint ? pickEffectiveSprint(sprintMeta) : UNMAPPED_SPRINT_ID;
       if (!isFull && config.activeSprintId && effectiveSprintId !== config.activeSprintId && effectiveSprintId !== UNMAPPED_SPRINT_ID) {
         isFull = true;
         const full = await fetchScope(config.syncJql);
@@ -666,7 +676,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         sprintMeta.clear();
         snapshots = issues.map(issue => {
           const statusCategory = issue.statusCategory || 'unknown';
-          const parsed = sprintFieldConfigured ? parseSprintField(issue.sprintRaw) : null;
+          const parsed = parseSprintField(issue.sprintRaw);
           if (parsed) {
             const existing = sprintMeta.get(parsed.id);
             sprintMeta.set(parsed.id, { ...parsed, count: (existing?.count || 0) + 1 });

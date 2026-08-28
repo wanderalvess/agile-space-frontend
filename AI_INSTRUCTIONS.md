@@ -1,13 +1,13 @@
-# Agile Space - AI Development Instructions
+# Espaço Ágil - AI Development Instructions
 
-Este documento define os padrões de desenvolvimento, regras de design e princípios de engenharia para o projeto **Agile Space**. Como assistente de IA, você deve seguir estas diretrizes rigorosamente para manter a consistência e a "Elite Engineering" do ecossistema.
+Este documento define os padrões de desenvolvimento, regras de design e princípios de engenharia para o projeto **Espaço Ágil**. Como assistente de IA, você deve seguir estas diretrizes rigorosamente para manter a consistência e a "Elite Engineering" do ecossistema.
 
 > 📖 **Design System Oficial**: Consulte o arquivo [`design.md`](./design.md) para especificações completas de UI, paleta de cores HSL, tipografia (Outfit/Inter/JetBrains Mono), padrões de componentes (Cards, Tabs, Buttons, Badges) e templates de layout.
 
 ---
 
 ## 🚀 1. Visão Geral e Filosofia
-O **Agile Space** é um hub de colaboração de elite para times ágeis. A prioridade é a **performance**, **densidade de informação** e **estética premium**.
+O **Espaço Ágil** é um hub de colaboração de elite para times ágeis. A prioridade é a **performance**, **densidade de informação** e **estética premium**.
 - **Foco**: Eliminar burocracia, maximizar entrega de valor.
 - **Estilo**: Glassmorphism, UI de Alta Performance, Minimalismo funcional.
 

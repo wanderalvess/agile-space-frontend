@@ -360,7 +360,11 @@ export function SquadPlansTimeline() {
     const meta = activeRollup?.extraMetrics as Record<string, unknown> | undefined;
     const start = (meta?.activeSprintStart as string) || '';
     const end = (meta?.activeSprintEnd as string) || '';
-    if (start && end) return { start, end };
+    if (start && end) {
+      const s = start.includes('T') ? start.substring(0, 10) : start;
+      const e = end.includes('T') ? end.substring(0, 10) : end;
+      return { start: s, end: e };
+    }
     const fallbackEnd = new Date(today);
     fallbackEnd.setDate(fallbackEnd.getDate() + 13);
     return { start: todayIso, end: getLocalDateStr(fallbackEnd) };

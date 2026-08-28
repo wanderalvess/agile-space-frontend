@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { encryptSecret } from '@/lib/vault-crypto';
 import { useUserContext } from '@/context/UserContext';
 import { vaultApi } from '@/app/vault/api';
+import { Footer } from '@/components/layout/Footer';
 
 export default function SecretVaultPage() {
   const [secret, setSecret] = useState('');
@@ -237,13 +238,16 @@ export default function SecretVaultPage() {
       </main>
 
       {/* Footer */}
-      <footer className="shrink-0 py-4 px-10 border-t border-slate-100 bg-white/80 backdrop-blur-sm flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400">Vault Protocol v1.0 · Espaço Ágil Compliance</p>
-        <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-100">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Proteção Ativa</span>
-        </div>
-      </footer>
+      <Footer 
+        className="mt-8 shrink-0" 
+        subtitle="Vault Protocol v1.0 • Espaço Ágil Compliance" 
+        badge={
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-xl border border-emerald-200/60 dark:border-emerald-800/60">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span className="text-[9px] font-black uppercase tracking-widest">Proteção Ativa</span>
+          </div>
+        }
+      />
     </div>
   );
 }

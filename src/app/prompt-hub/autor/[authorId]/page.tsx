@@ -180,7 +180,7 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
         )}
       </div>
 
-      <Footer />
+      <Footer className="mt-8 shrink-0" />
     </div>
   );
 }

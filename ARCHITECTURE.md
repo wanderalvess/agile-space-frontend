@@ -1,11 +1,11 @@
-# Agile Space - Architecture & Context Map (Repomap)
+# Espaço Ágil - Architecture & Context Map (Repomap)
 
-Este documento fornece um mapeamento técnico completo do ecossistema **Agile Space**, servindo como fonte da verdade para a estrutura do projeto, domínios de negócio e fluxos de dados.
+Este documento fornece um mapeamento técnico completo do ecossistema **Espaço Ágil**, servindo como fonte da verdade para a estrutura do projeto, domínios de negócio e fluxos de dados.
 
 ---
 
 ## 1. Visão Geral da Arquitetura
-O **Agile Space** é uma aplicação **Next.js 15 (App Router)** de alta performance, projetada para ser síncrona e colaborativa em tempo real.
+O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta performance, projetada para ser síncrona e colaborativa em tempo real.
 
 - **Frontend**: React 19 com renderização híbrida. Interfaces baseadas em Glassmorphism e animações fluidas com Framer Motion.
 - **Backend (Real-time)**: Utiliza **Spring Boot + PostgreSQL** com **WebSockets Nativos** como barramento de eventos e banco de dados.

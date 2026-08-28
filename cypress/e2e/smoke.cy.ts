@@ -1,4 +1,4 @@
-describe('Smoke Test - Agile Space', () => {
+describe('Smoke Test - Espaço Ágil', () => {
   it('Deve carregar a página inicial corretamente', () => {
     // Acessa a raiz configurada no baseUrl
     cy.visit('/');

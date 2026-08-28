@@ -174,7 +174,7 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
         )}
       </div>
 
-      <Footer />
+      <Footer className="mt-8 shrink-0" />
     </div>
   );
 }

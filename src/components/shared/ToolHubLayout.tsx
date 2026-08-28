@@ -26,6 +26,7 @@ import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { FeedbackWidget } from '@/components/feedback-widget';
+import { Footer } from '@/components/layout/Footer';
 
 interface Tip {
   title: string;
@@ -405,9 +406,11 @@ export function ToolHubLayout({
       />
 
       {!onlyChildren && (
-        <footer className="py-8 text-center border-t border-slate-200/50 dark:border-slate-900 bg-white dark:bg-slate-950 mt-auto shrink-0 relative z-10">
-           <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-300 dark:text-slate-700 ml-[0.5em]">Espaço Ágil Control Hub</p>
-        </footer>
+        <Footer 
+          className="mt-8 shrink-0" 
+          subtitle={`Espaço Ágil Control Hub • ${title}`} 
+          onOpenFeedback={() => setFeedbackSignal(Date.now())} 
+        />
       )}
     </div>
   );

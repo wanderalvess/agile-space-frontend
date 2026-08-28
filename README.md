@@ -1,8 +1,8 @@
-# Agile Space
+# Espaço Ágil
 
 **Elimine a fricção da burocracia ágil. Foque em entregar software de valor.**
 
-O **Agile Space** é o hub de colaboração definitivo projetado para times de elite. Ele centraliza ferramentas como Scrum Poker, Retrospectiva, Sprint Planner, Base de Conhecimento e ferramentas avançadas para desenvolvedores em uma única interface síncrona, auditável e focada na performance real do time.
+O **Espaço Ágil** é o hub de colaboração definitivo projetado para times. Ele centraliza ferramentas como Scrum Poker, Retrospectiva, Sprint Planner, Base de Conhecimento e ferramentas avançadas para desenvolvedores em uma única interface síncrona, auditável e focada na performance real do time.
 
 ---
 

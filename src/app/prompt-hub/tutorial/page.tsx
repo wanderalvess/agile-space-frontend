@@ -635,7 +635,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
         </main>
       </div>
 
-      <Footer />
+      <Footer className="mt-8 shrink-0" />
     </div>
   );
 }
