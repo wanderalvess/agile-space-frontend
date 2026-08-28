@@ -603,12 +603,14 @@ export default function PokerHubPage() {
           </div>
 
           <DialogFooter className="pt-4 mt-1 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-             <button
+             <Button
+               type="button"
+               variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-muted-foreground transition-colors text-center sm:text-left order-2 sm:order-1"
+               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-transparent text-center sm:text-left order-2 sm:order-1"
              >
                 Cancelar
-             </button>
+             </Button>
              <Button
                disabled={isCreating}
                onClick={handleCreate}

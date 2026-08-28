@@ -147,12 +147,14 @@ export default function KnowledgeLayout({
                 {/* Theme Switcher Toggle */}
                 <ThemeToggle className="h-10 w-10 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40" />
  
-                <button 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsGuideOpen(true)}
-                  className="h-10 w-10 rounded-xl border flex items-center justify-center transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                  className="h-10 w-10 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
                 >
-                  <HelpCircle className="h-5 w-5" />
-                </button>
+                  <HelpCircle className="!h-5 !w-5" />
+                </Button>
                 <Button onClick={() => router.push('/knowledge/admin/new-asset')} className="h-10 px-6 bg-cyan-600 hover:bg-cyan-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-cyan-900/20 gap-2 transition-all active:scale-95">
                    <Plus className="h-3.5 w-3.5" /> Criar
                 </Button>

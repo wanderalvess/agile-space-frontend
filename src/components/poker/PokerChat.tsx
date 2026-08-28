@@ -311,31 +311,31 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
           exit={{ x: 400, opacity: 0 }}
           className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] z-[100] flex flex-col"
         >
-          <div className="flex-1 bg-white/90 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden relative">
+          <div className="flex-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden relative">
 
             {/* BACKGROUND GLOWS */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-cyan-500/5 blur-3xl pointer-events-none" />
 
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-indigo-500 border border-indigo-600 flex items-center justify-center text-white shadow-sm overflow-hidden group">
                   <Rocket className="h-6 w-6 group-hover:-translate-y-1 group-hover:scale-110 transition-all duration-300" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Mascote IA</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 opacity-60">Mascote IA</span>
                     {tdnSettings?.token && (
-                      <Badge variant="secondary" className="text-[8px] bg-emerald-50 text-emerald-600 border-emerald-100 uppercase font-black tracking-tighter h-4 px-1.5">
+                      <Badge variant="secondary" className="text-[8px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900 uppercase font-black tracking-tighter h-4 px-1.5">
                         Motor Ativo
                       </Badge>
                     )}
                   </div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 italic">Base de Conhecimento</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 italic">Base de Conhecimento</h3>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-100 text-slate-400">
+              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -343,16 +343,16 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
               <div className="p-4 space-y-6 overflow-x-hidden">
                 {/* Issue Context (Opcional) */}
                 {activeIssue && (
-                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="p-1.5 bg-white rounded-lg border border-slate-200">
-                        <FileText className="h-3 w-3 text-indigo-600" />
+                      <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contexto da Tarefa</span>
                     </div>
                     <h4 className="text-[11px] font-black text-slate-900 dark:text-white uppercase mb-1 truncate">{activeIssue.title}</h4>
                     {activeIssue.description && (
-                      <p className="text-[9px] text-slate-500 line-clamp-2 leading-relaxed">
+                      <p className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                         {activeIssue.description}
                       </p>
                     )}
@@ -372,23 +372,23 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                         "p-3 rounded-[1.25rem] text-[12px] font-medium leading-relaxed shadow-sm whitespace-pre-wrap break-words max-w-full min-w-0",
                         msg.role === 'user'
                           ? "bg-indigo-600 text-white rounded-tr-none"
-                          : "bg-slate-100 text-slate-900 border border-slate-200 rounded-tl-none"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-none"
                       )}>
                         {msg.content}
                       </div>
 
                       {/* Badges de Endpoints e Tabelas extraídos */}
                       {((msg.extractedEndpoints && msg.extractedEndpoints.length > 0) || (msg.extractedTables && msg.extractedTables.length > 0)) && (
-                        <div className="flex flex-col gap-1.5 w-full mt-1 bg-indigo-50/70 border border-indigo-100 p-2.5 rounded-xl">
+                        <div className="flex flex-col gap-1.5 w-full mt-1 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 p-2.5 rounded-xl">
                           {msg.extractedEndpoints && msg.extractedEndpoints.length > 0 && (
                             <div>
-                              <span className="text-[8px] font-black uppercase text-indigo-600 tracking-wider block mb-1">Endpoints Identificados:</span>
+                              <span className="text-[8px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block mb-1">Endpoints Identificados:</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedEndpoints.map((ep, idx) => (
                                   <button
                                     key={idx}
                                     onClick={() => copyToClipboard(ep, 'Endpoint')}
-                                    className="flex items-center gap-1.5 bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded-lg text-[9px] font-mono font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group"
+                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-mono font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group"
                                     title="Clique para copiar"
                                   >
                                     <span>{ep}</span>
@@ -401,10 +401,10 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
 
                           {msg.extractedTables && msg.extractedTables.length > 0 && (
                             <div className="mt-1">
-                              <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider block mb-1">Tabelas Relacionadas:</span>
+                              <span className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider block mb-1">Tabelas Relacionadas:</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedTables.map((tbl, idx) => (
-                                  <span key={idx} className="bg-slate-200/80 text-slate-700 font-mono text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
+                                  <span key={idx} className="bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
                                     {tbl}
                                   </span>
                                 ))}
@@ -420,16 +420,16 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                             <div
                               key={doc.id}
                               onClick={() => window.open(`/knowledge/kb?id=${doc.id}`, '_blank')}
-                              className="bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl hover:bg-white transition-all cursor-pointer group overflow-hidden w-full min-w-0 shadow-xs"
+                              className="bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer group overflow-hidden w-full min-w-0 shadow-xs"
                             >
                               <div className="flex items-center justify-between mb-0.5">
-                                <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1">
+                                <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1">
                                   <BookOpen className="h-2 w-2" /> Wiki Local • {doc.category || 'Geral'}
                                 </span>
                                 <ChevronRight className="h-2.5 w-2.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                               </div>
                               <h4 className="text-[10px] font-bold text-slate-900 dark:text-white block truncate max-w-full" title={doc.title}>{doc.title}</h4>
-                              <p className="text-[8.5px] text-slate-500 line-clamp-2 mt-0.5 font-sans leading-tight">
+                              <p className="text-[8.5px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 font-sans leading-tight">
                                 {doc.tech?.bestSnippet || doc.content.replace(/<[^>]*>?/gm, '')}
                               </p>
                             </div>
@@ -440,20 +440,20 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                       {msg.tdnResults && msg.tdnResults.length > 0 && (
                         <div className="flex flex-col gap-2 w-full mt-1">
                           <div className="flex items-center gap-2 px-1">
-                            <Globe className="h-2 w-2 text-cyan-600" />
-                            <span className="text-[8px] font-black uppercase text-cyan-600 tracking-[0.2em]">TDN (Confluence)</span>
+                            <Globe className="h-2 w-2 text-cyan-600 dark:text-cyan-400" />
+                            <span className="text-[8px] font-black uppercase text-cyan-600 dark:text-cyan-400 tracking-[0.2em]">TDN (Confluence)</span>
                           </div>
                           {msg.tdnResults.map((tdn) => (
                             <div
                               key={tdn.id}
-                              className="bg-cyan-50/50 border border-cyan-100 p-2.5 rounded-xl hover:bg-cyan-50 transition-all group overflow-hidden w-full"
+                              className="bg-cyan-50/50 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900 p-2.5 rounded-xl hover:bg-cyan-50 dark:hover:bg-cyan-950/50 transition-all group overflow-hidden w-full"
                             >
                               <div className="flex items-center justify-between">
                                 <div
                                   className="flex-1 cursor-pointer min-w-0"
                                   onClick={() => window.open(tdn.link, '_blank')}
                                 >
-                                  <h4 className="text-[10px] font-bold text-slate-900 block truncate max-w-full group-hover:text-cyan-600 transition-colors" title={tdn.title}>{tdn.title}</h4>
+                                  <h4 className="text-[10px] font-bold text-slate-900 dark:text-slate-100 block truncate max-w-full group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors" title={tdn.title}>{tdn.title}</h4>
                                   <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
                                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">{tdn.space || 'Wiki'}</span>
                                   </div>
@@ -461,7 +461,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6 rounded-lg hover:bg-cyan-100/50 text-cyan-600 shrink-0 ml-2"
+                                  className="h-6 w-6 rounded-lg hover:bg-cyan-100/50 dark:hover:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 shrink-0 ml-2"
                                   onClick={(e) => { e.stopPropagation(); handleImport(tdn); }}
                                   disabled={isImporting === tdn.id}
                                 >
@@ -485,7 +485,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                       <button
                         key={i}
                         onClick={() => { setInput(q); }}
-                        className="px-3 py-1.5 rounded-full bg-white/50 border border-indigo-100 text-[9px] font-bold text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                        className="px-3 py-1.5 rounded-full bg-white/50 dark:bg-slate-900/50 border border-indigo-100 dark:border-indigo-900 text-[9px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                       >
                         {q}
                       </button>
@@ -493,7 +493,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                   </div>
                 )}
                 {isLoading && (
-                  <div className="flex items-center gap-2 text-indigo-600 animate-pulse mt-4">
+                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 animate-pulse mt-4">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Consultando...</span>
                   </div>
@@ -507,7 +507,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
               <div className="px-6 pb-2">
                 <Button
                   variant="outline"
-                  className="w-full h-10 rounded-xl border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-[10px] font-black uppercase tracking-widest gap-2"
+                  className="w-full h-10 rounded-xl border-dashed border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-[10px] font-black uppercase tracking-widest gap-2"
                   onClick={() => window.open('/knowledge', '_blank')}
                 >
                   <Database className="h-3.5 w-3.5" /> Acessar Wiki Completa do Projeto
@@ -516,15 +516,15 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
             )}
 
             {/* Input Area */}
-            <div className="p-6 bg-slate-50 border-t border-slate-100">
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
               {activeIssue && (
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-2">
                     <div className={cn(
                       "h-2 w-2 rounded-full",
-                      useContext ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                      useContext ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"
                     )} />
-                    <Label htmlFor="use-context" className="text-[10px] font-black uppercase tracking-widest text-slate-500 cursor-pointer">
+                    <Label htmlFor="use-context" className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 cursor-pointer">
                       Analisar Issue em Votação
                     </Label>
                   </div>
@@ -543,7 +543,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  className="pr-12 h-14 rounded-2xl border-slate-200 bg-white shadow-inner focus-visible:ring-indigo-500/20 text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  className="pr-12 h-14 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-inner focus-visible:ring-indigo-500/20 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
                 <Button
                   size="icon"

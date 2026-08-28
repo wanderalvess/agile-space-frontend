@@ -177,12 +177,14 @@ export default function ShowcaseHubPage() {
               {isCreating ? 'Criando sessão...' : 'Criar & Configurar'}
               <Eye className="h-4 w-4" />
             </Button>
-            <button
+            <Button
+              type="button"
+              variant="ghost"
               onClick={() => setIsSetupOpen(false)}
-              className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-650 transition-colors"
+              className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-transparent"
             >
               Cancelar
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
