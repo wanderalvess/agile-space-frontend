@@ -117,6 +117,7 @@ interface SquadStoreState {
       capacityCalculationMethod?: string;
       capacityJql?: string;
       capacityFormula?: string;
+      rapidViewId?: number | string;
     }
   ) => Promise<void>;
   syncSquad: (uid: string, squadId: string, forceFull?: boolean) => Promise<void>;
@@ -528,6 +529,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       ...(updates.capacityFormula !== undefined ? { capacityFormula: updates.capacityFormula } : {}),
       ...(updates.jiraDomain ? { jiraDomain: updates.jiraDomain.trim() } : {}),
       ...(updates.sprintFieldId ? { sprintFieldId: updates.sprintFieldId.trim() } : {}),
+      ...(updates.rapidViewId !== undefined ? { rapidViewId: updates.rapidViewId } : {}),
       ...(rankingJustEnabled ? { rankingEnabledAt: new Date().toISOString() } : {}),
       updatedAt: new Date().toISOString(),
     };

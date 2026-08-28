@@ -102,16 +102,19 @@ export interface GreenhopperWorkData {
     sprints: GreenhopperSprint[];
   };
   canEdit?: boolean;
+  /** true quando os dados vieram do fixture de demonstração, não do Jira ao vivo. */
+  isFallback?: boolean;
+  /** Motivo legível do fallback, pra distinguir "não configurado" de "erro de conexão". */
+  fallbackReason?: string;
 }
 
 /**
- * Dados de exemplo fiéis aos screenshots reais (SCRUM Mississauga - DDWMISSI)
- * para fallback imediato e demonstração perfeita offline.
+ * Dados de exemplo (fixture sintética) para fallback imediato e demonstração offline.
  */
 export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
   rapidViewId: 11360,
-  boardName: 'SCRUM Mississauga',
-  selectedProjectKey: 'DDWMISSI',
+  boardName: 'SCRUM Demo',
+  selectedProjectKey: 'SCRUMDEMO',
   columnsData: {
     columns: [
       {
@@ -214,51 +217,51 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 2,
-        name: 'Helen',
-        query: 'assignee = helen.crystina or issuetype IN ("Defeito (Sub-tarefa)") and creator = helen.crystina',
-        description: 'Tarefas e defeitos de Helen',
+        name: 'Beatriz',
+        query: 'assignee = beatriz.lima or issuetype IN ("Defeito (Sub-tarefa)") and creator = beatriz.lima',
+        description: 'Tarefas e defeitos de Beatriz',
       },
       {
         id: 3,
-        name: 'Marcio',
-        query: 'assignee = marcio.arueira or issuetype IN ("Defeito (Sub-tarefa)") and creator = marcio.arueira',
-        description: 'Tarefas e defeitos de Marcio',
+        name: 'Diego',
+        query: 'assignee = diego.rocha or issuetype IN ("Defeito (Sub-tarefa)") and creator = diego.rocha',
+        description: 'Tarefas e defeitos de Diego',
       },
       {
         id: 4,
-        name: 'Rhaynner',
-        query: 'assignee = rhaynner.costa or issuetype IN ("Defeito (Sub-tarefa)") and creator = rhaynner.costa',
-        description: 'Tarefas e defeitos de Rhaynner',
+        name: 'Felipe',
+        query: 'assignee = felipe.martins or issuetype IN ("Defeito (Sub-tarefa)") and creator = felipe.martins',
+        description: 'Tarefas e defeitos de Felipe',
       },
       {
         id: 5,
-        name: 'Nathan',
-        query: 'assignee = nathan.caldas or issuetype IN ("Defeito (Sub-tarefa)") and creator = nathan.caldas',
-        description: 'Tarefas e defeitos de Nathan',
+        name: 'Gustavo',
+        query: 'assignee = gustavo.pinto or issuetype IN ("Defeito (Sub-tarefa)") and creator = gustavo.pinto',
+        description: 'Tarefas e defeitos de Gustavo',
       },
       {
         id: 6,
-        name: 'Bruna',
-        query: 'assignee = bruna.balves OR (Desenvolvedor = bruna.balves OR "Responsável (Codificação)" =bruna.balves)',
-        description: 'Tarefas e desenvolvimento de Bruna',
+        name: 'Alice',
+        query: 'assignee = alice.souza OR (Desenvolvedor = alice.souza OR "Responsável (Codificação)" =alice.souza)',
+        description: 'Tarefas e desenvolvimento de Alice',
       },
       {
         id: 7,
-        name: 'Anderson Portuga',
-        query: 'assignee = anderson.pereira OR (Desenvolvedor = anderson.pereira OR "Responsável (Codificação)" =anderson.pereira)',
-        description: 'Tarefas e desenvolvimento de Anderson',
+        name: 'Henrique Dias',
+        query: 'assignee = henrique.dias OR (Desenvolvedor = henrique.dias OR "Responsável (Codificação)" =henrique.dias)',
+        description: 'Tarefas e desenvolvimento de Henrique',
       },
       {
         id: 8,
-        name: 'Wanderson',
-        query: 'assignee = wanderson.alves OR (Desenvolvedor = wanderson.alves OR "Responsável (Codificação)" =wanderson.alves)',
-        description: 'Tarefas e desenvolvimento de Wanderson',
+        name: 'Carlos',
+        query: 'assignee = carlos.mendes OR (Desenvolvedor = carlos.mendes OR "Responsável (Codificação)" =carlos.mendes)',
+        description: 'Tarefas e desenvolvimento de Carlos',
       },
       {
         id: 9,
-        name: 'Paulo Roberto',
-        query: 'assignee = paulo.queiroz OR (Desenvolvedor = paulo.queiroz OR "Responsável (Codificação)" =paulo.queiroz )',
-        description: 'Tarefas e desenvolvimento de Paulo Roberto',
+        name: 'Eduardo Nunes',
+        query: 'assignee = eduardo.nunes OR (Desenvolvedor = eduardo.nunes OR "Responsável (Codificação)" =eduardo.nunes )',
+        description: 'Tarefas e desenvolvimento de Eduardo Nunes',
       },
       {
         id: 10,
@@ -284,7 +287,7 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
     sprints: [
       {
         id: 7890,
-        name: 'DDWMISSI Missi - 2026.08/2',
+        name: 'SCRUMDEMO - 2026.08/2',
         state: 'ACTIVE',
         daysRemaining: 1,
         startDate: '2026-08-15',
@@ -297,15 +300,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       // --- Swimlane 1: Prioridades (WarRoom) ---
       {
         id: 5335,
-        key: 'DDWMISSI-5335',
+        key: 'SCRUMDEMO-5335',
         summary: '[Regressivo Sprint 2026.08/02] - Planejamento e Execução',
         statusId: 10001,
         statusName: 'COMPROMETIDO',
         statusCategory: 'new',
         priorityName: 'Major',
         typeName: 'Story',
-        assignee: 'bruna.silva',
-        assigneeName: 'Bruna Silva',
+        assignee: 'alice.souza',
+        assigneeName: 'Alice Souza',
         avatarUrl: '',
         color: '#f97316',
         swimlaneId: 101,
@@ -313,21 +316,21 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
         fixVersions: [{ id: '1', name: '2026.08/2' }],
         extraFields: [{ id: '1', label: 'Estimativa', value: 'Nenhuma' }],
         subTasks: [
-          { id: 1, key: 'DDWMISSI-5335-1', statusId: 10019, isDone: true },
-          { id: 2, key: 'DDWMISSI-5335-2', statusId: 10001, isDone: false },
+          { id: 1, key: 'SCRUMDEMO-5335-1', statusId: 10019, isDone: true },
+          { id: 2, key: 'SCRUMDEMO-5335-2', statusId: 10001, isDone: false },
         ],
       },
       {
         id: 4880,
-        key: 'DDWMISSI-4880',
+        key: 'SCRUMDEMO-4880',
         summary: 'Enviar status para remover cadastros da fila do sync (DEV 17h / QA 10h)',
         statusId: 10014,
         statusName: 'CODE REVIEW CONCLUÍDO',
         statusCategory: 'indeterminate',
         priorityName: 'Critical',
         typeName: 'Task',
-        assignee: 'helen.costa',
-        assigneeName: 'Helen Costa',
+        assignee: 'beatriz.lima',
+        assigneeName: 'Beatriz Lima',
         avatarUrl: '',
         color: '#0ea5e9',
         swimlaneId: 101,
@@ -336,15 +339,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 5192,
-        key: 'DDWMISSI-5192',
+        key: 'SCRUMDEMO-5192',
         summary: '[INTEGRACAO MATCON] - Erro de requisição ao processar',
         statusId: 10019,
         statusName: 'RESOLVIDO',
         statusCategory: 'done',
         priorityName: 'Blocker',
         typeName: 'Bug',
-        assignee: 'wanderson.alves',
-        assigneeName: 'Wanderson Alves',
+        assignee: 'carlos.mendes',
+        assigneeName: 'Carlos Mendes',
         avatarUrl: '',
         color: '#ef4444',
         swimlaneId: 101,
@@ -355,60 +358,60 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       // --- Swimlane 2: Todo o Resto ---
       {
         id: 5361,
-        key: 'DDWMISSI-5361',
-        summary: 'Refinamento DDWMISSI S3 Agosto',
+        key: 'SCRUMDEMO-5361',
+        summary: 'Refinamento SCRUMDEMO S3 Agosto',
         statusId: 10001,
         statusName: 'COMPROMETIDO',
         statusCategory: 'new',
         priorityName: 'Normal',
         typeName: 'Story',
-        assignee: 'marcio.santos',
-        assigneeName: 'Marcio Santos',
+        assignee: 'diego.rocha',
+        assigneeName: 'Diego Rocha',
         avatarUrl: '',
         swimlaneId: 102,
         tags: ['Refinamento'],
       },
       {
         id: 5238,
-        key: 'DDWMISSI-5238',
+        key: 'SCRUMDEMO-5238',
         summary: '[INOVAÇÃO] Horas de gestão - 08.2026',
         statusId: 10002,
         statusName: 'ABERTO',
         statusCategory: 'new',
         priorityName: 'Minor',
         typeName: 'Task',
-        assignee: 'paulo.roberto',
-        assigneeName: 'Paulo Roberto',
+        assignee: 'eduardo.nunes',
+        assigneeName: 'Eduardo Nunes',
         avatarUrl: '',
         swimlaneId: 103,
         tags: ['Inovação', 'Pausada'],
       },
       {
         id: 5239,
-        key: 'DDWMISSI-5239',
+        key: 'SCRUMDEMO-5239',
         summary: 'Ajuste na fila de eventos Kafka',
         statusId: 10001,
         statusName: 'COMPROMETIDO',
         statusCategory: 'new',
         priorityName: 'Normal',
         typeName: 'Task',
-        assignee: 'rhaynner.souza',
-        assigneeName: 'Rhaynner Souza',
+        assignee: 'felipe.martins',
+        assigneeName: 'Felipe Martins',
         avatarUrl: '',
         swimlaneId: 104,
         tags: ['Kafka'],
       },
       {
         id: 5167,
-        key: 'DDWMISSI-5167',
-        summary: 'Onboarding - Nathan Caldas',
+        key: 'SCRUMDEMO-5167',
+        summary: 'Onboarding - Gustavo Pinto',
         statusId: 10007,
         statusName: 'EM CODIFICAÇÃO',
         statusCategory: 'indeterminate',
         priorityName: 'Normal',
         typeName: 'Task',
-        assignee: 'nathan.caldas',
-        assigneeName: 'Nathan Caldas',
+        assignee: 'gustavo.pinto',
+        assigneeName: 'Gustavo Pinto',
         avatarUrl: '',
         color: '#facc15',
         swimlaneId: 104,
@@ -416,15 +419,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 5336,
-        key: 'DDWMISSI-5336',
+        key: 'SCRUMDEMO-5336',
         summary: 'Implementar client do oracle e no projeto TAUT-GERAL(Aut 12h)',
         statusId: 10007,
         statusName: 'EM DESENVOLVIMENTO',
         statusCategory: 'indeterminate',
         priorityName: 'Major',
         typeName: 'Story',
-        assignee: 'anderson.portuga',
-        assigneeName: 'Anderson Portuga',
+        assignee: 'henrique.dias',
+        assigneeName: 'Henrique Dias',
         avatarUrl: '',
         color: '#f97316',
         swimlaneId: 104,
@@ -432,15 +435,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 2306,
-        key: 'DDWMISSI-2306',
+        key: 'SCRUMDEMO-2306',
         summary: 'Adapter para nova api - Buscar Estoque lotes disponíveis no Winthor',
         statusId: 10014,
         statusName: 'CODE REVIEW CONCLUÍDO',
         statusCategory: 'indeterminate',
         priorityName: 'Major',
         typeName: 'Story',
-        assignee: 'wanderson.alves',
-        assigneeName: 'Wanderson Alves',
+        assignee: 'carlos.mendes',
+        assigneeName: 'Carlos Mendes',
         avatarUrl: '',
         color: '#10b981',
         swimlaneId: 102,
@@ -448,15 +451,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 5101,
-        key: 'DDWMISSI-5101',
+        key: 'SCRUMDEMO-5101',
         summary: '[Melhoria] - API Produtos - Envio de dados de ANP (DEV 8h / QA 8h)',
         statusId: 10016,
         statusName: 'EM TESTE DE ACEITAÇÃO',
         statusCategory: 'indeterminate',
         priorityName: 'Major',
         typeName: 'Story',
-        assignee: 'nathan.caldas',
-        assigneeName: 'Nathan Caldas',
+        assignee: 'gustavo.pinto',
+        assigneeName: 'Gustavo Pinto',
         avatarUrl: '',
         color: '#3b82f6',
         swimlaneId: 102,
@@ -465,15 +468,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 2305,
-        key: 'DDWMISSI-2305',
+        key: 'SCRUMDEMO-2305',
         summary: 'Nova api - Buscar Estoque por lotes disponíveis no Winthor (DEV 12H / QA 6H)',
         statusId: 10016,
         statusName: 'EM TESTE DE ACEITAÇÃO',
         statusCategory: 'indeterminate',
         priorityName: 'Major',
         typeName: 'Story',
-        assignee: 'anderson.portuga',
-        assigneeName: 'Anderson Portuga',
+        assignee: 'henrique.dias',
+        assigneeName: 'Henrique Dias',
         avatarUrl: '',
         color: '#10b981',
         swimlaneId: 102,
@@ -481,15 +484,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 5193,
-        key: 'DDWMISSI-5193',
+        key: 'SCRUMDEMO-5193',
         summary: 'Erro ao gravar um parâmetro geral da 132 com o tamanho superior a 100',
         statusId: 10016,
         statusName: 'EM TESTE DE ACEITAÇÃO',
         statusCategory: 'indeterminate',
         priorityName: 'Critical',
         typeName: 'Bug',
-        assignee: 'helen.costa',
-        assigneeName: 'Helen Costa',
+        assignee: 'beatriz.lima',
+        assigneeName: 'Beatriz Lima',
         avatarUrl: '',
         color: '#ef4444',
         swimlaneId: 102,
@@ -498,15 +501,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 4069,
-        key: 'DDWMISSI-4069',
+        key: 'SCRUMDEMO-4069',
         summary: 'Validação Cliente Excluído e Consumidor final 1, 2, 3 (DEV 9h / QA 6h)',
         statusId: 10017,
         statusName: 'TESTE DE ACEITAÇÃO CONCLUÍDO',
         statusCategory: 'indeterminate',
         priorityName: 'Major',
         typeName: 'Story',
-        assignee: 'bruna.silva',
-        assigneeName: 'Bruna Silva',
+        assignee: 'alice.souza',
+        assigneeName: 'Alice Souza',
         avatarUrl: '',
         color: '#8b5cf6',
         swimlaneId: 102,
@@ -514,15 +517,15 @@ export const SAMPLE_GREENHOPPER_DATA: GreenhopperWorkData = {
       },
       {
         id: 5426,
-        key: 'DDWMISSI-5426',
+        key: 'SCRUMDEMO-5426',
         summary: '"situacaoPreVenda": "FATURAMENTO", ajustar retorno para status final',
         statusId: 10019,
         statusName: 'RESOLVIDO',
         statusCategory: 'done',
         priorityName: 'Normal',
         typeName: 'Bug',
-        assignee: 'bruna.silva',
-        assigneeName: 'Bruna Silva',
+        assignee: 'alice.souza',
+        assigneeName: 'Alice Souza',
         avatarUrl: '',
         color: '#10b981',
         swimlaneId: 102,
@@ -543,9 +546,21 @@ export async function fetchGreenhopperWorkData(params: {
 }): Promise<GreenhopperWorkData> {
   const { domain, token, rapidViewId, selectedProjectKey } = params;
 
+  const fallback = (fallbackReason: string): GreenhopperWorkData => ({
+    ...SAMPLE_GREENHOPPER_DATA,
+    isFallback: true,
+    fallbackReason,
+  });
+
   if (!domain || !token || !rapidViewId) {
     // Retorna os dados de demonstração da sprint quando não houver credencial configurada
-    return SAMPLE_GREENHOPPER_DATA;
+    return fallback('missing-config');
+  }
+
+  const numericRapidViewId = Number(rapidViewId);
+  if (Number.isNaN(numericRapidViewId)) {
+    console.warn(`[greenhopperService] rapidViewId inválido (não numérico): "${rapidViewId}". Usando fallback.`);
+    return fallback('invalid-rapid-view-id');
   }
 
   const controller = new AbortController();
@@ -558,7 +573,7 @@ export async function fetchGreenhopperWorkData(params: {
       body: JSON.stringify({
         domain: domain.trim(),
         token: token.trim(),
-        rapidViewId: Number(rapidViewId),
+        rapidViewId: numericRapidViewId,
         selectedProjectKey: selectedProjectKey?.trim(),
       }),
       signal: controller.signal,
@@ -566,7 +581,7 @@ export async function fetchGreenhopperWorkData(params: {
 
     if (!res.ok) {
       console.warn(`[greenhopperService] API retornou status ${res.status}. Usando fallback inteligente.`);
-      return SAMPLE_GREENHOPPER_DATA;
+      return fallback(res.status === 401 || res.status === 403 ? 'auth-error' : `http-${res.status}`);
     }
 
     const data = await res.json();
@@ -586,10 +601,10 @@ export async function fetchGreenhopperWorkData(params: {
       };
     }
 
-    return SAMPLE_GREENHOPPER_DATA;
+    return fallback('empty-response');
   } catch (error: any) {
     console.warn('[greenhopperService] Falha na requisição Greenhopper, usando dados de amostra:', error?.message);
-    return SAMPLE_GREENHOPPER_DATA;
+    return fallback(error?.name === 'AbortError' ? 'timeout' : 'network-error');
   } finally {
     clearTimeout(timeoutId);
   }

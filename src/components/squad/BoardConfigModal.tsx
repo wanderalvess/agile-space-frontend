@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,8 @@ import {
 import type {
   GreenhopperColumn,
   GreenhopperQuickFilter,
+  GreenhopperSwimlane,
+  GreenhopperIssue,
 } from '@/services/greenhopperService';
 
 interface StatusMappingItem {
@@ -144,6 +146,51 @@ const DEFAULT_COLUMN_CONFIG: ColumnConfigDetail[] = [
   },
 ];
 
+const COLUMN_ACCENT_PALETTE = [
+  'bg-slate-700 dark:bg-slate-500',
+  'bg-blue-600 dark:bg-blue-500',
+  'bg-indigo-600 dark:bg-indigo-500',
+  'bg-violet-600 dark:bg-violet-500',
+  'bg-cyan-600 dark:bg-cyan-500',
+  'bg-amber-600 dark:bg-amber-500',
+  'bg-orange-600 dark:bg-orange-500',
+  'bg-emerald-600 dark:bg-emerald-500',
+];
+
+// Constrói a lista de colunas editáveis a partir do board real (colunas + issues
+// vivas), em vez do fixture fixo — antes a aba WIP sempre mostrava dados
+// fabricados independente do squad conectado.
+function buildColumnListFromLive(liveColumns: GreenhopperColumn[], issues: GreenhopperIssue[]): ColumnConfigDetail[] {
+  return liveColumns.map((col, idx) => {
+    const statusCounts = new Map<string, { name: string; count: number }>();
+    for (const issue of issues) {
+      const matchesColumn =
+        col.statusIds.includes(issue.statusId) ||
+        col.statusIds.includes(Number(issue.statusId)) ||
+        (col.name === 'A Fazer' && issue.statusCategory === 'new') ||
+        (col.name === 'Finalizado' && issue.statusCategory === 'done');
+      if (!matchesColumn) continue;
+      const key = String(issue.statusId);
+      const entry = statusCounts.get(key);
+      if (entry) entry.count += 1;
+      else statusCounts.set(key, { name: issue.statusName || key, count: 1 });
+    }
+    const statuses: StatusMappingItem[] = Array.from(statusCounts.entries()).map(([id, v]) => ({
+      id,
+      name: v.name,
+      count: `${v.count} ${v.count === 1 ? 'item' : 'itens'}`,
+    }));
+    return {
+      id: col.id,
+      name: col.name,
+      min: col.min ?? null,
+      max: col.max ?? null,
+      accentColor: COLUMN_ACCENT_PALETTE[idx % COLUMN_ACCENT_PALETTE.length],
+      statuses,
+    };
+  });
+}
+
 export const DEFAULT_QUICK_FILTERS: GreenhopperQuickFilter[] = [
   {
     id: 1,
@@ -153,50 +200,50 @@ export const DEFAULT_QUICK_FILTERS: GreenhopperQuickFilter[] = [
   },
   {
     id: 2,
-    name: 'Helen',
-    query: 'assignee = helen.crystina or issuetype IN ("Defeito (Sub-tarefa)") and creator = helen.crystina',
+    name: 'Beatriz',
+    query: 'assignee = beatriz.lima or issuetype IN ("Defeito (Sub-tarefa)") and creator = beatriz.lima',
     description: '',
   },
   {
     id: 3,
-    name: 'Marcio',
-    query: 'assignee = marcio.arueira or issuetype IN ("Defeito (Sub-tarefa)") and creator = marcio.arueira',
+    name: 'Diego',
+    query: 'assignee = diego.rocha or issuetype IN ("Defeito (Sub-tarefa)") and creator = diego.rocha',
     description: '',
   },
   {
     id: 4,
-    name: 'Rhaynner',
-    query: 'assignee = rhaynner.costa or issuetype IN ("Defeito (Sub-tarefa)") and creator = rhaynner.costa',
+    name: 'Felipe',
+    query: 'assignee = felipe.martins or issuetype IN ("Defeito (Sub-tarefa)") and creator = felipe.martins',
     description: '',
   },
   {
     id: 5,
-    name: 'Nathan',
-    query: 'assignee = nathan.caldas or issuetype IN ("Defeito (Sub-tarefa)") and creator = nathan.caldas',
+    name: 'Gustavo',
+    query: 'assignee = gustavo.pinto or issuetype IN ("Defeito (Sub-tarefa)") and creator = gustavo.pinto',
     description: '',
   },
   {
     id: 6,
-    name: 'Bruna',
-    query: 'assignee = bruna.balves OR (Desenvolvedor = bruna.balves OR "Responsável (Codificação)" =bruna.balves)',
+    name: 'Alice',
+    query: 'assignee = alice.souza OR (Desenvolvedor = alice.souza OR "Responsável (Codificação)" =alice.souza)',
     description: '',
   },
   {
     id: 7,
-    name: 'Anderson Portuga',
-    query: 'assignee = anderson.pereira OR (Desenvolvedor = anderson.pereira OR "Responsável (Codificação)" =anderson.pereira)',
+    name: 'Henrique Dias',
+    query: 'assignee = henrique.dias OR (Desenvolvedor = henrique.dias OR "Responsável (Codificação)" =henrique.dias)',
     description: '',
   },
   {
     id: 8,
-    name: 'Wanderson',
-    query: 'assignee = wanderson.alves OR (Desenvolvedor = wanderson.alves OR "Responsável (Codificação)" =wanderson.alves)',
+    name: 'Carlos',
+    query: 'assignee = carlos.mendes OR (Desenvolvedor = carlos.mendes OR "Responsável (Codificação)" =carlos.mendes)',
     description: '',
   },
   {
     id: 9,
-    name: 'Paulo Roberto',
-    query: 'assignee = paulo.queiroz OR (Desenvolvedor = paulo.queiroz OR "Responsável (Codificação)" =paulo.queiroz )',
+    name: 'Eduardo Nunes',
+    query: 'assignee = eduardo.nunes OR (Desenvolvedor = eduardo.nunes OR "Responsável (Codificação)" =eduardo.nunes )',
     description: '',
   },
   {
@@ -254,8 +301,10 @@ interface BoardConfigModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   columns?: GreenhopperColumn[];
+  issues?: GreenhopperIssue[];
   quickFilters?: GreenhopperQuickFilter[];
   swimlanes?: GreenhopperSwimlane[];
+  swimlaneStrategy?: 'queries' | 'parents' | 'assignees' | 'epics' | 'none';
   rapidViewId?: number | string;
   boardName?: string;
   initialTab?: 'filters' | 'columns' | 'swimlanes';
@@ -268,28 +317,46 @@ export function BoardConfigModal({
   open,
   onOpenChange,
   columns,
+  issues,
   quickFilters: initialQuickFilters,
   swimlanes: initialSwimlanes,
+  swimlaneStrategy: initialSwimlaneStrategy = 'queries',
   rapidViewId = 11360,
-  boardName = 'SCRUM Mississauga',
+  boardName = 'SCRUM Demo',
   initialTab = 'filters',
   onSaveQuickFilters,
   onSaveColumns,
   onSaveSwimlanes,
 }: BoardConfigModalProps) {
   const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'swimlanes'>(initialTab);
-  const [columnList, setColumnList] = useState<ColumnConfigDetail[]>(DEFAULT_COLUMN_CONFIG);
+  const [columnList, setColumnList] = useState<ColumnConfigDetail[]>(() =>
+    columns && columns.length > 0 ? buildColumnListFromLive(columns, issues || []) : DEFAULT_COLUMN_CONFIG
+  );
   const [filterList, setFilterList] = useState<GreenhopperQuickFilter[]>(
     initialQuickFilters && initialQuickFilters.length > 0
       ? initialQuickFilters
       : DEFAULT_QUICK_FILTERS
   );
-  const [swimlaneStrategy, setSwimlaneStrategy] = useState<'queries' | 'parents' | 'assignees' | 'epics' | 'none'>('queries');
+  const [swimlaneStrategy, setSwimlaneStrategy] = useState<'queries' | 'parents' | 'assignees' | 'epics' | 'none'>(initialSwimlaneStrategy);
   const [swimlaneList, setSwimlaneList] = useState<GreenhopperSwimlane[]>(
     initialSwimlanes && initialSwimlanes.length > 0
       ? initialSwimlanes
       : DEFAULT_SWIMLANES
   );
+
+  // Ressincroniza com os dados reais do quadro toda vez que o modal reabre —
+  // antes o estado só era lido na primeira montagem, então reabrir o modal
+  // (ele nunca desmonta, só o Dialog fecha/abre) mostrava dados obsoletos de
+  // uma abertura anterior, inclusive a aba em que o usuário tinha ficado.
+  useEffect(() => {
+    if (!open) return;
+    setActiveTab(initialTab);
+    setColumnList(columns && columns.length > 0 ? buildColumnListFromLive(columns, issues || []) : DEFAULT_COLUMN_CONFIG);
+    setFilterList(initialQuickFilters && initialQuickFilters.length > 0 ? initialQuickFilters : DEFAULT_QUICK_FILTERS);
+    setSwimlaneStrategy(initialSwimlaneStrategy);
+    setSwimlaneList(initialSwimlanes && initialSwimlanes.length > 0 ? initialSwimlanes : DEFAULT_SWIMLANES);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Estado para edição inline de filtros
   const [editingId, setEditingId] = useState<string | number | null>(null);
@@ -568,7 +635,7 @@ export function BoardConfigModal({
                       size="sm"
                       onClick={resetToDefaultFilters}
                       className="h-8 text-xs font-bold gap-1 rounded-xl text-slate-600 dark:text-slate-300"
-                      title="Restaura os 12 filtros padrões do projeto DDWMISSI"
+                      title="Restaura os 12 filtros padrões"
                     >
                       <RotateCcw className="h-3 w-3" />
                       Restaurar Padrões

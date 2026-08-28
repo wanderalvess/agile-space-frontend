@@ -404,7 +404,7 @@ function SquadHubContent() {
               </TabsList>
             </Tabs>
 
-            {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans' || activeTab === 'board') && (
+            {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans') && (
               <Select
                 value={viewingSprintId || 'CURRENT'}
                 onValueChange={(val) => selectSprint(squadId, val === 'CURRENT' ? null : val, { isLeadershipViewer, myClaimedAssigneeId: myClaim?.jiraAccountId })}

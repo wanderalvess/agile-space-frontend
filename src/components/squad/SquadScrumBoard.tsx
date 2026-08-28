@@ -63,6 +63,69 @@ interface SquadScrumBoardProps {
   jiraDomain?: string;
 }
 
+interface ColumnWipOverride {
+  id: string | number;
+  min: number | null;
+  max: number | null;
+}
+
+const FALLBACK_REASON_LABELS: Record<string, string> = {
+  'missing-config': 'Configure o domínio e o token do Jira nas configurações do squad para ver o quadro ao vivo.',
+  'invalid-rapid-view-id': 'O ID do quadro (rapidViewId) configurado não é válido.',
+  'auth-error': 'Sessão do Jira expirada ou sem permissão para este quadro. Reconecte suas credenciais.',
+  timeout: 'O Jira demorou demais para responder.',
+  'network-error': 'Não foi possível conectar ao Jira.',
+  'empty-response': 'O Jira retornou uma resposta inesperada.',
+};
+
+/** Aplica overrides salvos localmente (filtros/raias/limites de WIP) por cima dos dados do quadro,
+ *  independentemente de terem vindo do fetch ou do fixture de fallback. */
+function applyLocalOverrides(data: GreenhopperWorkData, squadId: string): GreenhopperWorkData {
+  if (typeof window === 'undefined') return data;
+  let next = data;
+
+  try {
+    const savedFilters = localStorage.getItem(`agile_quick_filters_${squadId}`);
+    if (savedFilters) {
+      const parsed = JSON.parse(savedFilters);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        next = { ...next, quickFiltersData: { quickFilters: parsed } };
+      }
+    }
+  } catch {}
+
+  try {
+    const savedSwimlanes = localStorage.getItem(`agile_swimlanes_${squadId}`);
+    if (savedSwimlanes) {
+      const parsed = JSON.parse(savedSwimlanes);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        next = { ...next, swimlanesData: { swimlanes: parsed } };
+      }
+    }
+  } catch {}
+
+  try {
+    const savedColumns = localStorage.getItem(`agile_columns_${squadId}`);
+    if (savedColumns) {
+      const overrides: ColumnWipOverride[] = JSON.parse(savedColumns);
+      if (Array.isArray(overrides) && overrides.length > 0) {
+        const byId = new Map(overrides.map(o => [String(o.id), o]));
+        next = {
+          ...next,
+          columnsData: {
+            columns: next.columnsData.columns.map(c => {
+              const ov = byId.get(String(c.id));
+              return ov ? { ...c, min: ov.min, max: ov.max } : c;
+            }),
+          },
+        };
+      }
+    }
+  } catch {}
+
+  return next;
+}
+
 export function SquadScrumBoard({
   squadId = 'MISSI',
   jiraProjectKey = 'DDWMISSI',
@@ -84,37 +147,20 @@ export function SquadScrumBoard({
   const [configModalTab, setConfigModalTab] = useState<'filters' | 'columns' | 'swimlanes'>('filters');
   const [selectedIssue, setSelectedIssue] = useState<GreenhopperIssue | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [swimlaneStrategy, setSwimlaneStrategy] = useState<'queries' | 'parents' | 'assignees' | 'epics' | 'none'>(() => {
+    if (typeof window === 'undefined') return 'queries';
+    try {
+      const saved = localStorage.getItem(`agile_swimlane_strategy_${squadId}`);
+      return (saved as any) || 'queries';
+    } catch { return 'queries'; }
+  });
 
   const activeDomain = initialDomain || jiraSettings?.domain || 'jiraproducao.totvs.com.br';
   const activeToken = jiraSettings?.token || '';
 
-  // Carrega filtros e raias customizadas salvas localmente se existirem
+  // Aplica overrides salvos localmente (filtros/raias/WIP) assim que monta, antes do primeiro fetch
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedFilters = localStorage.getItem(`agile_quick_filters_${squadId}`);
-        if (savedFilters) {
-          const parsed = JSON.parse(savedFilters);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setBoardData(prev => ({
-              ...prev,
-              quickFiltersData: { quickFilters: parsed },
-            }));
-          }
-        }
-
-        const savedSwimlanes = localStorage.getItem(`agile_swimlanes_${squadId}`);
-        if (savedSwimlanes) {
-          const parsed = JSON.parse(savedSwimlanes);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setBoardData(prev => ({
-              ...prev,
-              swimlanesData: { swimlanes: parsed },
-            }));
-          }
-        }
-      } catch {}
-    }
+    setBoardData(prev => applyLocalOverrides(prev, squadId));
   }, [squadId]);
 
   // Busca dados do quadro
@@ -127,19 +173,30 @@ export function SquadScrumBoard({
         rapidViewId: rapidViewId || 11360,
         selectedProjectKey: jiraProjectKey,
       });
-      setBoardData(data);
-      if (showToast) {
+      // Reaplica os overrides locais por cima do fetch — sem isso, qualquer
+      // filtro/raia/WIP customizado salvo era descartado a cada refresh.
+      setBoardData(applyLocalOverrides(data, squadId));
+
+      if (data.isFallback) {
+        toast({
+          title: 'Exibindo dados de exemplo',
+          description: FALLBACK_REASON_LABELS[data.fallbackReason || ''] || 'Não foi possível carregar o quadro ao vivo do Jira.',
+          variant: 'default',
+        });
+      } else if (showToast) {
         toast({
           title: 'Quadro Atualizado',
           description: `${data.issuesData.issues.length} itens sincronizados com o Jira.`,
         });
       }
     } catch (err: any) {
-      console.error('Erro ao carregar quadro Scrum:', err);
+      // fetchGreenhopperWorkData já captura suas próprias falhas e retorna um
+      // fixture de fallback — chegar aqui significa que algo além dela quebrou.
+      console.error('Erro inesperado ao carregar quadro Scrum:', err);
       toast({
-        title: 'Aviso',
-        description: 'Utilizando snapshot recente do quadro.',
-        variant: 'default',
+        title: 'Erro ao Carregar Quadro',
+        description: err?.message || 'Não foi possível carregar o quadro.',
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -279,8 +336,8 @@ export function SquadScrumBoard({
     });
   }, [boardData, searchQuery, activeFilters]);
 
-  // Determina a raia de cada issue seguindo a ordem de precedência do Jira
-  const getIssueSwimlaneId = (issue: GreenhopperIssue, allSwimlanes: GreenhopperSwimlane[]) => {
+  // Determina a raia de cada issue via as regras de query configuradas (estratégia "queries")
+  const getIssueSwimlaneIdByQuery = (issue: GreenhopperIssue, allSwimlanes: GreenhopperSwimlane[]) => {
     const querySwimlanes = allSwimlanes.filter(s => !s.isDefault);
     const defaultSwimlane = allSwimlanes.find(s => s.isDefault) || allSwimlanes[allSwimlanes.length - 1];
 
@@ -346,6 +403,72 @@ export function SquadScrumBoard({
   const swimlanes = boardData.swimlanesData.swimlanes || [
     { id: 104, name: 'Todo o Resto', isDefault: true },
   ];
+
+  // Raias exibidas de fato, conforme a estratégia escolhida em "Configurar Raias".
+  // Antes a estratégia era salva mas nunca lida em lugar nenhum, então trocar o
+  // seletor (queries/pais/responsáveis/épicos/nenhuma) não mudava o quadro.
+  const displaySwimlanes = useMemo(() => {
+    if (swimlaneStrategy === 'none') {
+      return [{ id: 'all', name: 'Todos os Itens', isDefault: true } as GreenhopperSwimlane];
+    }
+    if (swimlaneStrategy === 'queries') {
+      return swimlanes;
+    }
+
+    const groupOf = (issue: GreenhopperIssue): { id: string; name: string } | null => {
+      if (swimlaneStrategy === 'parents') {
+        if (!issue.parentKey) return null;
+        return { id: issue.parentKey, name: issue.parentTitle || issue.parentKey };
+      }
+      if (swimlaneStrategy === 'assignees') {
+        const name = issue.assigneeName || issue.assignee;
+        if (!name) return null;
+        return { id: name, name };
+      }
+      // epics
+      const epicName = issue.epicField?.summary || issue.epicField?.key || issue.epic;
+      if (!epicName) return null;
+      return { id: epicName, name: epicName };
+    };
+
+    const seen = new Map<string, string>();
+    for (const issue of filteredIssues) {
+      const group = groupOf(issue);
+      if (group && !seen.has(group.id)) seen.set(group.id, group.name);
+    }
+
+    const fallbackName =
+      swimlaneStrategy === 'parents' ? 'Sem Item Pai' :
+      swimlaneStrategy === 'assignees' ? 'Sem Responsável' : 'Sem Épico';
+
+    return [
+      ...Array.from(seen.entries()).map(([id, name]) => ({ id, name, isDefault: false } as GreenhopperSwimlane)),
+      { id: '__none__', name: fallbackName, isDefault: true } as GreenhopperSwimlane,
+    ];
+  }, [swimlaneStrategy, swimlanes, filteredIssues]);
+
+  const getIssueSwimlaneId = (issue: GreenhopperIssue): string | number => {
+    if (swimlaneStrategy === 'none') return 'all';
+    if (swimlaneStrategy === 'queries') return getIssueSwimlaneIdByQuery(issue, swimlanes);
+    if (swimlaneStrategy === 'parents') return issue.parentKey || '__none__';
+    if (swimlaneStrategy === 'assignees') return issue.assigneeName || issue.assignee || '__none__';
+    return issue.epicField?.summary || issue.epicField?.key || issue.epic || '__none__';
+  };
+
+  // Determina, para cada issue, exatamente UMA coluna — antes o fallback por nome
+  // de coluna ("A Fazer"/"Finalizado") era avaliado independente do match por
+  // statusIds, permitindo que a mesma issue contasse em duas colunas ao mesmo tempo.
+  const getColumnForIssue = (issue: GreenhopperIssue, allColumns: GreenhopperColumn[]): GreenhopperColumn | undefined => {
+    const byStatusId = allColumns.find(c =>
+      c.statusIds.includes(issue.statusId) || c.statusIds.includes(Number(issue.statusId))
+    );
+    if (byStatusId) return byStatusId;
+    // Fallback só quando nenhuma coluna mapeia o statusId explicitamente.
+    return allColumns.find(c =>
+      (c.name === 'A Fazer' && issue.statusCategory === 'new') ||
+      (c.name === 'Finalizado' && issue.statusCategory === 'done')
+    );
+  };
 
   const activeSprint = boardData.sprintsData?.sprints?.[0];
 
@@ -568,13 +691,8 @@ export function SquadScrumBoard({
           {/* Header das Colunas */}
           <div className="grid grid-cols-8 gap-3 mb-2 px-1">
             {columns.map(col => {
-              // Conta total de issues nesta coluna
-              const colIssues = filteredIssues.filter(i =>
-                col.statusIds.includes(i.statusId) ||
-                col.statusIds.includes(Number(i.statusId)) ||
-                (col.name === 'A Fazer' && i.statusCategory === 'new') ||
-                (col.name === 'Finalizado' && i.statusCategory === 'done')
-              );
+              // Conta total de issues nesta coluna (exatamente uma coluna por issue)
+              const colIssues = filteredIssues.filter(i => getColumnForIssue(i, columns)?.id === col.id);
               const count = colIssues.length;
               const hasMax = col.max !== null && col.max !== undefined && col.max > 0;
               const isOverWip = hasMax && count > (col.max as number);
@@ -616,10 +734,10 @@ export function SquadScrumBoard({
               RAIAS (SWIMLANES) & CARDS
              ═══════════════════════════════════════════════════════════════════ */}
           <div className="space-y-4">
-            {swimlanes.map(swimlane => {
+            {displaySwimlanes.map(swimlane => {
               const isCollapsed = collapsedSwimlanes[String(swimlane.id)];
               const swimlaneIssues = filteredIssues.filter(
-                i => getIssueSwimlaneId(i, swimlanes) === swimlane.id
+                i => getIssueSwimlaneId(i) === swimlane.id
               );
 
               return (
@@ -654,12 +772,7 @@ export function SquadScrumBoard({
                   {!isCollapsed && (
                     <div className="grid grid-cols-8 gap-3 p-3 min-h-[140px]">
                       {columns.map(col => {
-                        const colIssues = swimlaneIssues.filter(i =>
-                          col.statusIds.includes(i.statusId) ||
-                          col.statusIds.includes(Number(i.statusId)) ||
-                          (col.name === 'A Fazer' && i.statusCategory === 'new') ||
-                          (col.name === 'Finalizado' && i.statusCategory === 'done')
-                        );
+                        const colIssues = swimlaneIssues.filter(i => getColumnForIssue(i, columns)?.id === col.id);
 
                         return (
                           <div
@@ -861,8 +974,10 @@ export function SquadScrumBoard({
         open={isConfigModalOpen}
         onOpenChange={setIsConfigModalOpen}
         columns={columns}
+        issues={boardData.issuesData.issues}
         quickFilters={boardData.quickFiltersData.quickFilters}
         swimlanes={boardData.swimlanesData.swimlanes}
+        swimlaneStrategy={swimlaneStrategy}
         rapidViewId={rapidViewId}
         boardName={boardData.boardName}
         initialTab={configModalTab}
@@ -884,22 +999,45 @@ export function SquadScrumBoard({
             description: `${updatedFilters.length} filtros atualizados no quadro.`,
           });
         }}
-        onSaveSwimlanes={updatedSwimlanes => {
+        onSaveSwimlanes={(updatedSwimlanes, strategy) => {
           setBoardData(prev => ({
             ...prev,
             swimlanesData: { swimlanes: updatedSwimlanes },
           }));
+          setSwimlaneStrategy(strategy as typeof swimlaneStrategy);
           if (typeof window !== 'undefined') {
             try {
               localStorage.setItem(
                 `agile_swimlanes_${squadId}`,
                 JSON.stringify(updatedSwimlanes)
               );
+              localStorage.setItem(`agile_swimlane_strategy_${squadId}`, strategy);
             } catch {}
           }
           toast({
             title: 'Raias Atualizadas',
             description: `${updatedSwimlanes.length} raias configuradas no quadro.`,
+          });
+        }}
+        onSaveColumns={updatedColumns => {
+          const overrides: ColumnWipOverride[] = updatedColumns.map(c => ({ id: c.id, min: c.min, max: c.max }));
+          setBoardData(prev => ({
+            ...prev,
+            columnsData: {
+              columns: prev.columnsData.columns.map(c => {
+                const ov = overrides.find(o => String(o.id) === String(c.id));
+                return ov ? { ...c, min: ov.min, max: ov.max } : c;
+              }),
+            },
+          }));
+          if (typeof window !== 'undefined') {
+            try {
+              localStorage.setItem(`agile_columns_${squadId}`, JSON.stringify(overrides));
+            } catch {}
+          }
+          toast({
+            title: 'Colunas Atualizadas',
+            description: `${updatedColumns.length} colunas configuradas no quadro.`,
           });
         }}
       />
