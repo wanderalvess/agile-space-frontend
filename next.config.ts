@@ -27,12 +27,23 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    const extraConnectSources: string[] = [];
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      try {
+        const parsedUrl = new URL(process.env.NEXT_PUBLIC_API_URL);
+        extraConnectSources.push(parsedUrl.origin);
+        extraConnectSources.push(parsedUrl.origin.replace(/^http/, 'ws'));
+      } catch {
+        // ignore invalid URL
+      }
+    }
+
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.googleapis.com https://apis.google.com https://cdn.jsdelivr.net;
       worker-src 'self' blob: data: 'unsafe-inline' https://cdn.jsdelivr.net;
-      connect-src 'self' http://localhost:* ws://localhost:* https://ipapi.co https://*.googleapis.com https://cdn.jsdelivr.net https://api.github.com https://raw.githubusercontent.com https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://images.unsplash.com https://picsum.photos https://placehold.co;
-      img-src 'self' blob: data: https://images.unsplash.com https://picsum.photos https://placehold.co https://lh3.googleusercontent.com https://dl.dropboxusercontent.com;
+      connect-src 'self' http://localhost:* ws://localhost:* https://*.onrender.com wss://*.onrender.com https://ipapi.co https://*.googleapis.com https://cdn.jsdelivr.net https://api.github.com https://raw.githubusercontent.com https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://images.unsplash.com https://picsum.photos https://placehold.co ${extraConnectSources.join(' ')};
+      img-src 'self' blob: data: https://images.unsplash.com https://picsum.photos https://placehold.co https://lh3.googleusercontent.com https://dl.dropboxusercontent.com https://*.onrender.com;
       media-src 'self' https: data: blob:;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net;
       font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net;
