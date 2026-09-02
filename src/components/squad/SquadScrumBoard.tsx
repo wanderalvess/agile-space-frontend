@@ -151,7 +151,8 @@ export function SquadScrumBoard({
     if (typeof window === 'undefined') return 'queries';
     try {
       const saved = localStorage.getItem(`agile_swimlane_strategy_${squadId}`);
-      return (saved as any) || 'queries';
+      const validStrategies = ['queries', 'parents', 'assignees', 'epics', 'none'] as const;
+      return validStrategies.includes(saved as typeof validStrategies[number]) ? (saved as typeof validStrategies[number]) : 'queries';
     } catch { return 'queries'; }
   });
 

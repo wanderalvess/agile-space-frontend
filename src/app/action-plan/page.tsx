@@ -46,7 +46,8 @@ export default function ActionPlanHubPage() {
     if (team) return;
     const userTeam = userProfile?.squadId || userProfile?.team;
     if (userTeam) setTeam(userTeam);
-  }, [userProfile, team]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile]);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
