@@ -28,6 +28,7 @@ import {
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 
 import { useUserContext } from '@/context/UserContext';
+import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import { useSquadStore } from '@/store/useSquadStore';
 import { useToast } from '@/hooks/use-toast';
 import type { SquadMember } from '@/lib/types';
@@ -58,6 +59,7 @@ function RosterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const squadIdFromUrl = searchParams.get('squadId');
+  const cameFromOnboarding = searchParams.get('onboarding') === '1';
   const { userProfile } = useUserContext();
   const { toast } = useToast();
 
@@ -71,8 +73,36 @@ function RosterContent() {
     saveMemberCapacity,
     batchUpdateMembers,
     saveSquadConfig,
+    syncSquad,
+    isSyncing,
     isLoading
   } = useSquadStore();
+
+  const handleSyncFromJira = async () => {
+    const userIdentifier = userProfile?.id || userProfile?.email;
+    if (!userIdentifier || !activeSquadId) return;
+    const creds = await getJiraCredentials(userIdentifier);
+    if (!creds?.token) {
+      toast({
+        title: 'Token Jira não encontrado',
+        description: 'Informe seu Token de Acesso (PAT) nas configurações do Squad Hub antes de sincronizar.',
+        variant: 'destructive',
+      });
+      router.push('/squad');
+      return;
+    }
+    try {
+      await syncSquad(userIdentifier, activeSquadId);
+      await fetchMembers(activeSquadId, userIdentifier, {
+        email: userProfile?.email,
+        jiraAccountId: userProfile?.jiraAccountId,
+        name: userProfile?.name,
+      });
+      toast({ title: 'Sincronizado', description: 'Integrantes carregados a partir do Jira.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao sincronizar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    }
+  };
 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -522,6 +552,23 @@ function RosterContent() {
         </div>
       </div>
 
+      {cameFromOnboarding && (
+        <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/30 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-indigo-900 dark:text-indigo-100">Último passo do onboarding: horas do time</p>
+              <p className="text-xs text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">
+                Defina quantas horas por dia cada pessoa dedica ao squad. Isso alimenta Sprint Planner e capacidade. Pode pular e voltar aqui depois pelo Squad Hub.
+              </p>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => router.push('/')} className="h-9 text-xs font-bold rounded-xl shrink-0">
+            Pular por agora <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-sm">
@@ -731,7 +778,25 @@ function RosterContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-              {filteredMembers.length === 0 ? (
+              {members.length === 0 && !isLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center">
+                    <Users className="h-8 w-8 mx-auto text-slate-300 dark:text-slate-700 mb-2" />
+                    <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">Nenhum integrante carregado ainda.</p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                      Os integrantes vêm do quadro do Jira (assignees da sprint ativa). Sincronize uma vez pra montar a lista e depois ajuste as horas de cada pessoa aqui.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleSyncFromJira}
+                      disabled={isSyncing}
+                      className="mt-4 h-9 text-xs font-bold gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar com o Jira
+                    </Button>
+                  </td>
+                </tr>
+              ) : filteredMembers.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Users className="h-8 w-8 mx-auto text-slate-300 dark:text-slate-700 mb-2" />

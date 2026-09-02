@@ -13,6 +13,8 @@ import {
   Link as LinkIcon,
   CheckCircle2,
   FolderPlus,
+  ArrowLeft,
+  Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
-import { projectService, type ProjectDetail } from '@/services/projectService';
-import { CONTRIBUTOR_ROLES } from '@/lib/types';
+import { projectService, type ProjectDetail, type ProjectMemberRoleItem } from '@/services/projectService';
+import { Badge } from '@/components/ui/badge';
+import { CONTRIBUTOR_ROLES, SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
+import { useJiraSettings } from '@/hooks/useJiraSettings';
 
 function slugify(name: string) {
   return name
@@ -36,9 +40,10 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session, createProject, joinProject, switchProject } = useAuth();
-  const { mustOnboard, isInitializing } = useUserContext();
+  const { mustOnboard, isInitializing, userProfile } = useUserContext();
+  const { saveSettings: saveJiraSettings } = useJiraSettings();
 
-  const [loadingAction, setLoadingAction] = useState<'create' | 'join' | 'jira' | null>(null);
+  const [loadingAction, setLoadingAction] = useState<'create' | 'join' | 'jira' | 'confirm' | null>(null);
 
   // --- Criar do zero ---
   const [projectName, setProjectName] = useState('');
@@ -57,6 +62,7 @@ export default function OnboardingPage() {
   const [jiraDomain, setJiraDomain] = useState('');
   const [jiraKey, setJiraKey] = useState('');
   const [jiraToken, setJiraToken] = useState('');
+  const [syncedProject, setSyncedProject] = useState<ProjectDetail | null>(null);
 
   // GUARDA DE ACESSO: Se o usuário já estiver configurado com projeto/squad, não permanece no onboarding.
   useEffect(() => {
@@ -93,8 +99,8 @@ export default function OnboardingPage() {
         segmentName: segmentName.trim() || undefined,
         tribeName: tribeName.trim() || undefined,
       });
-      toast({ title: 'Projeto criado com sucesso!', description: `Você é o Agile Master de ${projectKey.trim()}.` });
-      router.push('/');
+      toast({ title: 'Projeto criado com sucesso!', description: `Você é o Agile Master de ${projectKey.trim()}. Próximo passo: configurar as horas do time.` });
+      router.push('/squad/roster?onboarding=1');
     } catch (err: any) {
       toast({ title: 'Não foi possível criar o projeto', description: err.message, variant: 'destructive' });
     } finally {
@@ -129,26 +135,49 @@ export default function OnboardingPage() {
     setLoadingAction('jira');
     try {
       const key = jiraKey.trim().toUpperCase();
-      await projectService.syncProjectProfields(key, jiraDomain.trim(), jiraToken.trim());
-      try {
-        await switchProject(key);
-        toast({ title: 'Sincronizado e vinculado!', description: `Você já aparece como membro de ${key}.` });
-        router.push('/');
-      } catch {
-        toast({
-          title: 'Projeto sincronizado',
-          description: 'Seu e-mail não apareceu entre os membros do Jira. Selecione-o manualmente no cartão "Entrar em Projeto".',
-        });
-        const fresh = await projectService.getAllProjects();
-        setAllProjects(fresh);
-        setSelectedProjectKey(key);
-      }
+      const preview = await projectService.previewProjectProfields(key, jiraDomain.trim(), jiraToken.trim());
+      setSyncedProject(preview);
+      toast({ title: 'Dados encontrados no Jira', description: 'Nada foi gravado ainda. Confira e confirme pra importar.' });
     } catch (err: any) {
       toast({ title: 'Falha na sincronização', description: err.message, variant: 'destructive' });
     } finally {
       setLoadingAction(null);
     }
   };
+
+  const handleConfirmSynced = async () => {
+    if (!syncedProject) return;
+    setLoadingAction('confirm');
+    try {
+      // Só agora grava projeto + membros no banco.
+      await projectService.syncProjectProfields(syncedProject.id, jiraDomain.trim(), jiraToken.trim());
+      await switchProject(syncedProject.id);
+      // Guarda o PAT informado no onboarding pra sincronização do squad (roster/horas) já funcionar.
+      if (jiraToken.trim()) {
+        await saveJiraSettings({ domain: jiraDomain.trim(), token: jiraToken.trim() });
+      }
+      const leadsPeople = !!myMembership && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(myMembership.roleName);
+      toast({
+        title: 'Vinculado!',
+        description: leadsPeople
+          ? `Você entrou em ${syncedProject.id} como ${myMembership!.roleName}. Próximo passo: configurar as horas do time.`
+          : `Você já aparece como membro de ${syncedProject.id}.`,
+      });
+      router.push(leadsPeople ? '/squad/roster?onboarding=1' : '/');
+    } catch (err: any) {
+      toast({ title: 'Não foi possível entrar no projeto', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleDiscardSynced = () => setSyncedProject(null);
+
+  const myEmail = (userProfile?.email || '').toLowerCase().trim();
+  const isMe = (m: ProjectMemberRoleItem) =>
+    (!!userProfile?.id && m.userId === userProfile.id) ||
+    (!!myEmail && (m.email || '').toLowerCase().trim() === myEmail);
+  const myMembership = syncedProject?.members.find(isMe);
 
   const selectedProjectLabel = useMemo(() => {
     const p = allProjects.find(p => p.id === selectedProjectKey);
@@ -187,7 +216,107 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        {/* BENTO GRID - 3 CARTÕES */}
+        {/* REVISÃO PÓS-SYNC DO JIRA */}
+        {syncedProject ? (
+          <div className="w-full max-w-4xl bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 sm:p-7 shadow-lg flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-black tracking-wider text-purple-500 bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full uppercase inline-block">
+                  Importado do Jira
+                </span>
+                <h2 className="text-xl font-extrabold font-headline text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Confira o que importamos
+                </h2>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Prévia do Profields de <span className="font-mono font-bold">{syncedProject.id}</span>. Nada foi gravado ainda: só ao confirmar o projeto e as pessoas entram no sistema.
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={handleDiscardSynced} disabled={loadingAction !== null} className="text-xs gap-1.5 shrink-0">
+                <ArrowLeft className="w-3.5 h-3.5" /> Voltar
+              </Button>
+            </div>
+
+            {/* Dados do projeto */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Projeto', value: syncedProject.name },
+                { label: 'Segmento', value: syncedProject.segmentName },
+                { label: 'Tribo', value: syncedProject.tribeName },
+                { label: 'Localidade', value: syncedProject.locality },
+                { label: 'VP', value: syncedProject.vicePresident },
+                { label: 'Área VP', value: syncedProject.vpArea },
+                { label: 'Status', value: syncedProject.status },
+                { label: 'Dev Team', value: syncedProject.devTeamSize ? `${syncedProject.devTeamSize} pessoas` : '' },
+              ].map(f => (
+                <div key={f.label} className="bg-muted/40 border border-border/40 rounded-xl px-3 py-2 min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{f.label}</div>
+                  <div className={`text-sm font-semibold truncate ${f.value ? 'text-foreground' : 'text-muted-foreground/60 italic'}`} title={f.value || undefined}>
+                    {f.value || 'não informado'}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Membros encontrados */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" /> Pessoas encontradas ({syncedProject.members.length})
+                </Label>
+              </div>
+              {syncedProject.members.length === 0 ? (
+                <div className="text-xs text-muted-foreground bg-muted/40 border border-border/40 rounded-xl p-4 text-center">
+                  O Profields não retornou nenhuma pessoa cadastrada para este projeto.
+                </div>
+              ) : (
+                <div className="border border-border/40 rounded-xl overflow-hidden">
+                  <div className="max-h-72 overflow-y-auto divide-y divide-border/40">
+                    {syncedProject.members.map((m, i) => {
+                      const me = isMe(m);
+                      return (
+                        <div key={m.id || `${m.roleKey}-${m.email || m.displayName}-${i}`} className={`flex items-center gap-3 px-3 py-2 text-sm ${me ? 'bg-primary/5' : ''}`}>
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0 overflow-hidden">
+                            {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" /> : (m.displayName || '?').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold truncate flex items-center gap-2">
+                              {m.displayName}
+                              {me && <Badge className="text-[9px] px-1.5 py-0 h-4">Você</Badge>}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground truncate">{m.email || 'sem e-mail'}</div>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0 gap-1">
+                            {m.leadership && <Crown className="w-3 h-3 text-amber-500" />}
+                            {m.roleName}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {myMembership ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Você entrará como <span className="font-bold text-foreground">{myMembership.roleName}</span>.
+                  {myMembership.roleKey === 'AGILE_MASTER' && ' Se você não é Agile Master deste projeto no Jira, esse vínculo foi automático (seu e-mail não bateu com ninguém do Profields). Peça a um administrador para ajustar depois.'}
+                </p>
+              ) : (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  Seu e-mail ({myEmail || 'sem e-mail'}) não apareceu entre as pessoas do Profields. Ao confirmar, você entrará no projeto sem papel definido.
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <Button variant="outline" onClick={handleDiscardSynced} disabled={loadingAction !== null} className="h-11 rounded-xl text-xs font-bold uppercase tracking-wider">
+                Corrigir dados
+              </Button>
+              <Button onClick={handleConfirmSynced} disabled={loadingAction !== null} className="h-11 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold uppercase tracking-wider gap-2">
+                {loadingAction === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span>Confirmar e importar</span><ArrowRight className="w-4 h-4" /></>}
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 w-full mt-0">
 
           {/* CARTÃO 1: CRIAR NOVO PROJETO */}
@@ -428,6 +557,7 @@ export default function OnboardingPage() {
           </div>
 
         </div>
+        )}
 
       </div>
     </div>

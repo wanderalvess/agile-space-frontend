@@ -7,6 +7,33 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+async function callProfieldsSync(path: string, domain?: string, jiraToken?: string): Promise<ProjectDetail> {
+  const params = new URLSearchParams();
+  if (domain) params.append('domain', domain);
+
+  const headers: Record<string, string> = {};
+  if (jiraToken) {
+    headers['X-Jira-Token'] = jiraToken;
+  }
+
+  const res = await authFetch(`${API_BASE_URL}${path}?${params.toString()}`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => '');
+    let errorMsg = errorText;
+    try {
+      const json = JSON.parse(errorText);
+      errorMsg = json.message || json.error || errorText;
+    } catch {}
+    throw new Error(errorMsg || `Erro ao sincronizar projeto Profields (${res.status})`);
+  }
+
+  return res.json();
+}
+
 export interface ProjectMemberRoleItem {
   id?: string;
   projectId: string;
@@ -129,30 +156,12 @@ export const projectService = {
    * Sincroniza um projeto via API Profields do Jira TOTVS
    */
   async syncProjectProfields(projectKey: string, domain?: string, jiraToken?: string): Promise<ProjectDetail> {
-    const params = new URLSearchParams();
-    if (domain) params.append('domain', domain);
+    return callProfieldsSync(`/projects/sync/${encodeURIComponent(projectKey)}`, domain, jiraToken);
+  },
 
-    const headers: Record<string, string> = {};
-    if (jiraToken) {
-      headers['X-Jira-Token'] = jiraToken;
-    }
-
-    const res = await authFetch(`${API_BASE_URL}/projects/sync/${encodeURIComponent(projectKey)}?${params.toString()}`, {
-      method: 'POST',
-      headers,
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => '');
-      let errorMsg = errorText;
-      try {
-        const json = JSON.parse(errorText);
-        errorMsg = json.message || json.error || errorText;
-      } catch {}
-      throw new Error(errorMsg || `Erro ao sincronizar projeto Profields (${res.status})`);
-    }
-
-    return res.json();
+  /** Dry-run do sync: devolve o que seria importado do Profields sem gravar nada. */
+  async previewProjectProfields(projectKey: string, domain?: string, jiraToken?: string): Promise<ProjectDetail> {
+    return callProfieldsSync(`/projects/sync/${encodeURIComponent(projectKey)}/preview`, domain, jiraToken);
   },
 
   /**
