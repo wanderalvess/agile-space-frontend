@@ -32,6 +32,7 @@ import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import { useSquadStore } from '@/store/useSquadStore';
 import { useToast } from '@/hooks/use-toast';
 import type { SquadMember } from '@/lib/types';
+import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -60,10 +61,23 @@ function RosterContent() {
   const searchParams = useSearchParams();
   const squadIdFromUrl = searchParams.get('squadId');
   const cameFromOnboarding = searchParams.get('onboarding') === '1';
-  const { userProfile } = useUserContext();
+  const { userProfile, isInitializing } = useUserContext();
   const { toast } = useToast();
 
+  const role = userProfile?.role as string | undefined;
+  const isPeopleAdmin = !!role && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(role);
+
   const activeSquadId = squadIdFromUrl || userProfile?.squadId || '';
+
+  // Guarda de acesso: gestão de horas/capacidade é dado sensível de pessoas — mesma
+  // política de SQUAD_PEOPLE_ADMIN_ROLES já usada para exibir o botão em /squad.
+  // Sem isso, qualquer usuário logado que soubesse a URL editava a capacidade alheia.
+  useEffect(() => {
+    if (!isInitializing && userProfile && !isPeopleAdmin) {
+      const timer = setTimeout(() => router.replace('/squad'), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isInitializing, userProfile, isPeopleAdmin, router]);
 
   const {
     config,
@@ -131,6 +145,44 @@ function RosterContent() {
     existingMember?: SquadMember;
   }>>([]);
   const [isApplyingImport, setIsApplyingImport] = useState(false);
+
+  // Cadastro manual — squad criado do zero (sem board no Jira) não tem assignees
+  // pra sincronizar, então precisa de um jeito de colocar gente na lista sem depender
+  // do Jira. jiraAccountId sintético porque a chave da tabela é essa coluna.
+  const [isManualAddOpen, setIsManualAddOpen] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualEmail, setManualEmail] = useState('');
+  const [manualRole, setManualRole] = useState('Developer');
+  const [manualCapacity, setManualCapacity] = useState(8);
+  const [isSavingManual, setIsSavingManual] = useState(false);
+
+  const handleManualAddMember = async () => {
+    if (!manualName.trim() || !activeSquadId) {
+      toast({ title: 'Informe o nome do integrante', variant: 'destructive' });
+      return;
+    }
+    const syntheticId = `manual-${activeSquadId}-${manualName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
+    setIsSavingManual(true);
+    try {
+      await saveMemberCapacity(activeSquadId, syntheticId, {
+        displayName: manualName.trim(),
+        email: manualEmail.trim() || undefined,
+        role: manualRole,
+        capacityHoursPerDay: manualCapacity || 8,
+        overrideType: 'MANUAL_OVERRIDE',
+      });
+      toast({ title: 'Integrante adicionado', description: `${manualName.trim()} entrou na equipe. Ajuste as horas se precisar.` });
+      setManualName('');
+      setManualEmail('');
+      setManualRole('Developer');
+      setManualCapacity(8);
+      setIsManualAddOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Não foi possível adicionar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsSavingManual(false);
+    }
+  };
 
   // Load squad & members on mount
   useEffect(() => {
@@ -490,6 +542,25 @@ function RosterContent() {
     }
   };
 
+  if (isInitializing) {
+    return <div className="p-8 text-center text-xs font-bold text-slate-400">Carregando...</div>;
+  }
+
+  if (userProfile && !isPeopleAdmin) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4">
+        <Shield className="h-14 w-14 text-red-500 mb-4" />
+        <h1 className="text-xl font-black uppercase tracking-tight mb-2">Acesso Restrito</h1>
+        <p className="text-sm font-medium text-slate-500 max-w-md text-center mb-6">
+          Gestão de horas e capacidade é reservada a quem lidera o squad (Tech Lead, Scrum Master, People Lead, Agile Master, Product Owner, Tribe Lead). Seu papel atual é {userProfile.role || 'não identificado'}.
+        </p>
+        <Button onClick={() => router.replace('/squad')} className="h-auto px-6 py-2.5 rounded-xl shadow-md text-xs uppercase tracking-wider">
+          Voltar ao Squad Hub
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50/60 dark:bg-slate-950 p-4 lg:p-8 space-y-8">
       {/* Top Header & Breadcrumbs */}
@@ -549,6 +620,14 @@ function RosterContent() {
               <Upload className="h-4 w-4" /> Importar Planilha
             </div>
           </label>
+
+          <Button
+            size="sm"
+            onClick={() => setIsManualAddOpen(true)}
+            className="h-9 px-3.5 text-xs font-bold gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+          >
+            <UserPlus className="h-4 w-4" /> Adicionar Integrante
+          </Button>
         </div>
       </div>
 
@@ -786,14 +865,24 @@ function RosterContent() {
                     <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                       Os integrantes vêm do quadro do Jira (assignees da sprint ativa). Sincronize uma vez pra montar a lista e depois ajuste as horas de cada pessoa aqui.
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={handleSyncFromJira}
-                      disabled={isSyncing}
-                      className="mt-4 h-9 text-xs font-bold gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
-                      <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar com o Jira
-                    </Button>
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      <Button
+                        size="sm"
+                        onClick={handleSyncFromJira}
+                        disabled={isSyncing}
+                        className="h-9 text-xs font-bold gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar com o Jira
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setIsManualAddOpen(true)}
+                        className="h-9 text-xs font-bold gap-1.5 rounded-xl"
+                      >
+                        <UserPlus className="h-4 w-4" /> Ou adicionar manualmente
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : filteredMembers.length === 0 ? (
@@ -1027,6 +1116,62 @@ function RosterContent() {
               className="rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
             >
               <CheckCircle2 className="h-4 w-4" /> {isApplyingImport ? 'Aplicando...' : `Confirmar e Importar (${importedRows.length})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cadastro Manual de Integrante — squads criados do zero não têm board no Jira pra sincronizar */}
+      <Dialog open={isManualAddOpen} onOpenChange={setIsManualAddOpen}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <UserPlus className="h-5 w-5" /> Adicionar Integrante Manualmente
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Pra squads sem board sincronizado ainda, ou pessoas que não aparecem como assignee no Jira.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 my-2">
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-500">Nome</Label>
+              <Input value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Ex: Maria Silva" className="h-10 text-sm rounded-xl" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-500">E-mail (opcional)</Label>
+              <Input value={manualEmail} onChange={e => setManualEmail(e.target.value)} placeholder="maria@empresa.com" className="h-10 text-sm rounded-xl" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">Cargo</Label>
+                <Select value={manualRole} onValueChange={setManualRole}>
+                  <SelectTrigger className="h-10 text-sm rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SQUAD_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">Horas/dia</Label>
+                <Input
+                  type="number" min={1} max={16}
+                  value={manualCapacity}
+                  onChange={e => setManualCapacity(Number(e.target.value) || 8)}
+                  className="h-10 text-sm rounded-xl"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsManualAddOpen(false)} disabled={isSavingManual} className="rounded-xl text-xs font-bold">
+              Cancelar
+            </Button>
+            <Button onClick={handleManualAddMember} disabled={isSavingManual} className="rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
+              <UserPlus className="h-4 w-4" /> {isSavingManual ? 'Adicionando...' : 'Adicionar'}
             </Button>
           </DialogFooter>
         </DialogContent>
