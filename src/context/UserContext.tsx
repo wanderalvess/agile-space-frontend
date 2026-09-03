@@ -149,6 +149,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
                   squadId: currentSquadMatch.squadId,
                   role: isCurrentAdmin ? 'admin' : matchedRole
                 } : null);
+                if (userProfile.squadId !== currentSquadMatch.squadId && userProfile.id) {
+                  userApi.saveUser({
+                    id: userProfile.id,
+                    squadId: currentSquadMatch.squadId,
+                  }).catch(err => console.warn("Aviso ao persistir squadId no backend:", err));
+                }
               }
             }
           }

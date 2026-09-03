@@ -377,39 +377,13 @@ function SquadHubContent() {
           </div>
         }
         actions={
-          <div className="flex items-center gap-2">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-              <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1 rounded-xl h-8 gap-1 hidden md:inline-flex border border-slate-200/50 dark:border-slate-800/50">
-                <TabsTrigger value="overview" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Visão Geral & Fluxos
-                </TabsTrigger>
-                <TabsTrigger value="board" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold">
-                  Quadro Scrum
-                </TabsTrigger>
-                <TabsTrigger value="plans" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-blue-600 dark:text-blue-400">
-                  Plans / Cronograma
-                </TabsTrigger>
-                <TabsTrigger value="pulse" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Squad Pulse & Métricas
-                </TabsTrigger>
-                <TabsTrigger value="daily" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Daily & Timesheet
-                </TabsTrigger>
-                <TabsTrigger value="performance" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Performance
-                </TabsTrigger>
-                <TabsTrigger value="dashboards" className="text-[9.5px] font-black uppercase tracking-wider rounded-lg h-6 px-3 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Meu Dashboard
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans') && (
               <Select
                 value={viewingSprintId || 'CURRENT'}
                 onValueChange={(val) => selectSprint(squadId, val === 'CURRENT' ? null : val, { isLeadershipViewer, myClaimedAssigneeId: myClaim?.jiraAccountId })}
               >
-                <SelectTrigger className="h-8 w-44 text-[10px] font-bold rounded-xl">
+                <SelectTrigger className="h-8 w-36 sm:w-44 text-[10px] font-bold rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800">
                   <SelectValue placeholder="Selecione a sprint" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl text-[10px]">
@@ -426,44 +400,55 @@ function SquadHubContent() {
             )}
 
             <Button
-              size="icon" variant="outline" className="h-8 w-8" onClick={() => handleSync()}
+              size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => handleSync()}
               disabled={isSyncing || viewingSprintId !== null}
               title={viewingSprintId ? 'Volte para "Atual" pra sincronizar' : 'Sincronizar métricas agora com o Jira'}
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             </Button>
             {isPeopleAdmin && (
-              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => router.push('/squad/roster')} title="Gestão de Roster & Calibração de Capacidade">
+              <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => router.push('/squad/roster')} title="Gestão de Roster & Calibração de Capacidade">
                 <UserCog className="h-3.5 w-3.5" />
               </Button>
             )}
-            <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setIsSettingsOpen(true)} title="Configurações do squad">
+            <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsSettingsOpen(true)} title="Configurações do squad">
               <Settings2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         }
       >
-        <main className="flex-1 w-full p-4 md:p-6 overflow-y-auto flex flex-col gap-6">
-
-          {/* Abas Mobile Trigger */}
-          <div className="flex md:hidden overflow-x-auto gap-1 pb-2 border-b border-slate-200 dark:border-slate-800">
-            {[
-              { id: 'overview', label: 'Visão Geral' },
-              { id: 'plans', label: 'Plans (Jira)' },
-              { id: 'pulse', label: 'Squad Pulse' },
-              { id: 'daily', label: 'Daily' },
-              { id: 'performance', label: 'Performance' },
-              { id: 'dashboards', label: 'Dashboards' },
-            ].map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${activeTab === t.id ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
-              >
-                {t.label}
-              </button>
-            ))}
+        {/* SUB-HEADER: BARRA DE NAVEGAÇÃO DE ABAS DO SQUAD HUB */}
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 md:px-6 py-2 flex items-center justify-between gap-3 shrink-0 sticky top-0 z-30 shadow-2xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar w-full py-0.5">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+              <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl h-9 gap-1 inline-flex border border-slate-200/60 dark:border-slate-700/60">
+                <TabsTrigger value="overview" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
+                  Visão Geral & Fluxos
+                </TabsTrigger>
+                <TabsTrigger value="board" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold">
+                  Quadro Scrum
+                </TabsTrigger>
+                <TabsTrigger value="plans" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-blue-600 dark:text-blue-400">
+                  Plans / Cronograma
+                </TabsTrigger>
+                <TabsTrigger value="pulse" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
+                  Squad Pulse & Métricas
+                </TabsTrigger>
+                <TabsTrigger value="daily" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
+                  Daily & Timesheet
+                </TabsTrigger>
+                <TabsTrigger value="performance" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
+                  Performance
+                </TabsTrigger>
+                <TabsTrigger value="dashboards" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
+                  Meu Dashboard
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
+        </div>
+
+        <main className="flex-1 w-full p-4 md:p-6 overflow-y-auto flex flex-col gap-6">
 
           {/* ═══════════════════════════════════════════════════════════════════
               ABA 1: VISÃO GERAL & FLUXOS DE USO (NOVO HUB 360º)

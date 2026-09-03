@@ -93,7 +93,7 @@ export function RoomHeader({
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 mr-2">
           <Link 
             href="/" 
-            className="p-2 rounded-xl hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 group shrink-0 relative z-50"
+            className="p-2 rounded-xl hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 group shrink-0"
             title="Ir para Home"
             aria-label="Voltar para a página inicial"
           >

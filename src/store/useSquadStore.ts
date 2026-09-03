@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { squadApi } from '@/app/squad/api';
+import { userApi } from '@/app/users/api';
 import { fetchAllJiraIssues, type JiraIssue } from '@/services/jiraService';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import type {
@@ -540,6 +541,10 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   syncSquad: async (uid, squadId, forceFull) => {
     set({ isSyncing: true, syncError: null });
     try {
+      if (uid && squadId && squadId !== 'Sem Time') {
+        userApi.saveUser({ id: uid, squadId }).catch(() => {});
+      }
+
       // Config do squad: agora vem da API REST
       let config = await squadApi.getSquad(squadId);
       const defaultProjKey = config?.jiraProjectKey && config.jiraProjectKey !== 'MISSI'

@@ -40,7 +40,7 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session, createProject, joinProject, switchProject } = useAuth();
-  const { mustOnboard, isInitializing, userProfile } = useUserContext();
+  const { mustOnboard, isInitializing, userProfile, updateProfile } = useUserContext();
   const { saveSettings: saveJiraSettings } = useJiraSettings();
 
   const [loadingAction, setLoadingAction] = useState<'create' | 'join' | 'jira' | 'confirm' | null>(null);
@@ -48,6 +48,7 @@ export default function OnboardingPage() {
   // --- Criar do zero ---
   const [projectName, setProjectName] = useState('');
   const [projectKey, setProjectKey] = useState('');
+  const [squadName, setSquadName] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
   const [segmentName, setSegmentName] = useState('');
   const [tribeName, setTribeName] = useState('');
@@ -57,6 +58,7 @@ export default function OnboardingPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [selectedProjectKey, setSelectedProjectKey] = useState('');
   const [joinRole, setJoinRole] = useState('');
+  const [joinSquad, setJoinSquad] = useState('');
 
   // --- Jira ---
   const [jiraDomain, setJiraDomain] = useState('');
@@ -93,13 +95,17 @@ export default function OnboardingPage() {
     }
     setLoadingAction('create');
     try {
+      const finalSquad = squadName.trim() || projectKey.trim();
       await createProject({
         id: projectKey.trim(),
         name: projectName.trim(),
         segmentName: segmentName.trim() || undefined,
         tribeName: tribeName.trim() || undefined,
       });
-      toast({ title: 'Projeto criado com sucesso!', description: `Você é o Agile Master de ${projectKey.trim()}. Próximo passo: configurar as horas do time.` });
+      if (finalSquad) {
+        await updateProfile({ squadId: finalSquad });
+      }
+      toast({ title: 'Projeto criado com sucesso!', description: `Você é o Agile Master de ${projectKey.trim()} (Squad ${finalSquad}). Próximo passo: configurar as horas do time.` });
       router.push('/squad/roster?onboarding=1');
     } catch (err: any) {
       toast({ title: 'Não foi possível criar o projeto', description: err.message, variant: 'destructive' });
@@ -116,7 +122,11 @@ export default function OnboardingPage() {
     }
     setLoadingAction('join');
     try {
+      const finalSquad = joinSquad.trim() || selectedProjectKey.trim();
       await joinProject(selectedProjectKey, joinRole);
+      if (finalSquad) {
+        await updateProfile({ squadId: finalSquad });
+      }
       toast({ title: 'Pronto!', description: `Você entrou em ${selectedProjectKey} como ${joinRole}.` });
       router.push('/');
     } catch (err: any) {
@@ -362,6 +372,17 @@ export default function OnboardingPage() {
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Squad / Time (Opcional)</Label>
+                  <Input
+                    placeholder={projectKey ? `Mesmo do projeto (${projectKey})` : 'Ex: FENIX ou DDWMISSI'}
+                    value={squadName}
+                    onChange={(e) => setSquadName(e.target.value)}
+                    className="h-10 text-sm rounded-xl bg-background/50 border-border"
+                  />
+                  <p className="text-[10.5px] text-muted-foreground">Se não preenchido, a squad será igual à chave do projeto.</p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-[11px] font-semibold text-muted-foreground">Segmento</Label>
@@ -446,6 +467,17 @@ export default function OnboardingPage() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Squad / Time (Opcional)</Label>
+                      <Input
+                        placeholder={selectedProjectKey ? `Mesmo do projeto (${selectedProjectKey})` : 'Ex: DDWMISSI ou deixe em branco'}
+                        value={joinSquad}
+                        onChange={(e) => setJoinSquad(e.target.value)}
+                        className="h-10 text-sm rounded-xl bg-background/50 border-border"
+                      />
+                      <p className="text-[10.5px] text-muted-foreground">Se não preenchido, a squad será igual ao projeto selecionado.</p>
                     </div>
 
                     <div className="space-y-1">
