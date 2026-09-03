@@ -107,30 +107,32 @@ export function PromptDashboard({
       publicResponse.content.forEach(item => map.set(item.id, item));
       myResponseContent.forEach(item => map.set(item.id, item));
 
-      const merged = Array.from(map.values()).map(item => ({
-        ...item,
-        isFavorited: favoriteIds.has(item.id)
-      }));
-
-      setRawPrompts(merged);
+      setRawPrompts(Array.from(map.values()));
     } catch (err: any) {
       console.error('Erro ao buscar prompts', err);
       toast.error('Não foi possível carregar os itens do Prompt Hub');
     } finally {
       setIsLoading(false);
     }
-  }, [session, isPublicView, favoriteIds]);
+  }, [session, isPublicView]);
 
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  /** isFavorited é derivado do Set local, não persistido no item — mantém
+   *  fora de loadData para o favorito não disparar refetch da rede. */
+  const prompts = useMemo(
+    () => rawPrompts.map(item => ({ ...item, isFavorited: favoriteIds.has(item.id) })),
+    [rawPrompts, favoriteIds]
+  );
 
   /** Itens que o usuário pode ver, já com escopo e favoritos aplicados — mas antes
    *  do filtro de tipo, para que a contagem de cada categoria não zere ao clicar. */
   const scopedPrompts = useMemo(() => {
     const searchTerm = filters.search.trim().toLowerCase();
 
-    return rawPrompts.filter(item => {
+    return prompts.filter(item => {
       const isOwner = item.authorId === session?.id;
       if (!isOwner && item.visibility !== 'public') return false;
 
@@ -161,7 +163,7 @@ export function PromptDashboard({
 
       return true;
     });
-  }, [rawPrompts, filters.visibility, filters.onlyFavorites, filters.tags, filters.search, session?.id]);
+  }, [prompts, filters.visibility, filters.onlyFavorites, filters.tags, filters.search, session?.id]);
 
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -292,7 +294,6 @@ export function PromptDashboard({
     try {
       localStorage.setItem(`favorites_${session.id}`, JSON.stringify(Array.from(newFavorites)));
       setFavoriteIds(newFavorites);
-      setRawPrompts(prev => prev.map(p => p.id === id ? { ...p, isFavorited: !wasFavorited } : p));
       toast.success(wasFavorited ? 'Removido dos favoritos' : 'Adicionado aos favoritos');
     } catch (err: any) {
       console.error(err);
@@ -345,7 +346,7 @@ export function PromptDashboard({
   };
 
   const currentViewingPrompt = viewingPrompt
-    ? rawPrompts?.find(p => p.id === viewingPrompt.id) || viewingPrompt
+    ? prompts?.find(p => p.id === viewingPrompt.id) || viewingPrompt
     : null;
 
   if (isLoading) {
