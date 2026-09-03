@@ -37,6 +37,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# modelo de embedding local (transformers.js) baixado em disco
+/.cache/transformers-cache
+
 .genkit/*
 .env*
 

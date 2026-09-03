@@ -160,27 +160,38 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
     const searchQuery = cleanKeywords || userQuery;
 
     try {
-      // 1. Busca documentos no PostgreSQL via Spring Boot REST API (/api/knowledge)
+      // 1. Busca semântica local (embedding via transformers.js, sem LLM) na Base de Conhecimento.
+      // Usa userQuery bruto, não searchQuery sem stopwords — stopword-stripping ajuda
+      // LIKE/CQL, atrapalha um modelo de embedding, que quer frase natural completa.
+      const loadRecentDocsFallback = async (): Promise<ExtractedDoc[]> => {
+        const allKbResponse = await knowledgeApi.listDocuments('', [], 0, 20);
+        return (allKbResponse?.content || []).map(doc => ({
+          ...doc,
+          tech: analyzeDocument(doc.content, doc.title, userQuery)
+        }));
+      };
+
       let localResults: ExtractedDoc[] = [];
       try {
-        const kbResponse = await knowledgeApi.listDocuments(searchQuery, [], 0, 10);
+        const kbResponse = await knowledgeApi.semanticSearch(userQuery, 10);
         if (kbResponse?.content && kbResponse.content.length > 0) {
           localResults = kbResponse.content.map(doc => ({
             ...doc,
             tech: analyzeDocument(doc.content, doc.title, userQuery)
           }));
         } else {
-          // Se não encontrou por palavra-chave restrita, carrega a base recente para o RAG analisar
-          const allKbResponse = await knowledgeApi.listDocuments('', [], 0, 20);
-          if (allKbResponse?.content) {
-            localResults = allKbResponse.content.map(doc => ({
-              ...doc,
-              tech: analyzeDocument(doc.content, doc.title, userQuery)
-            }));
-          }
+          // Nada acima do threshold de similaridade: carrega a base recente para o RAG analisar
+          localResults = await loadRecentDocsFallback();
         }
       } catch (e) {
-        console.error('Erro ao consultar Base de Conhecimento PostgreSQL:', e);
+        // Busca semântica fora do ar (rota fria, backend indisponível etc.) — cai pro
+        // mesmo fallback de "docs recentes" do caminho vazio, não deixa localResults vazio à toa.
+        console.error('Erro ao consultar Base de Conhecimento (busca semântica):', e);
+        try {
+          localResults = await loadRecentDocsFallback();
+        } catch (fallbackError) {
+          console.error('Erro ao consultar Base de Conhecimento (fallback):', fallbackError);
+        }
       }
 
       // 2. Busca no TDN se configurado

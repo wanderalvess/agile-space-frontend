@@ -23,6 +23,9 @@ export interface KnowledgeDocument {
   deletedBy?: string;
   // Contador de visualizações (persistido no Firestore; usado nas métricas).
   views?: number;
+  // Embedding local (transformers.js) para busca semântica — write-only no backend,
+  // nunca vem preenchido em respostas de listagem/GET.
+  embedding?: number[];
 }
 
 export interface ChatMessage {
