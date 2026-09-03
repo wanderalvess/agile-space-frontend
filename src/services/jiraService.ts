@@ -47,6 +47,7 @@ export interface JiraIssue {
   // objetos (Jira Cloud) ou array de strings toString() estilo Greenhopper
   // (Jira Server/DC) — quem consome decide como parsear.
   sprintRaw?: unknown;
+  subtaskKeys?: string[];
 }
 
 /**
@@ -561,6 +562,9 @@ export const fetchJiraIssues = async (
       targetEnd: toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end) || (typeof fields?.updated === 'string' ? fields.updated.substring(0, 10) : ''),
       parentKey: toSafeString(fields?.parent?.key || (typeof fields?.parent === 'string' ? fields.parent : '')),
       parentTitle: toSafeString(fields?.parent?.fields?.summary),
+      subtaskKeys: Array.isArray(fields?.subtasks)
+        ? fields.subtasks.map((st: any) => toSafeString(st?.key)).filter(Boolean)
+        : undefined,
       labels: fields?.labels || [],
       points,
       planned: parsePlannedFromTitle(fields?.summary || ''),
@@ -643,51 +647,80 @@ export const fetchAllJiraIssues = async (
 };
 
 /**
- * Preenche problema/solução/vídeo a partir da subtarefa "Codificação" quando a
- * issue principal não trouxe essa informação (nem na descrição, nem no
- * comentário dela) — nesse Jira, quem carrega o relato técnico é a issue
- * filha nativa (fields.parent aponta pra história/issue principal), não a
- * história em si. Ver SQUAD_SYNC_FIELDS_BASE em useSquadStore.ts, que já
- * assume essa mesma convenção pro rastreio de hora.
+ * Preenche problema/solução/vídeo a partir de subtarefas (ex: "Codificação", "Desenvolvimento",
+ * "Sub-task", etc.) quando a issue principal não trouxe essa informação.
+ * NÃO força issuetype = "Codificação" na JQL porque o nome da issue type de subtarefa
+ * varia entre projetos/instâncias do Jira (e gerava erro 400 "O valor 'Codificação' não existe para o campo 'issuetype'").
+ * parent in (...) já filtra diretamente e exclusivamente as subtarefas dessas issues pai.
  */
 export const enrichWithCodificacaoChildren = async (
   domain: string, token: string, issues: JiraIssue[]
 ): Promise<JiraIssue[]> => {
-  const pending = issues.filter(i => !i.problem || !i.solution);
+  const pending = issues.filter(i => {
+    if (i.problem && i.solution) return false;
+    // Se mapeamos as subtarefas da issue e sabemos que ela tem 0 subtarefas, podemos pular
+    if (Array.isArray(i.subtaskKeys) && i.subtaskKeys.length === 0) return false;
+    return true;
+  });
   if (pending.length === 0) return issues;
 
-  const childByParent = new Map<string, JiraIssue>();
-  // 40 chaves por chamada mantém a URL da GET /search dentro de um tamanho
-  // seguro (Jira aceita bem mais no IN(), o limite prático é a URL).
-  for (let i = 0; i < pending.length; i += 40) {
-    const chunkKeys = pending.slice(i, i + 40).map(p => p.key);
-    const jql = `parent in (${chunkKeys.join(',')}) AND issuetype = "Codificação"`;
+  const childrenByParent = new Map<string, JiraIssue[]>();
+  // 30 chaves por chamada mantém a URL da GET /search em tamanho seguro
+  for (let i = 0; i < pending.length; i += 30) {
+    const chunkKeys = pending.slice(i, i + 30).map(p => p.key);
+    const jql = `parent in (${chunkKeys.join(',')})`;
     try {
-      const { issues: children } = await fetchJiraIssues(domain, token, jql);
+      const { issues: children } = await fetchJiraIssues(domain, token, jql, { maxResults: 100 });
       children.forEach(child => {
-        if (child.parentKey) childByParent.set(child.parentKey, child);
+        if (child.parentKey) {
+          const list = childrenByParent.get(child.parentKey) || [];
+          list.push(child);
+          childrenByParent.set(child.parentKey, list);
+        }
       });
     } catch (e) {
-      // Uma falha pontual nessa busca extra não pode derrubar o import
-      // inteiro — as issues afetadas só ficam sem o enriquecimento.
-      console.error('[enrichWithCodificacaoChildren] Falha ao buscar subtarefas de Codificação:', e);
+      // Uma falha pontual nessa busca extra não derruba a importação
+      console.warn('[enrichWithCodificacaoChildren] Falha ao buscar subtarefas:', e);
     }
   }
 
-  if (childByParent.size === 0) return issues;
+  if (childrenByParent.size === 0) return issues;
+
+  const isDevSubtask = (child: JiraIssue) => {
+    const text = `${child.type || ''} ${child.title || ''}`.toLowerCase();
+    return text.includes('codifica') || text.includes('desenvolv') || text.includes('dev') || text.includes('coding');
+  };
 
   return issues.map(issue => {
-    const child = childByParent.get(issue.key);
-    if (!child) return issue;
+    const subtasks = childrenByParent.get(issue.key);
+    if (!subtasks || subtasks.length === 0) return issue;
+
+    // Prioriza subtarefas de codificação/desenvolvimento que possuam solução ou problema
+    const sortedSubtasks = [...subtasks].sort((a, b) => {
+      const scoreA = (isDevSubtask(a) ? 10 : 0) + (a.solution ? 5 : 0) + (a.problem ? 3 : 0) + (a.videoUrl ? 2 : 0);
+      const scoreB = (isDevSubtask(b) ? 10 : 0) + (b.solution ? 5 : 0) + (b.problem ? 3 : 0) + (b.videoUrl ? 2 : 0);
+      return scoreB - scoreA;
+    });
+
+    const bestSubtask = sortedSubtasks[0];
+    const anyWithProblem = sortedSubtasks.find(s => s.problem);
+    const anyWithSolution = sortedSubtasks.find(s => s.solution);
+    const anyWithVideo = sortedSubtasks.find(s => s.videoUrl);
+    const anyWithProject = sortedSubtasks.find(s => s.project);
+    const anyWithQA = sortedSubtasks.find(s => s.qa);
+    const anyWithDev = sortedSubtasks.find(s => s.devName);
+
     return {
       ...issue,
-      problem: issue.problem || child.problem,
-      solution: issue.solution || child.solution,
-      videoUrl: issue.videoUrl || child.videoUrl,
-      project: issue.project || child.project,
-      versionMaster: issue.versionMaster || child.versionMaster,
-      versionDevelop: issue.versionDevelop || child.versionDevelop,
-      versionRelease: issue.versionRelease || child.versionRelease,
+      problem: issue.problem || bestSubtask?.problem || anyWithProblem?.problem,
+      solution: issue.solution || bestSubtask?.solution || anyWithSolution?.solution,
+      videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
+      project: issue.project || bestSubtask?.project || anyWithProject?.project,
+      versionMaster: issue.versionMaster || bestSubtask?.versionMaster || anyWithProject?.versionMaster,
+      versionDevelop: issue.versionDevelop || bestSubtask?.versionDevelop || anyWithProject?.versionDevelop,
+      versionRelease: issue.versionRelease || bestSubtask?.versionRelease || anyWithProject?.versionRelease,
+      qa: issue.qa || anyWithQA?.qa,
+      devName: issue.devName || (bestSubtask?.devName && isDevSubtask(bestSubtask) ? bestSubtask.devName : anyWithDev?.devName),
     };
   });
 };
