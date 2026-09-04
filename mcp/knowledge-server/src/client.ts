@@ -1,3 +1,18 @@
+// Ignora erro de certificado em rede corporativa (proxy / self-signed)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+import fs from 'fs';
+
+const LOG_FILE = 'C:/Users/wanderson.alves/projetosWanderson/agile-space-frontend/mcp/knowledge-server/mcp_debug.log';
+
+function log(msg: string) {
+  try {
+    const line = `[${new Date().toISOString()}] ${msg}\n`;
+    fs.appendFileSync(LOG_FILE, line, 'utf-8');
+  } catch {}
+}
+
+log(`Knowledge server module loaded. ENV: LEGACY_BASE_URL=${process.env.LEGACY_BASE_URL}, LEGACY_API_KEY=${process.env.LEGACY_API_KEY ? (process.env.LEGACY_API_KEY.slice(0, 8) + '...') : 'undefined'}, NEW_BASE_URL=${process.env.NEW_BASE_URL}`);
+
 export type Source = 'legacy' | 'new';
 
 interface SourceConfig {
@@ -10,25 +25,44 @@ function getConfig(source: Source): SourceConfig {
   const baseUrl = process.env[`${prefix}_BASE_URL`];
   const apiKey = process.env[`${prefix}_API_KEY`];
   if (!baseUrl || !apiKey) {
-    throw new Error(
-      `Configuração ausente para source="${source}": defina ${prefix}_BASE_URL e ${prefix}_API_KEY (env vars do servidor MCP).`
-    );
+    const err = `Configuração ausente para source="${source}": defina ${prefix}_BASE_URL e ${prefix}_API_KEY (env vars do servidor MCP). Recebido: ${prefix}_BASE_URL=${baseUrl}, ${prefix}_API_KEY=${apiKey ? 'definida' : 'ausente'}`;
+    log(`getConfig error: ${err}`);
+    throw new Error(err);
   }
   return { baseUrl: baseUrl.replace(/\/+$/, ''), apiKey };
 }
 
-async function call(source: Source, path: string): Promise<Response> {
+async function call(source: Source, path: string, options?: { method?: string; body?: any }): Promise<Response> {
   const { baseUrl, apiKey } = getConfig(source);
-  const res = await fetch(`${baseUrl}${path}`, {
-    headers: { 'X-Api-Key': apiKey },
-  });
-  return res;
+  const targetUrl = `${baseUrl}${path}`;
+  log(`Calling [${source}] ${options?.method || 'GET'} -> ${targetUrl} (apiKey: ${apiKey.slice(0, 8)}...)`);
+  try {
+    const headers: Record<string, string> = { 'X-Api-Key': apiKey };
+    let bodyText: string | undefined;
+    if (options?.body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+      bodyText = JSON.stringify(options.body);
+    }
+    const res = await fetch(targetUrl, {
+      method: options?.method || 'GET',
+      headers,
+      body: bodyText,
+    });
+    log(`Response from ${targetUrl}: HTTP ${res.status}`);
+    return res;
+  } catch (err: any) {
+    const causeMsg = err?.cause?.message || err?.cause?.code || err?.cause || err?.message;
+    const msg = `Falha ao conectar em ${targetUrl}: ${err?.message} (detalhe: ${causeMsg})`;
+    log(`Fetch error on ${targetUrl}: ${msg}\nStack: ${err?.stack}\nCause: ${JSON.stringify(err?.cause || {})}`);
+    throw new Error(msg);
+  }
 }
 
-async function callJson<T>(source: Source, path: string): Promise<T> {
-  const res = await call(source, path);
+async function callJson<T>(source: Source, path: string, options?: { method?: string; body?: any }): Promise<T> {
+  const res = await call(source, path, options);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
+    log(`API ${source} error HTTP ${res.status}: ${body.slice(0, 300)}`);
     throw new Error(`API ${source} respondeu ${res.status}: ${body.slice(0, 300)}`);
   }
   return res.json() as Promise<T>;
@@ -91,4 +125,18 @@ export async function downloadDoc(source: Source, id: string, format: 'html' | '
     throw new Error(`API ${source} respondeu ${res.status}: ${body.slice(0, 300)}`);
   }
   return res.text();
+}
+
+export interface CreateDocParams {
+  title: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+}
+
+export function createDoc(source: Source, params: CreateDocParams): Promise<any> {
+  return callJson<any>(source, '/api/v1/knowledge/docs', {
+    method: 'POST',
+    body: params,
+  });
 }

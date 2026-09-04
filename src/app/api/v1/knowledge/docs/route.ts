@@ -81,3 +81,34 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Erro interno ao listar documentos.' }, { status: 500 });
   }
 }
+
+export async function POST(req: NextRequest) {
+  const apiKey = req.headers.get('x-api-key');
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Chave de API ausente.' }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const res = await fetch(`${API_BASE_URL}/v1/knowledge/docs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': apiKey,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      return NextResponse.json({ error: `Erro do backend (${res.status}): ${errorText}` }, { status: res.status });
+    }
+
+    const created = await res.json();
+    return NextResponse.json(created, { status: 201 });
+  } catch (err) {
+    console.error('[api/v1/knowledge/docs] Erro ao criar documento no backend:', err);
+    return NextResponse.json({ error: 'Erro interno ao criar documento.' }, { status: 500 });
+  }
+}
+

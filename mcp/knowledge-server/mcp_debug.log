@@ -1,0 +1,3 @@
+[2026-09-04T18:39:20.187Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-04T18:58:46.826Z] Calling [legacy] -> https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=20 (apiKey: ask_d67a...)
+[2026-09-04T18:58:47.905Z] Response from https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=20: HTTP 200

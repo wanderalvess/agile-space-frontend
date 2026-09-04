@@ -2,7 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { listDocs, getDoc, downloadDoc, type Source } from './client.js';
+import { listDocs, getDoc, downloadDoc, createDoc, type Source } from './client.js';
 
 const server = new McpServer({
   name: 'agile-space-knowledge',
@@ -77,6 +77,35 @@ server.registerTool(
   async ({ source, id, format }) => {
     const text = await downloadDoc(source as Source, id, format as 'html' | 'md' | 'txt' | undefined);
     return { content: [{ type: 'text', text }] };
+  }
+);
+
+server.registerTool(
+  'create_doc',
+  {
+    description: 'Cria e publica um novo documento na Base de Conhecimento do Espaço Ágil.',
+    inputSchema: {
+      source: sourceSchema,
+      title: z.string().min(1).describe('Título do documento'),
+      content: z.string().describe('Conteúdo do documento (Markdown ou HTML)'),
+      category: z.string().optional().describe('Categoria do documento (ex: "Geral", "Arquitetura", "Engenharia")'),
+      tags: z.union([z.array(z.string()), z.string()]).optional().describe('Tags associadas (lista de strings ou separadas por vírgula)'),
+    },
+  },
+  async ({ source, title, content, category, tags }) => {
+    let parsedTags: string[] | undefined;
+    if (Array.isArray(tags)) {
+      parsedTags = tags;
+    } else if (typeof tags === 'string') {
+      parsedTags = tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+    const result = await createDoc(source as Source, {
+      title,
+      content,
+      category,
+      tags: parsedTags,
+    });
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );
 

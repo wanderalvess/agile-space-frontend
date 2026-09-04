@@ -54,6 +54,7 @@ Adicione ao `claude_desktop_config.json` (ou config MCP equivalente):
 - `search_docs(source, query, page?, pageSize?)` — busca por texto (título + conteúdo)
 - `get_doc(source, id, format?)` — documento completo (`html`/`md`/`txt`, padrão `html`)
 - `download_doc(source, id, format?)` — mesmo conteúdo, pronto pra salvar em arquivo (padrão `md`)
+- `create_doc(source, title, content, category?, tags?)` — cria e publica um novo documento (Markdown ou HTML)
 
 `source` é sempre `"legacy"` ou `"new"`.
 
