@@ -63,3 +63,7 @@ Adicione ao `claude_desktop_config.json` (ou config MCP equivalente):
 ```bash
 npm run dev   # roda direto via tsx, sem build
 ```
+
+Debug de chamadas HTTP: `MCP_DEBUG=1` grava em `mcp_debug.log` (gitignored, nunca
+grava valor de API key). Rede corporativa quebrando TLS: `MCP_ALLOW_INSECURE_TLS=1`
+(nunca ligar por padrão). Antes de mexer neste diretório, veja [AGENTS.md](AGENTS.md).
