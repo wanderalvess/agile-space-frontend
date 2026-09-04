@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, ChevronDown, X, Camera, Ban, AlertTriangle, Maximize2, Minimize2, Check, FileText, ExternalLink, Lock, User, UserCheck, Clock3
+  ChevronLeft, ChevronRight, ChevronDown, X, Camera, Ban, AlertTriangle, Maximize2, Minimize2, Check, FileText, ExternalLink, Lock, User, UserCheck, Clock3, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl } from './utils';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
@@ -377,6 +378,7 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
 
   const hasEffort = (task?.evidence.timeSpent || 0) > 0 || (task?.evidence.timeEstimate || 0) > 0;
   const hasVersions = !!(task?.project || task?.versionMaster || task?.versionDevelop || task?.versionRelease);
+  const metrics = task?.metrics?.filter(m => m.field.trim()) || [];
 
   return (
     <motion.main
@@ -417,6 +419,25 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               <p className={cn("text-[13px] leading-relaxed", isLight ? "text-slate-500" : "text-white/60")}>
                 {task?.evidence.problem || "Sem problema/motivação descrita."}
               </p>
+
+              {/* Resumo de impacto sempre visível — é o número que a squad quer
+                  destacar na hora de apresentar, não deveria ficar atrás de um clique. */}
+              {metrics.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {metrics.map((m, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border",
+                        isLight ? "bg-violet-50 border-violet-100 text-violet-700" : "bg-violet-500/10 border-violet-500/20 text-violet-300"
+                      )}
+                    >
+                      <TrendingUp className="h-3 w-3 opacity-70" />
+                      {m.field}: {m.value.toLocaleString('pt-BR')}
+                    </span>
+                  ))}
+                </div>
+              )}
             </header>
 
             <div className={cn("flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[12px] pb-5 border-b", isLight ? "border-slate-100 text-slate-500" : "border-white/5 text-white/50")}>
@@ -488,6 +509,18 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                         </div>
                       )}
                     </div>
+                  </section>
+                )}
+
+                {metrics.length > 0 && (
+                  <section className="space-y-1.5">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">Métricas de Impacto</p>
+                    <SimpleBarChart
+                      title=""
+                      data={metrics.map(m => ({ name: m.field, value: m.value }))}
+                      height={140}
+                      defaultColor="hsl(262, 83%, 65%)"
+                    />
                   </section>
                 )}
               </div>

@@ -127,6 +127,9 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
         const decisionColor = decisionHex(task.decision);
         const decisionLabel = DECISION[task.decision].label;
 
+        const metrics = task.metrics?.filter(m => m.field.trim()) || [];
+        const maxMetricValue = Math.max(...metrics.map(m => m.value), 1);
+
         return (
           <div key={task.id} style={slideStyle}>
             {/* Header do slide */}
@@ -159,6 +162,27 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                   <div>
                     <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>Critérios de Aceite</p>
                     <p style={{ fontSize: '9px', lineHeight: 1.6, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', margin: 0, whiteSpace: 'pre-wrap' }}>{task.acceptanceCriteria}</p>
+                  </div>
+                )}
+                {metrics.length > 0 && (
+                  // Barras desenhadas com div/width simples (não recharts): ResponsiveContainer
+                  // depende de ResizeObserver, que não costuma disparar a tempo em contexto de
+                  // impressão (display:none até o @media print ativar) — renderizaria altura zero.
+                  <div>
+                    <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>Métricas de Impacto</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {metrics.map((m, i) => (
+                        <div key={i}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginBottom: '2px' }}>
+                            <span>{m.field}</span>
+                            <span style={{ fontWeight: 900 }}>{m.value.toLocaleString('pt-BR')}</span>
+                          </div>
+                          <div style={{ height: '5px', borderRadius: '3px', backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.max(4, (m.value / maxMetricValue) * 100)}%`, height: '100%', backgroundColor: '#a78bfa', borderRadius: '3px' }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {(task.project || task.versionMaster || task.versionDevelop || task.versionRelease) && (

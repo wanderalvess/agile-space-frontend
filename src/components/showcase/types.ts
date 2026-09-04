@@ -16,16 +16,22 @@ export interface Evidence {
   planned?: { dev?: string; qa?: string; tu?: string } | null;
 }
 
+export interface ImpactMetric {
+  field: string; // "campo" — ex: "Economia (R$)", "Tempo Poupado (dias)"
+  value: number; // "valor"
+}
+
 export interface ShowcaseTask {
   id: string; 
   key: string; 
   title: string; 
   description: string;
   acceptanceCriteria: string; 
-  type: string; 
+  type: string;
   status: string;
-  priority: string; 
-  points: number; 
+  priority: string;
+  points: number;
+  metrics?: ImpactMetric[];
   assignee: string; 
   url: string;
   evidence: Evidence; 

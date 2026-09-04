@@ -506,14 +506,14 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
             <Button
               onClick={generateApprovalsSummary}
               variant="outline"
-              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-850 gap-2 transition-all"
+              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
               <Copy className="h-3.5 w-3.5" /> Resumo de Aprovações
             </Button>
             <Button
               onClick={generateLog}
               variant="outline"
-              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-850 gap-2 transition-all"
+              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
               <FileText className="h-3.5 w-3.5" /> Log Markdown
             </Button>

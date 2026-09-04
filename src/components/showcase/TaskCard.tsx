@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText
+  Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ShowcaseTask, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
+import { ShowcaseTask, ImpactMetric, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
 import { isPdfUrl } from './utils';
+import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
 
 // ── Controlled Inputs ────────────────────────────────────────────────────────
 const ControlledInput = React.memo(function ControlledInput({ value, onChange, debounceMs = 400, className, ...props }: any) {
@@ -153,6 +154,61 @@ function TextField({
   );
 }
 
+// ── Métricas de Impacto ──────────────────────────────────────────────────────
+// Lista de campo+valor livre (ex: "Economia (R$)": 5000) pra entregas que
+// valem um número pra mostrar na apresentação, mesmo sem ser ticket do Jira.
+// Sem id por item: a lista inteira é sempre substituída de uma vez (mesmo
+// padrão que evidence.* já usa), edição/remoção por índice já é suficiente.
+function MetricsEditor({ metrics, onChange }: { metrics: ImpactMetric[]; onChange: (metrics: ImpactMetric[]) => void }) {
+  const updateRow = (i: number, patch: Partial<ImpactMetric>) => {
+    onChange(metrics.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
+  };
+  const removeRow = (i: number) => onChange(metrics.filter((_, idx) => idx !== i));
+  const chartData = metrics.filter(m => m.field.trim()).map(m => ({ name: m.field, value: m.value }));
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-2">
+        {metrics.map((m, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <ControlledInput
+              value={m.field}
+              onChange={(v: string) => updateRow(i, { field: v })}
+              placeholder="Campo — ex: Economia (R$)"
+              className="flex-1 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 px-2"
+            />
+            <ControlledInput
+              type="number"
+              value={m.value ? String(m.value) : ''}
+              onChange={(v: string) => updateRow(i, { value: Number(v) || 0 })}
+              placeholder="Valor"
+              className="w-24 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 px-2"
+            />
+            <Button
+              variant="ghost" size="icon" onClick={() => removeRow(i)}
+              className="h-8 w-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all shrink-0"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <Button
+        variant="ghost" size="sm"
+        onClick={() => onChange([...metrics, { field: '', value: 0 }])}
+        className="h-7 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-violet-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1"
+      >
+        <Plus className="h-3 w-3" /> Adicionar Métrica
+      </Button>
+
+      {chartData.length > 0 && (
+        <SimpleBarChart title="Impacto" data={chartData} height={160} defaultColor="hsl(262, 83%, 65%)" />
+      )}
+    </div>
+  );
+}
+
 // ── Componente Principal ──────────────────────────────────────────────────────
 function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }: TaskCardProps) {
   const onUpdate = React.useCallback(
@@ -216,7 +272,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               <SelectTrigger className="h-7 w-fit px-3 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-lg text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors focus:ring-0 shrink-0">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-850">
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                 {ISSUE_TYPES.map((type) => (
                   <SelectItem key={type} value={type} className="text-[11px] font-black uppercase">
                     {type}
@@ -249,7 +305,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-850">
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                 {(['approved', 'needs_adjustment', 'rejected'] as const).map((d) => (
                   <SelectItem key={d} value={d} className="text-[10px] font-black uppercase">
                     <div className="flex items-center gap-1.5">
@@ -275,7 +331,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-850">
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                 {Object.entries(PREPARATION_STATUS).map(([key, config]) => (
                   <SelectItem key={key} value={key} className="text-[10px] font-black uppercase">
                     {config.label}
@@ -315,7 +371,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, solution: v } }))}
               placeholder="O que foi desenvolvido tecnicamente..."
               multiline minRows={6}
-              colorScheme={{ label: 'text-emerald-600 dark:text-emerald-450', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
+              colorScheme={{ label: 'text-emerald-600 dark:text-emerald-400', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
             />
           </div>
 
@@ -429,6 +485,24 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               </div>
             </div>
           </div>
+
+          {/* ╔══════════════════════════════════════╗
+              ║  SEÇÃO 4 — Métricas de Impacto        ║
+              ╚══════════════════════════════════════╝ */}
+          {(task.metrics && task.metrics.length > 0) ? (
+            <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
+              <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+              <MetricsEditor metrics={task.metrics} onChange={(metrics) => onUpdate({ metrics })} />
+            </div>
+          ) : (
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => onUpdate({ metrics: [{ field: '', value: 0 }] })}
+              className="h-7 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1 w-fit"
+            >
+              <Plus className="h-3 w-3" /> Métrica de Impacto
+            </Button>
+          )}
 
           {/* Feedback do PO */}
           {(task.feedback !== undefined || task.decision === 'needs_adjustment' || task.decision === 'rejected') && (

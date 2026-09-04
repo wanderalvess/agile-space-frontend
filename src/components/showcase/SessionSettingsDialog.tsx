@@ -29,14 +29,23 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   const [session, setSession] = useState<Partial<ShowcaseSession>>({});
   const [coverUrl, setCoverUrl] = useState('');
   const [previewError, setPreviewError] = useState(false);
-  
+
+  // A sessão do pai muda de referência a cada broadcast de WebSocket (SESSION_UPDATED),
+  // disparado por QUALQUER save na sessão (editar um card, favoritar, etc.), não só
+  // pelo que esse dialog controla. Sincronizar direto de `initialSession` a cada
+  // mudança apagava edições locais não salvas se um broadcast concorrente chegasse
+  // com o dialog aberto. Guardamos a versão mais recente numa ref (sem disparar
+  // re-sync) e só carregamos no form quando o dialog efetivamente abre.
+  const latestSessionRef = React.useRef(initialSession);
+  React.useEffect(() => { latestSessionRef.current = initialSession; }, [initialSession]);
+
   React.useEffect(() => {
-    if (open && initialSession) {
-      setSession(initialSession);
-      setCoverUrl(initialSession.coverImage || '');
+    if (open && latestSessionRef.current) {
+      setSession(latestSessionRef.current);
+      setCoverUrl(latestSessionRef.current.coverImage || '');
       setPreviewError(false);
     }
-  }, [open, initialSession]);
+  }, [open]);
 
   const onUpdate = (updates: Partial<ShowcaseSession>) => {
     setSession(prev => ({ ...prev, ...updates }));
@@ -106,7 +115,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                 value={session?.defaultSort || 'key'} 
                 onValueChange={(v) => onUpdate({ defaultSort: v as any })}
               >
-                <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 rounded-xl text-xs font-semibold focus:ring-0 text-slate-800 dark:text-slate-250">
+                <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 rounded-xl text-xs font-semibold focus:ring-0 text-slate-800 dark:text-slate-200">
                   <SelectValue placeholder="Ordenar por" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-900">
@@ -186,7 +195,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             </div>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800/60">
+          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
             <div className="flex items-center gap-2">
               <LinkIcon className="h-4 w-4 text-violet-500" />
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Link Customizado</h3>
@@ -238,7 +247,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             </div>
           ) : (
             <div className="flex-1 min-h-[160px] border-2 border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-2 p-4 text-center">
-              <Sparkles className="h-6 w-6 text-slate-350 dark:text-slate-700" />
+              <Sparkles className="h-6 w-6 text-slate-300 dark:text-slate-700" />
               <span className="text-[9px] font-bold uppercase tracking-wider">Nenhuma capa selecionada</span>
             </div>
           )}
@@ -288,7 +297,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             </div>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-slate-150 dark:border-slate-800/60">
+          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
             <div className="flex items-center gap-2">
               <LinkIcon className="h-4 w-4 text-violet-500" />
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Cor ou Link Customizado</h3>
@@ -355,7 +364,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           </div>
           <div>
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Nome do Squad / Time</h3>
-            <p className="text-[9.5px] font-semibold text-slate-450 dark:text-slate-400 mt-0.5">Identifique o time responsável por esta Sprint Review.</p>
+            <p className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Identifique o time responsável por esta Sprint Review.</p>
           </div>
         </div>
 
@@ -368,15 +377,15 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           />
         </div>
 
-        <div className="pt-4 border-t border-slate-150 dark:border-slate-800/60 flex items-center gap-3">
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center gap-3">
           <div className="flex -space-x-1.5">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-150 dark:bg-slate-800 flex items-center justify-center text-[9px] font-black text-slate-450 dark:text-slate-400 uppercase">
+              <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase">
                 {String.fromCharCode(64 + i)}
               </div>
             ))}
           </div>
-          <span className="text-[9px] font-semibold text-slate-450 dark:text-slate-400 tracking-normal">
+          <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 tracking-normal">
             O nome do Squad aparecerá no topo do showcase e nos relatórios.
           </span>
         </div>
@@ -422,7 +431,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                       <span className="text-[10px] font-black uppercase tracking-wider leading-none">{tab.label}</span>
                       <span className={cn(
                         "text-[8.5px] font-bold mt-1 uppercase tracking-tight transition-colors",
-                        activeTab === tab.id ? "text-white/70" : "text-slate-500 group-hover:text-slate-450"
+                        activeTab === tab.id ? "text-white/70" : "text-slate-500 group-hover:text-slate-400"
                       )}>
                         {tab.description}
                       </span>

@@ -182,12 +182,12 @@ export function ShowcaseDashboard({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center mt-6 pt-5 border-t border-slate-100 dark:border-slate-850/60 relative z-10">
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/60 relative z-10">
             <Button
               size="lg"
               onClick={onNewSession}
               disabled={isCreating}
-              className="h-14 px-8 bg-violet-600 hover:bg-violet-750 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 shrink-0"
+              className="h-14 px-8 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 shrink-0"
             >
               <Plus className="h-4 w-4" />
               Nova Review
