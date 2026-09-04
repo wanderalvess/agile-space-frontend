@@ -12,6 +12,8 @@ export interface AdminStats {
   totalHealthCheckBoards: number;
   totalBrainstormingBoards: number;
   totalDailyCheckins: number;
+  totalSessions: number;
+  totalParticipations: number;
 }
 
 export interface Announcement {

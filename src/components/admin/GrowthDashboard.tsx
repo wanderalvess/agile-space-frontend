@@ -4,17 +4,19 @@ import React, { useState, useEffect } from 'react';
 import { adminApi } from '@/app/admin/api';
 import {
   TrendingUp,
-  Users, 
-  Rocket, 
-  Target, 
-  BarChart3, 
+  Users,
+  Rocket,
+  Target,
+  BarChart3,
   Zap,
   Globe,
   LayoutDashboard,
   WalletCards,
   CalendarRange,
   HeartPulse,
-  Lightbulb
+  Lightbulb,
+  UsersRound,
+  Clock
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion } from 'framer-motion';
@@ -30,6 +32,8 @@ interface Stats {
   brainstorming: number;
   checkins: number;
   feedbacks: number;
+  sessions: number;
+  participations: number;
   loading: boolean;
 }
 
@@ -43,6 +47,8 @@ export function GrowthDashboard() {
     brainstorming: 0,
     checkins: 0,
     feedbacks: 0,
+    sessions: 0,
+    participations: 0,
     loading: true
   });
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +70,8 @@ export function GrowthDashboard() {
           brainstorming: data.totalBrainstormingBoards,
           checkins: data.totalDailyCheckins,
           feedbacks: data.totalFeedbacks,
+          sessions: data.totalSessions,
+          participations: data.totalParticipations,
           loading: false
         });
       } catch (e: any) {
@@ -136,6 +144,45 @@ export function GrowthDashboard() {
           icon={<BarChart3 className="h-6 w-6" />}
           color="from-amber-500 to-orange-600"
         />
+      </div>
+
+      {/* Uso do Sistema — visão executiva (sessões, participantes, tempo de uso) */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 px-2">
+          <h2 className="text-xl font-black uppercase tracking-tighter italic font-headline text-slate-900">Uso do Sistema</h2>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Visão executiva</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <MetricHighlight
+            title="Total de Sessões"
+            value={stats.sessions}
+            subtitle="Cerimônias em grupo realizadas"
+            icon={<CalendarRange className="h-6 w-6" />}
+            color="from-blue-500 to-indigo-600"
+          />
+          <MetricHighlight
+            title="Total de Participações"
+            value={stats.participations}
+            subtitle="Somatório de participantes por sessão*"
+            icon={<UsersRound className="h-6 w-6" />}
+            color="from-emerald-500 to-teal-600"
+          />
+          <div className="rounded-[3rem] bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-800 p-10 flex items-center gap-8">
+            <div className="w-16 h-16 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-2xl font-black italic tracking-tighter text-slate-400 leading-none">Em breve</p>
+              <div className="mt-2">
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Tempo de Uso</p>
+                <p className="text-[9px] font-bold text-slate-400/80 uppercase tracking-widest">Duração de sessão ainda não instrumentada</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">
+          * Retrospectivas ainda não rastreiam participantes — não entram nesse total.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
