@@ -14,6 +14,8 @@ export interface AdminStats {
   totalDailyCheckins: number;
   totalSessions: number;
   totalParticipations: number;
+  avgSessionDurationMinutes: number | null;
+  sessionDurationSampleSize: number;
 }
 
 export interface Announcement {

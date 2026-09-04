@@ -34,6 +34,8 @@ interface Stats {
   feedbacks: number;
   sessions: number;
   participations: number;
+  avgDurationMinutes: number | null;
+  durationSampleSize: number;
   loading: boolean;
 }
 
@@ -49,6 +51,8 @@ export function GrowthDashboard() {
     feedbacks: 0,
     sessions: 0,
     participations: 0,
+    avgDurationMinutes: null,
+    durationSampleSize: 0,
     loading: true
   });
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +76,8 @@ export function GrowthDashboard() {
           feedbacks: data.totalFeedbacks,
           sessions: data.totalSessions,
           participations: data.totalParticipations,
+          avgDurationMinutes: data.avgSessionDurationMinutes,
+          durationSampleSize: data.sessionDurationSampleSize,
           loading: false
         });
       } catch (e: any) {
@@ -167,21 +173,31 @@ export function GrowthDashboard() {
             icon={<UsersRound className="h-6 w-6" />}
             color="from-emerald-500 to-teal-600"
           />
-          <div className="rounded-[3rem] bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-800 p-10 flex items-center gap-8">
-            <div className="w-16 h-16 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
-              <Clock className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-black italic tracking-tighter text-slate-400 leading-none">Em breve</p>
-              <div className="mt-2">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Tempo de Uso</p>
-                <p className="text-[9px] font-bold text-slate-400/80 uppercase tracking-widest">Duração de sessão ainda não instrumentada</p>
+          {stats.durationSampleSize > 0 && stats.avgDurationMinutes != null ? (
+            <MetricHighlight
+              title="Tempo de Uso Médio"
+              value={formatDuration(stats.avgDurationMinutes)}
+              subtitle={`Retro & Sprint Review · ${stats.durationSampleSize} sessão(ões)`}
+              icon={<Clock className="h-6 w-6" />}
+              color="from-violet-500 to-purple-600"
+            />
+          ) : (
+            <div className="rounded-[3rem] bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-800 p-10 flex items-center gap-8">
+              <div className="w-16 h-16 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
+                <Clock className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-2xl font-black italic tracking-tighter text-slate-400 leading-none">Em breve</p>
+                <div className="mt-2">
+                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Tempo de Uso</p>
+                  <p className="text-[9px] font-bold text-slate-400/80 uppercase tracking-widest">Instrumentado agora — aparece após a próxima sessão finalizada</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2">
-          * Retrospectivas ainda não rastreiam participantes — não entram nesse total.
+          * Retrospectivas ainda não rastreiam participantes — não entram nesse total. Tempo de uso considera só Retro e Sprint Review por enquanto.
         </p>
       </div>
 
@@ -261,6 +277,13 @@ export function GrowthDashboard() {
       </div>
     </div>
   );
+}
+
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = Math.round(minutes % 60);
+  return rest > 0 ? `${hours}h${rest}` : `${hours}h`;
 }
 
 function MetricHighlight({ title, value, subtitle, icon, color }: any) {
