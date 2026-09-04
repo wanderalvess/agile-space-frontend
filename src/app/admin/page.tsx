@@ -14,7 +14,8 @@ import {
   Megaphone,
   MessageSquareHeart,
   GitBranch,
-  Brain
+  Brain,
+  Lock
 } from 'lucide-react';
 import { adminApi } from '@/app/admin/api';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +35,7 @@ import { CommunicationsManager } from '@/components/admin/CommunicationsManager'
 import { FeedbackManager } from '@/components/admin/FeedbackManager';
 import { ChangelogManager } from '@/components/admin/ChangelogManager';
 import { IntelligenceHubMonitor } from '@/components/admin/IntelligenceHubMonitor';
+import { ApiKeysManager } from '@/components/admin/ApiKeysManager';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 
 export default function AdminDashboard() {
@@ -111,6 +113,7 @@ export default function AdminDashboard() {
                     { id: 'system', label: 'Configurações', icon: <Settings2 className="h-3.5 w-3.5" /> },
                     { id: 'changelog', label: 'Engenharia & Releases', icon: <GitBranch className="h-3.5 w-3.5" /> },
                     { id: 'intelligence', label: 'Motor AI & Conhecimento', icon: <Brain className="h-3.5 w-3.5" /> },
+                    { id: 'api-keys', label: 'API Keys', icon: <Lock className="h-3.5 w-3.5" /> },
                     { id: 'audit', label: 'Auditoria & Logs', icon: <ShieldCheck className="h-3.5 w-3.5" /> },
                   ].map((tab) => (
                     <TabsTrigger
@@ -157,6 +160,9 @@ export default function AdminDashboard() {
                 </TabsContent>
                 <TabsContent value="intelligence" className="outline-none focus-visible:ring-0">
                   <IntelligenceHubMonitor />
+                </TabsContent>
+                <TabsContent value="api-keys" className="outline-none focus-visible:ring-0">
+                  <ApiKeysManager />
                 </TabsContent>
                 <TabsContent value="audit" className="outline-none focus-visible:ring-0">
                   <AuditLogExplorer />

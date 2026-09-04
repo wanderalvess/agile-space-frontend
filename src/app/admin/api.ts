@@ -41,6 +41,22 @@ export interface PasswordResetRequest {
   approvedBy?: string;
 }
 
+export interface ApiKeyData {
+  id: string;
+  name: string;
+  ownerUserId?: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  revokedAt?: string;
+}
+
+export interface CreatedApiKey {
+  id: string;
+  name: string;
+  rawKey: string;
+  createdAt: string;
+}
+
 import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
@@ -116,6 +132,21 @@ export const adminApi = {
     return req<PasswordResetRequest>(`/admin/password-resets/${encodeURIComponent(id)}/approve`, {
       method: 'POST'
     });
+  },
+
+  async getApiKeys(): Promise<ApiKeyData[]> {
+    return req<ApiKeyData[]>('/admin/api-keys');
+  },
+
+  async createApiKey(name: string): Promise<CreatedApiKey> {
+    return req<CreatedApiKey>('/admin/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async revokeApiKey(id: string): Promise<void> {
+    return req<void>(`/admin/api-keys/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
   }
 };
 

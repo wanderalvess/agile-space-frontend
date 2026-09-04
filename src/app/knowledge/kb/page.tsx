@@ -54,69 +54,7 @@ import { ptBR } from 'date-fns/locale';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
 import { TdnImportDialog } from '@/components/knowledge/TdnImportDialog';
-
-function decodeHtmlEntities(str: string): string {
-  if (!str) return '';
-  if (typeof window === 'undefined') return str;
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = str;
-  return textarea.value;
-}
-
-function htmlToMarkdown(html: string): string {
-  if (!html) return '';
-  let markdown = html;
-
-  // Headers
-  markdown = markdown.replace(/<h1>(.*?)<\/h1>/gi, '# $1\n\n');
-  markdown = markdown.replace(/<h2>(.*?)<\/h2>/gi, '## $1\n\n');
-  markdown = markdown.replace(/<h3>(.*?)<\/h3>/gi, '### $1\n\n');
-  markdown = markdown.replace(/<h4>(.*?)<\/h4>/gi, '#### $1\n\n');
-  
-  // Paragraphs
-  markdown = markdown.replace(/<p>(.*?)<\/p>/gi, '$1\n\n');
-  
-  // Bold/Italic
-  markdown = markdown.replace(/<strong>(.*?)<\/strong>/gi, '**$1**');
-  markdown = markdown.replace(/<b>(.*?)<\/b>/gi, '**$1**');
-  markdown = markdown.replace(/<em>(.*?)<\/em>/gi, '*$1*');
-  markdown = markdown.replace(/<i>(.*?)<\/i>/gi, '*$1*');
-  
-  // Code blocks & inline code
-  markdown = markdown.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, '```\n$1\n```\n\n');
-  markdown = markdown.replace(/<code>(.*?)<\/code>/gi, '`$1`');
-  
-  // Lists
-  markdown = markdown.replace(/<li>(.*?)<\/li>/gi, '- $1\n');
-  markdown = markdown.replace(/<\/ul>/gi, '\n');
-  markdown = markdown.replace(/<\/ol>/gi, '\n');
-  markdown = markdown.replace(/<ul[^>]*>/gi, '');
-  markdown = markdown.replace(/<ol[^>]*>/gi, '');
-  
-  // Line breaks & entities
-  markdown = markdown.replace(/<br\s*\/?>/gi, '\n');
-  markdown = markdown.replace(/<[^>]+>/g, '');
-  
-  // Decode entities using textarea helper
-  markdown = decodeHtmlEntities(markdown);
-
-  return markdown.replace(/\n{3,}/g, '\n\n').trim();
-}
-
-function htmlToPlainText(html: string): string {
-  if (!html) return '';
-  let text = html;
-  text = text.replace(/<br\s*\/?>/gi, '\n')
-             .replace(/<\/p>/gi, '\n\n')
-             .replace(/<\/h[1-6]>/gi, '\n\n')
-             .replace(/<\/li>/gi, '\n');
-  text = text.replace(/<[^>]+>/g, '');
-  
-  // Decode entities using textarea helper
-  text = decodeHtmlEntities(text);
-  
-  return text.replace(/\n{3,}/g, '\n\n').trim();
-}
+import { htmlToMarkdown, htmlToPlainText } from '@/lib/knowledge-export';
 
 function KBExplorerContent() {
   const { session } = useAuth();
