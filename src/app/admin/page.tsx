@@ -77,14 +77,14 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
+    <div className="min-h-dvh flex flex-col w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
       <div className="absolute inset-0 z-0 pointer-events-none opacity-30">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-[10%] right-[-5%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
-      <div className="w-full flex-1 flex flex-col">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
+      <div className="w-full flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex flex-col">
           <RoomHeader
             title="Painel de Governança & Administração"
             toolIcon={<ShieldCheck className="h-4 w-4" />}
@@ -100,8 +100,8 @@ export default function AdminDashboard() {
           />
           
             <div className="w-full bg-white dark:bg-slate-900/40 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50 sticky top-12 z-[40]">
-              <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2.5 overflow-x-auto no-scrollbar">
-                <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl h-auto gap-1.5 inline-flex w-auto min-w-full sm:min-w-0 flex-nowrap items-center border border-slate-200/50 dark:border-slate-800/50">
+              <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2.5">
+                <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl h-auto gap-1.5 flex flex-wrap w-full items-center border border-slate-200/50 dark:border-slate-800/50">
                   {[
                     { id: 'governance', label: 'Governança & Jira Sync', icon: <Building2 className="h-3.5 w-3.5" /> },
                     { id: 'ceremonies', label: 'Analytics de Cerimônias', icon: <Target className="h-3.5 w-3.5" /> },
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+            <div className="relative z-10 p-4 md:p-6 lg:p-8 w-full max-w-7xl mx-auto">
               <main className="w-full space-y-6">
                 <TabsContent value="governance" className="outline-none focus-visible:ring-0">
                   <GovernanceHub />

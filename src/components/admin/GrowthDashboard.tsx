@@ -198,7 +198,7 @@ export function GrowthDashboard() {
               color="from-violet-500 to-purple-600"
             />
           ) : (
-            <div className="rounded-[3rem] bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-800 p-10 flex items-center gap-8">
+            <div className="rounded-[3rem] bg-slate-50 dark:bg-slate-900/40 border-2 border-dashed border-slate-200 dark:border-slate-800 p-6 md:p-8 lg:p-10 flex items-center gap-8">
               <div className="w-16 h-16 rounded-[1.5rem] bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 shrink-0">
                 <Clock className="h-6 w-6" />
               </div>
@@ -217,17 +217,17 @@ export function GrowthDashboard() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
          {/* Ranking de Módulos */}
          <Card className="border-slate-200/60 rounded-[3rem] bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
-            <CardHeader className="p-10 border-b border-slate-50 flex items-center gap-4">
+            <CardHeader className="p-6 md:p-8 lg:p-10 border-b border-slate-50 flex items-center gap-4">
                <div className="p-3 bg-blue-50 rounded-2xl"><TrendingUp className="h-6 w-6 text-blue-600" /></div>
                <div>
                   <CardTitle className="text-2xl font-black uppercase tracking-tighter italic font-headline text-slate-900">Adoção por Módulo</CardTitle>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">Ranking de utilização real</p>
                </div>
             </CardHeader>
-            <CardContent className="p-10 space-y-8">
+            <CardContent className="p-6 md:p-8 lg:p-10 space-y-8">
                {moduleMetrics.map((m, idx) => (
                   <div key={m.label} className="space-y-4">
                      <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-widest">
@@ -253,14 +253,14 @@ export function GrowthDashboard() {
          {/* Insights de Governança */}
          <div className="space-y-10">
             <Card className="border-slate-200/60 rounded-[3rem] bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
-               <CardHeader className="p-10 border-b border-slate-50 flex items-center gap-4">
+               <CardHeader className="p-6 md:p-8 lg:p-10 border-b border-slate-50 flex items-center gap-4">
                   <div className="p-3 bg-emerald-50 rounded-2xl"><Globe className="h-6 w-6 text-emerald-600" /></div>
                   <div>
                      <CardTitle className="text-2xl font-black uppercase tracking-tighter italic font-headline text-slate-900">Densidade de Dados</CardTitle>
                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">Status global do ecossistema</p>
                   </div>
                </CardHeader>
-               <CardContent className="p-10 grid grid-cols-2 gap-8">
+               <CardContent className="p-6 md:p-8 lg:p-10 grid grid-cols-2 gap-8">
                   <div className="p-6 bg-slate-50 rounded-[2.5rem] border border-slate-100 flex flex-col items-center text-center gap-4">
                      <Users className="h-8 w-8 text-primary" />
                      <div>
@@ -278,7 +278,7 @@ export function GrowthDashboard() {
                </CardContent>
             </Card>
 
-            <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-[3rem] p-10 flex flex-col items-center text-center gap-6">
+            <div className="bg-primary/5 border-2 border-dashed border-primary/20 rounded-[3rem] p-6 md:p-8 lg:p-10 flex flex-col items-center text-center gap-6">
                <div className="w-16 h-16 bg-primary rounded-3xl flex items-center justify-center text-white shadow-xl shadow-primary/20">
                   <Zap className="h-8 w-8" />
                </div>
@@ -421,7 +421,7 @@ function MetricHighlight({ title, value, subtitle, icon, color }: any) {
   return (
     <Card className="border-none rounded-[3rem] bg-white shadow-xl shadow-slate-200/50 overflow-hidden relative group">
       <div className={cn("absolute inset-0 bg-gradient-to-br opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700", color)} />
-      <CardContent className="p-10 relative z-10 flex items-center gap-8">
+      <CardContent className="p-6 md:p-8 lg:p-10 relative z-10 flex items-center gap-8">
         <div className={cn("w-16 h-16 rounded-[1.5rem] bg-gradient-to-br flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 duration-500", color)}>
           {icon}
         </div>
