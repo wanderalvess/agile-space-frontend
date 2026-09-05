@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
 import { adminApi } from '@/app/admin/api';
 import {
   TrendingUp,
@@ -16,9 +17,11 @@ import {
   HeartPulse,
   Lightbulb,
   UsersRound,
-  Clock
+  Clock,
+  FileDown
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { AgileSpinner } from '../ui/AgileSpinner';
@@ -127,6 +130,19 @@ export function GrowthDashboard() {
 
   return (
     <div className="space-y-10">
+      <div className="flex items-center justify-between px-2">
+        <div>
+          <h1 className="text-2xl font-black uppercase tracking-tighter italic font-headline text-slate-900">Crescimento & Métricas</h1>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">Visão geral do uso da plataforma</p>
+        </div>
+        <Button
+          onClick={() => exportMetricsPdf(stats, moduleMetrics, totalInteractions)}
+          className="h-11 px-6 rounded-xl bg-slate-900 hover:bg-primary text-white font-black uppercase text-[10px] tracking-widest gap-2"
+        >
+          <FileDown className="h-4 w-4" /> Exportar PDF
+        </Button>
+      </div>
+
       {/* Resumo de Tração */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <MetricHighlight 
@@ -284,6 +300,121 @@ function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = Math.round(minutes % 60);
   return rest > 0 ? `${hours}h${rest}` : `${hours}h`;
+}
+
+// Cor de cada módulo no ranking, convertida do Tailwind (bg-*-500/400) pra RGB —
+// jsPDF não lê classes CSS, precisa do valor direto.
+const MODULE_COLOR_RGB: Record<string, [number, number, number]> = {
+  'bg-blue-500': [59, 130, 246],
+  'bg-orange-500': [249, 115, 22],
+  'bg-indigo-500': [99, 102, 241],
+  'bg-amber-500': [245, 158, 11],
+  'bg-emerald-500': [16, 185, 129],
+  'bg-indigo-400': [129, 140, 248],
+};
+
+/**
+ * PDF de uma página (retrato, A4) com o resumo executivo — pensado pra imprimir
+ * ou anexar num e-mail pra liderança, mesmo princípio de texto real (não
+ * screenshot/html2canvas) já usado no relatório do Sprint Review, ver
+ * SummaryDialog.tsx:164.
+ */
+function exportMetricsPdf(
+  stats: {
+    users: number; feedbacks: number; sessions: number; participations: number;
+    avgDurationMinutes: number | null; durationSampleSize: number;
+  },
+  moduleMetrics: { label: string; count: number; color: string }[],
+  totalInteractions: number
+) {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const PW = doc.internal.pageSize.getWidth();
+  const M = 16;
+  const CW = PW - M * 2;
+  let y = M;
+
+  const setFont = (size: number, style: 'normal' | 'bold' = 'normal', color: [number, number, number] = [30, 41, 59]) => {
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+    doc.setTextColor(color[0], color[1], color[2]);
+  };
+
+  // ------------------------------------------------------------------ Cabeçalho
+  doc.setFillColor(255, 106, 0); // --primary do app (25 100% 50%)
+  doc.rect(0, 0, PW, 38, 'F');
+  setFont(9, 'bold', [255, 237, 213]);
+  doc.text('ESPAÇO ÁGIL', M, 14);
+  setFont(20, 'bold', [255, 255, 255]);
+  doc.text('Relatório de Uso do Sistema', M, 26);
+  setFont(9, 'normal', [255, 237, 213]);
+  doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}`, M, 33);
+  y = 50;
+
+  // ------------------------------------------------------------------ KPIs
+  const kpis: Array<[string, string, string]> = [
+    ['Total de Sessões', String(stats.sessions), 'Cerimônias em grupo realizadas'],
+    ['Total de Participações', String(stats.participations), 'Somatório de participantes por sessão*'],
+    [
+      'Tempo de Uso Médio',
+      stats.durationSampleSize > 0 && stats.avgDurationMinutes != null ? formatDuration(stats.avgDurationMinutes) : 'Em breve',
+      stats.durationSampleSize > 0 ? `Retro & Sprint Review · ${stats.durationSampleSize} sessão(ões)` : 'Instrumentado, aguardando dado',
+    ],
+    ['Usuários Totais', String(stats.users), 'Perfis cadastrados na plataforma'],
+    ['Total de Interações', String(totalInteractions), 'Ações registradas na plataforma'],
+    ['Taxa de Feedback', (stats.users > 0 ? (stats.feedbacks / stats.users) * 100 : 0).toFixed(1) + '%', 'Conversão de engajamento'],
+  ];
+  const colW = CW / 2 - 4;
+  kpis.forEach(([title, value, subtitle], idx) => {
+    const col = idx % 2;
+    const row = Math.floor(idx / 2);
+    const x = M + col * (colW + 8);
+    const boxY = y + row * 34;
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(x, boxY, colW, 28, 3, 3, 'FD');
+    setFont(18, 'bold', [15, 23, 42]);
+    doc.text(value, x + 6, boxY + 13);
+    setFont(8, 'bold', [255, 106, 0]);
+    doc.text(title.toUpperCase(), x + 6, boxY + 19);
+    setFont(7, 'normal', [148, 163, 184]);
+    doc.text(subtitle, x + 6, boxY + 24, { maxWidth: colW - 12 });
+  });
+  y += Math.ceil(kpis.length / 2) * 34 + 10;
+
+  // ------------------------------------------------------------------ Ranking de módulos
+  setFont(13, 'bold', [15, 23, 42]);
+  doc.text('Adoção por Módulo', M, y);
+  y += 3;
+  setFont(8, 'normal', [148, 163, 184]);
+  doc.text('Ranking de utilização real', M, y + 4);
+  y += 12;
+
+  const maxCount = Math.max(...moduleMetrics.map(m => m.count), 1);
+  moduleMetrics.forEach(m => {
+    const [r, g, b] = MODULE_COLOR_RGB[m.color] || [100, 116, 139];
+    setFont(9, 'bold', [51, 65, 85]);
+    doc.text(m.label.toUpperCase(), M, y);
+    setFont(9, 'bold', [148, 163, 184]);
+    doc.text(`${m.count} SESSÕES`, M + CW, y, { align: 'right' });
+    y += 3;
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(M, y, CW, 4, 2, 2, 'F');
+    const barW = Math.max((m.count / maxCount) * CW, m.count > 0 ? 4 : 0);
+    if (barW > 0) {
+      doc.setFillColor(r, g, b);
+      doc.roundedRect(M, y, barW, 4, 2, 2, 'F');
+    }
+    y += 11;
+  });
+
+  // ------------------------------------------------------------------ Rodapé
+  y += 4;
+  setFont(7, 'normal', [148, 163, 184]);
+  doc.text('* Retrospectivas ainda não rastreiam participantes — não entram nesse total.', M, y, { maxWidth: CW });
+  y += 4;
+  doc.text('Tempo de uso considera só Retro e Sprint Review por enquanto.', M, y, { maxWidth: CW });
+
+  doc.save(`relatorio-uso-espaco-agil-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 function MetricHighlight({ title, value, subtitle, icon, color }: any) {
