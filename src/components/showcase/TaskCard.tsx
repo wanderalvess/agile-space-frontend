@@ -3,7 +3,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus
+  Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,9 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ShowcaseTask, ImpactMetric, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
+import { ShowcaseTask, ImpactMetric, ChartType, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
 import { isPdfUrl } from './utils';
-import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
+import { ChartRenderer } from './ChartRenderer';
+import { CHART_PRESETS, getCategoryColor } from './chartPresets';
 
 // ── Controlled Inputs ────────────────────────────────────────────────────────
 const ControlledInput = React.memo(function ControlledInput({ value, onChange, debounceMs = 400, className, ...props }: any) {
@@ -159,15 +161,92 @@ function TextField({
 // valem um número pra mostrar na apresentação, mesmo sem ser ticket do Jira.
 // Sem id por item: a lista inteira é sempre substituída de uma vez (mesmo
 // padrão que evidence.* já usa), edição/remoção por índice já é suficiente.
-function MetricsEditor({ metrics, onChange }: { metrics: ImpactMetric[]; onChange: (metrics: ImpactMetric[]) => void }) {
+const CHART_TYPE_OPTIONS: { value: ChartType; label: string; icon: React.ElementType }[] = [
+  { value: 'bar', label: 'Barras', icon: BarChart3 },
+  { value: 'pie', label: 'Pizza', icon: PieChartIcon },
+  { value: 'line', label: 'Linha', icon: LineChartIcon },
+];
+
+function ChartTypePicker({ value, onChange }: { value: ChartType | undefined; onChange: (type: ChartType) => void }) {
+  const current = value || 'bar';
+  return (
+    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
+      {CHART_TYPE_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          title={opt.label}
+          className={cn(
+            'h-7 w-7 rounded-md flex items-center justify-center transition-all',
+            current === opt.value
+              ? 'bg-violet-500 text-white shadow-sm'
+              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+          )}
+        >
+          <opt.icon className="h-3.5 w-3.5" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PresetPicker({ onApply }: { onApply: (preset: typeof CHART_PRESETS[number]) => void }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost" size="sm"
+        onClick={() => setOpen(v => !v)}
+        className="h-7 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-violet-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1"
+      >
+        <Sparkles className="h-3 w-3" /> Gráfico Pronto
+      </Button>
+      {open && (
+        <div className="absolute z-20 top-full left-0 mt-1 w-64 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg p-1.5">
+          {CHART_PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => { onApply(preset); setOpen(false); }}
+              className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors"
+            >
+              <p className="text-[11px] font-black text-slate-700 dark:text-slate-200">{preset.label}</p>
+              <p className="text-[9px] text-slate-400">{preset.description}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricsEditor({
+  metrics, onChange, chartType, onChartTypeChange, chartTitle, onChartTitleChange, onApplyPreset,
+}: {
+  metrics: ImpactMetric[]; onChange: (metrics: ImpactMetric[]) => void;
+  chartType?: ChartType; onChartTypeChange: (type: ChartType) => void;
+  chartTitle?: string; onChartTitleChange: (title: string) => void;
+  onApplyPreset: (preset: typeof CHART_PRESETS[number]) => void;
+}) {
   const updateRow = (i: number, patch: Partial<ImpactMetric>) => {
     onChange(metrics.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
   };
   const removeRow = (i: number) => onChange(metrics.filter((_, idx) => idx !== i));
-  const chartData = metrics.filter(m => m.field.trim()).map(m => ({ name: m.field, value: m.value }));
+  const chartData = metrics.filter(m => m.field.trim()).map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }));
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <ChartTypePicker value={chartType} onChange={onChartTypeChange} />
+        <PresetPicker onApply={onApplyPreset} />
+      </div>
+      <ControlledInput
+        value={chartTitle || ''}
+        onChange={onChartTitleChange}
+        placeholder="Título do gráfico — ex: Bugs por Severidade"
+        className="w-full h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 px-2"
+      />
       <div className="space-y-2">
         {metrics.map((m, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -203,7 +282,7 @@ function MetricsEditor({ metrics, onChange }: { metrics: ImpactMetric[]; onChang
       </Button>
 
       {chartData.length > 0 && (
-        <SimpleBarChart title="Impacto" data={chartData} height={160} defaultColor="hsl(262, 83%, 65%)" />
+        <ChartRenderer type={chartType} title={chartTitle || 'Impacto'} data={chartData} height={160} defaultColor="hsl(262, 83%, 65%)" />
       )}
     </div>
   );
@@ -216,10 +295,12 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
     [task.id, onUpdateTask]
   );
   const onRemove = React.useCallback(() => onRemoveTask(task.id), [task.id, onRemoveTask]);
+  const isMetricsCard = task.cardKind === 'metrics';
   const hasProblem = !!task.evidence.problem;
   const hasSolution = !!task.evidence.solution;
   const hasEvidence = !!(task.evidence.screenshot || task.evidence.video);
-  const isReady = hasProblem && hasSolution && hasEvidence;
+  const hasMetricValue = (task.metrics || []).some(m => m.field.trim() && m.value);
+  const isReady = isMetricsCard ? hasMetricValue : (hasProblem && hasSolution && hasEvidence);
   const isManual = task.id.startsWith('manual_') || task.key.startsWith('MANUAL-');
 
   return (
@@ -247,6 +328,11 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             {isManual && (
               <Badge className="bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400 border-none font-black text-[8px] uppercase h-7 px-2 rounded-lg shrink-0">
                 Manual
+              </Badge>
+            )}
+            {isMetricsCard && (
+              <Badge className="bg-violet-100 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400 border-none font-black text-[8px] uppercase h-7 px-2 rounded-lg shrink-0 gap-1">
+                <TrendingUp className="h-3 w-3" /> Métrica
               </Badge>
             )}
 
@@ -352,32 +438,60 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
           {/* ╔══════════════════════════════════════╗
               ║  SEÇÃO 2 — Conteúdo da Entrega       ║
               ╚══════════════════════════════════════╝ */}
-          <div className="grid grid-cols-2 gap-3">
+          {isMetricsCard ? (
             <TextField
-              id={`problem-${task.id}`}
-              label="O Problema / Motivação"
-              icon={Bug}
-              value={task.evidence.problem}
-              onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, problem: v } }))}
-              placeholder="Erro ou necessidade do cliente..."
-              multiline minRows={6}
-              colorScheme={{ label: 'text-rose-500 dark:text-rose-400', focus: 'focus:border-rose-200 dark:focus:border-rose-900/40', ring: 'focus:ring-1 focus:ring-rose-200/50 dark:focus:ring-rose-900/20' }}
+              id={`description-${task.id}`}
+              label="Contexto — o que esse número representa"
+              icon={FileText}
+              value={task.description}
+              onChange={(v) => onUpdate({ description: v })}
+              placeholder="Ex: Economia gerada pela automação do processo X no trimestre..."
+              multiline minRows={3}
+              colorScheme={{ label: 'text-violet-500 dark:text-violet-400', focus: 'focus:border-violet-200 dark:focus:border-violet-900/40', ring: 'focus:ring-1 focus:ring-violet-200/50 dark:focus:ring-violet-900/20' }}
             />
-            <TextField
-              id={`solution-${task.id}`}
-              label="A Solução Implementada"
-              icon={Code2}
-              value={task.evidence.solution}
-              onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, solution: v } }))}
-              placeholder="O que foi desenvolvido tecnicamente..."
-              multiline minRows={6}
-              colorScheme={{ label: 'text-emerald-600 dark:text-emerald-400', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
-            />
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <TextField
+                id={`problem-${task.id}`}
+                label="O Problema / Motivação"
+                icon={Bug}
+                value={task.evidence.problem}
+                onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, problem: v } }))}
+                placeholder="Erro ou necessidade do cliente..."
+                multiline minRows={6}
+                colorScheme={{ label: 'text-rose-500 dark:text-rose-400', focus: 'focus:border-rose-200 dark:focus:border-rose-900/40', ring: 'focus:ring-1 focus:ring-rose-200/50 dark:focus:ring-rose-900/20' }}
+              />
+              <TextField
+                id={`solution-${task.id}`}
+                label="A Solução Implementada"
+                icon={Code2}
+                value={task.evidence.solution}
+                onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, solution: v } }))}
+                placeholder="O que foi desenvolvido tecnicamente..."
+                multiline minRows={6}
+                colorScheme={{ label: 'text-emerald-600 dark:text-emerald-400', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
+              />
+            </div>
+          )}
 
           {/* ╔══════════════════════════════════════╗
-              ║  SEÇÃO 3 — Responsáveis + Evidências ║
+              ║  SEÇÃO 3 — Métricas (card de métricas) ou
+              ║            Responsáveis + Evidências (card padrão)
               ╚══════════════════════════════════════╝ */}
+          {isMetricsCard ? (
+            <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
+              <FieldLabel icon={TrendingUp} label="Campos e Valores" color="text-violet-500 dark:text-violet-400" />
+              <MetricsEditor
+                metrics={task.metrics || []}
+                onChange={(metrics) => onUpdate({ metrics })}
+                chartType={task.chartType}
+                onChartTypeChange={(chartType) => onUpdate({ chartType })}
+                chartTitle={task.chartTitle}
+                onChartTitleChange={(chartTitle) => onUpdate({ chartTitle })}
+                onApplyPreset={(preset) => onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) })}
+              />
+            </div>
+          ) : (
           <div className="grid grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
             {/* Responsáveis */}
             <div className="space-y-3">
@@ -485,14 +599,25 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               </div>
             </div>
           </div>
+          )}
 
           {/* ╔══════════════════════════════════════╗
-              ║  SEÇÃO 4 — Métricas de Impacto        ║
+              ║  SEÇÃO 4 — Métrica de Impacto avulsa  ║
+              ║  (só no card padrão — no card de      ║
+              ║  métricas isso já é a SEÇÃO 3)         ║
               ╚══════════════════════════════════════╝ */}
-          {(task.metrics && task.metrics.length > 0) ? (
+          {!isMetricsCard && ((task.metrics && task.metrics.length > 0) ? (
             <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
               <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
-              <MetricsEditor metrics={task.metrics} onChange={(metrics) => onUpdate({ metrics })} />
+              <MetricsEditor
+                metrics={task.metrics}
+                onChange={(metrics) => onUpdate({ metrics })}
+                chartType={task.chartType}
+                onChartTypeChange={(chartType) => onUpdate({ chartType })}
+                chartTitle={task.chartTitle}
+                onChartTitleChange={(chartTitle) => onUpdate({ chartTitle })}
+                onApplyPreset={(preset) => onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) })}
+              />
             </div>
           ) : (
             <Button
@@ -502,7 +627,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             >
               <Plus className="h-3 w-3" /> Métrica de Impacto
             </Button>
-          )}
+          ))}
 
           {/* Feedback do PO */}
           {(task.feedback !== undefined || task.decision === 'needs_adjustment' || task.decision === 'rejected') && (

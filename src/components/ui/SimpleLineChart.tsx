@@ -1,49 +1,29 @@
 "use client";
 
 import React from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { WidgetCard } from "@/components/ui/WidgetCard";
 import { formatCompactNumber } from "@/lib/utils";
 
-interface BarChartData {
+interface LineChartData {
   name: string;
   value: number;
-  color?: string;
 }
 
-interface SimpleBarChartProps {
+interface SimpleLineChartProps {
   title: string;
-  data: BarChartData[];
+  data: LineChartData[];
   defaultColor?: string;
   height?: number;
 }
 
-export function SimpleBarChart({
-  title,
-  data,
-  defaultColor,
-  height = 230,
-}: SimpleBarChartProps) {
+export function SimpleLineChart({ title, data, defaultColor, height = 230 }: SimpleLineChartProps) {
   return (
     <WidgetCard title={title}>
       <div style={{ width: "100%", height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="hsl(var(--border))"
-              opacity={0.6}
-            />
+          <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.6} />
             <XAxis
               dataKey="name"
               axisLine={false}
@@ -58,7 +38,7 @@ export function SimpleBarChart({
               tickFormatter={formatCompactNumber}
             />
             <Tooltip
-              cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
+              cursor={{ stroke: "hsl(var(--muted-foreground))", strokeDasharray: "3 3" }}
               formatter={(value: number) => value.toLocaleString('pt-BR')}
               contentStyle={{
                 backgroundColor: "hsl(var(--card))",
@@ -70,15 +50,15 @@ export function SimpleBarChart({
               }}
               itemStyle={{ color: "hsl(var(--card-foreground))" }}
             />
-            <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={55}>
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.color || defaultColor || "hsl(var(--primary))"}
-                />
-              ))}
-            </Bar>
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={defaultColor || "hsl(var(--primary))"}
+              strokeWidth={2.5}
+              dot={{ r: 4, fill: defaultColor || "hsl(var(--primary))" }}
+              activeDot={{ r: 6 }}
+            />
+          </LineChart>
         </ResponsiveContainer>
       </div>
     </WidgetCard>

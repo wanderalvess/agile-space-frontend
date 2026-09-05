@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck
+  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck, TrendingUp, FileText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -13,13 +13,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { JiraIssue } from '@/services/jiraService';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { getAuthToken } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 
 // New Refactored Components & Utils
-import { ShowcaseSession, ShowcaseTask, Decision } from '@/components/showcase/types';
+import { ShowcaseSession, ShowcaseTask, Decision, CardKind } from '@/components/showcase/types';
 import { formatTime, makeTask } from '@/components/showcase/utils';
 import { TaskCard } from '@/components/showcase/TaskCard';
 import { TeatroMode } from '@/components/showcase/TeatroMode';
@@ -219,20 +220,25 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const addManualTask = async () => {
+  const addManualTask = async (cardKind: CardKind = 'story') => {
     if (!id || !session) return;
     const currentTasks = session.tasks || [];
     const manualCount = currentTasks.filter((t: any) => t.key.startsWith('MANUAL-')).length + 1;
+    const isMetrics = cardKind === 'metrics';
     const newTask: ShowcaseTask = {
       id: `manual_${Date.now()}`,
       key: `MANUAL-${String(manualCount).padStart(3, '0')}`,
-      title: 'Nova Tarefa Manual',
+      title: isMetrics ? 'Nova Métrica de Impacto' : 'Nova Tarefa Manual',
       description: '',
       acceptanceCriteria: '',
       type: 'Evolução',
       status: 'In Progress',
       priority: 'Medium',
       points: 0,
+      cardKind,
+      // Card de métricas nasce com uma linha campo/valor aberta — é o
+      // conteúdo principal desse tipo, não uma seção opcional pra descobrir.
+      metrics: isMetrics ? [{ field: '', value: 0 }] : undefined,
       assignee: authSession?.name || userProfile?.name || '',
       url: '',
       evidence: {
@@ -493,9 +499,21 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
 
               <div className="flex items-center bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 gap-1 backdrop-blur-sm">
-                <Button variant="ghost" onClick={addManualTask} className="hidden lg:flex h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
-                  <Plus className="h-3 w-3" /> Manual
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="hidden lg:flex h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
+                      <Plus className="h-3 w-3" /> Manual
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="dark:bg-slate-900 dark:border-slate-800">
+                    <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-[11px] font-bold">
+                      <FileText className="h-3.5 w-3.5 text-slate-400" /> Card Padrão
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-[11px] font-bold">
+                      <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de Métricas
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" onClick={() => setIsJiraOpen(true)} className="h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
                   <CloudDownload className="h-3 w-3" /> Jira
                 </Button>
@@ -531,9 +549,21 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                <Button onClick={() => setIsJiraOpen(true)} className="h-14 px-10 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-black uppercase text-[11px] tracking-widest gap-3 shadow-2xl shadow-black/10 dark:shadow-none hover:scale-105 active:scale-95 transition-all">
                   <CloudDownload className="h-5 w-5" /> Importar Jira
                </Button>
-               <Button onClick={addManualTask} variant="outline" className="h-14 px-10 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 border-2 border-slate-100 dark:border-slate-800 font-black uppercase text-[11px] tracking-widest gap-3 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-200 dark:hover:border-slate-750 transition-all">
-                  <Plus className="h-5 w-5" /> Criar Manual
-               </Button>
+               <DropdownMenu>
+                 <DropdownMenuTrigger asChild>
+                   <Button variant="outline" className="h-14 px-10 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 border-2 border-slate-100 dark:border-slate-800 font-black uppercase text-[11px] tracking-widest gap-3 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-200 dark:hover:border-slate-750 transition-all">
+                     <Plus className="h-5 w-5" /> Criar Manual
+                   </Button>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent align="center" className="dark:bg-slate-900 dark:border-slate-800">
+                   <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-[11px] font-bold">
+                     <FileText className="h-3.5 w-3.5 text-slate-400" /> Card Padrão
+                   </DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-[11px] font-bold">
+                     <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de Métricas
+                   </DropdownMenuItem>
+                 </DropdownMenuContent>
+               </DropdownMenu>
              </div>
           </motion.div>
         ) : (

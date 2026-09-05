@@ -1,11 +1,119 @@
 'use client';
 
 import React from 'react';
-import { DECISION, ShowcaseSession } from './types';
+import { DECISION, ShowcaseSession, ImpactMetric, ChartType } from './types';
 import { formatTime, getDirectImageUrl } from './utils';
+import { getCategoryColor } from './chartPresets';
 
 const decisionHex = (d: keyof typeof DECISION) =>
   d === 'approved' ? '#34d399' : d === 'rejected' ? '#f87171' : d === 'needs_adjustment' ? '#fbbf24' : '#94a3b8';
+
+const PRINT_CHART_PALETTE = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#60a5fa'];
+
+/**
+ * Gráfico de barra/pizza/linha desenhado com SVG/div puro (sem recharts):
+ * ResponsiveContainer depende de ResizeObserver, que não dispara a tempo em
+ * contexto de impressão (display:none até o @media print ativar) e renderiza
+ * altura zero. Dimensões fixas aqui, então funciona em qualquer motor de PDF.
+ */
+function PrintChart({ type, metrics, maxValue, size = 'sm' }: { type?: ChartType; metrics: ImpactMetric[]; maxValue: number; size?: 'sm' | 'lg' }) {
+  if ((!type || type === 'bar') && size === 'lg') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '18px', width: '100%' }}>
+        {metrics.map((m, i) => {
+          const color = getCategoryColor(m.field) || PRINT_CHART_PALETTE[i % PRINT_CHART_PALETTE.length];
+          return (
+          <div key={i}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
+              <span style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>{m.field}</span>
+              <span style={{ fontSize: '22px', fontWeight: 900, color }}>{m.value.toLocaleString('pt-BR')}</span>
+            </div>
+            <div style={{ height: '10px', borderRadius: '5px', backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.max(4, (m.value / maxValue) * 100)}%`, height: '100%', backgroundColor: color, borderRadius: '5px' }} />
+            </div>
+          </div>
+          );
+        })}
+      </div>
+    );
+  }
+  if (type === 'pie') {
+    const total = metrics.reduce((sum, m) => sum + Math.max(0, m.value), 0) || 1;
+    let cumulative = 0;
+    const slices = metrics.map((m, i) => {
+      const value = Math.max(0, m.value);
+      const startAngle = (cumulative / total) * 2 * Math.PI;
+      cumulative += value;
+      const endAngle = (cumulative / total) * 2 * Math.PI;
+      const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
+      const cx = 50, cy = 50, r = 42;
+      const x1 = cx + r * Math.sin(startAngle), y1 = cy - r * Math.cos(startAngle);
+      const x2 = cx + r * Math.sin(endAngle), y2 = cy - r * Math.cos(endAngle);
+      const path = value > 0
+        ? `M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`
+        : '';
+      return { path, color: getCategoryColor(m.field) || PRINT_CHART_PALETTE[i % PRINT_CHART_PALETTE.length], m };
+    });
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', width: '100%' }}>
+        <svg viewBox="0 0 100 100" style={{ width: size === 'lg' ? '200px' : '150px', height: size === 'lg' ? '200px' : '150px', flexShrink: 0 }}>
+          {slices.map((s, i) => s.path && <path key={i} d={s.path} fill={s.color} />)}
+        </svg>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+          {slices.map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '3px', backgroundColor: s.color, flexShrink: 0 }} />
+              <span style={{ flex: 1 }}>{s.m.field}</span>
+              <span style={{ fontWeight: 900, color: 'rgba(255,255,255,0.9)' }}>{s.m.value.toLocaleString('pt-BR')}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (type === 'line') {
+    const w = 300, h = 120, pad = 12;
+    const points = metrics.map((m, i) => ({
+      x: metrics.length > 1 ? pad + (i / (metrics.length - 1)) * (w - pad * 2) : w / 2,
+      y: h - pad - (Math.max(0, m.value) / maxValue) * (h - pad * 2),
+      m,
+    }));
+    const polylinePoints = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+        <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: `${h}px` }}>
+          <polyline points={polylinePoints} fill="none" stroke="#a78bfa" strokeWidth={2.5} />
+          {points.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#a78bfa" />)}
+        </svg>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', fontSize: '10px', color: 'rgba(255,255,255,0.6)' }}>
+          {metrics.map((m, i) => (
+            <span key={i}>{m.field}: <strong style={{ color: 'rgba(255,255,255,0.9)' }}>{m.value.toLocaleString('pt-BR')}</strong></span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+      {metrics.map((m, i) => {
+        const color = getCategoryColor(m.field) || PRINT_CHART_PALETTE[i % PRINT_CHART_PALETTE.length];
+        return (
+        <div key={i}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '4px' }}>
+            <span>{m.field}</span>
+            <span style={{ fontWeight: 900, color }}>{m.value.toLocaleString('pt-BR')}</span>
+          </div>
+          <div style={{ height: '8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+            <div style={{ width: `${Math.max(4, (m.value / maxValue) * 100)}%`, height: '100%', backgroundColor: color, borderRadius: '4px' }} />
+          </div>
+        </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface PrintSlidesViewProps {
   session: ShowcaseSession | null;
@@ -129,6 +237,7 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
 
         const metrics = task.metrics?.filter(m => m.field.trim()) || [];
         const maxMetricValue = Math.max(...metrics.map(m => m.value), 1);
+        const isMetricsCard = task.cardKind === 'metrics';
 
         return (
           <div key={task.id} style={slideStyle}>
@@ -150,39 +259,34 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
             <div style={{ flex: 1, display: 'flex', padding: '20px 40px 24px 40px', gap: '32px', overflow: 'hidden' }}>
               {/* Coluna esquerda: Info */}
               <div style={{ width: '38%', display: 'flex', flexDirection: 'column', gap: '16px', flexShrink: 0 }}>
-                <div>
-                  <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#f87171', marginBottom: '6px' }}>O Problema</p>
-                  <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.evidence.problem || 'Não informado'}"</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#34d399', marginBottom: '6px' }}>A Solução</p>
-                  <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.evidence.solution || 'Não informado'}"</p>
-                </div>
+                {isMetricsCard ? (
+                  <div>
+                    <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>Contexto</p>
+                    <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.description || 'Não informado'}"</p>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#f87171', marginBottom: '6px' }}>O Problema</p>
+                      <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.evidence.problem || 'Não informado'}"</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#34d399', marginBottom: '6px' }}>A Solução</p>
+                      <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.evidence.solution || 'Não informado'}"</p>
+                    </div>
+                  </>
+                )}
                 {task.acceptanceCriteria && (
                   <div>
                     <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>Critérios de Aceite</p>
                     <p style={{ fontSize: '9px', lineHeight: 1.6, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', margin: 0, whiteSpace: 'pre-wrap' }}>{task.acceptanceCriteria}</p>
                   </div>
                 )}
-                {metrics.length > 0 && (
-                  // Barras desenhadas com div/width simples (não recharts): ResponsiveContainer
-                  // depende de ResizeObserver, que não costuma disparar a tempo em contexto de
-                  // impressão (display:none até o @media print ativar) — renderizaria altura zero.
+                {metrics.length > 0 && !isMetricsCard && (
+                  // Card de métricas já mostra o gráfico grande na coluna direita.
                   <div>
-                    <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>Métricas de Impacto</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {metrics.map((m, i) => (
-                        <div key={i}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginBottom: '2px' }}>
-                            <span>{m.field}</span>
-                            <span style={{ fontWeight: 900 }}>{m.value.toLocaleString('pt-BR')}</span>
-                          </div>
-                          <div style={{ height: '5px', borderRadius: '3px', backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.max(4, (m.value / maxMetricValue) * 100)}%`, height: '100%', backgroundColor: '#a78bfa', borderRadius: '3px' }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>{task.chartTitle || 'Métricas de Impacto'}</p>
+                    <PrintChart type={task.chartType} metrics={metrics} maxValue={maxMetricValue} />
                   </div>
                 )}
                 {(task.project || task.versionMaster || task.versionDevelop || task.versionRelease) && (
@@ -210,11 +314,19 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                 </div>
               </div>
 
-              {/* Coluna direita: Evidência Visual */}
+              {/* Coluna direita: Evidência Visual, ou gráfico grande pro card de métricas */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
-                <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#818cf8', margin: 0 }}>Evidência Visual</p>
-                <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  {(task.evidence.screenshot || task.evidence.video) ? (
+                <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#818cf8', margin: 0 }}>
+                  {isMetricsCard ? (task.chartTitle || 'Métricas de Impacto') : 'Evidência Visual'}
+                </p>
+                <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: isMetricsCard ? 'stretch' : 'center', justifyContent: 'center', overflow: 'hidden', padding: isMetricsCard ? '24px' : 0 }}>
+                  {isMetricsCard ? (
+                    metrics.length > 0 ? (
+                      <PrintChart type={task.chartType} metrics={metrics} maxValue={maxMetricValue} size="lg" />
+                    ) : (
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.1)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px' }}>Sem métricas preenchidas</span>
+                    )
+                  ) : (task.evidence.screenshot || task.evidence.video) ? (
                     <img
                       src={getDirectImageUrl(task.evidence.screenshot || task.evidence.video)}
                       referrerPolicy="no-referrer"

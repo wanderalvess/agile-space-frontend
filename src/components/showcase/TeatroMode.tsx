@@ -11,7 +11,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
-import { SimpleBarChart } from '@/components/ui/SimpleBarChart';
+import { ChartRenderer } from './ChartRenderer';
+import { getCategoryColor } from './chartPresets';
 import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl } from './utils';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
@@ -379,6 +380,7 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
   const hasEffort = (task?.evidence.timeSpent || 0) > 0 || (task?.evidence.timeEstimate || 0) > 0;
   const hasVersions = !!(task?.project || task?.versionMaster || task?.versionDevelop || task?.versionRelease);
   const metrics = task?.metrics?.filter(m => m.field.trim()) || [];
+  const isMetricsCard = task?.cardKind === 'metrics';
 
   return (
     <motion.main
@@ -417,7 +419,9 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               </div>
               <h2 className={cn("text-2xl font-semibold leading-tight tracking-tight", isLight ? "text-slate-900" : "text-white")}>{task?.title}</h2>
               <p className={cn("text-[13px] leading-relaxed", isLight ? "text-slate-500" : "text-white/60")}>
-                {task?.evidence.problem || "Sem problema/motivação descrita."}
+                {isMetricsCard
+                  ? (task?.description || "Sem contexto descrito.")
+                  : (task?.evidence.problem || "Sem problema/motivação descrita.")}
               </p>
 
               {/* Resumo de impacto sempre visível — é o número que a squad quer
@@ -440,6 +444,7 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               )}
             </header>
 
+            {!isMetricsCard && (
             <div className={cn("flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[12px] pb-5 border-b", isLight ? "border-slate-100 text-slate-500" : "border-white/5 text-white/50")}>
               <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />{task?.evidence.dev || '—'}</span>
               <span className="flex items-center gap-1.5"><UserCheck className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />{task?.evidence.qa || '—'}</span>
@@ -451,7 +456,9 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                 </span>
               )}
             </div>
+            )}
 
+            {!isMetricsCard && (
             <button
               onClick={() => setShowDetails(v => !v)}
               className={cn("flex items-center gap-1.5 text-[11px] font-semibold transition-colors", isLight ? "text-slate-500 hover:text-slate-900" : "text-white/50 hover:text-white")}
@@ -459,8 +466,9 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
               {showDetails ? 'Ocultar detalhes' : 'Ver detalhes'}
             </button>
+            )}
 
-            {showDetails && (
+            {!isMetricsCard && showDetails && (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
                 <section className="space-y-1.5">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400">A Solução</p>
@@ -514,10 +522,11 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
 
                 {metrics.length > 0 && (
                   <section className="space-y-1.5">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">Métricas de Impacto</p>
-                    <SimpleBarChart
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">{task?.chartTitle || 'Métricas de Impacto'}</p>
+                    <ChartRenderer
+                      type={task?.chartType}
                       title=""
-                      data={metrics.map(m => ({ name: m.field, value: m.value }))}
+                      data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))}
                       height={140}
                       defaultColor="hsl(262, 83%, 65%)"
                     />
@@ -542,6 +551,43 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
           <AnimatePresence mode="wait">
             {(() => {
               if (!task) return null;
+
+              // Card de métricas: o gráfico É a evidência principal — mostra
+              // ele grande aqui em vez de procurar screenshot/vídeo, que essa
+              // entrega normalmente não tem.
+              if (isMetricsCard) return (
+                <motion.div
+                  key="metrics-chart"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+                  className={cn(
+                    "w-full h-full max-w-4xl rounded-[3.5rem] overflow-hidden border p-12 flex flex-col justify-center gap-8",
+                    isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+                  )}
+                >
+                  {metrics.length > 0 ? (
+                    <>
+                      {task.chartTitle && (
+                        <p className={cn("text-center text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-violet-500" : "text-violet-400")}>{task.chartTitle}</p>
+                      )}
+                      <div className="flex flex-wrap justify-center gap-4">
+                        {metrics.map((m, i) => (
+                          <div key={i} className="text-center px-6">
+                            <p className={cn("text-4xl font-black tracking-tight", isLight ? "text-violet-700" : "text-violet-300")}>{m.value.toLocaleString('pt-BR')}</p>
+                            <p className={cn("text-[11px] font-bold uppercase tracking-widest mt-1", isLight ? "text-slate-400" : "text-white/40")}>{m.field}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <ChartRenderer type={task.chartType} title="" data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))} height={280} defaultColor="hsl(262, 83%, 65%)" />
+                    </>
+                  ) : (
+                    <p className={cn("text-center text-sm font-bold uppercase tracking-widest", isLight ? "text-slate-300" : "text-white/20")}>Sem métricas preenchidas ainda</p>
+                  )}
+                </motion.div>
+              );
+
               const url = task.evidence.video || task.evidence.screenshot;
               if (!url) return (
                 <motion.div

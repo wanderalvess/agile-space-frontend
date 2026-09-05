@@ -21,16 +21,29 @@ export interface ImpactMetric {
   value: number; // "valor"
 }
 
+export type CardKind = 'story' | 'metrics';
+// Nem toda entrega de dev team é código: cobertura de teste, taxa de bugs
+// por severidade, tendência de throughput ao longo da sprint — cada forma
+// pede um gráfico diferente. Ausente/'bar' mantém o comportamento anterior.
+export type ChartType = 'bar' | 'pie' | 'line';
+
 export interface ShowcaseTask {
-  id: string; 
-  key: string; 
-  title: string; 
+  id: string;
+  key: string;
+  title: string;
   description: string;
-  acceptanceCriteria: string; 
+  acceptanceCriteria: string;
   type: string;
   status: string;
   priority: string;
   points: number;
+  // Ausente/'story' = card clássico (causa/solução). 'metrics' = entrega cujo
+  // resultado é melhor contado em número (campo/valor + gráfico) do que em
+  // causa/solução — troca o corpo do card por MetricsEditor + description
+  // como contexto, sem mexer no fluxo de decisão/preparação em volta.
+  cardKind?: CardKind;
+  chartType?: ChartType;
+  chartTitle?: string;
   metrics?: ImpactMetric[];
   assignee: string; 
   url: string;

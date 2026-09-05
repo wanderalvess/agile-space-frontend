@@ -52,3 +52,11 @@ export const isValidJiraKey = (key?: string | null) => {
   // Patterns like PROJ-123 (Uppercase letters and numbers, hyphen, then digits)
   return /^[A-Z0-9]+-\d+$/.test(key);
 };
+
+/** "1500" -> "1.5K", "2000000" -> "2M" — evita número gigante colidindo num eixo/rótulo de gráfico. */
+export const formatCompactNumber = (value: number): string => {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toFixed(abs % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (abs >= 1_000) return `${(value / 1_000).toFixed(abs % 1_000 === 0 ? 0 : 1)}K`;
+  return value.toLocaleString('pt-BR');
+};
