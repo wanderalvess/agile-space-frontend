@@ -15,7 +15,8 @@ import {
   MessageSquareHeart,
   GitBranch,
   Brain,
-  Lock
+  Lock,
+  ChevronDown
 } from 'lucide-react';
 import { adminApi } from '@/app/admin/api';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +24,8 @@ import { Button } from '@/components/ui/button';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import { UserExplorer } from '@/components/admin/UserExplorer';
 import { useUserContext } from '@/context/UserContext';
 import { AuditLogExplorer } from '@/components/admin/AuditLogExplorer';
@@ -37,6 +40,66 @@ import { ChangelogManager } from '@/components/admin/ChangelogManager';
 import { IntelligenceHubMonitor } from '@/components/admin/IntelligenceHubMonitor';
 import { ApiKeysManager } from '@/components/admin/ApiKeysManager';
 import { RoomHeader } from '@/components/layout/RoomHeader';
+
+// 12 telas agrupadas em pares por afinidade -- cada grupo vira um dropdown na
+// barra, em vez de 12 abas competindo por espaço horizontal (ver TabsTrigger
+// original, cortava/quebrava em telas de notebook comuns).
+const TAB_GROUPS = [
+  {
+    id: 'governance-group',
+    label: 'Governança',
+    icon: Building2,
+    items: [
+      { id: 'governance', label: 'Governança & Jira Sync', icon: Building2 },
+      { id: 'users', label: 'Usuários & Cargos', icon: Users },
+    ],
+  },
+  {
+    id: 'ceremonies-group',
+    label: 'Cerimônias',
+    icon: Target,
+    items: [
+      { id: 'ceremonies', label: 'Analytics de Cerimônias', icon: Target },
+      { id: 'sessions', label: 'Histórico de Sessões', icon: FileText },
+    ],
+  },
+  {
+    id: 'growth-group',
+    label: 'Métricas',
+    icon: TrendingUp,
+    items: [
+      { id: 'growth', label: 'Crescimento & Métricas', icon: TrendingUp },
+      { id: 'feedback', label: 'Feedbacks & NPS', icon: MessageSquareHeart },
+    ],
+  },
+  {
+    id: 'comms-group',
+    label: 'Sistema',
+    icon: Megaphone,
+    items: [
+      { id: 'communications', label: 'Anúncios & Avisos', icon: Megaphone },
+      { id: 'system', label: 'Configurações', icon: Settings2 },
+    ],
+  },
+  {
+    id: 'engineering-group',
+    label: 'Engenharia',
+    icon: GitBranch,
+    items: [
+      { id: 'changelog', label: 'Engenharia & Releases', icon: GitBranch },
+      { id: 'intelligence', label: 'Motor AI & Conhecimento', icon: Brain },
+    ],
+  },
+  {
+    id: 'security-group',
+    label: 'Segurança',
+    icon: Lock,
+    items: [
+      { id: 'api-keys', label: 'API Keys', icon: Lock },
+      { id: 'audit', label: 'Auditoria & Logs', icon: ShieldCheck },
+    ],
+  },
+] as const;
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -101,31 +164,46 @@ export default function AdminDashboard() {
           
             <div className="w-full bg-white dark:bg-slate-900/40 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50 sticky top-12 z-[40]">
               <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2.5">
-                <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl h-auto gap-1.5 flex flex-wrap w-full items-center border border-slate-200/50 dark:border-slate-800/50">
-                  {[
-                    { id: 'governance', label: 'Governança & Jira Sync', icon: <Building2 className="h-3.5 w-3.5" /> },
-                    { id: 'ceremonies', label: 'Analytics de Cerimônias', icon: <Target className="h-3.5 w-3.5" /> },
-                    { id: 'sessions', label: 'Histórico de Sessões', icon: <FileText className="h-3.5 w-3.5" /> },
-                    { id: 'users', label: 'Usuários & Cargos', icon: <Users className="h-3.5 w-3.5" /> },
-                    { id: 'growth', label: 'Crescimento & Métricas', icon: <TrendingUp className="h-3.5 w-3.5" /> },
-                    { id: 'communications', label: 'Anúncios & Avisos', icon: <Megaphone className="h-3.5 w-3.5" /> },
-                    { id: 'feedback', label: 'Feedbacks & NPS', icon: <MessageSquareHeart className="h-3.5 w-3.5" /> },
-                    { id: 'system', label: 'Configurações', icon: <Settings2 className="h-3.5 w-3.5" /> },
-                    { id: 'changelog', label: 'Engenharia & Releases', icon: <GitBranch className="h-3.5 w-3.5" /> },
-                    { id: 'intelligence', label: 'Motor AI & Conhecimento', icon: <Brain className="h-3.5 w-3.5" /> },
-                    { id: 'api-keys', label: 'API Keys', icon: <Lock className="h-3.5 w-3.5" /> },
-                    { id: 'audit', label: 'Auditoria & Logs', icon: <ShieldCheck className="h-3.5 w-3.5" /> },
-                  ].map((tab) => (
-                    <TabsTrigger
-                      key={tab.id}
-                      value={tab.id}
-                      className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-xl px-4 py-2 text-[10.5px] font-black uppercase tracking-wider transition-all gap-2 flex items-center border border-transparent data-[state=active]:border-slate-200/80 dark:data-[state=active]:border-slate-800 whitespace-nowrap shrink-0 justify-center"
-                    >
-                      {tab.icon}
-                      <span>{tab.label}</span>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                <div className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl h-auto gap-1.5 flex flex-wrap w-full items-center border border-slate-200/50 dark:border-slate-800/50">
+                  {TAB_GROUPS.map((group) => {
+                    const activeItem = group.items.find(i => i.id === activeTab);
+                    const isActive = !!activeItem;
+                    const triggerClasses = cn(
+                      "rounded-xl px-4 py-2 text-[10.5px] font-black uppercase tracking-wider transition-all gap-2 flex items-center border border-transparent whitespace-nowrap shrink-0 justify-center",
+                      isActive
+                        ? "bg-white dark:bg-slate-900 text-primary shadow-sm border-slate-200/80 dark:border-slate-800"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    );
+                    return (
+                      <DropdownMenu key={group.id}>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className={triggerClasses}>
+                            <group.icon className="h-3.5 w-3.5" />
+                            <span>{activeItem ? activeItem.label : group.label}</span>
+                            <ChevronDown className="h-3 w-3 opacity-60" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-64 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xl p-1.5 bg-white dark:bg-slate-900 mt-2">
+                          {group.items.map((item) => (
+                            <DropdownMenuItem
+                              key={item.id}
+                              onClick={() => setActiveTab(item.id)}
+                              className={cn(
+                                "rounded-xl text-[11px] font-black uppercase tracking-wider p-2.5 cursor-pointer gap-2 transition-colors",
+                                item.id === activeTab
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                              )}
+                            >
+                              <item.icon className="h-3.5 w-3.5" />
+                              {item.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
