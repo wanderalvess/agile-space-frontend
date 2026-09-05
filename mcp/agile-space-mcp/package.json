@@ -1,8 +1,8 @@
 {
-  "name": "agile-space-knowledge-mcp",
+  "name": "agile-space-mcp",
   "version": "1.0.0",
   "private": true,
-  "description": "Servidor MCP para consultar e baixar documentos da Base de Conhecimento (Agile Space) via API pública com API key.",
+  "description": "Servidor MCP para consultar módulos do Agile Space (Base de Conhecimento, Prompt Hub, ...) via API pública com API key.",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

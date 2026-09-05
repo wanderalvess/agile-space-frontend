@@ -153,3 +153,94 @@ export function createDoc(source: Source, params: CreateDocParams): Promise<any>
     body: params,
   });
 }
+
+// Prompt Hub — só existe API v1 pública no legado (Firestore/Agile-Space). O app
+// novo (Spring) já tem MCP embutido próprio em /mcp/sse com essas mesmas consultas
+// (McpPromptHubTools), então essas funções sempre chamam source="legacy".
+
+export interface PromptSummary {
+  id: string;
+  title: string;
+  description?: string;
+  type: string;
+  visibility: string;
+  authorId: string;
+  authorName: string;
+  tags: string[];
+  useCount: number;
+  forkCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptListResponse {
+  items: PromptSummary[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PromptDetail extends PromptSummary {
+  content?: string;
+  status?: string;
+  impact?: string;
+  businessGoal?: string;
+  targetAudience?: string;
+  gemLink?: string;
+  architectureLink?: string;
+  authorRole?: string;
+  authorSquad?: string;
+  authorAvatar?: string;
+}
+
+export function listPrompts(params: { q?: string; authorId?: string; tag?: string; page?: number; pageSize?: number }): Promise<PromptListResponse> {
+  const qs = new URLSearchParams();
+  if (params.q) qs.set('q', params.q);
+  if (params.authorId) qs.set('authorId', params.authorId);
+  if (params.tag) qs.set('tag', params.tag);
+  if (params.page) qs.set('page', String(params.page));
+  if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+  const query = qs.toString();
+  return callJson<PromptListResponse>('legacy', `/api/v1/prompt-hub/items${query ? `?${query}` : ''}`);
+}
+
+export function getPrompt(id: string): Promise<PromptDetail> {
+  return callJson<PromptDetail>('legacy', `/api/v1/prompt-hub/items/${encodeURIComponent(id)}`);
+}
+
+export interface PromptCollectionSummary {
+  id: string;
+  name: string;
+  description?: string;
+  visibility: string;
+  ownerId: string;
+  ownerName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PromptCollectionListResponse {
+  collections: PromptCollectionSummary[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PromptCollectionDetail extends PromptCollectionSummary {
+  items: PromptSummary[];
+}
+
+export function listPromptCollections(params: { ownerId?: string; page?: number; pageSize?: number }): Promise<PromptCollectionListResponse> {
+  const qs = new URLSearchParams();
+  if (params.ownerId) qs.set('ownerId', params.ownerId);
+  if (params.page) qs.set('page', String(params.page));
+  if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+  const query = qs.toString();
+  return callJson<PromptCollectionListResponse>('legacy', `/api/v1/prompt-hub/collections${query ? `?${query}` : ''}`);
+}
+
+export function getPromptCollection(id: string): Promise<PromptCollectionDetail> {
+  return callJson<PromptCollectionDetail>('legacy', `/api/v1/prompt-hub/collections/${encodeURIComponent(id)}`);
+}

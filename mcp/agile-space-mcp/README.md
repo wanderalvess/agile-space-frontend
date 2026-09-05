@@ -1,14 +1,21 @@
-# agile-space-knowledge-mcp
+# agile-space-mcp
 
-Servidor MCP fino sobre a API pública da Base de Conhecimento (`/api/v1/knowledge/docs`),
-exposta tanto pelo legado (`Agile-Space`) quanto pelo rewrite (`agile-space-frontend`).
-Não duplica lógica por app — os dois expõem o mesmo contrato de rota/resposta, então
-esse servidor só troca a base URL e a API key conforme o parâmetro `source`.
+Servidor MCP fino sobre APIs públicas `/api/v1/**` do Espaço Ágil.
+
+- **Base de Conhecimento** (`/api/v1/knowledge/docs`): exposta tanto pelo legado
+  (`Agile-Space`) quanto pelo rewrite (`agile-space-frontend`) com o mesmo contrato
+  de rota/resposta — por isso as tools de doc trocam a base URL e a API key
+  conforme o parâmetro `source` (`legacy`/`new`).
+- **Prompt Hub** (`/api/v1/prompt-hub/**`): só existe aqui pro **legado**
+  (`Agile-Space`, Firestore) — leitura de itens/coleções com `visibility=public`.
+  O app novo (Spring) já tem essas mesmas consultas via MCP embutido próprio em
+  `/mcp/sse` (`McpPromptHubTools`), então as tools de prompt não têm parâmetro
+  `source` — sempre chamam o legado.
 
 ## Setup
 
 ```bash
-cd mcp/knowledge-server
+cd mcp/agile-space-mcp
 npm install
 npm run build
 ```
@@ -34,9 +41,9 @@ Adicione ao `claude_desktop_config.json` (ou config MCP equivalente):
 ```json
 {
   "mcpServers": {
-    "agile-space-knowledge": {
+    "agile-space-mcp": {
       "command": "node",
-      "args": ["/caminho/absoluto/para/mcp/knowledge-server/dist/index.js"],
+      "args": ["/caminho/absoluto/para/mcp/agile-space-mcp/dist/index.js"],
       "env": {
         "LEGACY_BASE_URL": "https://espacoagil.com.br",
         "LEGACY_API_KEY": "ask_...",
@@ -57,6 +64,13 @@ Adicione ao `claude_desktop_config.json` (ou config MCP equivalente):
 - `create_doc(source, title, content, category?, tags?)` — cria e publica um novo documento (Markdown ou HTML)
 
 `source` é sempre `"legacy"` ou `"new"`.
+
+Prompt Hub (só legado, sem `source`):
+
+- `list_prompts(query?, authorId?, tag?, page?, pageSize?)` — lista prompts/iniciativas públicos
+- `get_prompt(id)` — um prompt público por id
+- `list_prompt_collections(ownerId?, page?, pageSize?)` — lista coleções públicas
+- `get_prompt_collection(id)` — uma coleção pública por id, com os itens embutidos
 
 ## Dev
 

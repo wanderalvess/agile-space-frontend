@@ -2,10 +2,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { listDocs, getDoc, downloadDoc, createDoc, type Source } from './client.js';
+import { listDocs, getDoc, downloadDoc, createDoc, listPrompts, getPrompt, listPromptCollections, getPromptCollection, type Source } from './client.js';
 
 const server = new McpServer({
-  name: 'agile-space-knowledge',
+  name: 'agile-space-mcp',
   version: '1.0.0',
 });
 
@@ -106,6 +106,72 @@ server.registerTool(
       tags: parsedTags,
     });
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+// Prompt Hub — só o legado (Firestore/Agile-Space) precisa dessa ponte Node: o app
+// novo (Spring) já expõe as mesmas consultas via MCP embutido em /mcp/sse
+// (McpPromptHubTools), sem passar por aqui. Por isso, sem parâmetro `source`.
+
+server.registerTool(
+  'list_prompts',
+  {
+    description: 'Lista prompts/iniciativas públicos do Prompt Hub no legado (Agile-Space), com busca textual opcional.',
+    inputSchema: {
+      query: z.string().optional().describe('Termo de busca livre (título/descrição/conteúdo)'),
+      authorId: z.string().optional().describe('Filtra por id do autor'),
+      tag: z.string().optional().describe('Filtra por tag'),
+      page: z.number().int().positive().optional(),
+      pageSize: z.number().int().positive().max(100).optional(),
+    },
+  },
+  async ({ query, authorId, tag, page, pageSize }) => {
+    const result = await listPrompts({ q: query, authorId, tag, page, pageSize });
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.registerTool(
+  'get_prompt',
+  {
+    description: 'Retorna um prompt/iniciativa público do Prompt Hub no legado (Agile-Space) por id.',
+    inputSchema: {
+      id: z.string().describe('ID do prompt (retornado por list_prompts)'),
+    },
+  },
+  async ({ id }) => {
+    const prompt = await getPrompt(id);
+    return { content: [{ type: 'text', text: JSON.stringify(prompt, null, 2) }] };
+  }
+);
+
+server.registerTool(
+  'list_prompt_collections',
+  {
+    description: 'Lista coleções públicas do Prompt Hub no legado (Agile-Space), com filtro opcional por dono.',
+    inputSchema: {
+      ownerId: z.string().optional().describe('Filtra por id do dono'),
+      page: z.number().int().positive().optional(),
+      pageSize: z.number().int().positive().max(100).optional(),
+    },
+  },
+  async ({ ownerId, page, pageSize }) => {
+    const result = await listPromptCollections({ ownerId, page, pageSize });
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.registerTool(
+  'get_prompt_collection',
+  {
+    description: 'Retorna uma coleção pública do Prompt Hub no legado (Agile-Space) por id, com os itens (prompts) embutidos.',
+    inputSchema: {
+      id: z.string().describe('ID da coleção (retornado por list_prompt_collections)'),
+    },
+  },
+  async ({ id }) => {
+    const collection = await getPromptCollection(id);
+    return { content: [{ type: 'text', text: JSON.stringify(collection, null, 2) }] };
   }
 );
 
