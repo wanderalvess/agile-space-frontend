@@ -311,7 +311,7 @@ function NewAssetContent() {
       <div className="flex-1 flex overflow-hidden">
         {/* Main Editor Area */}
         <main className="flex-1 overflow-y-auto no-scrollbar p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
              <Card className="border border-slate-200 dark:border-slate-800 rounded-[2rem] bg-white dark:bg-slate-900 overflow-hidden shadow-2xl flex flex-col min-h-[850px]">
                 <EditorToolbar 
                    onSave={handleSave} 
