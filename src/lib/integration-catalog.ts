@@ -251,8 +251,16 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
   {
     id: 'poker',
     label: 'Scrum Poker',
-    tagline: 'Abrir uma sala de planning poker a partir de outra ferramenta.',
-    rest: [],
+    tagline: 'Abrir uma sala de planning poker, e buscar estimativas de rodadas já feitas.',
+    rest: [
+      {
+        method: 'GET',
+        path: '/api/v1/poker/rounds',
+        summary: 'Busca estimativas de rodadas já feitas, por texto livre (tópico ou nota da rodada).',
+        params: 'q (opcional; vazio lista as mais recentes), page (1-based, padrão 1), pageSize (padrão 20, máx 100)',
+        returns: '{ rounds[], page, pageSize, total, totalPages } — cada round traz topic, issueId, devPoints, qaPoints, timestamp, roomId',
+      },
+    ],
     mcp: [
       {
         name: 'createPokerSession',
@@ -260,15 +268,19 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         params: 'title, deckType? (padrão "fibonacci"), mode? ("sync" padrão | "async")',
         write: true,
       },
+      {
+        name: 'searchPokerEstimates',
+        summary: 'Busca estimativas de rodadas já feitas, por texto livre (tópico ou nota).',
+        params: 'query, page? (0-based), size?',
+      },
     ],
-    snippet: `// tool call MCP
-{
-  "name": "createPokerSession",
-  "arguments": { "title": "Refinamento Sprint 42", "deckType": "fibonacci", "mode": "sync" }
-}`,
+    snippet: `curl -s "${EXAMPLE_HOST}/api/v1/poker/rounds?q=winthor-integracao-matcon&pageSize=20" \\
+  -H "${API_KEY_HEADER}: ask_SUA_CHAVE_AQUI"`,
     notes: [
       'A sala nasce sem participantes; entre nela pela UI em /room/{id} com o id devolvido.',
       'O criador registrado é sempre "mcp-server" com papel ADMIN, não a pessoa dona da chave.',
+      'Sem campo estruturado de squad/projeto no Poker — a busca é textual sobre topic/note. O nome do serviço/projeto normalmente está dentro do texto da tarefa, não numa chave separada.',
+      'devPoints/qaPoints são os pontos de estimativa por papel (dev = "codificação", qa = "teste"), não uma unidade de tempo fixa — depende do deckType da sessão (fibonacci, tshirt, horas...).',
     ],
   },
 ];
