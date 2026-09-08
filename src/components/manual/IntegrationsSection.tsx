@@ -9,6 +9,7 @@ import {
   API_KEY_ADMIN_PATH,
   API_KEY_HEADER,
   EXAMPLE_HOST,
+  LEGACY_PRODUCTION_HOST,
   LOCAL_HOSTS,
   MODULE_INTEGRATIONS,
   MODULES_WITHOUT_INTEGRATION,
@@ -210,10 +211,15 @@ export function IntegrationsSection() {
           </CardHeader>
           <CardContent className="p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-1">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Base em produção</h4>
+              <div className="rounded-2xl border border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 p-4 space-y-1">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500">
+                  Este app (novo) ainda não tem deploy público
+                </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Pra consumir agora (ex: ingestão pela Lynn/TOTVS), aponte pro legado — mesmo contrato de rotas:
+                </p>
                 <code className="font-code text-[12px] text-slate-700 dark:text-slate-300 break-all">
-                  {EXAMPLE_HOST}/api/v1
+                  {LEGACY_PRODUCTION_HOST}/api/v1
                 </code>
               </div>
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-1">

@@ -25,6 +25,14 @@ export const API_KEY_ADMIN_PATH = '/admin';
 /** Placeholder usado nos exemplos — troque pelo host real do seu ambiente. */
 export const EXAMPLE_HOST = 'https://espacoagil.app';
 
+/**
+ * Host real do legado (Agile-Space, Firestore) — o app novo ainda não tem
+ * deploy público, só localhost (ver LOCAL_HOSTS). Mesmo contrato de rotas
+ * (/api/v1/knowledge/docs, /api/v1/prompt-hub/**), então quem for consumir a
+ * API hoje (ex: ingestão pela Lynn/TOTVS) aponta pra cá, não pro EXAMPLE_HOST.
+ */
+export const LEGACY_PRODUCTION_HOST = 'https://espacoagil.com.br';
+
 /** Endpoints locais, pra copiar e colar em dev. */
 export const LOCAL_HOSTS = {
   /** Proxy Next (paginação 1-based, preview em texto puro). */
