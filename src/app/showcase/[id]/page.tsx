@@ -316,9 +316,13 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
           else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
 
-          const activeSquad = session?.squadName || userProfile?.squadId || '';
-          const { workItemsApi } = await import('@/app/work-items-api');
-          workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '').catch(() => {});
+          const issueProjectKey = updatedTaskContent.key?.includes('-') ? updatedTaskContent.key.split('-')[0].toUpperCase() : '';
+          const activeSquad = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+          if (activeSquad) {
+            const { workItemsApi } = await import('@/app/work-items-api');
+            workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '')
+              .catch(err => console.error('[Showcase] Falha ao registrar veredito em work_items:', err));
+          }
         }
       }
 

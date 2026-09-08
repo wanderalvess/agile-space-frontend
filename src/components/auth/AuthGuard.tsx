@@ -7,6 +7,13 @@ import { AgileSpinner } from '@/components/ui/AgileSpinner';
 
 const PUBLIC_ROUTES = ['/login'];
 
+export function resolvePostLoginRedirect(returnUrl: string | null): string {
+  if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('/login')) {
+    return returnUrl;
+  }
+  return '/';
+}
+
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
@@ -16,12 +23,20 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     if (!isAuthenticated && !isPublicRoute) {
-      router.replace('/login');
+      const currentQuery = typeof window !== 'undefined' ? window.location.search : '';
+      const fullTarget = `${pathname}${currentQuery}`;
+      const returnUrl = encodeURIComponent(fullTarget);
+      router.replace(`/login?returnUrl=${returnUrl}`);
     }
     if (isAuthenticated && isPublicRoute) {
-      router.replace('/');
+      let target = '/';
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        target = resolvePostLoginRedirect(params.get('returnUrl'));
+      }
+      router.replace(target);
     }
-  }, [isLoading, isAuthenticated, isPublicRoute, router]);
+  }, [isLoading, isAuthenticated, isPublicRoute, router, pathname]);
 
   if (isPublicRoute) {
     return <>{children}</>;

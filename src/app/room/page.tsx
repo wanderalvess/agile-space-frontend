@@ -134,9 +134,9 @@ export default function PokerHubPage() {
   // (chega async) — só se o campo ainda não foi editado à mão.
   useEffect(() => {
     if (teamTouched) return;
-    const userTeam = userProfile?.squadId || userProfile?.team;
+    const userTeam = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
     if (userTeam) setTeam(userTeam);
-  }, [userProfile, teamTouched]);
+  }, [session, userProfile, teamTouched]);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -231,7 +231,7 @@ export default function PokerHubPage() {
       creatorId: session.id,
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 120, remainingOnPause: 120 },
       title: title.trim(),
-      team: team.trim() || 'Squad Geral',
+      team: team.trim() || session?.activeProjectId || userProfile?.squadId || 'Squad Geral',
       createdAt: new Date().toISOString(),
       issuesQueue: backlogIssues,
       activeIssueId: backlogIssues[0]?.id || null,

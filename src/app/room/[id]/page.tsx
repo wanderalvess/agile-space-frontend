@@ -938,13 +938,20 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
     pokerApi.saveOrUpdateRoom(updates).then(() => {
       const activeIssue = roomData.issuesQueue![currentIndex];
-      if (activeIssue && activeIssue.key && roomData.team) {
-        const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
-        authFetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ points_estimated: Number(points) })
-        }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+      if (activeIssue && activeIssue.key) {
+        const issueProjectKey = activeIssue.key.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
+        const targetSquad = (roomData.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
+          ? roomData.team
+          : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+
+        if (targetSquad) {
+          const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(targetSquad)}/${encodeURIComponent(activeIssue.key)}/estimate`;
+          authFetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ points_estimated: Number(points) })
+          }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+        }
       }
 
       const lastRound = votingRounds.find(r => r.issueId === roomData.activeIssueId);

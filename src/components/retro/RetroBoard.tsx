@@ -27,7 +27,8 @@ import {
   Unlock,
   Clock,
   Download,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react';
 import {
   Tooltip,
@@ -92,6 +93,7 @@ interface RetroBoardProps {
   onStartMerge: (cardId: string | null) => void;
   onExecuteMerge: (targetId: string) => void;
   onOpenFeedback: () => void;
+  onOpenStats?: () => void;
 }
 
 const RetroBoardComponent = ({
@@ -133,12 +135,27 @@ const RetroBoardComponent = ({
   onStartMerge,
   onExecuteMerge,
   onOpenFeedback,
+  onOpenStats,
 }: RetroBoardProps) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<'board' | 'focus'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('agile_retro_layout_mode');
+      if (saved === 'board' || saved === 'focus') return saved;
+    }
+    return 'board';
+  });
+
+  const handleToggleLayoutMode = (mode: 'board' | 'focus') => {
+    setLayoutMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('agile_retro_layout_mode', mode);
+    }
+  };
 
   // Use refs to avoid dependency array size changes and unnecessary listener re-registrations
   const activeStageRef = React.useRef(activeStage);
@@ -295,6 +312,8 @@ const RetroBoardComponent = ({
                   isSoundEnabled={isSoundEnabled}
                   onToggleSound={handleToggleSound}
                   autoRevealOnTimerEnd={boardData.autoRevealOnTimerEnd}
+                  layoutMode={layoutMode}
+                  onToggleLayoutMode={handleToggleLayoutMode}
                 />
 
                 {boardData.creatorId === currentUserId && (
@@ -306,6 +325,18 @@ const RetroBoardComponent = ({
                     title="Configurações da Retrospectiva"
                   >
                     <Settings className="h-4 w-4" />
+                  </Button>
+                )}
+
+                {onOpenStats && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onOpenStats}
+                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                    title="Estatísticas da Sprint & JiraDash"
+                  >
+                    <BarChart3 className="h-4 w-4" />
                   </Button>
                 )}
 
@@ -465,9 +496,14 @@ const RetroBoardComponent = ({
           />
         )}
 
-        <div className="flex flex-col w-full h-full p-4 sm:p-6 overflow-hidden max-w-[1600px] mx-auto min-h-0">
+        <div className="flex flex-col w-full h-full p-3 sm:p-4 lg:p-6 overflow-hidden w-full max-w-[2400px] 2xl:max-w-none mx-auto min-h-0">
           <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 flex flex-row gap-6 min-h-0 overflow-hidden pb-4 pt-2">
+            <div className={cn(
+              "flex-1 flex flex-row min-h-0 pb-3 pt-1 transition-all",
+              layoutMode === 'board'
+                ? "gap-4 xl:gap-5 overflow-x-auto custom-scrollbar"
+                : "gap-4 xl:gap-6 overflow-hidden"
+            )}>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               {columns.map((col) => (
                   <RetroColumn
@@ -500,6 +536,7 @@ const RetroBoardComponent = ({
                     isFocusMode={isFocusMode}
                     onToggleFocusMode={setIsFocusMode}
                     columns={columns}
+                    layoutMode={layoutMode}
                   />
                 ))}
               </DndContext>

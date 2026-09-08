@@ -19,7 +19,9 @@ import {
   Clock,
   Download,
   Volume2,
-  VolumeX
+  VolumeX,
+  LayoutGrid,
+  Maximize2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -56,6 +58,9 @@ interface RetroControlsProps {
   onToggleSound: (enabled: boolean) => void;
   // Auto-revelar ao fim do timer (config. em RetroSettingsDialog)
   autoRevealOnTimerEnd?: boolean;
+  // Layout Mode Props (Quadro completo vs Foco na coluna)
+  layoutMode?: 'board' | 'focus';
+  onToggleLayoutMode?: (mode: 'board' | 'focus') => void;
 }
 
 const DURATION_OPTIONS = [120, 180, 240, 300]; // 2, 3, 4, 5 mins
@@ -77,7 +82,9 @@ export function RetroControls({
   onStageChange,
   isSoundEnabled,
   onToggleSound,
-  autoRevealOnTimerEnd
+  autoRevealOnTimerEnd,
+  layoutMode = 'board',
+  onToggleLayoutMode,
 }: RetroControlsProps) {
   const [remainingTime, setRemainingTime] = useState(timer?.initialDuration ?? 300);
   const prevStatusRef = useRef(timer?.status);
@@ -280,6 +287,57 @@ export function RetroControls({
             </div>
           )}
         </div>
+
+        {/* MODO DE VISUALIZAÇÃO: QUADRO COMPLETO VS FOCO */}
+        {onToggleLayoutMode && (
+          <div className="flex items-center p-0.5 bg-slate-100/70 rounded-xl border border-slate-200/40">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onToggleLayoutMode('board')}
+                    className={cn(
+                      "h-7 px-2.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all gap-1.5",
+                      layoutMode === 'board'
+                        ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Quadro</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+                  <p>Visão Quadro: todas as colunas lado a lado</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onToggleLayoutMode('focus')}
+                    className={cn(
+                      "h-7 px-2.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all gap-1.5",
+                      layoutMode === 'focus'
+                        ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
+                        : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Foco</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+                  <p>Visão Foco: foco na coluna ativa</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
 
         <div className="w-px h-5 bg-slate-200 mx-1 hidden xl:block" />
 

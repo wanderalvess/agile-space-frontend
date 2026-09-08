@@ -170,10 +170,17 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
       // Phase 3: commit to backend
       if (saved && saved.id) {
         try {
-          const { workItemsApi } = await import('@/app/work-items-api');
           await Promise.all(tasks.map(t => {
             if (t.link && t.link.includes('-')) {
-              return workItemsApi.commitWorkItem(activeSquadId, t.link, saved.id).catch(() => {});
+              const match = t.link.match(/([A-Z0-9]+-\d+)/i);
+              const jiraKey = match ? match[1].toUpperCase() : t.link.trim();
+              const projectPrefix = jiraKey.includes('-') ? jiraKey.split('-')[0].toUpperCase() : '';
+              const targetSquad = activeSquadId || projectPrefix || userProfile?.squadId || '';
+              if (targetSquad) {
+                return workItemsApi.commitWorkItem(targetSquad, jiraKey, saved.id).catch(err => {
+                  console.error('[SprintPlanner] Falha ao comitar work_item:', err);
+                });
+              }
             }
           }));
         } catch(e) {}

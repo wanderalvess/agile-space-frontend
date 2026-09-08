@@ -33,9 +33,7 @@ export function CeremoniesDashboard() {
           const userActiveId = userProfile?.squadId || session?.activeProjectId;
           const matchedSquad = data.find((s: any) => s.id === userActiveId) || data[0];
           setSelectedSquadId(matchedSquad.id);
-          if (matchedSquad.activeSprintId) {
-            setSprintId(matchedSquad.activeSprintId);
-          }
+          setSprintId(matchedSquad.activeSprintId || 'active');
         }
       })
       .catch(() => {});
@@ -90,7 +88,11 @@ export function CeremoniesDashboard() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Select value={selectedSquadId} onValueChange={setSelectedSquadId}>
+              <Select value={selectedSquadId} onValueChange={(val) => {
+                setSelectedSquadId(val);
+                const found = squads.find(s => s.id === val);
+                setSprintId(found?.activeSprintId || 'active');
+              }}>
                 <SelectTrigger className="w-[180px] h-10 rounded-xl text-xs font-bold">
                   <SelectValue placeholder="Selecione a Squad" />
                 </SelectTrigger>

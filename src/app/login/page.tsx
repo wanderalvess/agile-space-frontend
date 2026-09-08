@@ -38,6 +38,20 @@ export default function LoginPage() {
   const [name, setName] = useState('');
 
   const redirectPostLogin = async (session: AuthResponse) => {
+    let returnUrl: string | null = null;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const ret = params.get('returnUrl');
+      if (ret && ret.startsWith('/') && !ret.startsWith('/login')) {
+        returnUrl = ret;
+      }
+    }
+
+    if (returnUrl) {
+      router.push(returnUrl);
+      return;
+    }
+
     try {
       const allProjects = await projectService.getAllProjects();
       const hasActiveProject = session.activeProjectId &&
