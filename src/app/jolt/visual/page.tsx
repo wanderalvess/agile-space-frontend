@@ -236,7 +236,11 @@ const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => 
   try { sObj = JSON.parse(inputJson || '{}'); } catch {}
   try { tObj = JSON.parse(targetJson || '{}'); } catch {}
 
-  const targetSample = Array.isArray(tObj) ? tObj[0] || {} : tObj;
+  const targetSample = Array.isArray(tObj)
+    ? tObj[0] || {}
+    : Array.isArray(tObj?.items)
+      ? tObj.items[0] || {}
+      : tObj;
   const targetKeysWithValues: Record<string, any> = {};
   if (targetSample && typeof targetSample === 'object') {
     Object.entries(targetSample).forEach(([k, v]) => {
@@ -412,29 +416,26 @@ const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => 
       });
     }
 
-    // 5. Default spec: env vars + unmapped target fields
-    const defaultItems: any = {
-      idInquilino: '{{ID_INQUILINO}}',
-      idProprietario: '{{MASTER_ID_PROPRIETARIO}}',
-      loteOrigem: '{{LOTE_ORIGEM}}',
-    };
+    // 5. Default spec: campos do destino não mapeados
+    const defaultItems: any = {};
 
     Object.entries(targetKeysWithValues).forEach(([k, v]) => {
-      if (['idExterno', 'idInterno', 'tipoIdInterno', 'idInquilino', 'idProprietario', 'loteOrigem'].includes(k)) return;
+      if (['idExterno', 'idInterno', 'tipoIdInterno'].includes(k)) return;
       if (!mappedTargetCleanSet.has(k)) {
         defaultItems[k] = v !== undefined ? v : 'string';
       }
     });
 
-    spec.push({
-      operation: 'default',
-      spec: {
-        _attr_access: 'items',
-        'items[]': {
-          '*': defaultItems,
+    if (Object.keys(defaultItems).length > 0) {
+      spec.push({
+        operation: 'default',
+        spec: {
+          items: {
+            '*': defaultItems,
+          },
         },
-      },
-    });
+      });
+    }
 
     return spec;
   }
