@@ -30,6 +30,7 @@ import { promptApi } from '../api';
 import { PromptEditor } from './PromptEditor';
 import { PromptView } from './PromptView';
 import { RoomHeader } from '@/components/layout/RoomHeader';
+import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
 import {
@@ -366,6 +367,8 @@ export function PromptDashboard({
         onOpenFeedback={() => setFeedbackSignal(Date.now())}
         actions={
           <div className="flex items-center gap-2">
+            <ModuleIntegrationButton moduleId="prompt-hub" variant="ghost" className="hidden lg:inline-flex" />
+
             <Button
               variant="ghost"
               size="sm"

@@ -74,6 +74,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
+import { IntegrationsSection } from '@/components/manual/IntegrationsSection';
 import { useEffect, useState } from 'react';
 
 export default function ManualPage() {
@@ -94,6 +95,7 @@ export default function ManualPage() {
     { id: 'governance', label: 'Governança', icon: Shield, color: 'text-emerald-600' },
     { id: 'jolt', label: 'Jolt Hub', icon: FileJson, color: 'text-blue-500' },
     { id: 'devtools', label: 'DevTools', icon: Terminal, color: 'text-slate-600 dark:text-slate-300' },
+    { id: 'integracoes', label: 'Integrações & API', icon: Network, color: 'text-cyan-600' },
   ];
 
   // Sincroniza a aba ativa com o hash da URL para navegação robusta
@@ -1235,6 +1237,11 @@ export default function ManualPage() {
                         </Card>
                     </div>
                 </div>
+            </section>
+
+            {/* SECTION: INTEGRAÇÕES & API */}
+            <section id="integracoes" className="scroll-mt-32">
+                <IntegrationsSection />
             </section>
 
         </div>

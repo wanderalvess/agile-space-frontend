@@ -54,6 +54,7 @@ import { ptBR } from 'date-fns/locale';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
 import { TdnImportDialog } from '@/components/knowledge/TdnImportDialog';
+import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { htmlToMarkdown, htmlToPlainText } from '@/lib/knowledge-export';
 
 function KBExplorerContent() {
@@ -546,6 +547,9 @@ function KBExplorerContent() {
                       Centralização, Gestão e Sincronização da Wiki Space • {documents?.length || 0} Artigos
                     </p>
                   </div>
+
+                  {/* Atalho pra documentação de integração (REST + MCP) desta KB. */}
+                  <ModuleIntegrationButton moduleId="knowledge" label="Consumir via API & MCP" />
                 </div>
 
                 {/* Bento Grid para Stats e Ações Rápidas */}

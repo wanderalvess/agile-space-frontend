@@ -11,6 +11,7 @@ import {
 import dynamic from 'next/dynamic';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
+import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { useUserContext } from '@/context/UserContext';
 import { useSquadStore } from '@/store/useSquadStore';
 import { useDailyStore } from '@/store/useDailyStore';
@@ -378,6 +379,7 @@ function SquadHubContent() {
         }
         actions={
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <ModuleIntegrationButton moduleId="squad" variant="ghost" className="hidden lg:inline-flex" />
             {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans') && (
               <Select
                 value={viewingSprintId || 'CURRENT'}

@@ -74,6 +74,7 @@ import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
+import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import {
   Dialog,
   DialogContent,
@@ -326,6 +327,7 @@ export default function PokerHubPage() {
         icon={<WalletCards />}
         themeColor="violet"
         toolType="poker"
+        actions={<ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />}
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
