@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.64",
+    "@ai-sdk/openai-compatible": "^2.0.74",
     "@ai-sdk/react": "^3.0.170",
     "@anthropic-ai/sdk": "^0.98.0",
     "@dnd-kit/core": "^6.1.0",

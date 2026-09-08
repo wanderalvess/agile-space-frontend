@@ -208,20 +208,26 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const allEndpoints = Array.from(new Set(localResults.flatMap(d => d.tech?.endpoints || [])));
       const allTables = Array.from(new Set(localResults.flatMap(d => d.tech?.tables || [])));
 
-      // [MOCK] Desativando chamadas de API temporariamente conforme solicitado
-      // 4. Geração RAG via IA (Gemini API / /api/ai/chat)
+      // 4. Geração RAG via IA (Lynn/TOTVS, credencial global — ver /api/ai/chat).
+      // Sem LYNN_API_KEY/LYNN_BASE_URL configurados no servidor, a rota devolve 401 com
+      // mensagem clara e cai no fallback determinístico abaixo, igual a antes.
       let responseText = '';
-      /*
-      const storedApiKey = typeof window !== 'undefined' ? localStorage.getItem('gemini_api_key') : null;
-
       try {
         const aiRes = await authFetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            provider: 'lynn',
             messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-            apiKey: storedApiKey || undefined,
-            contextDocuments: localResults
+            contextDocuments: localResults,
+            taskContext: activeIssue ? {
+              title: activeIssue.title,
+              description: activeIssue.description,
+              jiraLink: activeIssue.jiraLink,
+              acceptanceCriteria: activeIssue.acceptanceCriteria,
+              devNotes: activeIssue.devNotes,
+              qaNotes: activeIssue.qaNotes,
+            } : (activeTopic ? { title: activeTopic } : undefined),
           })
         });
 
@@ -230,15 +236,12 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
           if (aiData.content) {
             responseText = aiData.content;
           }
+        } else {
+          console.warn('[PokerChat] Lynn indisponível (', aiRes.status, '), utilizando fallback local determinístico.');
         }
       } catch (aiErr) {
-        console.warn('[PokerChat] Chamada para API de IA RAG falhou, utilizando fallback local:', aiErr);
+        console.warn('[PokerChat] Chamada para API de IA (Lynn) falhou, utilizando fallback local:', aiErr);
       }
-      */
-
-      // A chamada para API de IA RAG (Gemini) está desativada conforme solicitado.
-      // O sistema usará o fallback local determinístico com base nos resultados do backend.
-      responseText = '';
 
       // Fallback determinístico (Sem usar API do Gemini)
       if (!responseText) {

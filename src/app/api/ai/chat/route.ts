@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { generateText } from 'ai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
+import { generateText, type LanguageModel } from 'ai';
 
 export const runtime = 'nodejs';
 
@@ -9,28 +10,89 @@ let serverContextCache = {
 };
 const CONTEXT_CACHE_TTL = 1000 * 60 * 15; // 15 minutos
 
+type AiProvider = 'gemini' | 'lynn';
+
+interface TaskContext {
+  title?: string;
+  description?: string;
+  jiraLink?: string;
+  acceptanceCriteria?: string;
+  devNotes?: string;
+  qaNotes?: string;
+}
+
+/**
+ * Resolve o model da IA pro provider pedido. "lynn" é credencial global da empresa
+ * (env var, não BYOK por usuário — decisão registrada no plano desta feature), e
+ * assume compatibilidade OpenAI (createOpenAICompatible) por ser o formato mais comum
+ * em gateways corporativos de IA — a TOTVS ainda não entregou o contrato real da Lynn,
+ * então só a instanciação do client muda quando isso acontecer, não esta função inteira.
+ */
+function resolveModel(provider: AiProvider, clientApiKey?: string): { model: LanguageModel; fallbackModel?: LanguageModel } | { error: string } {
+  if (provider === 'lynn') {
+    const apiKey = process.env.LYNN_API_KEY;
+    const baseURL = process.env.LYNN_BASE_URL;
+    if (!apiKey || !baseURL) {
+      return { error: 'Lynn não configurada — defina LYNN_API_KEY e LYNN_BASE_URL no ambiente do servidor.' };
+    }
+    const lynn = createOpenAICompatible({ name: 'lynn', apiKey, baseURL });
+    const modelName = process.env.LYNN_MODEL || 'lynn';
+    return { model: lynn(modelName) };
+  }
+
+  // gemini (padrão) — BYOK do usuário ou variáveis de ambiente, comportamento inalterado.
+  const apiKey = clientApiKey
+    || process.env.GEMINI_API_KEY
+    || process.env.GOOGLE_API_KEY
+    || process.env.NEXT_PUBLIC_GEMINI_API_KEY
+    || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+  if (!apiKey) {
+    return { error: 'Chave de API do Gemini/Google não detectada. Por favor, configure sua chave nas definições ou variáveis de ambiente.' };
+  }
+
+  const google = createGoogleGenerativeAI({ apiKey });
+  return { model: google('gemini-2.5-flash'), fallbackModel: google('gemini-1.5-flash') };
+}
+
+function formatTaskContext(taskContext?: TaskContext): string {
+  if (!taskContext) return '';
+  const lines = [
+    taskContext.title ? `Título: ${taskContext.title}` : '',
+    taskContext.description ? `Descrição: ${taskContext.description}` : '',
+    taskContext.acceptanceCriteria ? `Critérios de aceite: ${taskContext.acceptanceCriteria}` : '',
+    taskContext.devNotes ? `Notas técnicas (dev): ${taskContext.devNotes}` : '',
+    taskContext.qaNotes ? `Notas de QA: ${taskContext.qaNotes}` : '',
+    taskContext.jiraLink ? `Link Jira: ${taskContext.jiraLink}` : '',
+  ].filter(Boolean);
+  if (lines.length === 0) return '';
+  return `\n--- TAREFA EM REFINAMENTO/VOTAÇÃO ---\n${lines.join('\n')}\n`;
+}
+
 export async function POST(req: Request) {
   try {
-    const { messages: uiMessages, apiKey: clientApiKey, userId, contextDocuments } = await req.json();
+    const {
+      messages: uiMessages,
+      apiKey: clientApiKey,
+      userId,
+      contextDocuments,
+      provider: rawProvider,
+      taskContext,
+    } = await req.json();
 
-    // 0. Validar Chave de API (BYOK ou Variáveis de Ambiente)
-    const apiKey = clientApiKey 
-      || process.env.GEMINI_API_KEY 
-      || process.env.GOOGLE_API_KEY 
-      || process.env.NEXT_PUBLIC_GEMINI_API_KEY 
-      || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const provider: AiProvider = rawProvider === 'lynn' ? 'lynn' : 'gemini';
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ 
-        error: "Configuração Necessária", 
-        message: "Chave de API do Gemini/Google não detectada. Por favor, configure sua chave nas definições ou variáveis de ambiente." 
+    const resolved = resolveModel(provider, clientApiKey);
+    if ('error' in resolved) {
+      return new Response(JSON.stringify({
+        error: "Configuração Necessária",
+        message: resolved.error
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-
-    const google = createGoogleGenerativeAI({ apiKey });
+    const { model, fallbackModel } = resolved;
 
     // 1. Carregar Contexto RAG (da requisição, do PostgreSQL ou do Firestore)
     let context = "";
@@ -71,14 +133,16 @@ export async function POST(req: Request) {
       context = "AVISO: NENHUM DOCUMENTO LOCALIZADO NA BASE DE CONHECIMENTO CADASTRADA.";
     }
 
+    const taskContextBlock = formatTaskContext(taskContext);
+
     const systemPrompt = `Você é o Assistente Especialista da Espaço Ágil (RAG Guardião do Conhecimento).
 
 REGRAS DE OURO COMPORTAMENTAIS:
-1. RESPOSTA BASEADA EM CONTEXTO (RAG): Analise a dúvida do usuário utilizando prioritariamente o CONTEXTO DA BASE DE CONHECIMENTO fornecido abaixo.
+1. RESPOSTA BASEADA EM CONTEXTO (RAG): Analise a dúvida do usuário utilizando prioritariamente o CONTEXTO DA BASE DE CONHECIMENTO fornecido abaixo${taskContextBlock ? ' e os dados da TAREFA EM REFINAMENTO/VOTAÇÃO, quando presentes' : ''}.
 2. PRECISÃO E CLAREZA: Se a informação exata (nomes de APIs, tabelas, serviços ou rotas) constar no contexto, explique detalhadamente de forma direta.
-3. QUANDO INDISPONÍVEL: Se o termo ou conceito não estiver presente na Base de Conhecimento, explique o que falta e sugira cadastrar ou importar do TDN (Confluence).
+3. QUANDO INDISPONÍVEL: Se o termo ou conceito não estiver presente no contexto fornecido, diga isso claramente em vez de inventar — não existe conhecimento externo além do que está aqui.
 4. IDENTIFICAÇÃO DE FONTE: Cite o nome do documento ou fonte de onde extraiu as informações.
-
+${taskContextBlock}
 CONTEXTO DA BASE DE CONHECIMENTO:
 ${context}
 
@@ -102,14 +166,15 @@ Responda sempre em Markdown limpo, profissional e estruturado.`;
     let result;
     try {
       result = await generateText({
-        model: google('gemini-2.5-flash'),
+        model,
         system: systemPrompt,
         messages: modelMessages,
       });
     } catch (modelError: any) {
+      if (!fallbackModel) throw modelError;
       // Fallback para modelo estável gemini-1.5-flash caso o gemini-2.5-flash ainda não esteja registrado na versão do SDK
       result = await generateText({
-        model: google('gemini-1.5-flash'),
+        model: fallbackModel,
         system: systemPrompt,
         messages: modelMessages,
       });
