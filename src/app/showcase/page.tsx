@@ -25,7 +25,7 @@ export default function ShowcaseHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session } = useAuth();
-  const { requestIdentity } = useUserContext();
+  const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
