@@ -170,7 +170,7 @@ export function BentoGrid() {
                 hover: { rotate: 15, x: 30, y: -5, scale: 1.05 }
               }}
               transition={{ type: 'spring', stiffness: 200, damping: 12 }}
-              className="absolute w-14 h-20 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md flex items-center justify-center font-black text-slate-450 dark:text-slate-505 text-xl font-headline select-none z-10"
+              className="absolute w-14 h-20 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 shadow-md flex items-center justify-center font-black text-slate-400 dark:text-slate-500 text-xl font-headline select-none z-10"
             >
               8
             </motion.div>
@@ -364,7 +364,7 @@ export function BentoGrid() {
               <div className="flex justify-between items-start">
                 <div>
                   <span className="block text-[6.5px] font-black uppercase tracking-widest text-violet-400">Próximo Showcase</span>
-                  <span className="block text-[11px] font-extrabold text-slate-850 dark:text-slate-200 mt-1 uppercase tracking-tight">Squad Elite Alpha</span>
+                  <span className="block text-[11px] font-extrabold text-slate-800 dark:text-slate-200 mt-1 uppercase tracking-tight">Squad Elite Alpha</span>
                 </div>
                 <Calendar className="h-3.5 w-3.5 text-violet-500 opacity-60" />
               </div>
@@ -421,7 +421,7 @@ export function BentoGrid() {
               <div><span className="text-purple-400">3</span>   <span className="text-cyan-400">"tasks"</span>: <span className="text-slate-500">[</span> <span className="text-slate-400">...</span> <span className="text-slate-500">]</span></div>
               <div><span className="text-purple-400">4</span> <span className="text-slate-500">&#125;</span></div>
             </div>
-            <div className="flex items-center justify-between border-t border-slate-800 pt-1.5 mt-1 text-[7.5px] text-slate-550 font-bold uppercase">
+            <div className="flex items-center justify-between border-t border-slate-800 pt-1.5 mt-1 text-[7.5px] text-slate-500 font-bold uppercase">
               <span className="text-blue-500">Transform &gt;</span>
               <span className="text-slate-500 font-mono">100% Client-Side</span>
             </div>

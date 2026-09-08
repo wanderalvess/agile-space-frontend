@@ -151,7 +151,7 @@ export function CapacityEngine({
                           value={member.name}
                           onChange={e => onUpdateMember(member.id, 'name', e.target.value)}
                           placeholder="Nome..."
-                          className="h-9 flex-1 bg-slate-50 dark:bg-slate-950/60 border-none rounded-xl text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-650"
+                          className="h-9 flex-1 bg-slate-50 dark:bg-slate-950/60 border-none rounded-xl text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-600"
                           disabled={isReadOnly}
                         />
                         <button
@@ -168,7 +168,7 @@ export function CapacityEngine({
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-9 w-9 text-slate-300 dark:text-slate-650 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl"
+                            className="h-9 w-9 text-slate-300 dark:text-slate-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl"
                             onClick={() => onRemoveMember(member.id)}
                           >
                             <Trash2 className="h-4 w-4" />

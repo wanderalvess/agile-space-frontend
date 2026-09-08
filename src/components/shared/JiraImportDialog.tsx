@@ -464,7 +464,7 @@ export function JiraImportDialog({
                                   "group rounded-xl transition-all cursor-pointer border",
                                   isSel
                                     ? "bg-indigo-50/50 dark:bg-indigo-950/25 border-indigo-200 dark:border-indigo-900 shadow-xs"
-                                    : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-850/50"
+                                    : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
                                 )}
                               >
                                 <div className="flex items-start gap-3 p-3">

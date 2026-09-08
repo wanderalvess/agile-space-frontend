@@ -218,7 +218,7 @@ export function ToolHubLayout({
                     </div>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center mt-6 pt-5 border-t border-slate-100 dark:border-slate-855/60 relative z-10">
+                  <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/60 relative z-10">
                     {onNewSession && (
                       <Button
                         size="lg"
@@ -292,7 +292,7 @@ export function ToolHubLayout({
                           <div
                             key={room.roomId}
                             onClick={() => onJoinSession?.(room.roomId)}
-                            className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-850/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
+                            className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
                           >
                             <div className="space-y-0.5 truncate flex-1 min-w-0 pr-2">
                               <h5 className="text-[12px] font-bold text-slate-800 dark:text-slate-200 group-item-hover:text-slate-950 dark:group-item-hover:text-white truncate">
@@ -341,7 +341,7 @@ export function ToolHubLayout({
                               }
                             } : undefined}
                             className={cn(
-                              "flex gap-3 items-start p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850/60",
+                              "flex gap-3 items-start p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60",
                               section.onClick && "cursor-pointer transition-colors hover:border-slate-300 dark:hover:border-slate-700"
                             )}>
                             <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-inner", getGlowClasses(themeColor))}>

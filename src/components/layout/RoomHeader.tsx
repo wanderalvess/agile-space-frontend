@@ -116,7 +116,7 @@ export function RoomHeader({
                    onChange={(e) => setLocalTitle(e.target.value)}
                    onBlur={handleTitleSubmit}
                    onKeyDown={(e) => e.key === 'Enter' && handleTitleSubmit()}
-                   className="text-xs font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-850 px-2 py-1 rounded-lg outline-none w-full"
+                   className="text-xs font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg outline-none w-full"
                  />
                ) : (
                  <div 
@@ -153,7 +153,7 @@ export function RoomHeader({
               "h-8 w-8 rounded-xl transition-all relative hidden md:inline-flex",
               isFocusActive
                 ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500 border border-orange-500/30" 
-                : "text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-850/50"
+                : "text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-800/50"
             )}
             title="Modo de Foco (Calmaria)"
             aria-label="Toggle Calmaria Focus Mode"
@@ -181,7 +181,7 @@ export function RoomHeader({
               variant="ghost"
               size="icon"
               onClick={onOpenFeedback}
-              className="h-8 w-8 text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-850/50 rounded-xl transition-all hidden md:inline-flex"
+              className="h-8 w-8 text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-800/50 rounded-xl transition-all hidden md:inline-flex"
               title="Sugerir Melhoria"
               aria-label="Sugerir uma melhoria ou dar feedback"
             >
@@ -199,7 +199,7 @@ export function RoomHeader({
                 >
                   <div className="flex flex-col items-end hidden md:flex" aria-hidden="true">
                     <span className="text-[9px] font-black uppercase text-slate-800 dark:text-slate-200 leading-none">{userProfile.name.split(' ')[0]}</span>
-                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-550 uppercase tracking-widest mt-0.5">{userProfile.role ? userProfile.role.split(' ')[0] : 'Convidado'}</span>
+                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{userProfile.role ? userProfile.role.split(' ')[0] : 'Convidado'}</span>
                   </div>
                   <NiceAvatar className="w-8 h-8 rounded-xl bg-slate-900 border-2 border-white shadow-md shadow-slate-200 group-hover:scale-105 transition-transform" {...(PREDEFINED_AVATARS[userProfile.avatarSeed || ''] || genConfig(userProfile.avatarSeed || userProfile.email || userProfile.name))} />
                   <ChevronDown className="h-3 w-3 text-slate-300 group-hover:text-slate-900 transition-colors" aria-hidden="true" />

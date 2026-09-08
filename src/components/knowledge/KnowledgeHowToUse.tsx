@@ -110,20 +110,20 @@ export function KnowledgeHowToUse({ open, onOpenChange }: KnowledgeHowToUseProps
                </div>
 
                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="flex items-center justify-between p-5 bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 rounded-2xl">
+                  <div className="flex items-center justify-between p-5 bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl">
                      <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Busca Rápida</span>
                      <div className="flex gap-1">
                         <kbd className="px-2 py-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded text-[10px] font-black text-slate-900 dark:text-slate-100 shadow-sm">CTRL</kbd>
                         <kbd className="px-2 py-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded text-[10px] font-black text-slate-900 dark:text-slate-100 shadow-sm">K</kbd>
                      </div>
                   </div>
-                  <div className="flex items-center justify-between p-5 bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 rounded-2xl">
+                  <div className="flex items-center justify-between p-5 bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl">
                      <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Novo Chat</span>
-                     <Badge variant="outline" className="border-slate-350 dark:border-slate-850 text-slate-900 dark:text-slate-200 bg-white dark:bg-slate-950 text-[10px] font-black">TAB + N</Badge>
+                     <Badge variant="outline" className="border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 bg-white dark:bg-slate-950 text-[10px] font-black">TAB + N</Badge>
                   </div>
-                  <div className="flex items-center justify-between p-5 bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-850 rounded-2xl">
+                  <div className="flex items-center justify-between p-5 bg-slate-100/50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl">
                      <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">Voltar ao Hub</span>
-                     <Badge variant="outline" className="border-slate-350 dark:border-slate-850 text-slate-900 dark:text-slate-200 bg-white dark:bg-slate-950 text-[10px] font-black">ESC</Badge>
+                     <Badge variant="outline" className="border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 bg-white dark:bg-slate-950 text-[10px] font-black">ESC</Badge>
                   </div>
                </div>
 
@@ -143,7 +143,7 @@ export function KnowledgeHowToUse({ open, onOpenChange }: KnowledgeHowToUseProps
           </ScrollArea>
 
           {/* FOOTER ACTION */}
-          <div className="p-8 border-t border-slate-100 dark:border-slate-850 bg-white dark:bg-slate-950 flex justify-end shrink-0">
+          <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 flex justify-end shrink-0">
              <button 
                 onClick={() => onOpenChange(false)}
                 className="h-14 px-10 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-slate-200 text-white dark:text-slate-900 text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95"

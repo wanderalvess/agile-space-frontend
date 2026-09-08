@@ -124,7 +124,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
                  placeholder="O QUE VOCÊ DESEJA LOCALIZAR?"
-                 className="bg-transparent text-3xl font-black placeholder:text-slate-200 dark:placeholder:text-slate-700 focus:outline-none h-14 uppercase tracking-tighter italic text-slate-955 dark:text-slate-100 transition-all"
+                 className="bg-transparent text-3xl font-black placeholder:text-slate-200 dark:placeholder:text-slate-700 focus:outline-none h-14 uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 transition-all"
                  autoFocus
                />
             </div>
@@ -145,7 +145,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                 <div className="px-6 flex items-center justify-between pb-4">
                    <div className="flex items-center gap-3">
                       <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
-                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-955 dark:text-slate-100 italic">
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-100 italic">
                         {search.trim() === "" ? "Sugestões do Sistema" : `Resultados Encontrados (${filteredResults.length})`}
                       </p>
                    </div>
@@ -166,8 +166,8 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                         </div>
                         <div className="space-y-3 min-w-0">
                            <div className="flex items-center gap-4 flex-wrap">
-                             <h4 className="text-2xl font-black text-slate-955 dark:text-slate-100 group-hover:text-white dark:group-hover:text-slate-950 uppercase italic tracking-tighter transition-colors leading-none truncate max-w-[400px]">{doc.title}</h4>
-                             <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-850 text-slate-955 dark:text-slate-300 text-[10px] font-black rounded-xl uppercase tracking-widest border border-slate-200 dark:border-slate-800 group-hover:bg-white/10 group-hover:text-cyan-400 group-hover:border-transparent transition-all italic">
+                             <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-slate-950 uppercase italic tracking-tighter transition-colors leading-none truncate max-w-[400px]">{doc.title}</h4>
+                             <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-300 text-[10px] font-black rounded-xl uppercase tracking-widest border border-slate-200 dark:border-slate-800 group-hover:bg-white/10 group-hover:text-cyan-400 group-hover:border-transparent transition-all italic">
                                {doc.category}
                              </span>
                            </div>
@@ -197,8 +197,8 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                     <Sparkles className="h-16 w-16 text-slate-200 dark:text-slate-700 group-hover:text-rose-400 transition-colors" />
                  </div>
                  <div className="space-y-4">
-                    <h5 className="text-3xl font-black text-slate-955 dark:text-slate-100 uppercase italic tracking-tighter">Vácuo de Detecção</h5>
-                    <p className="text-[12px] text-slate-400 dark:text-slate-550 font-black uppercase tracking-[0.2em] max-w-sm mx-auto leading-relaxed">Nenhum ativo correlacionado a <span className="text-slate-955 dark:text-slate-100">"{search}"</span> foi identificado na base de conhecimento.</p>
+                    <h5 className="text-3xl font-black text-slate-900 dark:text-slate-100 uppercase italic tracking-tighter">Vácuo de Detecção</h5>
+                    <p className="text-[12px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] max-w-sm mx-auto leading-relaxed">Nenhum ativo correlacionado a <span className="text-slate-900 dark:text-slate-100">"{search}"</span> foi identificado na base de conhecimento.</p>
                  </div>
                  <Button
                    onClick={() => setSearch("")}
@@ -215,10 +215,10 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
           <div className="p-10 bg-slate-950/5 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
              <div className="flex items-center gap-8">
                 <div className="flex items-center gap-4 text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-[0.2em] italic">
-                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-slate-400 dark:text-slate-550 font-sans tracking-tight">↑↓</div> Navegar
+                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-slate-400 dark:text-slate-500 font-sans tracking-tight">↑↓</div> Navegar
                 </div>
                 <div className="flex items-center gap-4 text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-[0.2em] italic">
-                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-slate-400 dark:text-slate-550 font-sans tracking-tight">↵</div> Selecionar
+                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-slate-400 dark:text-slate-500 font-sans tracking-tight">↵</div> Selecionar
                 </div>
              </div>
              <div className="flex items-center gap-4">

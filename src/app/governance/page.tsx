@@ -176,7 +176,7 @@ export default function GovernancePage() {
 
             {/* HERO SECTION */}
             <section className="space-y-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-850 rounded-full">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full">
                 <Building2 className="h-3 w-3 text-slate-500" />
                 <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Uso Corporativo & Profissional</span>
               </div>

@@ -152,20 +152,20 @@ export function FocusWidget() {
           </div>
           <div>
             <h3 className="text-base font-extrabold uppercase tracking-tight text-slate-900 dark:text-white leading-none">Foco Ativo</h3>
-            <p className="text-[10px] font-bold text-slate-450 dark:text-slate-500 mt-1 font-sans">Sincronizado com Calmaria</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 font-sans">Sincronizado com Calmaria</p>
           </div>
         </div>
         
         <div className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-full gap-1 border border-slate-200/50 dark:border-slate-800/50">
           <button
             onClick={() => setActiveTab('ambient')}
-            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${activeTab === 'ambient' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'bg-transparent text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${activeTab === 'ambient' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'bg-transparent text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
           >
             Sons
           </button>
           <button
             onClick={() => setActiveTab('spotify')}
-            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${activeTab === 'spotify' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'bg-transparent text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all ${activeTab === 'spotify' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'bg-transparent text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
           >
             Spotify
           </button>
@@ -185,7 +185,7 @@ export function FocusWidget() {
                   <button
                     key={sound.id}
                     onClick={() => toggleSound(sound.id)}
-                    className={`rounded-xl flex flex-col items-center justify-center p-1.5 h-12 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-md' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-450 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
+                    className={`rounded-xl flex flex-col items-center justify-center p-1.5 h-12 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-md' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
                   >
                     <Icon className="h-4 w-4 mb-0.5" />
                     <span className="text-[7px] font-black uppercase tracking-wider">{sound.name}</span>
@@ -196,7 +196,7 @@ export function FocusWidget() {
 
             {/* Mixer & Volume Row */}
             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 rounded-xl p-2.5">
-              <button onClick={toggleMute} className="text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
+              <button onClick={toggleMute} className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
                 {isMuted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
               </button>
               <input 
@@ -262,7 +262,7 @@ export function FocusWidget() {
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
                       <span className="text-[7.5px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Player Spotify</span>
-                      <button onClick={() => setSelectedPlaylistId(null)} className="text-[7.5px] font-black text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white uppercase underline">Playlists</button>
+                      <button onClick={() => setSelectedPlaylistId(null)} className="text-[7.5px] font-black text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white uppercase underline">Playlists</button>
                     </div>
                     <div className="bg-slate-100 dark:bg-black/40 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-inner">
                       <iframe 
@@ -321,7 +321,7 @@ export function FocusWidget() {
                 </button>
               ))}
             </div>
-            <span className="text-[8px] font-bold text-slate-450 dark:text-slate-500">{cycles}c</span>
+            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500">{cycles}c</span>
           </div>
 
           <div className="flex items-center gap-1.5">

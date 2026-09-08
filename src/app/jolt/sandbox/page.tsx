@@ -642,7 +642,7 @@ export default function JoltSandboxPage() {
             </Button>
             <JoltGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
 
-            <Button size="sm" onClick={handleSaveLayout} disabled={isSaving} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white shadow-none">
+            <Button size="sm" onClick={handleSaveLayout} disabled={isSaving} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white shadow-none">
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-2" />}
               {selectedLayoutId ? 'Atualizar' : 'Salvar'}
             </Button>

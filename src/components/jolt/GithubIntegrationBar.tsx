@@ -92,7 +92,7 @@ export function GithubIntegrationBar({
             }
           }}
           placeholder="USUARIO/REPOSITORIO"
-          className="h-full w-full bg-transparent border-none text-[8px] md:text-[8px] font-black uppercase tracking-widest p-0 focus-visible:ring-0 placeholder:text-slate-450 dark:placeholder:text-slate-700 placeholder:text-[8px] placeholder:md:text-[8px] placeholder:tracking-widest text-slate-700 dark:text-slate-300"
+          className="h-full w-full bg-transparent border-none text-[8px] md:text-[8px] font-black uppercase tracking-widest p-0 focus-visible:ring-0 placeholder:text-slate-400 dark:placeholder:text-slate-700 placeholder:text-[8px] placeholder:md:text-[8px] placeholder:tracking-widest text-slate-700 dark:text-slate-300"
         />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -100,12 +100,12 @@ export function GithubIntegrationBar({
               onClick={() => setGithubRepo(repoInput)} 
               variant="ghost" 
               size="icon" 
-              className="h-4 w-4 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-850 rounded shrink-0"
+              className="h-4 w-4 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 rounded shrink-0"
             >
               <Wand2 className="h-3 w-3" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-white dark:bg-slate-900 border-slate-250 dark:border-slate-850 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
+          <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
             Carregar Layouts do Repositório
           </TooltipContent>
         </Tooltip>
@@ -117,7 +117,7 @@ export function GithubIntegrationBar({
           <SelectTrigger className="h-7 w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 shadow-none focus:ring-0 text-slate-700 dark:text-slate-300">
             <SelectValue placeholder={loadingGithubTags ? "..." : "VERSÃO"} />
           </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-750 dark:text-slate-300">
+          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
             {githubTags.map(tag => (
               <SelectItem key={tag} value={tag} className="text-[10px] font-bold hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white focus:bg-slate-100 dark:focus:bg-slate-800 focus:text-slate-900 dark:focus:text-white bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 cursor-pointer">{tag}</SelectItem>
             ))}
@@ -131,7 +131,7 @@ export function GithubIntegrationBar({
           <SelectTrigger className="h-7 w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 shadow-none focus:ring-0 text-slate-700 dark:text-slate-300">
             <SelectValue placeholder={loadingGithubTree ? "..." : "INTEGRAÇÃO"} />
           </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-850 text-slate-750 dark:text-slate-300">
+          <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
             {githubIntegrations.map(integration => (
               <SelectItem key={integration} value={integration} className="text-[10px] font-bold uppercase hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white focus:bg-slate-100 dark:focus:bg-slate-800 focus:text-slate-900 dark:focus:text-white bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 cursor-pointer">{integration}</SelectItem>
             ))}
@@ -147,7 +147,7 @@ export function GithubIntegrationBar({
               role="combobox"
               aria-expanded={isLayoutPopoverOpen}
               disabled={loadingGithubTree || loadingGithubLayout || githubLayouts.length === 0}
-              className="h-7 w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left font-sans text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="h-7 w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left font-sans text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
             >
               <span className="truncate max-w-[130px]">
                 {loadingGithubLayout 
@@ -161,9 +161,9 @@ export function GithubIntegrationBar({
           </PopoverTrigger>
           <PopoverContent className="w-[240px] p-0 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-xl overflow-hidden" align="end">
             <Command className="bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
-              <CommandInput placeholder="Digite para buscar..." className="h-9 text-[10px] uppercase font-bold border-none placeholder:text-slate-400 dark:placeholder:text-slate-650 bg-transparent text-slate-900 dark:text-white focus:ring-0" />
+              <CommandInput placeholder="Digite para buscar..." className="h-9 text-[10px] uppercase font-bold border-none placeholder:text-slate-400 dark:placeholder:text-slate-600 bg-transparent text-slate-900 dark:text-white focus:ring-0" />
               <CommandList className="max-h-[200px] overflow-y-auto">
-                <CommandEmpty className="py-2 text-center text-[8px] font-black uppercase text-slate-400 dark:text-slate-650">Nenhuma rota encontrada</CommandEmpty>
+                <CommandEmpty className="py-2 text-center text-[8px] font-black uppercase text-slate-400 dark:text-slate-600">Nenhuma rota encontrada</CommandEmpty>
                 <CommandGroup>
                   {githubLayouts.map((layout) => (
                     <CommandItem
@@ -173,7 +173,7 @@ export function GithubIntegrationBar({
                         handleLayoutPathChange(layout.path);
                         setIsLayoutPopoverOpen(false);
                       }}
-                      className="text-[10px] font-bold uppercase cursor-pointer text-slate-700 dark:text-slate-300 hover:!bg-slate-100 dark:hover:!bg-slate-800 hover:!text-slate-900 dark:hover:!text-white flex items-center justify-between py-2 px-3 data-[selected=true]:!bg-slate-100 dark:data-[selected=true]:!bg-slate-850 data-[selected=true]:!text-slate-900 dark:data-[selected=true]:!text-white aria-selected:!bg-slate-100 dark:aria-selected:!bg-slate-850 aria-selected:!text-slate-900 dark:aria-selected:!text-white transition-colors"
+                      className="text-[10px] font-bold uppercase cursor-pointer text-slate-700 dark:text-slate-300 hover:!bg-slate-100 dark:hover:!bg-slate-800 hover:!text-slate-900 dark:hover:!text-white flex items-center justify-between py-2 px-3 data-[selected=true]:!bg-slate-100 dark:data-[selected=true]:!bg-slate-800 data-[selected=true]:!text-slate-900 dark:data-[selected=true]:!text-white aria-selected:!bg-slate-100 dark:aria-selected:!bg-slate-800 aria-selected:!text-slate-900 dark:aria-selected:!text-white transition-colors"
                     >
                       <span className="truncate max-w-[190px]">{layout.name}</span>
                       <Check

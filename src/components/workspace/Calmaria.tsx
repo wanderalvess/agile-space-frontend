@@ -157,7 +157,7 @@ export function Calmaria() {
             </button>
             <button 
               onClick={() => setMinimized(true)}
-              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
             >
               <X className="h-4 w-4" />
             </button>
@@ -176,7 +176,7 @@ export function Calmaria() {
                   <button
                     key={sound.id}
                     onClick={() => toggleSound(sound.id)}
-                    className={`rounded-2xl flex flex-col items-center justify-center p-2.5 h-16 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-lg' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-450 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
+                    className={`rounded-2xl flex flex-col items-center justify-center p-2.5 h-16 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-lg' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
                   >
                     <Icon className="h-5 w-5 mb-1" />
                     <span className="text-[8px] font-black uppercase tracking-wider">{sound.name}</span>
@@ -216,7 +216,7 @@ export function Calmaria() {
             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-3">
               <button 
                 onClick={toggleMute}
-                className="text-slate-405 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
                 {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </button>

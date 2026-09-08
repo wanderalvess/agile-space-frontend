@@ -388,7 +388,7 @@ export default function DevToolsHomePage() {
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <Badge variant="outline" className="h-9 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 bg-white dark:bg-slate-900 shadow-sm">
+          <Badge variant="outline" className="h-9 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 shadow-sm">
             {filteredTools.length} UTILITÁRIOS
           </Badge>
         </div>
@@ -405,7 +405,7 @@ export default function DevToolsHomePage() {
                   <div className="h-8 w-1 bg-blue-600 rounded-full" />
                   <h2 className="text-xs font-black uppercase tracking-widest italic text-slate-800 dark:text-slate-100">Principais Utilitários</h2>
                 </div>
-                <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-400 border-none text-[8px] font-black tracking-widest uppercase px-3">Destaques</Badge>
+                <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-none text-[8px] font-black tracking-widest uppercase px-3">Destaques</Badge>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

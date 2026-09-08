@@ -108,7 +108,7 @@ export function TimesheetWidget() {
                         <div key={log.id} className="flex items-center justify-between text-[11px] min-w-0">
                           <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
-                            <span className="font-extrabold text-slate-700 dark:text-slate-350 truncate block max-w-[150px] sm:max-w-[200px]">
+                            <span className="font-extrabold text-slate-700 dark:text-slate-300 truncate block max-w-[150px] sm:max-w-[200px]">
                               {log.taskId ? `[${log.taskId}] ${log.title}` : log.title}
                             </span>
                           </div>

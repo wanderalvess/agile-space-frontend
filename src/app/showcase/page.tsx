@@ -157,7 +157,7 @@ export default function ShowcaseHubPage() {
                 placeholder="Ex: Squad Phoenix — Sprint 42"
                 value={sprintName}
                 onChange={(e) => setSprintName(e.target.value)}
-                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-955/50"
+                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-950/50"
               />
             </div>
 
@@ -168,7 +168,7 @@ export default function ShowcaseHubPage() {
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-850 flex-col gap-3">
+          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800 flex-col gap-3">
             <Button
               disabled={isCreating || !name.trim()}
               onClick={handleCreate}

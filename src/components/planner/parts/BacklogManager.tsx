@@ -222,7 +222,7 @@ export function BacklogManager({
               size="sm" 
               disabled={isImportingJira}
               onClick={handleImportJiraBacklog}
-              className="h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-850 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-xl gap-2 shadow-sm"
+              className="h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-xl gap-2 shadow-sm"
             >
               📥 Importar do Backlog Jira
             </Button>
@@ -230,7 +230,7 @@ export function BacklogManager({
               variant="outline" 
               size="sm" 
               onClick={() => setShowBatchImport(true)}
-              className="h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-850 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-xl gap-2 shadow-sm"
+              className="h-8 text-[9px] font-black uppercase tracking-widest border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 rounded-xl gap-2 shadow-sm"
             >
               📥 Importar Lista
             </Button>
@@ -314,7 +314,7 @@ export function BacklogManager({
             </DialogDescription>
           </DialogHeader>
           <textarea 
-            className="w-full min-h-[250px] p-6 text-xs font-bold bg-slate-50 dark:bg-slate-950/60 border-2 border-slate-100 dark:border-slate-850 rounded-[2rem] focus:border-violet-500 text-slate-900 dark:text-slate-100 outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
+            className="w-full min-h-[250px] p-6 text-xs font-bold bg-slate-50 dark:bg-slate-950/60 border-2 border-slate-100 dark:border-slate-800 rounded-[2rem] focus:border-violet-500 text-slate-900 dark:text-slate-100 outline-none transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
             placeholder="Exemplo:\nJIRA-101 Login | https://jira... | Fazer a tela de login"
             value={batchImportText}
             onChange={(e) => setBatchImportText(e.target.value)}
@@ -332,7 +332,7 @@ export function BacklogManager({
       </Dialog>
 
       <Sheet open={!!selectedTask} onOpenChange={(val) => !val && setSelectedTask(null)}>
-        <SheetContent className="w-full sm:max-w-xl border-l border-white/40 dark:border-slate-850 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl flex flex-col p-8 sm:p-12 overflow-y-auto custom-scrollbar">
+        <SheetContent className="w-full sm:max-w-xl border-l border-white/40 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl flex flex-col p-8 sm:p-12 overflow-y-auto custom-scrollbar">
           <SheetHeader className="mb-10">
             <div className="h-14 w-14 rounded-[1.5rem] bg-violet-600 text-white flex items-center justify-center shadow-xl shadow-violet-600/20 mb-6">
               <ListTodo className="h-7 w-7" />
@@ -344,11 +344,11 @@ export function BacklogManager({
           
           <div className="space-y-10">
             <div className="grid grid-cols-2 gap-4">
-               <div className="bg-white dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-850 shadow-sm text-center">
+               <div className="bg-white dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm text-center">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600 mb-2">Dev Scope</p>
                   <p className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-slate-100">{selectedTask?.devHours}<span className="text-xl">h</span></p>
                </div>
-               <div className="bg-white dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-850 shadow-sm text-center">
+               <div className="bg-white dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm text-center">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-600 mb-2">QA Scope</p>
                   <p className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-slate-100">{selectedTask?.qaHours}<span className="text-xl">h</span></p>
                </div>
@@ -357,7 +357,7 @@ export function BacklogManager({
             {selectedTask?.description && (
               <div className="space-y-3">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Descrição / Notas</h3>
-                <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 rounded-[2rem] leading-relaxed text-sm font-bold text-slate-650 dark:text-slate-300 border border-slate-100 dark:border-slate-850">
+                <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 rounded-[2rem] leading-relaxed text-sm font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-800">
                   {selectedTask?.description}
                 </div>
               </div>

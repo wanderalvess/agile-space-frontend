@@ -309,7 +309,7 @@ export function ModuleGrid() {
 
             <div>
               <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-slate-900 dark:bg-slate-850 rounded-xl flex items-center justify-center shrink-0 border border-slate-700">
+                <div className="w-10 h-10 bg-slate-900 dark:bg-slate-800 rounded-xl flex items-center justify-center shrink-0 border border-slate-700">
                   <ShieldCheck className="h-5 w-5 text-white" />
                 </div>
                 <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Suporte</span>
@@ -318,28 +318,28 @@ export function ModuleGrid() {
               <div className="space-y-2.5 relative z-10">
                 <button
                   onClick={() => router.push('/governance')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
+                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
                 >
                   <span>Diretrizes de Segurança</span>
                   <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                 </button>
                 <button
                   onClick={() => router.push('/changelog')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
+                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
                 >
                   <span>Evolução da Plataforma</span>
                   <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                 </button>
                 <button
                   onClick={() => router.push('/manual')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
+                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
                 >
                   <span>Manual do Usuário</span>
                   <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                 </button>
                 <button
                   onClick={() => router.push('/support')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5"
+                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-300 hover:text-primary transition-colors py-1.5"
                 >
                   <span>Suporte & Chamados</span>
                   <ChevronRight className="h-3.5 w-3.5 text-slate-400" />

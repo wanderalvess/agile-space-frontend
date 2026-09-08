@@ -440,12 +440,12 @@ function KBExplorerContent() {
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleCloseReader}
-                      className="text-[9px] font-black uppercase text-slate-450 dark:text-slate-555 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors tracking-widest leading-none"
+                      className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors tracking-widest leading-none"
                     >
                       Base de Conhecimento
                     </button>
-                    <ChevronRight className="h-3 w-3 text-slate-355 dark:text-slate-700" />
-                    <span className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-150 leading-none truncate max-w-[250px] md:max-w-md">{selectedFile.title}</span>
+                    <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-700" />
+                    <span className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100 leading-none truncate max-w-[250px] md:max-w-md">{selectedFile.title}</span>
                   </div>
                 </div>
                 
@@ -465,7 +465,7 @@ function KBExplorerContent() {
                       size="sm" 
                       onClick={handleSyncActiveDocument}
                       disabled={isSyncingDoc}
-                      className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-900 shadow-xs"
+                      className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900 shadow-xs"
                     >
                       {isSyncingDoc ? <AgileSpinner size="xs" /> : <RefreshCw className="h-3.5 w-3.5" />} 
                       {isSyncingDoc ? 'Sincronizando...' : 'Sincronizar'}
@@ -476,11 +476,11 @@ function KBExplorerContent() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => setIsDownloadFormatOpen(true)} 
-                    className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-900"
+                    className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900"
                   >
                     Exportar <Download className="h-3.5 w-3.5" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)} className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-150 hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <Button variant="outline" size="sm" onClick={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)} className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900">
                     Editar <FileText className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -542,7 +542,7 @@ function KBExplorerContent() {
                     <h1 className="text-3xl font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
                       Base de <span className="text-cyan-600 not-italic">Conhecimento</span>
                     </h1>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-555">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                       Centralização, Gestão e Sincronização da Wiki Space • {documents?.length || 0} Artigos
                     </p>
                   </div>
@@ -773,11 +773,11 @@ function KBExplorerContent() {
                                   onCheckedChange={toggleSelectAll}
                                 />
                               </th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-555">Título do Documento</th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-555">Módulo / Pasta</th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-555">Categoria</th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-555">Atualização</th>
-                              <th className="px-4 py-4 text-right pr-6 text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-555 w-36">Ações</th>
+                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Título do Documento</th>
+                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Módulo / Pasta</th>
+                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Categoria</th>
+                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Atualização</th>
+                              <th className="px-4 py-4 text-right pr-6 text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 w-36">Ações</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -805,7 +805,7 @@ function KBExplorerContent() {
                                       {docItem.tags && docItem.tags.length > 0 && (
                                         <div className="flex flex-wrap gap-1 mt-1.5 max-h-5 overflow-hidden">
                                           {docItem.tags.slice(0, 4).map(tag => (
-                                            <span key={tag} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-855 rounded text-[7px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">
+                                            <span key={tag} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-[7px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">
                                               {tag}
                                             </span>
                                           ))}
@@ -819,14 +819,14 @@ function KBExplorerContent() {
                                         <FolderTree className="h-3.5 w-3.5 text-slate-400" /> {moduleName}
                                       </span>
                                       {subFolder && (
-                                        <span className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-505 ml-4">
+                                        <span className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-500 ml-4">
                                           {subFolder}
                                         </span>
                                       )}
                                     </div>
                                   </td>
                                   <td className="px-4 py-3">
-                                    <span className="text-[9px] font-black uppercase bg-slate-50 dark:bg-slate-950 border border-slate-250 dark:border-slate-800 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-400 shadow-3xs">
+                                    <span className="text-[9px] font-black uppercase bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-400 shadow-3xs">
                                       {docItem.category}
                                     </span>
                                   </td>
@@ -846,7 +846,7 @@ function KBExplorerContent() {
                                       <Button size="icon" className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/40 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-none" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)}>
                                         <Edit className="h-4 w-4" />
                                       </Button>
-                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/40 text-slate-555 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 shadow-none" onClick={() => handleDelete(docItem.id)}>
+                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/40 text-slate-500 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 shadow-none" onClick={() => handleDelete(docItem.id)}>
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </div>
@@ -859,7 +859,7 @@ function KBExplorerContent() {
                                 <td colSpan={6} className="py-20 text-center">
                                   <div className="flex flex-col items-center justify-center gap-2">
                                     <ShieldAlert className="h-8 w-8 text-slate-300 dark:text-slate-700 animate-pulse" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-555">Nenhum documento encontrado nesta busca</span>
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Nenhum documento encontrado nesta busca</span>
                                   </div>
                                 </td>
                               </tr>
@@ -896,7 +896,7 @@ function KBExplorerContent() {
             <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100">
               Escolher Formato
             </DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 dark:text-slate-555 uppercase tracking-widest mt-1">
+            <DialogDescription className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
               Selecione o tipo de arquivo para a leitura local
             </DialogDescription>
           </DialogHeader>
@@ -907,7 +907,7 @@ function KBExplorerContent() {
               onValueChange={(val: any) => setSelectedFormat(val)}
               className="space-y-3"
             >
-              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
+              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
                 <RadioGroupItem value="md" id="format-md" />
                 <Label htmlFor="format-md" className="flex-1 cursor-pointer font-sans">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Markdown (.md)</div>
@@ -915,7 +915,7 @@ function KBExplorerContent() {
                 </Label>
               </div>
 
-              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
+              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
                 <RadioGroupItem value="html" id="format-html" />
                 <Label htmlFor="format-html" className="flex-1 cursor-pointer font-sans">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">HTML (.html)</div>
@@ -923,17 +923,17 @@ function KBExplorerContent() {
                 </Label>
               </div>
 
-              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-150 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
+              <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
                 <RadioGroupItem value="txt" id="format-txt" />
                 <Label htmlFor="format-txt" className="flex-1 cursor-pointer font-sans">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Texto Puro (.txt)</div>
-                  <div className="text-[10px] font-medium text-slate-400 dark:text-slate-555 mt-0.5">Remove todas as formatações e mantém apenas o texto legível.</div>
+                  <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Remove todas as formatações e mantém apenas o texto legível.</div>
                 </Label>
               </div>
             </RadioGroup>
           </div>
 
-          <DialogFooter className="border-t border-slate-150 dark:border-slate-800 pt-5 gap-2">
+          <DialogFooter className="border-t border-slate-100 dark:border-slate-800 pt-5 gap-2">
             <Button
               variant="outline"
               onClick={() => setIsDownloadFormatOpen(false)}

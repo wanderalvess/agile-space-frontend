@@ -465,7 +465,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               </div>
               
               <div className="flex flex-col items-start">
-                <span className="text-[8px] font-black text-slate-400 dark:text-slate-550 uppercase leading-none mb-1.5 tracking-tighter">Tasks Prontas</span>
+                <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none mb-1.5 tracking-tighter">Tasks Prontas</span>
                 <div className="flex items-center gap-1 text-[11px] font-black text-emerald-600 dark:text-emerald-400 italic whitespace-nowrap">
                   {stats.ready}
                   <span className="text-slate-300 dark:text-slate-800 mx-0.5 not-italic">/</span>
@@ -551,7 +551,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                </Button>
                <DropdownMenu>
                  <DropdownMenuTrigger asChild>
-                   <Button variant="outline" className="h-14 px-10 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 border-2 border-slate-100 dark:border-slate-800 font-black uppercase text-[11px] tracking-widest gap-3 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-200 dark:hover:border-slate-750 transition-all">
+                   <Button variant="outline" className="h-14 px-10 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 border-2 border-slate-100 dark:border-slate-800 font-black uppercase text-[11px] tracking-widest gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-all">
                      <Plus className="h-5 w-5" /> Criar Manual
                    </Button>
                  </DropdownMenuTrigger>
