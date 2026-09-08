@@ -46,6 +46,14 @@ export default function RetroHubPage() {
   // edição manual nem um valor já preenchido por uma resolução anterior.
   useEffect(() => {
     if (team) return;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const squadParam = urlParams.get('squad');
+      if (squadParam) {
+        setTeam(squadParam);
+        return;
+      }
+    }
     const userTeam = userProfile?.squadId || userProfile?.team;
     if (userTeam) setTeam(userTeam);
     // eslint-disable-next-line react-hooks/exhaustive-deps

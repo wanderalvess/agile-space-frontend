@@ -23,11 +23,24 @@ import {
   Trash2,
   HelpCircle,
   Sparkles,
-  Terminal
+  Terminal,
+  Workflow,
+  GitCompare,
+  CheckCircle2,
+  AlertCircle,
+  Cpu
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { transformJolt } from '@/lib/jolt-engine';
+import { transformJolt, type JoltEngineMode } from '@/lib/jolt-engine';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +62,7 @@ import Link from 'next/link';
 const LAYOUTS_STORAGE_KEY_PREFIX = 'agileSpace_jolt_layouts';
 
 export default function JoltSandboxPage() {
+  const router = useRouter();
   const { userProfile, requestIdentity } = useUserContext();
   const { toast } = useToast();
 
@@ -63,6 +77,19 @@ export default function JoltSandboxPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Engine & Comparison States
+  const [engineMode, setEngineMode] = useState<JoltEngineMode>('local');
+  const [isComparing, setIsComparing] = useState(false);
+  const [executionStats, setExecutionStats] = useState<{ timeMs?: number; engine?: string } | null>(null);
+  const [compareResult, setCompareResult] = useState<{
+    identical: boolean;
+    localTime: number;
+    javaTime: number;
+    localOutput: string;
+    javaOutput: string;
+  } | null>(null);
+  const [isCompareDialogOpen, setIsCompareDialogOpen] = useState(false);
 
   const editorInputRef = useRef<any>(null);
   const editorSpecRef = useRef<any>(null);
@@ -577,13 +604,96 @@ export default function JoltSandboxPage() {
 
     setIsLoading(true);
     try {
-      const result = await transformJolt(parsedInput, parsedSpec);
+      const result = await transformJolt(parsedInput, parsedSpec, { engine: engineMode });
       setOutputJson(JSON.stringify(result.outputData, null, 2));
-      toast({ title: "Sucesso!", description: "Transformação concluída." });
+      setExecutionStats({ timeMs: result.executionTimeMs, engine: result.engine });
+      toast({ 
+        title: "Sucesso!", 
+        description: `Transformado via ${result.engine === 'java' ? 'Java Bazaarvoice (Oficial)' : 'JavaScript Local'} em ${result.executionTimeMs ?? 0}ms.` 
+      });
     } catch (error: any) {
       toast({ title: "Erro na Transformação", description: error.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCompareEngines = async () => {
+    if (!inputJson.trim() || !joltSpec.trim()) return;
+
+    const parsedInput = validateJSON(inputJson, 'Entrada (Input)', editorInputRef);
+    if (!parsedInput) return;
+    const parsedSpec = validateJSON(joltSpec, 'Jolt Spec', editorSpecRef);
+    if (!parsedSpec) return;
+
+    setIsComparing(true);
+    try {
+      const localResult = await transformJolt(parsedInput, parsedSpec, { engine: 'local' });
+      const localOutStr = JSON.stringify(localResult.outputData, null, 2);
+
+      const javaResult = await transformJolt(parsedInput, parsedSpec, { engine: 'java' });
+      const javaOutStr = JSON.stringify(javaResult.outputData, null, 2);
+
+      const isIdentical = localOutStr === javaOutStr;
+
+      setCompareResult({
+        identical: isIdentical,
+        localTime: localResult.executionTimeMs ?? 0,
+        javaTime: javaResult.executionTimeMs ?? 0,
+        localOutput: localOutStr,
+        javaOutput: javaOutStr,
+      });
+
+      setOutputJson(javaOutStr);
+      setExecutionStats({ timeMs: javaResult.executionTimeMs, engine: 'java' });
+      setIsCompareDialogOpen(true);
+
+      if (isIdentical) {
+        toast({
+          title: "Motores 100% Idênticos!",
+          description: `JS: ${localResult.executionTimeMs}ms | Java: ${javaResult.executionTimeMs}ms.`,
+        });
+      } else {
+        toast({
+          title: "Resultados Divergentes!",
+          description: "O motor JS e o Java oficial produziram saídas diferentes. Verifique a modal de comparação.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      toast({ title: "Erro na Comparação", description: error.message, variant: "destructive" });
+    } finally {
+      setIsComparing(false);
+    }
+  };
+
+  const handleOpenInVisualMapper = () => {
+    if (!inputJson.trim()) {
+      toast({
+        title: "Entrada vazia",
+        description: "Preencha o JSON de entrada para transferir ao Mapeador Visual.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      localStorage.setItem('jolt_visual_input_json', inputJson);
+      if (outputJson && outputJson.trim()) {
+        localStorage.setItem('jolt_visual_target_json', outputJson);
+      }
+      localStorage.setItem('jolt_visual_imported_from_sandbox', 'true');
+      toast({
+        title: "Transferindo para o Visual...",
+        description: "Abrindo o Mapeador Visual com os dados da Sandbox."
+      });
+      router.push('/jolt/visual');
+    } catch (e: any) {
+      toast({
+        title: "Erro ao transferir",
+        description: e.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -632,6 +742,17 @@ export default function JoltSandboxPage() {
 
           <div className="flex items-center gap-3">
             <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleOpenInVisualMapper}
+              className="h-9 px-3.5 font-bold text-[10px] uppercase tracking-widest gap-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 transition-all rounded-xl"
+              title="Mapear visualmente no canvas ReactFlow"
+            >
+              <Workflow className="h-4 w-4" />
+              Mapeador Visual
+            </Button>
+
+            <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => setIsGuideOpen(true)}
@@ -646,6 +767,51 @@ export default function JoltSandboxPage() {
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-2" />}
               {selectedLayoutId ? 'Atualizar' : 'Salvar'}
             </Button>
+
+            {/* Seletor de Motor */}
+            <div className="flex items-center rounded-xl p-0.5 border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
+              <button
+                type="button"
+                onClick={() => setEngineMode('local')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                  engineMode === 'local' 
+                    ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                )}
+                title="Execução local rápida em JavaScript no navegador"
+              >
+                JS Local
+              </button>
+              <button
+                type="button"
+                onClick={() => setEngineMode('java')}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1",
+                  engineMode === 'java' 
+                    ? "bg-blue-600 text-white shadow-sm" 
+                    : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                )}
+                title="Execução no backend oficial da Bazaarvoice em Java"
+              >
+                <Cpu className="h-3 w-3" />
+                Java Oficial
+              </button>
+            </div>
+
+            {/* Botão Comparar Motores */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCompareEngines} 
+              disabled={isLoading || isComparing} 
+              className="h-9 px-3 font-bold text-[10px] uppercase tracking-widest gap-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-xl"
+              title="Executa simultaneamente em JS e Java e compara os resultados"
+            >
+              {isComparing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitCompare className="h-3.5 w-3.5" />}
+              Comparar
+            </Button>
+
             <Button size="sm" onClick={handleRunTransformation} disabled={isLoading} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/10 transition-all active:scale-95 rounded-xl border-none">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="mr-2 h-4 w-4 fill-current" />}
               EXECUTAR
@@ -748,8 +914,94 @@ export default function JoltSandboxPage() {
             pulse
             clearTooltip="Limpar Resultado"
             copyTooltip="Copiar Resultado JSON"
+            actions={
+              executionStats ? (
+                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    executionStats.engine === 'java' ? "bg-purple-500" : "bg-blue-500"
+                  )} />
+                  <span>{executionStats.engine === 'java' ? 'Java Bazaarvoice' : 'JS Local'}</span>
+                  <span className="text-slate-400 dark:text-slate-500">•</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-mono">{executionStats.timeMs}ms</span>
+                </div>
+              ) : null
+            }
           />
         </div>
+
+        {/* Modal de Comparação de Motores */}
+        <Dialog open={isCompareDialogOpen} onOpenChange={setIsCompareDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xl p-6">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <GitCompare className="h-5 w-5 text-purple-500" />
+                  <DialogTitle className="text-lg font-black uppercase tracking-tight italic">
+                    Comparação de Motores JOLT
+                  </DialogTitle>
+                </div>
+                {compareResult && (
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5",
+                    compareResult.identical 
+                      ? "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800" 
+                      : "bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
+                  )}>
+                    {compareResult.identical ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Saídas 100% Idênticas
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Saídas Divergentes
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Comparando a execução do motor local JavaScript (Navegador) contra o motor oficial Bazaarvoice em Java (Backend).
+              </DialogDescription>
+            </DialogHeader>
+
+            {compareResult && (
+              <div className="flex-1 grid grid-cols-2 gap-4 mt-4 min-h-[350px] overflow-hidden">
+                {/* Coluna JS Local */}
+                <div className="flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950">
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                    <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                      JavaScript (Browser Local)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      {compareResult.localTime} ms
+                    </span>
+                  </div>
+                  <pre className="flex-1 p-3 text-xs font-mono overflow-auto text-slate-800 dark:text-slate-200">
+                    {compareResult.localOutput}
+                  </pre>
+                </div>
+
+                {/* Coluna Java Backend */}
+                <div className="flex flex-col border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50 dark:bg-slate-950">
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                      Java Bazaarvoice (Backend Oficial)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                      {compareResult.javaTime} ms
+                    </span>
+                  </div>
+                  <pre className="flex-1 p-3 text-xs font-mono overflow-auto text-slate-800 dark:text-slate-200">
+                    {compareResult.javaOutput}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

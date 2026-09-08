@@ -1,14 +1,17 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Users,
   ArrowRight as ArrowRightIcon,
-  HeartPulse,
   Trash2,
   User,
   Clock,
-  ThumbsUp
+  ThumbsUp,
+  ListPlus,
+  LayoutTemplate,
+  Zap,
+  Plus,
 } from 'lucide-react';
 import { RetroTemplateKey, RetroColumnTheme } from '@/lib/types';
 import {
@@ -22,17 +25,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ToggleRow } from '@/components/retro/RetroSettingsDialog';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 
-// Toggles do facilitador espelhados de RetroSettingsDialog — antes só
-// apareciam depois de criar o quadro, sem o facilitador saber o que estava
-// ligado sem entrar na sala (mesmo problema já resolvido no setup do poker).
 export const SETUP_TOGGLES = [
   { key: 'isAuthorsRevealed', icon: User, title: 'Autores Abertos', desc: 'Mostra quem escreveu cada card' },
-  { key: 'syncStageEnabled', icon: Users, title: 'Sincronizar Coluna Ativa', desc: 'Todos veem a coluna que você está focando' },
-  { key: 'autoRevealOnTimerEnd', icon: Clock, title: 'Auto-revelar ao fim do timer', desc: 'Revela os cards sozinho quando o tempo zera' },
-  { key: 'autoSortOnVoteEnd', icon: ThumbsUp, title: 'Ordenar por votos ao encerrar', desc: 'Aplica em todas as colunas de feedback' },
+  { key: 'syncStageEnabled', icon: Users, title: 'Sincronizar Coluna Ativa', desc: 'Todos veem a coluna focada' },
+  { key: 'autoRevealOnTimerEnd', icon: Clock, title: 'Auto-revelar ao fim do timer', desc: 'Revela cards quando o tempo zera' },
+  { key: 'autoSortOnVoteEnd', icon: ThumbsUp, title: 'Ordenar por votos ao encerrar', desc: 'Aplica em colunas de feedback' },
 ] as const;
 
 export type SetupToggleKey = typeof SETUP_TOGGLES[number]['key'];
@@ -41,6 +41,87 @@ export type SetupSettings = Record<SetupToggleKey, boolean>;
 export const DEFAULT_SETUP_SETTINGS: SetupSettings = Object.fromEntries(
   SETUP_TOGGLES.map(t => [t.key, false])
 ) as SetupSettings;
+
+export interface TemplateOption {
+  key: RetroTemplateKey;
+  name: string;
+  tagline: string;
+  desc: string;
+  columns: string[];
+}
+
+export const TEMPLATE_OPTIONS: TemplateOption[] = [
+  {
+    key: 'classic',
+    name: 'Clássico',
+    tagline: '3 Colunas',
+    desc: 'O formato padrão de retrospectiva: o que funcionou, o que melhorar e ações.',
+    columns: ['O que funcionou?', 'O que melhorar?', 'Plano de Ação'],
+  },
+  {
+    key: 'start_stop_continue',
+    name: 'Start / Stop / Continue',
+    tagline: '3 Colunas',
+    desc: 'Foco direto em comportamentos do time: começar, parar e continuar.',
+    columns: ['Começar (Start)', 'Parar (Stop)', 'Continuar (Continue)'],
+  },
+  {
+    key: 'four_ls',
+    name: '4Ls',
+    tagline: '5 Colunas',
+    desc: 'Reflexão abrangente da sprint: Liked, Learned, Lacked e Longed For.',
+    columns: ['Liked', 'Learned', 'Lacked', 'Longed For', 'Ações'],
+  },
+  {
+    key: 'daki',
+    name: 'DAKI',
+    tagline: '5 Colunas',
+    desc: 'Drop, Add, Keep, Improve — refinamento pragmático de práticas.',
+    columns: ['Drop', 'Add', 'Keep', 'Improve', 'Ações'],
+  },
+  {
+    key: 'sailboat',
+    name: 'Sailboat',
+    tagline: '5 Colunas',
+    desc: 'Metáfora visual: ventos favoráveis, sol, âncoras e pedras adiante.',
+    columns: ['Vento', 'Sol', 'Âncora', 'Pedras', 'Ações'],
+  },
+  {
+    key: 'starfish',
+    name: 'Starfish',
+    tagline: '5 Colunas',
+    desc: 'Estrela do mar: manter, fazer menos, fazer mais, começar e parar.',
+    columns: ['Manter', 'Menos', 'Mais', 'Começar', 'Parar'],
+  },
+  {
+    key: 'mad_sad_glad',
+    name: 'Mad / Sad / Glad',
+    tagline: '3 Colunas',
+    desc: 'Foco no clima da squad: o que gerou alegria, tristeza ou frustração.',
+    columns: ['Feliz (Glad)', 'Triste (Sad)', 'Irritado (Mad)'],
+  },
+  {
+    key: 'three_little_pigs',
+    name: '3 Porquinhos',
+    tagline: '4 Colunas',
+    desc: 'Nível de solidez dos processos: palha (frágil), madeira e tijolo (sólido).',
+    columns: ['Palha (Frágil)', 'Madeira', 'Tijolo (Sólido)', 'Ações'],
+  },
+  {
+    key: 'speed_car',
+    name: 'Speed Car',
+    tagline: '3 Colunas',
+    desc: 'Metáfora de velocidade: motor (aceleradores) e paraquedas (freadores).',
+    columns: ['Motor (Acelerador)', 'Paraquedas (Freador)', 'Ações'],
+  },
+  {
+    key: 'custom',
+    name: 'Personalizado',
+    tagline: 'Custom',
+    desc: 'Crie colunas exclusivas com nomes e temas definidos por você.',
+    columns: ['Colunas configuráveis'],
+  },
+];
 
 interface CreateRetroDialogProps {
   open: boolean;
@@ -77,136 +158,260 @@ export function CreateRetroDialog({
   onCreate,
   onCancel,
 }: CreateRetroDialogProps) {
+  const [hoveredTemplate, setHoveredTemplate] = useState<RetroTemplateKey | null>(null);
+  const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
+
+  const currentOption = TEMPLATE_OPTIONS.find(t => t.key === (hoveredTemplate || template)) || TEMPLATE_OPTIONS[0];
+  const previewColumns = template === 'custom'
+    ? customColumns.map((c, i) => c.title.trim() || `Coluna ${i + 1}`)
+    : currentOption.columns;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto rounded-[3rem] border-none shadow-2xl bg-white/95 backdrop-blur-xl">
+      <DialogContent className="sm:max-w-[1100px] max-h-[94vh] overflow-y-auto gap-4 p-5 sm:p-6 rounded-[2rem] border border-border shadow-2xl bg-card text-card-foreground">
         <DialogHeader>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-600/20 text-white">
-             <HeartPulse className="h-6 w-6" />
-          </div>
-          <DialogTitle className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none">Novo Quadro</DialogTitle>
-          <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Escolha o formato ideal para seu time</DialogDescription>
+          <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-none">
+            Configurar Retrospectiva
+          </DialogTitle>
+          <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
+            Nomeie o quadro, escolha o formato das colunas e ajuste as permissões do facilitador
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-6 font-sans">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título da Retro</Label>
-              <Input
-                placeholder="Ex: Fim da Sprint #42"
-                value={title}
-                onChange={e => onTitleChange(e.target.value)}
-                className="h-12 rounded-2xl border-slate-100 focus:border-emerald-500 font-bold bg-slate-50/50"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Squad / Time</Label>
-              <Input
-                placeholder="Ex: Delta Force"
-                value={team}
-                onChange={e => onTeamChange(e.target.value)}
-                className="h-12 rounded-2xl border-slate-100 focus:border-emerald-500 font-bold bg-slate-50/50"
-              />
-            </div>
-          </div>
-
+        {/* Nome + squad */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 font-sans">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Template de Colunas</Label>
-            <Select value={template} onValueChange={(val: RetroTemplateKey) => onTemplateChange(val)}>
-              <SelectTrigger className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 font-bold">
-                <SelectValue placeholder="Selecione um formato" />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl border-slate-100 p-2">
-                <SelectItem value="classic" className="rounded-xl font-bold py-3 px-4">🏆 Clássico (Parar, Começar, Continuar)</SelectItem>
-                <SelectItem value="start_stop_continue" className="rounded-xl font-bold py-3 px-4">🔄 Começar, Parar, Continuar</SelectItem>
-                <SelectItem value="four_ls" className="rounded-xl font-bold py-3 px-4">🍃 4L (Liked, Learned, Lacked...)</SelectItem>
-                <SelectItem value="daki" className="rounded-xl font-bold py-3 px-4">💎 DAKI (Drop, Add, Keep, Improve)</SelectItem>
-                <SelectItem value="sailboat" className="rounded-xl font-bold py-3 px-4">⛵ Sailboat (Vento, Sol, Âncora...)</SelectItem>
-                <SelectItem value="starfish" className="rounded-xl font-bold py-3 px-4">⭐ Starfish (5 Estágios: Manter, Menos, Mais...)</SelectItem>
-                <SelectItem value="mad_sad_glad" className="rounded-xl font-bold py-3 px-4">😤 Glad, Sad, Mad (Feliz, Triste, Irritado)</SelectItem>
-                <SelectItem value="three_little_pigs" className="rounded-xl font-bold py-3 px-4">🐷 Três Porquinhos (Palha, Madeira, Tijolo)</SelectItem>
-                <SelectItem value="speed_car" className="rounded-xl font-bold py-3 px-4">🏎️ Speed Car (Motor e Paraquedas)</SelectItem>
-                <SelectItem value="custom" className="rounded-xl font-bold py-3 px-4 text-emerald-600">🛠️ Personalizado...</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+              <ListPlus className="h-3.5 w-3.5 text-primary" /> Título da Retrospectiva
+            </Label>
+            <Input
+              placeholder="Ex: Fim da Sprint #42"
+              value={title}
+              onChange={e => onTitleChange(e.target.value)}
+              className="h-11 rounded-2xl border-border focus:border-primary font-bold bg-muted/40 focus-visible:ring-primary"
+            />
           </div>
-
-          {template === 'custom' && (
-            <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Definição de Colunas</Label>
-               <div className="grid grid-cols-1 gap-2">
-                  {customColumns.map((col, idx) => (
-                    <div key={idx} className="flex gap-2">
-                       <Input
-                          value={col.title}
-                          onChange={(e) => {
-                            const newCols = [...customColumns];
-                            newCols[idx].title = e.target.value;
-                            onCustomColumnsChange(newCols);
-                          }}
-                          placeholder={`Coluna ${idx + 1}`}
-                          className="h-11 rounded-xl border-slate-100 bg-slate-50/30 font-bold"
-                       />
-                       {customColumns.length > 2 && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => onCustomColumnsChange(customColumns.filter((_, i) => i !== idx))}
-                            className="h-11 w-11 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50"
-                          >
-                             <Trash2 className="h-4 w-4" />
-                          </Button>
-                       )}
-                    </div>
-                  ))}
-                  {customColumns.length < 5 && (
-                     <Button
-                       variant="outline"
-                       onClick={() => onCustomColumnsChange([...customColumns, { title: '', theme: 'neutral' }])}
-                       className="h-11 rounded-xl border-dashed border-2 text-[10px] font-black uppercase tracking-[0.2em]"
-                     >
-                        + Adicionar Coluna
-                     </Button>
-                  )}
-               </div>
-            </div>
-          )}
-
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Configurações do Facilitador</Label>
-            <div className="grid grid-cols-1 gap-2">
-              {SETUP_TOGGLES.map(cfg => (
-                <ToggleRow
-                  key={cfg.key}
-                  id={cfg.key}
-                  icon={cfg.icon}
-                  title={cfg.title}
-                  desc={cfg.desc}
-                  checked={setupSettings[cfg.key]}
-                  onChange={(v) => onSetupSettingsChange({ ...setupSettings, [cfg.key]: v })}
-                  accent="emerald"
-                />
-              ))}
-            </div>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-primary" /> Squad / Time
+            </Label>
+            <Input
+              placeholder="Ex: Delta Force"
+              value={team}
+              onChange={e => onTeamChange(e.target.value)}
+              className="h-11 rounded-2xl border-border focus:border-primary font-bold bg-muted/40 focus-visible:ring-primary"
+            />
           </div>
         </div>
 
-        <DialogFooter className="pt-6 border-t border-slate-100 flex-col gap-3">
-           <Button
-             disabled={isCreating}
-             onClick={onCreate}
-             className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/10 gap-3"
-           >
-             {isCreating ? 'Sincronizando...' : 'Abrir Sessão'}
-             <ArrowRightIcon className="h-4 w-4" />
-           </Button>
-           <Button
-             type="button"
-             variant="ghost"
-             onClick={onCancel}
-             className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-transparent"
-           >
-              Cancelar
-           </Button>
+        {/* Formatos de Colunas — Cartões Visuais (Estilo Poker) */}
+        <div className="space-y-2 pt-1 font-sans">
+          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+            <LayoutTemplate className="h-3.5 w-3.5 text-primary" /> Formato das Colunas
+          </Label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
+            {TEMPLATE_OPTIONS.map(opt => {
+              const selected = template === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => onTemplateChange(opt.key)}
+                  onMouseEnter={() => setHoveredTemplate(opt.key)}
+                  onMouseLeave={() => setHoveredTemplate(null)}
+                  onFocus={() => setHoveredTemplate(opt.key)}
+                  className={cn(
+                    "text-left p-3 rounded-2xl border-2 transition-all group flex flex-col justify-between min-h-[110px]",
+                    selected
+                      ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
+                      : "border-border bg-muted/30 hover:border-primary/40 hover:bg-primary/5"
+                  )}
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <span className="text-xs font-black uppercase tracking-tight text-foreground truncate">{opt.name}</span>
+                      <span className={cn(
+                        "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full shrink-0",
+                        selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      )}>
+                        {opt.tagline}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {opt.columns.slice(0, 3).map((col, idx) => (
+                        <span
+                          key={idx}
+                          className={cn(
+                            "h-5 px-1.5 flex items-center justify-center rounded-md text-[9px] font-bold border truncate max-w-[120px]",
+                            selected ? "bg-background border-primary/30 text-primary" : "bg-background border-border text-muted-foreground"
+                          )}
+                        >
+                          {col}
+                        </span>
+                      ))}
+                      {opt.columns.length > 3 && (
+                        <span className="h-5 px-1 flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+                          +{opt.columns.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[9px] font-medium text-muted-foreground leading-snug line-clamp-2">{opt.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Preview das colunas completas */}
+          <div className="flex items-center gap-1.5 flex-wrap px-1 pt-1 min-h-[28px]">
+            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mr-1">Colunas do quadro:</span>
+            {previewColumns.map((colTitle, i) => (
+              <span
+                key={i}
+                className="h-6 px-2 flex items-center justify-center rounded-md text-[10px] font-black bg-muted text-muted-foreground border border-border"
+              >
+                {colTitle}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Editor de colunas customizadas se selecionado */}
+        {template === 'custom' && (
+          <div className="space-y-3 p-4 rounded-2xl border border-dashed border-border bg-muted/20 animate-in fade-in slide-in-from-top-2 font-sans">
+            <div className="flex items-center justify-between">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Definição das Colunas Customizadas</Label>
+              <span className="text-[9px] font-medium text-muted-foreground">Mínimo 2, máximo 6</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {customColumns.map((col, idx) => (
+                <div key={idx} className="flex gap-1.5 items-center">
+                  <Input
+                    value={col.title}
+                    onChange={(e) => {
+                      const newCols = [...customColumns];
+                      newCols[idx].title = e.target.value;
+                      onCustomColumnsChange(newCols);
+                    }}
+                    placeholder={`Coluna ${idx + 1}`}
+                    className="h-10 rounded-xl border-border bg-background font-bold text-xs"
+                  />
+                  {customColumns.length > 2 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onCustomColumnsChange(customColumns.filter((_, i) => i !== idx))}
+                      className="h-10 w-10 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {customColumns.length < 6 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onCustomColumnsChange([...customColumns, { title: '', theme: 'neutral' }])}
+                  className="h-10 rounded-xl border-dashed border-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Coluna
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Configurações do Facilitador — Grid com Switches idêntico ao Poker */}
+        <div className="pt-2 font-sans space-y-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap ml-1">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <Zap className="h-3.5 w-3.5 text-primary" /> Configurações do Facilitador
+              <span className="text-muted-foreground/70 normal-case tracking-normal font-medium">
+                ({activeSetupCount} de {SETUP_TOGGLES.length} ativados)
+              </span>
+            </Label>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => onSetupSettingsChange(DEFAULT_SETUP_SETTINGS)}
+                className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              >
+                Padrão
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, false])) as SetupSettings)}
+                className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              >
+                Nenhum
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, true])) as SetupSettings)}
+                className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+              >
+                Todos
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {SETUP_TOGGLES.map(cfg => {
+              const on = !!setupSettings[cfg.key];
+              const Icon = cfg.icon;
+              return (
+                <div
+                  key={cfg.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on });
+                    }
+                  }}
+                  title={cfg.desc}
+                  className={cn(
+                    "w-full text-left px-3 py-2.5 rounded-xl border-2 flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none",
+                    on ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-muted/30 hover:border-primary/30"
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight text-foreground leading-tight">
+                      <Icon className="h-3 w-3 shrink-0 text-primary" />
+                      {cfg.title}
+                    </span>
+                    <span className="block text-[9px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[180px]">
+                      {cfg.desc}
+                    </span>
+                  </span>
+                  <Switch checked={on} className="pointer-events-none shrink-0 scale-90" />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <DialogFooter className="pt-4 mt-2 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-transparent text-center sm:text-left order-2 sm:order-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            disabled={isCreating}
+            onClick={onCreate}
+            className="w-full sm:w-auto px-8 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/10 gap-3 order-1 sm:order-2"
+          >
+            {isCreating ? 'Preparando...' : 'Iniciar Retrospectiva'}
+            <ArrowRightIcon className="h-4 w-4" />
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

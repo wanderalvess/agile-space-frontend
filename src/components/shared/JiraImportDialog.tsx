@@ -65,15 +65,19 @@ export function JiraImportDialog({
 
   const { settings, saveSettings } = useJiraSettings();
 
-  // Auto-populate saved credentials
+  // Auto-populate saved credentials e prioriza API quando token já existe
   useEffect(() => {
-    if (settings && open && tab === 'api' && !domain && !token) {
-      console.log('[Jira Dialog] Auto-populating settings:', settings.domain);
-      setDomain(settings.domain || '');
-      setToken(settings.token || '');
-      setSaveDefault(true);
+    if (settings && open) {
+      if (settings.token) {
+        setTab('api');
+      }
+      if (!domain && !token) {
+        setDomain(settings.domain || 'jiraproducao.totvs.com.br');
+        setToken(settings.token || '');
+        setSaveDefault(true);
+      }
     }
-  }, [settings, open, tab]);
+  }, [settings, open]);
 
   const handleXml = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

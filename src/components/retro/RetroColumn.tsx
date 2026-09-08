@@ -116,6 +116,7 @@ interface RetroColumnProps {
   isFocusMode?: boolean;
   onToggleFocusMode?: (value: boolean) => void;
   columns?: RetroColumnDef[];
+  layoutMode?: 'board' | 'focus';
 }
 
 function RetroColumnComponent({
@@ -147,8 +148,17 @@ function RetroColumnComponent({
   isFocusMode,
   onToggleFocusMode,
   columns,
+  layoutMode = 'board',
 }: RetroColumnProps) {
-  const isSortedByVotes = boardData.columnSorts?.[columnKey] || false;
+  const isBoardMode = layoutMode === 'board';
+  const showFullColumn = isBoardMode || isFocused;
+
+  // Se houver preferência explícita na coluna salva pelo facilitador, respeita;
+  // senão, durante votação ativa ou encerrada, ordena automaticamente pelos mais votados
+  const explicitSort = boardData.columnSorts?.[columnKey];
+  const isSortedByVotes = explicitSort !== undefined
+    ? explicitSort
+    : (votingStatus === 'active' || votingStatus === 'finished');
   const { toast } = useToast();
   const [isImportOpen, setIsImportOpen] = useState(false);
 
@@ -199,13 +209,20 @@ function RetroColumnComponent({
     const tempCards = [...uniqueCards];
     const shouldSortByVotes = isSortedByVotes && isFeedbackColumn;
     
-    if (votingStatus === 'finished' || shouldSortByVotes) {
-      tempCards.sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
+    if (shouldSortByVotes) {
+      tempCards.sort((a, b) => {
+        const votesA = a.votes?.length || 0;
+        const votesB = b.votes?.length || 0;
+        if (votesB !== votesA) {
+          return votesB - votesA; // Mais votados sobem automaticamente para cima
+        }
+        return a.order - b.order; // Desempate estável pela ordem original
+      });
     } else {
       tempCards.sort((a, b) => a.order - b.order);
     }
     return tempCards;
-  }, [cards, votingStatus, isSortedByVotes, isFeedbackColumn]);
+  }, [cards, isSortedByVotes, isFeedbackColumn]);
 
   const cardIds = useMemo(() => sortedCards.map(c => c.id), [sortedCards]);
 
@@ -250,21 +267,30 @@ function RetroColumnComponent({
       onClick={!isFocused && !isNavLocked ? onFocus : undefined}
       className={cn(
         "flex flex-col bg-white/40 backdrop-blur-xl border border-white/60 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
-        isFocused && isFocusMode ? "fixed inset-0 z-[100] m-0 rounded-none bg-white font-sans" :
-        isFocused ? cn("flex-[6] z-10", config.shadowPulse) :
-        isFocusMode ? "hidden" : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60"),
+        isFocused && isFocusMode
+          ? "fixed inset-0 z-[100] m-0 rounded-none bg-white font-sans"
+          : isBoardMode
+            ? cn(
+                "flex-1 min-w-[310px] xl:min-w-[360px] 2xl:min-w-[400px] max-w-full",
+                isFocused ? cn("ring-2 ring-emerald-500/40 shadow-xl border-emerald-300", config.shadowPulse) : "hover:border-white/80"
+              )
+            : isFocused
+              ? cn("flex-[6] z-10", config.shadowPulse)
+              : isFocusMode
+                ? "hidden"
+                : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60"),
         isOver && "ring-2 ring-emerald-500/30 bg-emerald-50/20"
       )}
     >
-      {/* HEADER: FOCUSED MODE */}
-      {isFocused ? (
+      {/* HEADER: FOCUSED OR FULL BOARD MODE */}
+      {showFullColumn ? (
         <>
-          <div className="flex items-center justify-between p-5 pt-6 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className={cn("p-4 rounded-2xl text-white shadow-xl", config.color)}>
-                <Icon className="h-8 w-8" />
+          <div className="flex items-center justify-between p-4 sm:p-5 pt-5 sm:pt-6 shrink-0 gap-2">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className={cn("p-2.5 sm:p-4 rounded-2xl text-white shadow-xl shrink-0", config.color)}>
+                <Icon className="h-6 w-6 sm:h-8 sm:w-8" />
               </div>
-              <div className="flex flex-col justify-center">
+              <div className="flex flex-col justify-center min-w-0">
                 {/* Inline Title Edit */}
                 {isEditingTitle ? (
                   <input
@@ -273,83 +299,83 @@ function RetroColumnComponent({
                     onChange={e => setEditedTitle(e.target.value)}
                     onBlur={handleTitleSave}
                     onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
-                    className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
+                    className="text-xl sm:text-2xl 2xl:text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
                   />
                 ) : (
-                  <div className="flex items-center gap-2 group/title">
-                    <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic">{title}</h2>
+                  <div className="flex items-center gap-2 group/title min-w-0">
+                    <h2 className="text-xl sm:text-2xl 2xl:text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic truncate" title={title}>{title}</h2>
                     {isCreator && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                        className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                        className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 shrink-0"
                         title="Editar título"
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 )}
-                {/* Removido o rótulo técnico do tema para um visual mais limpo e premium */}
               </div>
             </div>
             
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); onToggleFocusMode?.(!isFocusMode); }}
-                        className={cn(
-                          "h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all gap-2",
-                          isFocusMode ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
-                        )}
-                      >
-                        {isFocusMode ? (
-                          <>
-                            <Minimize2 className="h-3.5 w-3.5" />
-                            Sair do Modo Foco
-                          </>
-                        ) : (
-                          <>
-                            <MonitorPlay className="h-3.5 w-3.5" />
-                            Apresentar
-                          </>
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
-                      <p>{isFocusMode ? 'Sair (ESC) · ← → Navegar' : 'Modo Apresentação'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); onToggleFocusMode?.(!isFocusMode); }}
+                      className={cn(
+                        "h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all gap-1.5",
+                        isFocusMode ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                      )}
+                    >
+                      {isFocusMode ? (
+                        <>
+                          <Minimize2 className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Sair do Foco</span>
+                        </>
+                      ) : (
+                        <>
+                          <MonitorPlay className="h-3.5 w-3.5" />
+                          <span className={cn(isBoardMode ? "hidden xl:inline" : "hidden sm:inline")}>Apresentar</span>
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+                    <p>{isFocusMode ? 'Sair (ESC) · ← → Navegar' : 'Modo Apresentação'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-                {isActionColumn && isCreator && (
+              {isActionColumn && isCreator && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); setIsImportOpen(true); }}
-                  className="h-8 px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  className="h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
                   title="Importar ações pendentes de uma retro anterior do mesmo squad"
                 >
-                  <PackageOpen className="w-3.5 h-3.5 mr-2" />
-                  Importar Pendências
+                  <PackageOpen className="w-3.5 h-3.5 sm:mr-1.5" />
+                  <span className={cn(isBoardMode ? "hidden 2xl:inline" : "hidden sm:inline")}>Importar</span>
                 </Button>
               )}
 
-                {isActionColumn && cards.length > 0 && (
+              {isActionColumn && cards.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleExportToWorkspace}
-                  className="h-8 px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  className="h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
                   title="Sincronizar Resumo"
                 >
-                  <History className="w-3.5 h-3.5 mr-2" />
-                  Sincronizar
+                  <History className="w-3.5 h-3.5 sm:mr-1.5" />
+                  <span className={cn(isBoardMode ? "hidden 2xl:inline" : "hidden sm:inline")}>Sincronizar</span>
                 </Button>
               )}
+
               {isFeedbackColumn && (
                 <Button
                   variant="ghost"
@@ -379,13 +405,15 @@ function RetroColumnComponent({
             </div>
           )}
 
-          <ScrollArea className={cn("flex-1 px-5 pb-6 custom-scrollbar", isFocusMode && "px-10 py-6 bg-slate-50/30")}>
+          <ScrollArea className={cn("flex-1 px-4 sm:px-5 pb-6 custom-scrollbar", isFocusMode && "px-10 py-6 bg-slate-50/30")}>
             <SortableContext items={cardIds} strategy={rectSortingStrategy}>
               <div className={cn(
                 "grid gap-3 min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
                 isFocusMode 
                   ? "grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" 
-                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                  : isBoardMode
+                    ? "grid-cols-1 2xl:grid-cols-2"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
               )}>
                 {sortedCards.length === 0 && !isFocusMode && (
                   <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-70 group/empty">

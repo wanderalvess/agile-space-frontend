@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+    script-src-attr 'none';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data:;
+    font-src 'self' data:;
+    connect-src 'self';
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+  " />
+  <title>JiraDash - Sprint Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
+          integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+  <script>
+    try {
+      const theme = localStorage.getItem('theme');
+      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      }
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./assets/css/jiradash.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <div>
+        <h1 id="dash-title">Sprint Dashboard</h1>
+        <div class="header-sub" id="dash-sub">Jira TOTVS</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" type="button" data-action="toggle-config">⚙ Configurar</button>
+        <button class="btn btn-primary" type="button" data-action="load-data">↻ Atualizar</button>
+        <span class="retro-sep" aria-hidden="true" style="display:inline-block;width:1px;height:16px;background:var(--border);margin:0 4px;"></span>
+        <button class="btn btn-sm" type="button" data-action="retro-send" data-retro-slot="q1" title="Envia a sprint carregada para o slot Q1 da retrospectiva">→ Retro Q1</button>
+        <button class="btn btn-sm" type="button" data-action="retro-send" data-retro-slot="q2" title="Envia a sprint carregada para o slot Q2 da retrospectiva">→ Retro Q2</button>
+        <button class="btn btn-sm" type="button" data-action="retro-open" title="Abre a retrospectiva do Espaço Ágil com os dados desta sprint">Abrir Retro ↗</button>
+      </div>
+    </header>
+
+    <nav class="squad-tabs" id="squad-tabs" aria-label="Squads configuradas"></nav>
+
+    <section class="config-panel" id="config-panel" aria-label="Configuração do dashboard">
+      <div id="auth-status" class="auth-status" aria-live="polite">Verificando token…</div>
+
+      <label for="pat-input">Personal Access Token (PAT) do Jira</label>
+      <input type="password" id="pat-input" autocomplete="off" spellcheck="false" data-action="save-pat"
+             placeholder="Cole aqui seu token de acesso pessoal do Jira" />
+
+      <label for="jql-input">JQL da Sprint</label>
+      <input type="text" id="jql-input" placeholder='project = "Meu Projeto" AND Sprint = 12345 AND status != Cancelled' />
+      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">Exemplos rápidos:</span>
+        <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in openSprints() AND status != Cancelled'>⚡ Sprint Aberta</button>
+        <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in futureSprints()'>📅 Próxima Sprint</button>
+        <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND status != Cancelled ORDER BY created DESC'>🔍 Últimas do Projeto</button>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-action="load-data">▶ Carregar sprint</button>
+        <button class="btn" type="button" data-action="toggle-config">Fechar</button>
+      </div>
+    </section>
+
+    <div id="error-area"></div>
+    <div id="warning-area"></div>
+    <div id="loading-area"></div>
+
+    <section id="dashboard" hidden>
+      <div class="sprint-info" id="sprint-info"></div>
+      <div class="metrics-grid" id="metrics-grid"></div>
+
+      <div class="tabs" role="tablist" aria-label="Visões do dashboard">
+        <button class="tab active" type="button" data-tab="charts">Visão Geral</button>
+        <button class="tab" type="button" data-tab="planning">Planejamento</button>
+        <button class="tab" type="button" data-tab="issues">Issues</button>
+        <button class="tab" type="button" data-tab="assignees">Pessoas</button>
+        <button class="tab" type="button" data-tab="horas">Horas</button>
+        <button class="tab" type="button" data-tab="cycletime">Fluxo</button>
+        <button class="tab" type="button" data-tab="quality">Qualidade</button>
+        <button class="tab" type="button" data-tab="config">Configuração</button>
+      </div>
+
+      <div id="tab-charts"></div>
+      <div id="tab-planning" hidden></div>
+      <div id="tab-issues" hidden></div>
+      <div id="tab-assignees" hidden></div>
+      <div id="tab-horas" hidden></div>
+      <div id="tab-cycletime" hidden></div>
+      <div id="tab-quality" hidden></div>
+      <div id="tab-config" hidden></div>
+    </section>
+
+    <div id="empty-state" class="empty-state-card">
+      <div class="empty-state-icon">⚡</div>
+      <h2 style="font-size:18px;font-weight:800;margin-bottom:8px;letter-spacing:-0.02em;">Nenhuma Sprint Carregada</h2>
+      <p style="max-width:520px;margin:0 auto 20px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+        Configure sua JQL e clique em Carregar Sprint para visualizar métricas completas de Burndown de horas reais, cycle time, capacidade por papel DEV/QA e reconciliação.
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" type="button" data-action="toggle-config">⚙ Abrir Configuração / JQL</button>
+        <button class="btn" type="button" data-action="load-data">↻ Carregar Sprint</button>
+      </div>
+      <div class="empty-state-pills">
+        <span>✓ 8 Abas de Análise</span>
+        <span>✓ Cálculo Fiel de Capacidade</span>
+        <span>✓ Burndown Horas Reais</span>
+        <span>✓ Exportação PNG & CSV</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Bridge com Espaço Ágil (auto-autenticação e sincronização de tema)
+    function applyTheme(isDark) {
+      document.documentElement.classList.toggle('dark', isDark);
+      if (typeof Chart !== 'undefined' && Chart.defaults) {
+        Chart.defaults.color = isDark ? '#94a3b8' : '#666666';
+        Chart.defaults.borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+
+      if (event.data.type === 'SET_THEME') {
+        applyTheme(event.data.mode === 'dark');
+      }
+
+      if (event.data.type === 'SET_JIRA_CREDENTIALS' || event.data.type === 'SET_JIRA_PAT') {
+        const token = event.data.token || event.data.pat;
+        if (token) {
+          sessionStorage.setItem('jira-pat', token);
+          const patInput = document.getElementById('pat-input');
+          if (patInput) patInput.value = token;
+          const authStatus = document.getElementById('auth-status');
+          if (authStatus) {
+            authStatus.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <span style="color:var(--success);font-weight:600;">✓ Token configurado (Espaço Ágil)</span>
+              <button class="btn btn-sm" type="button" data-action="clear-pat">Limpar token</button>
+            </div>`;
+          }
+        }
+      }
+    });
+
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'theme') {
+        applyTheme(event.newValue === 'dark');
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-jql-example]');
+      if (btn) {
+        const input = document.getElementById('jql-input');
+        if (input) {
+          input.value = btn.getAttribute('data-jql-example');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.focus();
+        }
+      }
+    });
+  </script>
+  <script type="module" src="./assets/js/jiradash.js"></script>
+</body>
+</html>

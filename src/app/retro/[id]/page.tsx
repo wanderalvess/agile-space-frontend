@@ -421,10 +421,14 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       ? currentVotes.filter(uid => uid !== userProfile.id)
       : [...currentVotes, userProfile.id];
 
+    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, votes: newVotes } : c));
     retroApi.saveOrUpdateCard(boardId, {
       ...current,
       votes: newVotes
-    }).catch(err => console.error(err));
+    }).catch(err => {
+      console.error(err);
+      setOptimisticCards(cards);
+    });
   }, [boardId, isAuthenticated, userProfile, cards]);
 
   const handleToggleActionDone = useCallback((cardId: string, isDone: boolean) => {
@@ -864,6 +868,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           setMergingSourceId(null);
         }}
         onOpenFeedback={handleOpenFeedback}
+        onOpenStats={() => setShowStats(true)}
       />
       <FeedbackWidget 
         toolName={`Retrospectiva: ${boardData?.title || 'Agile'}`} 
@@ -871,7 +876,11 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         showFloatingButton={true} 
         externalTriggerSignal={feedbackSignal} 
       />
-      <SprintStatsDialog open={showStats} onClose={() => setShowStats(false)} />
+      <SprintStatsDialog 
+        open={showStats} 
+        onClose={() => setShowStats(false)} 
+        squadId={boardData?.team || userProfile?.squadId || ''} 
+      />
     </>
   );
 }

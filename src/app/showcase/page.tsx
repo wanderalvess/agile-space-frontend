@@ -31,6 +31,14 @@ export default function ShowcaseHubPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
   const [sprintName, setSprintName] = useState('');
+  const [squadName, setSquadName] = useState('');
+
+  useEffect(() => {
+    if (!squadName) {
+      const defaultSquad = session?.activeProjectId || userProfile?.squadId || '';
+      if (defaultSquad) setSquadName(defaultSquad);
+    }
+  }, [session, userProfile, isSetupOpen]);
 
   const [dbSessions, setDbSessions] = useState<ShowcaseSession[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
@@ -59,9 +67,11 @@ export default function ShowcaseHubPage() {
 
     setIsCreating(true);
     try {
+      const resolvedSquad = squadName.trim() || session?.activeProjectId || userProfile?.squadId || 'DDWMISSI';
       const newSession = await showcaseApi.saveSession({
         name: name.trim(),
         sprintName: sprintName.trim(),
+        squadName: resolvedSquad,
         tasks: [],
         status: 'planning',
       } as any);
@@ -151,13 +161,24 @@ export default function ShowcaseHubPage() {
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Sprint / Squad (opcional)
+                Sprint (Ex: Sprint 42)
               </Label>
               <Input
-                placeholder="Ex: Squad Phoenix — Sprint 42"
+                placeholder="Ex: Sprint 42"
                 value={sprintName}
                 onChange={(e) => setSprintName(e.target.value)}
-                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-955/50"
+                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-950/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                Squad / Projeto *
+              </Label>
+              <Input
+                placeholder="Ex: DDWMISSI"
+                value={squadName}
+                onChange={(e) => setSquadName(e.target.value)}
+                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-950/50"
               />
             </div>
 

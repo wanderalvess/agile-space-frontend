@@ -6,7 +6,19 @@ import { useUserContext } from '@/context/UserContext';
 import { UserProfileModal } from '@/components/layout/UserProfileModal';
 import { cn } from '@/lib/utils';
 
-const ONBOARDING_EXEMPT_ROUTES = ['/onboarding', '/login'];
+export const ONBOARDING_EXEMPT_ROUTES = ['/onboarding', '/login'];
+
+export const isCollaborativeRoute = (path: string) => {
+  return (
+    path.startsWith('/room/') ||
+    path.startsWith('/showcase/') ||
+    path.startsWith('/retro/') ||
+    path.startsWith('/brainstorming/') ||
+    path.startsWith('/health-check/') ||
+    path.startsWith('/action-plan/') ||
+    path.startsWith('/jiradash')
+  );
+};
 
 export function IdentityGatekeeper({ children }: { children: React.ReactNode }) {
   const { mustOnboard, isInitializing, isIdentityRequested, isPublicExploration } = useUserContext();
@@ -14,10 +26,10 @@ export function IdentityGatekeeper({ children }: { children: React.ReactNode }) 
   const router = useRouter();
 
   // Sem projeto vinculado ainda: manda direto pro fluxo de onboarding (criar/entrar/sincronizar)
-  // em vez de travar a tela com o modal — mais claro do que um blur genérico.
+  // a menos que o usuário esteja acessando uma cerimônia colaborativa para a qual foi convidado.
   useEffect(() => {
     if (isInitializing) return;
-    if (mustOnboard && !ONBOARDING_EXEMPT_ROUTES.includes(pathname)) {
+    if (mustOnboard && !ONBOARDING_EXEMPT_ROUTES.includes(pathname) && !isCollaborativeRoute(pathname)) {
       router.replace('/onboarding');
     }
   }, [mustOnboard, isInitializing, pathname, router]);
