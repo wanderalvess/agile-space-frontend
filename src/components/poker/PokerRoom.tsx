@@ -58,7 +58,6 @@ import {
   Flag,
   MoreHorizontal,
   CloudDownload,
-  Rocket,
   Bot
 } from 'lucide-react';
 import {
@@ -859,7 +858,7 @@ const PokerRoomComponent = ({
                   className={cn("h-9 w-9 rounded-xl transition-all", isChatOpen ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/20" : "text-slate-400 dark:text-muted-foreground")}
                   title="Assistente IA"
                 >
-                  <Rocket className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" />
                 </Button>
 
                 <div className="w-px h-4 bg-slate-200 dark:bg-border mx-1" />
@@ -910,7 +909,7 @@ const PokerRoomComponent = ({
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => setIsChatOpen(!isChatOpen)} className="gap-2 text-xs font-bold">
-                    <Rocket className="h-4 w-4" />
+                    <Sparkles className="h-4 w-4" />
                     Assistente IA
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -1925,7 +1924,7 @@ const PokerRoomComponent = ({
               className="h-16 w-16 rounded-full bg-slate-900 hover:bg-black text-white shadow-2xl shadow-indigo-500/40 flex items-center justify-center group relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <Rocket className="h-7 w-7 text-indigo-400 group-hover:-translate-y-1 group-hover:text-indigo-300 transition-all duration-300" />
+              <Sparkles className="h-7 w-7 text-indigo-400 group-hover:scale-110 group-hover:text-indigo-300 transition-all duration-300" />
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse" />
             </Button>
           </motion.div>

@@ -6,7 +6,6 @@ import {
   MessageSquare,
   Sparkles,
   Send,
-  Rocket,
   BookOpen,
   AlertCircle,
   X,
@@ -323,7 +322,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
           initial={{ x: 400, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 400, opacity: 0 }}
-          className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] z-[100] flex flex-col"
+          className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] sm:max-w-[calc(100vw-2rem)] z-[100] flex flex-col overflow-x-hidden"
         >
           <div className="flex-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden relative">
 
@@ -335,7 +334,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-2xl bg-indigo-500 border border-indigo-600 flex items-center justify-center text-white shadow-sm overflow-hidden group">
-                  <Rocket className="h-6 w-6 group-hover:-translate-y-1 group-hover:scale-110 transition-all duration-300" />
+                  <Sparkles className="h-5 w-5 group-hover:scale-110 transition-all duration-300" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -402,7 +401,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                                   <button
                                     key={idx}
                                     onClick={() => copyToClipboard(ep, 'Endpoint')}
-                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-mono font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group"
+                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-mono font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group max-w-full break-all"
                                     title="Clique para copiar"
                                   >
                                     <span>{ep}</span>
