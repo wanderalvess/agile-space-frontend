@@ -16,11 +16,19 @@
 export const API_KEY_HEADER = 'X-Api-Key';
 
 /**
- * Onde a chave é criada/revogada na própria UI. Sem hash de propósito: a página
- * /admin ignora o fragmento da URL e sempre abre na primeira aba, então um
- * '#api-keys' aqui daria a impressão errada de deep link.
+ * Onde ADMIN/LEAD cria/revoga qualquer chave (visão global). Sem hash de
+ * propósito: a página /admin ignora o fragmento da URL e sempre abre na
+ * primeira aba, então um '#api-keys' aqui daria a impressão errada de deep link.
  */
 export const API_KEY_ADMIN_PATH = '/admin';
+
+/**
+ * Onde qualquer usuário autenticado gera/revoga as próprias chaves — aba
+ * Conectividade de /workspace (mesma ressalva de deep link do path acima:
+ * a aba é estado de React, não lê fragmento da URL). Único caminho pra quem
+ * não é ADMIN/LEAD; sem passar por /admin em nenhum momento.
+ */
+export const API_KEY_SELF_SERVICE_PATH = '/workspace';
 
 /** Placeholder usado nos exemplos — troque pelo host real do seu ambiente. */
 export const EXAMPLE_HOST = 'https://espacoagil.app';
@@ -44,18 +52,35 @@ export const LOCAL_HOSTS = {
   mcpMessage: 'http://localhost:8002/mcp/message',
 } as const;
 
+/**
+ * Escopo exigido — mesmos valores de com.agilespace.backend.domain.ApiKeyScope
+ * no backend. Sem escopo aqui listado, ApiKeyAccess/ApiKeyContext negam com
+ *403 (REST) ou erro na tool (MCP) — a única exceção é uma chave "grandfathered"
+ * (criada antes desse mecanismo existir, ver ApiKey.hasFullAccessGrandfathered),
+ * que passa em qualquer checagem.
+ */
+export type ApiKeyScope =
+  | 'KNOWLEDGE_READ'
+  | 'KNOWLEDGE_WRITE'
+  | 'SQUAD_READ'
+  | 'PROMPTHUB_READ'
+  | 'POKER_READ'
+  | 'POKER_WRITE';
+
 export interface RestEndpoint {
   method: 'GET' | 'POST';
   path: string;
   summary: string;
   params?: string;
   returns?: string;
+  scope: ApiKeyScope;
 }
 
 export interface McpTool {
   name: string;
   summary: string;
   params: string;
+  scope: ApiKeyScope;
   /** true = escreve no banco (o restante é leitura). */
   write?: boolean;
 }
@@ -87,6 +112,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Lista documentos publicados, com busca textual.',
         params: 'q (título/conteúdo/categoria), page (1-based, padrão 1), pageSize (padrão 20, máx 100)',
         returns: '{ docs[], page, pageSize, total, totalPages } — cada doc traz contentPreview de 240 caracteres, sem o conteúdo inteiro',
+        scope: 'KNOWLEDGE_READ',
       },
       {
         method: 'GET',
@@ -94,6 +120,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Documento completo, com o conteúdo convertido.',
         params: 'format = html (padrão) | md | txt',
         returns: 'documento + content no formato pedido',
+        scope: 'KNOWLEDGE_READ',
       },
       {
         method: 'GET',
@@ -101,6 +128,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Mesma coisa, mas como arquivo para download.',
         params: 'format = md (padrão) | html | txt',
         returns: 'corpo do arquivo + Content-Disposition: attachment com o título em slug',
+        scope: 'KNOWLEDGE_READ',
       },
       {
         method: 'POST',
@@ -108,6 +136,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Cria um documento novo já publicado.',
         params: 'body { title (obrigatório), content, category, tags: string[] | "a,b,c" }',
         returns: '201 com o documento salvo',
+        scope: 'KNOWLEDGE_WRITE',
       },
     ],
     mcp: [
@@ -115,13 +144,15 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         name: 'listDocuments',
         summary: 'Lista documentos da KB, com busca textual opcional.',
         params: 'query?, page? (0-based), size?',
+        scope: 'KNOWLEDGE_READ',
       },
-      { name: 'getDocument', summary: 'Busca um documento pelo id.', params: 'id (UUID)' },
+      { name: 'getDocument', summary: 'Busca um documento pelo id.', params: 'id (UUID)', scope: 'KNOWLEDGE_READ' },
       {
         name: 'importDocument',
         summary: 'Importa/cria um documento na KB.',
         params: 'title, content, category?, tags? ("a,b,c")',
         write: true,
+        scope: 'KNOWLEDGE_WRITE',
       },
     ],
     snippet: `curl -s "${EXAMPLE_HOST}/api/v1/knowledge/docs?q=onboarding&page=1&pageSize=20" \\
@@ -144,7 +175,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
     notes: [
       'A listagem nunca devolve o conteúdo inteiro — só o contentPreview. Para o texto completo, chame GET /docs/{id}.',
       'Documentos em lixeira (status trash/deleted) ficam fora de qualquer resposta.',
-      'Toda criação, por REST ou MCP, é gravada com authorId "mcp-server": não existe atribuição por chave individual.',
+      'Criação (REST ou MCP) grava authorId com o dono real da chave — "mcp-server" só aparece se a chave for anônima (sem ownerUserId), o que não deveria acontecer com chave gerada hoje.',
     ],
   },
   {
@@ -158,12 +189,14 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Lista prompts/iniciativas públicos, com busca textual ou filtro por autor.',
         params: 'q, authorId, page (1-based, padrão 1), pageSize (padrão 20, máx 100)',
         returns: '{ items[], page, pageSize, total, totalPages }',
+        scope: 'PROMPTHUB_READ',
       },
       {
         method: 'GET',
         path: '/api/v1/prompt-hub/items/{id}',
         summary: 'Um prompt/iniciativa pelo id.',
         returns: 'prompt completo, ou 404 (mesmo status pra inexistente ou privado)',
+        scope: 'PROMPTHUB_READ',
       },
       {
         method: 'GET',
@@ -171,12 +204,14 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Lista coleções públicas (trilhas de prompts).',
         params: 'ownerId, page (1-based, padrão 1), pageSize (padrão 20, máx 100)',
         returns: '{ collections[], page, pageSize, total, totalPages } — items de cada coleção já vêm filtrados a só os públicos',
+        scope: 'PROMPTHUB_READ',
       },
       {
         method: 'GET',
         path: '/api/v1/prompt-hub/collections/{id}',
         summary: 'Uma coleção pública pelo id, com os prompts (públicos) embutidos.',
         returns: 'coleção + items[], ou 404 (mesmo status pra inexistente ou privada)',
+        scope: 'PROMPTHUB_READ',
       },
     ],
     mcp: [
@@ -184,17 +219,20 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         name: 'listPrompts',
         summary: 'Lista prompts públicos, com busca textual ou filtro por autor.',
         params: 'query?, authorId?, page? (0-based), size?',
+        scope: 'PROMPTHUB_READ',
       },
-      { name: 'getPrompt', summary: 'Busca um prompt pelo id.', params: 'id (UUID)' },
+      { name: 'getPrompt', summary: 'Busca um prompt pelo id.', params: 'id (UUID)', scope: 'PROMPTHUB_READ' },
       {
         name: 'listPromptCollections',
         summary: 'Lista coleções públicas (trilhas de prompts).',
         params: 'ownerId?, page? (0-based), size?',
+        scope: 'PROMPTHUB_READ',
       },
       {
         name: 'getPromptCollection',
         summary: 'Busca uma coleção com os prompts embutidos.',
         params: 'id (UUID)',
+        scope: 'PROMPTHUB_READ',
       },
     ],
     snippet: `curl -s "${EXAMPLE_HOST}/api/v1/prompt-hub/items?q=retrospectiva&page=1&pageSize=10" \\
@@ -230,12 +268,14 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         name: 'getSquadStatus',
         summary: 'Resumo da squad: contagem de issues e tempo estimado/logado/restante.',
         params: 'squadId',
+        scope: 'SQUAD_READ',
       },
-      { name: 'listSquadMembers', summary: 'Lista os membros da squad.', params: 'squadId' },
+      { name: 'listSquadMembers', summary: 'Lista os membros da squad.', params: 'squadId', scope: 'SQUAD_READ' },
       {
         name: 'listSquadIssues',
         summary: 'Lista as issues sincronizadas, opcionalmente de um sprint.',
         params: 'squadId, sprintId?',
+        scope: 'SQUAD_READ',
       },
     ],
     snippet: `// tool call MCP
@@ -246,6 +286,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
     notes: [
       'Só leitura: nenhuma tool altera squad, membro ou issue.',
       'As issues devolvidas são o snapshot da última sincronização com o Jira, não uma consulta ao vivo.',
+      'Chave com squadId travado (toda chave self-service com SQUAD_READ) só lê a própria squad — pedir squadId de outra squad dá erro, não devolve vazio. Chave sem squadId (as de ADMIN/LEAD) lê qualquer squad, igual antes.',
     ],
   },
   {
@@ -259,6 +300,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Busca estimativas de rodadas já feitas, por texto livre (tópico ou nota da rodada).',
         params: 'q (opcional; vazio lista as mais recentes), page (1-based, padrão 1), pageSize (padrão 20, máx 100)',
         returns: '{ rounds[], page, pageSize, total, totalPages } — cada round traz topic, issueId, devPoints, qaPoints, timestamp, roomId',
+        scope: 'POKER_READ',
       },
     ],
     mcp: [
@@ -267,18 +309,20 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         summary: 'Cria uma sala de planning poker e devolve o id dela.',
         params: 'title, deckType? (padrão "fibonacci"), mode? ("sync" padrão | "async")',
         write: true,
+        scope: 'POKER_WRITE',
       },
       {
         name: 'searchPokerEstimates',
         summary: 'Busca estimativas de rodadas já feitas, por texto livre (tópico ou nota).',
         params: 'query, page? (0-based), size?',
+        scope: 'POKER_READ',
       },
     ],
     snippet: `curl -s "${EXAMPLE_HOST}/api/v1/poker/rounds?q=winthor-integracao-matcon&pageSize=20" \\
   -H "${API_KEY_HEADER}: ask_SUA_CHAVE_AQUI"`,
     notes: [
       'A sala nasce sem participantes; entre nela pela UI em /room/{id} com o id devolvido.',
-      'O criador registrado é sempre "mcp-server" com papel ADMIN, não a pessoa dona da chave.',
+      'O criador registrado (creatorId) é o dono real da chave que chamou createPokerSession, não mais um valor fixo.',
       'Sem campo estruturado de squad/projeto no Poker — a busca é textual sobre topic/note. O nome do serviço/projeto normalmente está dentro do texto da tarefa, não numa chave separada.',
       'devPoints/qaPoints são os pontos de estimativa por papel (dev = "codificação", qa = "teste"), não uma unidade de tempo fixa — depende do deckType da sessão (fibonacci, tshirt, horas...).',
     ],

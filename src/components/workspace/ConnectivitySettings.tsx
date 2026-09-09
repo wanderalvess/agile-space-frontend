@@ -22,6 +22,7 @@ import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { MyApiKeysManager } from '@/components/shared/MyApiKeysManager';
 
 export function ConnectivitySettings() {
   const { toast } = useToast();
@@ -237,6 +238,10 @@ export function ConnectivitySettings() {
         </Card>
 
       </div>
+
+      {/* API KEYS — self-service, separado do grid Jira/TDN porque tem lista +
+          formulário (mais alto), diferente das duas credenciais simples acima. */}
+      <MyApiKeysManager />
     </div>
   );
 }

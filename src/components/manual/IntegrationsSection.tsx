@@ -8,12 +8,22 @@ import { cn } from '@/lib/utils';
 import {
   API_KEY_ADMIN_PATH,
   API_KEY_HEADER,
+  API_KEY_SELF_SERVICE_PATH,
   EXAMPLE_HOST,
   LEGACY_PRODUCTION_HOST,
   LOCAL_HOSTS,
   MODULE_INTEGRATIONS,
   MODULES_WITHOUT_INTEGRATION,
 } from '@/lib/integration-catalog';
+
+const SCOPES_EXPLAINED = [
+  { scope: 'KNOWLEDGE_READ', label: 'Base de Conhecimento · leitura', memberCanSelfIssue: true },
+  { scope: 'KNOWLEDGE_WRITE', label: 'Base de Conhecimento · escrita', memberCanSelfIssue: false },
+  { scope: 'SQUAD_READ', label: 'Squad · leitura, travada na própria squad', memberCanSelfIssue: true },
+  { scope: 'PROMPTHUB_READ', label: 'Prompt Hub · leitura', memberCanSelfIssue: false },
+  { scope: 'POKER_READ', label: 'Scrum Poker · leitura', memberCanSelfIssue: false },
+  { scope: 'POKER_WRITE', label: 'Scrum Poker · escrita (criar sessão)', memberCanSelfIssue: false },
+];
 
 const CURL_LIST = `curl -s "${EXAMPLE_HOST}/api/v1/knowledge/docs?q=onboarding&page=1&pageSize=20" \\
   -H "${API_KEY_HEADER}: ask_SUA_CHAVE_AQUI"`;
@@ -121,43 +131,114 @@ export function IntegrationsSection() {
               <ShieldCheck className="h-5 w-5 text-amber-500" /> Passo 1 · Gerar a API key
             </CardTitle>
             <CardDescription className="text-sm font-medium">
-              Sem ela, toda chamada volta 401.
+              Sem ela, toda chamada volta 401. Dois caminhos, dependendo do seu papel.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8 space-y-5">
-            <ol className="space-y-3">
-              {[
-                <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                  Qualquer papel (self-service)
+                </h4>
+                <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   Vá em{' '}
+                  <Link href={API_KEY_SELF_SERVICE_PATH} className="font-black text-cyan-700 dark:text-cyan-400 hover:underline">
+                    Meu Espaço → aba Conectividade
+                  </Link>{' '}
+                  → seção &quot;Minhas API Keys&quot;. Escolhe os escopos que quiser dentre os liberados pro seu papel (ver
+                  tabela abaixo) e gera na hora — sem precisar de acesso ao admin.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                  ADMIN/LEAD (visão global)
+                </h4>
+                <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   <Link href={API_KEY_ADMIN_PATH} className="font-black text-cyan-700 dark:text-cyan-400 hover:underline">
                     Admin → Segurança → API Keys
                   </Link>{' '}
-                  e clique em criar. Só quem tem acesso ao painel administrativo consegue.
-                </>,
-                <>
-                  Dê um nome que identifique o consumidor (&quot;bot do Slack&quot;, &quot;script de backup&quot;) — é o que
-                  aparece na lista depois.
-                </>,
+                  lista/cria/revoga as chaves de <strong>todo mundo</strong>, não só as próprias. Toda chave criada por
+                  aqui já sai com todos os escopos e sem restrição de squad.
+                </p>
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {[
+                <>Dê um nome que identifique o consumidor (&quot;bot do Slack&quot;, &quot;script de backup&quot;) — é o que aparece na lista depois.</>,
                 <>
                   Copie a chave <code className="font-code text-cyan-700 dark:text-cyan-400">ask_…</code> na hora. Ela é
                   mostrada <strong>uma única vez</strong>: o banco guarda só o SHA-256, não dá pra recuperar depois.
                 </>,
-                <>Vazou ou não usa mais? Revogue na mesma tela — a chave para de funcionar na chamada seguinte.</>,
+                <>Vazou ou não usa mais? Revogue na mesma tela onde criou — a chave para de funcionar na chamada seguinte.</>,
               ].map((step, i) => (
                 <li key={i} className="flex gap-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                  <span className="shrink-0 w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black flex items-center justify-center">
-                    {i + 1}
-                  </span>
+                  <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-cyan-500 mt-2" />
                   <span>{step}</span>
                 </li>
               ))}
-            </ol>
+            </ul>
             <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 p-4">
               <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
                 A chave vai em todas as chamadas no header{' '}
-                <code className="font-code text-cyan-700 dark:text-cyan-400">{API_KEY_HEADER}</code>. A lista de chaves
-                registra <code className="font-code">lastUsedAt</code>, mas <strong>não</strong> registra qual chave
-                fez qual operação — não conte com isso para auditoria por consumidor.
+                <code className="font-code text-cyan-700 dark:text-cyan-400">{API_KEY_HEADER}</code>. Toda escrita
+                (documento importado, sala de poker criada) fica gravada com o dono real da chave — não um valor
+                fixo. A lista de chaves também registra <code className="font-code">lastUsedAt</code>, mas isso é global
+                por chave, não um log de qual chamada específica foi feita quando.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 1.1 ESCOPOS */}
+        <Card className="border-none bg-white dark:bg-slate-900 rounded-[3rem] shadow-xl shadow-slate-200/50 dark:shadow-none overflow-hidden">
+          <CardHeader className="p-8 pb-4 border-b border-slate-50 dark:border-slate-800/50">
+            <CardTitle className="flex items-center gap-3 text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+              <ShieldCheck className="h-5 w-5 text-emerald-500" /> Escopos — o que cada chave pode fazer
+            </CardTitle>
+            <CardDescription className="text-sm font-medium">
+              Sem o escopo certo, a chamada volta 403 — mesmo com uma chave válida.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-8 space-y-4">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[480px]">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800">
+                    <th className="py-2 pr-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Escopo</th>
+                    <th className="py-2 pr-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Libera</th>
+                    <th className="py-2 text-[9px] font-black uppercase tracking-widest text-slate-400">MEMBER auto-emite?</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {SCOPES_EXPLAINED.map(s => (
+                    <tr key={s.scope} className="border-b border-slate-50 dark:border-slate-800/50">
+                      <td className="py-3 pr-4">
+                        <code className="font-code text-[11px] font-bold text-slate-700 dark:text-slate-300">{s.scope}</code>
+                      </td>
+                      <td className="py-3 pr-4 text-[12px] text-slate-500 dark:text-slate-400">{s.label}</td>
+                      <td className="py-3 text-[11px] font-black uppercase">
+                        {s.memberCanSelfIssue ? (
+                          <span className="text-emerald-600 dark:text-emerald-400">Sim</span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500">Só ADMIN/LEAD</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-2xl bg-amber-500/5 border border-amber-500/25 p-4 space-y-2">
+              <p className="text-[12px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+                <span className="font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">SQUAD_READ nunca é livre:</span>{' '}
+                uma chave self-service com esse escopo é travada na squad de quem a criou — pedir dados de outra squad
+                dá erro, não devolve vazio. Sem squad vinculada, o backend recusa gerar a chave (400) até você entrar
+                numa squad. Só ADMIN/LEAD gera chave sem essa restrição.
+              </p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                Chave criada antes desse mecanismo existir (nenhum escopo salvo) continua com acesso total, pra não
+                quebrar integração já em produção — mas toda chave nova, self-service ou via admin, sai com escopo
+                explícito.
               </p>
             </div>
           </CardContent>
@@ -248,7 +329,8 @@ export function IntegrationsSection() {
                       <tr className="border-b border-slate-200 dark:border-slate-800">
                         <th className="py-2 pr-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Rota</th>
                         <th className="py-2 pr-4 text-[9px] font-black uppercase tracking-widest text-slate-400">O que faz</th>
-                        <th className="py-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Parâmetros</th>
+                        <th className="py-2 pr-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Parâmetros</th>
+                        <th className="py-2 text-[9px] font-black uppercase tracking-widest text-slate-400">Escopo</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -278,8 +360,11 @@ export function IntegrationsSection() {
                               </span>
                             )}
                           </td>
-                          <td className="py-3 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                          <td className="py-3 pr-4 text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
                             {endpoint.params || '—'}
+                          </td>
+                          <td className="py-3 text-[10px] font-black text-amber-700 dark:text-amber-500">
+                            <code className="font-code">{endpoint.scope}</code>
                           </td>
                         </tr>
                       ))}
@@ -391,6 +476,9 @@ export function IntegrationsSection() {
                         <p className="text-[11px] text-slate-400 dark:text-slate-500">
                           <span className="font-black uppercase tracking-widest">Params:</span> {tool.params}
                         </p>
+                        <p className="text-[10px] font-black text-amber-700 dark:text-amber-500">
+                          Escopo: <code className="font-code">{tool.scope}</code>
+                        </p>
                       </li>
                     ))}
                   </ul>
@@ -401,9 +489,9 @@ export function IntegrationsSection() {
             <div className="rounded-2xl bg-amber-500/5 border border-amber-500/25 p-4">
               <p className="text-[12px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
                 <span className="font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Autoria das escritas:</span>{' '}
-                tudo que uma tool MCP cria (documento importado, sala de poker) fica gravado como{' '}
-                <code className="font-code">mcp-server</code>, não como a pessoa dona da chave. O transporte SSE executa a
-                tool fora da thread da requisição HTTP, então o servidor não consegue saber qual chave originou a chamada.
+                tudo que uma tool MCP cria (documento importado, sala de poker) fica gravado com o dono real da chave que
+                chamou — o servidor resolve isso via o header X-Api-Key que autenticou a conexão SSE, sem depender da
+                thread da requisição HTTP original (era essa a limitação — resolvida junto com o mecanismo de escopo).
               </p>
             </div>
           </CardContent>

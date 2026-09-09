@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { CodeBlock } from '@/components/shared/CodeBlock';
+import { MyApiKeysManager } from '@/components/shared/MyApiKeysManager';
 import { cn } from '@/lib/utils';
 import {
   API_KEY_ADMIN_PATH,
@@ -33,12 +34,14 @@ interface ModuleIntegrationDialogProps {
  * lib/integration-catalog.ts, o mesmo que alimenta a página do manual.
  */
 export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: ModuleIntegrationDialogProps) {
+  const [showKeyManager, setShowKeyManager] = useState(false);
   const integration = getModuleIntegration(moduleId);
   if (!integration) return null;
 
   const { label, tagline, rest, mcp, snippet, snippetResponse, notes } = integration;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[720px] max-h-[85vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
         <DialogHeader className="space-y-3">
@@ -68,9 +71,18 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
               Gere a sua em{' '}
               <Link href={API_KEY_ADMIN_PATH} className="font-black text-cyan-700 dark:text-cyan-400 hover:underline">
                 Admin → Segurança → API Keys
-              </Link>
-              . A chave crua aparece uma única vez na criação — o banco guarda só o hash SHA-256.
+              </Link>{' '}
+              (visão de ADMIN/LEAD sobre todas as chaves) ou gere a sua própria agora, sem precisar de acesso ao admin.
+              A chave crua aparece uma única vez na criação — o banco guarda só o hash SHA-256.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowKeyManager(true)}
+              className="h-9 px-4 rounded-xl border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 text-[9px] font-black uppercase tracking-widest gap-2 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+            >
+              <KeyRound className="h-3.5 w-3.5" /> Gerar minha chave
+            </Button>
           </section>
 
           {/* REST */}
@@ -110,6 +122,9 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                         <span className="font-black uppercase tracking-widest">Params:</span> {endpoint.params}
                       </p>
                     )}
+                    <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500">
+                      Escopo: {endpoint.scope}
+                    </p>
                   </li>
                 ))}
               </ul>
@@ -142,6 +157,9 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
                   <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{tool.summary}</p>
                   <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
                     <span className="font-black uppercase tracking-widest">Params:</span> {tool.params}
+                  </p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500">
+                    Escopo: {tool.scope}
                   </p>
                 </li>
               ))}
@@ -183,6 +201,28 @@ export function ModuleIntegrationDialog({ moduleId, open, onOpenChange }: Module
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={showKeyManager} onOpenChange={setShowKeyManager}>
+      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto rounded-[2rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
+        <DialogHeader className="space-y-1 text-left">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <KeyRound className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <DialogTitle className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+                Minhas API Keys
+              </DialogTitle>
+              <DialogDescription className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                Gere, veja e revogue suas próprias chaves.
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
+        <MyApiKeysManager compact />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
