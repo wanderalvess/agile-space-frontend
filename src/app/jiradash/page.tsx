@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function JiraDashPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const { settings, isConfigured, loading } = useJiraSettings();
+  const { settings, loading } = useJiraSettings();
   const { mode } = useTheme();
   const { toast } = useToast();
   const [iframeLoaded, setIframeLoaded] = useState(false);

@@ -13,7 +13,7 @@ import {
   formatBaselineDisplay,
   formatRoleForCopy,
 } from '../poker-utils';
-import { Issue, VotingRound, Vote, Participant } from '../types';
+import { Issue, VotingRound, Vote, Participant, GlobalRole } from '../types';
 
 describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () => {
 
@@ -28,11 +28,11 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
 
   describe('Cálculo de Horas por Camisetas (resolveTshirtHours)', () => {
     const equivalents = {
-      PP: { value: 2, unit: 'h' as const },
-      P: { value: 4, unit: 'h' as const },
-      M: { value: 8, unit: 'h' as const },
-      G: { value: 2, unit: 'd' as const }, // 2 dias = 16h (8h/dia)
-      GG: { value: 3, unit: 'd' as const }, // 3 dias = 24h
+      PP: { value: 2, unit: 'hora' as const },
+      P: { value: 4, unit: 'hora' as const },
+      M: { value: 8, unit: 'hora' as const },
+      G: { value: 2, unit: 'dia' as const }, // 2 dias = 16h (8h/dia)
+      GG: { value: 3, unit: 'dia' as const }, // 3 dias = 24h
     };
 
     it('deve converter tamanhos com unidade em horas corretamente', () => {
@@ -84,10 +84,10 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
 
     it('deve reconhecer funções técnicas primárias via globalRole', () => {
       expect(getParticipantCategory({ role: 'dev', globalRole: 'Developer' })).toBe('Developer');
-      expect(getParticipantCategory({ role: 'dev', globalRole: 'Desenvolvedor Backend' })).toBe('Developer');
+      expect(getParticipantCategory({ role: 'dev', globalRole: 'Desenvolvedor Backend' as GlobalRole })).toBe('Developer');
       expect(getParticipantCategory({ role: 'qa', globalRole: 'QA' })).toBe('QA');
-      expect(getParticipantCategory({ role: 'qa', globalRole: 'Analista de QA Sênior' })).toBe('QA');
-      expect(getParticipantCategory({ role: 'dev', globalRole: 'UI-UX Specialist' })).toBe('UX');
+      expect(getParticipantCategory({ role: 'qa', globalRole: 'Analista de QA Sênior' as GlobalRole })).toBe('QA');
+      expect(getParticipantCategory({ role: 'dev', globalRole: 'UI-UX Specialist' as GlobalRole })).toBe('UX');
     });
 
     it('deve reconhecer papéis de gestão e observação', () => {
