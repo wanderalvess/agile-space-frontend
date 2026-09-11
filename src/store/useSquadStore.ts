@@ -3,6 +3,7 @@ import { squadApi } from '@/app/squad/api';
 import { userApi } from '@/app/users/api';
 import { fetchAllJiraIssues, type JiraIssue } from '@/services/jiraService';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
+import { isWeekend } from '@/lib/date-utils';
 import type {
   SquadConfig, SquadIssueSnapshot, SquadMetricsRollup, SquadMemberMetric, SquadMember,
   SquadDailySnapshot, SquadSprintHistoryEntry, SquadIssueWorklogCache, SquadWorkflowPhase
@@ -147,7 +148,7 @@ const daysSince = (isoDate: string): number => {
   return Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
 };
 
-const isBugType = (type: string): boolean => /bug|defeito|erro/i.test(type || '');
+const isBugType = (type: string): boolean => /\b(bug|defeito|erro)\b/i.test(type || '');
 
 // Campos do snapshot que não dependem de sprint (sprintId/sprintName variam
 // por chamador — full sync rastreia sprintMeta, forceResyncSprint já sabe a
@@ -267,8 +268,7 @@ function countWorkdays(startIso: string, endIso: string): number {
   const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
   while (cur <= endDay) {
-    const day = cur.getDay();
-    if (day !== 0 && day !== 6) count++;
+    if (!isWeekend(cur)) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;

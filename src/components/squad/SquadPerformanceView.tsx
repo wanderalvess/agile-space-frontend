@@ -25,6 +25,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { isWeekend } from '@/lib/date-utils';
 
 export function SquadPerformanceView() {
   const { 
@@ -243,7 +244,7 @@ export function SquadPerformanceView() {
     const dates15 = getPastDates(15);
     dates15.forEach(dStr => {
       const dObj = new Date(dStr);
-      if (dObj.getDay() === 0 || dObj.getDay() === 6) return;
+      if (isWeekend(dObj)) return;
       
       const snap = dailySnapshots.find(s => s.snapshotDate === dStr);
       if (snap && snap.loggedSec >= 14400) {

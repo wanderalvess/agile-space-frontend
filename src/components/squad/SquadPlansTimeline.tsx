@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useSquadStore } from '@/store/useSquadStore';
 import type { SquadIssueSnapshot, SquadWorkflowPhase } from '@/lib/types';
+import { isWeekend } from '@/lib/date-utils';
 
 export interface PlansTask {
   id: string;
@@ -154,7 +155,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
 
   // 6. Bug / Defeito — prioriza o isBug já calculado no sync (mesma regra de
   // isBugType em useSquadStore.ts); só recai pro tipo se isBug não foi informado.
-  if (isBug ?? (normType.includes('bug') || normType.includes('defeito') || normType.includes('erro'))) {
+  if (isBug ?? (hasWord(normType, 'bug') || hasWord(normType, 'defeito') || hasWord(normType, 'erro'))) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[9px] font-bold shrink-0" title="Bug / Defeito">
         <Bug className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
@@ -451,7 +452,7 @@ function addBusinessDays(isoDate: string, days: number): string {
   let remaining = Math.abs(days);
   while (remaining > 0) {
     d.setDate(d.getDate() + step);
-    if (d.getDay() !== 0 && d.getDay() !== 6) remaining--;
+    if (!isWeekend(d)) remaining--;
   }
   // getLocalDateStr (não toISOString) — .toISOString() converte pra UTC, e
   // meia-noite local num fuso positivo (UTC+1 ou mais) vira o dia UTC
@@ -472,7 +473,7 @@ function businessDaysBetween(startIso: string, endIso: string): number {
   const cur = new Date(start);
   while (cur.getTime() !== end.getTime()) {
     cur.setDate(cur.getDate() + sign);
-    if (cur.getDay() !== 0 && cur.getDay() !== 6) count += sign;
+    if (!isWeekend(cur)) count += sign;
   }
   return count;
 }
@@ -862,6 +863,19 @@ export function SquadPlansTimeline() {
     return { childDates, parentDates, getEffectiveDates };
   };
 
+  // computeStoryCascade faz sort + inferSlip (loop de dias por filho) — bem
+  // mais caro que a conta O(1) de antes. Sem isso, cada história recalculava
+  // 2x por render (painel esquerdo + Gantt direito). Uma entrada por
+  // parentKey, recalculada só quando algo que afeta a cascata muda.
+  const storyCascades = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeStoryCascade>>();
+    hierarchicalStructure.parentsMap.forEach(({ parent, children }, parentKey) => {
+      map.set(parentKey, computeStoryCascade(parent, children));
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hierarchicalStructure, config?.phases, activeDelayTaskId, activeDelayDays, todayIso, startDate, endDate]);
+
   const totalTableWidth = colWidths.issue + colWidths.timeline + colWidths.progress + colWidths.status + colWidths.assignee;
   const totalTimelineWidth = daysList.length * colWidths.dayWidth;
 
@@ -1176,7 +1190,7 @@ export function SquadPlansTimeline() {
                     : hierarchyLevel === 'subtask-only'
                     ? false
                     : collapsedParents[parentKey];
-                  const { getEffectiveDates } = computeStoryCascade(parent, children);
+                  const { getEffectiveDates } = storyCascades.get(parentKey)!;
                   const { start: pStart, end: pEnd, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(parent);
                   const parentProgress = computeParentProgress(parent, children);
 
@@ -1407,7 +1421,7 @@ export function SquadPlansTimeline() {
                     : hierarchyLevel === 'subtask-only'
                     ? false
                     : collapsedParents[parentKey];
-                  const { getEffectiveDates } = computeStoryCascade(parent, children);
+                  const { getEffectiveDates } = storyCascades.get(parentKey)!;
                   const { trackOf, totalTracks } = packChildrenIntoTracks(children, getEffectiveDates);
                   const trackHeight = Math.max(8, Math.floor(36 / totalTracks));
 
