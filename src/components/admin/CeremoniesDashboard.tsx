@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { workItemsApi } from '@/app/work-items-api';
-import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
+import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw, Loader2, MessageSquareText, ListChecks } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authFetch } from '@/lib/auth-client';
+import { openOrCreateRetro, openOrCreateActionPlan } from '@/lib/sprintCycleNav';
 
 import { useUserContext } from '@/context/UserContext';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +18,7 @@ import { useAuth } from '@/context/AuthContext';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export function CeremoniesDashboard() {
+  const router = useRouter();
   const { userProfile } = useUserContext();
   const { session } = useAuth();
   const [squads, setSquads] = useState<any[]>([]);
@@ -23,6 +26,13 @@ export function CeremoniesDashboard() {
   const [sprintId, setSprintId] = useState<string>('');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [isNavigatingTo, setIsNavigatingTo] = useState<'retro' | 'action-plan' | null>(null);
+
+  // 'active' é só um sentinel local pro fetch de stats (o backend resolve
+  // activeSprintId da squad quando recebe 'active' ou vazio) — nunca deve ser
+  // gravado como sprintId real de um board novo, senão todas as squads sem
+  // sprint ativa configurada colidem no mesmo valor fake.
+  const realSprintId = sprintId && sprintId !== 'active' ? sprintId : undefined;
 
   useEffect(() => {
     authFetch(`${API_BASE}/squads`)
@@ -115,6 +125,42 @@ export function CeremoniesDashboard() {
               <Button onClick={fetchStats} disabled={loading} className="h-10 rounded-xl px-4 text-xs font-bold">
                 {loading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
                 Atualizar
+              </Button>
+
+              <Button
+                variant="outline"
+                disabled={!realSprintId || isNavigatingTo !== null}
+                onClick={async () => {
+                  if (!realSprintId) return;
+                  setIsNavigatingTo('retro');
+                  try {
+                    await openOrCreateRetro(router, realSprintId, selectedSquadId);
+                  } finally {
+                    setIsNavigatingTo(null);
+                  }
+                }}
+                className="h-10 rounded-xl px-4 text-xs font-bold"
+              >
+                {isNavigatingTo === 'retro' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5 mr-1.5" />}
+                Abrir Retro desta Sprint
+              </Button>
+
+              <Button
+                variant="outline"
+                disabled={!realSprintId || isNavigatingTo !== null}
+                onClick={async () => {
+                  if (!realSprintId) return;
+                  setIsNavigatingTo('action-plan');
+                  try {
+                    await openOrCreateActionPlan(router, realSprintId, selectedSquadId);
+                  } finally {
+                    setIsNavigatingTo(null);
+                  }
+                }}
+                className="h-10 rounded-xl px-4 text-xs font-bold"
+              >
+                {isNavigatingTo === 'action-plan' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1.5" />}
+                Abrir Plano de Ação
               </Button>
             </div>
           </div>

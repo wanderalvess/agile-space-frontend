@@ -39,15 +39,34 @@ export default function ActionPlanHubPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [team, setTeam] = useState('');
+  const [sprintId, setSprintId] = useState('');
 
   // Preenche o squad com o time do usuário assim que o perfil carregar (chega
-  // async) — só enquanto o campo estiver vazio, para não sobrescrever uma edição manual.
+  // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma
+  // edição manual nem um valor já preenchido pela querystring (?squad=).
   useEffect(() => {
     if (team) return;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const squadParam = urlParams.get('squad');
+      if (squadParam) {
+        setTeam(squadParam);
+        return;
+      }
+    }
     const userTeam = userProfile?.squadId || userProfile?.team;
     if (userTeam) setTeam(userTeam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile]);
+
+  // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
+  // pra ligar o plano novo à sprint já em andamento no restante do ciclo.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sprintIdParam = urlParams.get('sprintId');
+    if (sprintIdParam) setSprintId(sprintIdParam);
+  }, []);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -95,6 +114,7 @@ export default function ActionPlanHubPage() {
       creatorId: userProfile.id,
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
+      sprintId: sprintId || undefined,
       settings: { isPublic: true },
       participantIds: [userProfile.id]
     };

@@ -20,6 +20,8 @@ import { useStableCallback } from '@/hooks/use-stable-callback';
 import { pokerApi } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { workItemsApi } from '@/app/work-items-api';
+import { squadApi } from '@/app/squad/api';
+import { openOrCreateRetro } from '@/lib/sprintCycleNav';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -105,6 +107,30 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
   }, []);
+
+  const handleOpenRetro = useCallback(async () => {
+    const activeIssue = roomData?.issuesQueue?.find(i => i.id === roomData.activeIssueId) || roomData?.issuesQueue?.[0];
+    const issueProjectKey = activeIssue?.key?.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
+    const squadId = (roomData?.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
+      ? roomData.team
+      : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+    if (!squadId) {
+      toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta sala.", variant: "destructive" });
+      return;
+    }
+    try {
+      const squad = await squadApi.getSquad(squadId);
+      const sprintId = squad?.activeSprintId;
+      if (!sprintId) {
+        toast({ title: "Sem sprint ativa", description: "Essa squad não tem sprint ativa configurada.", variant: "destructive" });
+        return;
+      }
+      openOrCreateRetro(router, sprintId, squadId);
+    } catch (err) {
+      console.error('[Poker] Falha ao resolver sprint ativa da squad:', err);
+      toast({ title: "Erro", description: "Não foi possível abrir a retrospectiva.", variant: "destructive" });
+    }
+  }, [roomData?.team, roomData?.issuesQueue, roomData?.activeIssueId, userProfile?.squadId, session?.activeProjectId, router, toast]);
 
   const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
@@ -1558,6 +1584,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const stableUpdateSettings = useStableCallback(handleUpdateSettings);
   const stableClaimFacilitator = useStableCallback(handleClaimFacilitator);
   const stableOpenFeedback = useStableCallback(handleOpenFeedback);
+  const stableOpenRetro = useStableCallback(handleOpenRetro);
   const stableAsyncVote = useStableCallback(handleAsyncVote);
   const stableAsyncReveal = useStableCallback(handleAsyncReveal);
   const stableAsyncClear = useStableCallback(handleAsyncClear);
@@ -1611,6 +1638,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onUpdateSettings={stableUpdateSettings}
         creatorId={roomData.creatorId}
         onOpenFeedback={stableOpenFeedback}
+        onOpenRetro={stableOpenRetro}
       />
     );
   }
@@ -1680,6 +1708,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onUpdateSettings={stableUpdateSettings}
         onClaimFacilitator={stableClaimFacilitator}
         onOpenFeedback={stableOpenFeedback}
+        onOpenRetro={stableOpenRetro}
       />
       <FeedbackWidget
         toolName="Scrum Poker"

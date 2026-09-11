@@ -15,9 +15,9 @@ import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
 import { 
-  ArrowLeft, Copy, Eye, Play, StopCircle, RefreshCcw, 
+  ArrowLeft, Copy, Eye, Play, StopCircle, RefreshCcw,
   HelpCircle, MoreVertical, Plus, CheckCircle2, ListChecks,
-  LayoutGrid, PanelLeftClose, Users, Rocket, Sparkles
+  LayoutGrid, PanelLeftClose, Users, Rocket, Sparkles, MessageSquareText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -56,6 +56,7 @@ interface AsyncPokerRoomProps {
   settings?: Room['settings'];
   onUpdateSettings?: (settings: Partial<NonNullable<Room['settings']>>) => void;
   onOpenFeedback: () => void;
+  onOpenRetro?: () => void;
   creatorId: string;
 }
 
@@ -87,6 +88,7 @@ const AsyncPokerRoomComponent = ({
   settings,
   onUpdateSettings,
   onOpenFeedback,
+  onOpenRetro,
   creatorId
 }: AsyncPokerRoomProps) => {
   const { toast } = useToast();
@@ -205,15 +207,27 @@ const AsyncPokerRoomComponent = ({
                     deck={deck}
                   />
 
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleCopyLink}
                     className="h-10 px-5 text-[10px] font-black uppercase tracking-[0.2em] border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 rounded-[1rem] gap-2 transition-all active:scale-95 shadow-sm"
                   >
                     <Copy className="h-3.5 w-3.5" />
                     COPIAR LINK
                   </Button>
+
+                  {onOpenRetro && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={onOpenRetro}
+                      className="h-10 w-10 rounded-[1rem] text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      title="Abrir Retro desta Sprint"
+                    >
+                      <MessageSquareText className="h-5 w-5" />
+                    </Button>
+                  )}
                 </div>
               }
             />

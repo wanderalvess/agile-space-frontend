@@ -59,7 +59,8 @@ import {
   MoreHorizontal,
   CloudDownload,
   Bot,
-  Ban
+  Ban,
+  MessageSquareText
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -187,6 +188,7 @@ interface PokerRoomProps {
   isSoundEnabled: boolean;
   onSetIsSoundEnabled: (enabled: boolean) => void;
   onOpenFeedback: () => void;
+  onOpenRetro?: () => void;
   roomTitle?: string;
   roomTeam?: string;
   issuesQueue: Issue[];
@@ -252,6 +254,7 @@ const PokerRoomComponent = ({
   isSoundEnabled,
   onSetIsSoundEnabled,
   onOpenFeedback,
+  onOpenRetro,
   roomTitle,
   roomTeam,
   issuesQueue,
@@ -891,6 +894,18 @@ const PokerRoomComponent = ({
                 >
                   <HelpCircle className="h-3.5 w-3.5" />
                 </Button>
+
+                {onOpenRetro && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={onOpenRetro}
+                    className="h-8 w-8 p-0 font-bold text-[9px] uppercase tracking-widest border-slate-200 dark:border-border text-slate-500 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted rounded-lg"
+                    title="Abrir Retro desta Sprint"
+                  >
+                    <MessageSquareText className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
 
               <DropdownMenu>
@@ -931,6 +946,12 @@ const PokerRoomComponent = ({
                     <HelpCircle className="h-4 w-4" />
                     Guia do poker
                   </DropdownMenuItem>
+                  {onOpenRetro && (
+                    <DropdownMenuItem onClick={onOpenRetro} className="gap-2 text-xs font-bold">
+                      <MessageSquareText className="h-4 w-4" />
+                      Abrir retro desta sprint
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
 

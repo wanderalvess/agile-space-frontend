@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck, TrendingUp, FileText
+  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck, TrendingUp, FileText, MessageSquareText
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -31,6 +31,8 @@ import { PrintSlidesView } from '@/components/showcase/PrintSlidesView';
 import { HelpSheet } from '@/components/showcase/HelpSheet';
 import { decryptSecret } from '@/lib/vault-crypto';
 import { showcaseApi } from '../api';
+import { squadApi } from '@/app/squad/api';
+import { openOrCreateRetro } from '@/lib/sprintCycleNav';
 
 // ─────────────────────────────────────────────
 // Main Room Component
@@ -333,6 +335,28 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
 
 
+  const handleOpenRetro = async () => {
+    const firstTaskKey = session?.tasks?.[0]?.key;
+    const issueProjectKey = firstTaskKey?.includes('-') ? firstTaskKey.split('-')[0].toUpperCase() : '';
+    const squadId = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+    if (!squadId) {
+      toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta review.", variant: "destructive" });
+      return;
+    }
+    try {
+      const squad = await squadApi.getSquad(squadId);
+      const sprintId = squad?.activeSprintId;
+      if (!sprintId) {
+        toast({ title: "Sem sprint ativa", description: "Essa squad não tem sprint ativa configurada.", variant: "destructive" });
+        return;
+      }
+      openOrCreateRetro(router, sprintId, squadId);
+    } catch (err) {
+      console.error('[Showcase] Falha ao resolver sprint ativa da squad:', err);
+      toast({ title: "Erro", description: "Não foi possível abrir a retrospectiva.", variant: "destructive" });
+    }
+  };
+
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast({
@@ -491,9 +515,17 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               >
                 <Share2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Compartilhar</span>
               </Button>
-              
-              <Button 
-                onClick={() => setIsSettingsOpen(true)} 
+
+              <Button
+                onClick={handleOpenRetro}
+                variant="ghost"
+                className="h-8 px-3 rounded-xl text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all border border-violet-100 dark:border-violet-800"
+              >
+                <MessageSquareText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Retro desta Sprint</span>
+              </Button>
+
+              <Button
+                onClick={() => setIsSettingsOpen(true)}
                 variant="ghost"
                 className="h-8 px-3 rounded-xl text-slate-500 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all"
               >

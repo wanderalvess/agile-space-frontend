@@ -4,6 +4,12 @@ import { authFetch } from '@/lib/auth-client';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export const actionPlanApi = {
+  async listBoards(sprintId: string): Promise<ActionPlanBoard[]> {
+    const res = await authFetch(`${API_BASE_URL}/action-plans?sprintId=${encodeURIComponent(sprintId)}`);
+    if (!res.ok) throw new Error('Falha ao listar planos de ação');
+    return res.json();
+  },
+
   async createBoard(board: Partial<ActionPlanBoard>): Promise<ActionPlanBoard> {
     const res = await authFetch(`${API_BASE_URL}/action-plans`, {
       method: 'POST',
