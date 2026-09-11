@@ -286,15 +286,23 @@ const PokerRoomComponent = ({
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isFacilitatorSettingsOpen, setIsFacilitatorSettingsOpen] = useState(false);
-  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
+  const [isOffTableDialogOpen, setIsOffTableDialogOpen] = useState(false);
+  const [offTableMode, setOffTableMode] = useState<'skip' | 'park'>('skip');
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [pendingIssueId, setPendingIssueId] = useState<string | null>(null);
-  const [skipNote, setSkipNote] = useState('');
-  const [isParkDialogOpen, setIsParkDialogOpen] = useState(false);
-  const [parkNote, setParkNote] = useState('');
+  // Pular e Adiar dividem um botao so ("Tirar da mesa") e um modal so: o modo
+  // escolhido dentro do modal decide qual handler roda. Economiza espaco numa
+  // toolbar que ja disputa largura com Revelar/Cancelar/Encerrar.
+  const [offTableNote, setOffTableNote] = useState('');
+  const canParkTask = (settings?.parkTask ?? true) && !!onParkIssue;
+  const openOffTableDialog = (mode: 'skip' | 'park') => {
+    setOffTableMode(canParkTask ? mode : 'skip');
+    setOffTableNote('');
+    setIsOffTableDialogOpen(true);
+  };
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [cancelNote, setCancelNote] = useState('');
   const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
@@ -1037,24 +1045,13 @@ const PokerRoomComponent = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => { setSkipNote(''); setIsSkipDialogOpen(true); }}
+                        onClick={() => openOffTableDialog('skip')}
+                        title={canParkTask ? 'Tirar da mesa — pular de vez ou adiar pro fim da fila' : 'Pular — sai da estimativa desta sessão'}
                         className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-amber-400/40 dark:border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-700 dark:hover:text-amber-400 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
                       >
                         <SkipForward className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                        Pular
+                        {canParkTask ? 'Tirar da mesa' : 'Pular'}
                       </Button>
-                      {onParkIssue && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => { setParkNote(''); setIsParkDialogOpen(true); }}
-                          title="Adiar — volta pro fim da fila para revisitar nesta sessão"
-                          className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-slate-300/60 dark:border-border text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
-                        >
-                          <Hourglass className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                          Adiar
-                        </Button>
-                      )}
                       {(settings?.cancelTask ?? true) && onCancelIssue && (
                         <Button
                           size="sm"
@@ -1708,25 +1705,16 @@ const PokerRoomComponent = ({
                           </span>
                         </div>
                         {isCurrentUserFacilitator && (
-                          settings?.parkTask && onParkIssue ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => { setParkNote(''); setIsParkDialogOpen(true); }}
-                              className="h-9 px-4 rounded-xl border-orange-400/50 text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-950/40 font-black uppercase text-[10px] tracking-widest whitespace-nowrap"
-                            >
-                              <Hourglass className="h-3.5 w-3.5 mr-1.5" /> Adiar
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => { setSkipNote(''); setIsSkipDialogOpen(true); }}
-                              className="h-9 px-4 rounded-xl border-orange-400/50 text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-950/40 font-black uppercase text-[10px] tracking-widest whitespace-nowrap"
-                            >
-                              <SkipForward className="h-3.5 w-3.5 mr-1.5" /> Pular / Adiar
-                            </Button>
-                          )
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openOffTableDialog('park')}
+                            className="h-9 px-4 rounded-xl border-orange-400/50 text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-950/40 font-black uppercase text-[10px] tracking-widest whitespace-nowrap"
+                          >
+                            {canParkTask
+                              ? <><Hourglass className="h-3.5 w-3.5 mr-1.5" /> Adiar</>
+                              : <><SkipForward className="h-3.5 w-3.5 mr-1.5" /> Pular</>}
+                          </Button>
                         )}
                       </CardContent>
                     </Card>
@@ -1884,69 +1872,98 @@ const PokerRoomComponent = ({
         </Sheet>
       )}
 
-      {/* Skip Task Dialog */}
-      <AlertDialog open={isSkipDialogOpen} onOpenChange={setIsSkipDialogOpen}>
+      {/* Off-table Dialog: pular ou adiar a tarefa da mesa */}
+      <AlertDialog open={isOffTableDialogOpen} onOpenChange={setIsOffTableDialogOpen}>
         <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-amber-600 dark:text-amber-500 flex items-center gap-2">
               <SkipForward className="h-5 w-5" />
-              Pular Tarefa
+              {canParkTask ? 'Tirar da mesa' : 'Pular Tarefa'}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
+                {canParkTask && (
+                  <div role="radiogroup" aria-label="O que fazer com a tarefa" className="grid gap-2">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={offTableMode === 'skip'}
+                      onClick={() => setOffTableMode('skip')}
+                      className={cn(
+                        'text-left rounded-xl border p-3 transition-all',
+                        offTableMode === 'skip'
+                          ? 'border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-950/30'
+                          : 'border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                      )}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                        <SkipForward className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                        Pular
+                      </span>
+                      <span className="block text-xs text-muted-foreground mt-1">
+                        Sai da estimativa e entra no relatório como pulada.
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={offTableMode === 'park'}
+                      onClick={() => setOffTableMode('park')}
+                      className={cn(
+                        'text-left rounded-xl border p-3 transition-all',
+                        offTableMode === 'park'
+                          ? 'border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-slate-900/60'
+                          : 'border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                      )}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
+                        <Hourglass className="h-4 w-4 text-slate-600 dark:text-slate-300" />
+                        Adiar
+                      </span>
+                      <span className="block text-xs text-muted-foreground mt-1">
+                        Volta pro fim da fila para revisitar ainda nesta sessão.
+                      </span>
+                    </button>
+                  </div>
+                )}
                 <p className="text-sm text-muted-foreground font-medium">
-                  Por que esta tarefa não será estimada agora? <span className="opacity-60 text-xs">(Ex: Bloqueado, Falta Info, Fora do Escopo)</span>
+                  {offTableMode === 'park'
+                    ? <>Por que está adiando? <span className="opacity-60 text-xs">(Ex: aguardando alinhamento, quebrar antes)</span></>
+                    : <>Por que esta tarefa não será estimada agora? <span className="opacity-60 text-xs">(Ex: Bloqueado, Falta Info, Fora do Escopo)</span></>}
                 </p>
                 <Textarea
-                  value={skipNote}
-                  onChange={(e) => setSkipNote(e.target.value)}
-                  placeholder="Adicione uma anotação opcional..."
-                  className="resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border focus:border-amber-400 dark:focus:border-amber-500 text-slate-900 dark:text-foreground min-h-[90px]"
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { onSkipIssue(skipNote); setIsSkipDialogOpen(false); }}
-              className="bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-amber-500/20"
-            >
-              Confirmar e Avançar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Park Task Dialog */}
-      <AlertDialog open={isParkDialogOpen} onOpenChange={setIsParkDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-slate-700 dark:text-slate-200 flex items-center gap-2">
-              <Hourglass className="h-5 w-5" />
-              Adiar Tarefa
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground font-medium">
-                  Volta pro fim da fila para revisitar ainda nesta sessão. <span className="opacity-60 text-xs">(Ex: aguardando alinhamento, quebrar antes)</span>
-                </p>
-                <Textarea
-                  value={parkNote}
-                  onChange={(e) => setParkNote(e.target.value)}
+                  value={offTableNote}
+                  onChange={(e) => setOffTableNote(e.target.value)}
                   placeholder="Motivo opcional..."
-                  className="resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border focus:border-indigo-400 dark:focus:border-indigo-500 text-slate-900 dark:text-foreground min-h-[90px]"
+                  className={cn(
+                    'resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border text-slate-900 dark:text-foreground min-h-[90px]',
+                    offTableMode === 'park'
+                      ? 'focus:border-indigo-400 dark:focus:border-indigo-500'
+                      : 'focus:border-amber-400 dark:focus:border-amber-500'
+                  )}
                 />
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancelar</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { onParkIssue && onParkIssue(parkNote); setIsParkDialogOpen(false); }}
-              className="bg-slate-700 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
+              onClick={() => {
+                if (offTableMode === 'park' && onParkIssue) {
+                  onParkIssue(offTableNote);
+                } else {
+                  onSkipIssue(offTableNote);
+                }
+                setIsOffTableDialogOpen(false);
+              }}
+              className={cn(
+                'text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg',
+                offTableMode === 'park'
+                  ? 'bg-slate-700 hover:bg-slate-800'
+                  : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
+              )}
             >
-              Adiar e Avançar
+              {offTableMode === 'park' ? 'Adiar e Avançar' : 'Pular e Avançar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
