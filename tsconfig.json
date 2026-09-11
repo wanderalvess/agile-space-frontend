@@ -38,6 +38,10 @@
   "exclude": [
     "node_modules",
     "scratch",
-    "functions"
+    "functions",
+    "public",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }
