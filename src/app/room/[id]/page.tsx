@@ -781,11 +781,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       currentTopic: targetIssue?.title || roomData.currentTopic,
       issuesQueue: newQueue,
       votesRevealed: false,
+      selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear]);
+  }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const handleRevoteIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -818,12 +819,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: issueId,
       currentTopic: targetIssue?.title || roomData.currentTopic,
       votesRevealed: false,
+      selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Tarefa reaberta para votação" });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleDeleteIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -841,7 +843,6 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       } else {
         nextActiveId = null;
       }
-      handleClear();
     }
 
     const nextActive = newQueue.find(i => i.id === nextActiveId);
@@ -851,9 +852,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
       activeIssueId: nextActiveId,
       currentTopic: nextActive?.title || roomData.currentTopic,
-      votesRevealed: isDeletingActive ? false : roomData.votesRevealed
+      votesRevealed: isDeletingActive ? false : roomData.votesRevealed,
+      selectiveRevotingRole: isDeletingActive ? null : roomData.selectiveRevotingRole
+    }).then(() => {
+      // Votos saem depois da fila salvar: handleClear() aqui mandaria a sala
+      // inteira do roomData da closure e ressuscitaria a tarefa apagada.
+      if (isDeletingActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear]);
+  }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const buildSessionClosure = useCallback((newQueue: Issue[]): Partial<Room> => {
     const rounds = votingRounds || [];
@@ -958,7 +964,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
       activeIssueId: nextIssueId,
       currentTopic: nextIssue?.title || roomData.currentTopic,
-      votesRevealed: false
+      votesRevealed: false,
+      selectiveRevotingRole: null,
     };
 
     if (!nextIssueId) {
@@ -996,10 +1003,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           rolePoints: rolePoints as any
         }).catch(console.error);
       }
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Estimativa Salva!" });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, votingRounds, roomId, handleClear, buildSessionClosure, toast]);
+  }, [roomData, isCurrentUserFacilitator, votingRounds, roomId, buildSessionClosure, toast]);
 
   const handleFinishSession = useCallback(() => {
     if (!roomData || !isCurrentUserFacilitator) return;
@@ -1012,9 +1019,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: null,
       currentTopic: '',
       votesRevealed: false,
+      selectiveRevotingRole: null,
       ...buildSessionClosure(newQueue),
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       const pendentes = newQueue.filter(i => !i.skipped && i.status !== 'completed').length;
       toast({
         title: 'Refinamento encerrado',
@@ -1023,7 +1031,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           : 'Relatório da sessão disponível.',
       });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, buildSessionClosure, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, buildSessionClosure, toast]);
 
   const handleParkIssue = useCallback((note: string) => {
     if (!roomData || !roomData.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
@@ -1065,6 +1073,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: nextActiveId,
       currentTopic: nextTopic,
       votesRevealed: false,
+      selectiveRevotingRole: null,
     };
 
     if (!nextActiveId) {
@@ -1072,10 +1081,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
 
     pokerApi.saveOrUpdateRoom(updates).then(() => {
-      handleClear();
+      // Limpa os votos pela API de votos, nao por handleClear(): ele reenviaria
+      // a sala inteira a partir do roomData da closure (estado pre-adiamento) e
+      // desfaria o update que acabou de ser salvo.
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: 'Tarefa adiada', description: 'Volta pro fim da fila para revisitar.' });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast, buildSessionClosure]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleSkipIssue = useCallback((note: string) => {
     if (!roomData || !roomData.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
@@ -1124,7 +1136,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         issuesQueue: newQueue,
         activeIssueId: nextIssueId,
         currentTopic: nextIssue?.title || roomData.currentTopic,
-        votesRevealed: false
+        votesRevealed: false,
+        selectiveRevotingRole: null,
       };
 
       if (!nextIssueId) {
@@ -1132,11 +1145,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
 
       pokerApi.saveOrUpdateRoom(updates).then(() => {
-        handleClear();
+        // Ver comentario em handleParkIssue: handleClear() aqui reverteria o
+        // update com o roomData velho da closure.
+        pokerApi.clearVotes(roomId).catch(err => console.error(err));
         toast({ title: "Tópico Pulado", description: "O tópico foi removido da estimativa." });
       });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, roomId, handleClear, toast, buildSessionClosure]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleUnskipIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -1163,12 +1178,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
       activeIssueId: issueId,
       votesRevealed: false,
+      selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Tópico Retornado", description: "O tópico voltou para a mesa de votação." });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleCancelIssue = useCallback((issueId: string, note?: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -1229,6 +1245,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         activeIssueId: nextIssueId,
         currentTopic: nextIssue?.title || (isTargetActive ? '' : roomData.currentTopic),
         votesRevealed: isTargetActive ? false : roomData.votesRevealed,
+        selectiveRevotingRole: isTargetActive ? null : roomData.selectiveRevotingRole,
       };
 
       if (!nextIssueId) {
@@ -1236,11 +1253,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
 
       pokerApi.saveOrUpdateRoom(updates).then(() => {
-        if (isTargetActive) handleClear();
+        // Ver comentario em handleParkIssue: handleClear() aqui reverteria o
+        // cancelamento com o roomData velho da closure.
+        if (isTargetActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
         toast({ title: "Tarefa Cancelada", description: "A tarefa foi marcada como cancelada no refinamento." });
       });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, roomId, handleClear, toast, buildSessionClosure]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleUncancelIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -1271,12 +1290,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: nextActiveId,
       currentTopic: activeIssue?.title || roomData.currentTopic,
       votesRevealed: hasActive ? roomData.votesRevealed : false,
+      selectiveRevotingRole: hasActive ? roomData.selectiveRevotingRole : null,
       sessionEndedAt: undefined,
     }).then(() => {
-      if (!hasActive) handleClear();
+      if (!hasActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Tarefa Reativada", description: "A tarefa voltou para o refinamento." });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleAsyncVote = useCallback((issueId: string, voteValue: string) => {
     if (!currentUser || !roomData) return;
@@ -1405,11 +1425,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       deckType: newDeck,
-      referenceBaseline: null
+      referenceBaseline: null,
+      votesRevealed: false,
+      selectiveRevotingRole: null
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear]);
+  }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const handleSetReference = useCallback((issueId: string | null) => {
     if (!roomData || !isCurrentUserFacilitator) return;
