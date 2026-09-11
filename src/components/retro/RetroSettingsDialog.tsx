@@ -110,74 +110,85 @@ export function RetroSettingsDialog({
           <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Ajustes da cerimônia — só o facilitador vê isso</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-4">
-          <ToggleRow
-            icon={User}
-            id="authors-revealed"
-            title="Autores Abertos"
-            desc="Mostra quem escreveu cada card"
-            checked={isAuthorsRevealed}
-            onChange={onToggleAuthorsRevealed}
-          />
-          <ToggleRow
-            icon={Users}
-            id="sync-stage"
-            title="Sincronizar Coluna Ativa"
-            desc="Todos veem a coluna que você está focando"
-            checked={syncStageEnabled}
-            onChange={onToggleSyncStage}
-          />
-          <ToggleRow
-            icon={Clock}
-            id="auto-reveal-timer"
-            title="Auto-revelar ao fim do timer"
-            desc="Revela os cards sozinho quando o tempo zera"
-            checked={autoRevealOnTimerEnd}
-            onChange={onToggleAutoRevealOnTimerEnd}
-          />
-          <ToggleRow
-            icon={ThumbsUp}
-            id="auto-sort-vote"
-            title="Ordenar por votos ao encerrar"
-            desc="Aplica em todas as colunas de feedback"
-            checked={autoSortOnVoteEnd}
-            onChange={onToggleAutoSortOnVoteEnd}
-          />
+        <div className="space-y-5 py-4">
+          <div className="space-y-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Visibilidade e ritmo</p>
+            <div className="space-y-2.5">
+              <ToggleRow
+                icon={User}
+                id="authors-revealed"
+                title="Autores Abertos"
+                desc="Mostra quem escreveu cada card"
+                checked={isAuthorsRevealed}
+                onChange={onToggleAuthorsRevealed}
+              />
+              <ToggleRow
+                icon={Users}
+                id="sync-stage"
+                title="Sincronizar Coluna Ativa"
+                desc="Todos veem a coluna que você está focando"
+                checked={syncStageEnabled}
+                onChange={onToggleSyncStage}
+              />
 
-          <div className={cn(
-            "p-4 rounded-2xl border transition-all",
-            healthCheckEnabled ? "border-indigo-200 bg-indigo-50/50" : "border-slate-100 bg-slate-50/50"
-          )}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 bg-white rounded-xl border border-slate-100 shrink-0">
-                  <MessageCircleHeart className={cn("h-4 w-4", healthCheckEnabled ? "text-indigo-600" : "text-slate-400")} />
+              <div className={cn(
+                "p-4 rounded-2xl border transition-all",
+                healthCheckEnabled ? "border-indigo-200 bg-indigo-50/50" : "border-slate-100 bg-slate-50/50"
+              )}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2 bg-white rounded-xl border border-slate-100 shrink-0">
+                      <MessageCircleHeart className={cn("h-4 w-4", healthCheckEnabled ? "text-indigo-600" : "text-slate-400")} />
+                    </div>
+                    <div className="min-w-0">
+                      <Label htmlFor="health-check-enabled" className="text-[11px] font-black uppercase tracking-widest text-slate-700 cursor-pointer block truncate">Check-in Inicial</Label>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Pergunta antes de abrir o quadro</p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="health-check-enabled"
+                    checked={healthCheckEnabled}
+                    onCheckedChange={onToggleHealthCheck}
+                    className="shrink-0 data-[state=checked]:bg-indigo-600"
+                  />
                 </div>
-                <div className="min-w-0">
-                  <Label htmlFor="health-check-enabled" className="text-[11px] font-black uppercase tracking-widest text-slate-700 cursor-pointer block truncate">Check-in Inicial</Label>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Pergunta antes de abrir o quadro</p>
-                </div>
+
+                {healthCheckEnabled && (
+                  <div className="mt-3 pt-3 border-t border-indigo-100/60 space-y-1.5">
+                    <Label className="text-[9px] font-black uppercase tracking-widest text-indigo-600/80">Pergunta exibida</Label>
+                    <Textarea
+                      value={localQuestion}
+                      onChange={(e) => handleQuestionChange(e.target.value)}
+                      placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
+                      className="min-h-[54px] text-xs font-bold bg-white border-indigo-200 rounded-xl focus-visible:ring-indigo-500/20"
+                    />
+                    <p className="text-[9px] font-medium text-slate-400">vazio = usa a pergunta padrão. Some do fluxo se o switch acima ficar desligado.</p>
+                  </div>
+                )}
               </div>
-              <Switch
-                id="health-check-enabled"
-                checked={healthCheckEnabled}
-                onCheckedChange={onToggleHealthCheck}
-                className="shrink-0 data-[state=checked]:bg-indigo-600"
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-1">Automação de fim de sessão</p>
+            <div className="space-y-2.5">
+              <ToggleRow
+                icon={Clock}
+                id="auto-reveal-timer"
+                title="Auto-revelar ao fim do timer"
+                desc="Revela os cards sozinho quando o tempo zera"
+                checked={autoRevealOnTimerEnd}
+                onChange={onToggleAutoRevealOnTimerEnd}
+              />
+              <ToggleRow
+                icon={ThumbsUp}
+                id="auto-sort-vote"
+                title="Ordenar por votos ao encerrar"
+                desc="Aplica em todas as colunas de feedback"
+                checked={autoSortOnVoteEnd}
+                onChange={onToggleAutoSortOnVoteEnd}
               />
             </div>
-
-            {healthCheckEnabled && (
-              <div className="mt-3 pt-3 border-t border-indigo-100/60 space-y-1.5">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-indigo-600/80">Pergunta exibida</Label>
-                <Textarea
-                  value={localQuestion}
-                  onChange={(e) => handleQuestionChange(e.target.value)}
-                  placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
-                  className="min-h-[54px] text-xs font-bold bg-white border-indigo-200 rounded-xl focus-visible:ring-indigo-500/20"
-                />
-                <p className="text-[9px] font-medium text-slate-400">vazio = usa a pergunta padrão. Some do fluxo se o switch acima ficar desligado.</p>
-              </div>
-            )}
           </div>
         </div>
       </DialogContent>

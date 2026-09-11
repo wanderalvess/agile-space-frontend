@@ -13,6 +13,7 @@ import {
   Zap,
   Plus,
   Sparkles,
+  MessageCircleHeart,
 } from 'lucide-react';
 import { RetroTemplateKey, RetroColumnTheme } from '@/lib/types';
 import {
@@ -43,6 +44,7 @@ import { listTemplates, type RetroTemplate } from '@/lib/retro-templates';
 export const SETUP_TOGGLES = [
   { key: 'isAuthorsRevealed', group: 'Visibilidade e ritmo', icon: User, title: 'Autores Abertos', desc: 'Mostra quem escreveu cada card' },
   { key: 'syncStageEnabled', group: 'Visibilidade e ritmo', icon: Users, title: 'Sincronizar Coluna Ativa', desc: 'Todos veem a coluna focada' },
+  { key: 'healthCheckEnabled', group: 'Visibilidade e ritmo', icon: MessageCircleHeart, title: 'Check-in Inicial', desc: 'Pergunta antes de abrir o quadro' },
   { key: 'autoRevealOnTimerEnd', group: 'Automação de fim de sessão', icon: Clock, title: 'Auto-revelar ao fim do timer', desc: 'Revela cards quando o tempo zera' },
   { key: 'autoSortOnVoteEnd', group: 'Automação de fim de sessão', icon: ThumbsUp, title: 'Ordenar por votos ao encerrar', desc: 'Aplica em colunas de feedback' },
 ] as const;

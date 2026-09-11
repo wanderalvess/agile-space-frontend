@@ -939,7 +939,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         externalTriggerSignal={feedbackSignal} 
       />
       <SprintStatsDialog
-        open={showStats}
+        open={showStats && !needsHealthCheck}
         onClose={() => setShowStats(false)}
         squadId={boardData?.team || userProfile?.squadId || ''}
         sprintId={boardData?.sprintId || undefined}
