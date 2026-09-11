@@ -1,71 +1,83 @@
 :root {
-  --bg: #f5f5f3;
+  --bg: #f8fafc;
   --surface: #fff;
-  --surface-muted: #f8f8f5;
-  --surface-blue: #f5f8ff;
-  --surface-blue-soft: #f8f9ff;
-  --border: #e0e0da;
-  --border-soft: #f0f0ec;
-  --text: #1a1a1a;
-  --text-muted: #666;
-  --text-soft: #888;
-  --text-faint: #aaa;
-  --primary: #1a73e8;
-  --primary-hover: #1558b0;
-  --info: #378add;
-  --success: #1d9e75;
-  --warning: #ba7517;
-  --danger: #e24b4a;
+  --surface-muted: #f1f5f9;
+  --surface-blue: #eff6ff;
+  --surface-blue-soft: #f5f9ff;
+  --border: #e2e8f0;
+  --border-soft: #eef2f7;
+  --text: #0f1729;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+  --text-faint: #cbd5e1;
+  --primary: #ff6a00;
+  --primary-hover: #e05f00;
+  --accent: var(--primary);
+  --accent-subtle: rgba(255, 106, 0, .1);
+  --info: #3b82f6;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
   --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --shadow-focus: 0 0 0 3px rgba(55, 138, 221, .14);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .04);
+  --shadow-focus: 0 0 0 3px rgba(255, 106, 0, .16);
+  --transition: .15s ease;
 }
 
 :root.dark,
 html.dark,
 body.dark,
 [data-theme="dark"] {
-  --bg: #0b0f17;
-  --surface: #121926;
-  --surface-muted: #172233;
-  --surface-blue: #15253d;
+  --bg: #020617;
+  --surface: #0f172a;
+  --surface-muted: #1e293b;
+  --surface-blue: #16233b;
   --surface-blue-soft: #182b47;
-  --border: #23334d;
+  --border: #2a3b56;
   --border-soft: #1a283c;
-  --text: #f1f5f9;
+  --text: #f8fafc;
   --text-muted: #94a3b8;
   --text-soft: #64748b;
   --text-faint: #475569;
-  --primary: #38bdf8;
-  --primary-hover: #0284c7;
+  --primary: #ff7a1a;
+  --primary-hover: #ff8f3d;
+  --accent: var(--primary);
+  --accent-subtle: rgba(255, 122, 26, .16);
   --info: #60a5fa;
   --success: #34d399;
   --warning: #fbbf24;
   --danger: #f87171;
-  --shadow-focus: 0 0 0 3px rgba(56, 189, 248, .25);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px rgba(0, 0, 0, .2);
+  --shadow-focus: 0 0 0 3px rgba(255, 122, 26, .25);
+  --transition: .15s ease;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --bg: #0b0f17;
-    --surface: #121926;
-    --surface-muted: #172233;
-    --surface-blue: #15253d;
+    --bg: #020617;
+    --surface: #0f172a;
+    --surface-muted: #1e293b;
+    --surface-blue: #16233b;
     --surface-blue-soft: #182b47;
-    --border: #23334d;
+    --border: #2a3b56;
     --border-soft: #1a283c;
-    --text: #f1f5f9;
+    --text: #f8fafc;
     --text-muted: #94a3b8;
     --text-soft: #64748b;
     --text-faint: #475569;
-    --primary: #38bdf8;
-    --primary-hover: #0284c7;
+    --primary: #ff7a1a;
+    --primary-hover: #ff8f3d;
+    --accent: var(--primary);
+    --accent-subtle: rgba(255, 122, 26, .16);
     --info: #60a5fa;
     --success: #34d399;
     --warning: #fbbf24;
     --danger: #f87171;
-    --shadow-focus: 0 0 0 3px rgba(56, 189, 248, .25);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px rgba(0, 0, 0, .2);
+    --shadow-focus: 0 0 0 3px rgba(255, 122, 26, .25);
+    --transition: .15s ease;
   }
 }
 
@@ -111,8 +123,9 @@ button {
 }
 
 .header h1 {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -.01em;
 }
 
 .header-sub {
@@ -142,11 +155,12 @@ button {
   justify-content: center;
   gap: 6px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text);
   background: var(--surface);
+  font-weight: 600;
   cursor: pointer;
-  transition: background .15s, border-color .15s, color .15s;
+  transition: background var(--transition), border-color var(--transition), color var(--transition), box-shadow var(--transition);
 }
 
 .btn {
@@ -164,6 +178,7 @@ button {
   border-color: transparent;
   color: #fff;
   background: var(--primary);
+  box-shadow: 0 4px 14px -4px var(--accent-subtle);
 }
 
 .btn-primary:hover,
@@ -179,8 +194,9 @@ button {
 .squad-tab {
   max-width: 220px;
   padding: 6px 14px;
+  border-radius: 999px;
   font-size: 13px;
-  color: #555;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
@@ -231,6 +247,7 @@ button {
 .sprint-info {
   border: 1px solid var(--border);
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 
 .config-panel {
@@ -479,8 +496,9 @@ button {
 }
 
 .metric-value {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -.01em;
   color: var(--text);
 }
 
@@ -610,7 +628,8 @@ button {
   margin-bottom: -1px;
   padding: 10px 18px;
   font-size: 13px;
-  border-bottom: 2px solid transparent;
+  font-weight: 600;
+  border-bottom: 3px solid transparent;
   color: var(--text-muted);
   background: none;
   cursor: pointer;
@@ -622,7 +641,7 @@ button {
 .tab.active {
   border-bottom-color: var(--primary);
   color: var(--text);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .table-wrap {
@@ -725,10 +744,12 @@ button {
   display: block;
   min-width: 0;
   overflow: hidden;
-  padding: 3px 9px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1072,7 +1093,7 @@ button {
   text-align: center;
   background: var(--surface);
   border: 1.5px dashed var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1090,7 +1111,7 @@ button {
   justify-content: center;
   font-size: 24px;
   margin-bottom: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent-subtle);
 }
 
 .empty-state-pills {
@@ -1114,14 +1135,14 @@ button {
 
 .jql-helper-btn {
   font-size: 11px;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  border-radius: 999px;
   background: var(--surface-muted);
   border: 1px solid var(--border);
   color: var(--text);
   cursor: pointer;
   transition: all var(--transition);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .jql-helper-btn:hover {
