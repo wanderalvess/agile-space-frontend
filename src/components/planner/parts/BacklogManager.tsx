@@ -7,10 +7,9 @@ import {
   ChevronUp, 
   ChevronDown, 
   Target, 
-  Folders, 
+  Folders,
   FolderOpen,
   ListTodo,
-  ExternalLink
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,21 +22,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { useUserContext } from '@/context/UserContext';
-import { PlannerTask, PlannerTaskCard } from './PlannerTaskCard';
+import type { PlannerTask, PlannerSubtask } from '../types';
+import type { TeamMember } from './CapacityEngine';
+import { PlannerTaskRow } from './PlannerTaskRow';
 import { PokerSessionPicker } from '../../poker/PokerSessionPicker';
 
 interface BacklogManagerProps {
   tasks: PlannerTask[];
+  sprintMembers: TeamMember[];
+  sprintStartDate: string;
   onAddTask: (task: Omit<PlannerTask, 'id'>) => void;
   onUpdateTask: (id: string, updates: Partial<PlannerTask>) => void;
   onRemoveTask: (id: string) => void;
+  onAddSubtask: (taskId: string) => void;
+  onUpdateSubtask: (taskId: string, subtaskId: string, updates: Partial<PlannerSubtask>) => void;
+  onRemoveSubtask: (taskId: string, subtaskId: string) => void;
   onBatchImport: (text: string) => void;
   onPokerImport: (room: any) => void;
   isReadOnly?: boolean;
@@ -46,9 +46,14 @@ interface BacklogManagerProps {
 
 export function BacklogManager({
   tasks,
+  sprintMembers,
+  sprintStartDate,
   onAddTask,
   onUpdateTask,
   onRemoveTask,
+  onAddSubtask,
+  onUpdateSubtask,
+  onRemoveSubtask,
   onBatchImport,
   onPokerImport,
   isReadOnly = false,
@@ -57,22 +62,17 @@ export function BacklogManager({
   const { userProfile } = useUserContext();
   const activeSquad = squadId || userProfile?.squadId || '';
   const [newTaskName, setNewTaskName] = useState('');
-  const [newTaskDevHours, setNewTaskDevHours] = useState('');
-  const [newTaskQaHours, setNewTaskQaHours] = useState('');
   const [newTaskLink, setNewTaskLink] = useState('');
   const [newTaskDescription, setNewTaskDescription] = useState('');
   const [showAdvancedTaskForm, setShowAdvancedTaskForm] = useState(false);
   const [editTaskId, setEditTaskId] = useState<string | null>(null);
-  
-  const [selectedTask, setSelectedTask] = useState<PlannerTask | null>(null);
+
   const [showBatchImport, setShowBatchImport] = useState(false);
   const [showPokerImport, setShowPokerImport] = useState(false);
   const [batchImportText, setBatchImportText] = useState('');
 
   const resetForm = () => {
     setNewTaskName('');
-    setNewTaskDevHours('');
-    setNewTaskQaHours('');
     setNewTaskLink('');
     setNewTaskDescription('');
     setEditTaskId(null);
@@ -82,18 +82,19 @@ export function BacklogManager({
     e.preventDefault();
     if (!newTaskName.trim()) return;
 
-    const taskData = {
-      name: newTaskName,
-      devHours: Number(newTaskDevHours) || 0,
-      qaHours: Number(newTaskQaHours) || 0,
-      link: newTaskLink,
-      description: newTaskDescription,
-    };
-
     if (editTaskId) {
-      onUpdateTask(editTaskId, taskData);
+      onUpdateTask(editTaskId, {
+        name: newTaskName,
+        link: newTaskLink,
+        description: newTaskDescription,
+      });
     } else {
-      onAddTask(taskData);
+      onAddTask({
+        name: newTaskName,
+        link: newTaskLink,
+        description: newTaskDescription,
+        subtasks: [{ id: crypto.randomUUID(), name: newTaskName, role: 'dev', hours: 0 }],
+      });
     }
     resetForm();
   };
@@ -101,8 +102,6 @@ export function BacklogManager({
   const startEditTask = (task: PlannerTask) => {
     setEditTaskId(task.id);
     setNewTaskName(task.name);
-    setNewTaskDevHours(String(task.devHours));
-    setNewTaskQaHours(String(task.qaHours));
     setNewTaskLink(task.link || '');
     setNewTaskDescription(task.description || '');
     setShowAdvancedTaskForm(true);
@@ -144,34 +143,10 @@ export function BacklogManager({
               value={newTaskName}
               onChange={e => setNewTaskName(e.target.value)}
             />
-            <div className="flex gap-2">
-              <div className="flex items-center gap-2 bg-violet-50 dark:bg-violet-950/20 border-2 border-violet-100 dark:border-violet-900/60 rounded-2xl px-3 h-11 focus-within:border-violet-500 transition-all">
-                <span className="text-[9px] font-black uppercase text-violet-600 tracking-widest">DEV</span>
-                <Input 
-                  type="number"
-                  placeholder="0h" 
-                  className="w-12 bg-transparent border-0 text-center font-black text-sm p-0 h-auto focus-visible:ring-0"
-                  value={newTaskDevHours}
-                  onChange={e => setNewTaskDevHours(e.target.value)}
-                  min={0}
-                />
-              </div>
-              <div className="flex items-center gap-2 bg-fuchsia-50 dark:bg-fuchsia-950/20 border-2 border-fuchsia-100 dark:border-fuchsia-900/60 rounded-2xl px-3 h-11 focus-within:border-fuchsia-500 transition-all">
-                <span className="text-[9px] font-black uppercase text-fuchsia-600 tracking-widest">QA</span>
-                <Input 
-                  type="number"
-                  placeholder="0h" 
-                  className="w-12 bg-transparent border-0 text-center font-black text-sm p-0 h-auto focus-visible:ring-0"
-                  value={newTaskQaHours}
-                  onChange={e => setNewTaskQaHours(e.target.value)}
-                  min={0}
-                />
-              </div>
-              <Button type="submit" className={cn("h-11 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all gap-2 shrink-0", editTaskId ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900")}>
-                {editTaskId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} 
-                {editTaskId ? 'Salvar' : 'Adicionar'}
-              </Button>
-            </div>
+            <Button type="submit" className={cn("h-11 px-6 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all gap-2 shrink-0", editTaskId ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-slate-200 text-white dark:text-slate-900")}>
+              {editTaskId ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {editTaskId ? 'Salvar' : 'Adicionar'}
+            </Button>
           </div>
 
           <div className="flex items-center justify-between px-2">
@@ -282,14 +257,18 @@ export function BacklogManager({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 content-start pb-20">
+          <div className="flex flex-col gap-4 pb-20">
             {tasks.map(task => (
-              <PlannerTaskCard
+              <PlannerTaskRow
                 key={task.id}
                 task={task}
-                onClick={setSelectedTask}
+                sprintMembers={sprintMembers}
+                sprintStartDate={sprintStartDate}
                 onEdit={startEditTask}
                 onDelete={onRemoveTask}
+                onAddSubtask={onAddSubtask}
+                onUpdateSubtask={onUpdateSubtask}
+                onRemoveSubtask={onRemoveSubtask}
                 isReadOnly={isReadOnly}
               />
             ))}
@@ -330,52 +309,6 @@ export function BacklogManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <Sheet open={!!selectedTask} onOpenChange={(val) => !val && setSelectedTask(null)}>
-        <SheetContent className="w-full sm:max-w-xl border-l border-white/40 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl flex flex-col p-8 sm:p-12 overflow-y-auto custom-scrollbar">
-          <SheetHeader className="mb-10">
-            <div className="h-14 w-14 rounded-[1.5rem] bg-violet-600 text-white flex items-center justify-center shadow-xl shadow-violet-600/20 mb-6">
-              <ListTodo className="h-7 w-7" />
-            </div>
-            <SheetTitle className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-tight uppercase tracking-tighter">
-              {selectedTask?.name}
-            </SheetTitle>
-          </SheetHeader>
-          
-          <div className="space-y-10">
-            <div className="grid grid-cols-2 gap-4">
-               <div className="bg-white dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm text-center">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600 mb-2">Dev Scope</p>
-                  <p className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-slate-100">{selectedTask?.devHours}<span className="text-xl">h</span></p>
-               </div>
-               <div className="bg-white dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm text-center">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-fuchsia-600 mb-2">QA Scope</p>
-                  <p className="text-4xl font-black italic tracking-tighter text-slate-900 dark:text-slate-100">{selectedTask?.qaHours}<span className="text-xl">h</span></p>
-               </div>
-            </div>
-
-            {selectedTask?.description && (
-              <div className="space-y-3">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Descrição / Notas</h3>
-                <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 rounded-[2rem] leading-relaxed text-sm font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-800">
-                  {selectedTask?.description}
-                </div>
-              </div>
-            )}
-
-            {selectedTask?.link && (
-              <div className="pt-6">
-                <a href={selectedTask?.link} target="_blank" rel="noopener noreferrer" className="block w-full">
-                  <Button className="w-full h-16 bg-slate-900 hover:bg-slate-800 text-white font-black text-xs tracking-[0.2em] uppercase rounded-[1.5rem] transition-all shadow-2xl group">
-                    <ExternalLink className="mr-3 h-5 w-5 group-hover:scale-110 transition-transform" /> 
-                    Abrir Issue Externa
-                  </Button>
-                </a>
-              </div>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }

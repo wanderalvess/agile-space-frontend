@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { PlannerDatePicker } from './PlannerDatePicker';
 import { cn } from '@/lib/utils';
 
 export interface TeamMember {
@@ -24,6 +25,8 @@ export interface TeamMember {
 interface CapacityEngineProps {
   isDetailedMode: boolean;
   setIsDetailedMode: (val: boolean) => void;
+  sprintStartDate: string;
+  setSprintStartDate: (val: string) => void;
   workingDays: number;
   setWorkingDays: (val: number) => void;
   focusFactor: number;
@@ -47,6 +50,8 @@ interface CapacityEngineProps {
 export function CapacityEngine({
   isDetailedMode,
   setIsDetailedMode,
+  sprintStartDate,
+  setSprintStartDate,
   workingDays,
   setWorkingDays,
   focusFactor,
@@ -104,6 +109,17 @@ export function CapacityEngine({
           </div>
         </CardHeader>
         <CardContent className="px-5 py-2 space-y-6 flex-1">
+          <div className="space-y-3">
+            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600 flex items-center gap-2">
+               INÍCIO DA SPRINT
+            </label>
+            <PlannerDatePicker
+              value={sprintStartDate}
+              onChange={(val) => val && setSprintStartDate(val)}
+              disabled={isReadOnly}
+            />
+          </div>
+
           <div className="space-y-3">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600 flex items-center gap-2">
                DIAS ÚTEIS

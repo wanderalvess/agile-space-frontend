@@ -18,7 +18,12 @@ import { cn } from '@/lib/utils';
 import { MetricsHUD } from './parts/MetricsHUD';
 import { CapacityEngine, TeamMember } from './parts/CapacityEngine';
 import { BacklogManager } from './parts/BacklogManager';
-import type { PlannerTask } from './parts/PlannerTaskCard';
+import { PersonCapacityPanel } from './parts/PersonCapacityPanel';
+import { PlannerGanttChart } from './parts/PlannerGanttChart';
+import type { PlannerTask } from './types';
+import { getTaskDevHours, getTaskQaHours } from './types';
+import { normalizePlannerTask } from './lib/normalizePlannerTask';
+import { computeMemberCapacityHours } from './lib/capacity';
 import { PlannerGuide } from './PlannerGuide';
 import { HelpCircle, CalendarRange, Save, Loader2 } from 'lucide-react';
 
@@ -70,6 +75,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
   };
   
   // Capacity Engine State
+  const [sprintStartDate, setSprintStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [workingDays, setWorkingDays] = useState<number>(10);
   const [focusFactor, setFocusFactor] = useState<number>(70);
   const [devCount, setDevCount] = useState<number>(3);
@@ -89,6 +95,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const isSaving = saveStatus === 'saving';
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [scopeView, setScopeView] = useState<'list' | 'timeline'>('list');
 
   // Poker Integration State
   const [importedPokerRoomIds, setImportedPokerRoomIds] = useState<string[]>([]);
@@ -105,10 +112,11 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
           const data = await sprintPlanningApi.getPlanner(initialPlannerId);
           if (data) {
             setPlannerTitle(data.title || 'Sprint Planner');
-            setTasks(data.tasks || []);
+            setTasks((data.tasks || []).map(normalizePlannerTask));
             setSprintMembers(data.members || []);
-            
+
             if (data.settings) {
+              setSprintStartDate(data.settings.sprintStartDate || new Date().toISOString().slice(0, 10));
               setWorkingDays(data.settings.workingDays || 10);
               setFocusFactor(data.settings.focusFactor || 70);
               setDevCount(data.settings.devCount || 0);
@@ -141,7 +149,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
     if (!shareId || isReadOnly) return;
     const timer = setTimeout(() => savePlanner(), 5000);
     return () => clearTimeout(timer);
-  }, [tasks, sprintMembers, workingDays, focusFactor, devCount, qaCount, devAbsences, qaAbsences, isDetailedMode, plannerTitle, shareId]);
+  }, [tasks, sprintMembers, sprintStartDate, workingDays, focusFactor, devCount, qaCount, devAbsences, qaAbsences, isDetailedMode, plannerTitle, shareId]);
 
   const savePlanner = async () => {
     if (isReadOnly) return;
@@ -152,6 +160,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
         tasks,
         members: sprintMembers,
         settings: {
+          sprintStartDate,
           workingDays,
           focusFactor,
           devCount,
@@ -218,8 +227,8 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
     return (qaCount * workingDays - qaAbsences * workingDays / 10) * 8 * (focusFactor / 100);
   }, [isDetailedMode, sprintMembers, workingDays, qaCount, qaAbsences, focusFactor]);
 
-  const totalDevScope = useMemo(() => tasks.reduce((acc, t) => acc + t.devHours, 0), [tasks]);
-  const totalQaScope = useMemo(() => tasks.reduce((acc, t) => acc + t.qaHours, 0), [tasks]);
+  const totalDevScope = useMemo(() => tasks.reduce((acc, t) => acc + getTaskDevHours(t), 0), [tasks]);
+  const totalQaScope = useMemo(() => tasks.reduce((acc, t) => acc + getTaskQaHours(t), 0), [tasks]);
   
   const devLoadPercentage = devCapacityHours > 0 ? (totalDevScope / devCapacityHours) * 100 : 0;
   const qaLoadPercentage = qaCapacityHours > 0 ? (totalQaScope / qaCapacityHours) * 100 : 0;
@@ -245,25 +254,46 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
     setSprintMembers(sprintMembers.map(m => m.id === id ? { ...m, [field]: value } : m));
   };
 
+  const handleAddSubtask = (taskId: string) => {
+    setTasks(tasks.map(t => t.id === taskId ? {
+      ...t,
+      subtasks: [...t.subtasks, { id: crypto.randomUUID(), name: 'Nova Subtarefa', role: 'dev', hours: 0 }]
+    } : t));
+  };
+
+  const handleUpdateSubtask = (taskId: string, subtaskId: string, updates: Partial<PlannerTask['subtasks'][number]>) => {
+    setTasks(tasks.map(t => t.id === taskId ? {
+      ...t,
+      subtasks: t.subtasks.map(s => s.id === subtaskId ? { ...s, ...updates } : s)
+    } : t));
+  };
+
+  const handleRemoveSubtask = (taskId: string, subtaskId: string) => {
+    setTasks(tasks.map(t => t.id === taskId ? {
+      ...t,
+      subtasks: t.subtasks.filter(s => s.id !== subtaskId)
+    } : t));
+  };
+
   const handleBatchImport = (text: string) => {
     const lines = text.split('\n').filter(l => l.trim());
     const newTasks = lines.map(line => {
         const [name, link, description] = line.split('|').map(s => s.trim());
-        return {
+        return normalizePlannerTask({
             id: crypto.randomUUID(),
             name: name || 'Nova Tarefa',
             devHours: 0,
             qaHours: 0,
             link: link || undefined,
             description: description || undefined
-        };
+        });
     });
     setTasks([...tasks, ...newTasks]);
   };
 
   const handleSelectPokerSession = (room: any) => {
     if (importedPokerRoomIds.includes(room.id)) return;
-    const roomTasks = room.issues?.map((issue: any) => ({
+    const roomTasks = room.issues?.map((issue: any) => normalizePlannerTask({
       id: crypto.randomUUID(),
       name: issue.name,
       devHours: issue.finalEstimate || 0,
@@ -326,11 +356,16 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
         isQaOverloaded={isQaOverloaded}
       />
 
-      <main className="flex-1 lg:overflow-hidden p-5 max-w-[1800px] mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:h-full lg:overflow-hidden">
+      <main className="flex-1 lg:overflow-hidden p-5 max-w-[1800px] mx-auto w-full flex flex-col gap-5">
+        {isDetailedMode && sprintMembers.length > 0 && (
+          <PersonCapacityPanel tasks={tasks} sprintMembers={sprintMembers} workingDays={workingDays} />
+        )}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 lg:overflow-hidden">
           <CapacityEngine
             isDetailedMode={isDetailedMode}
             setIsDetailedMode={setIsDetailedMode}
+            sprintStartDate={sprintStartDate}
+            setSprintStartDate={setSprintStartDate}
             workingDays={workingDays}
             setWorkingDays={setWorkingDays}
             focusFactor={focusFactor}
@@ -351,18 +386,50 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
             isReadOnly={isReadOnly}
           />
 
-          <div className="lg:col-span-8 xl:col-span-9 h-auto lg:h-full lg:overflow-hidden">
-            <Card className="border border-white/60 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shadow-2xl shadow-violet-500/5 rounded-[3rem] overflow-hidden flex flex-col h-auto lg:h-full">
-              <BacklogManager
-                tasks={tasks}
-                onAddTask={handleAddTask}
-                onUpdateTask={handleUpdateTask}
-                onRemoveTask={handleRemoveTask}
-                onBatchImport={handleBatchImport}
-                onPokerImport={handleSelectPokerSession}
-                isReadOnly={isReadOnly}
-              />
-            </Card>
+          <div className="lg:col-span-8 xl:col-span-9 h-auto lg:h-full lg:overflow-hidden flex flex-col gap-3">
+            <div className="flex bg-slate-100 dark:bg-slate-900 p-1.5 rounded-[1.5rem] border border-slate-200/50 dark:border-slate-800 shadow-inner self-start">
+              <button
+                className={cn(
+                  "px-4 py-2 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest",
+                  scopeView === 'list' ? "bg-white dark:bg-slate-800 shadow-sm text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                )}
+                onClick={() => setScopeView('list')}
+              >
+                Lista
+              </button>
+              <button
+                className={cn(
+                  "px-4 py-2 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest",
+                  scopeView === 'timeline' ? "bg-white dark:bg-slate-800 shadow-sm text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                )}
+                onClick={() => setScopeView('timeline')}
+              >
+                Timeline
+              </button>
+            </div>
+
+            {scopeView === 'list' ? (
+              <Card className="border border-white/60 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl shadow-2xl shadow-violet-500/5 rounded-[3rem] overflow-hidden flex flex-col h-auto lg:h-full lg:flex-1">
+                <BacklogManager
+                  tasks={tasks}
+                  sprintMembers={sprintMembers}
+                  sprintStartDate={sprintStartDate}
+                  onAddTask={handleAddTask}
+                  onUpdateTask={handleUpdateTask}
+                  onRemoveTask={handleRemoveTask}
+                  onAddSubtask={handleAddSubtask}
+                  onUpdateSubtask={handleUpdateSubtask}
+                  onRemoveSubtask={handleRemoveSubtask}
+                  onBatchImport={handleBatchImport}
+                  onPokerImport={handleSelectPokerSession}
+                  isReadOnly={isReadOnly}
+                />
+              </Card>
+            ) : (
+              <div className="lg:flex-1 lg:overflow-auto">
+                <PlannerGanttChart tasks={tasks} sprintStartDate={sprintStartDate} workingDays={workingDays} />
+              </div>
+            )}
           </div>
         </div>
       </main>
