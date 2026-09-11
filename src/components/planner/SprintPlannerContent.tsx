@@ -7,6 +7,7 @@ import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { squadApi } from '@/app/squad/api';
 import { sprintPlanningApi } from '../../app/sprint-planner/api';
+import { workItemsApi } from '@/app/work-items-api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FeedbackWidget } from '@/components/feedback-widget';
@@ -177,7 +178,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
               const projectPrefix = jiraKey.includes('-') ? jiraKey.split('-')[0].toUpperCase() : '';
               const targetSquad = activeSquadId || projectPrefix || userProfile?.squadId || '';
               if (targetSquad) {
-                return workItemsApi.commitWorkItem(targetSquad, jiraKey, saved.id).catch(err => {
+                return workItemsApi.commitWorkItem(targetSquad, jiraKey, saved.id).catch((err: unknown) => {
                   console.error('[SprintPlanner] Falha ao comitar work_item:', err);
                 });
               }
