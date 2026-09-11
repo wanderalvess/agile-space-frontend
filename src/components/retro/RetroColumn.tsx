@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useRef, useEffect, memo } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RetroCard as RetroCardType, RetroColumnKey, RetroBoard as RetroBoardType, RetroParticipant, RetroColumnTheme, RetroColumnDef } from "@/lib/types";
+import type { RetroCard as RetroCardType, RetroColumnKey, RetroBoard as RetroBoardType, RetroParticipant, RetroColumnTheme, RetroColumnDef, RetroReactionType } from "@/lib/types";
 import { AddRetroCard } from "./AddRetroCard";
 import { RetroCard } from "./RetroCard";
 import { RetroActionImportDialog } from "./RetroActionImportDialog";
@@ -102,6 +102,7 @@ interface RetroColumnProps {
   onDeleteCard: (cardId: string) => void;
   onUpdateCard: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
   onImportActions: (board: RetroBoardType, pendingCards: RetroCardType[]) => void;
   votingStatus: RetroBoardType['votingStatus'];
@@ -135,6 +136,7 @@ function RetroColumnComponent({
   onDeleteCard,
   onUpdateCard,
   onToggleVote,
+  onToggleReaction,
   onToggleDone,
   onImportActions,
   votingStatus,
@@ -436,6 +438,7 @@ function RetroColumnComponent({
                     onDelete={onDeleteCard}
                     onUpdate={onUpdateCard}
                     onToggleVote={onToggleVote as any}
+                    onToggleReaction={onToggleReaction}
                     onToggleDone={onToggleDone}
                     currentUser={currentUser}
                     theme={theme}

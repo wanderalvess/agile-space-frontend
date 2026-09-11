@@ -5,9 +5,10 @@ export const dynamic = 'force-dynamic';
 import { useMemo, useEffect, useCallback, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, TimerState, RetroParticipant, TeamRole, GlobalRole } from '@/lib/types';
+import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, TimerState, RetroParticipant, TeamRole, GlobalRole, RetroReactionType, HealthCheckAnswer } from '@/lib/types';
 import { RETRO_TEMPLATES } from '@/lib/types';
 import { RetroBoard } from '@/components/retro/RetroBoard';
+import { RetroHealthCheckGate } from '@/components/retro/RetroHealthCheckGate';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
@@ -431,6 +432,29 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     });
   }, [boardId, isAuthenticated, userProfile, cards]);
 
+  const handleToggleReaction = useCallback((cardId: string, type: RetroReactionType, currentUserIds: string[]) => {
+    if (!boardId || !isAuthenticated || !userProfile || !cards) return;
+    // Base em optimisticCards, não em cards: cards só chega atualizado após o
+    // round-trip do servidor, então duas reações clicadas em sequência rápida
+    // no mesmo card (antes do primeiro POST responder) perderiam uma delas.
+    const current = optimisticCards.find(c => c.id === cardId) || cards.find(c => c.id === cardId);
+    if (!current) return;
+
+    const newUserIds = currentUserIds.includes(userProfile.id)
+      ? currentUserIds.filter(uid => uid !== userProfile.id)
+      : [...currentUserIds, userProfile.id];
+    const newReactions = { ...(current.reactions || {}), [type]: newUserIds };
+
+    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, reactions: newReactions } : c));
+    retroApi.saveOrUpdateCard(boardId, {
+      ...current,
+      reactions: newReactions
+    }).catch(err => {
+      console.error(err);
+      setOptimisticCards(cards);
+    });
+  }, [boardId, isAuthenticated, userProfile, cards, optimisticCards]);
+
   const handleToggleActionDone = useCallback((cardId: string, isDone: boolean) => {
     if (!boardId || !cards) return;
     const current = cards.find(c => c.id === cardId);
@@ -792,6 +816,29 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }).catch(err => console.error(err));
   }, [boardData]);
 
+  const handleToggleHealthCheck = useCallback((enabled: boolean) => {
+    if (!boardData) return;
+    retroApi.saveOrUpdateBoard({
+      ...boardData,
+      healthCheckEnabled: enabled
+    }).catch(err => console.error(err));
+  }, [boardData]);
+
+  const handleHealthCheckQuestionChange = useCallback((question: string) => {
+    if (!boardData) return;
+    retroApi.saveOrUpdateBoard({
+      ...boardData,
+      healthCheckQuestion: question
+    }).catch(err => console.error(err));
+  }, [boardData]);
+
+  const handleSubmitHealthCheckAnswer = useCallback((answer: HealthCheckAnswer) => {
+    if (!boardId || !currentUser) return;
+    retroApi.addOrUpdateParticipant(boardId, { ...currentUser, healthCheckAnswer: answer }).catch(err => {
+      console.error("Erro ao registrar check-in inicial:", err);
+    });
+  }, [boardId, currentUser]);
+
   const handleToggleColumnSort = useCallback((columnKey: string, isSorted: boolean) => {
     if (!boardData) return;
     const currentSorts = boardData?.columnSorts || {};
@@ -822,8 +869,16 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     endTime: boardData.timer?.endTime ? Number(boardData.timer.endTime) : null
   };
 
+  const needsHealthCheck = !!boardData.healthCheckEnabled && !currentUser.healthCheckAnswer;
+
   return (
     <>
+      {needsHealthCheck && (
+        <RetroHealthCheckGate
+          question={boardData.healthCheckQuestion}
+          onAnswer={handleSubmitHealthCheckAnswer}
+        />
+      )}
       <RetroBoard
         boardId={boardId}
         boardData={boardData}
@@ -838,6 +893,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onToggleSyncStage={handleToggleSyncStage}
         onToggleAutoRevealOnTimerEnd={handleToggleAutoRevealOnTimerEnd}
         onToggleAutoSortOnVoteEnd={handleToggleAutoSortOnVoteEnd}
+        onToggleHealthCheck={handleToggleHealthCheck}
+        onHealthCheckQuestionChange={handleHealthCheckQuestionChange}
         onToggleColumnSort={handleToggleColumnSort}
         onAddCard={handleAddCard}
         onDeleteCard={handleDeleteCard}
@@ -845,6 +902,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onToggleCardsRevealed={handleToggleCardsRevealed}
         onSetVotingStatus={handleSetVotingStatus}
         onToggleVote={handleToggleVote}
+        onToggleReaction={handleToggleReaction}
         onToggleDone={handleToggleActionDone}
         onImportActions={handleImportActions}
         onDragEnd={handleDragEnd}

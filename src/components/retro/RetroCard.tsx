@@ -3,11 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import type { RetroCard as RetroCardType, RetroParticipant, RetroColumnTheme } from '@/lib/types';
+import type { RetroCard as RetroCardType, RetroParticipant, RetroColumnTheme, RetroReactionType } from '@/lib/types';
+import { RETRO_REACTIONS } from '@/lib/types';
 import {
   Pencil,
   Trash2,
   ThumbsUp,
+  ThumbsDown,
+  Heart,
+  Sparkles,
   UserPlus,
   Calendar,
   GitMerge,
@@ -35,6 +39,57 @@ import { cn } from '@/lib/utils';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+const REACTION_ICONS: Record<RetroReactionType, typeof ThumbsUp> = {
+  up: ThumbsUp,
+  love: Heart,
+  wow: Sparkles,
+  concern: ThumbsDown,
+};
+
+// Cores por reação: positivas ficam neutras até alguém marcar; "preocupa" é a
+// única com leitura sempre em vermelho quando ativa — sinal de atenção do time.
+const REACTION_ACTIVE_CLASSES: Record<RetroReactionType, string> = {
+  up: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+  love: 'bg-pink-50 border-pink-200 text-pink-600',
+  wow: 'bg-slate-100 border-slate-300 text-slate-600',
+  concern: 'bg-red-50 border-red-200 text-red-600',
+};
+
+function RetroCardReactions({
+  card,
+  currentUserId,
+  onToggleReaction,
+}: {
+  card: RetroCardType;
+  currentUserId: string;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+      {RETRO_REACTIONS.map(({ key, label }) => {
+        const userIds = card.reactions?.[key] || [];
+        const isActive = userIds.includes(currentUserId);
+        const Icon = REACTION_ICONS[key];
+        return (
+          <button
+            key={key}
+            type="button"
+            title={label}
+            onClick={() => onToggleReaction(card.id, key, userIds)}
+            className={cn(
+              "flex items-center gap-1 h-6 px-2 rounded-full border text-[10px] font-black transition-all",
+              isActive ? REACTION_ACTIVE_CLASSES[key] : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300"
+            )}
+          >
+            <Icon className="h-3 w-3" />
+            {userIds.length > 0 && userIds.length}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 interface RetroCardProps {
   card: RetroCardType;
   isCardsRevealed: boolean;
@@ -43,6 +98,7 @@ interface RetroCardProps {
   onDelete: (cardId: string) => void;
   onUpdate: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
   // Antes vinha tipado como `User` do firebase/auth; só o `uid` é lido aqui,
   // então um shape mínimo evita a dependência de um SDK que não existe mais.
@@ -64,6 +120,7 @@ export function RetroCard({
   onDelete, 
   onUpdate,
   onToggleVote,
+  onToggleReaction,
   onToggleDone,
   currentUser,
   votingStatus,
@@ -270,6 +327,10 @@ export function RetroCard({
                  </button>
                )}
              </div>
+           )}
+
+           {showRealContent && !isActionPlan && (
+             <RetroCardReactions card={card} currentUserId={currentUser.uid} onToggleReaction={onToggleReaction} />
            )}
         </AgileCard>
       )}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, RetroColumnDef, RetroColumnTheme, RETRO_TEMPLATES, TimerState, RetroParticipant } from '@/lib/types';
+import { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, RetroColumnDef, RetroColumnTheme, RETRO_TEMPLATES, TimerState, RetroParticipant, RetroReactionType } from '@/lib/types';
 import { RetroColumn } from './RetroColumn';
 
 // Referência estável reaproveitada por qualquer coluna vazia — evita criar
@@ -28,7 +28,8 @@ import {
   Clock,
   Download,
   Settings,
-  BarChart3
+  BarChart3,
+  CheckCircle2
 } from 'lucide-react';
 import {
   Tooltip,
@@ -65,6 +66,7 @@ interface RetroBoardProps {
   onDeleteCard: (cardId: string) => void;
   onUpdateCard: (cardId: string, content: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
   onImportActions: (board: RetroBoardType, pendingCards: RetroCardType[]) => void;
   onToggleCardsRevealed: () => void;
@@ -82,6 +84,8 @@ interface RetroBoardProps {
   onToggleSyncStage: (value: boolean) => void;
   onToggleAutoRevealOnTimerEnd: (value: boolean) => void;
   onToggleAutoSortOnVoteEnd: (value: boolean) => void;
+  onToggleHealthCheck: (value: boolean) => void;
+  onHealthCheckQuestionChange: (value: string) => void;
   onToggleColumnSort: (columnKey: string, isSorted: boolean) => void;
   currentUser: any;
   currentParticipant: any;
@@ -107,6 +111,7 @@ const RetroBoardComponent = ({
   onDeleteCard,
   onUpdateCard,
   onToggleVote,
+  onToggleReaction,
   onToggleDone,
   onImportActions,
   onToggleCardsRevealed,
@@ -124,6 +129,8 @@ const RetroBoardComponent = ({
   onToggleSyncStage,
   onToggleAutoRevealOnTimerEnd,
   onToggleAutoSortOnVoteEnd,
+  onToggleHealthCheck,
+  onHealthCheckQuestionChange,
   onToggleColumnSort,
   currentUser,
   currentParticipant,
@@ -307,8 +314,6 @@ const RetroBoardComponent = ({
                   onSetTimerDuration={onSetTimerDuration}
                   isFacilitator={boardData.creatorId === currentUserId}
                   onExport={() => setIsExportOpen(true)}
-                  activeStage={activeStage}
-                  onStageChange={onStageChange}
                   isSoundEnabled={isSoundEnabled}
                   onToggleSound={handleToggleSound}
                   autoRevealOnTimerEnd={boardData.autoRevealOnTimerEnd}
@@ -522,6 +527,7 @@ const RetroBoardComponent = ({
                     onDeleteCard={onDeleteCard}
                     onUpdateCard={onUpdateCard}
                     onToggleVote={onToggleVote as any}
+                    onToggleReaction={onToggleReaction}
                     onToggleDone={onToggleDone}
                     onImportActions={onImportActions}
                     votingStatus={boardData.votingStatus}
@@ -620,27 +626,41 @@ const RetroBoardComponent = ({
           onToggleAutoRevealOnTimerEnd={onToggleAutoRevealOnTimerEnd}
           autoSortOnVoteEnd={!!boardData.autoSortOnVoteEnd}
           onToggleAutoSortOnVoteEnd={onToggleAutoSortOnVoteEnd}
+          healthCheckEnabled={!!boardData.healthCheckEnabled}
+          onToggleHealthCheck={onToggleHealthCheck}
+          healthCheckQuestion={boardData.healthCheckQuestion || ''}
+          onHealthCheckQuestionChange={onHealthCheckQuestionChange}
         />
 
         {!isFocusMode && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 p-1.5 bg-white/80 backdrop-blur-3xl border border-white/40 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2)] rounded-full ring-1 ring-slate-900/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {columns.map((col) => {
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1.5 bg-white/80 backdrop-blur-3xl border border-white/40 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2)] rounded-full ring-1 ring-slate-900/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {columns.map((col, idx) => {
               const themeStyle = THEME_COLORS[col.theme] || THEME_COLORS.neutral;
+              const activeIdx = columns.findIndex(c => c.id === activeStage);
+              const isDone = activeIdx >= 0 && idx < activeIdx;
+              const isActive = activeStage === col.id;
               return (
-                <Button
-                  key={col.id}
-                  variant="ghost"
-                  onClick={() => onStageChange(col.id)}
-                  disabled={boardData.syncStageEnabled && !isCurrentUserCreator}
-                  className={cn(
-                    "h-10 px-6 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-all border",
-                    activeStage === col.id
-                      ? `${themeStyle.bg} ${themeStyle.color} ${themeStyle.border} shadow-lg scale-105`
-                      : "text-slate-400 border-transparent hover:text-slate-700 hover:bg-slate-100/50"
+                <React.Fragment key={col.id}>
+                  {idx > 0 && (
+                    <div className={cn("w-3 h-px shrink-0", isDone ? "bg-emerald-300" : "bg-slate-200")} />
                   )}
-                >
-                  {col.title}
-                </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => onStageChange(col.id)}
+                    disabled={boardData.syncStageEnabled && !isCurrentUserCreator}
+                    className={cn(
+                      "h-10 px-5 text-[10px] sm:text-xs font-black uppercase tracking-widest rounded-full transition-all border gap-1.5",
+                      isActive
+                        ? `${themeStyle.bg} ${themeStyle.color} ${themeStyle.border} shadow-lg scale-105`
+                        : isDone
+                          ? "text-emerald-600 border-transparent hover:bg-emerald-50/50"
+                          : "text-slate-400 border-transparent hover:text-slate-700 hover:bg-slate-100/50"
+                    )}
+                  >
+                    {isDone && <CheckCircle2 className="h-3 w-3 shrink-0" />}
+                    {col.title}
+                  </Button>
+                </React.Fragment>
               );
             })}
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Users,
   ArrowRight as ArrowRightIcon,
@@ -12,6 +12,7 @@ import {
   LayoutTemplate,
   Zap,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import { RetroTemplateKey, RetroColumnTheme } from '@/lib/types';
 import {
@@ -26,13 +27,24 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { listTemplates, type RetroTemplate } from '@/lib/retro-templates';
 
+// Cada toggle carrega seu grupo — agrupadas por categoria na renderização,
+// mesmo padrão do modal "Configurar Sessão" do Planning Poker (SETUP_GROUPS
+// em app/room/page.tsx).
 export const SETUP_TOGGLES = [
-  { key: 'isAuthorsRevealed', icon: User, title: 'Autores Abertos', desc: 'Mostra quem escreveu cada card' },
-  { key: 'syncStageEnabled', icon: Users, title: 'Sincronizar Coluna Ativa', desc: 'Todos veem a coluna focada' },
-  { key: 'autoRevealOnTimerEnd', icon: Clock, title: 'Auto-revelar ao fim do timer', desc: 'Revela cards quando o tempo zera' },
-  { key: 'autoSortOnVoteEnd', icon: ThumbsUp, title: 'Ordenar por votos ao encerrar', desc: 'Aplica em colunas de feedback' },
+  { key: 'isAuthorsRevealed', group: 'Visibilidade e ritmo', icon: User, title: 'Autores Abertos', desc: 'Mostra quem escreveu cada card' },
+  { key: 'syncStageEnabled', group: 'Visibilidade e ritmo', icon: Users, title: 'Sincronizar Coluna Ativa', desc: 'Todos veem a coluna focada' },
+  { key: 'autoRevealOnTimerEnd', group: 'Automação de fim de sessão', icon: Clock, title: 'Auto-revelar ao fim do timer', desc: 'Revela cards quando o tempo zera' },
+  { key: 'autoSortOnVoteEnd', group: 'Automação de fim de sessão', icon: ThumbsUp, title: 'Ordenar por votos ao encerrar', desc: 'Aplica em colunas de feedback' },
 ] as const;
 
 export type SetupToggleKey = typeof SETUP_TOGGLES[number]['key'];
@@ -41,6 +53,12 @@ export type SetupSettings = Record<SetupToggleKey, boolean>;
 export const DEFAULT_SETUP_SETTINGS: SetupSettings = Object.fromEntries(
   SETUP_TOGGLES.map(t => [t.key, false])
 ) as SetupSettings;
+
+// Grupos na ordem de exibição — derivados de SETUP_TOGGLES para não duplicar dados.
+export const SETUP_GROUPS = Array.from(new Set(SETUP_TOGGLES.map(t => t.group))).map(label => ({
+  label,
+  items: SETUP_TOGGLES.filter(t => t.group === label),
+}));
 
 export interface TemplateOption {
   key: RetroTemplateKey;
@@ -159,7 +177,24 @@ export function CreateRetroDialog({
   onCancel,
 }: CreateRetroDialogProps) {
   const [hoveredTemplate, setHoveredTemplate] = useState<RetroTemplateKey | null>(null);
+  const [savedTemplates, setSavedTemplates] = useState<RetroTemplate[]>([]);
+  const [savedTemplateId, setSavedTemplateId] = useState('');
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
+
+  // Carrega templates salvos (localStorage) toda vez que o modal abre.
+  useEffect(() => {
+    if (open) setSavedTemplates(listTemplates());
+  }, [open]);
+
+  const handleApplySavedTemplate = (id: string) => {
+    if (id === 'none') { setSavedTemplateId(''); return; }
+    setSavedTemplateId(id);
+    const tpl = savedTemplates.find(t => t.id === id);
+    if (!tpl) return;
+    onTemplateChange(tpl.template);
+    onCustomColumnsChange(tpl.customColumns);
+    onSetupSettingsChange(tpl.setupSettings);
+  };
 
   const currentOption = TEMPLATE_OPTIONS.find(t => t.key === (hoveredTemplate || template)) || TEMPLATE_OPTIONS[0];
   const previewColumns = template === 'custom'
@@ -177,6 +212,27 @@ export function CreateRetroDialog({
             Nomeie o quadro, escolha o formato das colunas e ajuste as permissões do facilitador
           </DialogDescription>
         </DialogHeader>
+
+        {/* Começar de um template salvo — mesmo padrão do /room */}
+        {savedTemplates.length > 0 && (
+          <div className="space-y-2 px-1 pt-1 font-sans">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Começar de um template
+            </Label>
+            <Select value={savedTemplateId || 'none'} onValueChange={handleApplySavedTemplate}>
+              <SelectTrigger className="h-11 rounded-2xl border-border bg-muted/40 font-bold focus:ring-primary">
+                <SelectValue placeholder="Retrospectiva em branco" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl font-bold">
+                <SelectItem value="none">Retrospectiva em branco</SelectItem>
+                {savedTemplates.map(t => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Nome + squad */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 font-sans">
@@ -333,65 +389,73 @@ export function CreateRetroDialog({
               </span>
             </Label>
             <div className="flex items-center gap-1.5">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => onSetupSettingsChange(DEFAULT_SETUP_SETTINGS)}
-                className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               >
                 Padrão
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, false])) as SetupSettings)}
-                className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               >
                 Nenhum
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, true])) as SetupSettings)}
-                className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               >
                 Todos
-              </button>
+              </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {SETUP_TOGGLES.map(cfg => {
-              const on = !!setupSettings[cfg.key];
-              const Icon = cfg.icon;
-              return (
-                <div
-                  key={cfg.key}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on });
-                    }
-                  }}
-                  title={cfg.desc}
-                  className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-xl border-2 flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none",
-                    on ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-muted/30 hover:border-primary/30"
-                  )}
-                >
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight text-foreground leading-tight">
-                      <Icon className="h-3 w-3 shrink-0 text-primary" />
-                      {cfg.title}
-                    </span>
-                    <span className="block text-[9px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[180px]">
-                      {cfg.desc}
-                    </span>
-                  </span>
-                  <Switch checked={on} className="pointer-events-none shrink-0 scale-90" />
-                </div>
-              );
-            })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+            {SETUP_GROUPS.map(group => (
+              <div key={group.label} className="space-y-1.5">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">{group.label}</p>
+                {group.items.map(cfg => {
+                  const on = !!setupSettings[cfg.key];
+                  const Icon = cfg.icon;
+                  return (
+                    <div
+                      key={cfg.key}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on });
+                        }
+                      }}
+                      title={cfg.desc}
+                      className={cn(
+                        "w-full text-left px-3 py-2.5 rounded-xl border-2 flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none",
+                        on ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-muted/30 hover:border-primary/30"
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight text-foreground leading-tight">
+                          <Icon className="h-3 w-3 shrink-0 text-primary" />
+                          {cfg.title}
+                        </span>
+                        <span className="block text-[9px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[220px]">
+                          {cfg.desc}
+                        </span>
+                      </span>
+                      <Switch checked={on} className="pointer-events-none shrink-0 scale-90" />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
 

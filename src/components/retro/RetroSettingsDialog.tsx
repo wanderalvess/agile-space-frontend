@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,9 +10,12 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Settings, User, Users, Clock, ThumbsUp } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Settings, User, Users, Clock, ThumbsUp, MessageCircleHeart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { LucideIcon } from 'lucide-react';
+
+export const DEFAULT_HEALTH_CHECK_QUESTION = 'Como você está chegando nessa retro?';
 
 interface RetroSettingsDialogProps {
   isOpen: boolean;
@@ -25,6 +28,10 @@ interface RetroSettingsDialogProps {
   onToggleAutoRevealOnTimerEnd: (value: boolean) => void;
   autoSortOnVoteEnd: boolean;
   onToggleAutoSortOnVoteEnd: (value: boolean) => void;
+  healthCheckEnabled: boolean;
+  onToggleHealthCheck: (value: boolean) => void;
+  healthCheckQuestion: string;
+  onHealthCheckQuestionChange: (value: string) => void;
 }
 
 const TOGGLE_ROW_ACCENTS = {
@@ -67,7 +74,31 @@ export function RetroSettingsDialog({
   onToggleAutoRevealOnTimerEnd,
   autoSortOnVoteEnd,
   onToggleAutoSortOnVoteEnd,
+  healthCheckEnabled,
+  onToggleHealthCheck,
+  healthCheckQuestion,
+  onHealthCheckQuestionChange,
 }: RetroSettingsDialogProps) {
+  // Buffer local: digitar não pode depender do round-trip do servidor pra
+  // atualizar o campo (o value real só chega de volta via broadcast do board).
+  // Debounce evita um saveOrUpdateBoard completo a cada tecla.
+  const [localQuestion, setLocalQuestion] = useState(healthCheckQuestion);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    setLocalQuestion(healthCheckQuestion);
+  }, [healthCheckQuestion]);
+
+  const handleQuestionChange = (value: string) => {
+    setLocalQuestion(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onHealthCheckQuestionChange(value), 500);
+  };
+
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+
   return (
     <Dialog open={isOpen} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="sm:max-w-[500px] rounded-[3rem] border-none shadow-2xl bg-white/95 backdrop-blur-xl">
@@ -112,6 +143,42 @@ export function RetroSettingsDialog({
             checked={autoSortOnVoteEnd}
             onChange={onToggleAutoSortOnVoteEnd}
           />
+
+          <div className={cn(
+            "p-4 rounded-2xl border transition-all",
+            healthCheckEnabled ? "border-indigo-200 bg-indigo-50/50" : "border-slate-100 bg-slate-50/50"
+          )}>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-white rounded-xl border border-slate-100 shrink-0">
+                  <MessageCircleHeart className={cn("h-4 w-4", healthCheckEnabled ? "text-indigo-600" : "text-slate-400")} />
+                </div>
+                <div className="min-w-0">
+                  <Label htmlFor="health-check-enabled" className="text-[11px] font-black uppercase tracking-widest text-slate-700 cursor-pointer block truncate">Check-in Inicial</Label>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Pergunta antes de abrir o quadro</p>
+                </div>
+              </div>
+              <Switch
+                id="health-check-enabled"
+                checked={healthCheckEnabled}
+                onCheckedChange={onToggleHealthCheck}
+                className="shrink-0 data-[state=checked]:bg-indigo-600"
+              />
+            </div>
+
+            {healthCheckEnabled && (
+              <div className="mt-3 pt-3 border-t border-indigo-100/60 space-y-1.5">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-indigo-600/80">Pergunta exibida</Label>
+                <Textarea
+                  value={localQuestion}
+                  onChange={(e) => handleQuestionChange(e.target.value)}
+                  placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
+                  className="min-h-[54px] text-xs font-bold bg-white border-indigo-200 rounded-xl focus-visible:ring-indigo-500/20"
+                />
+                <p className="text-[9px] font-medium text-slate-400">vazio = usa a pergunta padrão. Some do fluxo se o switch acima ficar desligado.</p>
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
