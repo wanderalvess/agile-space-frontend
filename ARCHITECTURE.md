@@ -40,15 +40,17 @@ O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta perfo
 - **Componentes Chave**: `src/components/daily-flow/DailyFlowGuide.tsx`, `src/app/daily-flow/SquadManagementSheet.tsx`.
 - **Responsabilidade**: Mural de sincronização assíncrona para status diários e impedimentos.
 
-### 🧠 Knowledge Base (Base de Conhecimento)
+### 🧠 Knowledge Base & Chat de Documentação (Base de Conhecimento)
 - **Rotas Principais**:
   - `src/app/knowledge/page.tsx`: Landing page e busca global.
   - `src/app/knowledge/kb/page.tsx`: Visualização de documentos organizados em cartões Bento Grid (Bento Grid Cards) responsivos de alta densidade.
+  - `src/app/knowledge/chat/page.tsx`: Chat de consulta inteligente sobre documentação interna e manuais do TDN.
   - `src/app/knowledge/admin/page.tsx`: Painel administrativo com suporte para:
     - Download em massa (múltiplos arquivos simultaneamente).
     - Sincronização e busca de manuais no TDN via modal padronizado de importação (recebe URL, chave e query).
 - **Componentes Chave**: `src/components/knowledge/GlobalSearch.tsx`, `src/components/knowledge/KnowledgeSidebar.tsx`, `src/components/knowledge/TdnImportDialog.tsx`.
 - **Responsabilidade**: Repositório estruturado de ativos técnicos com busca semântica e integração com sistemas externos.
+- **RAG Vetorial (Backlog Próxima Versão - VM Única)**: Ingestão de documentações vetorizadas diretamente do **WinThor Dev Manager** e consulta em banco PostgreSQL com `pgvector`. O Chat atua via similaridade vetorial (`cosine distance`) de forma autônoma, sem necessidade de chaves nem custos de APIs externas de IA.
 
 ### 🛡️ Secret Vault (Cofre de Segredos)
 - **Rota Principal**: `src/app/vault/[id]/page.tsx`

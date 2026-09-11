@@ -339,18 +339,27 @@ export function RetroControls({
           </div>
         )}
 
-        <div className="w-px h-5 bg-slate-200 mx-1 hidden xl:block" />
+        <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
 
         {/* EXPORT */}
-        <Button 
-          variant="ghost"
-          size="icon"
-          onClick={onExport}
-          className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all hidden lg:flex"
-          title="Exportar Resumo"
-        >
-          <Download className="h-4 w-4" />
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost"
+                size="icon"
+                onClick={onExport}
+                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all flex"
+                title="Exportar Retrospectiva"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+              <p>Exportar Retrospectiva (PDF, Markdown, CSV)</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </>
   );

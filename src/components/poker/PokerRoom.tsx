@@ -58,7 +58,8 @@ import {
   Flag,
   MoreHorizontal,
   CloudDownload,
-  Bot
+  Bot,
+  Ban
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -201,9 +202,11 @@ interface PokerRoomProps {
   onCompleteIssue: (points: string, devPoints?: string, qaPoints?: string, rolePoints?: Record<string, string>) => void;
   onSkipIssue: (note: string) => void;
   onParkIssue?: (note: string) => void;
+  onCancelIssue?: (param1: string, param2?: string) => void;
   onStartSession?: () => void;
   onFinishSession?: () => void;
   onUnskipIssue?: (id: string) => void;
+  onUncancelIssue?: (id: string) => void;
   onRevoteIssue?: (id: string) => void;
   settings?: Room['settings'];
   onUpdateSettings: (settings: Partial<NonNullable<Room['settings']>>) => void;
@@ -264,9 +267,11 @@ const PokerRoomComponent = ({
   onCompleteIssue,
   onSkipIssue,
   onParkIssue,
+  onCancelIssue,
   onStartSession,
   onFinishSession,
   onUnskipIssue,
+  onUncancelIssue,
   onRevoteIssue,
   settings,
   onUpdateSettings,
@@ -287,6 +292,8 @@ const PokerRoomComponent = ({
   const [skipNote, setSkipNote] = useState('');
   const [isParkDialogOpen, setIsParkDialogOpen] = useState(false);
   const [parkNote, setParkNote] = useState('');
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [cancelNote, setCancelNote] = useState('');
   const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
 
   // Esc sai da apresentação: é o gesto que todo mundo tenta primeiro quando
@@ -340,7 +347,7 @@ const PokerRoomComponent = ({
   // sobram itens `pending`, então a checagem antiga (`every completed`) não
   // vale — o marco passa a ser o sessionEndedAt sem nenhum item na mesa.
   const isSessionFinished = !activeIssueId && issuesQueue.length > 0 &&
-    (issuesQueue.every(i => i.status === 'completed' || i.skipped || i.parked) || !!sessionEndedAt);
+    (issuesQueue.every(i => i.status === 'completed' || i.skipped || i.cancelled || i.parked) || !!sessionEndedAt);
 
   const divergences = useMemo(() => {
     const map = new Map<string, 'warning' | 'destructive' | 'none'>();
@@ -395,12 +402,13 @@ const PokerRoomComponent = ({
   const stats = useMemo(() => {
     if (!isSessionFinished) return null;
 
-    const estimatedIssues = issuesQueue.filter(i => !i.skipped && i.status === 'completed');
-    const skippedIssues = issuesQueue.filter(i => i.skipped);
+    const estimatedIssues = issuesQueue.filter(i => !i.skipped && !i.cancelled && i.status === 'completed');
+    const skippedIssues = issuesQueue.filter(i => i.skipped && !i.cancelled);
+    const cancelledIssues = issuesQueue.filter(i => i.cancelled);
     // Adiadas: passaram pelo park ao menos uma vez (parkCount persiste mesmo
     // depois de estimadas). `parked` cobre sessões antigas sem o contador.
     const parkedIssues = issuesQueue.filter(i => (i.parkCount || 0) > 0 || i.parked);
-    const untouchedIssues = issuesQueue.filter(i => !i.skipped && i.status !== 'completed');
+    const untouchedIssues = issuesQueue.filter(i => !i.skipped && !i.cancelled && i.status !== 'completed');
     const breakdown = computeSessionBreakdown(issuesQueue, votingRounds || []);
 
     const totalTopics = estimatedIssues.length;
@@ -444,7 +452,7 @@ const PokerRoomComponent = ({
     return {
       totalTopics, totalPoints, durationStr, avgTimePerTopic, idleMins,
       totalDevHours, totalQaHours,
-      skippedIssues, parkedIssues, untouchedIssues, breakdown,
+      estimatedIssues, skippedIssues, cancelledIssues, parkedIssues, untouchedIssues, breakdown,
     };
   }, [isSessionFinished, issuesQueue, sessionStartedAt, sessionEndedAt, deck, votingRounds]);
 
@@ -644,6 +652,8 @@ const PokerRoomComponent = ({
       onDeleteIssue={onDeleteIssue}
       onUnskipIssue={onUnskipIssue}
       onRevoteIssue={onRevoteIssue}
+      onCancelIssue={onCancelIssue}
+      onUncancelIssue={onUncancelIssue}
       onSetReference={onSetReference}
       referenceIssueId={referenceBaseline?.issueId || null}
       referenceEnabled={!!settings?.referenceStory}
@@ -991,25 +1001,25 @@ const PokerRoomComponent = ({
               </div>
 
               {isCurrentUserFacilitator && activeIssueId && (
-                <div className="flex flex-row flex-wrap gap-2 shrink-0 items-center justify-end">
+                <div className="flex flex-row flex-wrap gap-1.5 lg:gap-2 shrink-0 items-center justify-end">
                   {!votesRevealed ? (
                     <>
                       <Button
                         size="sm"
                         onClick={handleReveal}
                         disabled={votesRevealed || votes.length === 0}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:opacity-100 font-black h-9 px-3 lg:h-11 lg:px-5 text-[9px] lg:text-xs shadow-md rounded-xl group transition-all active:scale-95 uppercase tracking-widest whitespace-nowrap"
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:opacity-100 font-black h-8 px-2.5 lg:h-9 lg:px-4 text-[9px] lg:text-[10px] shadow-sm rounded-xl group transition-all active:scale-95 uppercase tracking-wider whitespace-nowrap"
                       >
-                        <Eye className="mr-1.5 lg:mr-2 h-3.5 w-3.5 lg:h-4 lg:w-4 transition-transform group-hover:scale-110" />
+                        <Eye className="mr-1 lg:mr-1.5 h-3.5 w-3.5 transition-transform group-hover:scale-110" />
                         REVELAR VOTOS
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => { setSkipNote(''); setIsSkipDialogOpen(true); }}
-                        className="h-9 px-3 lg:h-11 lg:px-4 font-black text-[9px] lg:text-xs uppercase tracking-widest rounded-xl border-amber-400/40 dark:border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-700 dark:hover:text-amber-400 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
+                        className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-amber-400/40 dark:border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-700 dark:hover:text-amber-400 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
                       >
-                        <SkipForward className="mr-1.5 lg:mr-2 h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                        <SkipForward className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
                         Pular
                       </Button>
                       {onParkIssue && (
@@ -1018,10 +1028,22 @@ const PokerRoomComponent = ({
                           variant="outline"
                           onClick={() => { setParkNote(''); setIsParkDialogOpen(true); }}
                           title="Adiar — volta pro fim da fila para revisitar nesta sessão"
-                          className="h-9 px-3 lg:h-11 lg:px-4 font-black text-[9px] lg:text-xs uppercase tracking-widest rounded-xl border-slate-300/60 dark:border-border text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
+                          className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-slate-300/60 dark:border-border text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
                         >
-                          <Hourglass className="mr-1.5 lg:mr-2 h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                          <Hourglass className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
                           Adiar
+                        </Button>
+                      )}
+                      {settings?.cancelTask !== false && onCancelIssue && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setCancelNote(''); setIsCancelDialogOpen(true); }}
+                          title="Cancelar tarefa no refinamento"
+                          className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-rose-400/50 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
+                        >
+                          <Ban className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
+                          Cancelar
                         </Button>
                       )}
                     </>
@@ -1032,9 +1054,9 @@ const PokerRoomComponent = ({
                           size="sm"
                           variant="ghost"
                           onClick={() => { onClear(); }}
-                          className="font-black h-9 px-3 lg:h-11 lg:px-5 text-[9px] lg:text-xs text-slate-700 dark:text-slate-300 rounded-none rounded-l-xl focus:ring-0 uppercase tracking-widest whitespace-nowrap border-r border-slate-300/50 dark:border-slate-800 hover:bg-transparent"
+                          className="font-black h-8 px-2.5 lg:h-9 lg:px-3.5 text-[9px] lg:text-[10px] text-slate-700 dark:text-slate-300 rounded-none rounded-l-xl focus:ring-0 uppercase tracking-wider whitespace-nowrap border-r border-slate-300/50 dark:border-slate-800 hover:bg-transparent"
                         >
-                          <RotateCcw className="mr-1.5 lg:mr-2 h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                          <RotateCcw className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
                           <span className="hidden sm:inline">REVOTAR TODOS</span>
                           <span className="inline sm:hidden">REVOTAR</span>
                         </Button>
@@ -1043,9 +1065,9 @@ const PokerRoomComponent = ({
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="font-black h-9 w-8 lg:h-11 lg:w-10 text-slate-700 dark:text-slate-300 px-0 rounded-none rounded-r-xl focus:ring-0 hover:bg-slate-300 dark:hover:bg-slate-800 shrink-0"
+                              className="font-black h-8 w-7 lg:h-9 lg:w-8 text-slate-700 dark:text-slate-300 px-0 rounded-none rounded-r-xl focus:ring-0 hover:bg-slate-300 dark:hover:bg-slate-800 shrink-0"
                             >
-                              <ChevronDown className="h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                              <ChevronDown className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 font-medium rounded-xl p-2 border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-950">
@@ -1077,9 +1099,9 @@ const PokerRoomComponent = ({
                       <Button
                         size="sm"
                         onClick={handleCalculateAndComplete}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-9 px-3 lg:h-11 lg:px-6 text-[9px] lg:text-xs shadow-md rounded-xl transition-all active:scale-95 uppercase tracking-widest whitespace-nowrap"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-8 px-2.5 lg:h-9 lg:px-4 text-[9px] lg:text-[10px] shadow-sm rounded-xl transition-all active:scale-95 uppercase tracking-wider whitespace-nowrap"
                       >
-                        <CheckCircle2 className="mr-1.5 lg:mr-2 h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                        <CheckCircle2 className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
                         {hasNextPending ? 'SALVAR E PRÓX.' : 'SALVAR FINAL'}
                       </Button>
                     </>
@@ -1096,9 +1118,9 @@ const PokerRoomComponent = ({
                       variant="outline"
                       onClick={() => setIsFinishDialogOpen(true)}
                       title="Encerrar a sessão e gerar o relatório — o que sobrar na fila entra como não abordado"
-                      className="h-9 px-3 lg:h-11 lg:px-5 font-black text-[9px] lg:text-xs uppercase tracking-widest rounded-xl border-2 border-rose-400/50 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-500 hover:text-rose-700 dark:hover:text-rose-300 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
+                      className="h-8 px-2.5 lg:h-9 lg:px-3.5 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-2 border-rose-400/50 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-500 hover:text-rose-700 dark:hover:text-rose-300 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
                     >
-                      <Flag className="mr-1.5 lg:mr-2 h-3.5 w-3.5 lg:h-4 lg:w-4" />
+                      <Flag className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
                       <span className="hidden sm:inline">Encerrar Sessão</span>
                       <span className="inline sm:hidden">Encerrar</span>
                     </Button>
@@ -1211,6 +1233,7 @@ const PokerRoomComponent = ({
                       maxRounds={settings?.maxRounds}
                       refinementNotes={settings?.refinementNotes}
                       parkTask={settings?.parkTask}
+                      cancelTask={settings?.cancelTask}
                       divergenceThresholds={settings?.divergenceThresholds}
                       onSetDeck={onSetDeck}
                       onSaveTemplate={handleSaveTemplate}
@@ -1423,6 +1446,11 @@ const PokerRoomComponent = ({
                         {stats.breakdown.skipped} pulada{stats.breakdown.skipped !== 1 ? 's' : ''}
                       </span>
                     )}
+                    {stats.breakdown.cancelled > 0 && (
+                      <span className="px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-700 text-[10px] font-black uppercase tracking-widest border border-rose-500/20">
+                        {stats.breakdown.cancelled} cancelada{stats.breakdown.cancelled !== 1 ? 's' : ''}
+                      </span>
+                    )}
                     {stats.breakdown.parked > 0 && (
                       <span className="px-3 py-1.5 rounded-full bg-sky-500/10 text-sky-700 text-[10px] font-black uppercase tracking-widest border border-sky-500/20">
                         {stats.breakdown.parked} adiada{stats.breakdown.parked !== 1 ? 's' : ''}
@@ -1486,6 +1514,35 @@ const PokerRoomComponent = ({
                             </div>
                             {issue.note && (
                               <p className="mt-4 p-3 bg-amber-50 rounded-xl text-[11px] text-amber-700/70 font-medium italic border border-amber-100/50">
+                                "{issue.note}"
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {stats.cancelledIssues && stats.cancelledIssues.length > 0 && (
+                    <div className="mt-12 space-y-5">
+                      <div className="flex items-center gap-4 px-2">
+                        <span className="text-[10px] font-black uppercase text-rose-600 tracking-[0.2em] whitespace-nowrap">Tarefas Canceladas no Refinamento</span>
+                        <Separator className="flex-1 opacity-10 bg-rose-500" />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {stats.cancelledIssues.map(issue => (
+                          <div key={issue.id} className="group bg-white/50 backdrop-blur-sm border border-rose-200/50 rounded-2xl p-5 flex flex-col justify-between hover:bg-white hover:border-rose-300 transition-all shadow-sm">
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="p-1.5 bg-rose-100 rounded-lg text-rose-600">
+                                  <Ban className="h-4 w-4" />
+                                </div>
+                                <span className="text-[10px] font-black text-rose-600/70 tracking-widest uppercase truncate">{issue.key || 'Tarefa'}</span>
+                              </div>
+                              <h4 className="text-sm font-bold text-slate-800 leading-snug line-through opacity-80">{issue.title}</h4>
+                            </div>
+                            {issue.note && (
+                              <p className="mt-4 p-3 bg-rose-50 rounded-xl text-[11px] text-rose-700/70 font-medium italic border border-rose-100/50">
                                 "{issue.note}"
                               </p>
                             )}
@@ -1869,6 +1926,40 @@ const PokerRoomComponent = ({
               className="bg-slate-700 hover:bg-slate-800 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
             >
               Adiar e Avançar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Task Dialog */}
+      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-rose-600 dark:text-rose-500 flex items-center gap-2">
+              <Ban className="h-5 w-5" />
+              Cancelar Tarefa
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground font-medium">
+                  Por que esta tarefa foi cancelada no refinamento? <span className="opacity-60 text-xs">(Ex: Descartada pelo PO, Escopo duplicado, Descontinuada)</span>
+                </p>
+                <Textarea
+                  value={cancelNote}
+                  onChange={(e) => setCancelNote(e.target.value)}
+                  placeholder="Motivo do cancelamento (opcional)..."
+                  className="resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border focus:border-rose-400 dark:focus:border-rose-500 text-slate-900 dark:text-foreground min-h-[90px]"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { onCancelIssue && onCancelIssue(cancelNote); setIsCancelDialogOpen(false); }}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-rose-600/20"
+            >
+              Confirmar Cancelamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

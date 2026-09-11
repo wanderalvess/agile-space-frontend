@@ -852,10 +852,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     );
     const durationMins = activeMins > 0 ? activeMins : rawMins;
 
-    const estimatedIssues = newQueue.filter(i => !i.skipped && i.status === 'completed');
-    const skippedIssues = newQueue.filter(i => i.skipped);
+    const estimatedIssues = newQueue.filter(i => !i.skipped && !i.cancelled && i.status === 'completed');
+    const skippedIssues = newQueue.filter(i => i.skipped && !i.cancelled);
+    const cancelledIssues = newQueue.filter(i => i.cancelled);
     const parkedIssues = newQueue.filter(i => (i.parkCount || 0) > 0);
-    const untouchedIssues = newQueue.filter(i => !i.skipped && i.status !== 'completed');
+    const untouchedIssues = newQueue.filter(i => !i.skipped && !i.cancelled && i.status !== 'completed');
 
     const totalPoints = estimatedIssues.reduce((acc, issue) => {
       const p = parseFloat(issue.estimatedPoints || '0');
@@ -868,11 +869,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       summary: {
         estimatedTasks: estimatedIssues.map(i => ({ title: i.title, points: i.estimatedPoints })),
         skippedTasks: skippedIssues.map(i => ({ title: i.title, note: i.note || null })),
+        cancelledTasks: cancelledIssues.map(i => ({ title: i.title, note: i.note || null })),
         parkedTasks: parkedIssues.map(i => ({
           title: i.title,
           note: i.parkedNote || null,
           times: i.parkCount || 0,
-          resolved: i.status === 'completed' && !i.skipped,
+          resolved: i.status === 'completed' && !i.skipped && !i.cancelled,
         })),
         untouchedTasks: untouchedIssues.map(i => ({ title: i.title })),
         breakdown,
@@ -880,6 +882,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           totalTopics: breakdown.estimated,
           discussedTopics: breakdown.discussed,
           skippedTopics: breakdown.skipped,
+          cancelledTopics: breakdown.cancelled,
           parkedTopics: breakdown.parked,
           untouchedTopics: breakdown.untouched,
           totalPoints,
@@ -1138,6 +1141,123 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).then(() => {
       handleClear();
       toast({ title: "Tópico Retornado", description: "O tópico voltou para a mesa de votação." });
+    }).catch(err => console.error(err));
+  }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
+
+  const handleCancelIssue = useCallback((param1?: string, param2?: string) => {
+    if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
+
+    let targetIssueId: string | null = null;
+    let noteText = '';
+
+    const isFirstParamIssueId = !!param1 && roomData.issuesQueue.some(i => i.id === param1);
+    if (isFirstParamIssueId) {
+      targetIssueId = param1;
+      noteText = param2 || '';
+    } else {
+      targetIssueId = param2 || roomData.activeIssueId;
+      noteText = param1 || '';
+    }
+
+    if (!targetIssueId) return;
+
+    const issueIdToCancel = targetIssueId;
+    const currentIndex = roomData.issuesQueue.findIndex(i => i.id === issueIdToCancel);
+    if (currentIndex === -1) return;
+
+    const cancelledIssue = roomData.issuesQueue[currentIndex];
+    const isTargetActive = issueIdToCancel === roomData.activeIssueId;
+    const newQueue = [...roomData.issuesQueue];
+    newQueue[currentIndex] = {
+      ...newQueue[currentIndex],
+      status: 'completed',
+      estimatedPoints: null,
+      cancelled: true,
+      skipped: false,
+      note: noteText.trim() || null,
+    };
+
+    let nextIssueId: string | null = roomData.activeIssueId;
+
+    if (isTargetActive) {
+      nextIssueId = null;
+      let nextIndex = newQueue.findIndex((i, idx) => idx > currentIndex && i.status === 'pending');
+      if (nextIndex === -1) {
+        nextIndex = newQueue.findIndex(i => i.status === 'pending');
+      }
+      if (nextIndex !== -1) {
+        newQueue[nextIndex] = { ...newQueue[nextIndex], status: 'active' };
+        nextIssueId = newQueue[nextIndex].id;
+      }
+    }
+
+    const nextIssue = newQueue.find(i => i.id === nextIssueId);
+
+    const cancelledRound: Partial<VotingRound> = {
+      roomId,
+      topic: cancelledIssue.title,
+      issueId: issueIdToCancel,
+      deckType: roomData.deckType,
+      votes: [],
+      stats: { avg: 'N/A', min: 'N/A', max: 'N/A', consensus: false },
+      timestamp: new Date().toISOString(),
+      cancelled: true,
+      note: noteText.trim() || null,
+    };
+
+    pokerApi.saveRound(roomId, cancelledRound).then(() => {
+      let updates: Partial<Room> = {
+        ...roomData,
+        issuesQueue: newQueue,
+        activeIssueId: nextIssueId,
+        currentTopic: nextIssue?.title || (isTargetActive ? '' : roomData.currentTopic),
+        votesRevealed: isTargetActive ? false : roomData.votesRevealed,
+      };
+
+      if (!nextIssueId) {
+        updates = { ...updates, ...buildSessionClosure(newQueue) };
+      }
+
+      pokerApi.saveOrUpdateRoom(updates).then(() => {
+        if (isTargetActive) handleClear();
+        toast({ title: "Tarefa Cancelada", description: "A tarefa foi marcada como cancelada no refinamento." });
+      });
+    }).catch(err => console.error(err));
+  }, [roomData, isCurrentUserFacilitator, roomId, handleClear, toast, buildSessionClosure]);
+
+  const handleUncancelIssue = useCallback((issueId: string) => {
+    if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
+
+    const hasActive = !!roomData.activeIssueId && roomData.issuesQueue.some(i => i.id === roomData.activeIssueId && i.status === 'active');
+
+    const newQueue = roomData.issuesQueue.map((i) => {
+      if (i.id === issueId) {
+        return {
+          ...i,
+          status: hasActive ? 'pending' : 'active',
+          cancelled: false,
+          skipped: false,
+          note: null,
+          estimatedPoints: null,
+          startedAt: null,
+        } as Issue;
+      }
+      return i;
+    });
+
+    const nextActiveId = hasActive ? roomData.activeIssueId : issueId;
+    const activeIssue = newQueue.find(i => i.id === nextActiveId);
+
+    pokerApi.saveOrUpdateRoom({
+      ...roomData,
+      issuesQueue: newQueue,
+      activeIssueId: nextActiveId,
+      currentTopic: activeIssue?.title || roomData.currentTopic,
+      votesRevealed: hasActive ? roomData.votesRevealed : false,
+      sessionEndedAt: undefined,
+    }).then(() => {
+      if (!hasActive) handleClear();
+      toast({ title: "Tarefa Reativada", description: "A tarefa voltou para o refinamento." });
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
 
@@ -1438,9 +1558,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const stableCompleteIssue = useStableCallback(handleCompleteIssue);
   const stableSkipIssue = useStableCallback(handleSkipIssue);
   const stableParkIssue = useStableCallback(handleParkIssue);
+  const stableCancelIssue = useStableCallback(handleCancelIssue);
   const stableStartSession = useStableCallback(handleStartSession);
   const stableFinishSession = useStableCallback(handleFinishSession);
   const stableUnskipIssue = useStableCallback(handleUnskipIssue);
+  const stableUncancelIssue = useStableCallback(handleUncancelIssue);
   const stableRevoteIssue = useStableCallback(handleRevoteIssue);
   const stableUpdateSettings = useStableCallback(handleUpdateSettings);
   const stableClaimFacilitator = useStableCallback(handleClaimFacilitator);
@@ -1557,9 +1679,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onCompleteIssue={stableCompleteIssue}
         onSkipIssue={stableSkipIssue}
         onParkIssue={stableParkIssue}
+        onCancelIssue={stableCancelIssue}
         onStartSession={stableStartSession}
         onFinishSession={stableFinishSession}
         onUnskipIssue={stableUnskipIssue}
+        onUncancelIssue={stableUncancelIssue}
         onRevoteIssue={stableRevoteIssue}
         settings={roomData.settings}
         onUpdateSettings={stableUpdateSettings}

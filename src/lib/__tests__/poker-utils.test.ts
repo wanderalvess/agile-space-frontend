@@ -187,13 +187,14 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
   });
 
   describe('Consolidação da Sessão (computeSessionBreakdown)', () => {
-    it('deve categorizar honestamente tarefas estimadas, puladas e intocadas', () => {
+    it('deve categorizar honestamente tarefas estimadas, puladas, canceladas e intocadas', () => {
       const issues: Issue[] = [
         { id: 'i1', title: 'Item 1', status: 'completed' } as Issue,
         { id: 'i2', title: 'Item 2', status: 'completed' } as Issue,
-        { id: 'i3', title: 'Item 3', status: 'pending', skipped: true } as Issue,
+        { id: 'i3', title: 'Item 3', status: 'completed', skipped: true } as Issue,
         { id: 'i4', title: 'Item 4', status: 'pending', parked: true } as Issue,
         { id: 'i5', title: 'Item 5', status: 'pending' } as Issue,
+        { id: 'i6', title: 'Item 6', status: 'completed', cancelled: true } as Issue,
       ];
 
       const rounds: VotingRound[] = [
@@ -203,10 +204,11 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
 
       const breakdown = computeSessionBreakdown(issues, rounds);
 
-      expect(breakdown.total).toBe(5);
+      expect(breakdown.total).toBe(6);
       expect(breakdown.estimated).toBe(2);
       expect(breakdown.discussed).toBe(2);
       expect(breakdown.skipped).toBe(1);
+      expect(breakdown.cancelled).toBe(1);
       expect(breakdown.parked).toBe(1);
       expect(breakdown.untouched).toBe(2);
     });

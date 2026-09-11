@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Kanban, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass } from 'lucide-react';
+import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Kanban, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass, Ban } from 'lucide-react';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -70,6 +70,8 @@ interface TopicQueueProps {
   onSelectIssue: (issueId: string, autoSavePoints?: { points: string; devPoints?: string; qaPoints?: string }) => void;
   onDeleteIssue: (id: string) => void;
   onUnskipIssue?: (id: string) => void;
+  onCancelIssue?: (id: string, note?: string) => void;
+  onUncancelIssue?: (id: string) => void;
   onRevoteIssue?: (id: string) => void;
   // História de referência (baseline). Só habilitado quando o facilitador liga
   // o toggle; permite fixar um item já estimado como régua (toggle no próprio
@@ -106,6 +108,8 @@ export function TopicQueue({
   onSelectIssue,
   onDeleteIssue,
   onUnskipIssue,
+  onCancelIssue,
+  onUncancelIssue,
   onRevoteIssue,
   onSetReference,
   referenceIssueId,
@@ -134,6 +138,9 @@ export function TopicQueue({
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [isBulkPreview, setIsBulkPreview] = useState(false);
   const [idToDelete, setIdToDelete] = useState<string | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [itemToCancel, setItemToCancel] = useState<Issue | null>(null);
+  const [cancelModalNote, setCancelModalNote] = useState('');
 
   const [isPlanningImportOpen, setIsPlanningImportOpen] = useState(false);
   const [plannings, setPlannings] = useState<any[]>([]);
@@ -687,7 +694,8 @@ export function TopicQueue({
                     </div>
                     <h3 className={cn(
                       "text-[11px] leading-snug line-clamp-2 break-all font-semibold",
-                      isActive ? "text-slate-900 dark:text-foreground font-bold" : "text-slate-600 dark:text-muted-foreground"
+                      isActive ? "text-slate-900 dark:text-foreground font-bold" : "text-slate-600 dark:text-muted-foreground",
+                      issue.cancelled && "line-through opacity-70"
                     )}>
                       {issue.title}
                     </h3>
@@ -696,7 +704,39 @@ export function TopicQueue({
                   <div className="flex items-center justify-between mt-1">
                     <div className="flex items-center gap-2">
                       {isCompleted ? (
-                        issue.skipped ? (
+                        issue.cancelled ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-full border border-rose-200/50 dark:border-rose-900/30">
+                              <Ban className="h-3 w-3" />
+                              CANCELADA
+                            </div>
+                            {issue.note && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-help">
+                                      <MessageSquare className="h-3 w-3" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-xs font-medium bg-slate-900 text-white rounded-xl p-3 border-none shadow-xl">
+                                    <p className="leading-relaxed">{issue.note}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {isFacilitator && onUncancelIssue && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => { e.stopPropagation(); onUncancelIssue(issue.id); }}
+                                className="h-6 w-6 bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-full transition-colors"
+                                title="Reativar Tarefa"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : issue.skipped ? (
                           <div className="flex items-center gap-1.5">
                             <div className="flex items-center gap-1.5 text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-full border border-amber-200/50 dark:border-indigo-900/30">
                               <AlertTriangle className="h-3 w-3" />
@@ -821,6 +861,22 @@ export function TopicQueue({
                           title="Votar Novamente"
                         >
                           <RotateCcw className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {!isCompleted && isFacilitator && onCancelIssue && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToCancel(issue);
+                            setCancelModalNote('');
+                            setIsCancelModalOpen(true);
+                          }}
+                          className="h-6 w-6 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md transition-all"
+                          title="Cancelar no Refinamento"
+                        >
+                          <Ban className="h-3 w-3" />
                         </Button>
                       )}
                       {isFacilitator && (
@@ -1094,6 +1150,61 @@ export function TopicQueue({
               className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-[10px] uppercase tracking-widest px-6"
             >
               Excluir Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isCancelModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsCancelModalOpen(false);
+          setItemToCancel(null);
+          setCancelModalNote('');
+        }
+      }}>
+        <AlertDialogContent className="rounded-3xl border-rose-500/20 bg-card/95 backdrop-blur-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
+                <Ban className="h-5 w-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg font-black uppercase tracking-tight">
+                  Cancelar Tarefa no Refinamento?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-xs text-muted-foreground font-medium mt-0.5">
+                  Esta tarefa será marcada como cancelada na sessão e não será estimada.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Motivo do cancelamento (opcional)
+            </Label>
+            <Textarea
+              value={cancelModalNote}
+              onChange={(e) => setCancelModalNote(e.target.value)}
+              placeholder="Ex: Escopo descartado pelo PO, duplicado, impedimento técnico..."
+              className="min-h-[90px] text-xs resize-none"
+            />
+          </div>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold text-[10px] uppercase">
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (itemToCancel && onCancelIssue) {
+                  onCancelIssue(itemToCancel.id, cancelModalNote.trim() || undefined);
+                  setIsCancelModalOpen(false);
+                  setItemToCancel(null);
+                  setCancelModalNote('');
+                }
+              }}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-6"
+            >
+              Confirmar Cancelamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

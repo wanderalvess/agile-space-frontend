@@ -15,10 +15,15 @@ export function GlobalAnnouncementListener() {
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [activeAnnouncement, setActiveAnnouncement] = useState<{ id: string, message: string, type: string } | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // Só busca se o usuário estiver autenticado — evita chamada desnecessária na tela de login
-    if (!isAuthenticated) return;
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    // Aguarda a montagem do componente e autenticação — evita setState durante render
+    if (!isMounted || !isAuthenticated) return;
 
     let cancelled = false;
 
@@ -53,7 +58,7 @@ export function GlobalAnnouncementListener() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, toast]);
+  }, [isMounted, isAuthenticated, toast]);
 
   return (
     <AnimatePresence>

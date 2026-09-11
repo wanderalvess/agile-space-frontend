@@ -30,6 +30,7 @@ const SETUP_GROUPS = [
   {
     label: 'Opções do facilitador',
     items: [
+      { key: 'cancelTask', title: 'Cancelar tarefa', desc: 'Permite cancelar itens no refinamento' },
       { key: 'parkTask', title: 'Adiar tarefa', desc: 'Volta o item pro fim da fila' },
       { key: 'referenceStory', title: 'História de referência', desc: 'Régua visível na votação' },
       { key: 'roundNudge', title: 'Aviso de rodadas', desc: 'Sugere quebrar ou adiar' },

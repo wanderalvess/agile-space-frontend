@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   CloudDownload, ShieldCheck, Lightbulb, Loader2, Send, AlertTriangle, RotateCcw,
-  Search, CheckCircle2, FileUp, Info, X, ChevronDown, Tag, ExternalLink
+  Search, CheckCircle2, FileUp, Info, X, ChevronDown, Tag, ExternalLink,
+  Bookmark, Globe, User, Plus, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -17,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, JiraIssue } from '@/services/jiraService';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
+import { useSavedJqls } from '@/hooks/useSavedJqls';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 
@@ -39,13 +41,18 @@ export function JiraImportDialog({
     { label: '🙋 Minhas Issues', jql: 'assignee = currentUser() AND status != Done' },
     { label: '🏃 Sprint Atual', jql: 'sprint in openSprints()' },
     { label: '📋 Backlog', jql: 'status = "To Do" ORDER BY rank DESC' },
-    { label: '📺 Review', jql: 'sprint = NumeroDaSprint AND status = Concluído AND (issuetype in (Legislação, História, Story, Participativo, Spike) OR (issuetype = Manutenção AND priority = Crítica))' },
+    { label: '📺 Review DDPDV', jql: 'project = "Varejo Front"  AND sprint = 52188 AND (issuetype in (História, "Débito Técnico", Legislação, Story) OR issuetype in (Manutencao, Manutenção, "Rejeição - Manutenção") AND priority = Crítica OR labels in (ApresentarReview)) AND sprint not in (futureSprints(), openSprints() )' },
+    { label: '📺 Review Geral', jql: 'sprint = NumeroDaSprint AND status = Concluído AND (issuetype in (Legislação, História, Story, Participativo, Spike) OR (issuetype = Manutenção AND priority = Crítica))' },
     { label: '🔍 Refinamento DDWMISSI', jql: 'project = "DDWMISSI" and issuetype != Gestão and issueFunction in linkedIssuesOf("issuetype = Gestão AND summary ~ Refinamento and resolution = unresolved and project= \'DDWMISSI\'")' },
     { label: '✅ Concluídas na Semana', jql: 'assignee = currentUser() AND resolutiondate >= -1w AND status = Done' },
     { label: '⚠️ Bloqueadas', jql: 'assignee = currentUser() AND status = Blocked' },
   ];
 
   const { toast } = useToast();
+  const { savedJqls, saveJql, deleteJql } = useSavedJqls();
+  const [isSaveJqlOpen, setIsSaveJqlOpen] = useState(false);
+  const [newJqlLabel, setNewJqlLabel] = useState('');
+  const [newJqlIsPublic, setNewJqlIsPublic] = useState(false);
   const [tab, setTab] = useState<'xml' | 'api'>('xml');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<JiraIssue[]>([]);
@@ -318,8 +325,22 @@ export function JiraImportDialog({
 
                         <div className="space-y-1.5">
                            <div className="flex items-center justify-between ml-1">
-                             <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Consulta JQL</Label>
-                             <Badge variant="outline" className="text-[7px] font-black uppercase border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-400 tracking-widest bg-white dark:bg-slate-950">Filtro Avançado</Badge>
+                             <div className="flex items-center gap-2">
+                               <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Consulta JQL</Label>
+                               <Badge variant="outline" className="text-[7px] font-black uppercase border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-400 tracking-widest bg-white dark:bg-slate-950">Filtro Avançado</Badge>
+                             </div>
+                             <button
+                               type="button"
+                               disabled={!jql.trim()}
+                               onClick={() => {
+                                 setNewJqlLabel('');
+                                 setNewJqlIsPublic(false);
+                                 setIsSaveJqlOpen(true);
+                               }}
+                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800 disabled:opacity-40 transition-all cursor-pointer"
+                             >
+                               <Bookmark className="h-3 w-3 text-indigo-600 dark:text-indigo-400" /> Salvar JQL
+                             </button>
                            </div>
                           <Textarea
                             value={jql}
@@ -327,7 +348,40 @@ export function JiraImportDialog({
                             placeholder='Ex: sprint = 123 AND status = "In Progress"'
                             className="min-h-[72px] h-[72px] rounded-xl text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all resize-none py-2 px-3 leading-normal"
                           />
-                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                            {/* Saved JQLs (Personalizadas) */}
+                            {savedJqls.map((sj) => (
+                              <div key={sj.id} className="relative group inline-flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setJql(sj.jql)}
+                                  className={cn(
+                                    "px-2.5 py-1 pr-6 rounded-full text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer border flex items-center gap-1",
+                                    sj.isPublic
+                                      ? "bg-emerald-50 dark:bg-emerald-950/35 text-emerald-700 dark:text-emerald-400 border-emerald-200/40 dark:border-emerald-900/30 hover:bg-emerald-100/70"
+                                      : "bg-purple-50 dark:bg-purple-950/35 text-purple-700 dark:text-purple-400 border-purple-200/40 dark:border-purple-900/30 hover:bg-purple-100/70"
+                                  )}
+                                  title={`JQL ${sj.isPublic ? 'Pública' : 'Privada'} | Criado por ${sj.createdBy || 'Usuário'}\n${sj.jql}`}
+                                >
+                                  {sj.isPublic ? <Globe className="h-2.5 w-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" /> : <User className="h-2.5 w-2.5 shrink-0 text-purple-600 dark:text-purple-400" />}
+                                  <span className="truncate max-w-[140px]">{sj.label}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    deleteJql(sj.id);
+                                    toast({ title: "JQL excluída com sucesso." });
+                                  }}
+                                  className="absolute right-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                                  title="Excluir esta JQL salva"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
+
+                            {/* Built-in Presets */}
                             {JQL_PRESETS.map((preset) => (
                               <button
                                 key={preset.label}
@@ -652,6 +706,101 @@ export function JiraImportDialog({
           </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Sub-Modal para Salvar JQL Personalizada */}
+      <Dialog open={isSaveJqlOpen} onOpenChange={setIsSaveJqlOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Bookmark className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
+              Salvar Consulta JQL
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Defina um nome e a visibilidade para reutilizar esta consulta rapidamente nas suas importações.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Preview da Consulta</Label>
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 max-h-24 overflow-y-auto break-all leading-normal">
+                {jql || 'Nenhuma JQL preenchida'}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nome do Filtro</Label>
+              <Input
+                value={newJqlLabel}
+                onChange={(e) => setNewJqlLabel(e.target.value)}
+                placeholder="Ex: Review DDPDV, Meus Bugs, Sprint Ativa"
+                className="h-10 rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Visibilidade do Filtro</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewJqlIsPublic(false)}
+                  className={cn(
+                    "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
+                    !newJqlIsPublic
+                      ? "bg-purple-50/70 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 shadow-xs"
+                      : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <User className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                    <span>Privada</span>
+                  </div>
+                  <span className="text-[9px] opacity-70 leading-tight">Visível apenas no seu navegador/usuário.</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewJqlIsPublic(true)}
+                  className={cn(
+                    "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
+                    newJqlIsPublic
+                      ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 shadow-xs"
+                      : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Pública</span>
+                  </div>
+                  <span className="text-[9px] opacity-70 leading-tight">Compartilhada com toda a squad.</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 justify-end pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveJqlOpen(false)}
+              className="h-9 px-4 rounded-xl font-bold text-xs uppercase"
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!newJqlLabel.trim() || !jql.trim()}
+              onClick={() => {
+                saveJql({ label: newJqlLabel, jql, isPublic: newJqlIsPublic });
+                setIsSaveJqlOpen(false);
+                toast({ title: "JQL salva com sucesso!", description: `Salva como ${newJqlIsPublic ? 'Pública' : 'Privada'}.` });
+              }}
+              className="h-9 px-5 rounded-xl font-extrabold text-xs uppercase bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              Salvar Filtro
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

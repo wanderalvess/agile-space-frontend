@@ -125,7 +125,6 @@ export default function JoltSandboxPage() {
       
       if (inputFromVisual) {
         setInputJson(inputFromVisual);
-        localStorage.removeItem('jolt_visual_input_json');
       }
 
       toast({ 
@@ -679,9 +678,6 @@ export default function JoltSandboxPage() {
 
     try {
       localStorage.setItem('jolt_visual_input_json', inputJson);
-      if (outputJson && outputJson.trim()) {
-        localStorage.setItem('jolt_visual_target_json', outputJson);
-      }
       localStorage.setItem('jolt_visual_imported_from_sandbox', 'true');
       toast({
         title: "Transferindo para o Visual...",

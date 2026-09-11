@@ -310,6 +310,7 @@ export interface Issue {
   rolePoints?: Record<string, string> | null;
   type?: IssueType;
   skipped?: boolean;
+  cancelled?: boolean;
   note?: string | null;
   // Adiado ("park"): devolvido ao fim da fila como pendente para revisitar
   // ainda nesta sessão. Distinto de `skipped` (que finaliza como pulado). É só
@@ -448,6 +449,8 @@ export type Room = {
     // Default off = mantém só o botão "Pular / Adiar" original (skip), sem
     // mudar o comportamento atual dos clientes.
     parkTask?: boolean;
+    // Habilita "Cancelar tarefa" no refinamento (marca a tarefa como descartada/cancelada).
+    cancelTask?: boolean;
   };
 }
 
@@ -501,6 +504,7 @@ export type VotingRound = {
   rolePoints?: Record<string, string> | null;
   timestamp: string;
   skipped?: boolean;
+  cancelled?: boolean;
   note?: string | null;
 }
 

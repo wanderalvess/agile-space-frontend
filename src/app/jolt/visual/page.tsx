@@ -37,6 +37,8 @@ import {
   RefreshCw,
   GitCommit,
   Clock,
+  SlidersHorizontal,
+  Settings2,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
@@ -318,17 +320,21 @@ const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => 
   if (mode === 'smarthub') {
     const spec: any[] = [];
 
-    // 1. base64ToObject
-    spec.push({
-      operation: 'modify-overwrite-beta',
-      spec: {
-        items: {
-          '*': {
-            dadosTransformados: '=base64ToObject',
+    // 1. base64ToObject (Apenas se o JSON de entrada possuir campo base64: conteudo)
+    const hasConteudoTag = inputJson.includes('"conteudo"') || (inputSampleItem && typeof inputSampleItem === 'object' && 'conteudo' in inputSampleItem);
+
+    if (hasConteudoTag) {
+      spec.push({
+        operation: 'custom-totvs',
+        spec: {
+          data: {
+            '*': {
+              conteudo: '=base64ToObject',
+            },
           },
         },
-      },
-    });
+      });
+    }
 
     // 2. idExterno, idInterno, tipoIdInterno
     const idExternoParts = [`'pdvsync-${slugEntity}-'`];
@@ -422,7 +428,15 @@ const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => 
     Object.entries(targetKeysWithValues).forEach(([k, v]) => {
       if (['idExterno', 'idInterno', 'tipoIdInterno'].includes(k)) return;
       if (!mappedTargetCleanSet.has(k)) {
-        defaultItems[k] = v !== undefined ? v : 'string';
+        if (k.toLowerCase() === 'idinquilino') {
+          defaultItems[k] = '{{ID_INQUILINO}}';
+        } else if (k.toLowerCase() === 'loteorigem') {
+          defaultItems[k] = '{{LOTE_ORIGEM}}';
+        } else if (k.toLowerCase() === 'idproprietario' && (v === 'string' || !v)) {
+          defaultItems[k] = '{{MASTER_ID_PROPRIETARIO}}';
+        } else {
+          defaultItems[k] = v !== undefined ? v : 'string';
+        }
       }
     });
 
@@ -430,7 +444,8 @@ const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => 
       spec.push({
         operation: 'default',
         spec: {
-          items: {
+          _attr_access: 'items',
+          'items[]': {
             '*': defaultItems,
           },
         },
@@ -658,7 +673,119 @@ const STORAGE_KEYS = {
   nodes:  'jolt_visual_nodes',
   edges:  'jolt_visual_edges',
   spec:   'jolt_visual_generated_spec',
+  useEnvelope: 'jolt_visual_use_envelope',
+  envelopeTemplate: 'jolt_visual_envelope_template',
 } as const;
+
+export const DEFAULT_ENVELOPE_TEMPLATE = JSON.stringify(
+  {
+    tabela: {
+      nome: 'PCINTEGRACAOROTASERVICO',
+      campos: [
+        {
+          nome: 'SOMENTEATUALIZARINTEGRACAOCORE',
+          valor: 'N',
+        },
+        {
+          nome: 'ID',
+          valor: 'WTA - Buscar dados',
+        },
+        {
+          nome: 'IDEMPRESAAPI',
+          valor: 'WINTHOR-WTA',
+        },
+        {
+          nome: 'SERVICO',
+          valor: 'WTA - Buscar dados',
+        },
+        {
+          nome: 'LAYOUTCOMUNICACAO',
+          valor: {
+            name: 'WTA - Buscar dados',
+            request: {
+              method: 'GET',
+              header: [
+                {
+                  key: 'Authorization',
+                  value: 'Bearer {{TOKEN}}',
+                },
+                {
+                  key: 'Accept',
+                  value: '*/*',
+                },
+              ],
+              url: {
+                raw: '{{URL_BASE}}/winthor/venda/v0/servico/pdv-sync',
+              },
+            },
+            response: [],
+          },
+        },
+        {
+          nome: 'LAYOUTTRANSFORMACAO',
+          valor: '_JOLT_SPEC_',
+        },
+        {
+          nome: 'ATIVO',
+          valor: 'S',
+        },
+        {
+          nome: 'AUTENTICADOR',
+          valor: 'N',
+        },
+        {
+          nome: 'DATASINCRONISMO',
+          valor: '14-NOV-23',
+        },
+        {
+          nome: 'REFRESHTOKEN',
+          valor: '',
+        },
+        {
+          nome: 'TIPOPROCESSO',
+          valor: 'BUSCAR',
+        },
+      ],
+    },
+  },
+  null,
+  2
+);
+
+export function injectSpecIntoEnvelope(specArray: any[], templateStr: string): string {
+  try {
+    if (!templateStr || !templateStr.trim()) {
+      return JSON.stringify(specArray, null, 2);
+    }
+    
+    // Se tiver a tag literal "_JOLT_SPEC_"
+    if (templateStr.includes('"_JOLT_SPEC_"')) {
+      const specJson = JSON.stringify(specArray, null, 2);
+      const injected = templateStr.replace('"_JOLT_SPEC_"', specJson);
+      return JSON.stringify(JSON.parse(injected), null, 2);
+    }
+    
+    if (templateStr.includes('_JOLT_SPEC_')) {
+      const specJson = JSON.stringify(specArray, null, 2);
+      const injected = templateStr.replace('_JOLT_SPEC_', specJson);
+      return JSON.stringify(JSON.parse(injected), null, 2);
+    }
+
+    // Fallback: parse como JSON e procura campo LAYOUTTRANSFORMACAO
+    const parsed = JSON.parse(templateStr);
+    if (parsed?.tabela?.campos && Array.isArray(parsed.tabela.campos)) {
+      const campo = parsed.tabela.campos.find((c: any) => c.nome === 'LAYOUTTRANSFORMACAO');
+      if (campo) {
+        campo.valor = specArray;
+        return JSON.stringify(parsed, null, 2);
+      }
+    }
+
+    return JSON.stringify(specArray, null, 2);
+  } catch {
+    return JSON.stringify(specArray, null, 2);
+  }
+}
 
 export interface VisualProject {
   id: string;
@@ -721,12 +848,17 @@ export default function VisualJoltMapperPage() {
 
   // Panel state
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isCanvasPanelOpen, setIsCanvasPanelOpen] = useState(true);
   const [sourceExpanded, setSourceExpanded] = useState(true);
   const [targetExpanded, setTargetExpanded] = useState(true);
 
   // Modo de geração (SmartHub vs Direto) e Entidade
   const [mappingMode, setMappingMode] = useState<'smarthub' | 'direct'>('smarthub');
   const [entityName, setEntityName] = useState('');
+  const [useEnvelopeTemplate, setUseEnvelopeTemplate] = useState(false);
+  const [envelopeTemplate, setEnvelopeTemplate] = useState<string>(DEFAULT_ENVELOPE_TEMPLATE);
+  const [templateDraft, setTemplateDraft] = useState<string>(DEFAULT_ENVELOPE_TEMPLATE);
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewSpec, setPreviewSpec] = useState('');
   const [isCopied, setIsCopied] = useState(false);
@@ -768,6 +900,12 @@ export default function VisualJoltMapperPage() {
     if (s.target !== DEFAULT_TARGET) setTargetJson(s.target);
     if (s.nodes.length > 0)  setNodes(s.nodes);
     if (s.edges.length > 0)  setEdges(s.edges);
+
+    const savedUseEnvelope = localStorage.getItem(STORAGE_KEYS.useEnvelope) === 'true';
+    const savedTemplate = localStorage.getItem(STORAGE_KEYS.envelopeTemplate) || DEFAULT_ENVELOPE_TEMPLATE;
+    setUseEnvelopeTemplate(savedUseEnvelope);
+    setEnvelopeTemplate(savedTemplate);
+    setTemplateDraft(savedTemplate);
 
     // Detecta importação vinda do Sandbox
     const importedFromSandbox = localStorage.getItem('jolt_visual_imported_from_sandbox');
@@ -828,8 +966,18 @@ export default function VisualJoltMapperPage() {
       }));
 
       const allNodes = [...sourceNodes, ...targetNodes];
-      setNodes(allNodes);
-      localStorage.setItem(STORAGE_KEYS.nodes, JSON.stringify(allNodes));
+      setNodes((prevNodes) => {
+        const prevNodesMap = new Map(prevNodes.map(n => [n.id, n]));
+        const preservedNodes = allNodes.map(node => {
+          const prevNode = prevNodesMap.get(node.id);
+          if (prevNode) {
+            return { ...node, position: prevNode.position };
+          }
+          return node;
+        });
+        localStorage.setItem(STORAGE_KEYS.nodes, JSON.stringify(preservedNodes));
+        return preservedNodes;
+      });
 
       // Preserva conexões existentes que ainda são válidas
       const validSourceIds = new Set(sourceNodes.map((n) => n.id));
@@ -895,6 +1043,32 @@ export default function VisualJoltMapperPage() {
       toast({ title: 'Conexão removida!' });
     },
     [setEdges, toast],
+  );
+
+  const onEdgesDelete = useCallback(
+    (deletedEdges: Edge[]) => {
+      setEdges((eds) => {
+        const deletedIds = new Set(deletedEdges.map((e) => e.id));
+        const newEdges = eds.filter((e) => !deletedIds.has(e.id));
+        localStorage.setItem(STORAGE_KEYS.edges, JSON.stringify(newEdges));
+        return newEdges;
+      });
+      toast({
+        title: 'Conexão removida!',
+        description: `${deletedEdges.length} vínculo(s) excluído(s) com sucesso.`,
+      });
+    },
+    [setEdges, toast],
+  );
+
+  const onEdgeClick = useCallback(
+    (_event: React.MouseEvent, _edge: any) => {
+      toast({
+        title: 'Conexão Selecionada',
+        description: 'Pressione Delete ou Backspace no teclado (ou dê duplo clique) para remover esta conexão.',
+      });
+    },
+    [toast],
   );
 
   const handleClearSession = useCallback(() => {
@@ -1230,14 +1404,17 @@ export default function VisualJoltMapperPage() {
     }));
 
     try {
-      const specResult = generateJoltSpec(mappings, {
+      const rawSpec = generateJoltSpec(mappings, {
         mode: mappingMode,
         entityName,
         inputJson,
         targetJson,
       });
 
-      const formattedSpec = JSON.stringify(specResult, null, 2);
+      const formattedSpec = useEnvelopeTemplate
+        ? injectSpecIntoEnvelope(rawSpec, envelopeTemplate)
+        : JSON.stringify(rawSpec, null, 2);
+
       setPreviewSpec(formattedSpec);
       setPreviewTab('spec');
       setPreviewOutput('');
@@ -1258,7 +1435,7 @@ export default function VisualJoltMapperPage() {
         variant: 'destructive',
       });
     }
-  }, [edges, mappingMode, entityName, inputJson, targetJson, toast]);
+  }, [edges, mappingMode, entityName, inputJson, targetJson, useEnvelopeTemplate, envelopeTemplate, toast]);
 
   const handleRunPreview = useCallback(async () => {
     if (!previewSpec) return;
@@ -1322,15 +1499,19 @@ export default function VisualJoltMapperPage() {
       type: 'direct',
     }));
 
-    const specResult = generateJoltSpec(mappings, {
+    const rawSpec = generateJoltSpec(mappings, {
       mode: mappingMode,
       entityName,
       inputJson,
       targetJson,
     });
 
+    const finalSpec = useEnvelopeTemplate
+      ? injectSpecIntoEnvelope(rawSpec, envelopeTemplate)
+      : JSON.stringify(rawSpec, null, 2);
+
     // Persist everything before navigating
-    localStorage.setItem(STORAGE_KEYS.spec,   JSON.stringify(specResult, null, 2));
+    localStorage.setItem(STORAGE_KEYS.spec,   finalSpec);
     localStorage.setItem(STORAGE_KEYS.input,  inputJson);
     localStorage.setItem(STORAGE_KEYS.target, targetJson);
     localStorage.setItem(STORAGE_KEYS.nodes,  JSON.stringify(nodes));
@@ -1720,6 +1901,9 @@ export default function VisualJoltMapperPage() {
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
                 onEdgeDoubleClick={onEdgeDoubleClick}
+                onEdgeClick={onEdgeClick}
+                onEdgesDelete={onEdgesDelete}
+                deleteKeyCode={['Backspace', 'Delete']}
                 nodeTypes={nodeTypes}
                 fitView
                 fitViewOptions={{ padding: 0.25 }}
@@ -1737,149 +1921,219 @@ export default function VisualJoltMapperPage() {
                 />
 
                 {/* Canvas action panel */}
-                <Panel position="top-right">
-                  <div className="flex flex-col gap-2.5 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xl w-64">
-                    {/* Header do painel com contador */}
-                    <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                        Painel de Ações
-                      </span>
-                      <span className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded-full transition-all",
-                        edges.length > 0
-                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-                      )}>
-                        {edges.length} {edges.length === 1 ? 'conexão' : 'conexões'}
-                      </span>
-                    </div>
-
-                    {/* Botão Primário em Destaque: Gerar / Ver Spec */}
-                    <div className="flex flex-col gap-1.5 pt-0.5">
-                      <Button
-                        onClick={handlePreviewSpec}
-                        size="sm"
-                        className={cn(
-                          "w-full h-9 text-xs font-bold justify-center gap-2 rounded-xl transition-all shadow-md",
-                          edges.length > 0
-                            ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 ring-2 ring-emerald-500/40"
-                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                        )}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                        <span>{edges.length > 0 ? `Gerar Spec Jolt (${edges.length})` : 'Gerar / Ver Spec'}</span>
-                      </Button>
-
-                      <Button
-                        onClick={generateSpecFromEdges}
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-8 text-xs font-semibold justify-center gap-2 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 rounded-xl transition-all"
-                      >
-                        <Sparkles className="h-3.5 w-3.5 text-emerald-500" /> Abrir no Sandbox
-                      </Button>
-                    </div>
-
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                    {/* Modo de Saída Jolt */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                        Modo de Saída
-                      </label>
-                      <Select value={mappingMode} onValueChange={(val: any) => setMappingMode(val)}>
-                        <SelectTrigger className="h-8 px-2.5 text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl focus:ring-0">
-                          <div className="flex items-center gap-2">
-                            {mappingMode === 'smarthub' ? (
-                              <Layers className="h-3.5 w-3.5 text-sky-500" />
-                            ) : (
-                              <Boxes className="h-3.5 w-3.5 text-emerald-500" />
-                            )}
-                            <SelectValue />
-                          </div>
-                        </SelectTrigger>
-                        <SelectContent className="text-xs">
-                          <SelectItem value="smarthub" className="text-xs font-medium">
-                            <div className="flex items-center gap-2">
-                              <Layers className="h-3.5 w-3.5 text-sky-500" />
-                              <span>SmartHub (Envelope)</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="direct" className="text-xs font-medium">
-                            <div className="flex items-center gap-2">
-                              <Boxes className="h-3.5 w-3.5 text-emerald-500" />
-                              <span>Direto (Array Puro)</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {mappingMode === 'smarthub' && (
-                        <div className="space-y-1 pt-1">
-                          <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                            Entidade (Opcional)
-                          </label>
-                          <Input
-                            value={entityName}
-                            onChange={(e) => setEntityName(e.target.value)}
-                            placeholder="Ex: CAMPANHA-OFERTA"
-                            className="h-8 text-xs font-mono uppercase bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-xl placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                            title="Nome da Entidade para idExterno e tipoIdInterno"
-                          />
+                <Panel position="top-right" className="!mt-4 !mr-4 z-50">
+                  {isCanvasPanelOpen ? (
+                    <div className="flex flex-col gap-2.5 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xl w-64 transition-all">
+                      {/* Header do painel com contador */}
+                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                            Painel de Ações
+                          </span>
+                          <span className={cn(
+                            "text-[10px] font-bold px-2 py-0.5 rounded-full transition-all",
+                            edges.length > 0
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                              : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                          )}>
+                            {edges.length} {edges.length === 1 ? 'conexão' : 'conexões'}
+                          </span>
                         </div>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsCanvasPanelOpen(false)}
+                          className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg shrink-0"
+                          title="Recolher painel"
+                        >
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Botão Primário em Destaque: Gerar / Ver Spec */}
+                      <div className="flex flex-col gap-1.5 pt-0.5">
+                        <Button
+                          onClick={handlePreviewSpec}
+                          size="sm"
+                          className={cn(
+                            "w-full h-9 text-xs font-bold justify-center gap-2 rounded-xl transition-all shadow-md",
+                            edges.length > 0
+                              ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 ring-2 ring-emerald-500/40"
+                              : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                          )}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          <span>{edges.length > 0 ? `Gerar Spec Jolt (${edges.length})` : 'Gerar / Ver Spec'}</span>
+                        </Button>
+
+                        <Button
+                          onClick={generateSpecFromEdges}
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-8 text-xs font-semibold justify-center gap-2 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 rounded-xl transition-all"
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-emerald-500" /> Abrir no Sandbox
+                        </Button>
+                      </div>
+
+                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
+
+                      {/* Modo de Saída Jolt */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                          Modo de Saída
+                        </label>
+                        <Select value={mappingMode} onValueChange={(val: any) => setMappingMode(val)}>
+                          <SelectTrigger className="h-8 px-2.5 text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl focus:ring-0">
+                            <div className="flex items-center gap-2">
+                              {mappingMode === 'smarthub' ? (
+                                <Layers className="h-3.5 w-3.5 text-sky-500" />
+                              ) : (
+                                <Boxes className="h-3.5 w-3.5 text-emerald-500" />
+                              )}
+                              <SelectValue />
+                            </div>
+                          </SelectTrigger>
+                          <SelectContent className="text-xs">
+                            <SelectItem value="smarthub" className="text-xs font-medium">
+                              <div className="flex items-center gap-2">
+                                <Layers className="h-3.5 w-3.5 text-sky-500" />
+                                <span>SmartHub (Envelope)</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="direct" className="text-xs font-medium">
+                              <div className="flex items-center gap-2">
+                                <Boxes className="h-3.5 w-3.5 text-emerald-500" />
+                                <span>Direto (Array Puro)</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {mappingMode === 'smarthub' && (
+                          <div className="space-y-1 pt-1">
+                            <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                              Entidade (Opcional)
+                            </label>
+                            <Input
+                              value={entityName}
+                              onChange={(e) => setEntityName(e.target.value)}
+                              placeholder="Ex: PRECOPROMOCIONAL"
+                              className="h-8 text-xs font-mono uppercase bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-xl placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                              title="Nome da Entidade para idExterno e tipoIdInterno"
+                            />
+                          </div>
+                        )}
+
+                        {/* Configuração de Template de Integração (Winthor/Tabela) */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                              Envelope Integração
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = !useEnvelopeTemplate;
+                                setUseEnvelopeTemplate(next);
+                                localStorage.setItem(STORAGE_KEYS.useEnvelope, String(next));
+                              }}
+                              className={cn(
+                                "text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all select-none",
+                                useEnvelopeTemplate
+                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
+                              )}
+                            >
+                              {useEnvelopeTemplate ? "ATIVADO" : "DESATIVADO"}
+                            </button>
+                          </div>
+
+                          {useEnvelopeTemplate && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setTemplateDraft(envelopeTemplate);
+                                setIsTemplateDialogOpen(true);
+                              }}
+                              className="w-full h-7 text-[11px] font-semibold justify-center gap-1.5 border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 rounded-xl transition-all"
+                            >
+                              <Settings2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                              Configurar Envelope
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
+
+                      {/* Ferramentas de Mapeamento */}
+                      <div className="flex flex-col gap-1.5">
+                        <Button
+                          onClick={autoMapNodes}
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 text-xs font-semibold justify-start gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl shadow-none transition-all"
+                        >
+                          <Wand2 className="h-3.5 w-3.5 text-emerald-500" /> Auto-Mapear Campos
+                        </Button>
+
+                        <Button
+                          onClick={() => analyzeStructures()}
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs font-semibold justify-start gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                          title="Recarrega os campos a partir dos JSONs das abas laterais (mantém conexões compatíveis)"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 text-slate-500" /> Recarregar Campos JSON
+                        </Button>
+                      </div>
+
+                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
+
+                      {/* Ações de limpeza */}
+                      <div className="flex gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEdges([])}
+                          disabled={edges.length === 0}
+                          className="flex-1 h-7 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200/60 dark:border-slate-800 rounded-lg transition-all disabled:opacity-30"
+                          title="Apagar apenas as conexões desenhadas"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Limpar
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleClearSession}
+                          className="flex-1 h-7 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200/60 dark:border-slate-800 rounded-lg transition-all"
+                          title="Resetar tudo — JSONs, nós e conexões"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" /> Resetar
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={() => setIsCanvasPanelOpen(true)}
+                      size="sm"
+                      className="h-9 px-3 text-xs font-bold bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-200 rounded-xl shadow-lg gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                      title="Expandir Painel de Ações"
+                    >
+                      <SlidersHorizontal className="h-4 w-4 text-emerald-500" />
+                      <span>Painel de Ações</span>
+                      {edges.length > 0 && (
+                        <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                          {edges.length}
+                        </span>
                       )}
-                    </div>
-
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                    {/* Ferramentas de Mapeamento */}
-                    <div className="flex flex-col gap-1.5">
-                      <Button
-                        onClick={autoMapNodes}
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 text-xs font-semibold justify-start gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl shadow-none transition-all"
-                      >
-                        <Wand2 className="h-3.5 w-3.5 text-emerald-500" /> Auto-Mapear Campos
-                      </Button>
-
-                      <Button
-                        onClick={() => analyzeStructures()}
-                        variant="outline"
-                        size="sm"
-                        className="h-8 text-xs font-semibold justify-start gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                        title="Recarrega os campos a partir dos JSONs das abas laterais (mantém conexões compatíveis)"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5 text-slate-500" /> Recarregar Campos JSON
-                      </Button>
-                    </div>
-
-                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                    {/* Ações de limpeza */}
-                    <div className="flex gap-1.5">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEdges([])}
-                        disabled={edges.length === 0}
-                        className="flex-1 h-7 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200/60 dark:border-slate-800 rounded-lg transition-all disabled:opacity-30"
-                        title="Apagar apenas as conexões desenhadas"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" /> Limpar
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearSession}
-                        className="flex-1 h-7 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200/60 dark:border-slate-800 rounded-lg transition-all"
-                        title="Resetar tudo — JSONs, nós e conexões"
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1" /> Resetar
-                      </Button>
-                    </div>
-                  </div>
+                    </Button>
+                  )}
                 </Panel>
 
                 {/* Barra Flutuante de Ação Rápida no Canvas */}
@@ -2375,6 +2629,85 @@ export default function VisualJoltMapperPage() {
               >
                 Fechar
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Modal de Configuração do Template de Integração (Winthor/PCINTEGRACAOROTASERVICO) ─── */}
+        <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+          <DialogContent className="max-w-3xl h-[85vh] max-h-[88vh] flex flex-col p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+            <DialogHeader className="shrink-0">
+              <div className="flex items-center justify-between pr-6">
+                <div>
+                  <DialogTitle className="text-base font-bold tracking-tight flex items-center gap-2">
+                    <Settings2 className="h-4 w-4 text-emerald-500" />
+                    Template do Envelope de Integração
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Defina o payload completo da tabela de integração (ex: Winthor / PCINTEGRACAOROTASERVICO).
+                    Use <code className="text-emerald-600 dark:text-emerald-400 font-mono font-bold bg-emerald-50 dark:bg-emerald-950/50 px-1 py-0.5 rounded border border-emerald-500/20">"_JOLT_SPEC_"</code> no valor do campo onde o array Jolt deve ser injetado.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="flex-1 min-h-0 relative border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+              <Editor
+                height="100%"
+                language="json"
+                theme={isDark ? 'vs-dark' : 'light'}
+                value={templateDraft}
+                onChange={(val) => setTemplateDraft(val || '')}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 12,
+                  wordWrap: 'on',
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  tabSize: 2,
+                }}
+              />
+            </div>
+
+            <DialogFooter className="gap-2 shrink-0 pt-2 flex items-center justify-between sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setTemplateDraft(DEFAULT_ENVELOPE_TEMPLATE)}
+                className="rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300"
+              >
+                Restaurar Padrão Winthor
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsTemplateDialogOpen(false)}
+                  className="rounded-xl text-xs font-semibold"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setEnvelopeTemplate(templateDraft);
+                    localStorage.setItem(STORAGE_KEYS.envelopeTemplate, templateDraft);
+                    setIsTemplateDialogOpen(false);
+                    toast({
+                      title: "Template Salvo!",
+                      description: "O envelope de integração foi atualizado e será usado na geração da Spec."
+                    });
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold gap-1.5 shadow-md shadow-emerald-500/20"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Salvar Template
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

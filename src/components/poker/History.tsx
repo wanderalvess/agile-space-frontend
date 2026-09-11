@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   RotateCw,
+  Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -239,7 +240,11 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                     </div>
                     {/* Resumo da rodada: o que já era gravado mas ficava só no banco. */}
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {round.skipped ? (
+                      {round.cancelled ? (
+                        <Badge variant="outline" className="gap-1 text-[10px] font-bold border-rose-400/40 text-rose-600 dark:text-rose-400">
+                          <Ban className="h-3 w-3" /> cancelada
+                        </Badge>
+                      ) : round.skipped ? (
                         <Badge variant="outline" className="gap-1 text-[10px] font-bold border-amber-400/40 text-amber-600 dark:text-amber-400">
                           <SkipForward className="h-3 w-3" /> pulada
                         </Badge>
@@ -285,7 +290,22 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {round.skipped ? (
+                  {round.cancelled ? (
+                    <div className="flex flex-col gap-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-black text-rose-600 uppercase tracking-widest bg-rose-500/10 px-3 py-1 rounded-full border border-rose-400/20">
+                          <Ban className="h-3 w-3" />
+                          Tarefa Cancelada no Refinamento
+                        </div>
+                      </div>
+                      {round.note && (
+                        <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">
+                          <MessageSquare className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />
+                          <p className="font-medium italic">"{round.note}"</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : round.skipped ? (
                     <div className="flex flex-col gap-3 py-2">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-600 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-400/20">
@@ -316,7 +336,7 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                     </div>
                   </div>
                   )}
-                  {!round.skipped && (
+                  {!round.skipped && !round.cancelled && (
                   <>
                   {roleEntries.length > 0 && (
                     <div className="mb-4">

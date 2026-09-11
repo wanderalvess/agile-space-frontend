@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Settings, Users, Eye, WalletCards, AlertTriangle, Save, BarChart3, ShieldCheck, HelpCircle, Clock, FileText, Bell, TrendingUp, CheckCircle2, RotateCcw, Smile, Search, Pin, Layers, Sparkles, Hourglass } from 'lucide-react';
+import { Settings, Users, Eye, WalletCards, AlertTriangle, Save, BarChart3, ShieldCheck, HelpCircle, Clock, FileText, Bell, TrendingUp, CheckCircle2, RotateCcw, Smile, Search, Pin, Layers, Sparkles, Hourglass, Ban } from 'lucide-react';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from 'lucide-react';
 
 type DivergenceThresholds = { warn: number; high: number };
-type FacilitatorSettings = { allowManagementToVote?: boolean; autoReveal?: boolean; divergenceThresholds?: DivergenceThresholds; outlierPrompt?: boolean; confidenceVote?: boolean; showVelocity?: boolean; anonymousReveal?: boolean; turnNotification?: boolean; showDistribution?: boolean; decisionNotes?: boolean; perTopicTime?: boolean; autoTimer?: boolean; groomingFlag?: boolean; autoConsensus?: boolean; suggestRevote?: boolean; reactions?: boolean; groupVotesByRole?: boolean; referenceStory?: boolean; roundNudge?: boolean; maxRounds?: number; refinementNotes?: boolean; parkTask?: boolean };
+type FacilitatorSettings = { allowManagementToVote?: boolean; autoReveal?: boolean; divergenceThresholds?: DivergenceThresholds; outlierPrompt?: boolean; confidenceVote?: boolean; showVelocity?: boolean; anonymousReveal?: boolean; turnNotification?: boolean; showDistribution?: boolean; decisionNotes?: boolean; perTopicTime?: boolean; autoTimer?: boolean; groomingFlag?: boolean; autoConsensus?: boolean; suggestRevote?: boolean; reactions?: boolean; groupVotesByRole?: boolean; referenceStory?: boolean; roundNudge?: boolean; maxRounds?: number; refinementNotes?: boolean; parkTask?: boolean; cancelTask?: boolean };
 
 interface FacilitatorPanelProps {
   deck: DeckType;
@@ -50,6 +50,7 @@ interface FacilitatorPanelProps {
   maxRounds?: number;
   refinementNotes?: boolean;
   parkTask?: boolean;
+  cancelTask?: boolean;
   divergenceThresholds?: DivergenceThresholds;
   onUpdateSettings: (settings: Partial<FacilitatorSettings>) => void;
   onSetDeck?: (deck: DeckType) => void;
@@ -116,6 +117,7 @@ export function FacilitatorPanel({
   maxRounds,
   refinementNotes,
   parkTask,
+  cancelTask,
   divergenceThresholds,
   onUpdateSettings,
   onSetDeck,
@@ -149,6 +151,7 @@ export function FacilitatorPanel({
     { id: 'reactions', icon: Smile, title: 'Reações (emoji)', desc: 'Barra durante a votação', tab: 'votacao', value: !!reactions, key: 'reactions' },
     { id: 'reference-story', icon: Pin, title: 'História de referência', desc: 'Régua visível na votação', tab: 'votacao', value: !!referenceStory, key: 'referenceStory', visible: showRoundFeatures },
     { id: 'round-nudge', icon: Layers, title: 'Aviso de rodadas', desc: 'Sugere quebrar/adiar após N', tab: 'votacao', value: !!roundNudge, key: 'roundNudge', visible: showRoundFeatures },
+    { id: 'cancel-task', icon: Ban, title: 'Cancelar tarefa', desc: 'Permite cancelar itens no refinamento', tab: 'votacao', value: !!cancelTask, key: 'cancelTask', visible: showRoundFeatures },
     { id: 'park-task', icon: Hourglass, title: 'Adiar tarefa', desc: 'Volta o item pro fim da fila', tab: 'votacao', value: !!parkTask, key: 'parkTask', visible: showRoundFeatures },
     { id: 'auto-reveal', icon: Eye, title: 'Revelar automaticamente', desc: 'Quando todos votarem', tab: 'revelacao', value: !!autoReveal, key: 'autoReveal', visible: showAutoReveal },
     { id: 'anonymous-reveal', icon: Eye, title: 'Revelação anônima', desc: 'Esconde quem votou o quê', tab: 'revelacao', value: !!anonymousReveal, key: 'anonymousReveal' },

@@ -63,6 +63,12 @@
         <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in openSprints() AND status != Cancelled'>⚡ Sprint Aberta</button>
         <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in futureSprints()'>📅 Próxima Sprint</button>
         <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND status != Cancelled ORDER BY created DESC'>🔍 Últimas do Projeto</button>
+        <button type="button" class="jql-helper-btn" data-jql-example='project = "Varejo Front"  AND sprint = 52188 AND (issuetype in (História, "Débito Técnico", Legislação, Story) OR issuetype in (Manutencao, Manutenção, "Rejeição - Manutenção") AND priority = Crítica OR labels in (ApresentarReview)) AND sprint not in (futureSprints(), openSprints() )'>📊 Review DDPDV</button>
+        <button type="button" class="jql-helper-btn" id="btn-open-save-jql" style="border-style:dashed;">💾 Salvar Atual</button>
+      </div>
+      <div id="custom-jqls-container" style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">Salvas:</span>
+        <div id="custom-jqls-list" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
 
       <div class="btn-row">
@@ -70,6 +76,21 @@
         <button class="btn" type="button" data-action="toggle-config">Fechar</button>
       </div>
     </section>
+
+    <!-- Modal simples para salvar JQL -->
+    <dialog id="modal-save-jql" style="border:none; border-radius:8px; padding:16px; background:var(--surface); color:var(--text); box-shadow:0 4px 12px rgba(0,0,0,0.15); max-width:400px; width:100%;">
+      <h3 style="margin-top:0; font-size:16px;">Salvar JQL Personalizada</h3>
+      <label style="display:block; margin-bottom:4px; font-size:13px;">Nome da JQL</label>
+      <input type="text" id="jql-save-name" style="width:100%; box-sizing:border-box; margin-bottom:12px; padding:8px; border:1px solid var(--border); border-radius:4px; background:var(--bg); color:var(--text);" placeholder="Ex: Bugs Críticos" />
+      <label style="display:block; margin-bottom:16px; font-size:13px; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="jql-save-public" />
+        Salvar como Pública (visível para todos)
+      </label>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="btn" id="btn-cancel-save-jql">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-save-jql">Salvar</button>
+      </div>
+    </dialog>
 
     <div id="error-area"></div>
     <div id="warning-area"></div>
@@ -168,6 +189,143 @@
           input.dispatchEvent(new Event('input', { bubbles: true }));
           input.focus();
         }
+      }
+    });
+
+    // --- Lógica para salvar e carregar JQLs customizadas ---
+    const PUBLIC_KEY = 'agile_jql_presets_public';
+
+    function getSavedJqls() {
+      let publicList = [];
+      let privateList = [];
+      try {
+        const pubRaw = localStorage.getItem(PUBLIC_KEY);
+        if (pubRaw) publicList = JSON.parse(pubRaw);
+      } catch (e) {}
+
+      // Busca todas as JQLs privadas de qualquer userId logado no Espaço Ágil na mesma origem
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('agile_jql_presets_private_')) {
+          try {
+            const privRaw = localStorage.getItem(key);
+            if (privRaw) privateList = privateList.concat(JSON.parse(privRaw));
+          } catch(e) {}
+        }
+      }
+
+      const allMap = new Map();
+      publicList.forEach(item => allMap.set(item.id, { ...item, isPublic: true }));
+      privateList.forEach(item => allMap.set(item.id, { ...item, isPublic: false }));
+      
+      return Array.from(allMap.values()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    function renderSavedJqls() {
+      const container = document.getElementById('custom-jqls-container');
+      const list = document.getElementById('custom-jqls-list');
+      if (!list || !container) return;
+      
+      const jqls = getSavedJqls();
+      if (jqls.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      container.style.display = 'flex';
+      list.innerHTML = '';
+      
+      jqls.forEach(j => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'jql-helper-btn';
+        btn.innerHTML = `${j.isPublic ? '🌐' : '🔒'} ${j.label}`;
+        btn.title = j.jql;
+        btn.onclick = () => {
+          const input = document.getElementById('jql-input');
+          if (input) {
+            input.value = j.jql;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          }
+        };
+        list.appendChild(btn);
+      });
+    }
+
+    renderSavedJqls();
+    
+    const btnOpenSave = document.getElementById('btn-open-save-jql');
+    const modalSave = document.getElementById('modal-save-jql');
+    const btnCancelSave = document.getElementById('btn-cancel-save-jql');
+    const btnConfirmSave = document.getElementById('btn-confirm-save-jql');
+    const inputSaveName = document.getElementById('jql-save-name');
+    const inputSavePublic = document.getElementById('jql-save-public');
+    const inputJql = document.getElementById('jql-input');
+
+    if (btnOpenSave && modalSave) {
+      btnOpenSave.addEventListener('click', () => {
+        const currentJql = inputJql.value.trim();
+        if (!currentJql) {
+          alert('Digite uma JQL antes de salvar.');
+          return;
+        }
+        inputSaveName.value = '';
+        inputSavePublic.checked = false;
+        modalSave.showModal();
+      });
+
+      btnCancelSave.addEventListener('click', () => {
+        modalSave.close();
+      });
+
+      btnConfirmSave.addEventListener('click', () => {
+        const label = inputSaveName.value.trim();
+        const jqlStr = inputJql.value.trim();
+        const isPublic = inputSavePublic.checked;
+
+        if (!label) {
+          alert('Dê um nome para a JQL.');
+          return;
+        }
+
+        const newPreset = {
+          id: 'jql_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          label: label,
+          jql: jqlStr,
+          isPublic: isPublic,
+          createdBy: 'Usuário (Legado)',
+          createdAt: new Date().toISOString()
+        };
+
+        if (isPublic) {
+          try {
+            const currentPub = JSON.parse(localStorage.getItem(PUBLIC_KEY) || '[]');
+            localStorage.setItem(PUBLIC_KEY, JSON.stringify([newPreset, ...currentPub]));
+          } catch(e) {}
+        } else {
+          let privateKey = 'agile_jql_presets_private_default';
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('agile_jql_presets_private_')) {
+              privateKey = key;
+              break;
+            }
+          }
+          try {
+            const currentPriv = JSON.parse(localStorage.getItem(privateKey) || '[]');
+            localStorage.setItem(privateKey, JSON.stringify([newPreset, ...currentPriv]));
+          } catch(e) {}
+        }
+
+        modalSave.close();
+        renderSavedJqls();
+      });
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.key && (event.key === PUBLIC_KEY || event.key.startsWith('agile_jql_presets_private_'))) {
+        renderSavedJqls();
       }
     });
   </script>

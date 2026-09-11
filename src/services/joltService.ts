@@ -7,6 +7,14 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+/**
+ * Indica se há um backend configurado explicitamente via env.
+ * Quando falso (sem NEXT_PUBLIC_API_URL), as chamadas de nuvem retornam
+ * resultados vazios silenciosamente — evitando violações de CSP por tentar
+ * atingir localhost em ambientes sem backend.
+ */
+export const isBackendConfigured = !!process.env.NEXT_PUBLIC_API_URL;
+
 export interface JoltTransformOptions {
   smartHubEnvelope?: boolean;
   sortKeys?: boolean;
@@ -136,6 +144,8 @@ export interface SaveJoltProjectPayload {
  * Lista todos os projetos JOLT acessíveis ao usuário atual no backend.
  */
 export async function listJoltProjects(search?: string): Promise<JoltProject[]> {
+  if (!isBackendConfigured) return [];
+
   const params = new URLSearchParams();
   if (search) params.append('search', search);
 
@@ -150,6 +160,8 @@ export async function listJoltProjects(search?: string): Promise<JoltProject[]> 
  * Obtém detalhes completos de um projeto JOLT específico.
  */
 export async function getJoltProject(id: string): Promise<JoltProject> {
+  if (!isBackendConfigured) throw new Error('Backend não configurado.');
+
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${id}`);
   if (!res.ok) {
     throw new Error(`Erro ao carregar projeto JOLT (${res.status})`);
@@ -161,6 +173,8 @@ export async function getJoltProject(id: string): Promise<JoltProject> {
  * Cria um novo projeto JOLT na nuvem.
  */
 export async function createJoltProject(payload: SaveJoltProjectPayload): Promise<JoltProject> {
+  if (!isBackendConfigured) throw new Error('Backend não configurado.');
+
   const res = await authFetch(`${API_BASE_URL}/jolt/projects`, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -176,6 +190,8 @@ export async function createJoltProject(payload: SaveJoltProjectPayload): Promis
  * Atualiza um projeto JOLT existente (gerando versão se commitMessage estiver preenchida).
  */
 export async function updateJoltProject(id: string, payload: SaveJoltProjectPayload): Promise<JoltProject> {
+  if (!isBackendConfigured) throw new Error('Backend não configurado.');
+
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
@@ -191,6 +207,8 @@ export async function updateJoltProject(id: string, payload: SaveJoltProjectPayl
  * Exclui um projeto JOLT na nuvem.
  */
 export async function deleteJoltProject(id: string): Promise<void> {
+  if (!isBackendConfigured) throw new Error('Backend não configurado.');
+
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${id}`, {
     method: 'DELETE',
   });
@@ -203,6 +221,8 @@ export async function deleteJoltProject(id: string): Promise<void> {
  * Lista o histórico de versões de um projeto JOLT.
  */
 export async function listJoltProjectVersions(projectId: string): Promise<JoltProjectVersion[]> {
+  if (!isBackendConfigured) return [];
+
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${projectId}/versions`);
   if (!res.ok) {
     throw new Error(`Erro ao listar versões do projeto (${res.status})`);
@@ -214,6 +234,8 @@ export async function listJoltProjectVersions(projectId: string): Promise<JoltPr
  * Restaura o projeto para uma versão anterior (Rollback).
  */
 export async function rollbackJoltProjectVersion(projectId: string, versionId: string): Promise<JoltProject> {
+  if (!isBackendConfigured) throw new Error('Backend não configurado.');
+
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${projectId}/rollback/${versionId}`, {
     method: 'POST',
   });

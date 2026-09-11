@@ -41,10 +41,11 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
 
   // Um item pode aparecer em mais de uma lista de propósito (ex.: adiada e
   // depois estimada) — o relatório precisa contar a história completa.
-  const estimatedIssues = useMemo(() => issues.filter(i => !i.skipped && i.status === 'completed'), [issues]);
-  const skippedIssues = useMemo(() => issues.filter(i => i.skipped), [issues]);
+  const estimatedIssues = useMemo(() => issues.filter(i => !i.skipped && !i.cancelled && i.status === 'completed'), [issues]);
+  const skippedIssues = useMemo(() => issues.filter(i => i.skipped && !i.cancelled), [issues]);
+  const cancelledIssues = useMemo(() => issues.filter(i => i.cancelled), [issues]);
   const parkedIssues = useMemo(() => issues.filter(i => (i.parkCount || 0) > 0 || i.parked), [issues]);
-  const untouchedIssues = useMemo(() => issues.filter(i => !i.skipped && i.status !== 'completed'), [issues]);
+  const untouchedIssues = useMemo(() => issues.filter(i => !i.skipped && !i.cancelled && i.status !== 'completed'), [issues]);
 
   const formatPoints = (points: string | null | undefined, deckType: string) => {
     if (!points || points === 'N/A') return 'N/A';
@@ -95,6 +96,7 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
     lines.push(`- **Tarefas debatidas:** ${breakdown.discussed} de ${breakdown.total} na fila`);
     lines.push(`- **Estimadas:** ${breakdown.estimated}`);
     lines.push(`- **Puladas:** ${breakdown.skipped}`);
+    lines.push(`- **Canceladas:** ${breakdown.cancelled}`);
     lines.push(`- **Adiadas durante a sessão:** ${breakdown.parked}`);
     lines.push(`- **Não abordadas:** ${breakdown.untouched}`);
     if (activeMins > 0) {
@@ -128,6 +130,15 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
       lines.push('| Tarefa | Motivo |');
       lines.push('|---|---|');
       skippedIssues.forEach(i => lines.push(`| ${i.title} | ${(i.note || '-').replace(/\n/g, ' ')} |`));
+      lines.push('');
+    }
+
+    if (cancelledIssues.length > 0) {
+      lines.push('## Tarefas canceladas no refinamento');
+      lines.push('');
+      lines.push('| Tarefa | Motivo |');
+      lines.push('|---|---|');
+      cancelledIssues.forEach(i => lines.push(`| ${i.title} | ${(i.note || '-').replace(/\n/g, ' ')} |`));
       lines.push('');
     }
 
@@ -176,6 +187,7 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
     rows.push(`Debatidas,${breakdown.discussed}`);
     rows.push(`Estimadas,${breakdown.estimated}`);
     rows.push(`Puladas,${breakdown.skipped}`);
+    rows.push(`Canceladas,${breakdown.cancelled}`);
     rows.push(`Adiadas,${breakdown.parked}`);
     rows.push(`Nao abordadas,${breakdown.untouched}`);
     if (activeMins > 0) {
@@ -190,15 +202,15 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
     rows.push(['Tarefa', 'Situação', 'Estimativa Final', ...roleHeaders, 'Vezes adiada', 'Observação', 'Link Jira'].map(csvCell).join(','));
 
     const situationOf = (i: Issue) =>
-      i.skipped ? 'Pulada' : i.status === 'completed' ? 'Estimada' : 'Não abordada';
+      i.cancelled ? 'Cancelada' : i.skipped ? 'Pulada' : i.status === 'completed' ? 'Estimada' : 'Não abordada';
 
     issues.forEach(issue => {
       const roleData = activeRoles.map(r => roleValue(issue, r) || '0');
-      const obs = issue.skipped ? (issue.note || '') : (issue.decisionNote || issue.parkedNote || '');
+      const obs = (issue.skipped || issue.cancelled) ? (issue.note || '') : (issue.decisionNote || issue.parkedNote || '');
       rows.push([
         issue.title,
         situationOf(issue),
-        issue.skipped ? 'N/A' : formatPoints(issue.estimatedPoints, deck),
+        (issue.skipped || issue.cancelled) ? 'N/A' : formatPoints(issue.estimatedPoints, deck),
         ...roleData,
         issue.parkCount || 0,
         obs,
@@ -320,6 +332,7 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
         ['Debatidas', String(breakdown.discussed)],
         ['Estimadas', String(breakdown.estimated)],
         ['Puladas', String(breakdown.skipped)],
+        ['Canceladas', String(breakdown.cancelled)],
         ['Adiadas', String(breakdown.parked)],
         ['Não abordadas', String(breakdown.untouched)],
       ];
@@ -406,6 +419,18 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
           ensure(h);
           wrapped(issue.title, M, CW, 10, 'bold', [15, 23, 42], 5);
           if (issue.note) wrapped(`Motivo: ${issue.note}`, M, CW, 8, 'normal', [180, 83, 9], 4);
+          y += 3;
+        });
+      }
+
+      // -------------------------------------------- Tarefas canceladas
+      if (cancelledIssues.length > 0) {
+        sectionTitle(`Tarefas canceladas no refinamento (${cancelledIssues.length})`, [225, 29, 72]);
+        cancelledIssues.forEach(issue => {
+          const h = measure(issue.title, CW, 10, 5) + (issue.note ? measure(`Motivo: ${issue.note}`, CW, 8, 4) : 0) + 6;
+          ensure(h);
+          wrapped(issue.title, M, CW, 10, 'bold', [15, 23, 42], 5);
+          if (issue.note) wrapped(`Motivo: ${issue.note}`, M, CW, 8, 'normal', [190, 18, 60], 4);
           y += 3;
         });
       }
@@ -511,6 +536,7 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
           <p className="text-xs text-muted-foreground font-medium px-4">
             {breakdown.discussed} tarefa{breakdown.discussed !== 1 ? 's' : ''} debatida{breakdown.discussed !== 1 ? 's' : ''}
             {breakdown.skipped > 0 && `, ${breakdown.skipped} pulada${breakdown.skipped !== 1 ? 's' : ''}`}
+            {breakdown.cancelled > 0 && `, ${breakdown.cancelled} cancelada${breakdown.cancelled !== 1 ? 's' : ''}`}
             {breakdown.parked > 0 && `, ${breakdown.parked} adiada${breakdown.parked !== 1 ? 's' : ''}`}
             {breakdown.untouched > 0 && `, ${breakdown.untouched} não abordada${breakdown.untouched !== 1 ? 's' : ''}`}
             . Escolha o formato ideal para relatar a cerimônia.

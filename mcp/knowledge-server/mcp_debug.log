@@ -1,1 +1,19 @@
 [2026-09-07T18:07:36.980Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-08T03:14:54.972Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-08T19:40:53.429Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-09T11:34:23.088Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-09T14:32:48.456Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-09T20:32:25.275Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-10T11:54:03.846Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-10T12:08:08.077Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-10T13:59:10.698Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_d67a..., NEW_BASE_URL=undefined
+[2026-09-10T20:54:11.249Z] Calling [legacy] GET -> https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=50 (apiKey: ask_d67a...)
+[2026-09-10T20:54:11.826Z] Response from https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=50: HTTP 401
+[2026-09-10T20:54:11.833Z] API legacy error HTTP 401: {"error":"Chave de API ausente ou inválida."}
+[2026-09-10T20:56:33.709Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-10T20:56:42.574Z] Calling [legacy] GET -> https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=50 (apiKey: ask_2914...)
+[2026-09-10T20:56:43.700Z] Response from https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=50: HTTP 200
+[2026-09-10T21:01:52.170Z] Calling [legacy] GET -> https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=100 (apiKey: ask_2914...)
+[2026-09-10T21:01:53.407Z] Response from https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=100: HTTP 200
+[2026-09-10T21:02:03.569Z] Calling [legacy] GET -> https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=20 (apiKey: ask_2914...)
+[2026-09-10T21:02:04.463Z] Response from https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=20: HTTP 200

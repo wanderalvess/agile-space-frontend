@@ -606,6 +606,7 @@ const RetroBoardComponent = ({
           onClose={() => setIsExportOpen(false)}
           boardData={boardData}
           cards={cards}
+          participants={participants}
         />
 
         <RetroSettingsDialog
