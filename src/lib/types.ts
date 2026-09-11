@@ -628,6 +628,8 @@ export type RetroBoard = {
   timer?: TimerState;
   title?: string;
   team?: string;
+  squadId?: string; // Squad.id de verdade — team acima continua só o nome de exibição
+  sprintId?: string;
   createdAt: string;
   participantIds?: string[];
   summary?: any;
@@ -667,8 +669,9 @@ export type RetroCard = {
   originalTexts?: string[]; // Para histórico de agrupamento
   children?: RetroCard[];
   isDone?: boolean; // status do item de ação (rastreio entre sprints)
-  carriedFromBoardId?: string; // preenchido quando importado de uma retro anterior
-  carriedFromBoardTitle?: string; // denormalizado para exibir badge sem leitura extra
+  carriedFromBoardId?: string; // board raiz da cadeia — preservado a cada reimportação, nunca sobrescrito
+  carriedFromBoardTitle?: string; // título do board raiz, denormalizado para exibir badge sem leitura extra
+  carryCount?: number; // quantas vezes esta ação foi reimportada sem ser concluída (1 = 1ª importação)
 }
 
 // Escala do check-in inicial (mesma "voz" das 5 opções, sem emoji — ícones lucide na UI)
@@ -858,6 +861,7 @@ export type ActionPlanBoard = {
   creatorId: string;
   title: string;
   team: string;
+  sprintId?: string;
   createdAt: string;
   participantIds?: string[];
   settings?: {

@@ -4,8 +4,13 @@ import { authFetch } from '@/lib/auth-client';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export const retroApi = {
-  async listBoards(): Promise<RetroBoard[]> {
-    const res = await authFetch(`${API_BASE_URL}/retros`);
+  async listBoards(params?: { sprintId?: string; team?: string; squadId?: string }): Promise<RetroBoard[]> {
+    const query = new URLSearchParams();
+    if (params?.sprintId) query.set('sprintId', params.sprintId);
+    if (params?.team) query.set('team', params.team);
+    if (params?.squadId) query.set('squadId', params.squadId);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const res = await authFetch(`${API_BASE_URL}/retros${qs}`);
     if (!res.ok) throw new Error('Falha ao listar quadros de retrospectiva');
     return res.json();
   },

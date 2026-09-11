@@ -499,8 +499,12 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           assignee: sourceCard.assignee || undefined,
           dueDate: sourceCard.dueDate || undefined,
           isDone: false,
-          carriedFromBoardId: sourceBoard.id,
-          carriedFromBoardTitle: sourceBoard.title || 'Retro anterior',
+          // Preserva a raiz da cadeia: se o card já veio carregado de uma
+          // retro anterior, não sobrescreve com o board imediato — senão
+          // uma reimportação em série perde a proveniência original a cada hop.
+          carriedFromBoardId: sourceCard.carriedFromBoardId || sourceBoard.id,
+          carriedFromBoardTitle: sourceCard.carriedFromBoardTitle || sourceBoard.title || 'Retro anterior',
+          carryCount: (sourceCard.carryCount || 0) + 1,
         } as RetroCardType;
       });
 
@@ -934,10 +938,11 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         showFloatingButton={true} 
         externalTriggerSignal={feedbackSignal} 
       />
-      <SprintStatsDialog 
-        open={showStats} 
-        onClose={() => setShowStats(false)} 
-        squadId={boardData?.team || userProfile?.squadId || ''} 
+      <SprintStatsDialog
+        open={showStats}
+        onClose={() => setShowStats(false)}
+        squadId={boardData?.team || userProfile?.squadId || ''}
+        sprintId={boardData?.sprintId || undefined}
       />
     </>
   );

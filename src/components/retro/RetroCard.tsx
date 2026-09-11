@@ -21,7 +21,8 @@ import {
   Lock,
   ExternalLink,
   CheckCircle2,
-  CornerUpLeft
+  CornerUpLeft,
+  AlertTriangle
 } from 'lucide-react';
 import { AgileCard } from '@/components/shared/EliteCard';
 import { AgileBaseCard } from '@/components/shared/EliteBaseCard';
@@ -307,6 +308,16 @@ export function RetroCard({
                  >
                    <CornerUpLeft className="h-3 w-3 shrink-0" />
                    <span className="truncate">Trazido de: {card.carriedFromBoardTitle || 'retro anterior'}</span>
+                 </span>
+               )}
+
+               {(card.carryCount || 0) > 1 && (
+                 <span
+                   className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-600 truncate min-w-0"
+                   title={`Reimportada ${card.carryCount}x sem ser concluída — tema recorrente`}
+                 >
+                   <AlertTriangle className="h-3 w-3 shrink-0" />
+                   <span className="truncate">Recorrente ({card.carryCount}x)</span>
                  </span>
                )}
 

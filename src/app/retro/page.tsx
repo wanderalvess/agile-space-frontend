@@ -40,6 +40,7 @@ export default function RetroHubPage() {
     { title: '', theme: 'action' },
   ]);
   const [setupSettings, setSetupSettings] = useState<SetupSettings>(DEFAULT_SETUP_SETTINGS);
+  const [sprintId, setSprintId] = useState('');
 
   // Preenche o squad com o time do usuário assim que o perfil carregar (chega
   // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma
@@ -58,6 +59,15 @@ export default function RetroHubPage() {
     if (userTeam) setTeam(userTeam);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile]);
+
+  // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
+  // pra ligar o board novo à sprint já em andamento no restante do ciclo.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sprintIdParam = urlParams.get('sprintId');
+    if (sprintIdParam) setSprintId(sprintIdParam);
+  }, []);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -138,6 +148,8 @@ export default function RetroHubPage() {
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),
       team: resolvedTeam,
+      squadId: userProfile.squadId || undefined,
+      sprintId: sprintId || undefined,
       createdAt: new Date().toISOString(),
       participantIds: [userProfile.id],
       columns,

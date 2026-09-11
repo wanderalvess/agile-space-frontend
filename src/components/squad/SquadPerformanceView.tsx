@@ -14,6 +14,7 @@ import {
 import { useSquadStore } from '@/store/useSquadStore';
 import { useDailyStore } from '@/store/useDailyStore';
 import { WidgetCard } from '@/components/ui/WidgetCard';
+import { RetroHistoryPanel } from '@/components/retro/RetroHistoryPanel';
 import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,16 +29,17 @@ import { cn } from '@/lib/utils';
 import { isWeekend } from '@/lib/date-utils';
 
 export function SquadPerformanceView() {
-  const { 
-    rollup, 
-    dailySnapshots, 
-    members, 
-    memberMetrics, 
+  const {
+    rollup,
+    dailySnapshots,
+    members,
+    memberMetrics,
     issuesSnapshot,
     viewingSprintId,
     viewedRollup,
     viewedIssuesSnapshot,
-    config
+    config,
+    activeSquadId
   } = useSquadStore();
 
   const { weeklyWorklogs, dailyReports } = useDailyStore();
@@ -740,6 +742,12 @@ export function SquadPerformanceView() {
           )}
         </div>
       </WidgetCard>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          HISTÓRICO DE RETROSPECTIVAS — tendência de check-in e follow-through
+          de ações entre sprints da squad
+         ═══════════════════════════════════════════════════════════════════ */}
+      <RetroHistoryPanel squadId={activeSquadId} />
 
     </div>
   );
