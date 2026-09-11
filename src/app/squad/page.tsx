@@ -1,21 +1,23 @@
 'use client';
 
-import React, { useEffect, useRef, useState, Suspense } from 'react';
+import React, { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity, RefreshCw, Settings2, Bug, ListChecks, TrendingUp, AlertTriangle,
   Users, Trophy, Gauge, ShieldAlert, CalendarRange, LayoutGrid, User, UserCog,
   ListTodo, LayoutDashboard, History, Timer, Flame, Sparkles, CheckCircle2,
-  ArrowRight, ShieldCheck, HelpCircle, Layers, Code2, Compass, Play, FileText
+  ArrowRight, ShieldCheck, HelpCircle, Layers, Code2, Compass, Play, FileText,
+  Workflow
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
+import { SquadWorkflowPhasesDialog } from '@/components/squad/SquadWorkflowPhasesDialog';
 import { useUserContext } from '@/context/UserContext';
 import { useSquadStore } from '@/store/useSquadStore';
 import { useDailyStore } from '@/store/useDailyStore';
-import { SQUAD_ADMIN_ROLES, SQUAD_LEADERSHIP_VIEW_ROLES, SQUAD_PEOPLE_ADMIN_ROLES, type SquadMember } from '@/lib/types';
+import { SQUAD_ADMIN_ROLES, SQUAD_LEADERSHIP_VIEW_ROLES, SQUAD_PEOPLE_ADMIN_ROLES, type SquadMember, type SquadWorkflowPhase } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -154,6 +156,7 @@ function SquadHubContent() {
   const { settings: jiraSettings, saveSettings: saveJiraSettings } = useJiraSettings();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPeopleOpen, setIsPeopleOpen] = useState(false);
+  const [isPhasesOpen, setIsPhasesOpen] = useState(false);
   const [projectKey, setProjectKey] = useState('');
   const [jql, setJql] = useState('');
   const [jiraDomain, setJiraDomain] = useState('');
@@ -278,6 +281,51 @@ function SquadHubContent() {
       toast({ title: 'Configuração salva', description: 'Squad e credenciais prontas para sincronizar com o Jira.' });
     } catch (err: any) {
       toast({ title: 'Erro ao salvar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    }
+  };
+
+  // Tipos de issue distintos já sincronizados — sugestão pronta na UI de fases
+  // em vez do admin ter que lembrar/digitar o nome exato de cada issuetype.
+  const availableIssueTypes = useMemo(() => {
+    const set = new Set<string>();
+    issuesSnapshot.forEach(i => { if (i.type) set.add(i.type); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [issuesSnapshot]);
+
+  // Referência estável — sem isso, `config?.phases || []` cria um array novo
+  // a cada render do page (SquadWorkflowPhasesDialog depende disso pra saber
+  // quando resemear o formulário local).
+  const squadWorkflowPhases = useMemo(() => config?.phases || [], [config?.phases]);
+
+  const handleSavePhases = async (phases: SquadWorkflowPhase[]) => {
+    if (!squadId) return;
+    // Squad sem config salva ainda (nunca passou pela aba Configurações —
+    // GET /squads/{id} 404) não tem jiraProjectKey/syncJql pra reenviar, e
+    // sem sync configurado não tem tipo de issue sincronizado pra mapear em
+    // fase mesmo. Antes disso só retornava sem avisar nada — agora diz o
+    // porquê em vez de o botão Salvar parecer travado.
+    if (!config) {
+      toast({ title: 'Configure o squad primeiro', description: 'Defina projeto e JQL do Jira nas Configurações do squad antes de mapear fases.', variant: 'destructive' });
+      return;
+    }
+    try {
+      // saveSquadConfig substitui o registro inteiro — reenvia os campos já
+      // salvos do próprio config (não tem form próprio pra eles aqui) junto
+      // com o phases novo, senão o merge no backend limparia o resto.
+      await saveSquadConfig(squadId, {
+        jiraProjectKey: config.jiraProjectKey,
+        syncJql: config.syncJql,
+        rankingEnabled: !!config.rankingEnabled,
+        defaultDailyCapacityHours: config.defaultDailyCapacityHours || 6,
+        jiraDomain: config.jiraDomain,
+        sprintFieldId: config.sprintFieldId,
+        rapidViewId: config.rapidViewId,
+        phases,
+      });
+      setIsPhasesOpen(false);
+      toast({ title: 'Fases salvas', description: 'O cronograma do Jira Plans passa a usar essa ordem e cor.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar fases', description: err?.message || 'Tente novamente.', variant: 'destructive' });
     }
   };
 
@@ -415,6 +463,9 @@ function SquadHubContent() {
             )}
             <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsSettingsOpen(true)} title="Configurações do squad">
               <Settings2 className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsPhasesOpen(true)} title="Fases do workflow (Jira Plans)">
+              <Workflow className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="outline"
@@ -1045,6 +1096,15 @@ function SquadHubContent() {
             </div>
           </DialogContent>
         </Dialog>
+
+        <SquadWorkflowPhasesDialog
+          open={isPhasesOpen}
+          onOpenChange={setIsPhasesOpen}
+          squadId={squadId}
+          phases={squadWorkflowPhases}
+          availableIssueTypes={availableIssueTypes}
+          onSave={handleSavePhases}
+        />
 
         {/* Modal de Gestão de Pessoas & Roster */}
         <Dialog open={isPeopleOpen} onOpenChange={setIsPeopleOpen}>
