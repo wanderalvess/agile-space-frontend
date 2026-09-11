@@ -1144,20 +1144,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
 
-  const handleCancelIssue = useCallback((param1?: string, param2?: string) => {
+  const handleCancelIssue = useCallback((issueId: string, note?: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
 
-    let targetIssueId: string | null = null;
-    let noteText = '';
-
-    const isFirstParamIssueId = !!param1 && roomData.issuesQueue.some(i => i.id === param1);
-    if (isFirstParamIssueId) {
-      targetIssueId = param1;
-      noteText = param2 || '';
-    } else {
-      targetIssueId = param2 || roomData.activeIssueId;
-      noteText = param1 || '';
-    }
+    const targetIssueId: string | null = issueId;
+    const noteText = note || '';
 
     if (!targetIssueId) return;
 

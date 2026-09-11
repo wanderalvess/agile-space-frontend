@@ -239,7 +239,7 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'jql-helper-btn';
-        btn.innerHTML = `${j.isPublic ? '🌐' : '🔒'} ${j.label}`;
+        btn.textContent = `${j.isPublic ? '🌐' : '🔒'} ${j.label}`;
         btn.title = j.jql;
         btn.onclick = () => {
           const input = document.getElementById('jql-input');

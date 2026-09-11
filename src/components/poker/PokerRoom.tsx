@@ -202,7 +202,7 @@ interface PokerRoomProps {
   onCompleteIssue: (points: string, devPoints?: string, qaPoints?: string, rolePoints?: Record<string, string>) => void;
   onSkipIssue: (note: string) => void;
   onParkIssue?: (note: string) => void;
-  onCancelIssue?: (param1: string, param2?: string) => void;
+  onCancelIssue?: (issueId: string, note?: string) => void;
   onStartSession?: () => void;
   onFinishSession?: () => void;
   onUnskipIssue?: (id: string) => void;
@@ -1034,7 +1034,7 @@ const PokerRoomComponent = ({
                           Adiar
                         </Button>
                       )}
-                      {settings?.cancelTask !== false && onCancelIssue && (
+                      {(settings?.cancelTask ?? true) && onCancelIssue && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1956,7 +1956,7 @@ const PokerRoomComponent = ({
           <AlertDialogFooter className="mt-2">
             <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { onCancelIssue && onCancelIssue(cancelNote); setIsCancelDialogOpen(false); }}
+              onClick={() => { activeIssueId && onCancelIssue && onCancelIssue(activeIssueId, cancelNote); setIsCancelDialogOpen(false); }}
               className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-rose-600/20"
             >
               Confirmar Cancelamento
