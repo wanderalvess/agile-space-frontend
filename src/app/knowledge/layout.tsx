@@ -4,9 +4,8 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { GlobalSearch } from '@/components/knowledge/GlobalSearch';
-import { 
-  ArrowLeft,
-  BookMarked, 
+import {
+  BookMarked,
   Search, 
   LayoutDashboard, 
   BookOpen, 
@@ -64,12 +63,12 @@ export default function KnowledgeLayout({
           <div className="flex items-center gap-6">
             <Button
               variant="ghost"
-              size="icon"
               onClick={() => router.push('/')}
-              className="h-10 w-10 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all group"
-              title="Voltar ao Início"
+              className="h-10 px-3 gap-2 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all group"
+              title="Sair para o Portal AgileSpace"
             >
-              <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+              <LayoutDashboard className="h-4.5 w-4.5" />
+              <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Portal</span>
             </Button>
  
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push('/knowledge')}>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -13,16 +13,13 @@ import {
   Edit, 
   ShieldAlert,
   FileText, 
-  Clock, 
-  Sparkles, 
+  Clock,
   FolderTree,
-  ChevronRight, 
+  ChevronRight,
   Database,
   CheckCircle2,
   FileUp,
-  Users,
   History,
-  LayoutGrid,
   RefreshCw,
   Download,
   BookOpen,
@@ -71,6 +68,9 @@ function KBExplorerContent() {
   const [isDownloadFormatOpen, setIsDownloadFormatOpen] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<'md' | 'html' | 'txt'>('md');
   const [isSyncingDoc, setIsSyncingDoc] = useState(false);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const readerRootRef = useRef<HTMLDivElement | null>(null);
+  const readerViewportRef = useRef<HTMLDivElement | null>(null);
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('kb_favorites');
@@ -420,6 +420,49 @@ function KBExplorerContent() {
     } catch (e) { return '---'; }
   };
 
+  // Extrai um sumário (H1/H2/H3) do conteúdo do artigo e injeta ids nos
+  // headings pra âncora do sumário funcionar dentro do HTML sanitizado.
+  const { tocItems, contentWithAnchors } = useMemo(() => {
+    if (typeof window === 'undefined' || !selectedFile?.content) {
+      return { tocItems: [] as { id: string; text: string; level: number }[], contentWithAnchors: selectedFile?.content || '' };
+    }
+    try {
+      const doc = new DOMParser().parseFromString(selectedFile.content, 'text/html');
+      const headings = Array.from(doc.querySelectorAll('h1, h2, h3'));
+      const seen = new Map<string, number>();
+      const items = headings.map((el) => {
+        const text = el.textContent?.trim() || '';
+        let slug = text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'secao';
+        const count = seen.get(slug) || 0;
+        seen.set(slug, count + 1);
+        if (count > 0) slug = `${slug}-${count}`;
+        el.id = slug;
+        return { id: slug, text, level: Number(el.tagName[1]) };
+      });
+      return { tocItems: items, contentWithAnchors: doc.body.innerHTML };
+    } catch {
+      return { tocItems: [], contentWithAnchors: selectedFile.content };
+    }
+  }, [selectedFile?.content]);
+
+  useEffect(() => {
+    setReadingProgress(0);
+    const viewport = readerRootRef.current?.querySelector<HTMLDivElement>('[data-radix-scroll-area-viewport]');
+    readerViewportRef.current = viewport || null;
+    if (!viewport) return;
+    const onScroll = () => {
+      const max = viewport.scrollHeight - viewport.clientHeight;
+      setReadingProgress(max > 0 ? Math.min(100, (viewport.scrollTop / max) * 100) : 0);
+    };
+    viewport.addEventListener('scroll', onScroll);
+    onScroll();
+    return () => viewport.removeEventListener('scroll', onScroll);
+  }, [selectedFile?.id]);
+
+  const scrollToHeading = (id: string) => {
+    readerViewportRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-slate-50/30 dark:bg-slate-950/20 overflow-hidden relative">
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-150 dark:bg-cyan-950/20 rounded-full blur-[140px] pointer-events-none -z-10" />
@@ -486,9 +529,33 @@ function KBExplorerContent() {
                   </Button>
                 </div>
               </header>
+              <div className="h-[3px] bg-slate-100 dark:bg-slate-900 shrink-0">
+                <div className="h-full bg-cyan-600 transition-[width] duration-150" style={{ width: `${readingProgress}%` }} />
+              </div>
 
-              <ScrollArea className="flex-1">
-                <article className="max-w-[1300px] mx-auto px-6 md:px-12 pt-6 pb-32 min-h-screen">
+              <ScrollArea className="flex-1" ref={readerRootRef}>
+                <div className={cn("max-w-[1300px] mx-auto px-6 md:px-12 pt-6 pb-32 min-h-screen", tocItems.length > 0 && "grid grid-cols-[180px_minmax(0,1fr)] gap-12 max-w-[1300px]")}>
+                {tocItems.length > 0 && (
+                  <nav className="hidden lg:block pt-2 sticky top-0 self-start">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nesta página</span>
+                    <ul className="mt-3 space-y-0.5 border-l border-slate-200 dark:border-slate-800">
+                      {tocItems.map(item => (
+                        <li key={item.id}>
+                          <button
+                            onClick={() => scrollToHeading(item.id)}
+                            className={cn(
+                              "block w-full text-left text-[10.5px] font-bold text-slate-500 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 -ml-px pl-3 py-1.5 border-l-2 border-transparent hover:border-cyan-600 transition-colors",
+                              item.level >= 3 && "pl-6"
+                            )}
+                          >
+                            {item.text}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+                )}
+                <article>
                   <div className="mb-8 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex flex-wrap items-center gap-2">
@@ -523,11 +590,12 @@ function KBExplorerContent() {
                     <div className="prose prose-slate dark:prose-invert max-w-none">
                       <div
                         className="text-[14px] leading-relaxed text-slate-700 dark:text-slate-300 font-medium whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(selectedFile.content) || "Carregando conteúdo..." }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentWithAnchors) || "Carregando conteúdo..." }}
                       />
                     </div>
                   </div>
                 </article>
+                </div>
               </ScrollArea>
             </div>
           ) : (
@@ -552,85 +620,57 @@ function KBExplorerContent() {
                   <ModuleIntegrationButton moduleId="knowledge" label="Consumir via API & MCP" />
                 </div>
 
-                {/* Bento Grid para Stats e Ações Rápidas */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  
-                  {/* Card 3: Painel de Ações Bento Widget (Expandido para md:col-span-2) */}
-                  <Card className="p-6 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-[2rem] shadow-xs flex flex-col justify-between min-h-[212px] md:col-span-2 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
-                    <div className="space-y-2 relative z-10">
-                      <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                        <LayoutGrid className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Painel de Ações Administrativas</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 mt-3">
-                        <Button onClick={() => setIsTdnOpen(true)} className="h-11 px-4 bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-300/60 dark:border-cyan-900/30 text-cyan-700 dark:text-cyan-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all gap-2 justify-start shadow-none">
-                          <Search className="h-4.5 w-4.5" /> Buscar e Importar TDN
-                        </Button>
-                        <Button onClick={handleSyncManuals} disabled={isSyncing} className="h-11 px-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-300/60 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all gap-2 justify-start shadow-none">
-                          {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4.5 w-4.5" />} Sincronizar Manuais
-                        </Button>
-                        <Button onClick={() => router.push('/knowledge/trash')} className="h-11 px-4 bg-slate-100/85 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all gap-2 justify-start shadow-none">
-                          <Trash2 className="h-4.5 w-4.5" /> Acessar Lixeira
-                        </Button>
-                        <Button onClick={() => router.push('/knowledge/admin/new-asset')} className="h-11 px-4 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-black uppercase text-[9px] tracking-wider shadow-md hover:bg-black dark:hover:bg-slate-200 gap-2 justify-start">
-                          <Plus className="h-4.5 w-4.5 text-cyan-500 dark:text-cyan-400" /> Criar Novo Artigo
-                        </Button>
-                      </div>
-                    </div>
+                {/* Toolbar de Ações Administrativas */}
+                <div className="flex flex-wrap gap-2.5">
+                  <Button onClick={() => setIsTdnOpen(true)} className="h-10 px-4 bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-300/60 dark:border-cyan-900/30 text-cyan-700 dark:text-cyan-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all gap-2 shadow-none">
+                    <Search className="h-4 w-4" /> Buscar e Importar TDN
+                  </Button>
+                  <Button onClick={handleSyncManuals} disabled={isSyncing} className="h-10 px-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-300/60 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all gap-2 shadow-none">
+                    {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar Manuais
+                  </Button>
+                  <Button onClick={() => router.push('/knowledge/trash')} className="h-10 px-4 bg-slate-100/85 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all gap-2 shadow-none">
+                    <Trash2 className="h-4 w-4" /> Lixeira
+                  </Button>
+                  <Button onClick={() => router.push('/knowledge/admin/new-asset')} className="h-10 px-4 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-black uppercase text-[9px] tracking-wider shadow-md hover:bg-black dark:hover:bg-slate-200 gap-2">
+                    <Plus className="h-4 w-4 text-cyan-500 dark:text-cyan-400" /> Criar Artigo
+                  </Button>
+                </div>
+
+                {/* Stats: 4 blocos equivalentes */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-cyan-50 dark:bg-cyan-950/40 rounded-lg text-cyan-700 dark:text-cyan-400 text-[7px] font-black uppercase tracking-widest">
+                      <Database className="h-2.5 w-2.5" /> Biblioteca
+                    </span>
+                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">{documents?.length || 0}</p>
+                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Artigos ativos</p>
                   </Card>
 
-                  {/* Coluna de Stats (Empilhados Verticalmente, totalizando h ~212px) */}
-                  <div className="flex flex-col gap-4 md:col-span-1">
-                    
-                    {/* Card 1: Total de Documentos (Compacto) */}
-                    <Card className="p-4 bg-slate-950 dark:bg-slate-900/60 border border-slate-800 dark:border-slate-800/60 text-white rounded-2xl shadow-lg relative overflow-hidden group flex flex-col justify-between h-[98px]">
-                      <div className="absolute top-0 right-0 p-4 opacity-[0.02] scale-100 pointer-events-none group-hover:scale-125 transition-transform duration-750">
-                        <FileText className="h-16 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between relative z-10">
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-600/20 border border-cyan-500/30 rounded-lg text-cyan-400 scale-90 origin-left">
-                          <Database className="h-2.5 w-2.5" />
-                          <span className="text-[7px] font-black uppercase tracking-widest">Biblioteca</span>
-                        </div>
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ativos</span>
-                      </div>
-                      <div className="flex items-baseline justify-between relative z-10">
-                        <p className="text-2xl font-black text-white leading-none">{documents?.length || 0}</p>
-                        <p className="text-[8px] text-slate-400 font-bold uppercase tracking-tight">Artigos ativos</p>
-                      </div>
-                      <div className="text-[7px] font-black text-slate-500 uppercase flex justify-between items-center border-t border-white/5 pt-1.5 mt-1">
-                        <span>Espaço</span>
-                        <span className="text-cyan-400 font-black">{(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(2)} MB</span>
-                      </div>
-                    </Card>
+                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-indigo-50 dark:bg-indigo-950/40 rounded-lg text-indigo-600 dark:text-indigo-400 text-[7px] font-black uppercase tracking-widest">
+                      <FileText className="h-2.5 w-2.5" /> Armazenamento
+                    </span>
+                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
+                      {(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(1)} <span className="text-sm text-slate-400">MB</span>
+                    </p>
+                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Espaço utilizado</p>
+                  </Card>
 
-                    {/* Card 2: Visualizações Totais (Compacto) */}
-                    <Card className="p-4 bg-gradient-to-br from-violet-600 to-indigo-700 dark:from-violet-950/70 dark:to-indigo-950/70 border-none text-white rounded-2xl shadow-lg relative overflow-hidden group flex flex-col justify-between h-[98px]">
-                      <div className="absolute top-0 right-0 p-4 opacity-[0.03] scale-100 pointer-events-none group-hover:scale-125 transition-transform duration-750">
-                        <Sparkles className="h-16 w-16" />
-                      </div>
-                      <div className="flex items-center justify-between relative z-10">
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/10 border border-white/20 rounded-lg text-violet-100 scale-90 origin-left">
-                          <Users className="h-2.5 w-2.5" />
-                          <span className="text-[7px] font-black uppercase tracking-widest">Leituras</span>
-                        </div>
-                        <span className="text-[8px] font-black text-violet-200/80 uppercase tracking-widest">Cliques</span>
-                      </div>
-                      <div className="flex items-baseline justify-between relative z-10">
-                        <p className="text-2xl font-black text-white leading-none">{documents?.reduce((acc, d) => acc + ((d as { views?: number }).views || 0), 0) || 0}</p>
-                        <p className="text-[8px] text-violet-200/80 font-bold uppercase tracking-tight">Visualizações</p>
-                      </div>
-                      <div className="text-[7px] font-black text-violet-200/60 uppercase flex justify-between items-center border-t border-white/5 pt-1.5 mt-1">
-                        <span>Indexador</span>
-                        <span className="text-emerald-400 font-black flex items-center gap-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> ON
-                        </span>
-                      </div>
-                    </Card>
+                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-emerald-50 dark:bg-emerald-950/40 rounded-lg text-emerald-600 dark:text-emerald-400 text-[7px] font-black uppercase tracking-widest">
+                      <RefreshCw className="h-2.5 w-2.5" /> TDN
+                    </span>
+                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">{documents?.filter(d => d.tdnId).length || 0}</p>
+                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Manuais sincronizados</p>
+                  </Card>
 
-                  </div>
-
+                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-amber-50 dark:bg-amber-950/40 rounded-lg text-amber-600 dark:text-amber-400 text-[7px] font-black uppercase tracking-widest">
+                      <Hash className="h-2.5 w-2.5" /> Taxonomia
+                    </span>
+                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">{availableTags.length}</p>
+                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Rótulos ativos</p>
+                  </Card>
                 </div>
 
                 {/* Seção Principal: Busca e Tabela de Gestão */}
