@@ -9,7 +9,7 @@ import { RetroActionImportDialog } from "./RetroActionImportDialog";
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, ThumbsUp, History, MonitorPlay, Minimize2, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, Star, History, MonitorPlay, Minimize2, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
   Tooltip,
@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { retroApi } from '../../app/retro/api';
 
 // Theme-based configuration mapping
-const THEME_CONFIG: Record<RetroColumnTheme, {
+export const THEME_CONFIG: Record<RetroColumnTheme, {
   color: string;
   accent: string;
   icon: typeof CheckCircle2;
@@ -268,58 +268,63 @@ function RetroColumnComponent({
       ref={setNodeRef}
       onClick={!isFocused && !isNavLocked ? onFocus : undefined}
       className={cn(
-        "flex flex-col bg-white/40 backdrop-blur-xl border border-white/60 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
+        "flex flex-col bg-white/40 dark:!bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:!border-slate-700/50 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
         isFocused && isFocusMode
-          ? "fixed inset-0 z-[100] m-0 rounded-none bg-white"
+          ? "fixed inset-x-0 top-14 bottom-0 z-[100] m-0 rounded-none bg-white dark:!bg-slate-950"
           : isBoardMode
             ? cn(
                 "flex-1 min-w-[310px] xl:min-w-[360px] 2xl:min-w-[400px] max-w-full",
-                isFocused ? cn("ring-2 ring-emerald-500/40 shadow-xl border-emerald-300", config.shadowPulse) : "hover:border-white/80"
+                isFocused ? cn("ring-2 ring-emerald-500/40 shadow-xl border-emerald-300 dark:!border-emerald-700", config.shadowPulse) : "hover:border-white/80 dark:hover:!border-slate-600/60"
               )
             : isFocused
               ? cn("flex-[6] z-10", config.shadowPulse)
               : isFocusMode
                 ? "hidden"
-                : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60"),
+                : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60 dark:hover:!bg-slate-800/60"),
         isOver && "ring-2 ring-emerald-500/30 bg-emerald-50/20"
       )}
     >
       {/* HEADER: FOCUSED OR FULL BOARD MODE */}
       {showFullColumn ? (
         <>
-          <div className="flex items-center justify-between p-4 sm:p-5 pt-5 sm:pt-6 shrink-0 gap-2">
-            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-              <div className={cn("p-2.5 sm:p-4 rounded-2xl text-white shadow-xl shrink-0", config.color)}>
-                <Icon className="h-6 w-6 sm:h-8 sm:w-8" />
+          <div className={cn(
+            "flex items-center shrink-0 gap-2",
+            isFocused && isFocusMode ? "justify-end px-4 py-2" : "justify-between px-3 py-2.5 sm:px-4 sm:py-3"
+          )}>
+            {!(isFocused && isFocusMode) && (
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn("p-2 rounded-xl text-white shadow-lg shrink-0", config.color)}>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                </div>
+                <div className="flex flex-col justify-center min-w-0">
+                  {/* Inline Title Edit */}
+                  {isEditingTitle ? (
+                    <input
+                      ref={titleInputRef}
+                      value={editedTitle}
+                      onChange={e => setEditedTitle(e.target.value)}
+                      onBlur={handleTitleSave}
+                      onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
+                      className="text-sm sm:text-base 2xl:text-lg font-black uppercase tracking-tighter text-slate-800 leading-none italic bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 group/title min-w-0">
+                      <h2 className="text-sm sm:text-base 2xl:text-lg font-black uppercase tracking-tighter text-slate-800 leading-tight italic line-clamp-2 break-words" title={title}>{title}</h2>
+                      {isCreator && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                          className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 shrink-0"
+                          title="Editar título"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col justify-center min-w-0">
-                {/* Inline Title Edit */}
-                {isEditingTitle ? (
-                  <input
-                    ref={titleInputRef}
-                    value={editedTitle}
-                    onChange={e => setEditedTitle(e.target.value)}
-                    onBlur={handleTitleSave}
-                    onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
-                    className="text-xl sm:text-2xl 2xl:text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 group/title min-w-0">
-                    <h2 className="text-xl sm:text-2xl 2xl:text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic truncate" title={title}>{title}</h2>
-                    {isCreator && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                        className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 shrink-0"
-                        title="Editar título"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-            
+            )}
+
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <TooltipProvider>
                 <Tooltip>
@@ -391,7 +396,7 @@ function RetroColumnComponent({
                   )}
                   title="Ordenar por Votos"
                 >
-                  <ThumbsUp className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
+                  <Star className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
                 </Button>
               )}
 
@@ -410,12 +415,12 @@ function RetroColumnComponent({
           <ScrollArea className={cn("flex-1 px-4 sm:px-5 pb-6 custom-scrollbar", isFocusMode && "px-10 py-6 bg-slate-50/30")}>
             <SortableContext items={cardIds} strategy={rectSortingStrategy}>
               <div className={cn(
-                "grid gap-3 min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
-                isFocusMode 
-                  ? "grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" 
+                "grid min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
+                isFocusMode
+                  ? "grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4"
                   : isBoardMode
-                    ? "grid-cols-1 2xl:grid-cols-2"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                    ? "grid-cols-1 2xl:grid-cols-2 gap-3"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"
               )}>
                 {sortedCards.length === 0 && !isFocusMode && (
                   <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-70 group/empty">

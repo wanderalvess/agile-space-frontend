@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, RetroColumnDef, RetroColumnTheme, RETRO_TEMPLATES, TimerState, RetroParticipant, RetroReactionType } from '@/lib/types';
-import { RetroColumn } from './RetroColumn';
+import { RetroColumn, THEME_CONFIG } from './RetroColumn';
 
 // Referência estável reaproveitada por qualquer coluna vazia — evita criar
 // uma array `[]` nova a cada render (o que também invalidaria o memo).
@@ -29,7 +29,8 @@ import {
   Download,
   Settings,
   BarChart3,
-  CheckCircle2
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 import {
   Tooltip,
@@ -276,8 +277,8 @@ const RetroBoardComponent = ({
     <div className="flex flex-row flex-nowrap h-dvh w-full bg-[#fafafa] relative overflow-hidden min-h-0">
         {/* Mesh Gradient Background */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/30 blur-[120px] animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-teal-100/30 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/30 dark:bg-emerald-500/20 blur-[120px] animate-pulse" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-teal-100/30 dark:bg-teal-400/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
         <div className={cn(
@@ -501,6 +502,47 @@ const RetroBoardComponent = ({
           />
         )}
 
+        {/* BARRA DE ABAS: navega entre colunas durante a apresentação (isFocusMode) */}
+        {isFocusMode && (
+          <div className="fixed top-0 inset-x-0 z-[110] h-14 flex items-center gap-2 px-4 sm:px-6 bg-white/70 dark:!bg-slate-900/70 backdrop-blur-2xl border-b border-white/60 dark:!border-slate-700/50 shadow-sm overflow-x-auto scrollbar-none">
+            {columns.map((col) => {
+              const config = THEME_CONFIG[col.theme] || THEME_CONFIG.neutral;
+              const Icon = config.icon;
+              const isActive = activeStage === col.id;
+              const count = cardsByColumn[col.id]?.length || 0;
+              return (
+                <Button
+                  key={col.id}
+                  variant="ghost"
+                  onClick={() => onStageChange(col.id)}
+                  disabled={boardData.syncStageEnabled && !isCurrentUserCreator}
+                  className={cn(
+                    "h-10 px-3.5 sm:px-4 rounded-xl gap-2 shrink-0 font-black text-[11px] uppercase tracking-widest transition-all border",
+                    isActive
+                      ? cn("text-white shadow-lg scale-[1.03] border-transparent", config.color)
+                      : "bg-white/40 dark:!bg-slate-800/50 text-slate-500 dark:!text-slate-400 border-white/70 dark:!border-slate-600/50 hover:bg-white/70 dark:hover:!bg-slate-800/80"
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5 shrink-0" />
+                  <span className="whitespace-nowrap">{col.title}</span>
+                  <span className={cn(
+                    "h-[18px] min-w-[18px] px-1 rounded-full text-[9px] flex items-center justify-center shrink-0",
+                    isActive ? "bg-white/25" : "bg-slate-900/10 dark:!bg-white/10"
+                  )}>
+                    {count}
+                  </span>
+                </Button>
+              );
+            })}
+            <div className="flex-1" />
+            {boardData.syncStageEnabled && !isCurrentUserCreator && (
+              <span title="Navegação controlada pelo facilitador" className="shrink-0 text-slate-400">
+                <Lock className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-col w-full h-full p-3 sm:p-4 lg:p-6 overflow-hidden w-full max-w-[2400px] 2xl:max-w-none mx-auto min-h-0">
           <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className={cn(
@@ -633,7 +675,7 @@ const RetroBoardComponent = ({
         />
 
         {!isFocusMode && (
-          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1.5 bg-white/80 backdrop-blur-3xl border border-white/40 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2)] rounded-full ring-1 ring-slate-900/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1.5 bg-white/80 dark:!bg-slate-900/80 backdrop-blur-3xl border border-white/40 dark:!border-slate-700/50 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2)] rounded-full ring-1 ring-slate-900/5 dark:ring-white/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {columns.map((col, idx) => {
               const themeStyle = THEME_COLORS[col.theme] || THEME_COLORS.neutral;
               const activeIdx = columns.findIndex(c => c.id === activeStage);
@@ -654,7 +696,7 @@ const RetroBoardComponent = ({
                         ? `${themeStyle.bg} ${themeStyle.color} ${themeStyle.border} shadow-lg scale-105`
                         : isDone
                           ? "text-emerald-600 border-transparent hover:bg-emerald-50/50"
-                          : "text-slate-400 border-transparent hover:text-slate-700 hover:bg-slate-100/50"
+                          : "text-slate-400 border-transparent hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
                     )}
                   >
                     {isDone && <CheckCircle2 className="h-3 w-3 shrink-0" />}

@@ -8,6 +8,7 @@ import { RETRO_REACTIONS } from '@/lib/types';
 import {
   Pencil,
   Trash2,
+  Star,
   ThumbsUp,
   ThumbsDown,
   Heart,
@@ -260,6 +261,7 @@ export function RetroCard({
           votes={card.votes}
           onVote={() => onToggleVote(card.id, card.votes)}
           canVote={canVote && showVotes}
+          voteIcon={Star}
           isDragging={isDragging}
           isOver={isOver}
           isMergingSource={mergingSourceId === card.id}

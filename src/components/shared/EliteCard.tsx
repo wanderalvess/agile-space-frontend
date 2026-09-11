@@ -38,6 +38,7 @@ interface AgileCardProps {
   votes?: string[]; // Array of UIDs
   onVote?: (id: string) => void;
   canVote?: boolean;
+  voteIcon?: typeof ThumbsUp;
   
   // Metadata
   timestamp?: string;
@@ -90,6 +91,7 @@ export function AgileCard({
   votes = [],
   onVote,
   canVote = true,
+  voteIcon: VoteIcon = ThumbsUp,
   timestamp = 'AGORA',
   theme = 'slate',
   isRevealed = true,
@@ -248,7 +250,7 @@ export function AgileCard({
 
       {/* Footer: Actions & Votes */}
       <div className="flex items-center justify-between mt-2 size-fit w-full shrink-0">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {onVote && (
             <Button
               variant="ghost"
@@ -256,40 +258,40 @@ export function AgileCard({
               disabled={!canVote}
               onClick={(e) => { e.stopPropagation(); onVote(id); }}
               className={cn(
-                "h-8 px-2.5 gap-2 rounded-xl transition-all font-black text-[9px] uppercase tracking-widest",
-                hasVoted 
-                  ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" 
+                "h-7 px-2 gap-1 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest shrink-0",
+                hasVoted
+                  ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20"
                   : "text-slate-600 dark:text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30"
               )}
             >
-              <ThumbsUp className={cn("h-3 w-3", hasVoted && "fill-current")} />
+              <VoteIcon className={cn("h-3 w-3", hasVoted && "fill-current")} />
               <span>{voteCount}</span>
             </Button>
           )}
 
           {/* Inline Action Buttons */}
-          <div className="flex items-center gap-1 ml-1 scale-90 sm:scale-100 origin-left">
+          <div className="flex items-center gap-0.5 shrink-0">
             {(isAuthor || allowAnyEdit) && onEdit && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={(e) => { e.stopPropagation(); onEdit(id); }}
-                className="h-8 w-8 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
+                className="h-7 w-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
                 title="Editar Card"
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className="h-3 w-3" />
               </Button>
             )}
-            
+
             {onStartMerge && !isMergingSource && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={(e) => { e.stopPropagation(); onStartMerge(id); }}
-                className="h-8 w-8 rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all"
+                className="h-7 w-7 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all"
                 title="Fundir Ideia"
               >
-                <GitMerge className="h-3.5 w-3.5" />
+                <GitMerge className="h-3 w-3" />
               </Button>
             )}
 
@@ -298,10 +300,10 @@ export function AgileCard({
                 variant="ghost"
                 size="icon"
                 onClick={(e) => { e.stopPropagation(); onDelete(id); }}
-                className="h-8 w-8 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
+                className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
                 title="Excluir Card"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3" />
               </Button>
             )}
           </div>
