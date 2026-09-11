@@ -139,7 +139,7 @@ export function MockStudioIntegration() {
             <Database className="h-5 w-5 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h2 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+            <h2 className="text-lg font-black uppercase tracking-tight italic font-headline text-slate-900 dark:text-slate-100">
               Estúdio de Mocks de API & Simulação de Erros
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">

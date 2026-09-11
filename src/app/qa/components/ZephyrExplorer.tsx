@@ -156,7 +156,7 @@ export function ZephyrExplorer() {
             <TestTube className="h-5 w-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h2 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+            <h2 className="text-lg font-black uppercase tracking-tight italic font-headline text-slate-900 dark:text-slate-100">
               Zephyr Testcase Explorer & Relatórios
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
