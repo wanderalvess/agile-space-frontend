@@ -20,6 +20,7 @@ export const workItemsApi = {
       method: 'PUT',
       body: JSON.stringify({ sprint_id: sprintId }),
     });
+    if (!res.ok) throw new Error('Falha ao comitar work item na sprint');
   },
 
   async showcaseDecision(squadId: string, jiraKey: string, status: string, feedback: string): Promise<void> {

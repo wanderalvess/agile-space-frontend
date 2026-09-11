@@ -643,7 +643,7 @@ export default function XlsxToCsvPage() {
   const totalColsCount = visibleHeaders.length;
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 text-slate-800 overflow-hidden">
       
       {/* Header Clássico Zephyr Bridge */}
       <header className="px-8 py-5 border-b border-slate-200 bg-white flex items-center justify-between shrink-0 shadow-sm z-10">
@@ -1103,7 +1103,7 @@ export default function XlsxToCsvPage() {
                         )}
                       </Button>
                     </div>
-                    <pre className="h-32 overflow-auto font-mono text-[9px] leading-relaxed text-blue-300 selection:bg-blue-500/30 p-2 scrollbar-thin scrollbar-thumb-slate-800">
+                    <pre className="h-32 overflow-auto font-code text-[9px] leading-relaxed text-blue-300 selection:bg-blue-500/30 p-2 scrollbar-thin scrollbar-thumb-slate-800">
                       {getProcessedCsv()}
                     </pre>
                   </div>

@@ -777,7 +777,7 @@ function RosterContent() {
                 placeholder="project = MISSI AND worklogDate >= -30d"
                 value={customJql}
                 onChange={e => setCustomJql(e.target.value)}
-                className="h-9 rounded-xl text-xs font-mono bg-white dark:bg-slate-950"
+                className="h-9 rounded-xl text-xs font-code bg-white dark:bg-slate-950"
               />
             </div>
           )}
@@ -789,7 +789,7 @@ function RosterContent() {
                 placeholder="0.85"
                 value={customFormula}
                 onChange={e => setCustomFormula(e.target.value)}
-                className="h-9 rounded-xl text-xs font-mono bg-white dark:bg-slate-950"
+                className="h-9 rounded-xl text-xs font-code bg-white dark:bg-slate-950"
               />
             </div>
           )}
@@ -938,7 +938,7 @@ function RosterContent() {
 
                       {/* System Hours (Read-Only) */}
                       <td className="py-3 px-4 text-center">
-                        <Badge variant="outline" className="text-xs font-mono font-bold bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
+                        <Badge variant="outline" className="text-xs font-code font-bold bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
                           {systemHours}h / dia
                         </Badge>
                       </td>
@@ -966,12 +966,12 @@ function RosterContent() {
                       </td>
 
                       {/* Weekly Total */}
-                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-4 text-center font-code font-bold text-slate-700 dark:text-slate-300">
                         {weeklyHours}h
                       </td>
 
                       {/* Sprint Total */}
-                      <td className="py-3 px-4 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                      <td className="py-3 px-4 text-center font-code font-bold text-indigo-600 dark:text-indigo-400">
                         {sprintHours}h
                       </td>
 
@@ -1082,8 +1082,8 @@ function RosterContent() {
                           <p className="text-[10px] text-slate-400">{row.jiraAccountId}</p>
                         </td>
                         <td className="py-2 px-3">{row.role}</td>
-                        <td className="py-2 px-3 text-center font-mono text-slate-500">{currentCap}h</td>
-                        <td className="py-2 px-3 text-center font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                        <td className="py-2 px-3 text-center font-code text-slate-500">{currentCap}h</td>
+                        <td className="py-2 px-3 text-center font-code font-bold text-indigo-600 dark:text-indigo-400">
                           {row.importedCapacity}h
                         </td>
                         <td className="py-2 px-3">

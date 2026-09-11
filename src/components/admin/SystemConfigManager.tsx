@@ -145,7 +145,7 @@ export function SystemConfigManager() {
                   value={config.primaryColor}
                   onChange={(e) => setConfig({ ...config, primaryColor: e.target.value })}
                   placeholder="Ex: 24 93% 53%"
-                  className="h-11 bg-slate-50 border-slate-200 rounded-xl font-mono text-xs"
+                  className="h-11 bg-slate-50 border-slate-200 rounded-xl font-code text-xs"
                 />
                 <div
                   className="w-11 h-11 rounded-xl shadow-xl border-4 border-white shrink-0"

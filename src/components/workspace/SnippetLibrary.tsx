@@ -243,7 +243,7 @@ export function SnippetLibrary() {
                      </div>
                   </div>
 
-                  <div className="relative rounded-2xl bg-slate-950 p-4 font-mono text-[11px] text-slate-300 overflow-hidden group/code">
+                  <div className="relative rounded-2xl bg-slate-950 p-4 font-code text-[11px] text-slate-300 overflow-hidden group/code">
                      <div className="max-h-40 overflow-hidden mask-fade-bottom">
                         <pre className="whitespace-pre-wrap break-all leading-tight">{snippet.content}</pre>
                      </div>

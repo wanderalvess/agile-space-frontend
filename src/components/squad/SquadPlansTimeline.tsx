@@ -883,7 +883,7 @@ export function SquadPlansTimeline() {
   const isDelaySimActive = !!activeDelayTask && activeDelayDays > 0;
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="space-y-4">
       {/* Control & Filters Panel */}
       <div className="bg-white dark:bg-slate-900/90 p-4 md:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md space-y-4">
         {/* Top Header Row */}
@@ -933,7 +933,7 @@ export function SquadPlansTimeline() {
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </Button>
-              <span className="text-[10px] font-mono font-bold px-1.5 text-slate-500">
+              <span className="text-[10px] font-code font-bold px-1.5 text-slate-500">
                 {colWidths.dayWidth}px/dia
               </span>
               <Button
@@ -1210,7 +1210,7 @@ export function SquadPlansTimeline() {
                         <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                           {hierarchyLevel === 'story-to-subtask' && (isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />)}
                           {getIssueTypeBadge(parent.type, true, parent.isBug)}
-                          <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-400 shrink-0">{parent.jiraKey}</span>
+                          <span className="font-code text-[11px] font-bold text-blue-700 dark:text-blue-400 shrink-0">{parent.jiraKey}</span>
                           <span className="truncate text-slate-900 dark:text-slate-100 font-bold" title={parent.title}>{parent.title}</span>
                           {isOverdueRisk && (
                             <Badge className="ml-auto text-[8px] font-black bg-rose-600 text-white uppercase border-none animate-pulse shrink-0">
@@ -1245,7 +1245,7 @@ export function SquadPlansTimeline() {
                               style={{ width: `${parentProgress}%` }}
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 font-mono w-7 text-right shrink-0">
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 font-code w-7 text-right shrink-0">
                             {parentProgress}%
                           </span>
                         </div>
@@ -1284,7 +1284,7 @@ export function SquadPlansTimeline() {
                             <div className="px-3 pl-8 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                               <CornerDownRight className="w-3 h-3 text-slate-400 shrink-0" />
                               {getIssueTypeBadge(task.type, false, task.isBug)}
-                              <span className="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400 shrink-0">{task.jiraKey}</span>
+                              <span className="font-code text-[11px] font-bold text-blue-600 dark:text-blue-400 shrink-0">{task.jiraKey}</span>
                               <span className="truncate text-slate-800 dark:text-slate-200 font-medium" title={task.title}>{task.title}</span>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setOpenDelayPickerFor(openDelayPickerFor === task.id ? null : task.id); }}
@@ -1349,7 +1349,7 @@ export function SquadPlansTimeline() {
                                   style={{ width: `${childProgress}%` }}
                                 />
                               </div>
-                              <span className="text-[9.5px] font-bold text-slate-600 dark:text-slate-400 font-mono w-7 text-right shrink-0">
+                              <span className="text-[9.5px] font-bold text-slate-600 dark:text-slate-400 font-code w-7 text-right shrink-0">
                                 {childProgress}%
                               </span>
                             </div>

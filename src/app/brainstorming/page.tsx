@@ -208,7 +208,7 @@ export default function BrainstormingHubPage() {
             <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configure os detalhes da sua sessão criativa</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-6 font-sans">
+          <div className="space-y-6 py-6">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Título da Sessão</Label>
               <Input 

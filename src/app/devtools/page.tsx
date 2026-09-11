@@ -345,7 +345,7 @@ export default function DevToolsHomePage() {
   );
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-100/30 dark:bg-slate-950/30 relative overflow-hidden font-sans min-h-screen">
+    <div className="flex-1 flex flex-col bg-slate-100/30 dark:bg-slate-950/30 relative overflow-hidden min-h-screen">
       {/* Mesh Background - HIGHER CONTRAST */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-blue-200/20 blur-[120px] rounded-full" />

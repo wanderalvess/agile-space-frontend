@@ -78,14 +78,14 @@ export function CommandPalette({
           <CommandItem onSelect={() => runCommand(() => onNavigate('home'))}>
             <Home className="mr-2 h-4 w-4 text-slate-400" />
             <span>Painel Principal (Home)</span>
-            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-code text-[10px] font-medium text-muted-foreground opacity-100">
               H
             </kbd>
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => onNavigate('kanban'))}>
             <LayoutGrid className="mr-2 h-4 w-4 text-slate-400" />
             <span>Quadro Kanban</span>
-            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-code text-[10px] font-medium text-muted-foreground opacity-100">
               K
             </kbd>
           </CommandItem>

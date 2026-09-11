@@ -85,8 +85,8 @@ export function ParticipantList({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center h-7 w-7 bg-slate-200 rounded-xl opacity-60">
-                <Check className="h-4 w-4 text-slate-500" strokeWidth={3} />
+              <div className="flex items-center justify-center h-7 w-7 bg-slate-200 dark:bg-slate-700 rounded-xl opacity-60">
+                <Check className="h-4 w-4 text-slate-500 dark:text-slate-400" strokeWidth={3} />
               </div>
             </TooltipTrigger>
             <TooltipContent className="bg-slate-900 border-none rounded-lg p-2 text-[10px] font-black uppercase tracking-widest text-slate-400">

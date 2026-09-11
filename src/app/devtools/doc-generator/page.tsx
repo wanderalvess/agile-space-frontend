@@ -270,7 +270,7 @@ export default function DocGeneratorPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 h-screen overflow-hidden font-sans">
+    <div className="flex-1 flex flex-col bg-slate-50 h-screen overflow-hidden">
       {/* Mesh Gradient Local */}
       <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-blue-100/30 blur-[100px] pointer-events-none -z-10" />
 
@@ -490,7 +490,7 @@ export default function DocGeneratorPage() {
                           return (
                             <div key={idx} className="flex items-center justify-between px-8 py-6 hover:bg-slate-50 transition-all group">
                               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                                <span className="text-2xl md:text-3xl font-mono font-black text-slate-800 tracking-[0.1em]">
+                                <span className="text-2xl md:text-3xl font-code font-black text-slate-800 tracking-[0.1em]">
                                   {formattedDoc}
                                 </span>
                                 {isBranchMode && docType !== 'CPF' && (
@@ -532,7 +532,7 @@ export default function DocGeneratorPage() {
                     if (valResult) setValResult(null); // Reset on typing
                   }}
                   placeholder="Cole ou digite aqui..."
-                  className="h-20 text-2xl font-mono text-center tracking-[0.2em] bg-white border-none focus-visible:ring-0 transition-all rounded-[2rem] shadow-2xl shadow-slate-200/50 uppercase font-black text-slate-800 placeholder:text-slate-200 relative z-10"
+                  className="h-20 text-2xl font-code text-center tracking-[0.2em] bg-white border-none focus-visible:ring-0 transition-all rounded-[2rem] shadow-2xl shadow-slate-200/50 uppercase font-black text-slate-800 placeholder:text-slate-200 relative z-10"
                   onKeyDown={(e) => e.key === 'Enter' && handleValidate()}
                 />
               </div>

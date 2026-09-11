@@ -347,7 +347,7 @@ export default function PokerHubPage() {
             {loadingRooms ? <p>Carregando...</p> : mySquadRooms.length === 0 ? <p className="text-muted-foreground">Nenhuma sessão encontrada.</p> : mySquadRooms.map(r => (
                <div key={r.id} className="p-4 border rounded shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900" onClick={() => router.push(`/room/${r.id}`)}>
                  <h4 className="font-bold">{r.title}</h4>
-                 <p className="text-sm text-gray-500">{r.team}</p>
+                 <p className="text-sm text-muted-foreground">{r.team}</p>
                </div>
             ))}
           </div>
@@ -356,7 +356,7 @@ export default function PokerHubPage() {
             {loadingRooms ? <p>Carregando...</p> : myParticipatedRooms.length === 0 ? <p className="text-muted-foreground">Nenhuma sessão encontrada.</p> : myParticipatedRooms.map(r => (
                <div key={r.id} className="p-4 border rounded shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900" onClick={() => router.push(`/room/${r.id}`)}>
                  <h4 className="font-bold">{r.title}</h4>
-                 <p className="text-sm text-gray-500">{r.team}</p>
+                 <p className="text-sm text-muted-foreground">{r.team}</p>
                </div>
             ))}
           </div>
@@ -408,7 +408,7 @@ export default function PokerHubPage() {
           )}
 
           {/* Nome + squad */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 font-sans">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
                 <ListPlus className="h-3.5 w-3.5 text-primary" /> Título da Sala
@@ -426,7 +426,7 @@ export default function PokerHubPage() {
           </div>
 
           {/* Baralho — cartões visuais */}
-          <div className="space-y-2 pt-3 font-sans">
+          <div className="space-y-2 pt-3">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
               <WalletCards className="h-3.5 w-3.5 text-primary" /> Tipo de Baralho
             </Label>
@@ -470,7 +470,7 @@ export default function PokerHubPage() {
           </div>
 
           {deckType === 'tshirt' && (
-            <div className="space-y-2 pt-3 font-sans">
+            <div className="space-y-2 pt-3">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
                 <WalletCards className="h-3.5 w-3.5 text-primary" /> Equivalência de referência
                 <span className="text-muted-foreground/70 normal-case tracking-normal font-medium">(opcional — preenchendo, o resultado passa a calcular de verdade)</span>
@@ -515,7 +515,7 @@ export default function PokerHubPage() {
             scroll interno de 13rem — dava pra ver 3 de cada vez e o facilitador
             não tinha noção do conjunto, que é justamente o ponto de mostrá-los.
           */}
-          <div className="pt-3 font-sans space-y-4">
+          <div className="pt-3 space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
                 <Zap className="h-3.5 w-3.5 text-primary" /> Modo de Jogo
@@ -559,20 +559,22 @@ export default function PokerHubPage() {
                   </span>
                 </Label>
                 <div className="flex items-center gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => setSetupSettings({ ...DEFAULT_ROOM_SETTINGS, allowManagementToVote: false, autoReveal: false, autoConsensus: false })}
-                    className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                    className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
                   >
                     Padrão
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => setSetupSettings(s => Object.fromEntries(Object.keys(s).map(k => [k, false])))}
-                    className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                    className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
                   >
                     Nenhum
-                  </button>
+                  </Button>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3">

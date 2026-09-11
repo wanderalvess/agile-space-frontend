@@ -75,7 +75,7 @@ export default function JwtInspectorPage() {
   const isExpired = decoded.payload?.exp ? (Date.now() / 1000) > decoded.payload.exp : false;
 
   return (
-    <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white/60 backdrop-blur-xl flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -125,7 +125,7 @@ export default function JwtInspectorPage() {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               placeholder="Cole seu JWT aqui (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...)"
-              className="w-full h-full resize-none border-none font-mono text-[13px] leading-relaxed break-all focus-visible:ring-0 placeholder:italic"
+              className="w-full h-full resize-none border-none font-code text-[13px] leading-relaxed break-all focus-visible:ring-0 placeholder:italic"
             />
           </Card>
 
@@ -257,7 +257,7 @@ function CodePane({ data, color }: { data: any, color: 'red' | 'emerald' | 'blue
   };
 
   return (
-    <Card className={cn("border-none shadow-inner rounded-[2.5rem] overflow-hidden p-8 font-mono text-xs leading-relaxed", colors[color])}>
+    <Card className={cn("border-none shadow-inner rounded-[2.5rem] overflow-hidden p-8 font-code text-xs leading-relaxed", colors[color])}>
        <pre className="overflow-auto max-h-[400px]">
           {JSON.stringify(data, null, 2)}
        </pre>

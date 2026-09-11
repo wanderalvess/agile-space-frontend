@@ -319,7 +319,7 @@ export function CreateHealthCheckDialog({ open, onOpenChange, onCreateBoard, isC
                       value={bulkText}
                       onChange={(e) => setBulkText(e.target.value)}
                       placeholder="Dimensão 1 - Descrição..."
-                      className="min-h-[250px] font-mono text-xs rounded-[2rem] bg-slate-50 border-none shadow-inner focus-visible:ring-rose-500/20 p-8 leading-relaxed"
+                      className="min-h-[250px] font-code text-xs rounded-[2rem] bg-slate-50 border-none shadow-inner focus-visible:ring-rose-500/20 p-8 leading-relaxed"
                     />
                     <Button onClick={handleBulkImport} className="w-full h-14 font-black text-[11px] uppercase tracking-[0.3em] bg-slate-900 rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-200">
                       Processar Importação em Massa

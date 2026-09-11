@@ -228,14 +228,14 @@ export default function ArchitectureBoardPage() {
                       <div className="space-y-6">
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Fluxograma de Decisão</p>
-                          <div className="bg-slate-900 p-4 rounded-xl font-mono text-[11px] text-blue-400 shadow-inner">
+                          <div className="bg-slate-900 p-4 rounded-xl font-code text-[11px] text-blue-400 shadow-inner">
                             {`graph TD\n  A[Start] --> B{Is Valid?}\n  B -- Yes --> C[Process]\n  B -- No --> D[Error]`}
                           </div>
                         </div>
 
                         <div className="space-y-2">
                           <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Sequência de API</p>
-                          <div className="bg-slate-900 p-4 rounded-xl font-mono text-[11px] text-emerald-400 shadow-inner">
+                          <div className="bg-slate-900 p-4 rounded-xl font-code text-[11px] text-emerald-400 shadow-inner">
                             {`sequenceDiagram\n  Client->>Server: Request\n  Server-->>DB: Query\n  DB-->>Server: Result\n  Server-->>Client: 200 OK`}
                           </div>
                         </div>

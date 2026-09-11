@@ -158,7 +158,7 @@ export function ToolHubLayout({
 
   return (
     <div className={cn(
-      "flex-1 w-full bg-[#fafafa] dark:bg-slate-950 font-sans selection:bg-slate-200 dark:selection:bg-slate-700 relative flex flex-col",
+      "flex-1 w-full bg-[#fafafa] dark:bg-slate-950 selection:bg-slate-200 dark:selection:bg-slate-700 relative flex flex-col",
       onlyChildren ? "h-dvh overflow-hidden" : "min-h-dvh overflow-y-auto custom-scrollbar"
     )}>
       {/* PADRONIZAÇÃO DA BARRA SUPERIOR */}

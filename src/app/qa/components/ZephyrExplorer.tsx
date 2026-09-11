@@ -174,7 +174,7 @@ export function ZephyrExplorer() {
               placeholder="Jira Token PAT..."
               value={patToken}
               onChange={(e) => setPatToken(e.target.value)}
-              className="pl-9 text-xs font-mono bg-slate-50 dark:bg-slate-950 h-9"
+              className="pl-9 text-xs font-code bg-slate-50 dark:bg-slate-950 h-9"
             />
           </div>
 
@@ -206,7 +206,7 @@ export function ZephyrExplorer() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="font-mono text-xs font-extrabold bg-blue-50 text-blue-700 dark:bg-blue-950/40 border-blue-300">
+                <Badge variant="outline" className="font-code text-xs font-extrabold bg-blue-50 text-blue-700 dark:bg-blue-950/40 border-blue-300">
                   {testCaseData.key || testCaseKey}
                 </Badge>
                 {testCaseData.status && (
@@ -294,7 +294,7 @@ export function ZephyrExplorer() {
                       <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/50 transition-colors">
                         <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
                         <td className="p-3 text-slate-900 dark:text-slate-100 whitespace-pre-line">{st.step || st.description || '-'}</td>
-                        <td className="p-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 whitespace-pre-line">{st.testData || '-'}</td>
+                        <td className="p-3 font-code text-[11px] text-slate-600 dark:text-slate-400 whitespace-pre-line">{st.testData || '-'}</td>
                         <td className="p-3 text-emerald-700 dark:text-emerald-400 whitespace-pre-line font-semibold">{st.expectedResult || '-'}</td>
                       </tr>
                     ))}
@@ -329,7 +329,7 @@ export function ZephyrExplorer() {
               type="number" 
               value={passCount} 
               onChange={(e) => setPassCount(parseInt(e.target.value) || 0)} 
-              className="font-mono font-bold bg-white dark:bg-slate-900 h-9"
+              className="font-code font-bold bg-white dark:bg-slate-900 h-9"
             />
           </div>
 
@@ -339,7 +339,7 @@ export function ZephyrExplorer() {
               type="number" 
               value={failCount} 
               onChange={(e) => setFailCount(parseInt(e.target.value) || 0)} 
-              className="font-mono font-bold bg-white dark:bg-slate-900 h-9"
+              className="font-code font-bold bg-white dark:bg-slate-900 h-9"
             />
           </div>
 
@@ -349,7 +349,7 @@ export function ZephyrExplorer() {
               type="number" 
               value={blockedCount} 
               onChange={(e) => setBlockedCount(parseInt(e.target.value) || 0)} 
-              className="font-mono font-bold bg-white dark:bg-slate-900 h-9"
+              className="font-code font-bold bg-white dark:bg-slate-900 h-9"
             />
           </div>
 
@@ -359,7 +359,7 @@ export function ZephyrExplorer() {
               type="number" 
               value={unexecutedCount} 
               onChange={(e) => setUnexecutedCount(parseInt(e.target.value) || 0)} 
-              className="font-mono font-bold bg-white dark:bg-slate-900 h-9"
+              className="font-code font-bold bg-white dark:bg-slate-900 h-9"
             />
           </div>
         </div>
@@ -390,7 +390,7 @@ export function ZephyrExplorer() {
               readOnly
               value={reportMarkdown}
               rows={8}
-              className="w-full p-4 font-mono text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
+              className="w-full p-4 font-code text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
             />
           </div>
         )}

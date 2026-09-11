@@ -940,15 +940,15 @@ export function TopicQueue({
                   value={bulkText}
                   onChange={(e) => setBulkText(e.target.value)}
                   placeholder="EX-101 | Ajustar botões | https://jira.com/101&#10;EX-102 | Refatorar API&#10;Apenas um título sem chave..."
-                  className="min-h-[190px] text-xs font-bold font-mono bg-muted/20 border-primary/10 focus:border-primary/30 rounded-xl transition-all"
+                  className="min-h-[190px] text-xs font-bold font-code bg-muted/20 border-primary/10 focus:border-primary/30 rounded-xl transition-all"
                 />
                 <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-bold px-0.5">
                   <span className="uppercase tracking-widest text-muted-foreground/60">Por linha:</span>
-                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">CHAVE</code>
+                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-code">CHAVE</code>
                   <span className="text-muted-foreground/40">|</span>
-                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">Título</code>
+                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-code">Título</code>
                   <span className="text-muted-foreground/40">|</span>
-                  <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Link</code>
+                  <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-code">Link</code>
                   <span className="text-muted-foreground/50 italic normal-case tracking-normal">— chave e link são opcionais</span>
                 </div>
               </div>
@@ -1279,18 +1279,18 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
 
   return (
     <Dialog open={!!round} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] border-none shadow-2xl rounded-[2.5rem] overflow-hidden p-0 bg-white/95 backdrop-blur-2xl">
-        <DialogHeader className="p-8 pb-4 bg-slate-50/50">
+      <DialogContent className="sm:max-w-[500px] border-none shadow-2xl rounded-[2.5rem] overflow-hidden p-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl">
+        <DialogHeader className="p-8 pb-4 bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
               <CheckCircle2 className="h-5 w-5" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Tarefa Concluída</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 dark:text-indigo-500">Tarefa Concluída</span>
           </div>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tight italic text-slate-800 leading-tight">
+          <DialogTitle className="text-2xl font-black uppercase tracking-tight italic text-slate-800 dark:text-slate-100 leading-tight">
             {round.topic}
           </DialogTitle>
-          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             Relatório de Estimativa Consolidada
           </DialogDescription>
         </DialogHeader>
@@ -1310,9 +1310,9 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
                   if (!value || value === '0') return null;
 
                   return (
-                    <div key={category} className="bg-slate-100 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-200/50">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">{category}</span>
-                      <span className="text-2xl font-black italic text-slate-700">{value}h</span>
+                    <div key={category} className="bg-slate-100 dark:bg-slate-800 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-200/50 dark:border-slate-700/50">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{category}</span>
+                      <span className="text-2xl font-black italic text-slate-700 dark:text-slate-200">{value}h</span>
                     </div>
                   );
                 })}
@@ -1320,13 +1320,13 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
             )}
             {round.deckType !== 'hours' && (
               <>
-                <div className="bg-slate-50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Menor</span>
-                  <span className="text-xl font-black text-slate-700">{round.stats.min}</span>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Menor</span>
+                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{round.stats.min}</span>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Maior</span>
-                  <span className="text-xl font-black text-slate-700">{round.stats.max}</span>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Maior</span>
+                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{round.stats.max}</span>
                 </div>
               </>
             )}
@@ -1335,21 +1335,21 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
           {/* Votos Individuais */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Participação da Squad</span>
-              <div className="h-px flex-1 bg-slate-100"></div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Participação da Squad</span>
+              <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {(round.votes || []).map((vote: any) => {
                 const p = participantMap.get(vote.participantId);
                 return (
-                  <div key={vote.participantId} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all">
+                  <div key={vote.participantId} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all">
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-slate-600 truncate">{p?.nickname || '...'}</span>
-                      <span className="text-[7px] font-black uppercase tracking-tighter text-slate-400">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">{p?.nickname || '...'}</span>
+                      <span className="text-[7px] font-black uppercase tracking-tighter text-slate-400 dark:text-slate-500">
                         {p ? (getParticipantCategory(p) || p.globalRole || p.role) : '...'}
                       </span>
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-black bg-white border-slate-200 text-indigo-600 px-2 py-0.5 rounded-lg shadow-sm">
+                    <Badge variant="outline" className="text-[10px] font-black bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg shadow-sm">
                       {vote.value}
                     </Badge>
                   </div>
@@ -1364,7 +1364,7 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
             <Button
               variant="outline"
               onClick={handleCopyHoursOnly}
-              className="w-full h-12 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold text-[10px] uppercase tracking-widest rounded-2xl transition-all flex items-center gap-2"
+              className="w-full h-12 border-indigo-100 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-bold text-[10px] uppercase tracking-widest rounded-2xl transition-all flex items-center gap-2"
             >
               <ClipboardCopy className="h-4 w-4" />
               Copiar Horas Resumidas

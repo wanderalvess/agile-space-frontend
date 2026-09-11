@@ -672,7 +672,7 @@ export function UserProfileModal() {
                       value={jiraToken}
                       onChange={(e) => setJiraToken(e.target.value)}
                       placeholder="Cole seu Personal Access Token do Jira"
-                      className="h-9 rounded-xl text-xs bg-background/50 border-input text-foreground font-mono focus-visible:ring-primary focus-visible:border-primary"
+                      className="h-9 rounded-xl text-xs bg-background/50 border-input text-foreground font-code focus-visible:ring-primary focus-visible:border-primary"
                     />
                   </div>
 
@@ -702,7 +702,7 @@ export function UserProfileModal() {
                       </div>
                       <div>
                         <span className="text-muted-foreground text-[9px] uppercase font-bold block">Usuário</span>
-                        <span className="font-mono text-foreground">{jiraAccountDetails.name || jiraAccountDetails.key || '—'}</span>
+                        <span className="font-code text-foreground">{jiraAccountDetails.name || jiraAccountDetails.key || '—'}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground text-[9px] uppercase font-bold block">E-mail</span>

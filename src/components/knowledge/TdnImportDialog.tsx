@@ -226,7 +226,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                         placeholder="Insira o Token do Confluence..."
-                        className="h-10 rounded-xl text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                        className="h-10 rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
                       />
                     </div>
                   </div>

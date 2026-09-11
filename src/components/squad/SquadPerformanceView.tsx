@@ -342,7 +342,7 @@ export function SquadPerformanceView() {
             <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 font-extrabold text-[9px] px-2.5 py-0.5 uppercase tracking-wider">
               <Activity className="h-3 w-3 mr-1 inline" /> PERFORMANCE DA SQUAD
             </Badge>
-            <span className="text-xs text-slate-400 font-mono font-medium">Métricas do Time</span>
+            <span className="text-xs text-slate-400 font-code font-medium">Métricas do Time</span>
           </div>
           <h2 className="text-xl md:text-2xl font-black italic tracking-tight text-slate-900 dark:text-white uppercase font-headline">
             Produtividade, Velocidade & Alocação

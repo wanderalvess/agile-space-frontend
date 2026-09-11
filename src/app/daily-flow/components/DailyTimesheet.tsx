@@ -844,7 +844,7 @@ export default function DailyTimesheet() {
 
       {/* JIRA WORKLOG IMPORT DIALOG */}
       <Dialog open={isSyncModalOpen} onOpenChange={setIsSyncModalOpen}>
-        <DialogContent className="sm:max-w-[840px] md:max-w-[940px] w-[95vw] rounded-[2.5rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-6 md:p-8 font-sans max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[840px] md:max-w-[940px] w-[95vw] rounded-[2.5rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl p-6 md:p-8 max-h-[90vh] flex flex-col">
           <DialogHeader className="shrink-0 pb-4 border-b border-slate-100 dark:border-slate-800/80">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>

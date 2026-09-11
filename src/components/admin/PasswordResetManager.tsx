@@ -122,7 +122,7 @@ export function PasswordResetManager() {
               </Button>
             </div>
             <div className="mt-3 flex items-center gap-3">
-              <div className="px-4 py-2 bg-emerald-950 text-emerald-300 font-mono text-lg font-black tracking-wider rounded-xl border border-emerald-500/40 select-all">
+              <div className="px-4 py-2 bg-emerald-950 text-emerald-300 font-code text-lg font-black tracking-wider rounded-xl border border-emerald-500/40 select-all">
                 {generatedPassword.pass}
               </div>
               <Button
@@ -158,7 +158,7 @@ export function PasswordResetManager() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{req.userName || req.userEmail}</span>
-                    <span className="text-xs text-slate-400 font-mono">({req.userEmail})</span>
+                    <span className="text-xs text-slate-400 font-code">({req.userEmail})</span>
                   </div>
                   <div className="flex items-center gap-3 text-[11px] text-slate-500">
                     <span className="flex items-center gap-1">

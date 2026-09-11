@@ -453,7 +453,7 @@ export function CustomJqlPanelsSection() {
               >
                 <div className="flex flex-col gap-3">
                   {/* JQL Label */}
-                  <div className="bg-muted/50 p-2 rounded-lg border border-border font-mono text-[10.5px] text-muted-foreground truncate">
+                  <div className="bg-muted/50 p-2 rounded-lg border border-border font-code text-[10.5px] text-muted-foreground truncate">
                     <span className="text-primary font-bold">JQL: </span>
                     {panel.jql}
                   </div>
@@ -550,7 +550,7 @@ export function CustomJqlPanelsSection() {
                               {panel.resultIssues && panel.resultIssues.length > 0 ? (
                                 panel.resultIssues.map((iss) => (
                                   <tr key={iss.key} className="hover:bg-muted/40 transition-colors">
-                                    <td className="p-2.5 font-mono font-bold text-primary whitespace-nowrap">
+                                    <td className="p-2.5 font-code font-bold text-primary whitespace-nowrap">
                                       {iss.key}
                                     </td>
                                     <td className="p-2.5 font-medium text-foreground truncate max-w-[200px]">
@@ -616,7 +616,7 @@ export function CustomJqlPanelsSection() {
                 placeholder={`project = ${squadId} AND type = Bug`}
                 value={jql}
                 onChange={(e) => setJql(e.target.value)}
-                className="bg-muted border-border text-foreground font-mono text-xs rounded-xl"
+                className="bg-muted border-border text-foreground font-code text-xs rounded-xl"
               />
             </div>
 

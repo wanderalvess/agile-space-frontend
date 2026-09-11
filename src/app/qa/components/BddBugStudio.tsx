@@ -284,7 +284,7 @@ ${bugLogs || 'Nenhum log retornado'}
                   readOnly
                   value={generateGherkinText()}
                   rows={16}
-                  className="w-full p-4 font-mono text-xs bg-slate-950 text-emerald-400 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
+                  className="w-full p-4 font-code text-xs bg-slate-950 text-emerald-400 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
                 />
               </div>
             </div>
@@ -390,7 +390,7 @@ ${bugLogs || 'Nenhum log retornado'}
                     value={bugLogs}
                     onChange={(e) => setBugLogs(e.target.value)}
                     rows={3}
-                    className="font-mono text-xs bg-slate-50 dark:bg-slate-950"
+                    className="font-code text-xs bg-slate-50 dark:bg-slate-950"
                   />
                 </div>
               </div>
@@ -402,7 +402,7 @@ ${bugLogs || 'Nenhum log retornado'}
                   readOnly
                   value={generateBugMarkdown()}
                   rows={20}
-                  className="w-full p-4 font-mono text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
+                  className="w-full p-4 font-code text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
                 />
               </div>
             </div>

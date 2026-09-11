@@ -539,7 +539,7 @@ export function BoardConfigModal({
               <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider text-[9.5px]">
                 Configuração do Quadro
               </Badge>
-              <span className="text-xs font-mono text-slate-400">
+              <span className="text-xs font-code text-slate-400">
                 {boardName} #{rapidViewId}
               </span>
             </div>
@@ -687,7 +687,7 @@ export function BoardConfigModal({
                           placeholder='Ex: assignee = currentUser() AND statusCategory != Done'
                           value={newQuery}
                           onChange={e => setNewQuery(e.target.value)}
-                          className="h-8 text-xs rounded-xl font-mono"
+                          className="h-8 text-xs rounded-xl font-code"
                         />
                       </div>
                     </div>
@@ -753,7 +753,7 @@ export function BoardConfigModal({
                                   <Input
                                     value={editQuery}
                                     onChange={e => setEditQuery(e.target.value)}
-                                    className="h-7 text-xs rounded-lg font-mono"
+                                    className="h-7 text-xs rounded-lg font-code"
                                   />
                                 </td>
                                 <td className="p-2 hidden lg:table-cell">
@@ -798,7 +798,7 @@ export function BoardConfigModal({
                                   {filter.name}
                                 </span>
                               </td>
-                              <td className="p-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 break-all leading-relaxed">
+                              <td className="p-3 font-code text-[11px] text-slate-600 dark:text-slate-300 break-all leading-relaxed">
                                 {filter.query}
                               </td>
                               <td className="p-3 text-[11px] text-slate-400 hidden lg:table-cell">
@@ -1064,7 +1064,7 @@ export function BoardConfigModal({
                               placeholder='Ex: labels in (backend, api)'
                               value={newSwimlaneQuery}
                               onChange={e => setNewSwimlaneQuery(e.target.value)}
-                              className="h-8 text-xs rounded-xl font-mono"
+                              className="h-8 text-xs rounded-xl font-code"
                             />
                           </div>
                         </div>
@@ -1134,7 +1134,7 @@ export function BoardConfigModal({
                                         onChange={e => setEditSwimlaneQuery(e.target.value)}
                                         disabled={isDefault}
                                         placeholder={isDefault ? 'Filtro padrão para todos os demais itens' : ''}
-                                        className="h-7 text-xs rounded-lg font-mono"
+                                        className="h-7 text-xs rounded-lg font-code"
                                       />
                                     </td>
                                     <td className="p-2 hidden lg:table-cell">
@@ -1186,7 +1186,7 @@ export function BoardConfigModal({
                                       )}
                                     </div>
                                   </td>
-                                  <td className="p-3 font-mono text-[11px] text-slate-600 dark:text-slate-300 break-all leading-relaxed">
+                                  <td className="p-3 font-code text-[11px] text-slate-600 dark:text-slate-300 break-all leading-relaxed">
                                     {isDefault ? (
                                       <span className="text-slate-400 italic font-sans text-xs">
                                         Todos os itens que não corresponderem a nenhuma consulta acima

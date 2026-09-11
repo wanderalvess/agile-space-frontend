@@ -3,12 +3,6 @@
 import { useState } from 'react';
 import { DeckType, DECKS } from '@/lib/types';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -16,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Settings, Users, Eye, WalletCards, AlertTriangle, Save, BarChart3, ShieldCheck, HelpCircle, Clock, FileText, Bell, TrendingUp, CheckCircle2, RotateCcw, Smile, Search, Pin, Layers, Sparkles, Hourglass, Ban } from 'lucide-react';
+import { Users, Eye, WalletCards, AlertTriangle, Save, BarChart3, ShieldCheck, HelpCircle, Clock, FileText, Bell, TrendingUp, CheckCircle2, RotateCcw, Smile, Search, Pin, Layers, Sparkles, Hourglass, Ban } from 'lucide-react';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Input } from '../ui/input';
@@ -331,30 +325,5 @@ export function FacilitatorPanel({
     </div>
   );
 
-  if (isEmbeddedInSheet) {
-    return content;
-  }
-
-  return (
-    <Accordion type="single" collapsible className="w-full bg-white/40 backdrop-blur-xl rounded-[2rem] border border-white/80 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] overflow-hidden transition-all hover:shadow-[0_32px_64px_-16px_rgba(79,70,229,0.08)]" >
-      <AccordionItem value="item-1" className="border-b-0">
-        <AccordionTrigger className="px-6 py-4 hover:no-underline group">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-              <Settings className="h-4 w-4 text-indigo-500" />
-            </div>
-            <div className="text-left">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 leading-none mb-1">Painel Master</p>
-              <p className="text-sm font-bold text-slate-800 tracking-tight italic">Configurações da Cerimônia</p>
-            </div>
-          </div>
-        </AccordionTrigger>
-        <AccordionContent>
-          <div className="px-1">
-            {content}
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  );
+  return content;
 }

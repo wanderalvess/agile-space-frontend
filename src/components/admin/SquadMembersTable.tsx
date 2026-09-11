@@ -414,7 +414,7 @@ export function SquadMembersTable({ squadId }: SquadMembersTableProps) {
                         <span className="text-[12px] font-bold text-slate-800 dark:text-slate-200">
                           {member.displayName}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        <span className="text-[10px] text-slate-400 font-code mt-0.5">
                           {member.jiraAccountId}
                         </span>
                       </div>

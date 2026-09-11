@@ -557,14 +557,14 @@ export function SquadScrumBoard({
               <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-black uppercase tracking-wider text-[9px] px-2.5 py-0.5">
                 QUADRO SCRUM
               </Badge>
-              <span className="text-xs text-slate-400 font-mono">
+              <span className="text-xs text-slate-400 font-code">
                 {jiraProjectKey}
               </span>
             </div>
             <h2 className="text-xl md:text-2xl font-black italic tracking-tight uppercase font-headline text-slate-900 dark:text-white">
               {boardData.boardName || `SCRUM ${jiraProjectKey}`}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-code">
               {activeSprint?.name || `${jiraProjectKey} Missi - Sprint Ativa`}
             </p>
           </div>
@@ -808,7 +808,7 @@ export function SquadScrumBoard({
                                           {getTypeIcon(issue.typeName)}
                                           <button
                                             onClick={e => copyIssueKey(issue.key, e)}
-                                            className="text-[11px] font-black font-mono text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                            className="text-[11px] font-black font-code text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
                                             title="Clique para copiar a chave"
                                           >
                                             {issue.key}
@@ -856,7 +856,7 @@ export function SquadScrumBoard({
 
                                       {/* Indicador de Subtarefas */}
                                       {issue.subTasks && issue.subTasks.length > 0 && (
-                                        <div className="flex items-center gap-1 font-mono">
+                                        <div className="flex items-center gap-1 font-code">
                                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                           <span>
                                             {issue.subTasks.filter(st => st.isDone).length}/
@@ -898,7 +898,7 @@ export function SquadScrumBoard({
               <DialogHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">
+                    <Badge variant="outline" className="font-code text-xs font-black text-indigo-600 dark:text-indigo-400">
                       {selectedIssue.key}
                     </Badge>
                     <Badge variant="secondary" className="text-[10px] font-bold">

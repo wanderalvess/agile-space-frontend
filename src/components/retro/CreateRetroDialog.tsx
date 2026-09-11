@@ -215,7 +215,7 @@ export function CreateRetroDialog({
 
         {/* Começar de um template salvo — mesmo padrão do /room */}
         {savedTemplates.length > 0 && (
-          <div className="space-y-2 px-1 pt-1 font-sans">
+          <div className="space-y-2 px-1 pt-1">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
               Começar de um template
@@ -235,7 +235,7 @@ export function CreateRetroDialog({
         )}
 
         {/* Nome + squad */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 font-sans">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           <div className="space-y-2">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
               <ListPlus className="h-3.5 w-3.5 text-primary" /> Título da Retrospectiva
@@ -261,7 +261,7 @@ export function CreateRetroDialog({
         </div>
 
         {/* Formatos de Colunas — Cartões Visuais (Estilo Poker) */}
-        <div className="space-y-2 pt-1 font-sans">
+        <div className="space-y-2 pt-1">
           <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
             <LayoutTemplate className="h-3.5 w-3.5 text-primary" /> Formato das Colunas
           </Label>
@@ -334,7 +334,7 @@ export function CreateRetroDialog({
 
         {/* Editor de colunas customizadas se selecionado */}
         {template === 'custom' && (
-          <div className="space-y-3 p-4 rounded-2xl border border-dashed border-border bg-muted/20 animate-in fade-in slide-in-from-top-2 font-sans">
+          <div className="space-y-3 p-4 rounded-2xl border border-dashed border-border bg-muted/20 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center justify-between">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Definição das Colunas Customizadas</Label>
               <span className="text-[9px] font-medium text-muted-foreground">Mínimo 2, máximo 6</span>
@@ -380,7 +380,7 @@ export function CreateRetroDialog({
         )}
 
         {/* Configurações do Facilitador — Grid com Switches idêntico ao Poker */}
-        <div className="pt-2 font-sans space-y-3">
+        <div className="pt-2 space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap ml-1">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5 text-primary" /> Configurações do Facilitador

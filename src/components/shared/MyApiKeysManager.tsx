@@ -112,7 +112,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
               Copie agora — essa chave não será mostrada de novo
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 h-10 flex items-center px-3 bg-white border border-emerald-200 rounded-xl text-[11px] font-mono truncate">
+              <code className="flex-1 h-10 flex items-center px-3 bg-white border border-emerald-200 rounded-xl text-[11px] font-code truncate">
                 {revealedKey}
               </code>
               <Button onClick={copyRevealedKey} size="sm" className="h-10 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 gap-2 shrink-0">

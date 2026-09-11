@@ -168,7 +168,7 @@ export function SquadDashboardView() {
             <span className="bg-primary/10 text-primary font-bold text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
               {userProfile?.role || "Membro da Squad"}
             </span>
-            <span className="text-xs text-slate-400 font-mono">Visão Analítica</span>
+            <span className="text-xs text-slate-400 font-code">Visão Analítica</span>
           </div>
           <h2 className="text-lg md:text-xl font-black italic tracking-tight text-slate-900 dark:text-white uppercase font-headline">
             Dashboards por Cargo & Governança
@@ -253,7 +253,7 @@ export function SquadDashboardView() {
                   >
                     <div className="flex flex-col gap-0.5 max-w-[70%]">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-primary">{t.jiraKey}</span>
+                        <span className="font-code text-xs font-bold text-primary">{t.jiraKey}</span>
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{t.title}</span>
                       </div>
                       <span className="text-[10px] text-slate-400 font-medium">
@@ -317,7 +317,7 @@ export function SquadDashboardView() {
             <div className="flex flex-col gap-2 mt-1">
               {pendingIssues.map((iss) => (
                 <div key={iss.jiraKey} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2 text-xs">
-                  <span className="font-mono font-bold text-primary shrink-0 mr-2">{iss.jiraKey}</span>
+                  <span className="font-code font-bold text-primary shrink-0 mr-2">{iss.jiraKey}</span>
                   <span className="text-slate-800 dark:text-slate-200 truncate font-medium flex-1">{iss.title}</span>
                   <span className="text-slate-500 dark:text-slate-400 text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md ml-2">{iss.status}</span>
                 </div>

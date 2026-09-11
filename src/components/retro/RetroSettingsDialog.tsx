@@ -110,7 +110,7 @@ export function RetroSettingsDialog({
           <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Ajustes da cerimônia — só o facilitador vê isso</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-4 font-sans">
+        <div className="space-y-3 py-4">
           <ToggleRow
             icon={User}
             id="authors-revealed"

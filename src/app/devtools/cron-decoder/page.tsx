@@ -116,7 +116,7 @@ export default function CronDecoderPage() {
                   <h3 className="font-black text-xs uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2 italic">
                     02. Estrutura da Sintaxe
                   </h3>
-                  <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 font-mono text-[10px] space-y-2 text-slate-400">
+                  <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 font-code text-[10px] space-y-2 text-slate-400">
                     <div className="grid grid-cols-2 border-b border-slate-800 pb-2 mb-2 text-blue-400 font-black">
                       <span>CAMPO</span> <span>VALOR</span>
                     </div>

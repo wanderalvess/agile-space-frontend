@@ -439,7 +439,7 @@ export function ShareRoomDialog({
                                 {issue.title}
                               </span>
                             </div>
-                            <span className="text-[10px] font-mono shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded font-semibold">
+                            <span className="text-[10px] font-code shrink-0 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded font-semibold">
                               {issue.jiraLink ? 'Link Jira' : (issue.key || 'Número/Título')}
                             </span>
                           </div>
@@ -456,7 +456,7 @@ export function ShareRoomDialog({
                   <span>Pré-visualização do Texto</span>
                   <span className="text-[11px] text-slate-400 font-normal">Pronto para copiar</span>
                 </Label>
-                <pre className="p-3.5 sm:p-4 bg-slate-900 text-slate-100 font-mono text-xs sm:text-sm rounded-xl overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words max-h-40 sm:max-h-52 border border-slate-800 shadow-inner">
+                <pre className="p-3.5 sm:p-4 bg-slate-900 text-slate-100 font-code text-xs sm:text-sm rounded-xl overflow-y-auto overflow-x-hidden whitespace-pre-wrap break-words max-h-40 sm:max-h-52 border border-slate-800 shadow-inner">
                   {formattedMessage}
                 </pre>
               </div>
@@ -469,7 +469,7 @@ export function ShareRoomDialog({
                   Link da Sala
                 </Label>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                  <Input value={roomUrl} readOnly className="font-mono text-xs sm:text-sm bg-white dark:bg-slate-900 flex-1" />
+                  <Input value={roomUrl} readOnly className="font-code text-xs sm:text-sm bg-white dark:bg-slate-900 flex-1" />
                   <Button
                     variant="outline"
                     size="sm"

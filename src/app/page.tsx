@@ -21,7 +21,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative flex-1 w-full overflow-x-hidden bg-[#fafafa] dark:bg-slate-950 min-h-dvh font-sans selection:bg-primary/30 text-slate-900 dark:text-slate-100">
+    <div className="relative flex-1 w-full overflow-x-hidden bg-[#fafafa] dark:bg-slate-950 min-h-dvh selection:bg-primary/30 text-slate-900 dark:text-slate-100">
       {/* ELITE MESH GRADIENT BACKGROUND */}
       <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] bg-primary/5 rounded-full blur-[160px] animate-pulse"></div>

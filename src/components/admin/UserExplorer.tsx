@@ -243,7 +243,7 @@ export function UserExplorer() {
                       </Select>
                     </TableCell>
                     <TableCell className="py-2.5"><Badge variant="ghost" className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 border-slate-200/50 dark:border-slate-700/50 text-[9px] font-black uppercase tracking-widest rounded-lg px-2 py-1">{u.squadId || u.team || 'Sem Squad'}</Badge></TableCell>
-                    <TableCell className="py-2.5 text-[10px] font-mono text-slate-500">{u.jiraAccountId || '—'}</TableCell>
+                    <TableCell className="py-2.5 text-[10px] font-code text-slate-500">{u.jiraAccountId || '—'}</TableCell>
                   </motion.tr>
                 );
               })}

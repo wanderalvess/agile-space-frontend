@@ -62,7 +62,7 @@ export default function SecretVaultPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 font-sans overflow-hidden selection:bg-emerald-500/30">
+    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden selection:bg-emerald-500/30">
       {/* Background glows */}
       <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
         <div className="absolute -top-32 -right-32 w-[600px] h-[600px] bg-emerald-100/30 blur-[120px] rounded-full" />
@@ -128,7 +128,7 @@ export default function SecretVaultPage() {
                         value={secret}
                         onChange={(e) => setSecret(e.target.value)}
                         placeholder="Insira aqui senhas, chaves de API ou qualquer dado sensível que precise de proteção total..."
-                        className="bg-white border-slate-200 rounded-[2rem] min-h-[180px] text-base font-mono text-slate-800 p-8 resize-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-500/5 shadow-inner transition-all leading-relaxed"
+                        className="bg-white border-slate-200 rounded-[2rem] min-h-[180px] text-base font-code text-slate-800 p-8 resize-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-500/5 shadow-inner transition-all leading-relaxed"
                       />
                     </div>
 
@@ -207,7 +207,7 @@ export default function SecretVaultPage() {
                       Segurança E2EE Ativa
                     </Badge>
                   </div>
-                  <div className="bg-black/30 p-8 rounded-3xl border border-white/5 break-all font-mono text-sm text-emerald-400 leading-relaxed text-left mb-10 shadow-inner">
+                  <div className="bg-black/30 p-8 rounded-3xl border border-white/5 break-all font-code text-sm text-emerald-400 leading-relaxed text-left mb-10 shadow-inner">
                     {generatedLink}
                   </div>
                   <div className="flex flex-col md:flex-row gap-4">

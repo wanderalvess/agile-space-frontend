@@ -146,7 +146,7 @@ export function RetroControls({
         )}
         {hasActiveTimer && (
           <span className={cn(
-            "flex items-center gap-1 font-mono text-xs font-black tabular-nums",
+            "flex items-center gap-1 font-code text-xs font-black tabular-nums",
             isRunning && remainingTime <= 30 ? "text-red-500" : "text-slate-600"
           )}>
             <Clock className="h-3 w-3" />
@@ -297,7 +297,7 @@ export function RetroControls({
                 </Label>
                 <div className="flex items-center gap-2">
                   <span className={cn(
-                    "font-mono text-sm font-black tabular-nums",
+                    "font-code text-sm font-black tabular-nums",
                     isRunning && remainingTime <= 30 ? "text-red-500" : "text-slate-700"
                   )}>
                     {formatTime(remainingTime)}

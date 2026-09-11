@@ -11,7 +11,7 @@ export default function SquadDashboardsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-background text-foreground flex flex-col font-sans">
+    <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
       {/* Cabeçalho padrão unificado do Espaço Ágil respeitando o tema ativo */}
       <RoomHeader
         title="Painel de Gestão da Squad"

@@ -252,7 +252,7 @@ export default function OnboardingPage() {
                   <CheckCircle2 className="w-5 h-5 text-emerald-500" /> Confira o que importamos
                 </h2>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Prévia do Profields de <span className="font-mono font-bold">{syncedProject.id}</span>. Nada foi gravado ainda: só ao confirmar o projeto e as pessoas entram no sistema.
+                  Prévia do Profields de <span className="font-code font-bold">{syncedProject.id}</span>. Nada foi gravado ainda: só ao confirmar o projeto e as pessoas entram no sistema.
                 </p>
               </div>
               <Button variant="ghost" size="sm" onClick={handleDiscardSynced} disabled={loadingAction !== null} className="text-xs gap-1.5 shrink-0">
@@ -382,7 +382,7 @@ export default function OnboardingPage() {
                     placeholder="Ex: FENIX"
                     value={projectKey}
                     onChange={(e) => { setKeyEdited(true); setProjectKey(slugify(e.target.value)); }}
-                    className="h-10 text-sm font-mono uppercase rounded-xl bg-background/50 border-border"
+                    className="h-10 text-sm font-code uppercase rounded-xl bg-background/50 border-border"
                   />
                 </div>
 
@@ -569,7 +569,7 @@ export default function OnboardingPage() {
                     placeholder="Ex: DDWMISSI"
                     value={jiraKey}
                     onChange={(e) => setJiraKey(e.target.value)}
-                    className="h-10 text-sm font-mono uppercase rounded-xl bg-background/50 border-border"
+                    className="h-10 text-sm font-code uppercase rounded-xl bg-background/50 border-border"
                   />
                 </div>
 
@@ -580,7 +580,7 @@ export default function OnboardingPage() {
                     placeholder="Token de acesso do Jira"
                     value={jiraToken}
                     onChange={(e) => setJiraToken(e.target.value)}
-                    className="h-10 text-sm font-mono rounded-xl bg-background/50 border-border"
+                    className="h-10 text-sm font-code rounded-xl bg-background/50 border-border"
                   />
                 </div>
               </div>

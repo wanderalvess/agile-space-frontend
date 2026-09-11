@@ -119,7 +119,7 @@ export default function TeamMemberDashboard() {
                 >
                   <div className="flex flex-col gap-0.5 max-w-[70%]">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-primary">{t.jiraKey}</span>
+                      <span className="font-code text-xs font-bold text-primary">{t.jiraKey}</span>
                       <span className="text-xs font-bold text-foreground truncate">{t.title}</span>
                     </div>
                     <span className="text-[10px] text-muted-foreground font-medium">

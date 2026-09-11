@@ -7,7 +7,7 @@ import {
   Users, Trophy, Gauge, ShieldAlert, CalendarRange, LayoutGrid, User, UserCog,
   ListTodo, LayoutDashboard, History, Timer, Flame, Sparkles, CheckCircle2,
   ArrowRight, ShieldCheck, HelpCircle, Layers, Code2, Compass, Play, FileText,
-  Workflow
+  Workflow, XCircle
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
@@ -526,7 +526,7 @@ function SquadHubContent() {
                       <Badge className="bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-none font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5">
                         CENTRAL DA SQUAD
                       </Badge>
-                      <span className="text-xs text-slate-400 font-mono">Projeto: {squadId}</span>
+                      <span className="text-xs text-slate-400 font-code">Projeto: {squadId}</span>
                     </div>
                     <h2 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase font-headline text-slate-900 dark:text-white">
                       {config?.name || squadId} · Painel de Governança & Rituais
@@ -584,7 +584,7 @@ function SquadHubContent() {
                           <div className={`p-2.5 rounded-2xl border ${ritual.color}`}>
                             <ritual.icon className="h-4 w-4" />
                           </div>
-                          <span className="text-[10px] font-black text-slate-400 font-mono">FASE {ritual.step}</span>
+                          <span className="text-[10px] font-black text-slate-400 font-code">FASE {ritual.step}</span>
                         </div>
                         <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white group-hover:text-primary transition-colors">
                           {ritual.name}
@@ -698,7 +698,7 @@ function SquadHubContent() {
                     <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5">
                       SQUAD PULSE & QUADRO
                     </Badge>
-                    <span className="text-xs text-slate-400 font-mono">
+                    <span className="text-xs text-slate-400 font-code">
                       {displayRollup?.sprintName || config?.activeSprintId || squadId}
                     </span>
                   </div>
@@ -880,7 +880,7 @@ function SquadHubContent() {
                     <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-none font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5">
                       DAILY COMMAND CENTER
                     </Badge>
-                    <span className="text-xs text-slate-400 font-mono">Foco & Produtividade</span>
+                    <span className="text-xs text-slate-400 font-code">Foco & Produtividade</span>
                   </div>
                   <h2 className="text-xl md:text-2xl font-black italic tracking-tight uppercase font-headline text-slate-900 dark:text-white">
                     Foco Diário, Timesheet & Relatório da Daily
@@ -925,7 +925,7 @@ function SquadHubContent() {
                       <div key={t.id || t.jiraKey} className="p-3.5 border rounded-2xl min-w-[240px] bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-mono text-xs font-bold text-primary">{t.jiraKey}</span>
+                            <span className="font-code text-xs font-bold text-primary">{t.jiraKey}</span>
                             <Badge variant="outline" className="text-[8px] font-bold uppercase">{t.status || 'Ativa'}</Badge>
                           </div>
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2">{t.title}</p>
@@ -994,7 +994,7 @@ function SquadHubContent() {
                   value={jql}
                   onChange={e => setJql(e.target.value)}
                   placeholder='Ex: project = "DDWMISSI" AND sprint in openSprints()'
-                  className="rounded-xl h-9 text-xs font-mono"
+                  className="rounded-xl h-9 text-xs font-code"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Filtro JQL para buscar os itens da sprint ativa.</p>
               </div>
@@ -1005,12 +1005,12 @@ function SquadHubContent() {
                     Token de Acesso Jira (PAT / API Token)
                   </label>
                   {jiraToken.trim() ? (
-                    <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 font-bold px-1.5 py-0">
-                      🟢 Configurado
+                    <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 font-bold px-1.5 py-0 gap-1">
+                      <CheckCircle2 className="h-2.5 w-2.5" /> Configurado
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[9px] bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 font-bold px-1.5 py-0">
-                      🔴 Não Informado
+                    <Badge variant="outline" className="text-[9px] bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 font-bold px-1.5 py-0 gap-1">
+                      <XCircle className="h-2.5 w-2.5" /> Não Informado
                     </Badge>
                   )}
                 </div>
@@ -1019,7 +1019,7 @@ function SquadHubContent() {
                   value={jiraToken}
                   onChange={e => setJiraToken(e.target.value)}
                   placeholder="Cole seu Personal Access Token (PAT) ou API Token do Jira..."
-                  className="rounded-xl h-9 text-xs font-mono"
+                  className="rounded-xl h-9 text-xs font-code"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Seu token pessoal do Jira utilizado para realizar as consultas e sincronizações.</p>
               </div>
@@ -1044,7 +1044,7 @@ function SquadHubContent() {
                     value={rapidViewId}
                     onChange={e => setRapidViewId(e.target.value)}
                     placeholder="11360"
-                    className="rounded-xl h-9 text-xs font-mono"
+                    className="rounded-xl h-9 text-xs font-code"
                   />
                 </div>
                 <div>

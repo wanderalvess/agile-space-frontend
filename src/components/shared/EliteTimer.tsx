@@ -107,7 +107,7 @@ export function EliteTimer({
               <TimerIcon className="h-3.5 w-3.5" />
             </div>
             <span className={cn(
-                "font-mono text-xl font-black tabular-nums tracking-tighter leading-none italic",
+                "font-code text-xl font-black tabular-nums tracking-tighter leading-none italic",
                 isRunning && remainingTime <= 10 && remainingTime > 0 ? "text-red-500 animate-bounce" : isRunning ? "text-slate-900" : "text-slate-400"
             )}>
                 {formatTime(remainingTime)}

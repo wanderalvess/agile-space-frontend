@@ -48,7 +48,7 @@ export default function UuidGeneratorPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -122,10 +122,10 @@ export default function UuidGeneratorPage() {
                 {ids.map((id, index) => (
                   <Card key={index} className="p-5 border-slate-100 hover:border-rose-200 hover:shadow-xl hover:shadow-rose-500/5 bg-white rounded-2xl group transition-all flex items-center justify-between">
                      <div className="flex items-center gap-5">
-                        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-300 font-mono text-xs font-black group-hover:bg-rose-50 group-hover:text-rose-400 transition-colors">
+                        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-300 font-code text-xs font-black group-hover:bg-rose-50 group-hover:text-rose-400 transition-colors">
                            #{index + 1}
                         </div>
-                        <code className="text-sm font-mono font-bold text-slate-600 group-hover:text-slate-900 select-all tracking-tight">
+                        <code className="text-sm font-code font-bold text-slate-600 group-hover:text-slate-900 select-all tracking-tight">
                            {id}
                         </code>
                      </div>

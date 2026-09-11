@@ -109,7 +109,7 @@ export default function RegexLabPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white/60 backdrop-blur-xl flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -153,23 +153,23 @@ export default function RegexLabPage() {
             <div className="space-y-3">
               <div className="relative group">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors">
-                  <span className="font-mono font-bold">/</span>
+                  <span className="font-code font-bold">/</span>
                 </div>
                 <Input 
                   value={pattern}
                   onChange={(e) => setPattern(e.target.value)}
                   placeholder="Seu padrão regex..."
                   className={cn(
-                    "pl-8 pr-12 font-mono h-14 rounded-2xl border-2 transition-all text-sm",
+                    "pl-8 pr-12 font-code h-14 rounded-2xl border-2 transition-all text-sm",
                     error ? "border-red-100 bg-red-50/30 text-red-600" : "border-slate-100 bg-slate-50 focus:border-blue-500 focus:bg-white"
                   )}
                 />
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                  <span className="text-slate-300 font-mono font-bold">/</span>
+                  <span className="text-slate-300 font-code font-bold">/</span>
                   <input 
                     value={flags}
                     onChange={(e) => setFlags(e.target.value)}
-                    className="w-10 bg-transparent font-mono text-blue-600 font-bold outline-none"
+                    className="w-10 bg-transparent font-code text-blue-600 font-bold outline-none"
                     title="Flags (g, i, m, s, u, y)"
                   />
                 </div>
@@ -209,13 +209,13 @@ export default function RegexLabPage() {
                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Match #{i+1}</span>
                       <span className="text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">Index: {m.index}</span>
                     </div>
-                    <p className="font-mono text-xs font-bold text-slate-700 bg-slate-50 p-1.5 rounded">{m.content}</p>
+                    <p className="font-code text-xs font-bold text-slate-700 bg-slate-50 p-1.5 rounded">{m.content}</p>
                     {m.groups.length > 0 && (
                       <div className="pt-1.5 space-y-1">
                         <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest">Capturing Groups</span>
                         <div className="flex flex-wrap gap-1">
                           {m.groups.map((g, gi) => (
-                            <Badge key={gi} variant="outline" className="text-[8px] font-mono py-0 h-4 border-slate-100 bg-white">
+                            <Badge key={gi} variant="outline" className="text-[8px] font-code py-0 h-4 border-slate-100 bg-white">
                               ${gi+1}: {g || 'null'}
                             </Badge>
                           ))}
@@ -263,7 +263,7 @@ export default function RegexLabPage() {
                 value={testString}
                 onChange={(e) => setTestString(e.target.value)}
                 placeholder="Insira o texto para testar o seu regex aqui..."
-                className="flex-1 resize-none border-none p-10 font-mono text-sm leading-relaxed focus-visible:ring-0 selection:bg-blue-100"
+                className="flex-1 resize-none border-none p-10 font-code text-sm leading-relaxed focus-visible:ring-0 selection:bg-blue-100"
               />
             </Card>
           </div>
@@ -275,7 +275,7 @@ export default function RegexLabPage() {
                   <CheckCircle2 className="h-4 w-4" /> Visualização de Captura
                 </h2>
              </div>
-             <Card className="flex-1 border-none shadow-xl shadow-slate-200/40 rounded-[2.5rem] bg-white/80 backdrop-blur-md p-10 overflow-auto font-mono text-sm leading-relaxed whitespace-pre-wrap">
+             <Card className="flex-1 border-none shadow-xl shadow-slate-200/40 rounded-[2.5rem] bg-white/80 backdrop-blur-md p-10 overflow-auto font-code text-sm leading-relaxed whitespace-pre-wrap">
                 {highlightMatches()}
              </Card>
           </div>
@@ -304,7 +304,7 @@ function FlagToggle({ label, active, onClick }: { label: string, active: boolean
 function CheatItem({ code, desc }: { code: string, desc: string }) {
   return (
     <div className="flex items-center gap-2">
-      <code className="text-[10px] font-black font-mono text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-100">{code}</code>
+      <code className="text-[10px] font-black font-code text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-100">{code}</code>
       <span className="text-[8px] font-black text-slate-500 uppercase tracking-tight">{desc}</span>
     </div>
   );

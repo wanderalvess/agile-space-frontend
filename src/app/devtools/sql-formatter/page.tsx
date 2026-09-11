@@ -46,7 +46,7 @@ export default function SqlFormatterPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -90,7 +90,7 @@ export default function SqlFormatterPage() {
                 value={sql}
                 onChange={(e) => setSql(e.target.value)}
                 placeholder="Insira sua query SQL bagunçada aqui..."
-                className="w-full h-full resize-none border-none bg-transparent font-mono text-[13px] leading-relaxed focus-visible:ring-0 placeholder:italic text-slate-700"
+                className="w-full h-full resize-none border-none bg-transparent font-code text-[13px] leading-relaxed focus-visible:ring-0 placeholder:italic text-slate-700"
               />
            </Card>
            <Button 
@@ -123,7 +123,7 @@ export default function SqlFormatterPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest">Resultado aparecerá aqui</span>
                  </div>
               ) : (
-                <pre className="w-full h-full overflow-auto font-mono text-[13px] leading-relaxed text-blue-900 animate-in fade-in slide-in-from-right-4 duration-500 selection:bg-blue-100">
+                <pre className="w-full h-full overflow-auto font-code text-[13px] leading-relaxed text-blue-900 animate-in fade-in slide-in-from-right-4 duration-500 selection:bg-blue-100">
                   {formattedSql}
                 </pre>
               )}

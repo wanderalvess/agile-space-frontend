@@ -318,7 +318,7 @@ export function JiraImportDialog({
                               value={token}
                               onChange={(e) => setToken(e.target.value)}
                               placeholder="••••••••••••"
-                              className="h-10 rounded-xl text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all"
+                              className="h-10 rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all"
                             />
                           </div>
                         </div>
@@ -329,24 +329,25 @@ export function JiraImportDialog({
                                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Consulta JQL</Label>
                                <Badge variant="outline" className="text-[7px] font-black uppercase border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-400 tracking-widest bg-white dark:bg-slate-950">Filtro Avançado</Badge>
                              </div>
-                             <button
+                             <Button
                                type="button"
+                               variant="outline"
                                disabled={!jql.trim()}
                                onClick={() => {
                                  setNewJqlLabel('');
                                  setNewJqlIsPublic(false);
                                  setIsSaveJqlOpen(true);
                                }}
-                               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/40 dark:border-indigo-800 disabled:opacity-40 transition-all cursor-pointer"
+                               className="h-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 border-indigo-200/40 dark:border-indigo-800"
                              >
                                <Bookmark className="h-3 w-3 text-indigo-600 dark:text-indigo-400" /> Salvar JQL
-                             </button>
+                             </Button>
                            </div>
                           <Textarea
                             value={jql}
                             onChange={(e) => setJql(e.target.value)}
                             placeholder='Ex: sprint = 123 AND status = "In Progress"'
-                            className="min-h-[72px] h-[72px] rounded-xl text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all resize-none py-2 px-3 leading-normal"
+                            className="min-h-[72px] h-[72px] rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all resize-none py-2 px-3 leading-normal"
                           />
                           <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                             {/* Saved JQLs (Personalizadas) */}
@@ -723,7 +724,7 @@ export function JiraImportDialog({
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
               <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Preview da Consulta</Label>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 max-h-24 overflow-y-auto break-all leading-normal">
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-[10px] font-code text-indigo-600 dark:text-indigo-400 max-h-24 overflow-y-auto break-all leading-normal">
                 {jql || 'Nenhuma JQL preenchida'}
               </div>
             </div>

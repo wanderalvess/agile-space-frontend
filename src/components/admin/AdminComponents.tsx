@@ -328,7 +328,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: { o
               value={reply}
               onChange={(e) => setReply(e.target.value)}
               placeholder="Sua resposta de governança..."
-              className="w-full h-24 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-[13px] font-medium focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all resize-none mb-4 placeholder:text-slate-300 font-sans"
+              className="w-full h-24 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-[13px] font-medium focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all resize-none mb-4 placeholder:text-slate-300"
             />
             <div className="flex gap-4">
               <Button onClick={handleUpdate} disabled={isUpdating || (!reply.trim() && status === ticket.status)} className="flex-1 h-14 rounded-2xl bg-slate-900 border-none hover:bg-primary transition-all text-white font-black uppercase text-[11px] tracking-[0.2em] shadow-2xl active:scale-95 gap-3">

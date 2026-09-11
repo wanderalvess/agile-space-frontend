@@ -567,7 +567,7 @@ export function FocusTimer({ tasks, dbSessions, onSessionComplete, onAddTask, on
                     if (minutes === 0) return null;
                     const pct = Math.round((minutes / getCategoryStats().total) * 100);
                     return (
-                      <span key={cat} className="flex items-center gap-1 font-sans">
+                      <span key={cat} className="flex items-center gap-1">
                         <span className={cn("w-1.5 h-1.5 rounded-full", CATEGORY_PROGRESS_COLORS[cat])} />
                         {cat}: {pct}%
                       </span>
@@ -610,10 +610,10 @@ export function FocusTimer({ tasks, dbSessions, onSessionComplete, onAddTask, on
                     ))}
                  </select>
 
-                 <button type="submit" disabled={!manualTaskTitle.trim()}
-                   className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white disabled:opacity-40 hover:bg-slate-800 active:scale-95 transition-all shadow-md shrink-0">
+                 <Button type="submit" disabled={!manualTaskTitle.trim()}
+                   className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white disabled:opacity-40 hover:bg-slate-800 active:scale-95 shadow-md shrink-0">
                    Add
-                 </button>
+                 </Button>
                </form>
 
                <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-2 min-h-0 pr-1">

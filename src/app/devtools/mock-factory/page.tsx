@@ -465,7 +465,7 @@ export default function MockFactoryPage() {
                       <div className="py-4">
                         <Textarea 
                           placeholder="CREATE TABLE IF NOT EXISTS usuarios (&#10;  id UUID PRIMARY KEY,&#10;  nome_completo VARCHAR(255) NOT NULL,&#10;  email VARCHAR(100) UNIQUE,&#10;  data_cadastro TIMESTAMP DEFAULT NOW()&#10;);" 
-                          className="min-h-[250px] font-mono text-[11px] bg-muted/10 border-white/5 focus-visible:ring-1 focus-visible:ring-primary/20 leading-relaxed scrollbar-thin rounded-2xl"
+                          className="min-h-[250px] font-code text-[11px] bg-muted/10 border-white/5 focus-visible:ring-1 focus-visible:ring-primary/20 leading-relaxed scrollbar-thin rounded-2xl"
                           value={ddlInput}
                           onChange={(e) => setDdlInput(e.target.value)}
                         />

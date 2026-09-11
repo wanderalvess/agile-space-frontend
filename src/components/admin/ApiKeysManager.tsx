@@ -102,7 +102,7 @@ export function ApiKeysManager() {
               Copie agora — essa chave não será mostrada de novo
             </p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 h-11 flex items-center px-4 bg-white border border-emerald-200 rounded-xl text-xs font-mono truncate">
+              <code className="flex-1 h-11 flex items-center px-4 bg-white border border-emerald-200 rounded-xl text-xs font-code truncate">
                 {revealedKey}
               </code>
               <Button onClick={copyRevealedKey} className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 gap-2">

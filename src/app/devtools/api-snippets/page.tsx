@@ -280,7 +280,7 @@ export default function ApiSnippetsPage() {
                   <SelectItem value="DELETE" className="font-bold text-red-600">DELETE</SelectItem>
                 </SelectContent>
               </Select>
-              <Input placeholder="URL da API..." value={url} onChange={(e) => setUrl(e.target.value)} className="flex-1 h-9 bg-background border-none text-xs font-mono shadow-sm rounded-xl placeholder:text-slate-300" />
+              <Input placeholder="URL da API..." value={url} onChange={(e) => setUrl(e.target.value)} className="flex-1 h-9 bg-background border-none text-xs font-code shadow-sm rounded-xl placeholder:text-slate-300" />
             </div>
             <Tabs defaultValue="params" className="flex-1 flex flex-col overflow-hidden">
               <div className="px-4 border-b bg-muted/10">
@@ -294,7 +294,7 @@ export default function ApiSnippetsPage() {
                 {queryParams.map((q) => (
                   <div key={q.id} className="flex gap-2">
                     <Input placeholder="Key" value={q.key} onChange={(e) => updateQueryParam(q.id, 'key', e.target.value)} className="h-9 text-[10px] font-bold uppercase tracking-widest rounded-xl bg-background border-none shadow-sm" />
-                    <Input placeholder="Value" value={q.value} onChange={(e) => updateQueryParam(q.id, 'value', e.target.value)} className="h-9 text-[10px] font-mono rounded-xl bg-background border-none shadow-sm" />
+                    <Input placeholder="Value" value={q.value} onChange={(e) => updateQueryParam(q.id, 'value', e.target.value)} className="h-9 text-[10px] font-code rounded-xl bg-background border-none shadow-sm" />
                     <Button variant="ghost" size="icon" onClick={() => removeQueryParam(q.id)} className="h-9 w-9 text-slate-300 hover:text-destructive transition-all rounded-xl"><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
@@ -304,7 +304,7 @@ export default function ApiSnippetsPage() {
                 {headers.map((h) => (
                   <div key={h.id} className="flex gap-2">
                     <Input placeholder="Key" value={h.key} onChange={(e) => updateHeader(h.id, 'key', e.target.value)} className="h-9 text-[10px] font-bold uppercase tracking-widest rounded-xl bg-background border-none shadow-sm" />
-                    <Input placeholder="Value" value={h.value} onChange={(e) => updateHeader(h.id, 'value', e.target.value)} className="h-9 text-[10px] font-mono rounded-xl bg-background border-none shadow-sm" />
+                    <Input placeholder="Value" value={h.value} onChange={(e) => updateHeader(h.id, 'value', e.target.value)} className="h-9 text-[10px] font-code rounded-xl bg-background border-none shadow-sm" />
                     <Button variant="ghost" size="icon" onClick={() => removeHeader(h.id)} className="h-9 w-9 text-slate-300 hover:text-destructive transition-all rounded-xl"><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 ))}
@@ -341,11 +341,11 @@ export default function ApiSnippetsPage() {
               </div>
               <TabsContent value="curl" className="flex-1 m-0 relative">
                 <div className="absolute top-4 right-4 z-10"><Button size="sm" onClick={() => handleCopy(snippets.curl, 'cURL')} className="h-8 px-4 text-[9px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl backdrop-blur-md">COPIAR</Button></div>
-                <pre className="absolute inset-0 p-8 font-mono text-[11px] text-blue-400 overflow-auto selection:bg-blue-500/30 selection:text-white"><code>{snippets.curl}</code></pre>
+                <pre className="absolute inset-0 p-8 font-code text-[11px] text-blue-400 overflow-auto selection:bg-blue-500/30 selection:text-white"><code>{snippets.curl}</code></pre>
               </TabsContent>
               <TabsContent value="fetch" className="flex-1 m-0 relative">
                 <div className="absolute top-4 right-4 z-10"><Button size="sm" onClick={() => handleCopy(snippets.fetchSnippet, 'Fetch')} className="h-8 px-4 text-[9px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 text-white border-white/10 rounded-xl backdrop-blur-md">COPIAR</Button></div>
-                <pre className="absolute inset-0 p-8 font-mono text-[11px] text-emerald-400 overflow-auto selection:bg-emerald-500/30 selection:text-white"><code>{snippets.fetchSnippet}</code></pre>
+                <pre className="absolute inset-0 p-8 font-code text-[11px] text-emerald-400 overflow-auto selection:bg-emerald-500/30 selection:text-white"><code>{snippets.fetchSnippet}</code></pre>
               </TabsContent>
             </Tabs>
           </Card>
@@ -357,7 +357,7 @@ export default function ApiSnippetsPage() {
               <DialogTitle className="text-xl font-black uppercase tracking-tight italic">Importar cURL</DialogTitle>
               <DialogDescription className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">Cole um comando cURL bruto para parse automático</DialogDescription>
             </DialogHeader>
-            <Textarea placeholder="curl -X POST 'https://api...'" value={curlInput} onChange={(e) => setCurlInput(e.target.value)} className="min-h-[240px] font-mono text-xs bg-slate-50 border-none rounded-2xl p-6 focus-visible:ring-1 focus-visible:ring-blue-500 transition-all" />
+            <Textarea placeholder="curl -X POST 'https://api...'" value={curlInput} onChange={(e) => setCurlInput(e.target.value)} className="min-h-[240px] font-code text-xs bg-slate-50 border-none rounded-2xl p-6 focus-visible:ring-1 focus-visible:ring-blue-500 transition-all" />
             <DialogFooter className="gap-2">
               <Button variant="ghost" onClick={() => setIsImportModalOpen(false)} className="rounded-xl font-black uppercase text-[10px] tracking-widest">CANCELAR</Button>
               <Button onClick={() => parseCurlCommand(curlInput)} className="rounded-xl font-black uppercase text-[10px] tracking-widest bg-slate-900 hover:bg-blue-600 transition-all px-8">IMPORTAR_ENGINE</Button>

@@ -211,7 +211,7 @@ export function MockStudioIntegration() {
                   type="number"
                   value={statusCode}
                   onChange={(e) => setStatusCode(parseInt(e.target.value) || 200)}
-                  className="font-mono font-bold text-xs bg-slate-50 dark:bg-slate-950"
+                  className="font-code font-bold text-xs bg-slate-50 dark:bg-slate-950"
                 />
               </div>
 
@@ -221,7 +221,7 @@ export function MockStudioIntegration() {
                   type="number"
                   value={delayMs}
                   onChange={(e) => setDelayMs(parseInt(e.target.value) || 0)}
-                  className="font-mono font-bold text-xs bg-slate-50 dark:bg-slate-950"
+                  className="font-code font-bold text-xs bg-slate-50 dark:bg-slate-950"
                 />
               </div>
             </div>
@@ -232,7 +232,7 @@ export function MockStudioIntegration() {
                 value={endpointUrl}
                 onChange={(e) => setEndpointUrl(e.target.value)}
                 placeholder="https://api.empresa.com.br/v1/..."
-                className="font-mono text-xs bg-slate-50 dark:bg-slate-950"
+                className="font-code text-xs bg-slate-50 dark:bg-slate-950"
               />
             </div>
 
@@ -242,7 +242,7 @@ export function MockStudioIntegration() {
                 value={payload}
                 onChange={(e) => setPayload(e.target.value)}
                 rows={10}
-                className="w-full p-4 font-mono text-xs bg-slate-950 text-purple-400 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
+                className="w-full p-4 font-code text-xs bg-slate-950 text-purple-400 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
               />
             </div>
           </div>
@@ -275,14 +275,14 @@ export function MockStudioIntegration() {
                 <div key={mock.id} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`font-mono text-[10px] font-black uppercase ${mock.method === 'GET' ? 'bg-emerald-50 text-emerald-600 border-emerald-300' : mock.method === 'POST' ? 'bg-blue-50 text-blue-600 border-blue-300' : 'bg-amber-50 text-amber-600 border-amber-300'}`}>
+                      <Badge variant="outline" className={`font-code text-[10px] font-black uppercase ${mock.method === 'GET' ? 'bg-emerald-50 text-emerald-600 border-emerald-300' : mock.method === 'POST' ? 'bg-blue-50 text-blue-600 border-blue-300' : 'bg-amber-50 text-amber-600 border-amber-300'}`}>
                         {mock.method}
                       </Badge>
-                      <Badge variant="secondary" className={`font-mono text-[10px] font-bold ${mock.statusCode && mock.statusCode >= 400 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40'}`}>
+                      <Badge variant="secondary" className={`font-code text-[10px] font-bold ${mock.statusCode && mock.statusCode >= 400 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40'}`}>
                         HTTP {mock.statusCode || 200}
                       </Badge>
                       {mock.delayMs ? (
-                        <Badge variant="outline" className="text-[9px] font-mono gap-1 text-slate-500">
+                        <Badge variant="outline" className="text-[9px] font-code gap-1 text-slate-500">
                           <Clock className="h-3 w-3" /> {mock.delayMs}ms
                         </Badge>
                       ) : null}
@@ -298,7 +298,7 @@ export function MockStudioIntegration() {
                     </Button>
                   </div>
 
-                  <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
+                  <span className="font-code text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
                     {mock.cleanPath || mock.url}
                   </span>
 
@@ -307,7 +307,7 @@ export function MockStudioIntegration() {
                       readOnly
                       value={mock.payload}
                       rows={3}
-                      className="w-full p-2 font-mono text-[11px] bg-slate-900 text-slate-300 rounded-lg border border-slate-800 scrollbar-thin"
+                      className="w-full p-2 font-code text-[11px] bg-slate-900 text-slate-300 rounded-lg border border-slate-800 scrollbar-thin"
                     />
                     <Button
                       size="icon"

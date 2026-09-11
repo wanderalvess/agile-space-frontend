@@ -242,7 +242,7 @@ export default function PerformanceDashboard() {
             <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
               PERFORMANCE & HÁBITOS
             </span>
-            <span className="text-xs text-slate-400 font-mono">Métricas de Foco</span>
+            <span className="text-xs text-slate-400 font-code">Métricas de Foco</span>
           </div>
           <h2 className="text-xl md:text-2xl font-black italic tracking-tight text-slate-900 dark:text-white uppercase font-headline">
             Produtividade & Alocação de Tempo

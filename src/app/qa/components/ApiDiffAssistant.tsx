@@ -169,7 +169,7 @@ export function ApiDiffAssistant() {
                   value={jsonExpected}
                   onChange={(e) => setJsonExpected(e.target.value)}
                   rows={10}
-                  className="w-full p-4 font-mono text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
+                  className="w-full p-4 font-code text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
                 />
               </div>
 
@@ -179,7 +179,7 @@ export function ApiDiffAssistant() {
                   value={jsonActual}
                   onChange={(e) => setJsonActual(e.target.value)}
                   rows={10}
-                  className="w-full p-4 font-mono text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
+                  className="w-full p-4 font-code text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
                 />
               </div>
             </div>
@@ -241,7 +241,7 @@ export function ApiDiffAssistant() {
                 value={payloadForAssertion}
                 onChange={(e) => setPayloadForAssertion(e.target.value)}
                 rows={6}
-                className="w-full p-4 font-mono text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
+                className="w-full p-4 font-code text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
               />
             </div>
 
@@ -271,7 +271,7 @@ export function ApiDiffAssistant() {
                   readOnly
                   value={assertionsResult}
                   rows={10}
-                  className="w-full p-4 font-mono text-xs bg-slate-950 text-purple-400 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
+                  className="w-full p-4 font-code text-xs bg-slate-950 text-purple-400 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
                 />
               </div>
             )}

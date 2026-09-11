@@ -14,6 +14,8 @@ export const sprintPlanningApi = {
       method: 'POST',
       body: JSON.stringify(planner),
     });
+    if (!res.ok) throw new Error('Falha ao salvar planejamento');
+    return res.json();
   },
 
   async deletePlanner(id: string): Promise<void> {

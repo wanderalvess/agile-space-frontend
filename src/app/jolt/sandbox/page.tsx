@@ -698,7 +698,7 @@ export default function JoltSandboxPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <TooltipProvider>
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950 shrink-0">
@@ -884,7 +884,7 @@ export default function JoltSandboxPage() {
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">Modelos Jolt (Snippets)</TooltipContent>
+                  <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">Modelos Jolt (Snippets)</TooltipContent>
                 </Tooltip>
                 <DropdownMenuContent align="end" className="w-[180px] p-1 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl">
                   <div className="px-2 py-1.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 mb-1">Modelos Jolt</div>
@@ -919,7 +919,7 @@ export default function JoltSandboxPage() {
                   )} />
                   <span>{executionStats.engine === 'java' ? 'Java Bazaarvoice' : 'JS Local'}</span>
                   <span className="text-slate-400 dark:text-slate-500">•</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-mono">{executionStats.timeMs}ms</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-code">{executionStats.timeMs}ms</span>
                 </div>
               ) : null
             }
@@ -971,11 +971,11 @@ export default function JoltSandboxPage() {
                     <span className="text-xs font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">
                       JavaScript (Browser Local)
                     </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    <span className="text-[10px] font-code px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                       {compareResult.localTime} ms
                     </span>
                   </div>
-                  <pre className="flex-1 p-3 text-xs font-mono overflow-auto text-slate-800 dark:text-slate-200">
+                  <pre className="flex-1 p-3 text-xs font-code overflow-auto text-slate-800 dark:text-slate-200">
                     {compareResult.localOutput}
                   </pre>
                 </div>
@@ -986,11 +986,11 @@ export default function JoltSandboxPage() {
                     <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
                       Java Bazaarvoice (Backend Oficial)
                     </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                    <span className="text-[10px] font-code px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                       {compareResult.javaTime} ms
                     </span>
                   </div>
-                  <pre className="flex-1 p-3 text-xs font-mono overflow-auto text-slate-800 dark:text-slate-200">
+                  <pre className="flex-1 p-3 text-xs font-code overflow-auto text-slate-800 dark:text-slate-200">
                     {compareResult.javaOutput}
                   </pre>
                 </div>

@@ -105,7 +105,7 @@ export default function VaultReaderPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 relative overflow-hidden font-sans min-h-screen selection:bg-emerald-500/30">
+    <div className="flex-1 flex flex-col bg-slate-50 relative overflow-hidden min-h-screen selection:bg-emerald-500/30">
       {/* Mesh Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-emerald-100/20 blur-[120px] rounded-full" />
@@ -223,7 +223,7 @@ export default function VaultReaderPage() {
                       Seguro
                     </Badge>
                   </div>
-                  <pre className="text-left whitespace-pre-wrap break-all font-mono text-sm md:text-base text-emerald-400/90 leading-relaxed bg-black/20 p-6 rounded-2xl border border-white/5">
+                  <pre className="text-left whitespace-pre-wrap break-all font-code text-sm md:text-base text-emerald-400/90 leading-relaxed bg-black/20 p-6 rounded-2xl border border-white/5">
                     {secret}
                   </pre>
                   

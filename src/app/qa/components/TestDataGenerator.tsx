@@ -303,7 +303,7 @@ export function TestDataGenerator() {
                 <Input 
                   readOnly 
                   value={cpf} 
-                  className="font-mono text-base font-bold bg-slate-50 dark:bg-slate-950 pr-10"
+                  className="font-code text-base font-bold bg-slate-50 dark:bg-slate-950 pr-10"
                 />
                 <Button 
                   size="icon" 
@@ -339,7 +339,7 @@ export function TestDataGenerator() {
                 <Input 
                   readOnly 
                   value={cnpj} 
-                  className="font-mono text-base font-bold bg-slate-50 dark:bg-slate-950 pr-10"
+                  className="font-code text-base font-bold bg-slate-50 dark:bg-slate-950 pr-10"
                 />
                 <Button 
                   size="icon" 
@@ -384,7 +384,7 @@ export function TestDataGenerator() {
 
               <div className="space-y-2">
                 <div className="relative">
-                  <Input readOnly value={card.number} className="font-mono text-sm font-bold bg-slate-50 dark:bg-slate-950 pr-10" />
+                  <Input readOnly value={card.number} className="font-code text-sm font-bold bg-slate-50 dark:bg-slate-950 pr-10" />
                   <Button size="icon" variant="ghost" onClick={() => copyToClipboard(card.number, 'card-num')} className="absolute right-1 top-1 h-8 w-8 text-slate-500">
                     {copiedKey === 'card-num' ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
                   </Button>
@@ -392,11 +392,11 @@ export function TestDataGenerator() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400">Validade</span>
-                    <Input readOnly value={card.exp} className="font-mono text-xs font-bold bg-slate-50 dark:bg-slate-950" />
+                    <Input readOnly value={card.exp} className="font-code text-xs font-bold bg-slate-50 dark:bg-slate-950" />
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-slate-400">CVV</span>
-                    <Input readOnly value={card.cvv} className="font-mono text-xs font-bold bg-slate-50 dark:bg-slate-950" />
+                    <Input readOnly value={card.cvv} className="font-code text-xs font-bold bg-slate-50 dark:bg-slate-950" />
                   </div>
                 </div>
               </div>
@@ -451,22 +451,22 @@ export function TestDataGenerator() {
 
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">CPF</span>
-                <span className="font-mono font-bold text-xs text-slate-900 dark:text-slate-100 block">{person.cpf}</span>
+                <span className="font-code font-bold text-xs text-slate-900 dark:text-slate-100 block">{person.cpf}</span>
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Telefone</span>
-                <span className="font-mono text-xs text-slate-900 dark:text-slate-100 block">{person.telefone}</span>
+                <span className="font-code text-xs text-slate-900 dark:text-slate-100 block">{person.telefone}</span>
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">RG</span>
-                <span className="font-mono text-xs text-slate-900 dark:text-slate-100 block">{person.rg}</span>
+                <span className="font-code text-xs text-slate-900 dark:text-slate-100 block">{person.rg}</span>
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Data Nascimento</span>
-                <span className="font-mono text-xs text-slate-900 dark:text-slate-100 block">{person.dataNascimento}</span>
+                <span className="font-code text-xs text-slate-900 dark:text-slate-100 block">{person.dataNascimento}</span>
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800 sm:col-span-2">
@@ -563,7 +563,7 @@ export function TestDataGenerator() {
                   readOnly
                   value={bulkResult}
                   rows={10}
-                  className="w-full p-4 font-mono text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
+                  className="w-full p-4 font-code text-xs bg-slate-950 text-slate-100 rounded-xl border border-slate-800 focus:outline-none scrollbar-thin"
                 />
               </div>
             )}

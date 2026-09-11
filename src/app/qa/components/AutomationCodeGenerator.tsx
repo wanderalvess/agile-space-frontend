@@ -212,7 +212,7 @@ export function AutomationCodeGenerator() {
               <Input 
                 value={baseUrl} 
                 onChange={(e) => setBaseUrl(e.target.value)} 
-                className="font-mono text-xs bg-slate-50 dark:bg-slate-950" 
+                className="font-code text-xs bg-slate-50 dark:bg-slate-950" 
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ export function AutomationCodeGenerator() {
                 <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold text-slate-400">#{idx + 1}</span>
+                      <span className="text-[10px] font-code font-bold text-slate-400">#{idx + 1}</span>
                       <select
                         value={st.action}
                         onChange={(e) => updateStep(idx, 'action', e.target.value)}
@@ -264,7 +264,7 @@ export function AutomationCodeGenerator() {
                       placeholder={st.action === 'visit' ? '/rota' : 'Elemento/Target'}
                       value={st.target}
                       onChange={(e) => updateStep(idx, 'target', e.target.value)}
-                      className="text-xs font-mono bg-white dark:bg-slate-900"
+                      className="text-xs font-code bg-white dark:bg-slate-900"
                     />
 
                     {(st.action === 'type' || st.action === 'intercept') && (
@@ -312,7 +312,7 @@ export function AutomationCodeGenerator() {
                 readOnly
                 value={generateCypressCode()}
                 rows={22}
-                className="w-full p-4 font-mono text-xs bg-slate-950 text-emerald-400 rounded-2xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
+                className="w-full p-4 font-code text-xs bg-slate-950 text-emerald-400 rounded-2xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
               />
             </TabsContent>
 
@@ -334,7 +334,7 @@ export function AutomationCodeGenerator() {
                 readOnly
                 value={generatePlaywrightCode()}
                 rows={22}
-                className="w-full p-4 font-mono text-xs bg-slate-950 text-blue-400 rounded-2xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
+                className="w-full p-4 font-code text-xs bg-slate-950 text-blue-400 rounded-2xl border border-slate-800 focus:outline-none scrollbar-thin leading-relaxed"
               />
             </TabsContent>
           </Tabs>

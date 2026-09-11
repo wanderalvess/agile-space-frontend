@@ -119,7 +119,7 @@ export default function ManualPage() {
   }, []);
 
   return (
-    <main className="flex flex-col items-center bg-slate-50 dark:bg-slate-950 min-h-dvh w-full font-sans selection:bg-primary/20 scroll-smooth">
+    <main className="flex flex-col items-center bg-slate-50 dark:bg-slate-950 min-h-dvh w-full selection:bg-primary/20 scroll-smooth">
       
       {/* HEADER ELITE DESIGN */}
       <div className="w-full bg-white dark:bg-slate-900 border-b border-slate-200/60 dark:border-slate-800/60 sticky top-0 z-50 backdrop-blur-xl bg-white dark:bg-slate-900/80">
@@ -273,7 +273,7 @@ export default function ManualPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4 font-sans ring-1 ring-slate-200/50">
+                                <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4 ring-1 ring-slate-200/50">
                                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2">
                                         <Info className="h-4 w-4" /> Funções do Facilitador
                                     </h4>
@@ -497,7 +497,7 @@ export default function ManualPage() {
                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-200 flex items-center gap-2">
                                     <Calculator className="h-4 w-4" /> Engine de Cálculo
                                 </h4>
-                                <div className="p-4 bg-white dark:bg-slate-900/10 rounded-2xl font-mono text-[9px] border border-white/10 text-indigo-100">
+                                <div className="p-4 bg-white dark:bg-slate-900/10 rounded-2xl font-code text-[9px] border border-white/10 text-indigo-100">
                                     (Dias Úteis x Horas x Foco) - Ausências = Capacidade Real
                                 </div>
                             </div>
@@ -561,7 +561,7 @@ export default function ManualPage() {
                             O diagnóstico sincero da squad. Focado em encontrar os problemas que as pessoas não costumam falar em reuniões abertas.
                         </p>
                         
-                        <div className="p-8 bg-emerald-600 rounded-[3rem] text-white shadow-2xl shadow-emerald-500/30 font-sans">
+                        <div className="p-8 bg-emerald-600 rounded-[3rem] text-white shadow-2xl shadow-emerald-500/30">
                             <div className="flex gap-4 items-center">
                                 <Shield className="h-8 w-8 text-emerald-200" />
                                 <div>
@@ -1071,7 +1071,7 @@ export default function ManualPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4 font-sans ring-1 ring-slate-200/50">
+                                <div className="p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-slate-100 dark:border-slate-800 space-y-4 ring-1 ring-slate-200/50">
                                     <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-600 flex items-center gap-2">
                                         <Info className="h-4 w-4" /> Funcionalidades-Chave
                                     </h4>

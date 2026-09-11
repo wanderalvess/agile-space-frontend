@@ -142,10 +142,10 @@ const SourceNode = ({ data }: NodeProps<SourceNodeType>) => {
   return (
     <div className="relative group transition-all duration-150 hover:scale-[1.02]">
       <div className="border border-slate-200/90 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md min-w-[210px] flex items-center justify-between gap-3 transition-all">
-        <span className="text-xs font-mono font-medium text-slate-800 dark:text-slate-200 truncate">
+        <span className="text-xs font-code font-medium text-slate-800 dark:text-slate-200 truncate">
           {data.label}
         </span>
-        <Badge className={cn('text-[10px] h-4 px-1.5 font-mono font-bold shrink-0 border shadow-none', badgeStyle)}>
+        <Badge className={cn('text-[10px] h-4 px-1.5 font-code font-bold shrink-0 border shadow-none', badgeStyle)}>
           {data.type}
         </Badge>
       </div>
@@ -169,10 +169,10 @@ const TargetNode = ({ data }: NodeProps<TargetNodeType>) => {
         className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-white dark:!border-slate-900 !rounded-full shadow-sm !left-[-6px]"
       />
       <div className="border border-slate-200/90 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md min-w-[210px] flex items-center justify-between gap-3 transition-all">
-        <span className="text-xs font-mono font-medium text-slate-800 dark:text-slate-200 truncate">
+        <span className="text-xs font-code font-medium text-slate-800 dark:text-slate-200 truncate">
           {data.label}
         </span>
-        <Badge className={cn('text-[10px] h-4 px-1.5 font-mono font-bold shrink-0 border shadow-none', badgeStyle)}>
+        <Badge className={cn('text-[10px] h-4 px-1.5 font-code font-bold shrink-0 border shadow-none', badgeStyle)}>
           {data.type}
         </Badge>
       </div>
@@ -657,7 +657,7 @@ function EditorPanel({
       {/* Collapsed preview */}
       {!isExpanded && value.trim() && (
         <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-950/50">
-          <code className="text-[9px] text-slate-400 dark:text-slate-500 font-mono truncate block">
+          <code className="text-[9px] text-slate-400 dark:text-slate-500 font-code truncate block">
             {value.trim().slice(0, 80)}…
           </code>
         </div>
@@ -1546,7 +1546,7 @@ export default function VisualJoltMapperPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 font-sans">
+      <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
 
         {/* ── Header Bento ────────────────────────────────────────────────── */}
         <header className="flex items-center justify-between px-5 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm shrink-0 relative z-20">
@@ -1659,7 +1659,7 @@ export default function VisualJoltMapperPage() {
                     {currentProjectName || 'Projetos'}
                   </span>
                   {currentCloudProjectId && (
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-mono">
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-code">
                       NUVEM
                     </span>
                   )}
@@ -1699,7 +1699,7 @@ export default function VisualJoltMapperPage() {
                       >
                         <div className="flex items-center gap-1.5 truncate">
                           <span className="truncate">{proj.name}</span>
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-code">
                             v{proj.versionCount || 1}
                           </span>
                         </div>
@@ -2020,7 +2020,7 @@ export default function VisualJoltMapperPage() {
                               value={entityName}
                               onChange={(e) => setEntityName(e.target.value)}
                               placeholder="Ex: PRECOPROMOCIONAL"
-                              className="h-8 text-xs font-mono uppercase bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-xl placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                              className="h-8 text-xs font-code uppercase bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-xl placeholder:text-slate-400 dark:placeholder:text-slate-500"
                               title="Nome da Entidade para idExterno e tipoIdInterno"
                             />
                           </div>
@@ -2342,7 +2342,7 @@ export default function VisualJoltMapperPage() {
                   <h3 className="text-sm font-bold text-red-700 dark:text-red-400 mb-1">
                     Falha na Execução do Motor
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md font-mono mb-4 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-red-200 dark:border-red-900/60">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md font-code mb-4 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-red-200 dark:border-red-900/60">
                     {previewError}
                   </p>
                   <Button
@@ -2366,7 +2366,7 @@ export default function VisualJoltMapperPage() {
                         )} />
                         Saída gerada via {previewEngineUsed === 'java' ? 'Java Bazaarvoice (Oficial)' : 'motor local JS'}
                       </span>
-                      <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span className="font-code text-emerald-600 dark:text-emerald-400 font-bold">
                         {previewExecutionTime}ms
                       </span>
                     </div>
@@ -2510,7 +2510,7 @@ export default function VisualJoltMapperPage() {
                   placeholder="Ex: v2: Adiciona mapeamento de itens e descontos"
                   value={versionCommitMessage}
                   onChange={(e) => setVersionCommitMessage(e.target.value)}
-                  className="h-9 text-xs rounded-xl font-mono text-[11px]"
+                  className="h-9 text-xs rounded-xl font-code text-[11px]"
                 />
               </div>
 
@@ -2560,7 +2560,7 @@ export default function VisualJoltMapperPage() {
                   <History className="h-4 w-4" />
                   Histórico de Versões
                 </DialogTitle>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-mono">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-code">
                   {projectVersions.length} {projectVersions.length === 1 ? 'versão' : 'versões'}
                 </span>
               </div>
@@ -2587,7 +2587,7 @@ export default function VisualJoltMapperPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-black px-2 py-0.5 rounded bg-purple-600 text-white font-mono">
+                        <span className="text-xs font-black px-2 py-0.5 rounded bg-purple-600 text-white font-code">
                           v{v.versionNumber}
                         </span>
                         <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
@@ -2645,7 +2645,7 @@ export default function VisualJoltMapperPage() {
                   </DialogTitle>
                   <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                     Defina o payload completo da tabela de integração (ex: Winthor / PCINTEGRACAOROTASERVICO).
-                    Use <code className="text-emerald-600 dark:text-emerald-400 font-mono font-bold bg-emerald-50 dark:bg-emerald-950/50 px-1 py-0.5 rounded border border-emerald-500/20">"_JOLT_SPEC_"</code> no valor do campo onde o array Jolt deve ser injetado.
+                    Use <code className="text-emerald-600 dark:text-emerald-400 font-code font-bold bg-emerald-50 dark:bg-emerald-950/50 px-1 py-0.5 rounded border border-emerald-500/20">"_JOLT_SPEC_"</code> no valor do campo onde o array Jolt deve ser injetado.
                   </DialogDescription>
                 </div>
               </div>

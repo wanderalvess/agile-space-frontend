@@ -68,7 +68,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
             Resumo Analítico da Sprint
           </DialogTitle>
           <DialogDescription className="text-xs font-medium text-slate-400">
-            Dados consolidados de <span className="font-bold text-slate-600 dark:text-slate-300">{activeSquad}</span> via <span className="font-mono text-indigo-500">work_items</span> e JiraDash.
+            Dados consolidados de <span className="font-bold text-slate-600 dark:text-slate-300">{activeSquad}</span> via <span className="font-code text-indigo-500">work_items</span> e JiraDash.
           </DialogDescription>
         </DialogHeader>
 

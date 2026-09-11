@@ -181,7 +181,7 @@ export default function JsonSchemaValidatorPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white/60 backdrop-blur-xl flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -228,7 +228,7 @@ export default function JsonSchemaValidatorPage() {
                <Textarea 
                  value={schemaText}
                  onChange={(e) => setSchemaText(e.target.value)}
-                 className="flex-1 border-none bg-transparent font-mono text-xs p-6 resize-none focus-visible:ring-0 selection:bg-indigo-100"
+                 className="flex-1 border-none bg-transparent font-code text-xs p-6 resize-none focus-visible:ring-0 selection:bg-indigo-100"
                  placeholder="Cole seu Schema aqui..."
                />
             </div>
@@ -247,7 +247,7 @@ export default function JsonSchemaValidatorPage() {
                <Textarea 
                  value={jsonText}
                  onChange={(e) => setJsonText(e.target.value)}
-                 className="flex-1 border-none bg-transparent font-mono text-xs p-6 resize-none focus-visible:ring-0 selection:bg-emerald-100"
+                 className="flex-1 border-none bg-transparent font-code text-xs p-6 resize-none focus-visible:ring-0 selection:bg-emerald-100"
                  placeholder="Cole seu JSON para validar aqui..."
                />
             </div>
@@ -303,7 +303,7 @@ export default function JsonSchemaValidatorPage() {
                   <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl group hover:border-amber-200 hover:bg-white transition-all duration-300">
                     <div className="flex items-center gap-2 mb-2">
                        <Box className="h-3 w-3 text-slate-300 group-hover:text-amber-500 transition-colors" />
-                       <span className="text-[9px] font-mono font-black text-slate-400 group-hover:text-slate-600 transition-colors truncate">
+                       <span className="text-[9px] font-code font-black text-slate-400 group-hover:text-slate-600 transition-colors truncate">
                           {error.path || 'root'}
                        </span>
                     </div>

@@ -371,7 +371,7 @@ export function BentoGrid() {
                 <Calendar className="h-3.5 w-3.5 text-violet-500 opacity-60" />
               </div>
               <div className="flex justify-between items-end border-t border-slate-200/40 dark:border-slate-800/40 pt-2.5 mt-2">
-                <span className="text-[7px] font-black font-mono tracking-widest text-violet-400">CODE: AS-S24</span>
+                <span className="text-[7px] font-black font-code tracking-widest text-violet-400">CODE: AS-S24</span>
                 <span className="text-[7.5px] font-black bg-violet-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider scale-90">Teatro</span>
               </div>
             </div>
@@ -415,7 +415,7 @@ export function BentoGrid() {
           </div>
 
           {/* Code Sandbox Mockup */}
-          <div className="my-3 rounded-xl bg-slate-950 p-2.5 border border-slate-800 font-mono text-[8px] text-emerald-400 flex flex-col justify-between h-20 shadow-inner relative">
+          <div className="my-3 rounded-xl bg-slate-950 p-2.5 border border-slate-800 font-code text-[8px] text-emerald-400 flex flex-col justify-between h-20 shadow-inner relative">
             <span className="absolute top-1 right-2 text-[6.5px] font-black uppercase text-slate-600 tracking-wider">JSON Input</span>
             <div className="space-y-0.5 leading-none">
               <div><span className="text-purple-400">1</span> <span className="text-slate-500">&#123;</span></div>
@@ -425,7 +425,7 @@ export function BentoGrid() {
             </div>
             <div className="flex items-center justify-between border-t border-slate-800 pt-1.5 mt-1 text-[7.5px] text-slate-500 font-bold uppercase">
               <span className="text-blue-500">Transform &gt;</span>
-              <span className="text-slate-500 font-mono">100% Client-Side</span>
+              <span className="text-slate-500 font-code">100% Client-Side</span>
             </div>
           </div>
 
@@ -566,7 +566,7 @@ export function BentoGrid() {
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-[9px] font-bold text-slate-700 dark:text-slate-300">8 Visões Agilistas Integradas</span>
                   </div>
-                  <span className="text-[8px] font-mono font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">TOTVS JQL</span>
+                  <span className="text-[8px] font-code font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">TOTVS JQL</span>
                 </div>
               </div>
 
@@ -575,7 +575,7 @@ export function BentoGrid() {
                 <div className="flex items-center justify-between border-b border-slate-200/40 dark:border-slate-800/40 pb-1.5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[9px] font-extrabold uppercase tracking-wide text-slate-800 dark:text-slate-200">Burndown Horas Reais</span>
-                    <span className="text-[7.5px] font-mono text-slate-400">(Sprint Atual)</span>
+                    <span className="text-[7.5px] font-code text-slate-400">(Sprint Atual)</span>
                   </div>
                   <div className="flex items-center gap-2 text-[8px] font-bold">
                     <span className="flex items-center gap-1 text-slate-400">
@@ -615,7 +615,7 @@ export function BentoGrid() {
                   </svg>
                 </div>
 
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/40 dark:border-slate-800/40 text-[7.5px] font-mono text-slate-400">
+                <div className="flex items-center justify-between pt-1 border-t border-slate-200/40 dark:border-slate-800/40 text-[7.5px] font-code text-slate-400">
                   <span>Dia 1 (420h)</span>
                   <span className="text-amber-500 font-bold">Hoje: -32h restante</span>
                   <span>Dia 10 (0h)</span>

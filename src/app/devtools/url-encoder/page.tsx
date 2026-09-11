@@ -51,7 +51,7 @@ export default function UrlEncoderPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -96,7 +96,7 @@ export default function UrlEncoderPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Insira o texto ou URL para converter..."
-                className="w-full h-full resize-none border-none font-mono text-[13px] leading-relaxed focus-visible:ring-0 placeholder:italic text-slate-700"
+                className="w-full h-full resize-none border-none font-code text-[13px] leading-relaxed focus-visible:ring-0 placeholder:italic text-slate-700"
               />
            </Card>
 
@@ -139,7 +139,7 @@ export default function UrlEncoderPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest">Aguardando conversão</span>
                  </div>
               ) : (
-                <pre className="w-full h-full overflow-auto font-mono text-[13px] leading-relaxed text-orange-900 break-all animate-in zoom-in duration-300 whitespace-pre-wrap">
+                <pre className="w-full h-full overflow-auto font-code text-[13px] leading-relaxed text-orange-900 break-all animate-in zoom-in duration-300 whitespace-pre-wrap">
                   {output}
                 </pre>
               )}

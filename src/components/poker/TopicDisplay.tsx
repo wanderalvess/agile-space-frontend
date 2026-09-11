@@ -71,7 +71,7 @@ export function TopicDisplay({
             value={editingTopic}
             onChange={(e) => setEditingTopic(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="pl-12 h-14 text-lg font-black border-none bg-slate-50 focus-visible:ring-blue-500/10 rounded-2xl shadow-inner placeholder:text-slate-300"
+            className="pl-12 h-14 text-lg font-black border-none bg-slate-50 dark:bg-slate-800 focus-visible:ring-blue-500/10 rounded-2xl shadow-inner placeholder:text-slate-300 dark:placeholder:text-slate-600"
           />
         </div>
         <div className="flex gap-2 shrink-0">
@@ -125,7 +125,7 @@ export function TopicDisplay({
           ) : (
             <h2 className={cn(
               "text-sm font-black uppercase tracking-[0.2em]",
-              showFinishedUI ? (untouchedCount > 0 ? "text-amber-600" : "text-emerald-600") : "text-slate-300 animate-pulse"
+              showFinishedUI ? (untouchedCount > 0 ? "text-amber-600" : "text-emerald-600") : "text-slate-300 dark:text-slate-600 animate-pulse"
             )}>
               {showFinishedUI
                 ? (untouchedCount > 0

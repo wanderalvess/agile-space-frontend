@@ -152,7 +152,7 @@ export function FocusWidget() {
           </div>
           <div>
             <h3 className="text-base font-extrabold uppercase tracking-tight text-slate-900 dark:text-white leading-none">Foco Ativo</h3>
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1 font-sans">Sincronizado com Calmaria</p>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-1">Sincronizado com Calmaria</p>
           </div>
         </div>
         
@@ -207,7 +207,7 @@ export function FocusWidget() {
                 onChange={(e) => setMasterVolume(Number(e.target.value))}
                 className="flex-1 h-1 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none outline-none cursor-pointer accent-orange-500 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:appearance-none"
               />
-              <span className="text-[9px] font-black font-mono w-5 text-right text-slate-500 dark:text-slate-400">{masterVolume}</span>
+              <span className="text-[9px] font-black font-code w-5 text-right text-slate-500 dark:text-slate-400">{masterVolume}</span>
             </div>
           </div>
         ) : (

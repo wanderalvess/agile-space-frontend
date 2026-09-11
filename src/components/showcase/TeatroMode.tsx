@@ -110,7 +110,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col font-sans selection:bg-violet-500/30",
+        "fixed inset-0 z-[100] flex flex-col selection:bg-violet-500/30",
         !session.presentationBackground && "bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-slate-900 via-[#050510] to-[#020205]",
         isLight && "text-slate-900"
       )}
@@ -171,7 +171,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 {!isCover && (
                   <div className="flex flex-col">
                     <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Progresso</span>
-                    <span className="text-[11px] font-black text-white font-mono tabular-nums">{currentIndex + 1} de {session.tasks.length}</span>
+                    <span className="text-[11px] font-black text-white font-code tabular-nums">{currentIndex + 1} de {session.tasks.length}</span>
                   </div>
                 )}
                 {sortBy && (
@@ -184,7 +184,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 )}
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Tempo de Sessão</span>
-                  <span className="text-[11px] font-black text-white font-mono">{formatSessionTime(sessionTime)}</span>
+                  <span className="text-[11px] font-black text-white font-code">{formatSessionTime(sessionTime)}</span>
                 </div>
               </div>
 
@@ -687,7 +687,7 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                   <div className="space-y-4">
                     <div className="space-y-1">
                       <p className={cn("text-lg font-black uppercase tracking-[0.4em] italic", isLight ? "text-slate-400" : "text-white/60")}>Link Externo</p>
-                      <p className={cn("text-[10px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-mono", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
+                      <p className={cn("text-[10px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-code", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
                     </div>
                     <Button
                       asChild

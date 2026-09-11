@@ -3,6 +3,7 @@
 import React from 'react';
 import { Rocket, MessageSquareHeart, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface FooterProps {
   className?: string;
@@ -53,13 +54,14 @@ export function Footer({ className, onOpenFeedback, subtitle, badge }: FooterPro
 
         <nav className="flex flex-wrap items-center justify-center gap-1.5 md:gap-2" aria-label="Links úteis do rodapé">
           {onOpenFeedback && (
-            <button 
+            <Button
+              variant="outline"
               onClick={onOpenFeedback}
-              className="h-8 text-[9px] font-black uppercase tracking-widest text-primary hover:text-white bg-primary/10 hover:bg-primary px-3 rounded-xl transition-all duration-300 active:scale-95 flex items-center gap-1.5 border border-primary/20"
+              className="h-8 text-[9px] font-black uppercase tracking-widest text-primary hover:text-white bg-primary/10 hover:bg-primary px-3 rounded-xl transition-all duration-300 active:scale-95 flex items-center gap-1.5 border-primary/20"
               aria-label="Dar feedback sobre o sistema"
             >
               <MessageSquareHeart className="h-3.5 w-3.5" aria-hidden="true" /> Feedback
-            </button>
+            </Button>
           )}
           
           <a 

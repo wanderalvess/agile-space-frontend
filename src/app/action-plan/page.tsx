@@ -217,7 +217,7 @@ export default function ActionPlanHubPage() {
             <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configure o título da sua Matriz 5W2H</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-6 font-sans">
+          <div className="space-y-6 py-6">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Título do Plano</Label>
               <Input 

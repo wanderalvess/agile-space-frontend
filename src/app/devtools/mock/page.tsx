@@ -426,7 +426,7 @@ export default function DevToolsMockEnginePage() {
               placeholder="Cole aqui: GET http://{{host}}:{{port}}/winthor/integracao/fulfillment/v1/layout/resolverUrlsRotasWta?integracao=pdvsync&tipoLote=true"
               value={smartPasteInput}
               onChange={(e) => setSmartPasteInput(e.target.value)}
-              className="bg-background border-input text-xs font-mono rounded-lg flex-1"
+              className="bg-background border-input text-xs font-code rounded-lg flex-1"
             />
             <Button
               size="sm"
@@ -519,7 +519,7 @@ export default function DevToolsMockEnginePage() {
                             placeholder="ex: winthor/integracao/fulfillment/v1/layout/resolverUrlsRotasWta?integracao=pdvsync"
                             value={urlRoute}
                             onChange={(e) => setUrlRoute(e.target.value)}
-                            className="bg-background border-input rounded-lg font-mono text-xs"
+                            className="bg-background border-input rounded-lg font-code text-xs"
                           />
                           <p className="text-[10px] text-muted-foreground mt-1">
                             Dica: Se você colar a URL completa, o motor limpará o domínio para você.
@@ -562,7 +562,7 @@ export default function DevToolsMockEnginePage() {
                             step="100"
                             value={delay}
                             onChange={(e) => setDelay(Number(e.target.value) || 0)}
-                            className="bg-background border-input rounded-lg font-mono text-xs h-9"
+                            className="bg-background border-input rounded-lg font-code text-xs h-9"
                           />
                         </div>
                       </div>
@@ -589,7 +589,7 @@ export default function DevToolsMockEnginePage() {
                           placeholder='[{"descricaoRota": "WTA - Buscar Clientes", "tipo": "0"}]'
                           value={responsePayload}
                           onChange={(e) => setResponsePayload(e.target.value)}
-                          className="bg-background border-input rounded-lg font-mono text-xs leading-relaxed p-3.5 text-emerald-600 dark:text-emerald-400"
+                          className="bg-background border-input rounded-lg font-code text-xs leading-relaxed p-3.5 text-emerald-600 dark:text-emerald-400"
                         />
                       </div>
 
@@ -628,7 +628,7 @@ export default function DevToolsMockEnginePage() {
                           placeholder="Cole o JSON da sua especificação OpenAPI/Swagger aqui..."
                           value={swaggerPayload}
                           onChange={(e) => setSwaggerPayload(e.target.value)}
-                          className="bg-background border-input rounded-lg font-mono text-xs leading-relaxed p-3.5"
+                          className="bg-background border-input rounded-lg font-code text-xs leading-relaxed p-3.5"
                         />
                       </div>
 
@@ -674,15 +674,15 @@ export default function DevToolsMockEnginePage() {
                         className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 hover:border-blue-500/40 transition-all group"
                       >
                         <div className="flex items-center gap-2.5 overflow-hidden">
-                          <Badge className={`font-mono text-[10px] font-bold ${getBadgeVariant(mock.method)}`}>
+                          <Badge className={`font-code text-[10px] font-bold ${getBadgeVariant(mock.method)}`}>
                             {mock.method}
                           </Badge>
                           <div className="flex flex-col overflow-hidden">
-                            <span className="font-mono text-xs text-foreground truncate">
+                            <span className="font-code text-xs text-foreground truncate">
                               /api/mock/{mock.cleanPath || mock.url}
                             </span>
                             {mock.url.includes('?') && (
-                              <span className="font-mono text-[10px] text-blue-500 truncate">
+                              <span className="font-code text-[10px] text-blue-500 truncate">
                                 ?{mock.url.split('?')[1]}
                               </span>
                             )}
@@ -721,7 +721,7 @@ export default function DevToolsMockEnginePage() {
                           <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold text-[9px]">
                             SWAGGER
                           </Badge>
-                          <span className="font-sans text-xs font-medium text-foreground truncate">
+                          <span className="font-body text-xs font-medium text-foreground truncate">
                             {doc.title}
                           </span>
                         </div>
@@ -781,7 +781,7 @@ export default function DevToolsMockEnginePage() {
                       placeholder="winthor/integracao/fulfillment/v1/layout/resolverUrlsRotasWta?integracao=pdvsync&tipoLote=true"
                       value={testUrl}
                       onChange={(e) => setTestUrl(e.target.value)}
-                      className="bg-background border-input rounded-lg font-mono text-xs"
+                      className="bg-background border-input rounded-lg font-code text-xs"
                     />
                   </div>
                 </div>
@@ -806,7 +806,7 @@ export default function DevToolsMockEnginePage() {
                       <Copy className="h-3 w-3" />
                     </Button>
                   </div>
-                  <code className="block w-full text-xs text-foreground font-mono bg-background p-2 rounded border border-border whitespace-nowrap overflow-x-auto scrollbar-thin select-all">
+                  <code className="block w-full text-xs text-foreground font-code bg-background p-2 rounded border border-border whitespace-nowrap overflow-x-auto scrollbar-thin select-all">
                     {currentOrigin}/api/mock/{testUrl.trim().replace(/^(GET|POST|PUT|DELETE|PATCH)\s+/i, '').replace(/^https?:\/\/[^/]+/i, '').replace(/^https?:\/\/\{\{[^}]+\}\}(?::\{\{[^}]+\}\})?/i, '').replace(/^\{\{[^}]+\}\}(?::\{\{[^}]+\}\})?/i, '').replace(/^\/+/, '')}
                   </code>
                 </div>
@@ -831,8 +831,8 @@ export default function DevToolsMockEnginePage() {
                         variant="outline"
                         className={
                           testStatus === 200
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-mono text-[10px]'
-                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-mono text-[10px]'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 font-code text-[10px]'
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30 font-code text-[10px]'
                         }
                       >
                         Status: {testStatus}
@@ -841,7 +841,7 @@ export default function DevToolsMockEnginePage() {
                   </div>
 
                   <div className="relative">
-                    <pre className="bg-slate-950 text-emerald-400 border border-slate-800 rounded-lg p-3.5 text-xs font-mono overflow-x-auto min-h-[200px] max-h-[320px]">
+                    <pre className="bg-slate-950 text-emerald-400 border border-slate-800 rounded-lg p-3.5 text-xs font-code overflow-x-auto min-h-[200px] max-h-[320px]">
                       {testing ? (
                         <span className="text-slate-400 italic">Enviando requisição...</span>
                       ) : testResponse !== null ? (

@@ -275,7 +275,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
   };
 
   return (
-    <div className="min-h-dvh lg:h-dvh flex flex-col lg:overflow-hidden bg-[#FDFDFF] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans selection:bg-violet-100 selection:text-violet-900">
+    <div className="min-h-dvh lg:h-dvh flex flex-col lg:overflow-hidden bg-[#FDFDFF] dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-violet-100 selection:text-violet-900">
       <RoomHeader 
         title={plannerTitle}
         isEditable={!isReadOnly}

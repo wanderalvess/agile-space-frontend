@@ -55,7 +55,7 @@ export function PokerGuide({ open, onOpenChange }: PokerGuideProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col p-0 border-none shadow-3xl bg-[#fafafa]">
+      <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col p-0 border-none shadow-3xl bg-slate-50 dark:bg-slate-950">
         {/* HEADER ELITE */}
         <SheetHeader className="shrink-0 p-8 bg-slate-900 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
@@ -80,16 +80,16 @@ export function PokerGuide({ open, onOpenChange }: PokerGuideProps) {
         <ScrollArea className="flex-1">
           <div className="p-8 space-y-10">
             <div className="space-y-6">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 border-b border-slate-100 pb-2">Fundamentos da Estimativa</h3>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">Fundamentos da Estimativa</h3>
                <div className="grid grid-cols-1 gap-4">
                   {steps.map((step, idx) => (
-                    <div key={idx} className="flex gap-5 p-5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all group">
+                    <div key={idx} className="flex gap-5 p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all group">
                        <div className={`w-12 h-12 ${step.bg} rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
                           <step.icon className={`h-6 w-6 ${step.color}`} />
                        </div>
                        <div className="space-y-1">
-                          <p className="text-xs font-black uppercase tracking-tight text-slate-900">{step.title}</p>
-                          <p className="text-[11px] text-slate-500 leading-relaxed font-medium">{step.description}</p>
+                          <p className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">{step.title}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{step.description}</p>
                        </div>
                     </div>
                   ))}
@@ -97,15 +97,15 @@ export function PokerGuide({ open, onOpenChange }: PokerGuideProps) {
             </div>
 
             <div className="space-y-6">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 border-b border-slate-100 pb-2">Decks Disponíveis</h3>
+               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">Decks Disponíveis</h3>
                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                     <p className="text-[10px] font-black uppercase text-slate-900">Fibonacci</p>
-                     <p className="text-[9px] text-slate-500 font-medium">Ideal para User Stories e complexidade relativa.</p>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                     <p className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">Fibonacci</p>
+                     <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Ideal para User Stories e complexidade relativa.</p>
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                     <p className="text-[10px] font-black uppercase text-slate-900">Horas</p>
-                     <p className="text-[9px] text-slate-500 font-medium">Ideal para sub-tarefas e esforço técnico direto.</p>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
+                     <p className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">Horas</p>
+                     <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Ideal para sub-tarefas e esforço técnico direto.</p>
                   </div>
                </div>
             </div>
@@ -126,7 +126,7 @@ export function PokerGuide({ open, onOpenChange }: PokerGuideProps) {
             <div className="pt-4 pb-12">
                <Button 
                  variant="outline" 
-                 className="w-full h-14 rounded-2xl border-2 border-slate-200 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition-all gap-3"
+                 className="w-full h-14 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-3"
                  asChild
                >
                  <a href="/manual#poker">

@@ -8,8 +8,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { 
-  Sparkles, 
+import { Button } from "@/components/ui/button";
+import {
+  Sparkles,
   Search, 
   BookOpen, 
   Bot, 
@@ -144,12 +145,12 @@ export function KnowledgeHowToUse({ open, onOpenChange }: KnowledgeHowToUseProps
 
           {/* FOOTER ACTION */}
           <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 flex justify-end shrink-0">
-             <button 
+             <Button
                 onClick={() => onOpenChange(false)}
-                className="h-14 px-10 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-slate-200 text-white dark:text-slate-900 text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95"
+                className="h-14 px-10 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-slate-200 text-white dark:text-slate-900 text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-xl active:scale-95"
              >
                 Entendi, vamos começar
-             </button>
+             </Button>
           </div>
         </div>
       </DialogContent>

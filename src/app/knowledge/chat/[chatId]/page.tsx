@@ -27,6 +27,7 @@ import { searchKnowledgeBase } from '@/services/oracleService';
 import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
 import { KnowledgeDocument } from '@/lib/knowledge-types';
 import { knowledgeChatApi, KnowledgeConversationDTO } from '../api';
+import { knowledgeApi } from '@/app/knowledge/api';
 import { useRouter } from 'next/navigation';
 import {
   Sheet,
@@ -81,6 +82,11 @@ function ChatContent({ chatId }: { chatId: string }) {
   const [isImporting, setIsImporting] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const isMounted = useRef(true);
+  // Evita que o refetch de loadConversation (disparado pelo router.replace logo
+  // abaixo, ao criar a conversa) sobrescreva com um snapshot antigo do backend
+  // (só a msg do usuário) o setMessages(finalMessages) que ainda vai rodar com
+  // a resposta do assistente já embutida.
+  const skipNextLoadRef = useRef(false);
 
   useEffect(() => {
     isMounted.current = true;
@@ -119,6 +125,10 @@ function ChatContent({ chatId }: { chatId: string }) {
     let cancelled = false;
     async function loadConversation() {
       if (!session) return;
+      if (skipNextLoadRef.current) {
+        skipNextLoadRef.current = false;
+        return;
+      }
       try {
         const conv = await knowledgeChatApi.getConversation(chatId);
         if (cancelled) return;
@@ -182,6 +192,7 @@ function ChatContent({ chatId }: { chatId: string }) {
         const created = await knowledgeChatApi.createConversation(buildTitle(prompt));
         activeConversationId = created.id;
         setConversationId(created.id);
+        skipNextLoadRef.current = true;
         router.replace(`/knowledge/chat/${created.id}`);
       } else if (wasEmpty) {
         await knowledgeChatApi.renameConversation(activeConversationId, buildTitle(prompt));
@@ -193,7 +204,18 @@ function ChatContent({ chatId }: { chatId: string }) {
 
     if (!userApiKey) {
       try {
-        const localResults = await searchKnowledgeBase(undefined, prompt);
+        // Busca semântica local (embedding via transformers.js, sem LLM) primeiro;
+        // cai para busca por palavra-chave se vier vazia ou o endpoint falhar.
+        let localResults: KnowledgeDocument[] = [];
+        try {
+          const semanticRes = await knowledgeApi.semanticSearch(prompt, 10);
+          localResults = semanticRes?.content || [];
+        } catch (e) {
+          console.error('Erro na busca semântica, caindo para busca por palavra-chave:', e);
+        }
+        if (localResults.length === 0) {
+          localResults = await searchKnowledgeBase(undefined, prompt);
+        }
         let tdnResults: TdnSearchResult[] = [];
         if (tdnSettings?.baseUrl && tdnSettings?.token) {
           try {

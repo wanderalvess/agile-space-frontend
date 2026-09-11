@@ -89,7 +89,7 @@ export default function CepToolPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white/60 backdrop-blur-xl flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -135,7 +135,7 @@ export default function CepToolPage() {
                       setCep(val);
                     }}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    className="h-14 pl-12 bg-slate-50/50 border-none rounded-2xl font-mono text-lg font-bold text-slate-700 shadow-inner"
+                    className="h-14 pl-12 bg-slate-50/50 border-none rounded-2xl font-code text-lg font-bold text-slate-700 shadow-inner"
                   />
                 </div>
                 <Button 

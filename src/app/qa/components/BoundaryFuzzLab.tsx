@@ -122,7 +122,7 @@ export function BoundaryFuzzLab() {
                   {item.category === 'whitespace' && <Code2 className="h-4 w-4 text-emerald-500" />}
                   {item.title}
                 </h3>
-                <Badge variant="outline" className="text-[9px] font-mono uppercase">
+                <Badge variant="outline" className="text-[9px] font-code uppercase">
                   {item.value.length} chars
                 </Badge>
               </div>
@@ -131,7 +131,7 @@ export function BoundaryFuzzLab() {
                 {item.description}
               </p>
 
-              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 font-mono text-xs text-amber-300 break-all max-h-24 overflow-y-auto scrollbar-thin">
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 font-code text-xs text-amber-300 break-all max-h-24 overflow-y-auto scrollbar-thin">
                 {item.value === '' ? <span className="italic text-slate-600">(String Vazia - 0 bytes)</span> : item.value}
               </div>
             </div>

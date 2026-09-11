@@ -273,7 +273,7 @@ const RetroBoardComponent = ({
   };
 
   return (
-    <div className="flex flex-row flex-nowrap h-dvh w-full bg-[#fafafa] relative overflow-hidden font-sans min-h-0">
+    <div className="flex flex-row flex-nowrap h-dvh w-full bg-[#fafafa] relative overflow-hidden min-h-0">
         {/* Mesh Gradient Background */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/30 blur-[120px] animate-pulse" />
@@ -299,7 +299,7 @@ const RetroBoardComponent = ({
               )
             }
             actions={
-              <div className="flex items-center gap-1.5 font-sans">
+              <div className="flex items-center gap-1.5">
                 {/* 🎛️ CONTROLES DA RETRO INJETADOS NO CABEÇALHO */}
                 <RetroControls
                   isCardsRevealed={boardData.isCardsRevealed}

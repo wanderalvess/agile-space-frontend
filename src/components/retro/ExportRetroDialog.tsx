@@ -603,7 +603,7 @@ export function ExportRetroDialog({
           </button>
 
           {showPreview && (
-            <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-mono text-[10px] leading-relaxed select-all">
+            <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-code text-[10px] leading-relaxed select-all">
               <pre className="whitespace-pre-wrap break-words">{markdown}</pre>
             </div>
           )}

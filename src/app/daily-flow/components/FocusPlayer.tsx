@@ -11,6 +11,7 @@ import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
+import { Button } from '@/components/ui/button';
 
 export default function FocusPlayer() {
   const { userProfile } = useUserContext();
@@ -371,20 +372,21 @@ export default function FocusPlayer() {
 
         {/* Action Buttons */}
         <div className="flex flex-col gap-1.5 mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 shrink-0">
-          <button
+          <Button
             type="button"
             onClick={() => setIsJiraModalOpen(true)}
             className="w-full h-8.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest shadow-sm flex items-center justify-center gap-1"
           >
             Buscar Tarefa no Jira
-          </button>
-          <button 
-            type="button" 
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
             onClick={handleCreateManual}
-            className="w-full h-8 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8.5px] font-black uppercase tracking-widest shadow-sm flex items-center justify-center bg-transparent"
+            className="w-full h-8 rounded-lg border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8.5px] font-black uppercase tracking-widest shadow-sm flex items-center justify-center bg-transparent"
           >
             <Plus className="h-3 w-3 mr-1" /> Criar Manual
-          </button>
+          </Button>
         </div>
       </div>
 

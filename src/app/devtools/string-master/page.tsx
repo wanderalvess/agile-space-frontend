@@ -125,7 +125,7 @@ export default function StringMasterPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F8FAFC] font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden">
       {/* Header */}
       <header className="px-8 py-4 border-b bg-white/60 backdrop-blur-xl flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">

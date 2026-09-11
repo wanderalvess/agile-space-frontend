@@ -205,7 +205,7 @@ export function HealthCheckResults({
   }, [results, scaleType]);
 
   return (
-    <div className="flex flex-col flex-1 bg-[#fafafa] relative overflow-hidden font-sans h-screen">
+    <div className="flex flex-col flex-1 bg-[#fafafa] relative overflow-hidden h-screen">
       {/* Mesh Gradient Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/30 blur-[120px] animate-pulse" />

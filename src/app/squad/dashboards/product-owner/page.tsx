@@ -113,7 +113,7 @@ export default function ProductOwnerDashboard() {
                   className="flex items-center justify-between border-b border-border/60 pb-2.5 text-xs"
                 >
                   <div className="flex items-center gap-2 truncate max-w-[75%]">
-                    <span className="font-mono font-bold text-primary shrink-0">{iss.jiraKey}</span>
+                    <span className="font-code font-bold text-primary shrink-0">{iss.jiraKey}</span>
                     <span className="text-foreground truncate font-medium">{iss.title}</span>
                   </div>
                   <span className="text-muted-foreground text-[11px] font-medium bg-muted px-2 py-0.5 rounded-md shrink-0">

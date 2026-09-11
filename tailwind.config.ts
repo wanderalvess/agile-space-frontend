@@ -14,6 +14,16 @@ export default {
         headline: ['var(--font-outfit)', 'sans-serif'],
         code: ['var(--font-jetbrains-mono)', 'monospace'],
       },
+      fontSize: {
+        // Tailwind's default scale começa em xs (12px). O app usa muito abaixo disso
+        // pra labels uppercase/tracking-widest (2700+ ocorrências via text-[Npx]) —
+        // estes nomeiam a escala micro real já em uso, sem trocar nenhum className existente.
+        '2xs': ['0.6875rem', { lineHeight: '1rem' }],   // 11px
+        '3xs': ['0.625rem', { lineHeight: '0.875rem' }], // 10px
+        '4xs': ['0.5625rem', { lineHeight: '0.75rem' }], // 9px
+        '5xs': ['0.5rem', { lineHeight: '0.75rem' }],    // 8px
+        '6xs': ['0.4375rem', { lineHeight: '0.625rem' }], // 7px
+      },
       screens: {
         'xxl': '1440px',
         '3xl': '1920px',
@@ -79,6 +89,14 @@ export default {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
+        // Tailwind's default scale tops out at 3xl (1.5rem). O app usa raios maiores
+        // que isso o tempo todo (400+ ocorrências) via valores arbitrários rounded-[Npx] —
+        // estes nomeiam a escala real já em uso, sem trocar nenhum className existente.
+        '4xl': '2rem',
+        '5xl': '2.5rem',
+        '6xl': '3rem',
+        '7xl': '3.5rem',
+        '8xl': '4rem',
       },
       keyframes: {
         'accordion-down': {

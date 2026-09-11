@@ -166,7 +166,7 @@ export function Header() {
                       className="text-xs font-bold gap-2 py-3 cursor-pointer group"
                     >
                       <Settings className="h-4 w-4 text-primary group-hover:rotate-45 transition-transform" />
-                      ⚙️ Meu Perfil
+                      Meu Perfil
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="text-xs font-bold gap-2 py-3 cursor-pointer group">
                       <Link href="/workspace" className="flex items-center w-full">

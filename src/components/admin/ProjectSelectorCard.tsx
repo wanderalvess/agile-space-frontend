@@ -112,7 +112,7 @@ export function ProjectSelectorCard({ selectedSquadId, onSelectSquad }: ProjectS
               
               <div className="flex flex-col gap-1.5">
                 {squad.jiraProjectKey && (
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono bg-slate-50 dark:bg-slate-900/50 px-2 py-0.5 rounded w-fit">
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-code bg-slate-50 dark:bg-slate-900/50 px-2 py-0.5 rounded w-fit">
                     <span className="opacity-70">KEY:</span>
                     <span className="font-bold">{squad.jiraProjectKey}</span>
                   </div>

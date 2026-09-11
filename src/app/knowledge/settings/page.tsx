@@ -152,7 +152,7 @@ export default function KnowledgeSettingsPage() {
                     value={byokApiKey}
                     onChange={(e) => setByokApiKey(e.target.value)}
                     placeholder="Cole sua chave de API aqui..."
-                    className="h-12 pl-4 pr-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-mono text-sm text-slate-900 dark:text-slate-100 shadow-inner"
+                    className="h-12 pl-4 pr-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-code text-sm text-slate-900 dark:text-slate-100 shadow-inner"
                   />
                   <button onClick={() => setShowKey(prev => !prev)} className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
                     {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

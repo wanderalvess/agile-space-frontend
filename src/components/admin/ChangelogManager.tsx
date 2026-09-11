@@ -639,7 +639,7 @@ export function ChangelogManager() {
                   value={formTag}
                   onChange={(e) => setFormTag(e.target.value)}
                   placeholder="v3.118.0"
-                  className="h-10 rounded-xl font-mono text-sm"
+                  className="h-10 rounded-xl font-code text-sm"
                 />
               </div>
 

@@ -401,7 +401,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                                   <button
                                     key={idx}
                                     onClick={() => copyToClipboard(ep, 'Endpoint')}
-                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-mono font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group max-w-full break-all"
+                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-code font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group max-w-full break-all"
                                     title="Clique para copiar"
                                   >
                                     <span>{ep}</span>
@@ -417,7 +417,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                               <span className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider block mb-1">Tabelas Relacionadas:</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedTables.map((tbl, idx) => (
-                                  <span key={idx} className="bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
+                                  <span key={idx} className="bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-code text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
                                     {tbl}
                                   </span>
                                 ))}
@@ -442,7 +442,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                                 <ChevronRight className="h-2.5 w-2.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                               </div>
                               <h4 className="text-[10px] font-bold text-slate-900 dark:text-white block truncate max-w-full" title={doc.title}>{doc.title}</h4>
-                              <p className="text-[8.5px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 font-sans leading-tight">
+                              <p className="text-[8.5px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-tight">
                                 {doc.tech?.bestSnippet || doc.content.replace(/<[^>]*>?/gm, '')}
                               </p>
                             </div>

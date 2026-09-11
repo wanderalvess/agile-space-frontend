@@ -80,7 +80,7 @@ export function JoltPanel({
                   <ClipboardPaste className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
+              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">
                 {pasteTooltip}
               </TooltipContent>
             </Tooltip>
@@ -98,7 +98,7 @@ export function JoltPanel({
                   <Wand2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
+              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">
                 {formatTooltip}
               </TooltipContent>
             </Tooltip>
@@ -116,7 +116,7 @@ export function JoltPanel({
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
+              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">
                 {clearTooltip}
               </TooltipContent>
             </Tooltip>
@@ -137,7 +137,7 @@ export function JoltPanel({
                   <Copy className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
+              <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">
                 {copyTooltip}
               </TooltipContent>
             </Tooltip>

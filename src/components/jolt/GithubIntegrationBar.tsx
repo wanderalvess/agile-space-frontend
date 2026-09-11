@@ -105,7 +105,7 @@ export function GithubIntegrationBar({
               <Wand2 className="h-3 w-3" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">
+          <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300">
             Carregar Layouts do Repositório
           </TooltipContent>
         </Tooltip>
@@ -147,7 +147,7 @@ export function GithubIntegrationBar({
               role="combobox"
               aria-expanded={isLayoutPopoverOpen}
               disabled={loadingGithubTree || loadingGithubLayout || githubLayouts.length === 0}
-              className="h-7 w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left font-sans text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              className="h-7 w-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[8px] font-black uppercase tracking-widest rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
             >
               <span className="truncate max-w-[130px]">
                 {loadingGithubLayout 

@@ -110,7 +110,7 @@ function PhaseRow({
           placeholder="Rótulo curto (ex: Review)"
           maxLength={12}
           title="Texto compacto mostrado dentro da fita do cronograma"
-          className="h-8 text-xs rounded-lg w-32 shrink-0 font-mono"
+          className="h-8 text-xs rounded-lg w-32 shrink-0 font-code"
         />
 
         <Select value={row.color} onValueChange={v => onChange({ color: v })}>

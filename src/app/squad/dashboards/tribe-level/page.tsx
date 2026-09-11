@@ -132,10 +132,10 @@ export default function TribeLevelDashboard() {
               {squadMatrix.map((sq, i) => (
                 <tr key={i} className="hover:bg-muted/40 transition-colors">
                   <td className="py-4 px-3 font-bold text-foreground">{sq.name}</td>
-                  <td className="py-4 px-3 text-muted-foreground font-mono">{sq.velocity}</td>
+                  <td className="py-4 px-3 text-muted-foreground font-code">{sq.velocity}</td>
                   <td className="py-4 px-3">
                     <div className="flex items-center gap-3">
-                      <span className="text-foreground font-mono w-8">{sq.predictability}%</span>
+                      <span className="text-foreground font-code w-8">{sq.predictability}%</span>
                       <div className="w-28 bg-muted h-2 rounded-full overflow-hidden">
                         <div
                           className={`h-full rounded-full ${

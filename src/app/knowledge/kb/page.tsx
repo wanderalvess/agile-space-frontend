@@ -935,7 +935,7 @@ function KBExplorerContent() {
 
       {/* Modal Formato de Download */}
       <Dialog open={isDownloadFormatOpen} onOpenChange={setIsDownloadFormatOpen}>
-        <DialogContent className="sm:max-w-[440px] rounded-[3rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl font-sans">
+        <DialogContent className="sm:max-w-[440px] rounded-[3rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100">
               Escolher Formato
@@ -953,7 +953,7 @@ function KBExplorerContent() {
             >
               <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
                 <RadioGroupItem value="md" id="format-md" />
-                <Label htmlFor="format-md" className="flex-1 cursor-pointer font-sans">
+                <Label htmlFor="format-md" className="flex-1 cursor-pointer">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Markdown (.md)</div>
                   <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Formatado e limpo, ideal para ler e editar localmente.</div>
                 </Label>
@@ -961,7 +961,7 @@ function KBExplorerContent() {
 
               <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
                 <RadioGroupItem value="html" id="format-html" />
-                <Label htmlFor="format-html" className="flex-1 cursor-pointer font-sans">
+                <Label htmlFor="format-html" className="flex-1 cursor-pointer">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">HTML (.html)</div>
                   <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Preserva a estrutura original do editor para leitura no navegador.</div>
                 </Label>
@@ -969,7 +969,7 @@ function KBExplorerContent() {
 
               <div className="flex items-center space-x-3 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 hover:bg-slate-50 dark:hover:bg-slate-950/50 transition-all cursor-pointer">
                 <RadioGroupItem value="txt" id="format-txt" />
-                <Label htmlFor="format-txt" className="flex-1 cursor-pointer font-sans">
+                <Label htmlFor="format-txt" className="flex-1 cursor-pointer">
                   <div className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">Texto Puro (.txt)</div>
                   <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">Remove todas as formatações e mantém apenas o texto legível.</div>
                 </Label>

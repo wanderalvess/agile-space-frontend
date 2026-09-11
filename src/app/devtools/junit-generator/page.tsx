@@ -174,7 +174,7 @@ export default function JUnitGeneratorPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50 font-sans">
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
       
       {/* Mesh Gradient Local */}
       <div className="absolute top-0 left-0 w-[400px] h-[400px] bg-blue-100/30 blur-[120px] pointer-events-none -z-10" />
@@ -203,7 +203,7 @@ export default function JUnitGeneratorPage() {
                   placeholder="AIzaSyA_****************"
                   value={tempApiKey}
                   onChange={(e) => setTempApiKey(e.target.value)}
-                  className="h-14 bg-slate-50 border-none rounded-2xl px-6 font-mono text-sm focus-visible:ring-2 focus-visible:ring-indigo-500/20"
+                  className="h-14 bg-slate-50 border-none rounded-2xl px-6 font-code text-sm focus-visible:ring-2 focus-visible:ring-indigo-500/20"
                   autoComplete="off"
                 />
               </div>

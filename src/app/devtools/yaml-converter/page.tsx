@@ -49,7 +49,7 @@ export default function YamlConverterPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-slate-50 overflow-hidden">
       {/* Header */}
       <header className="px-8 py-5 border-b bg-white flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-4">
@@ -113,7 +113,7 @@ export default function YamlConverterPage() {
                      value={input}
                      onChange={(e) => setInput(e.target.value)}
                      placeholder={mode === 'YAML_TO_JSON' ? "Insira seu YAML...\nkey:\n  child: value" : "Insira seu JSON...\n{\n  \"key\": \"value\"\n}"}
-                     className="w-full h-full resize-none border-none font-mono text-[13px] leading-relaxed focus-visible:ring-0 placeholder:italic text-slate-700"
+                     className="w-full h-full resize-none border-none font-code text-[13px] leading-relaxed focus-visible:ring-0 placeholder:italic text-slate-700"
                    />
                 </Card>
              </div>
@@ -138,7 +138,7 @@ export default function YamlConverterPage() {
                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Output Studio</span>
                       </div>
                    ) : (
-                     <pre className="w-full h-full overflow-auto font-mono text-[11px] leading-relaxed text-indigo-300 selection:bg-indigo-500/30">
+                     <pre className="w-full h-full overflow-auto font-code text-[11px] leading-relaxed text-indigo-300 selection:bg-indigo-500/30">
                        {output}
                      </pre>
                    )}

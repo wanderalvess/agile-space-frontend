@@ -169,7 +169,7 @@ export default function TechLeadDashboard() {
                 <div key={i} className="flex flex-col gap-1">
                   <div className="flex justify-between text-xs font-medium">
                     <span className="text-foreground font-medium">{c.name}</span>
-                    <span className="text-muted-foreground font-mono text-[11px]">{c.score}</span>
+                    <span className="text-muted-foreground font-code text-[11px]">{c.score}</span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div className="h-full bg-primary rounded-full" style={{ width: `${c.percent}%` }} />

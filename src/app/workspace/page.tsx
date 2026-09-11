@@ -421,7 +421,7 @@ export default function WorkspacePage() {
                 >
                   <Search className="h-3.5 w-3.5" />
                   <span>Busca</span>
-                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1 font-mono text-[8px] font-medium text-slate-400">
+                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1 font-code text-[8px] font-medium text-slate-400">
                     ⌘K
                   </kbd>
                 </Button>

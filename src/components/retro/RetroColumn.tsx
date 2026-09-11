@@ -270,7 +270,7 @@ function RetroColumnComponent({
       className={cn(
         "flex flex-col bg-white/40 backdrop-blur-xl border border-white/60 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
         isFocused && isFocusMode
-          ? "fixed inset-0 z-[100] m-0 rounded-none bg-white font-sans"
+          ? "fixed inset-0 z-[100] m-0 rounded-none bg-white"
           : isBoardMode
             ? cn(
                 "flex-1 min-w-[310px] xl:min-w-[360px] 2xl:min-w-[400px] max-w-full",
