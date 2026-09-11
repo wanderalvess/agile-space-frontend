@@ -15,6 +15,7 @@ import {
   FolderPlus,
   ArrowLeft,
   Crown,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -225,6 +226,19 @@ export default function OnboardingPage() {
             O seu centro de comando para engenharia de elite. Selecione o ponto de partida para configurar seu esquadrão e maximizar a entrega de valor.
           </p>
         </div>
+
+        {/* AVISO: já existem projetos no sistema mas o cadastro não vinculou automaticamente
+            (o registro tenta casar por e-mail com quem já foi sincronizado do Jira — se não achou,
+            a pessoa cai aqui sem nenhuma explicação do motivo). Só aparece quando já há projeto(s)
+            cadastrado(s), pra não alarmar quem é genuinamente o primeiro a configurar o sistema. */}
+        {!syncedProject && !loadingProjects && hasExistingProjects && (
+          <div className="w-full max-w-3xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 rounded-2xl px-4 py-3 flex items-start gap-3">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+              Já existem projetos cadastrados no sistema. Se seu time já usa o Espaço Ágil e você esperava entrar automaticamente em um deles, o motivo mais comum é o e-mail do seu cadastro não bater com o e-mail cadastrado no Jira. Confira no cartão <span className="font-bold">"Entrar em Projeto Existente"</span> se ele já aparece na lista, ou peça a um Agile Master / People Lead do time pra te vincular.
+            </p>
+          </div>
+        )}
 
         {/* REVISÃO PÓS-SYNC DO JIRA */}
         {syncedProject ? (
