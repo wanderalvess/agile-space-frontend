@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSquadStore } from '@/store/useSquadStore';
-import type { SquadIssueSnapshot } from '@/lib/types';
+import type { SquadIssueSnapshot, SquadWorkflowPhase } from '@/lib/types';
 
 export interface PlansTask {
   id: string;
@@ -25,15 +25,27 @@ export interface PlansTask {
   title: string;
   type: string;
   status: string;
+  statusCategory?: 'new' | 'indeterminate' | 'done' | 'unknown';
   assigneeName: string;
   assigneeAvatar?: string;
   targetStart: string; // ISO date 'YYYY-MM-DD' or ''
   targetEnd: string;   // ISO date 'YYYY-MM-DD' or ''
+  // true = targetStart/targetEnd caiu em fallback (dueDate/created/updated),
+  // não é data de plano real — cascata/inferência tratam isso com mais cautela.
+  datesAreInferred?: boolean;
+  // Posição entre as subtarefas da mesma história, vinda da ordem de rank do
+  // Jira (fields.subtasks) — desempate de ordem de fase quando duas fases
+  // caem na mesma data planejada.
+  orderIndex?: number;
+  remainingSec?: number; // tempo restante (Jira `timeestimate`) — sinal de "sobrou mais trabalho que tempo"
+  updatedAtJira?: string; // última edição no Jira (comentário, label, etc.) — usado só pra staleSinceDays
+  resolutionDate?: string; // Jira `resolutiondate` — só muda 1x ao resolver/fechar; usado por inferSlip pra "concluiu atrasado"
   parentKey?: string;
   parentTitle?: string;
   parentStatus?: string;
   parentAssignee?: string;
   isParent?: boolean;
+  isBug?: boolean;
   progressPercent?: number;
   estimatesDays?: number;
   sprint?: string;
@@ -47,22 +59,51 @@ function squadIssueToPlansTask(snapshot: SquadIssueSnapshot): PlansTask {
     title: snapshot.title || jiraKey,
     type: snapshot.type || '',
     status: snapshot.status || '',
+    statusCategory: snapshot.statusCategory,
     assigneeName: snapshot.assigneeName || '',
     targetStart: snapshot.targetStart || snapshot.dueDate || '',
     targetEnd: snapshot.targetEnd || snapshot.dueDate || '',
+    datesAreInferred: snapshot.datesAreInferred,
+    orderIndex: snapshot.orderIndex,
+    remainingSec: snapshot.remainingSec,
+    updatedAtJira: snapshot.updatedAtJira || undefined,
+    resolutionDate: snapshot.resolutionDate || undefined,
     parentKey: snapshot.parentKey || undefined,
     parentTitle: snapshot.parentTitle || undefined,
     isParent: !snapshot.parentKey,
+    isBug: snapshot.isBug,
     sprint: snapshot.sprintName || undefined,
   };
 }
 
-export function getIssueTypeBadge(type?: string, title?: string, isParent?: boolean) {
-  const normType = (type || '').toLowerCase();
-  const normTitle = (title || '').toLowerCase();
+// Normaliza issuetype pra comparação: minúsculo, sem acento, sem espaço nas
+// pontas. Classificação usa SÓ fields.issuetype.name (vindo em `type`) —
+// NUNCA o título, que é texto livre e gera falso-positivo (ex: subtarefa de
+// Codificação chamada "Ajustar rotina de notificação" tem "ti" dentro da
+// palavra "notificação", não é Execução de TI).
+function normalizeIssueType(type?: string): string {
+  return (type || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[áàâã]/g, 'a')
+    .replace(/[éê]/g, 'e')
+    .replace(/í/g, 'i')
+    .replace(/[óôõ]/g, 'o')
+    .replace(/ú/g, 'u')
+    .replace(/ç/g, 'c');
+}
+
+// Match de palavra inteira — evita token curto ('ti', 'qa', 'dev') colando
+// dentro de outra palavra (ex: 'automatizados' contém 'ti' em "automa-ti-zados").
+function hasWord(text: string, word: string): boolean {
+  return new RegExp(`\\b${word}\\b`).test(text);
+}
+
+export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boolean) {
+  const normType = normalizeIssueType(type);
 
   // 1. Legislação / Fiscal
-  if (normType.includes('legisla') || normTitle.includes('legisla')) {
+  if (normType.includes('legisla')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[9px] font-bold shrink-0" title="Legislação">
         <Scale className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
@@ -72,7 +113,7 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
   }
 
   // 2. Débito Técnico
-  if (normType.includes('débito') || normType.includes('debito') || normTitle.includes('débito') || normTitle.includes('debito')) {
+  if (normType.includes('debito')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300 dark:border-orange-800 text-[9px] font-bold shrink-0" title="Débito Técnico">
         <FileCode className="w-2.5 h-2.5 text-orange-600 dark:text-orange-400" />
@@ -82,7 +123,7 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
   }
 
   // 3. Teste Sistêmico / Transição
-  if (normType.includes('sistêmico') || normType.includes('sistemico') || normTitle.includes('sistêmico') || normTitle.includes('regressivo') || normTitle.includes('service transition')) {
+  if (normType.includes('sistemico') || normType.includes('regressivo') || normType.includes('service transition')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300 dark:border-teal-800 text-[9px] font-bold shrink-0" title="Teste Sistêmico">
         <TestTube2 className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
@@ -92,7 +133,7 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
   }
 
   // 4. Manutenção / Sustentação
-  if (normType.includes('manuten') || normType.includes('sustenta') || normTitle.includes('manuten')) {
+  if (normType.includes('manuten') || normType.includes('sustenta')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[9px] font-bold shrink-0" title="Manutenção">
         <Wrench className="w-2.5 h-2.5 text-amber-700 dark:text-amber-400" />
@@ -102,7 +143,7 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
   }
 
   // 5. História Pai
-  if (isParent || normType.includes('story') || normType.includes('história') || normType.includes('historia')) {
+  if (isParent || normType.includes('story') || normType.includes('historia')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold shrink-0" title="História Pai">
         <Bookmark className="w-2.5 h-2.5 fill-current text-emerald-600 dark:text-emerald-400" />
@@ -111,8 +152,9 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
     );
   }
 
-  // 6. Bug / Defeito
-  if (normType.includes('bug') || normType.includes('defeito') || normType.includes('erro') || normTitle.includes('erro ao') || normTitle.includes('bug')) {
+  // 6. Bug / Defeito — prioriza o isBug já calculado no sync (mesma regra de
+  // isBugType em useSquadStore.ts); só recai pro tipo se isBug não foi informado.
+  if (isBug ?? (normType.includes('bug') || normType.includes('defeito') || normType.includes('erro'))) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[9px] font-bold shrink-0" title="Bug / Defeito">
         <Bug className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
@@ -121,18 +163,10 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
     );
   }
 
-  // 7. Execução de TI
-  if (normType.includes('execução de ti') || normType.includes('ti') || normTitle.includes('execução de ti') || normTitle.includes('acompanhamento qa')) {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[9px] font-bold shrink-0" title="Execução de TI">
-        <Terminal className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
-        <span>Execução de TI</span>
-      </span>
-    );
-  }
-
-  // 8. Testes Automatizados / Unitários
-  if (normType.includes('automatiz') || normType.includes('unitário') || normTitle.includes('automatiz') || normTitle.includes('unitario') || normTitle.includes('testes auto') || normTitle.includes('automação')) {
+  // 7. Testes Automatizados / Unitários — ANTES de "Execução de TI" de
+  // propósito: "automatizados" contém a substring "ti" (automa-TI-zados), e
+  // um match solto de TI roubaria esse tipo (bug real, achado 2026-09).
+  if (normType.includes('automatiz') || normType.includes('unitario')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-[9px] font-bold shrink-0" title="Testes Automatizados">
         <Bot className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
@@ -141,8 +175,19 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
     );
   }
 
+  // 8. Execução de TI — "ti" é token curto, exige palavra inteira (senão
+  // casa com qualquer tipo que tenha "ti" no meio, ex: "Manutenção").
+  if (hasWord(normType, 'ti') || normType.includes('execucao')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[9px] font-bold shrink-0" title="Execução de TI">
+        <Terminal className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+        <span>Execução de TI</span>
+      </span>
+    );
+  }
+
   // 9. Teste QA / Homologação
-  if (normType.includes('qa') || normType.includes('teste') || normTitle.includes('teste qa') || normTitle.includes('qa') || normTitle.includes('homologação') || normTitle.includes('validação qa')) {
+  if (hasWord(normType, 'qa') || normType.includes('teste') || normType.includes('homologacao')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[9px] font-bold shrink-0" title="Teste QA">
         <CheckCircle2 className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
@@ -152,7 +197,7 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
   }
 
   // 10. Codificação / DEV
-  if (normType.includes('codifica') || normType.includes('desenvolv') || normType.includes('dev') || normTitle.includes('codifica') || normTitle.includes('desenvolv') || normTitle.includes('adapter') || normTitle.includes('api') || normTitle.includes('rebuild')) {
+  if (normType.includes('codifica') || normType.includes('desenvolv') || hasWord(normType, 'dev')) {
     return (
       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold shrink-0" title="Codificação (DEV)">
         <Code2 className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
@@ -171,44 +216,153 @@ export function getIssueTypeBadge(type?: string, title?: string, isParent?: bool
 }
 
 function getDisciplineColorAndLabel(task: PlansTask) {
-  const normType = (task.type + ' ' + task.title).toLowerCase();
-  if (normType.includes('review') || normType.includes('revisão')) {
+  // Tipo só — igual a getIssueTypeBadge, mesmo motivo (título é texto livre,
+  // gera falso-positivo tipo "Investigação" casando com "ti" de Execução TI).
+  const normType = normalizeIssueType(task.type);
+  if (normType.includes('review') || normType.includes('revisao')) {
     return {
       bg: 'bg-purple-600 dark:bg-purple-500',
       label: 'Code Review',
       shortLabel: 'Review',
+      matched: true,
     };
   }
-  if (normType.includes('automatiz') || normType.includes('unitário') || normTitleContains(task.title, 'automação')) {
+  // Automatizados ANTES de QA/TI — mesma razão de getIssueTypeBadge.
+  if (normType.includes('automatiz') || normType.includes('unitario')) {
     return {
       bg: 'bg-teal-600 dark:bg-teal-500',
       label: 'Testes Auto',
       shortLabel: 'Auto',
+      matched: true,
     };
   }
-  if (normType.includes('qa') || normType.includes('teste')) {
+  if (hasWord(normType, 'qa') || normType.includes('teste')) {
     return {
       bg: 'bg-amber-600 dark:bg-amber-500',
       label: 'Teste QA',
       shortLabel: 'QA',
+      matched: true,
     };
   }
-  if (normType.includes('ti') || normType.includes('execução') || normType.includes('acompanhamento')) {
+  if (hasWord(normType, 'ti') || normType.includes('execucao') || normType.includes('acompanhamento')) {
     return {
       bg: 'bg-indigo-600 dark:bg-indigo-500',
       label: 'Execução TI',
       shortLabel: 'TI',
+      matched: true,
     };
   }
+  // Default — tipo não reconhecido (ex: "Sub-task" genérico, comum em várias
+  // instâncias Jira). `matched: false` avisa resolveWorkflowPhase que isto é
+  // um chute visual (DEV azul), NÃO uma classificação real — sem essa
+  // distinção, resolveWorkflowPhase usava DEFAULT_PHASE_ORDER['DEV']=0 pra
+  // tipo desconhecido e ele ordenava PRIMEIRO na cascata, corrompendo a
+  // sequência de fases de qualquer história com subtarefa de tipo genérico.
   return {
     bg: 'bg-blue-600 dark:bg-blue-500',
     label: 'Codificação',
     shortLabel: 'DEV',
+    matched: false,
   };
 }
 
-function normTitleContains(title: string, term: string) {
-  return (title || '').toLowerCase().includes(term.toLowerCase());
+// Ordem-padrão do workflow quando o squad não configurou SquadConfig.phases
+// ainda — mesmas 5 disciplinas de getDisciplineColorAndLabel, na sequência
+// comum (codifica -> automatizado junto -> code review -> QA -> TI).
+const DEFAULT_PHASE_ORDER: Record<string, number> = { DEV: 0, Auto: 1, Review: 2, QA: 3, TI: 4 };
+
+// Legenda pra quando o squad não configurou SquadConfig.phases — mesmas
+// cores de getDisciplineColorAndLabel, na ordem do workflow padrão.
+const DEFAULT_PHASE_LEGEND = [
+  { label: 'Codificação', bg: 'bg-blue-600 dark:bg-blue-500' },
+  { label: 'Testes Auto', bg: 'bg-teal-600 dark:bg-teal-500' },
+  { label: 'Code Review', bg: 'bg-purple-600 dark:bg-purple-500' },
+  { label: 'Teste QA', bg: 'bg-amber-600 dark:bg-amber-500' },
+  { label: 'Execução TI', bg: 'bg-indigo-600 dark:bg-indigo-500' },
+];
+
+// Resolve fase de workflow (cor/rótulo/ordem) de uma subtarefa: prioriza o
+// mapeamento configurado no squad (SquadConfig.phases, ordem do array =
+// ordem da fase); cai pra heurística por tipo quando a config não cobre esse
+// tipo ou o squad ainda não configurou nada.
+function resolveWorkflowPhase(
+  task: PlansTask,
+  phases?: SquadWorkflowPhase[]
+): { label: string; bg: string; shortLabel: string; order: number } {
+  if (phases && phases.length > 0) {
+    const normType = normalizeIssueType(task.type);
+    const idx = phases.findIndex(p => p.issueTypes.some(it => normalizeIssueType(it) === normType));
+    if (idx >= 0) {
+      const p = phases[idx];
+      return { label: p.label, bg: p.color, shortLabel: p.kind, order: idx };
+    }
+  }
+  const disc = getDisciplineColorAndLabel(task);
+  // disc.matched=false = tipo não reconhecido por nenhuma regra (não
+  // necessariamente DEV de verdade) — ordena por ÚLTIMO (99), não herda a
+  // ordem 0 do fallback visual "DEV". Ver comentário no default de
+  // getDisciplineColorAndLabel.
+  const order = disc.matched ? (DEFAULT_PHASE_ORDER[disc.shortLabel] ?? 99) : 99;
+  return { ...disc, order };
+}
+
+type InferredSlip = {
+  days: number; // dias úteis de atraso inferido (0 = nada detectado)
+  reason: 'none' | 'overdue' | 'not-started' | 'remaining-work' | 'finished-late';
+  confidence: 'observed' | 'presumed'; // observed = data/status que já aconteceu; presumed = heurística
+};
+
+// Detecta atraso de uma fase sem depender de alguém atualizar o Jira na mão
+// — a dor original: "se dev atrasa e não atualiza manualmente, não
+// conseguimos saber". 4 sinais, do mais forte ao mais fraco:
+//  1. já devia ter fechado (status != done, fim planejado no passado)
+//  2. já devia ter começado (status = new, início planejado no passado)
+//  3. concluiu, mas depois do prazo (updatedAtJira como proxy de data real
+//     de conclusão — snapshot não guarda uma data de "fechou em" separada)
+//  4. sobrou mais trabalho (Jira "tempo restante") do que sobra tempo até o
+//     prazo — mais fraco, por isso 'presumed'
+// Sempre 0 quando a data-alvo é fallback fabricado (datesAreInferred) —
+// declarar atraso sobre prazo inventado é pior que não declarar nada.
+// `!== false` (não `if (task.datesAreInferred)`) de propósito: a coluna é
+// nova e nasceu sem backfill, então todo snapshot já existente lê `null`/
+// `undefined` até o próximo sync — falha-seguro trata "não sei" como
+// "fabricado", não como "real".
+function inferSlip(task: PlansTask, todayIso: string): InferredSlip {
+  if (task.datesAreInferred !== false) return { days: 0, reason: 'none', confidence: 'presumed' };
+
+  if (task.statusCategory === 'done') {
+    // resolutionDate (Jira `resolutiondate`) só muda 1x, ao fechar —
+    // updatedAtJira muda a QUALQUER edição (comentário, label, etc.), então
+    // um typo corrigido semanas depois de fechado gerava atraso fantasma.
+    // Sem resolutionDate (linha ainda não ressincronizada com o campo novo),
+    // não arrisca: sem sinal é melhor que sinal errado.
+    if (task.targetEnd && task.resolutionDate) {
+      const finishedIso = task.resolutionDate.substring(0, 10);
+      const days = businessDaysBetween(task.targetEnd, finishedIso);
+      if (days > 0) return { days, reason: 'finished-late', confidence: 'observed' };
+    }
+    return { days: 0, reason: 'none', confidence: 'observed' };
+  }
+
+  if (task.targetEnd && task.targetEnd < todayIso) {
+    const days = businessDaysBetween(task.targetEnd, todayIso);
+    if (days > 0) return { days, reason: 'overdue', confidence: 'observed' };
+  }
+
+  if (task.statusCategory === 'new' && task.targetStart && task.targetStart < todayIso) {
+    const days = businessDaysBetween(task.targetStart, todayIso);
+    if (days > 0) return { days, reason: 'not-started', confidence: 'observed' };
+  }
+
+  if (task.remainingSec && task.remainingSec > 0 && task.targetEnd) {
+    const daysLeft = Math.max(0, businessDaysBetween(todayIso, task.targetEnd));
+    const remainingDays = task.remainingSec / (8 * 3600);
+    if (remainingDays > daysLeft) {
+      return { days: Math.ceil(remainingDays - daysLeft), reason: 'remaining-work', confidence: 'presumed' };
+    }
+  }
+
+  return { days: 0, reason: 'none', confidence: 'observed' };
 }
 
 function computeTaskProgress(task: PlansTask): number {
@@ -284,6 +438,43 @@ function addDaysToIso(isoDate: string, days: number): string {
   if (isNaN(d.getTime())) return isoDate;
   d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
+}
+
+// Soma dias ÚTEIS (pula sáb/dom) — cascata e inferência de atraso usam
+// SEMPRE dia útil (plano seg->ter não pode virar sáb->dom só porque a conta
+// foi em dia corrido). addDaysToIso continua existindo pra calendário corrido.
+function addBusinessDays(isoDate: string, days: number): string {
+  if (!isoDate || days === 0) return isoDate;
+  const d = new Date(isoDate + 'T00:00:00');
+  if (isNaN(d.getTime())) return isoDate;
+  const step = days > 0 ? 1 : -1;
+  let remaining = Math.abs(days);
+  while (remaining > 0) {
+    d.setDate(d.getDate() + step);
+    if (d.getDay() !== 0 && d.getDay() !== 6) remaining--;
+  }
+  // getLocalDateStr (não toISOString) — .toISOString() converte pra UTC, e
+  // meia-noite local num fuso positivo (UTC+1 ou mais) vira o dia UTC
+  // ANTERIOR, devolvendo a data errada pra quem não está no fuso do Brasil.
+  return getLocalDateStr(d);
+}
+
+// Diferença em dias ÚTEIS entre duas datas ISO (endIso - startIso), com
+// sinal: positivo quando endIso é depois de startIso. 0 se alguma data for
+// inválida/vazia. Uso padrão: businessDaysBetween(prazo, hoje) > 0 = atrasado.
+function businessDaysBetween(startIso: string, endIso: string): number {
+  if (!startIso || !endIso) return 0;
+  const start = new Date(startIso + 'T00:00:00');
+  const end = new Date(endIso + 'T00:00:00');
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+  const sign = end.getTime() >= start.getTime() ? 1 : -1;
+  let count = 0;
+  const cur = new Date(start);
+  while (cur.getTime() !== end.getTime()) {
+    cur.setDate(cur.getDate() + sign);
+    if (cur.getDay() !== 0 && cur.getDay() !== 6) count += sign;
+  }
+  return count;
 }
 
 // Empacota as fases de uma história na menor quantidade de faixas horizontais
@@ -531,6 +722,7 @@ export function SquadPlansTimeline() {
               assigneeName: t.parentAssignee || t.assigneeName,
               targetStart: t.targetStart,
               targetEnd: t.targetEnd,
+              datesAreInferred: t.datesAreInferred,
               isParent: true
             },
             children: [t]
@@ -589,53 +781,80 @@ export function SquadPlansTimeline() {
     setCollapsedParents(prev => ({ ...prev, [parentKey]: !prev[parentKey] }));
   };
 
-  // Cascata por história: só roda quando a tarefa ativa pertence a ESTA história.
-  // A tarefa ativa estica o próprio fim; qualquer fase que começava no mesmo dia
-  // ou depois dela (na ordem original) é empurrada junto (início E fim). Fases
-  // que já tinham terminado antes da ativa não são afetadas.
+  // Cascata por história, SEMPRE ativa (não só quando alguém aciona o
+  // simulador manual) — resolve a dor original: dev atrasa, não atualiza o
+  // Jira na mão, ninguém sabia. Cada fase roda na ordem do workflow
+  // (SquadConfig.phases configurado pelo squad, com Jira rank de desempate;
+  // sem config, heurística por tipo — ver resolveWorkflowPhase). Pra cada
+  // fase, o atraso PRÓPRIO vem do simulador manual quando ligado nela, senão
+  // de inferSlip (detecção automática). Esse atraso estica o fim da própria
+  // fase e empurra o INÍCIO de todas as fases seguintes na ordem — sempre em
+  // dias úteis (seg->ter não pode virar sáb->dom).
   const computeStoryCascade = (parent: PlansTask, children: PlansTask[]) => {
     const baseOf = (t: PlansTask) => ({
       start: t.targetStart || startDate,
       end: t.targetEnd || t.targetStart || endDate,
     });
 
-    const idle = { isDelayed: false, delayDays: 0, isOverdueRisk: false };
-    const childDates = new Map<string, { start: string; end: string; isDelayed: boolean; delayDays: number; isOverdueRisk: boolean; originalDeadline: string }>();
-    const activeInThisStory = activeDelayTaskId !== null && activeDelayDays > 0 && children.some(c => c.id === activeDelayTaskId);
+    type EffectiveDates = {
+      start: string; end: string; isDelayed: boolean; delayDays: number;
+      isOverdueRisk: boolean; originalDeadline: string; confidence: 'observed' | 'presumed';
+    };
+    const idle = { isDelayed: false, delayDays: 0, isOverdueRisk: false, confidence: 'observed' as const };
 
-    if (!activeInThisStory) {
-      children.forEach(c => {
-        const { start, end } = baseOf(c);
-        childDates.set(c.id, { start, end, ...idle, originalDeadline: end });
-      });
-    } else {
-      const activeBase = baseOf(children.find(c => c.id === activeDelayTaskId)!);
-      children.forEach(c => {
-        const { start: baseStart, end: baseEnd } = baseOf(c);
-        if (c.id === activeDelayTaskId) {
-          const end = addDaysToIso(baseEnd, activeDelayDays);
-          childDates.set(c.id, { start: baseStart, end, isDelayed: true, delayDays: activeDelayDays, isOverdueRisk: end > baseEnd, originalDeadline: baseEnd });
-        } else if (baseStart >= activeBase.start) {
-          const start = addDaysToIso(baseStart, activeDelayDays);
-          const end = addDaysToIso(baseEnd, activeDelayDays);
-          childDates.set(c.id, { start, end, isDelayed: true, delayDays: activeDelayDays, isOverdueRisk: end > baseEnd, originalDeadline: baseEnd });
-        } else {
-          childDates.set(c.id, { start: baseStart, end: baseEnd, ...idle, originalDeadline: baseEnd });
-        }
-      });
+    // Decora com a ORDEM de fase já resolvida (uma vez só) pra poder detectar,
+    // no loop abaixo, quando dois irmãos caem no mesmo tier de fase — nesse
+    // caso um não deve empurrar o outro (não são sequenciais entre si, só o
+    // orderIndex do Jira desempata a exibição); o atraso do tier só propaga
+    // pro PRÓXIMO tier de fase, e usa o pior caso (max) do tier, não a soma.
+    const ordered = children
+      .map(task => ({ task, order: resolveWorkflowPhase(task, config?.phases).order }))
+      .sort((a, b) => a.order - b.order || (a.task.orderIndex ?? 0) - (b.task.orderIndex ?? 0));
+
+    const childDates = new Map<string, EffectiveDates>();
+    let pushDays = 0;
+    let pendingPush = 0;
+    let lastOrder: number | null = null;
+    for (const { task, order } of ordered) {
+      if (lastOrder !== null && order !== lastOrder) {
+        pushDays += pendingPush;
+        pendingPush = 0;
+      }
+      lastOrder = order;
+
+      const { start: baseStart, end: baseEnd } = baseOf(task);
+      const manualActive = task.id === activeDelayTaskId && activeDelayDays > 0;
+      const auto = inferSlip(task, todayIso);
+      const ownExtra = manualActive ? activeDelayDays : auto.days;
+      const confidence: 'observed' | 'presumed' = manualActive ? 'observed' : auto.confidence;
+
+      const start = pushDays > 0 ? addBusinessDays(baseStart, pushDays) : baseStart;
+      const totalShift = pushDays + ownExtra;
+      const end = totalShift > 0 ? addBusinessDays(baseEnd, totalShift) : baseEnd;
+      const isOverdueRisk = end > baseEnd;
+      const isDelayed = pushDays > 0 || ownExtra > 0;
+
+      childDates.set(task.id, { start, end, isDelayed, delayDays: totalShift, isOverdueRisk, originalDeadline: baseEnd, confidence });
+      pendingPush = Math.max(pendingPush, ownExtra);
     }
+    pushDays += pendingPush; // último tier também propaga (ex: pro cálculo de maxEnd do pai, logo abaixo)
 
     const parentBase = baseOf(parent);
-    let parentDates: { start: string; end: string; isDelayed: boolean; delayDays: number; isOverdueRisk: boolean; originalDeadline: string };
-    if (activeInThisStory) {
+    let parentDates: EffectiveDates;
+    if (pushDays > 0) {
       const maxEnd = [...childDates.values()].reduce((max, d) => (d.end > max ? d.end : max), parentBase.end);
       const isOverdueRisk = maxEnd > parentBase.end;
-      parentDates = { start: parentBase.start, end: maxEnd, isDelayed: isOverdueRisk, delayDays: activeDelayDays, isOverdueRisk, originalDeadline: parentBase.end };
+      // delayDays = gap real entre o fim ORIGINAL do próprio pai e maxEnd —
+      // não pushDays (soma bruta dos filhos), que só bate com o que a pílula
+      // pStart-pEnd mostra quando o targetEnd do pai coincide com o do último
+      // filho (raro: história tem prazo próprio, geralmente com folga).
+      const delayDays = businessDaysBetween(parentBase.end, maxEnd);
+      parentDates = { start: parentBase.start, end: maxEnd, isDelayed: isOverdueRisk, delayDays, isOverdueRisk, originalDeadline: parentBase.end, confidence: 'observed' };
     } else {
       parentDates = { start: parentBase.start, end: parentBase.end, ...idle, originalDeadline: parentBase.end };
     }
 
-    const getEffectiveDates = (task: PlansTask) =>
+    const getEffectiveDates = (task: PlansTask): EffectiveDates =>
       task.id === parent.id
         ? parentDates
         : childDates.get(task.id) ?? { ...baseOf(task), ...idle, originalDeadline: task.targetEnd || '' };
@@ -732,6 +951,24 @@ export function SquadPlansTimeline() {
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
               {isSyncing ? 'Sincronizando…' : `Sincronizado ${timeAgo(config?.lastSyncAt)}`}
             </div>
+          </div>
+        </div>
+
+        {/* Legenda de fase — a fita do Gantt (linha da história) identifica
+            a fase só pela cor, essa legenda é a chave de leitura. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {(config?.phases && config.phases.length > 0
+            ? config.phases.map(p => ({ label: p.label, bg: p.color }))
+            : DEFAULT_PHASE_LEGEND
+          ).map(p => (
+            <div key={p.label} className="flex items-center gap-1.5">
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${p.bg}`} />
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{p.label}</span>
+            </div>
+          ))}
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-inset ring-rose-500" />
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Além do prazo original</span>
           </div>
         </div>
 
@@ -958,7 +1195,7 @@ export function SquadPlansTimeline() {
                         {/* 1. Hierarchy / Title */}
                         <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                           {hierarchyLevel === 'story-to-subtask' && (isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />)}
-                          {getIssueTypeBadge(parent.type, parent.title, true)}
+                          {getIssueTypeBadge(parent.type, true, parent.isBug)}
                           <span className="font-mono text-[11px] font-bold text-blue-700 dark:text-blue-400 shrink-0">{parent.jiraKey}</span>
                           <span className="truncate text-slate-900 dark:text-slate-100 font-bold" title={parent.title}>{parent.title}</span>
                           {isOverdueRisk && (
@@ -1016,8 +1253,12 @@ export function SquadPlansTimeline() {
 
                       {/* Child Subtasks Rows */}
                       {!isParentCollapsed && children.map(task => {
-                        const { start, end, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(task);
+                        const { start, end, isDelayed, delayDays, isOverdueRisk, confidence } = getEffectiveDates(task);
                         const childProgress = computeTaskProgress(task);
+                        // Ver nota de confidence na fita composta — mesmo motivo: fato
+                        // observado (prazo vencido) e chute (trabalho restante) não
+                        // podem parecer igualmente certos.
+                        const confidenceNote = confidence === 'presumed' ? ' (estimativa, não confirmado)' : '';
 
                         return (
                           <div key={task.id} className={`relative flex h-10 items-stretch transition-colors ${
@@ -1028,7 +1269,7 @@ export function SquadPlansTimeline() {
                             {/* 1. Hierarchy / Title */}
                             <div className="px-3 pl-8 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                               <CornerDownRight className="w-3 h-3 text-slate-400 shrink-0" />
-                              {getIssueTypeBadge(task.type, task.title, false)}
+                              {getIssueTypeBadge(task.type, false, task.isBug)}
                               <span className="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400 shrink-0">{task.jiraKey}</span>
                               <span className="truncate text-slate-800 dark:text-slate-200 font-medium" title={task.title}>{task.title}</span>
                               <button
@@ -1065,13 +1306,16 @@ export function SquadPlansTimeline() {
 
                             {/* 2. Timeline Column (Monday.com Pill) */}
                             <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
-                              <div className={`w-full py-0.5 px-2 rounded-full text-center text-[9.5px] font-bold tracking-tight shadow-2xs flex items-center justify-center gap-1 ${
-                                isOverdueRisk 
-                                  ? 'bg-rose-600 text-white animate-pulse' 
-                                  : isDelayed
-                                  ? 'bg-amber-600 text-white'
-                                  : 'bg-slate-700 text-slate-100 dark:bg-slate-800 dark:text-slate-300'
-                              }`}>
+                              <div
+                                className={`w-full py-0.5 px-2 rounded-full text-center text-[9.5px] font-bold tracking-tight shadow-2xs flex items-center justify-center gap-1 ${
+                                  isOverdueRisk
+                                    ? 'bg-rose-600 text-white animate-pulse'
+                                    : isDelayed
+                                    ? 'bg-amber-600 text-white'
+                                    : 'bg-slate-700 text-slate-100 dark:bg-slate-800 dark:text-slate-300'
+                                }`}
+                                title={isDelayed ? `+${delayDays}d${confidenceNote}` : undefined}
+                              >
                                 <span>{formatDateShort(start)} - {formatDateShort(end)}</span>
                                 {isDelayed && <span className="text-[8px] opacity-90">+{delayDays}d</span>}
                               </div>
@@ -1179,8 +1423,10 @@ export function SquadPlansTimeline() {
                           ))}
                         </div>
 
-                        {/* Target Deadline Marker Line for Parent Story */}
-                        {parent.targetEnd && daysList.findIndex(d => d.iso === parent.targetEnd) >= 0 && (
+                        {/* Target Deadline Marker Line for Parent Story — some se
+                            datesAreInferred: data fabricada não é compromisso real,
+                            não faz sentido desenhar como se fosse (ver inferSlip). */}
+                        {parent.targetEnd && !parent.datesAreInferred && daysList.findIndex(d => d.iso === parent.targetEnd) >= 0 && (
                           <div
                             className="absolute top-0 bottom-0 pointer-events-none z-10 flex flex-col items-center"
                             style={{
@@ -1192,54 +1438,60 @@ export function SquadPlansTimeline() {
                           </div>
                         )}
 
-                        {/* Composite Multi-Step Horizontal Stacked Bars — mesma faixa quando as fases não
-                            se cruzam de verdade (packChildrenIntoTracks); só sobe faixa em atraso/cascata real */}
-                        <div className="absolute inset-0 flex items-center pointer-events-auto">
-                          {children.map((task) => {
-                            const { start, end, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(task);
-                            const startIndex = daysList.findIndex(d => d.iso === start);
-                            const endIndex = daysList.findIndex(d => d.iso === end);
-                            if (startIndex < 0 && endIndex < 0) return null;
-                            const startCol = startIndex >= 0 ? startIndex : 0;
-                            const endColCandidate = endIndex >= 0 ? endIndex : daysList.length - 1;
-                            const spanCols = Math.max(1, endColCandidate - startCol + 1);
-
-                            const barLeft = startCol * colWidths.dayWidth + 2;
-                            const barWidth = Math.max(colWidths.dayWidth - 4, spanCols * colWidths.dayWidth - 4);
-                            const disc = getDisciplineColorAndLabel(task);
-
-                            const track = trackOf.get(task.id) ?? 0;
-                            const topOffset = 4 + track * trackHeight;
+                        {/* Fita única por história — uma linha contínua por track, cor muda por
+                            fase (getDisciplineColorAndLabel/resolveWorkflowPhase); packChildrenIntoTracks
+                            só abre track extra quando duas fases realmente se cruzam no mesmo dia (aí o
+                            dia de handoff divide a célula ao meio). Dia além do prazo original da fase
+                            ganha anel rosa mantendo a cor da fase — dá pra ver QUAL fase está atrasada e
+                            QUE está atrasada no mesmo pixel (ver legenda no topo do painel). */}
+                        <div className="absolute inset-0 pointer-events-auto">
+                          {Array.from({ length: totalTracks }, (_, trackIdx) => {
+                            const topOffset = 4 + trackIdx * trackHeight;
+                            const ownersByDay = daysList.map(day => children.filter(task => {
+                              if ((trackOf.get(task.id) ?? 0) !== trackIdx) return false;
+                              const { start, end } = getEffectiveDates(task);
+                              return !!start && !!end && day.iso >= start && day.iso <= end;
+                            }));
 
                             return (
-                              <div
-                                key={task.id}
-                                style={{
-                                  left: `${barLeft}px`,
-                                  width: `${barWidth}px`,
-                                  top: `${topOffset}px`,
-                                  height: `${trackHeight}px`,
-                                }}
-                                className={`absolute rounded-full shadow-xs flex items-center justify-between px-1.5 text-[8.5px] font-black uppercase transition-all hover:scale-[1.02] hover:z-30 cursor-pointer ring-1 ${
-                                  isOverdueRisk 
-                                    ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white ring-rose-400 animate-pulse' 
-                                    : `${disc.bg} text-white ring-white/40 dark:ring-black/40`
-                                }`}
-                                title={`${task.jiraKey} (${disc.label}): ${task.title} [${formatDateShort(start)} a ${formatDateShort(end)}] ${
-                                  isOverdueRisk ? `⚠️ ESTOURO DE PRAZO: +${delayDays}d de atraso empurrou esta etapa para frente!` : ''
-                                }`}
-                              >
-                                <span className="truncate leading-none">{disc.shortLabel}</span>
-                                {isOverdueRisk && (
-                                  <span className="text-[7px] bg-black/40 px-1 rounded font-black text-rose-200">
-                                    +{delayDays}d
-                                  </span>
-                                )}
-                                {!isOverdueRisk && barWidth > 75 && (
-                                  <span className="text-[7.5px] opacity-85 font-mono leading-none">
-                                    {formatDateShort(start)}-{formatDateShort(end)}
-                                  </span>
-                                )}
+                              <div key={trackIdx} className="absolute left-0 right-0" style={{ top: `${topOffset}px`, height: `${trackHeight}px` }}>
+                                {daysList.map((day, dayIdx) => {
+                                  const owners = ownersByDay[dayIdx];
+                                  if (owners.length === 0) return null;
+                                  const isLeftEdge = dayIdx === 0 || ownersByDay[dayIdx - 1].length === 0;
+                                  const isRightEdge = dayIdx === daysList.length - 1 || ownersByDay[dayIdx + 1].length === 0;
+
+                                  return (
+                                    <div
+                                      key={day.iso}
+                                      className={`absolute top-0 bottom-0 flex overflow-hidden shadow-xs ${isLeftEdge ? 'rounded-l-full' : ''} ${isRightEdge ? 'rounded-r-full' : ''}`}
+                                      style={{ left: `${dayIdx * colWidths.dayWidth}px`, width: `${colWidths.dayWidth}px` }}
+                                    >
+                                      {owners.map(task => {
+                                        const { start, end, delayDays, originalDeadline, confidence } = getEffectiveDates(task);
+                                        const disc = getDisciplineColorAndLabel(task);
+                                        const isOverrunDay = !!originalDeadline && day.iso > originalDeadline;
+                                        // confidence qualifica o tooltip: 'observed' = já aconteceu
+                                        // (prazo vencido/concluído atrasado), 'presumed' = heurística
+                                        // (trabalho restante) — sem isso os dois pareciam igualmente
+                                        // certos pro usuário, mesmo tratamento visual pra fato e chute.
+                                        const confidenceNote = confidence === 'presumed' ? ' (estimativa, não confirmado)' : '';
+                                        return (
+                                          <div
+                                            key={task.id}
+                                            style={{ width: `${100 / owners.length}%` }}
+                                            className={`h-full cursor-pointer transition-colors hover:brightness-110 hover:z-30 ${disc.bg} ${
+                                              isOverrunDay ? 'ring-2 ring-inset ring-rose-500 dark:ring-rose-400' : ''
+                                            }`}
+                                            title={`${task.jiraKey} (${disc.label}): ${task.title} [${formatDateShort(start)} a ${formatDateShort(end)}]${
+                                              isOverrunDay ? ` — além do prazo original (${formatDateShort(originalDeadline)}), +${delayDays}d${confidenceNote}` : ''
+                                            }`}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             );
                           })}
@@ -1249,7 +1501,9 @@ export function SquadPlansTimeline() {
 
                       {/* Child Subtasks Gantt Individual Bars */}
                       {!isParentCollapsed && children.map(task => {
-                        const { start, end, isDelayed, delayDays, isOverdueRisk } = getEffectiveDates(task);
+                        const { start, end, isDelayed, delayDays, isOverdueRisk, confidence } = getEffectiveDates(task);
+                        // Ver nota de confidence na fita composta — mesmo motivo.
+                        const confidenceNote = confidence === 'presumed' ? ' (estimativa, não confirmado)' : '';
                         const startIndex = daysList.findIndex(d => d.iso === start);
                         const endIndex = daysList.findIndex(d => d.iso === end);
                         const startCol = startIndex >= 0 ? startIndex : 0;
@@ -1276,7 +1530,7 @@ export function SquadPlansTimeline() {
                                 width: `${barWidth}px`,
                               }}
                               className="absolute top-1.5 bottom-1.5 z-10 rounded-lg px-1 flex items-center justify-between text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
-                              title={`${task.jiraKey} (${disc.label}): ${task.title} (${start} até ${end})${isDelayed ? ` - Atraso em Cascata: +${delayDays}d` : ''}`}
+                              title={`${task.jiraKey} (${disc.label}): ${task.title} (${start} até ${end})${isDelayed ? ` - Atraso em Cascata: +${delayDays}d${confidenceNote}` : ''}`}
                             >
                               <div className={`w-full h-full rounded-md px-2 flex items-center gap-1.5 overflow-hidden ${
                                 isOverdueRisk 

@@ -639,7 +639,19 @@ export type RetroBoard = {
   activeColumnKey?: RetroColumnKey; // só relevante quando syncStageEnabled=true
   autoRevealOnTimerEnd?: boolean;
   autoSortOnVoteEnd?: boolean;
+  healthCheckEnabled?: boolean;
+  healthCheckQuestion?: string;
 }
+
+// Reações rápidas no card — independentes do voto de priorização (votes).
+export type RetroReactionType = 'up' | 'love' | 'wow' | 'concern';
+
+export const RETRO_REACTIONS: { key: RetroReactionType; label: string }[] = [
+  { key: 'up', label: 'Concordo' },
+  { key: 'love', label: 'Amei' },
+  { key: 'wow', label: 'Uau' },
+  { key: 'concern', label: 'Preocupa' },
+];
 
 export type RetroCard = {
   id: string;
@@ -648,6 +660,7 @@ export type RetroCard = {
   content: string;
   authorId: string;
   votes: string[]; // Array of user UIDs
+  reactions?: Partial<Record<RetroReactionType, string[]>>; // Array de UIDs por tipo de reação
   order: number;
   assignee?: string;
   dueDate?: string;
@@ -658,6 +671,10 @@ export type RetroCard = {
   carriedFromBoardTitle?: string; // denormalizado para exibir badge sem leitura extra
 }
 
+// Escala do check-in inicial (mesma "voz" das 5 opções, sem emoji — ícones lucide na UI)
+export const HEALTH_CHECK_ANSWERS = ['exhausted', 'tired', 'neutral', 'good', 'great'] as const;
+export type HealthCheckAnswer = typeof HEALTH_CHECK_ANSWERS[number];
+
 export type RetroParticipant = {
   id: string; // user UID
   boardId: string;
@@ -665,6 +682,7 @@ export type RetroParticipant = {
   role?: TeamRole;
   isCreator: boolean;
   globalRole?: GlobalRole;
+  healthCheckAnswer?: HealthCheckAnswer;
 };
 
 // --- Team Health Check ---
@@ -918,6 +936,13 @@ export type SquadConfig = {
   sprintFieldId?: string;
   // ID do RapidBoard / Greenhopper Board (ex: 11360 para SCRUM Mississauga)
   rapidViewId?: number | string;
+  // Mapeamento issuetype -> fase de workflow, usado pelo Jira Plans (aba
+  // /squad "Plans") pra classificar subtarefa e montar a cascata de atraso
+  // sem depender de heurística de texto. Ordem do array = ordem da fase no
+  // workflow (ex: Codificação -> Code Review -> Teste QA -> Execução TI).
+  // undefined/[] = cai no fallback de heurística por tipo (ver
+  // getDisciplineColorAndLabel em SquadPlansTimeline.tsx).
+  phases?: SquadWorkflowPhase[];
   lastSyncAt?: string;
   lastSyncBy?: string; // uid de quem disparou
   lastSyncStatus?: 'success' | 'error';
@@ -959,6 +984,18 @@ export type SquadSprintHistoryEntry = {
   closedAt?: string; // setado quando a troca pra outra sprint foi detectada
 };
 
+// Uma fase do workflow de execução configurada pelo squad (ex: Codificação,
+// Code Review, Teste QA, Execução TI). `issueTypes` guarda o nome EXATO do
+// issuetype no Jira (fields.issuetype.name), normalizado (minúsculo, sem
+// acento) — nunca um trecho de título, que é texto livre e gera falso-
+// positivo. Ordem no array `SquadConfig.phases` = ordem de execução da fase.
+export type SquadWorkflowPhase = {
+  kind: string; // identificador curto e estável (ex: 'DEV', 'REVIEW', 'QA', 'TI')
+  label: string; // rótulo de exibição (ex: 'Code Review')
+  color: string; // classes Tailwind de fundo (ex: 'bg-purple-600 dark:bg-purple-500')
+  issueTypes: string[]; // nomes normalizados de issuetype que caem nesta fase
+};
+
 // Espelho leve de uma issue do Jira dentro do squad. `assigneeId`/`assigneeName`
 // só existem a partir do v2 — por isso a leitura desta collection é restrita a
 // SQUAD_LEADERSHIP_VIEW_ROLES nas rules (Firestore não redige campo por regra;
@@ -979,10 +1016,23 @@ export type SquadIssueSnapshot = {
   remainingSec: number; // timeestimate — tempo restante
   loggedSec: number; // timespent — tempo já lançado
   updatedAtJira: string; // campo `updated` do Jira, usado pra calcular staleSinceDays
+  // campo `resolutiondate` do Jira — só muda 1x, quando a issue resolve/
+  // fecha (diferente de updatedAtJira, que muda a qualquer edição). Usado
+  // pelo sinal "concluiu atrasado" do Jira Plans (ver inferSlip).
+  resolutionDate?: string;
   staleSinceDays: number;
   dueDate: string; // campo `duedate` do Jira (YYYY-MM-DD), ou '' se não tem prazo
   targetStart?: string; // data de início estimada/target (YYYY-MM-DD)
   targetEnd?: string;   // data de término estimada/target (YYYY-MM-DD)
+  // true = targetStart/targetEnd vieram de campo de data real do Jira; false/
+  // undefined = caiu no fallback (dueDate, ou created/updated) — ver
+  // squadIssueToPlansTask. Sem isso, a cascata de atraso do Plans não sabe
+  // distinguir "prazo real estourado" de "chute em cima de data inventada".
+  datesAreInferred?: boolean;
+  // Posição no array fields.subtasks da issue pai (ordem de rank do Jira) —
+  // desempate de ordem de fase no workflow do Plans quando duas fases têm a
+  // mesma data planejada.
+  orderIndex?: number;
   assigneeId: string; // accountId/key do Jira, ou '' se não atribuída
   assigneeName: string;
   parentKey: string; // campo nativo `parent` do Jira — issue pai (história), ou '' se não tem

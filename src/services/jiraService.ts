@@ -30,9 +30,15 @@ export interface JiraIssue {
   timeRemaining?: number; // estimativa RESTANTE (aggregatetimeestimate/timeestimate) — "tempo restante" no Jira
   planned?: { dev?: string; qa?: string; tu?: string };
   updated?: string;
+  // `resolutiondate` do Jira — só muda uma vez, quando a issue resolve/fecha
+  // (diferente de `updated`, que muda a qualquer edição). Ver inferSlip.
+  resolutionDate?: string;
   dueDate?: string; // campo `duedate` do Jira, formato YYYY-MM-DD
   targetStart?: string;
   targetEnd?: string;
+  // true = targetStart/targetEnd caiu no fallback (created/updated), não veio
+  // de campo de data real do Jira. Ver comentário em fetchJiraIssues.
+  datesAreInferred?: boolean;
   parentKey?: string; // chave da issue pai (história), quando esta issue é subtarefa
   parentTitle?: string;
   labels?: string[];
@@ -545,6 +551,14 @@ export const fetchJiraIssues = async (
       return '';
     };
 
+    // Data REAL de planejamento (campo que alguém preencheu de propósito no
+    // Jira) vs. fallback fabricado (created/updated, timestamp de auditoria,
+    // não data de plano). datesAreInferred avisa quem consome que a fase caiu
+    // no fallback — sem isso, uma cascata de atraso calcula em cima de uma
+    // data inventada sem avisar ninguém (ver Jira Plans / SquadPlansTimeline).
+    const realTargetStart = toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start);
+    const realTargetEnd = toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end);
+
     return {
       key: issue.key,
       title: fields?.summary || issue.key,
@@ -557,9 +571,11 @@ export const fetchJiraIssues = async (
       assignee: fields?.assignee?.displayName || '',
       assigneeId: fields?.assignee?.accountId || fields?.assignee?.key || '',
       updated: toSafeString(fields?.updated),
+      resolutionDate: toSafeString(fields?.resolutiondate),
       dueDate: toSafeString(fields?.duedate),
-      targetStart: toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start) || (typeof fields?.created === 'string' ? fields.created.substring(0, 10) : ''),
-      targetEnd: toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end) || (typeof fields?.updated === 'string' ? fields.updated.substring(0, 10) : ''),
+      targetStart: realTargetStart || (typeof fields?.created === 'string' ? fields.created.substring(0, 10) : ''),
+      targetEnd: realTargetEnd || (typeof fields?.updated === 'string' ? fields.updated.substring(0, 10) : ''),
+      datesAreInferred: !realTargetStart || !realTargetEnd,
       parentKey: toSafeString(fields?.parent?.key || (typeof fields?.parent === 'string' ? fields.parent : '')),
       parentTitle: toSafeString(fields?.parent?.fields?.summary),
       subtaskKeys: Array.isArray(fields?.subtasks)

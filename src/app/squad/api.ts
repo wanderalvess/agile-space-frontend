@@ -94,6 +94,9 @@ export const squadApi = {
     };
     const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
     const toBool = (v: any): boolean => Boolean(v);
+    // orderIndex é 0-based — toNum coagiria undefined pra 0 e colidiria com a
+    // primeira subtarefa de verdade (índice 0). null preserva "sem posição".
+    const toOptNum = (v: any): number | null => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && v !== '' && !isNaN(Number(v)) ? Number(v) : null));
 
     const formatted = snapshots.map(s => {
       const issueKey = toStr(s.jiraKey || s.key || (s as any).jira_key);
@@ -118,9 +121,12 @@ export const squadApi = {
         dueDate: toStr(s.dueDate),
         targetStart: toStr(s.targetStart),
         targetEnd: toStr(s.targetEnd),
+        datesAreInferred: toBool(s.datesAreInferred),
+        orderIndex: toOptNum(s.orderIndex),
         parentKey: toStr(s.parentKey),
         parentTitle: toStr(s.parentTitle),
         updatedAtJira: toStr(s.updatedAtJira),
+        resolutionDate: toStr(s.resolutionDate),
         syncedAt: toStr(s.syncedAt),
       };
     });

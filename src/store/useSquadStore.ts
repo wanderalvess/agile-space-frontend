@@ -5,7 +5,7 @@ import { fetchAllJiraIssues, type JiraIssue } from '@/services/jiraService';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import type {
   SquadConfig, SquadIssueSnapshot, SquadMetricsRollup, SquadMemberMetric, SquadMember,
-  SquadDailySnapshot, SquadSprintHistoryEntry, SquadIssueWorklogCache
+  SquadDailySnapshot, SquadSprintHistoryEntry, SquadIssueWorklogCache, SquadWorkflowPhase
 } from '@/lib/types';
 
 const STALE_THRESHOLD_DAYS = 3;
@@ -40,7 +40,13 @@ const SQUAD_SYNC_FIELDS_BASE = [
   'customfield_10015', 'customfield_10014', 'startDate',
   'customfield_10005', 'customfield_10008', 'customfield_10007',
   'customfield_10010', 'customfield_10020', 'customfield_10016',
-  'customfield_10100', 'customfield_10101', 'customfield_10004'
+  'customfield_10100', 'customfield_10101', 'customfield_10004',
+  // Ordem de rank das subtarefas na história pai — usada só pra desempate de
+  // ordem de fase no Jira Plans (ver applyOrderIndex), não é exibida direto.
+  'subtasks',
+  // Data real de conclusão (só muda 1x) — sinal "concluiu atrasado" em
+  // inferSlip, sem falso-positivo de edição tardia não relacionada.
+  'resolutiondate'
 ];
 const SQUAD_SYNC_FIELDS_WITH_WORKLOG = [...SQUAD_SYNC_FIELDS_BASE, 'worklog'];
 
@@ -119,6 +125,7 @@ interface SquadStoreState {
       capacityJql?: string;
       capacityFormula?: string;
       rapidViewId?: number | string;
+      phases?: SquadWorkflowPhase[];
     }
   ) => Promise<void>;
   syncSquad: (uid: string, squadId: string, forceFull?: boolean) => Promise<void>;
@@ -141,6 +148,58 @@ const daysSince = (isoDate: string): number => {
 };
 
 const isBugType = (type: string): boolean => /bug|defeito|erro/i.test(type || '');
+
+// Campos do snapshot que não dependem de sprint (sprintId/sprintName variam
+// por chamador — full sync rastreia sprintMeta, forceResyncSprint já sabe a
+// sprint alvo de antemão). Extraído pra não duplicar esse mapeamento em 3
+// lugares (full sync, rollover de sprint, forceResyncSprint) — os 3 previamente
+// divergiam por copy-paste e cada campo novo tinha que ser lembrado 3x.
+function toSquadIssueSnapshotBase(issue: JiraIssue, syncedAt: string): Omit<SquadIssueSnapshot, 'sprintId' | 'sprintName'> {
+  return {
+    key: issue.key,
+    jiraKey: issue.key,
+    title: issue.title || issue.key,
+    type: issue.type,
+    isBug: isBugType(issue.type),
+    status: issue.status,
+    statusCategory: issue.statusCategory || 'unknown',
+    estimateSec: issue.timeEstimate || 0,
+    remainingSec: issue.timeRemaining || 0,
+    loggedSec: issue.timeSpent || 0,
+    updatedAtJira: issue.updated || '',
+    resolutionDate: issue.resolutionDate || '',
+    staleSinceDays: daysSince(issue.updated || ''),
+    dueDate: issue.dueDate || '',
+    targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
+    targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
+    datesAreInferred: issue.datesAreInferred,
+    assigneeId: issue.assigneeId || '',
+    assigneeName: issue.assignee || '',
+    parentKey: issue.parentKey || '',
+    parentTitle: issue.parentTitle || '',
+    syncedAt,
+  };
+}
+
+// Posição da subtarefa no fields.subtasks da issue pai (ordem de rank do
+// Jira) — desempate de ordem de fase no Jira Plans quando duas fases caem na
+// mesma data planejada. Só funciona se 'subtasks' estiver em SQUAD_SYNC_FIELDS.
+function applyOrderIndex(issues: JiraIssue[], snapshots: SquadIssueSnapshot[]): SquadIssueSnapshot[] {
+  const siblingKeysByParent = new Map<string, string[]>();
+  issues.forEach(iss => {
+    if (Array.isArray(iss.subtaskKeys) && iss.subtaskKeys.length > 0) {
+      siblingKeysByParent.set(iss.key, iss.subtaskKeys);
+    }
+  });
+  if (siblingKeysByParent.size === 0) return snapshots;
+  return snapshots.map(s => {
+    if (!s.parentKey) return s;
+    const siblingKeys = siblingKeysByParent.get(s.parentKey);
+    if (!siblingKeys) return s;
+    const idx = siblingKeys.indexOf(s.jiraKey || s.key);
+    return idx >= 0 ? { ...s, orderIndex: idx } : s;
+  });
+}
 
 // Negativo de daysSince — dias até uma data futura (negativo se já passou).
 const daysUntil = (isoDate: string): number => {
@@ -531,6 +590,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       ...(updates.jiraDomain ? { jiraDomain: updates.jiraDomain.trim() } : {}),
       ...(updates.sprintFieldId ? { sprintFieldId: updates.sprintFieldId.trim() } : {}),
       ...(updates.rapidViewId !== undefined ? { rapidViewId: updates.rapidViewId } : {}),
+      ...(updates.phases !== undefined ? { phases: updates.phases } : {}),
       ...(rankingJustEnabled ? { rankingEnabledAt: new Date().toISOString() } : {}),
       updatedAt: new Date().toISOString(),
     };
@@ -616,37 +676,18 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       // --- Mapeia pra snapshots + descobre sprintId por issue ---
       const sprintMeta = new Map<string, ParsedSprint & { count: number }>();
       let snapshots: SquadIssueSnapshot[] = issues.map(issue => {
-        const statusCategory = issue.statusCategory || 'unknown';
         const parsed = parseSprintField(issue.sprintRaw);
         if (parsed) {
           const existing = sprintMeta.get(parsed.id);
           sprintMeta.set(parsed.id, { ...parsed, count: (existing?.count || 0) + 1 });
         }
         return {
-          key: issue.key,
-          jiraKey: issue.key,
-          title: issue.title || issue.key,
-          type: issue.type,
-          isBug: isBugType(issue.type),
-          status: issue.status,
-          statusCategory,
-          estimateSec: issue.timeEstimate || 0,
-          remainingSec: issue.timeRemaining || 0,
-          loggedSec: issue.timeSpent || 0,
-          updatedAtJira: issue.updated || '',
-          staleSinceDays: daysSince(issue.updated || ''),
-          dueDate: issue.dueDate || '',
-          targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
-          targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
-          assigneeId: issue.assigneeId || '',
-          assigneeName: issue.assignee || '',
-          parentKey: issue.parentKey || '',
-          parentTitle: issue.parentTitle || '',
+          ...toSquadIssueSnapshotBase(issue, syncedAt),
           sprintId: parsed?.id || '',
           sprintName: parsed?.name || '',
-          syncedAt,
         };
       });
+      snapshots = applyOrderIndex(issues, snapshots);
 
       const hasAnySprint = sprintMeta.size > 0 || sprintFieldConfigured;
 
@@ -682,24 +723,18 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         issues = full.issues;
         sprintMeta.clear();
         snapshots = issues.map(issue => {
-          const statusCategory = issue.statusCategory || 'unknown';
           const parsed = parseSprintField(issue.sprintRaw);
           if (parsed) {
             const existing = sprintMeta.get(parsed.id);
             sprintMeta.set(parsed.id, { ...parsed, count: (existing?.count || 0) + 1 });
           }
           return {
-            key: issue.key, title: issue.title || issue.key, type: issue.type, isBug: isBugType(issue.type), status: issue.status, statusCategory,
-            estimateSec: issue.timeEstimate || 0, remainingSec: issue.timeRemaining || 0, loggedSec: issue.timeSpent || 0,
-            updatedAtJira: issue.updated || '', staleSinceDays: daysSince(issue.updated || ''), dueDate: issue.dueDate || '',
-            targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
-            targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
-            assigneeId: issue.assigneeId || '', assigneeName: issue.assignee || '',
-            parentKey: issue.parentKey || '', parentTitle: issue.parentTitle || '',
-            sprintId: parsed?.id || UNMAPPED_SPRINT_ID, sprintName: parsed?.name || '',
-            syncedAt,
+            ...toSquadIssueSnapshotBase(issue, syncedAt),
+            sprintId: parsed?.id || UNMAPPED_SPRINT_ID,
+            sprintName: parsed?.name || '',
           };
         });
+        snapshots = applyOrderIndex(issues, snapshots);
         effectiveSprintId = pickEffectiveSprint(sprintMeta);
       }
 
@@ -767,6 +802,16 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         } else {
           const existingPartition = await squadApi.getIssues(squadId, sprintId);
           const existingByKey = new Map<string, SquadIssueSnapshot>(existingPartition.map(s => [s.key, s]));
+          // Preserva orderIndex já persistido quando o sync delta não trouxe
+          // a história pai (subtarefa mudou sem o pai mudar junto — comum,
+          // ver applyOrderIndex) — sem isso, o write abaixo zera pra null um
+          // valor que já estava certo, a cada sync incremental comum.
+          groupSnapshots.forEach(s => {
+            if (s.orderIndex == null) {
+              const prior = existingByKey.get(s.key);
+              if (prior?.orderIndex != null) s.orderIndex = prior.orderIndex;
+            }
+          });
           groupSnapshots.forEach(s => existingByKey.set(s.key, s));
           mergedSnapshots = Array.from(existingByKey.values());
         }
@@ -977,17 +1022,12 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       const { issues } = await fetchAllJiraIssues(domain, token, targetJql, { fields, sprintFieldId: config.sprintFieldId });
       const syncedAt = new Date().toISOString();
 
-      const snapshots: SquadIssueSnapshot[] = issues.map(issue => ({
-        key: issue.key, type: issue.type, isBug: isBugType(issue.type), status: issue.status,
-        statusCategory: issue.statusCategory || 'unknown',
-        estimateSec: issue.timeEstimate || 0, remainingSec: issue.timeRemaining || 0, loggedSec: issue.timeSpent || 0,
-        updatedAtJira: issue.updated || '', staleSinceDays: daysSince(issue.updated || ''), dueDate: issue.dueDate || '',
-        targetStart: issue.targetStart || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
-        targetEnd: issue.targetEnd || issue.dueDate || (issue.updated ? issue.updated.substring(0, 10) : ''),
-        assigneeId: issue.assigneeId || '', assigneeName: issue.assignee || '',
-        parentKey: issue.parentKey || '', parentTitle: issue.parentTitle || '',
-        sprintId: targetSprintId, sprintName: '', syncedAt,
+      let snapshots: SquadIssueSnapshot[] = issues.map(issue => ({
+        ...toSquadIssueSnapshotBase(issue, syncedAt),
+        sprintId: targetSprintId,
+        sprintName: '',
       }));
+      snapshots = applyOrderIndex(issues, snapshots);
 
       const existingPartition = await squadApi.getIssues(squadId, targetSprintId);
       const newKeys = new Set(snapshots.map(s => s.key));
