@@ -1159,27 +1159,6 @@ button {
   flex-wrap: wrap;
 }
 
-.header-actions-secondary {
-  color: var(--text-muted);
-}
-
-.header-divider {
-  width: 1px;
-  align-self: stretch;
-  background: var(--border);
-  margin: 2px 4px;
-}
-
-@media (max-width: 640px) {
-  .header-divider { display: none; }
-  .header-actions-secondary {
-    width: 100%;
-    padding-top: 8px;
-    margin-top: 4px;
-    border-top: 1px solid var(--border-soft);
-  }
-}
-
 .config-section + .config-section {
   margin-top: 22px;
   padding-top: 22px;
