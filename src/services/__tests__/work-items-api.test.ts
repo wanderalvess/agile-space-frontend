@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { workItemsApi } from '@/app/work-items-api';
-import * as authClient from '@/lib/auth-client';
+import { workItemsApi } from '../../app/work-items-api';
+import * as authClient from '../../lib/auth-client';
 
 describe('workItemsApi - Cliente HTTP de Integração com Backend de Work Items', () => {
 
