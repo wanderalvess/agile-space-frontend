@@ -449,8 +449,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     const current = cards.find(c => c.id === cardId);
     if (!current) return;
 
-    const newVotes = currentVotes.includes(userProfile.id)
-      ? currentVotes.filter(uid => uid !== userProfile.id)
+    const existingIndex = currentVotes.indexOf(userProfile.id);
+    const newVotes = existingIndex !== -1
+      ? currentVotes.filter((_, i) => i !== existingIndex)
       : [...currentVotes, userProfile.id];
 
     setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, votes: newVotes } : c));
@@ -574,7 +575,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     
     if (!sourceCard || !targetCard) return;
 
-    const combinedVotes = Array.from(new Set([...targetCard.votes, ...sourceCard.votes]));
+    const combinedVotes = [...targetCard.votes, ...sourceCard.votes];
     const newContent = `${targetCard.content}\n\n- ${sourceCard.content}`;
 
     try {
