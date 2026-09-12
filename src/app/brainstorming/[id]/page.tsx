@@ -260,8 +260,9 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     if (!idea) return;
 
     const currentVotes = Array.isArray(idea.votes) ? (idea.votes as unknown as string[]) : [];
-    const newVotes = currentVotes.includes(userProfile.id)
-      ? currentVotes.filter(uid => uid !== userProfile.id)
+    const existingIndex = currentVotes.indexOf(userProfile.id);
+    const newVotes = existingIndex !== -1
+      ? currentVotes.filter((_, i) => i !== existingIndex)
       : [...currentVotes, userProfile.id];
 
     brainstormingApi.saveOrUpdateIdea(boardId, {
@@ -282,7 +283,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     const currentSourceVotes = Array.isArray(sourceIdea.votes) ? (sourceIdea.votes as unknown as string[]) : [];
 
     const newContent = `${targetIdea.content}\n- ${sourceIdea.content}`;
-    const combinedVotes = Array.from(new Set([...currentTargetVotes, ...currentSourceVotes]));
+    const combinedVotes = [...currentTargetVotes, ...currentSourceVotes];
 
     try {
       await brainstormingApi.saveOrUpdateIdea(boardId, {
