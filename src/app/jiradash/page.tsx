@@ -139,7 +139,7 @@ export default function JiraDashPage() {
           <div className="flex items-center gap-2">
             <Badge
               variant="outline"
-              className="text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+              className="hidden lg:inline-flex text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
             >
               TOTVS Agile Intelligence
             </Badge>
@@ -163,7 +163,7 @@ export default function JiraDashPage() {
               className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
             >
               <Settings className="w-3.5 h-3.5" />
-              Configurar
+              <span className="hidden sm:inline">Configurar</span>
             </Button>
             <Button
               variant="ghost"

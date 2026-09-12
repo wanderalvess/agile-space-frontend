@@ -41,7 +41,7 @@
 </head>
 <body>
   <main class="container">
-    <header class="header">
+    <header class="header" id="dash-header">
       <div>
         <h1 id="dash-title">Sprint Dashboard</h1>
         <div class="header-sub" id="dash-sub">Jira TOTVS</div>
@@ -209,17 +209,24 @@
       }
     });
 
-    // Embedado em /jiradash (React): "Configurar" pede pro modal padrão do app abrir,
-    // em vez do <dialog> interno deste HTML estático — só um lugar pra configurar.
+    // Embedado em /jiradash (React): o header próprio deste HTML (título + Configurar/
+    // Atualizar) duplica o RoomHeader de fora — mesma config, mesmo refresh, dois lugares
+    // pra clicar. Some com ele aqui: sobra tela e o cabeçalho externo para de brigar por
+    // espaço com um segundo título. "Abrir Configuração / JQL" do estado vazio continua
+    // visível e pede pro modal padrão do app abrir, em vez do <dialog> interno.
     if (window.self !== window.top) {
-      ['btn-toggle-config-inner', 'btn-open-config-empty'].forEach((id) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.removeAttribute('data-action');
-        el.addEventListener('click', () => {
+      // `hidden`, não `.remove()`: app.js continua escrevendo em #dash-title/#dash-sub
+      // (nome da sprint carregada) e no <title> da aba — remover o nó quebraria isso.
+      const dashHeader = document.getElementById('dash-header');
+      if (dashHeader) dashHeader.hidden = true;
+
+      const emptyStateBtn = document.getElementById('btn-open-config-empty');
+      if (emptyStateBtn) {
+        emptyStateBtn.removeAttribute('data-action');
+        emptyStateBtn.addEventListener('click', () => {
           window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
         });
-      });
+      }
     }
 
     window.addEventListener('storage', (event) => {
