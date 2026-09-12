@@ -212,21 +212,15 @@
     // Embedado em /jiradash (React): o header próprio deste HTML (título + Configurar/
     // Atualizar) duplica o RoomHeader de fora — mesma config, mesmo refresh, dois lugares
     // pra clicar. Some com ele aqui: sobra tela e o cabeçalho externo para de brigar por
-    // espaço com um segundo título. "Abrir Configuração / JQL" do estado vazio continua
-    // visível e pede pro modal padrão do app abrir, em vez do <dialog> interno.
+    // espaço com um segundo título. Todo botão que abre config (aqui, no estado vazio, ou
+    // programaticamente ao trocar/criar squad) passa por ui.toggleConfig()/setConfigVisible(),
+    // que já sabe pedir pro pai abrir o modal padrão em vez do <dialog> interno — nada
+    // a interceptar aqui além de esconder o header.
     if (window.self !== window.top) {
       // `hidden`, não `.remove()`: app.js continua escrevendo em #dash-title/#dash-sub
       // (nome da sprint carregada) e no <title> da aba — remover o nó quebraria isso.
       const dashHeader = document.getElementById('dash-header');
       if (dashHeader) dashHeader.hidden = true;
-
-      const emptyStateBtn = document.getElementById('btn-open-config-empty');
-      if (emptyStateBtn) {
-        emptyStateBtn.removeAttribute('data-action');
-        emptyStateBtn.addEventListener('click', () => {
-          window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
-        });
-      }
     }
 
     window.addEventListener('storage', (event) => {

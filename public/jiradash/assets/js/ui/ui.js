@@ -39,17 +39,38 @@ export const ui = {
   // `config-panel` é um <dialog> real (showModal/close) desde a migração pra modal —
   // dá foco preso, backdrop e Esc de graça, e libera o espaço que o painel inline
   // ocupava permanentemente na tela. `.open` é a propriedade nativa do <dialog>.
+  //
+  // Embedado em /jiradash (React), NUNCA abre esse <dialog> interno pra pedir config —
+  // pede pro pai abrir o modal padrão do app via postMessage. Sem isso, fluxos que
+  // chamam `setConfigVisible(true)` sem passar pelo botão (troca de squad, nova squad
+  // sem JQL) reabriam o modal antigo por baixo do novo, com duas UIs diferentes pra
+  // mesma coisa. Fechar continua sempre local: nada a sincronizar com o pai.
+  isEmbedded() {
+    return window.self !== window.top;
+  },
   toggleConfig() {
-    if (dom.configPanel.open) dom.configPanel.close();
-    else dom.configPanel.showModal();
+    if (dom.configPanel.open) {
+      dom.configPanel.close();
+    } else if (this.isEmbedded()) {
+      window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
+    } else {
+      dom.configPanel.showModal();
+    }
   },
   setDashboardVisible(visible) {
     this.setHidden(dom.dashboard, !visible);
   },
   setConfigVisible(visible) {
     if (!dom.configPanel) return;
-    if (visible && !dom.configPanel.open) dom.configPanel.showModal();
-    else if (!visible && dom.configPanel.open) dom.configPanel.close();
+    if (!visible) {
+      if (dom.configPanel.open) dom.configPanel.close();
+      return;
+    }
+    if (this.isEmbedded()) {
+      window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
+    } else if (!dom.configPanel.open) {
+      dom.configPanel.showModal();
+    }
   },
   renderMetric({ label, value, sub = '', className = '' }) {
     // SEGURANÇA: `value` e `sub` são interpolados como HTML cru (alguns callers

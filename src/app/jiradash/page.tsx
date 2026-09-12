@@ -2,13 +2,14 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Gauge, ExternalLink, RefreshCw, KeyRound, ShieldCheck, Activity, Settings, Play } from 'lucide-react';
+import { Gauge, ExternalLink, RefreshCw, KeyRound, ShieldCheck, Activity, Settings, Play, Bookmark, Globe, User, X } from 'lucide-react';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useSavedJqls } from '@/hooks/useSavedJqls';
@@ -25,13 +26,16 @@ const JQL_QUICK_PRESETS = [
 export default function JiraDashPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { settings, loading, saveSettings } = useJiraSettings();
-  const { savedJqls } = useSavedJqls();
+  const { savedJqls, saveJql, deleteJql } = useSavedJqls();
   const { mode } = useTheme();
   const { toast } = useToast();
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [patInput, setPatInput] = useState('');
   const [jqlInput, setJqlInput] = useState('');
+  const [isSaveJqlOpen, setIsSaveJqlOpen] = useState(false);
+  const [newJqlLabel, setNewJqlLabel] = useState('');
+  const [newJqlIsPublic, setNewJqlIsPublic] = useState(false);
 
   // Sincroniza o token PAT do usuário com o JiraDash no iframe
   const sendTokenToIframe = (token?: string) => {
@@ -248,9 +252,23 @@ export default function JiraDashPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Consulta JQL
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                  Consulta JQL
+                </Label>
+                <button
+                  type="button"
+                  disabled={!jqlInput.trim()}
+                  onClick={() => {
+                    setNewJqlLabel('');
+                    setNewJqlIsPublic(false);
+                    setIsSaveJqlOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-600 dark:text-amber-400 border border-amber-200/40 dark:border-amber-800 disabled:opacity-40 transition-all"
+                >
+                  <Bookmark className="h-3 w-3" /> Salvar JQL
+                </button>
+              </div>
               <Textarea
                 value={jqlInput}
                 onChange={(e) => setJqlInput(e.target.value)}
@@ -258,6 +276,36 @@ export default function JiraDashPage() {
                 className="min-h-[72px] rounded-xl text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 resize-none"
               />
               <div className="flex flex-wrap gap-1.5 mt-2">
+                {savedJqls.map((sj) => (
+                  <div key={sj.id} className="relative group inline-flex items-center">
+                    <button
+                      type="button"
+                      onClick={() => setJqlInput(sj.jql)}
+                      title={sj.jql}
+                      className={cn(
+                        'pl-2.5 pr-6 py-1 rounded-full text-[9px] font-bold transition-colors flex items-center gap-1',
+                        sj.isPublic
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
+                          : 'bg-purple-500/10 text-purple-700 dark:text-purple-400 hover:bg-purple-500/20'
+                      )}
+                    >
+                      {sj.isPublic ? <Globe className="h-2.5 w-2.5" /> : <User className="h-2.5 w-2.5" />}
+                      {sj.label}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteJql(sj.id);
+                        toast({ title: 'JQL excluída', duration: 2000 });
+                      }}
+                      className="absolute right-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
+                      title="Excluir esta JQL salva"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
                 {JQL_QUICK_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
@@ -266,22 +314,6 @@ export default function JiraDashPage() {
                     className="px-2.5 py-1 rounded-full text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
                   >
                     {preset.label}
-                  </button>
-                ))}
-                {savedJqls.map((sj) => (
-                  <button
-                    key={sj.id}
-                    type="button"
-                    onClick={() => setJqlInput(sj.jql)}
-                    title={sj.jql}
-                    className={cn(
-                      'px-2.5 py-1 rounded-full text-[9px] font-bold transition-colors',
-                      sj.isPublic
-                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20'
-                        : 'bg-purple-500/10 text-purple-700 dark:text-purple-400 hover:bg-purple-500/20'
-                    )}
-                  >
-                    {sj.isPublic ? '🌐' : '🔒'} {sj.label}
                   </button>
                 ))}
               </div>
@@ -302,6 +334,71 @@ export default function JiraDashPage() {
             >
               <Play className="w-3.5 h-3.5 mr-1.5" />
               Carregar Sprint
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sub-modal para nomear e salvar a JQL atual como preset reutilizável */}
+      <Dialog open={isSaveJqlOpen} onOpenChange={setIsSaveJqlOpen}>
+        <DialogContent className="max-w-md rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Bookmark className="h-4 w-4 text-amber-500" />
+              Salvar Consulta JQL
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Defina um nome e a visibilidade para reutilizar esta consulta rapidamente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Preview da Consulta
+              </Label>
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-[10px] font-mono text-amber-600 dark:text-amber-400 max-h-24 overflow-y-auto break-all leading-normal">
+                {jqlInput || 'Nenhuma JQL preenchida'}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Nome do Filtro
+              </Label>
+              <Input
+                value={newJqlLabel}
+                onChange={(e) => setNewJqlLabel(e.target.value)}
+                placeholder="Ex: Review DDPDV, Meus Bugs, Sprint Ativa"
+                className="h-10 rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                autoFocus
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 cursor-pointer">
+              <Checkbox checked={newJqlIsPublic} onCheckedChange={(v) => setNewJqlIsPublic(v === true)} />
+              Salvar como pública (visível pra toda a squad)
+            </label>
+          </div>
+
+          <DialogFooter className="flex gap-2 justify-end pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveJqlOpen(false)}
+              className="h-9 px-4 rounded-xl font-bold text-xs uppercase"
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!newJqlLabel.trim() || !jqlInput.trim()}
+              onClick={() => {
+                saveJql({ label: newJqlLabel, jql: jqlInput, isPublic: newJqlIsPublic });
+                setIsSaveJqlOpen(false);
+                toast({ title: 'JQL salva com sucesso!', description: `Salva como ${newJqlIsPublic ? 'Pública' : 'Privada'}.`, duration: 3000 });
+              }}
+              className="h-9 px-5 rounded-xl font-extrabold text-xs uppercase bg-amber-500 hover:bg-amber-600 text-slate-950"
+            >
+              Salvar Filtro
             </Button>
           </DialogFooter>
         </DialogContent>
