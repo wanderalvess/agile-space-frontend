@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { resolvePostLoginRedirect } from '../AuthGuard';
 import { isCollaborativeRoute, ONBOARDING_EXEMPT_ROUTES } from '../IdentityGatekeeper';
 
@@ -55,6 +57,40 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
     it('deve conter as rotas essenciais de login e onboarding', () => {
       expect(ONBOARDING_EXEMPT_ROUTES).toContain('/login');
       expect(ONBOARDING_EXEMPT_ROUTES).toContain('/onboarding');
+    });
+  });
+
+  describe('Cadastro com returnUrl (ex.: /invite/{token}) - regressão da corrida pós-login', () => {
+    it('resolvePostLoginRedirect deve preservar returnUrl de convite após registro, igual ao caso de login', () => {
+      // Mesma função usada pelo AuthGuard para login e registro: garante que
+      // não existe uma segunda implementação divergente para o fluxo de cadastro.
+      expect(resolvePostLoginRedirect('/invite/abc123')).toBe('/invite/abc123');
+    });
+
+    it('resolvePostLoginRedirect e a leitura de returnUrl do AuthGuard são determinísticas (chamar 2x não muda o resultado)', () => {
+      // A corrida original vinha de login/page.tsx reimplementar a leitura de
+      // returnUrl e disparar um segundo router.push depois de um await
+      // (fetch de projetos), competindo com o redirect síncrono do AuthGuard.
+      // Com uma única função pura e sem estado, chamadas repetidas (como
+      // ocorreria em re-renders/efeitos concorrentes) sempre convergem pro
+      // mesmo destino - não há "quem chega por último vence".
+      const first = resolvePostLoginRedirect('/invite/abc123');
+      const second = resolvePostLoginRedirect('/invite/abc123');
+      expect(first).toBe(second);
+      expect(first).toBe('/invite/abc123');
+    });
+
+    it('login/page.tsx não deve reimplementar redirect pós-login (fonte única em AuthGuard)', () => {
+      // Guarda de regressão: se alguém reintroduzir uma leitura própria de
+      // returnUrl/decisão de onboarding em login/page.tsx, a corrida volta.
+      // O AuthGuard (returnUrl) e o IdentityGatekeeper (mustOnboard) já cobrem
+      // 100% dos casos pós-login/registro.
+      const loginPagePath = path.resolve(__dirname, '../../../app/login/page.tsx');
+      const source = fs.readFileSync(loginPagePath, 'utf-8');
+
+      expect(source).not.toContain('redirectPostLogin');
+      expect(source).not.toContain('returnUrl');
+      expect(source).not.toContain('projectService');
     });
   });
 });

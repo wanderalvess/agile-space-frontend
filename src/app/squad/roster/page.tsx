@@ -23,7 +23,12 @@ import {
   Shield,
   Clock,
   Calculator,
-  UserPlus
+  UserPlus,
+  Link2,
+  Copy,
+  Trash2,
+  Ban,
+  Mail
 } from 'lucide-react';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 
@@ -33,6 +38,7 @@ import { useSquadStore } from '@/store/useSquadStore';
 import { useToast } from '@/hooks/use-toast';
 import type { SquadMember } from '@/lib/types';
 import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
+import { inviteApi, type Invite } from '@/lib/invite-api';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -86,11 +92,85 @@ function RosterContent() {
     fetchMembers,
     saveMemberCapacity,
     batchUpdateMembers,
+    deleteMember,
     saveSquadConfig,
     syncSquad,
     isSyncing,
     isLoading
   } = useSquadStore();
+
+  // Convite real (token/link) — vincula direto a squad+papel, sem depender do
+  // e-mail bater com o Jira (ver InviteController no backend).
+  const [pendingInvites, setPendingInvites] = useState<Invite[]>([]);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('Developer');
+  const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+  const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null);
+
+  const fetchPendingInvites = async () => {
+    if (!activeSquadId) return;
+    try {
+      const invites = await inviteApi.listInvites(activeSquadId);
+      setPendingInvites(invites.filter(i => i.status === 'PENDING'));
+    } catch {
+      // Quem não é liderança do squad recebe 403 aqui — silencioso, a seção só
+      // aparece pra quem já passou pelo gate isPeopleAdmin desta página.
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingInvites();
+  }, [activeSquadId]);
+
+  const handleCreateInvite = async () => {
+    if (!activeSquadId) return;
+    setIsCreatingInvite(true);
+    try {
+      const invite = await inviteApi.createInvite(activeSquadId, inviteRole, inviteEmail.trim() || undefined);
+      setGeneratedInviteLink(inviteApi.buildInviteLink(invite.token));
+      await fetchPendingInvites();
+      toast({ title: 'Convite gerado', description: 'Copie o link e envie pra pessoa convidada.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar convite', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsCreatingInvite(false);
+    }
+  };
+
+  const handleCopyInviteLink = (link: string) => {
+    navigator.clipboard.writeText(link);
+    toast({ title: 'Link copiado', description: 'Cole no e-mail, WhatsApp ou Slack pra convidar.' });
+  };
+
+  const handleRevokeInvite = async (id: string) => {
+    if (!activeSquadId) return;
+    try {
+      await inviteApi.revokeInvite(activeSquadId, id);
+      setPendingInvites(prev => prev.filter(i => i.id !== id));
+      toast({ title: 'Convite revogado' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao revogar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    }
+  };
+
+  const closeInviteModal = () => {
+    setIsInviteOpen(false);
+    setInviteEmail('');
+    setInviteRole('Developer');
+    setGeneratedInviteLink(null);
+  };
+
+  const handleRemoveMember = async (m: SquadMember) => {
+    if (!activeSquadId) return;
+    if (!confirm(`Remover ${m.displayName} da Squad ${activeSquadId}?`)) return;
+    try {
+      await deleteMember(activeSquadId, m.jiraAccountId);
+      toast({ title: 'Integrante removido', description: `${m.displayName} foi removido da equipe.` });
+    } catch (err: any) {
+      toast({ title: 'Erro ao remover', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    }
+  };
 
   const handleSyncFromJira = async () => {
     const userIdentifier = userProfile?.id || userProfile?.email;
@@ -590,15 +670,6 @@ function RosterContent() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/admin`)}
-            className="h-9 text-xs font-bold gap-1.5 rounded-xl border-slate-300 dark:border-slate-700"
-          >
-            <Shield className="h-4 w-4 text-slate-500" /> Painel Admin
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
             onClick={() => router.push(`/sprint-planner`)}
             className="h-9 text-xs font-bold gap-1.5 rounded-xl border-slate-300 dark:border-slate-700"
           >
@@ -628,8 +699,45 @@ function RosterContent() {
           >
             <UserPlus className="h-4 w-4" /> Adicionar Integrante
           </Button>
+
+          <Button
+            size="sm"
+            onClick={() => setIsInviteOpen(true)}
+            className="h-9 px-3.5 text-xs font-bold gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20"
+          >
+            <Link2 className="h-4 w-4" /> Convidar por Link
+          </Button>
         </div>
       </div>
+
+      {/* Convites pendentes — vínculo real por token/link, não depende do e-mail bater com o Jira */}
+      {pendingInvites.length > 0 && (
+        <Card className="rounded-2xl border border-indigo-100 dark:border-indigo-900/50 bg-white/70 dark:bg-slate-900/70 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-black uppercase tracking-tight flex items-center gap-2 text-slate-800 dark:text-slate-100">
+              <Mail className="h-4 w-4 text-indigo-500" /> Convites Pendentes ({pendingInvites.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {pendingInvites.map(invite => (
+              <div key={invite.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge variant="outline" className="text-[10px] font-bold shrink-0">{invite.roleName}</Badge>
+                  <span className="text-xs text-slate-600 dark:text-slate-300 truncate">{invite.email || 'Link aberto (qualquer pessoa com o link entra com esse papel)'}</span>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleCopyInviteLink(inviteApi.buildInviteLink(invite.token))} className="h-7 w-7 rounded-lg" title="Copiar link">
+                    <Copy className="h-3.5 w-3.5 text-slate-500" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleRevokeInvite(invite.id)} className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-600" title="Revogar convite">
+                    <Ban className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {cameFromOnboarding && (
         <div className="rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/30 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1036,6 +1144,16 @@ function RosterContent() {
                           >
                             <Save className="h-3 w-3" /> {isSavingThis ? '...' : 'Salvar'}
                           </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveMember(m)}
+                            className="h-7 w-7 text-slate-300 hover:!text-rose-600 hover:!bg-rose-50 dark:hover:!bg-rose-950/40 rounded-lg"
+                            title="Remover da squad"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -1173,6 +1291,62 @@ function RosterContent() {
             <Button onClick={handleManualAddMember} disabled={isSavingManual} className="rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5">
               <UserPlus className="h-4 w-4" /> {isSavingManual ? 'Adicionando...' : 'Adicionar'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convite por link — resolve o vínculo sem depender do e-mail bater com o Jira */}
+      <Dialog open={isInviteOpen} onOpenChange={(open) => { if (!open) closeInviteModal(); else setIsInviteOpen(true); }}>
+        <DialogContent className="max-w-md rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
+              <Link2 className="h-5 w-5" /> Convidar por Link
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Gere um link que já vincula a pessoa a este squad com o papel escolhido — funciona mesmo se o e-mail dela não bater com o cadastro do Jira.
+            </DialogDescription>
+          </DialogHeader>
+
+          {generatedInviteLink ? (
+            <div className="space-y-3 my-2">
+              <Label className="text-xs font-bold text-slate-500">Link do convite (expira em 7 dias)</Label>
+              <div className="flex items-center gap-2">
+                <Input readOnly value={generatedInviteLink} className="h-10 text-xs rounded-xl font-code" />
+                <Button size="icon" onClick={() => handleCopyInviteLink(generatedInviteLink)} className="h-10 w-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 shrink-0">
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-[11px] text-slate-400">Envie esse link pra pessoa por e-mail, WhatsApp ou Slack. Ao abrir, ela loga ou cria conta e já entra na squad como {inviteRole}.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 my-2">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">E-mail (opcional — deixe vazio pra um link aberto)</Label>
+                <Input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="pessoa@empresa.com" className="h-10 text-sm rounded-xl" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">Papel na Squad</Label>
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="h-10 text-sm rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SQUAD_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeInviteModal} className="rounded-xl text-xs font-bold">
+              {generatedInviteLink ? 'Fechar' : 'Cancelar'}
+            </Button>
+            {!generatedInviteLink && (
+              <Button onClick={handleCreateInvite} disabled={isCreatingInvite} className="rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+                <Link2 className="h-4 w-4" /> {isCreatingInvite ? 'Gerando...' : 'Gerar Link'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

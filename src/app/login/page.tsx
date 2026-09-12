@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Lock,
   Mail,
@@ -18,13 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import type { AuthResponse } from '@/lib/auth-client';
-import { projectService } from '@/services/projectService';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import packageInfo from '../../../package.json';
 
 export default function LoginPage() {
-  const router = useRouter();
   const { toast } = useToast();
   const { login, register } = useAuth();
 
@@ -36,32 +32,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-
-  const redirectPostLogin = async (session: AuthResponse) => {
-    let returnUrl: string | null = null;
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const ret = params.get('returnUrl');
-      if (ret && ret.startsWith('/') && !ret.startsWith('/login')) {
-        returnUrl = ret;
-      }
-    }
-
-    if (returnUrl) {
-      router.push(returnUrl);
-      return;
-    }
-
-    try {
-      const allProjects = await projectService.getAllProjects();
-      const hasActiveProject = session.activeProjectId &&
-          allProjects.some(p => p.id.toUpperCase() === session.activeProjectId!.toUpperCase());
-
-      router.push(hasActiveProject ? '/' : '/onboarding');
-    } catch {
-      router.push('/');
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +51,6 @@ export default function LoginPage() {
         title: `Bem-vindo, ${session.name}!`,
         description: `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${session.activeProjectRole || 'Membro'})`,
       });
-      await redirectPostLogin(session);
     } catch (err: any) {
       toast({
         title: "Falha na autenticação",
@@ -106,7 +75,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const session = await register({
+      await register({
         email,
         name,
         password,
@@ -116,7 +85,6 @@ export default function LoginPage() {
         title: "Conta criada com sucesso!",
         description: "Identidade corporativa vinculada aos seus projetos.",
       });
-      await redirectPostLogin(session);
     } catch (err: any) {
       toast({
         title: "Erro no cadastro",

@@ -29,7 +29,10 @@ export function IdentityGatekeeper({ children }: { children: React.ReactNode }) 
   // a menos que o usuário esteja acessando uma cerimônia colaborativa para a qual foi convidado.
   useEffect(() => {
     if (isInitializing) return;
-    if (mustOnboard && !ONBOARDING_EXEMPT_ROUTES.includes(pathname) && !isCollaborativeRoute(pathname)) {
+    // /invite/{token} precisa do mesmo passe livre que as rotas colaborativas: é
+    // exatamente o link que resolve "usuário sem squad ainda" — forçar onboarding
+    // antes jogaria fora o vínculo que o convite ia estabelecer.
+    if (mustOnboard && !ONBOARDING_EXEMPT_ROUTES.includes(pathname) && !isCollaborativeRoute(pathname) && !pathname.startsWith('/invite/')) {
       router.replace('/onboarding');
     }
   }, [mustOnboard, isInitializing, pathname, router]);

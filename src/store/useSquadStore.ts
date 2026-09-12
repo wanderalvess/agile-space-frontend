@@ -111,6 +111,7 @@ interface SquadStoreState {
     }
   ) => Promise<void>;
   batchUpdateMembers: (squadId: string, members: SquadMember[]) => Promise<void>;
+  deleteMember: (squadId: string, jiraAccountId: string) => Promise<void>;
   fetchMyIssues: (squadId: string, jiraAccountId: string) => Promise<void>;
   fetchDailySnapshots: (squadId: string) => Promise<void>;
   saveSquadConfig: (
@@ -529,6 +530,13 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       members: state.members.map(m => m.jiraAccountId === jiraAccountId
         ? { ...m, ...payload }
         : m),
+    }));
+  },
+
+  deleteMember: async (squadId, jiraAccountId) => {
+    await squadApi.deleteMember(squadId, jiraAccountId);
+    set(state => ({
+      members: state.members.filter(m => m.jiraAccountId !== jiraAccountId),
     }));
   },
 

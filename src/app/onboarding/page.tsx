@@ -235,7 +235,7 @@ export default function OnboardingPage() {
           <div className="w-full max-w-3xl bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 rounded-2xl px-4 py-3 flex items-start gap-3">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-              Já existem projetos cadastrados no sistema. Se seu time já usa o Espaço Ágil e você esperava entrar automaticamente em um deles, o motivo mais comum é o e-mail do seu cadastro não bater com o e-mail cadastrado no Jira. Confira no cartão <span className="font-bold">"Entrar em Projeto Existente"</span> se ele já aparece na lista, ou peça a um Agile Master / People Lead do time pra te vincular.
+              Já existem projetos cadastrados no sistema. Se seu time já usa o Espaço Ágil e você esperava entrar automaticamente em um deles, o motivo mais comum é o e-mail do seu cadastro não bater com o e-mail cadastrado no Jira. Confira no cartão <span className="font-bold">"Entrar em Projeto Existente"</span> se ele já aparece na lista, ou peça a um Agile Master / People Lead do time pra te enviar um link de convite (em Squad Hub → Gestão do Time → Convidar por Link) — isso te vincula direto, sem depender do e-mail bater.
             </p>
           </div>
         )}
@@ -326,7 +326,7 @@ export default function OnboardingPage() {
                 </p>
               ) : (
                 <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                  Seu e-mail ({myEmail || 'sem e-mail'}) não apareceu entre as pessoas do Profields. Ao confirmar, você entrará no projeto sem papel definido.
+                  Seu e-mail ({myEmail || 'sem e-mail'}) não apareceu entre as pessoas do Profields. Ao confirmar, você entrará no projeto sem papel definido — peça um link de convite pra alguém do time (Squad Hub → Gestão do Time → Convidar por Link) pra corrigir isso sem precisar bater e-mail com o Jira.
                 </p>
               )}
             </div>

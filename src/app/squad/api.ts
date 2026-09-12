@@ -174,6 +174,10 @@ export const squadApi = {
     return req<SquadMember[]>(`/squads/${squadId}/members/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
+  async deleteMember(squadId: string, jiraAccountId: string): Promise<void> {
+    return req<void>(`/squads/${squadId}/members/${encodeURIComponent(jiraAccountId)}`, { method: 'DELETE' });
+  },
+
   // ----- Member Metrics -----
   async getMemberMetrics(squadId: string): Promise<SquadMemberMetric[]> {
     return req<SquadMemberMetric[]>(`/squads/${squadId}/member-metrics`);

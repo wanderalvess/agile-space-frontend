@@ -14,15 +14,11 @@ import {
   Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUserContext } from '@/context/UserContext';
 
 export function KnowledgeSidebar({ onSearchClick }: { onSearchClick?: () => void }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { userProfile } = useUserContext();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-
-  const isAdmin = userProfile?.role === 'admin';
 
   const menuItems = [
     { label: 'Assistente Virtual', icon: MessageSquare, href: '/knowledge/chat' },

@@ -50,8 +50,8 @@ const TAB_GROUPS = [
     label: 'Governança',
     icon: Building2,
     items: [
-      { id: 'governance', label: 'Governança & Jira Sync', icon: Building2 },
-      { id: 'users', label: 'Usuários & Cargos', icon: Users },
+      { id: 'governance', label: 'Sincronização Jira', icon: Building2 },
+      { id: 'users', label: 'Usuários & Acesso', icon: Users },
     ],
   },
   {
