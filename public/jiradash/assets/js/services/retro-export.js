@@ -61,7 +61,7 @@ export const retroExport = {
   HORAS_RULES: [
     { cat: 'legislacao', tokens: ['legisla'] },
     { cat: 'participativo', tokens: ['participativo', 'reuni', 'gest'] },
-    { cat: 'teste', tokens: ['teste', 'homolog', 'aceita', 'qa'] },
+    { cat: 'teste', tokens: ['teste', 'homolog', 'aceit', 'qa'] },
     {
       cat: 'inovacao',
       tokens: ['story', 'codifica', 'débito', 'debito', 'execu', 'spike', 'inova', 'desenvolv']
@@ -76,7 +76,7 @@ export const retroExport = {
       tokens: ['aguardando teste', 'espera teste', 'aguardando homolog', 'aguardando aceit']
     },
     { stage: 'revisao', tokens: ['code review', 'revis'] },
-    { stage: 'teste', tokens: ['teste', 'homolog', 'aceita', 'qa'] },
+    { stage: 'teste', tokens: ['teste', 'homolog', 'aceit', 'qa'] },
     { stage: 'codificacao', tokens: ['desenvolv', 'execu', 'andamento', 'codifica', 'doing', 'progress'] }
   ],
 
