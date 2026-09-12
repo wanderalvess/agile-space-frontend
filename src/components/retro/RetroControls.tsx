@@ -190,8 +190,8 @@ export function RetroControls({
                   className={cn(
                     "h-7 px-2.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all gap-1.5",
                     layoutMode === 'focus'
-                      ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-white text-slate-800 dark:!bg-slate-700 dark:!text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   )}
                 >
                   <Maximize2 className="h-3.5 w-3.5" />
