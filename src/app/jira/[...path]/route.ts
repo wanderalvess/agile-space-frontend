@@ -48,7 +48,14 @@ export async function GET(req: NextRequest) {
               Authorization: `Bearer ${token}`,
               Accept: 'application/json',
               'Content-Type': 'application/json',
-              'User-Agent': 'JiraDash-AgileSpace/1.0',
+              // User-Agent proprio (JiraDash-AgileSpace/1.0) apanha do WAF/Cloudflare na
+              // frente do Jira quando a chamada sai de IP de nuvem publica (Render) —
+              // confirmado reproduzindo o bloqueio manualmente. O mesmo proxy no legado
+              // (Agile-Space, commit 9c1fee5) resolveu disfarcando a chamada como
+              // navegador real; replicando aqui.
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              Origin: `https://${JIRA_BASE.replace(/^https?:\/\//, '')}`,
+              Referer: `https://${JIRA_BASE.replace(/^https?:\/\//, '')}/`,
             },
           },
           (proxyRes) => {
