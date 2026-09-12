@@ -10,4 +10,8 @@ export default defineConfig({
     video: false,
     screenshotOnRunFailure: true,
   },
+  env: {
+    // Backend do docker-compose local. Sobrescrever via CYPRESS_apiUrl em outros ambientes.
+    apiUrl: "http://localhost:8002/api",
+  },
 });
