@@ -52,16 +52,34 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
   const mapGlobalToTeamRole = (role: GlobalRole | undefined): TeamRole => {
     switch (role) {
-      case 'Agile Master': return 'AM';
-      case 'Product Owner': return 'PO';
-      case 'Tech Lead': return 'PL';
-      case 'QA': return 'QA';
-      case 'Designer': return 'UX';
-      case 'UX': return 'UX';
-      case 'Developer': return 'DEV';
-      case 'Scrum Master': return 'AM';
-      case 'People Lead': return 'PL';
-      default: return 'OUTRO';
+      case 'Agile Master':
+      case 'Scrum Master':
+      case 'Scrum Master / Agile Coach':
+      case 'Agile Coach':
+        return 'AM';
+      case 'Product Owner':
+      case 'Product Owner (PO)':
+        return 'PO';
+      case 'Tech Lead':
+      case 'Arquiteto(a) / Tech Lead':
+      case 'People Lead':
+      case 'Tribe Lead':
+        return 'PL';
+      case 'QA':
+      case 'Analista de QA':
+        return 'QA';
+      case 'Designer':
+      case 'UX':
+      case 'Designer / UI-UX':
+        return 'UX';
+      case 'Developer':
+      case 'Desenvolvedor(a)':
+        return 'DEV';
+      case 'SME':
+        return 'SME';
+      case 'Stakeholder / Observador':
+      default:
+        return 'OUTRO';
     }
   };
 

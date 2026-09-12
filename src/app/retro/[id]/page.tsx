@@ -246,6 +246,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       case 'Agile Master':
       case 'Scrum Master':
       case 'Scrum Master / Agile Coach':
+      case 'Agile Coach':
         return 'AM';
       case 'Product Owner':
       case 'Product Owner (PO)':
@@ -253,6 +254,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       case 'Tech Lead':
       case 'Arquiteto(a) / Tech Lead':
       case 'People Lead':
+      case 'Tribe Lead':
         return 'PL';
       case 'QA':
       case 'Analista de QA':
@@ -264,6 +266,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       case 'Developer':
       case 'Desenvolvedor(a)':
         return 'DEV';
+      case 'SME':
+        return 'SME';
       case 'Stakeholder / Observador':
       default:
         return 'OUTRO';

@@ -173,12 +173,43 @@ export function ExportRetroDialog({
     return lines.join('\n');
   }, [boardData, validCards, columns, actionCards, completedActions, pendingActions, participants, totalCards, totalVotes, participantMap]);
 
+  // navigator.clipboard.writeText só resolve quando o navegador de fato concede
+  // a permissão — em vários contextos (ex: sem foco no documento, política de
+  // permissão restritiva) ela rejeita com NotAllowedError, e sem tratar isso o
+  // toast de sucesso disparava mesmo sem nada ir pra área de transferência.
+  const copyToClipboard = async (text: string, successTitle: string, successDescription: string) => {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard API indisponível');
+      await navigator.clipboard.writeText(text);
+      toast({ title: successTitle, description: successDescription });
+      return;
+    } catch {
+      // segue pro fallback abaixo
+    }
+
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      if (!ok) throw new Error('execCommand copy falhou');
+      toast({ title: successTitle, description: successDescription });
+    } catch {
+      toast({
+        title: 'Não foi possível copiar',
+        description: 'Permissão de área de transferência negada. Copie manualmente pela pré-visualização abaixo (Ctrl+C).',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleMarkdown = () => {
-    navigator.clipboard.writeText(markdown);
-    toast({
-      title: 'Markdown Copiado!',
-      description: 'Pronto para colar no Jira, Confluence, Teams ou Slack.',
-    });
+    copyToClipboard(markdown, 'Markdown Copiado!', 'Pronto para colar no Jira, Confluence, Teams ou Slack.');
   };
 
   // ---------------------------------------------------------------- Texto TDN
@@ -224,11 +255,7 @@ export function ExportRetroDialog({
   }, [boardData, participantsByRole, slideLink, columns, validCards]);
 
   const handleTdn = () => {
-    navigator.clipboard.writeText(tdnText);
-    toast({
-      title: 'Texto TDN Copiado!',
-      description: 'Cole na página do TDN e ajuste tabela, embed do slide e checklist.',
-    });
+    copyToClipboard(tdnText, 'Texto TDN Copiado!', 'Cole na página do TDN e ajuste tabela, embed do slide e checklist.');
   };
 
   // ---------------------------------------------------------------- CSV
@@ -577,9 +604,9 @@ export function ExportRetroDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg bg-card/95 backdrop-blur-2xl border-white/10 shadow-2xl rounded-3xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-lg bg-card/95 backdrop-blur-2xl border-white/10 shadow-2xl rounded-3xl p-0 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Cabeçalho */}
-        <div className="p-6 border-b border-border/50 flex flex-col items-center gap-3 text-center bg-gradient-to-b from-emerald-500/5 to-transparent">
+        <div className="p-6 border-b border-border/50 flex flex-col items-center gap-3 text-center bg-gradient-to-b from-emerald-500/5 to-transparent shrink-0">
           <div className="h-12 w-12 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-600 mb-1 shadow-inner">
             <CheckCircle2 className="h-6 w-6" />
           </div>
@@ -591,14 +618,14 @@ export function ExportRetroDialog({
           </p>
         </div>
 
-        {/* Grade de Ações de Exportação */}
-        <div className="p-6 grid gap-3">
-          {/* Opção 1: PDF Visual */}
+        {/* Corpo rolável: ações de exportação + preview */}
+        <div className="p-6 overflow-y-auto">
+          {/* Opção principal: PDF Visual, isolada como ação de destaque */}
           <Button
             onClick={handlePDF}
             disabled={isExporting}
             variant="default"
-            className="h-16 justify-start px-4 border-2 border-transparent hover:border-emerald-400/30 shadow-lg shadow-emerald-500/20 group transition-all rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-16 w-full justify-start px-4 border-2 border-transparent hover:border-emerald-400/30 shadow-lg shadow-emerald-500/20 group transition-all rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <div className="h-9 w-9 rounded-xl bg-white/20 text-white flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
               <Download className="h-5 w-5" />
@@ -616,94 +643,100 @@ export function ExportRetroDialog({
             </div>
           </Button>
 
-          {/* Opção 2: Markdown (Jira/Confluence) */}
-          <Button
-            onClick={handleMarkdown}
-            variant="outline"
-            className="h-14 justify-start px-4 border-2 hover:bg-blue-500/5 hover:border-blue-500/40 group transition-all rounded-xl"
-          >
-            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-              <ClipboardCopy className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col items-start truncate text-left">
-              <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
-                Jira & Confluence Ready (Markdown)
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                Tabelas e checklists prontos para copiar e colar
-              </span>
-            </div>
-          </Button>
-
-          {/* Opção 3: CSV (Excel) */}
-          <Button
-            onClick={handleCSV}
-            variant="outline"
-            className="h-14 justify-start px-4 border-2 hover:bg-emerald-500/5 hover:border-emerald-500/40 group transition-all rounded-xl"
-          >
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col items-start truncate text-left">
-              <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
-                Excel / Planilha (CSV)
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                Linha a linha com votos, responsáveis, prazos e BOM UTF-8
-              </span>
-            </div>
-          </Button>
-
-          {/* Opção 4: Texto TDN (Wiki) */}
-          <div className="border-2 hover:border-indigo-500/40 rounded-xl overflow-hidden transition-all group">
+          {/* Demais formatos, agrupados sob um rótulo comum */}
+          <p className="mt-5 mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+            Outros formatos
+          </p>
+          <div className="grid gap-2">
+            {/* Markdown (Jira/Confluence) */}
             <Button
-              onClick={handleTdn}
+              onClick={handleMarkdown}
               variant="outline"
-              className="h-14 w-full justify-start px-4 border-0 hover:bg-indigo-500/5 rounded-none"
+              className="h-14 justify-start px-4 border-2 hover:bg-blue-500/5 hover:border-blue-500/40 group transition-all rounded-xl"
             >
-              <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-                <BookText className="h-4 w-4" />
+              <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                <ClipboardCopy className="h-4 w-4" />
               </div>
               <div className="flex flex-col items-start truncate text-left">
                 <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
-                  Texto TDN (Wiki)
+                  Jira & Confluence Ready (Markdown)
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  Participantes por papel, colunas e ações no padrão da wiki
+                  Tabelas e checklists prontos para copiar e colar
                 </span>
               </div>
             </Button>
-            <div className="flex items-center gap-2 px-3 pb-3 pt-1 bg-muted/20 border-t border-border/50">
-              <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <Input
-                value={slideLink}
-                onChange={e => setSlideLink(e.target.value)}
-                placeholder="Link do slide (opcional)"
-                className="h-8 text-xs"
-              />
+
+            {/* CSV (Excel) */}
+            <Button
+              onClick={handleCSV}
+              variant="outline"
+              className="h-14 justify-start px-4 border-2 hover:bg-emerald-500/5 hover:border-emerald-500/40 group transition-all rounded-xl"
+            >
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col items-start truncate text-left">
+                <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
+                  Excel / Planilha (CSV)
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Linha a linha com votos, responsáveis, prazos e BOM UTF-8
+                </span>
+              </div>
+            </Button>
+
+            {/* Texto TDN (Wiki) */}
+            <div className="border-2 hover:border-indigo-500/40 rounded-xl overflow-hidden transition-all group">
+              <Button
+                onClick={handleTdn}
+                variant="outline"
+                className="h-14 w-full justify-start px-4 border-0 hover:bg-indigo-500/5 rounded-none"
+              >
+                <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                  <BookText className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col items-start truncate text-left">
+                  <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
+                    Texto TDN (Wiki)
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Participantes por papel, colunas e ações no padrão da wiki
+                  </span>
+                </div>
+              </Button>
+              <div className="flex items-center gap-2 pl-[4.25rem] pr-3 py-2 bg-muted/20 border-t border-border/50">
+                <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <Input
+                  value={slideLink}
+                  onChange={e => setSlideLink(e.target.value)}
+                  placeholder="Link do slide (opcional)"
+                  className="h-8 text-xs"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Pré-visualização do Markdown (opcional) */}
-        <div className="px-6 pb-6 pt-0">
-          <button
-            type="button"
-            onClick={() => setShowPreview(!showPreview)}
-            className="flex items-center justify-between w-full py-2 px-3 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 rounded-xl transition-all"
-          >
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-emerald-600" />
-              {showPreview ? 'Ocultar Pré-visualização' : 'Inspecionar Resumo Markdown'}
-            </span>
-            {showPreview ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </button>
+          {/* Pré-visualização do Markdown (opcional) */}
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={() => setShowPreview(!showPreview)}
+              className="flex items-center justify-between w-full py-2 px-3 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 rounded-xl transition-all"
+            >
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-emerald-600" />
+                {showPreview ? 'Ocultar Pré-visualização' : 'Inspecionar Resumo Markdown'}
+              </span>
+              {showPreview ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
 
-          {showPreview && (
-            <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-code text-[10px] leading-relaxed select-all">
-              <pre className="whitespace-pre-wrap break-words">{markdown}</pre>
-            </div>
-          )}
+            {showPreview && (
+              <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-code text-[10px] leading-relaxed select-all">
+                <pre className="whitespace-pre-wrap break-words">{markdown}</pre>
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
