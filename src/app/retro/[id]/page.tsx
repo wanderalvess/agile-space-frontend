@@ -79,92 +79,109 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
     // WebSocket Nativo para refresh em tempo real
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/retro/') + boardId
-      + '?token=' + encodeURIComponent(getAuthToken() || '');
+    const wsBase = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/retro/') + boardId;
+    // Recalcula o token a cada tentativa (não só uma vez no mount): numa sessão
+    // longa o suficiente pra ele expirar, reconexões subsequentes reusariam um
+    // token vencido pra sempre e o WS nunca voltaria sem reload manual.
+    const buildWsUrl = () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || '');
 
-    console.log("Conectando ao WebSocket do Board Retro:", wsUrl);
-    let socket = new WebSocket(wsUrl);
+    // `stopped` distingue um close deliberado (cleanup/unmount, inclusive o
+    // duplo-mount do Strict Mode em dev) de um close real do servidor — só
+    // reagenda reconexão no segundo caso, senão cada cleanup viraria um
+    // reconnect fantasma brigando com o efeito que já tomou o lugar dele.
+    let stopped = false;
+    let socket: WebSocket;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case 'BOARD_UPDATED':
-            if (data.payload) {
-              setBoardData(data.payload);
-            }
-            break;
+    const connect = () => {
+      const wsUrl = buildWsUrl();
+      console.log("Conectando ao WebSocket do Board Retro:", wsUrl);
+      socket = new WebSocket(wsUrl);
 
-          case 'PARTICIPANT_JOINED':
-            if (data.payload) {
-              setParticipants(prev => {
-                const idx = prev.findIndex(p => p.id === data.payload.id);
-                if (idx >= 0) {
-                  const copy = [...prev];
-                  copy[idx] = data.payload;
-                  return copy;
-                }
-                return [...prev, data.payload];
-              });
-            }
-            break;
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          switch (data.type) {
+            case 'BOARD_UPDATED':
+              if (data.payload) {
+                setBoardData(data.payload);
+              }
+              break;
 
-          case 'PARTICIPANT_LEFT':
-            if (data.payload?.userId) {
-              setParticipants(prev => prev.filter(p => p.id !== data.payload.userId));
-            }
-            break;
+            case 'PARTICIPANT_JOINED':
+              if (data.payload) {
+                setParticipants(prev => {
+                  const idx = prev.findIndex(p => p.id === data.payload.id);
+                  if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = data.payload;
+                    return copy;
+                  }
+                  return [...prev, data.payload];
+                });
+              }
+              break;
 
-          case 'CARD_SAVED':
-            if (data.payload) {
-              setCards(prev => {
-                const idx = prev.findIndex(c => c.id === data.payload.id);
-                if (idx >= 0) {
-                  const copy = [...prev];
-                  copy[idx] = data.payload;
-                  return copy;
-                }
-                return [...prev, data.payload];
-              });
-            }
-            break;
+            case 'PARTICIPANT_LEFT':
+              if (data.payload?.userId) {
+                setParticipants(prev => prev.filter(p => p.id !== data.payload.userId));
+              }
+              break;
 
-          case 'CARD_DELETED':
-            if (data.payload?.cardId) {
-              setCards(prev => prev.filter(c => c.id !== data.payload.cardId));
-            }
-            break;
+            case 'CARD_SAVED':
+              if (data.payload) {
+                setCards(prev => {
+                  const idx = prev.findIndex(c => c.id === data.payload.id);
+                  if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = data.payload;
+                    return copy;
+                  }
+                  return [...prev, data.payload];
+                });
+              }
+              break;
 
-          case 'CARDS_IMPORTED':
-            if (Array.isArray(data.payload)) {
-              setCards(prev => {
-                const importedIds = new Set(data.payload.map((c: any) => c.id));
-                const filtered = prev.filter(c => !importedIds.has(c.id));
-                return [...filtered, ...data.payload];
-              });
-            }
-            break;
+            case 'CARD_DELETED':
+              if (data.payload?.cardId) {
+                setCards(prev => prev.filter(c => c.id !== data.payload.cardId));
+              }
+              break;
 
-          case 'REFRESH_BOARD':
-          default:
-            reloadBoardData();
-            break;
+            case 'CARDS_IMPORTED':
+              if (Array.isArray(data.payload)) {
+                setCards(prev => {
+                  const importedIds = new Set(data.payload.map((c: any) => c.id));
+                  const filtered = prev.filter(c => !importedIds.has(c.id));
+                  return [...filtered, ...data.payload];
+                });
+              }
+              break;
+
+            case 'REFRESH_BOARD':
+            default:
+              reloadBoardData();
+              break;
+          }
+        } catch (err) {
+          console.error("Erro ao processar mensagem do WebSocket do Retro:", err);
+          reloadBoardData();
         }
-      } catch (err) {
-        console.error("Erro ao processar mensagem do WebSocket do Retro:", err);
+      };
+
+      socket.onclose = () => {
+        if (stopped) return;
+        console.warn("Conexão WebSocket fechada. Tentando reconectar...");
         reloadBoardData();
-      }
+        reconnectTimeout = setTimeout(connect, 5000);
+      };
     };
 
-    socket.onclose = () => {
-      console.warn("Conexão WebSocket fechada. Tentando reconectar...");
-      // Reconnect logic
-      setTimeout(() => {
-        reloadBoardData();
-      }, 5000);
-    };
+    connect();
 
     return () => {
+      stopped = true;
+      clearTimeout(reconnectTimeout);
       socket.close();
     };
   }, [boardId, isAuthenticated, reloadBoardData]);
@@ -214,6 +231,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     setHasJoined(false);
+    joinAttemptedRef.current = false;
   }, [boardId]);
 
   useEffect(() => {
@@ -252,9 +270,17 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }
   };
 
+  // Trava a tentativa de entrada assim que ela dispara — sem isso, o
+  // Strict Mode do React (ligado por padrão no app router) roda este efeito
+  // duas vezes de forma síncrona antes de `currentUser`/`hasJoined`
+  // refletirem a entrada, disparando dois POSTs de participante e dois
+  // re-saves do board (columns incluso) pro mesmo board id.
+  const joinAttemptedRef = useRef(false);
+
   useEffect(() => {
     // Sincronização automática com a identidade global
-    if (isAuthenticated && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined) {
+    if (isAuthenticated && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined && !joinAttemptedRef.current) {
+      joinAttemptedRef.current = true;
       const newParticipant: RetroParticipant = {
         id: userProfile.id,
         boardId: boardId,
@@ -275,6 +301,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         }
       }).catch(err => {
         console.error("Erro ao registrar participante:", err);
+        joinAttemptedRef.current = false;
       });
     }
   }, [isAuthenticated, boardData, userProfile, currentUser, areParticipantsLoading, boardId, hasJoined]);

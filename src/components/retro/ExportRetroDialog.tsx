@@ -7,16 +7,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { 
-  Download, 
-  FileText, 
-  ClipboardCopy, 
-  CheckCircle2, 
-  ChevronDown, 
-  ChevronUp, 
+import { Input } from '@/components/ui/input';
+import {
+  Download,
+  FileText,
+  ClipboardCopy,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Sparkles,
+  BookText,
+  Link2,
 } from 'lucide-react';
-import type { RetroCard, RetroBoard, RetroColumnDef, RetroParticipant } from '@/lib/types';
+import type { RetroCard, RetroBoard, RetroColumnDef, RetroParticipant, TeamRole } from '@/lib/types';
 import { RETRO_TEMPLATES } from '@/lib/types';
 import jsPDF from 'jspdf';
 import { useToast } from '@/hooks/use-toast';
@@ -43,6 +46,7 @@ export function ExportRetroDialog({
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [slideLink, setSlideLink] = useState('');
 
   // Mapeamento de participantes para recuperar nomes de autores
   const participantMap = useMemo(() => {
@@ -51,6 +55,17 @@ export function ExportRetroDialog({
       if (p.id && p.nickname) map.set(p.id, p.nickname);
     });
     return map;
+  }, [participants]);
+
+  // Participantes agrupados por papel, no padrão das páginas do TDN (AM/PO/SME/DEV TEAM...)
+  const participantsByRole = useMemo(() => {
+    const order: TeamRole[] = ['AM', 'PO', 'PL', 'DEV', 'QA', 'UX', 'SME', 'OUTRO'];
+    return order
+      .map(role => ({
+        label: role === 'DEV' ? 'DEV TEAM' : role,
+        names: participants.filter(p => p.role === role).map(p => p.nickname),
+      }))
+      .filter(g => g.names.length > 0);
   }, [participants]);
 
   // Colunas ordenadas do quadro
@@ -77,6 +92,10 @@ export function ExportRetroDialog({
   const pendingActions = actionCards.length - completedActions;
 
   const formatDate = () => format(new Date(), 'dd/MM/yyyy', { locale: ptBR });
+  // Compartilhado pelo markdown e pelo texto TDN: uma quebra de linha dentro
+  // do conteúdo de um card vira um item de lista quebrado em ambos os
+  // formatos, então os dois builders sanitizam pela mesma função.
+  const cleanContent = (content: string) => content.replace(/\n/g, ' ');
   const formatFilename = (title: string, ext: string) => {
     const cleanTitle = (title || 'retrospectiva')
       .toLowerCase()
@@ -121,8 +140,7 @@ export function ExportRetroDialog({
           const status = c.isDone ? '[x] Concluído' : '[ ] Pendente';
           const assignee = c.assignee ? `👤 ${c.assignee}` : '-';
           const dueDate = c.dueDate ? `📅 ${c.dueDate}` : '-';
-          const cleanContent = c.content.replace(/\n/g, ' ');
-          lines.push(`| ${status} | ${cleanContent} | ${assignee} | ${dueDate} |`);
+          lines.push(`| ${status} | ${cleanContent(c.content)} | ${assignee} | ${dueDate} |`);
         });
       } else {
         const sorted = [...colCards].sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
@@ -133,8 +151,7 @@ export function ExportRetroDialog({
           const author = boardData.isAuthorsRevealed && c.authorId && participantMap.has(c.authorId)
             ? participantMap.get(c.authorId)!
             : '-';
-          const cleanContent = c.content.replace(/\n/g, ' ');
-          lines.push(`| ${votes} | ${cleanContent} | ${author} |`);
+          lines.push(`| ${votes} | ${cleanContent(c.content)} | ${author} |`);
         });
       }
       lines.push('');
@@ -161,6 +178,56 @@ export function ExportRetroDialog({
     toast({
       title: 'Markdown Copiado!',
       description: 'Pronto para colar no Jira, Confluence, Teams ou Slack.',
+    });
+  };
+
+  // ---------------------------------------------------------------- Texto TDN
+  const tdnText = useMemo(() => {
+    const lines: string[] = [];
+    lines.push(boardData.title || 'Quadro de Retrospectiva');
+    lines.push('');
+    lines.push(`Data: ${formatDate()}`);
+    lines.push('');
+
+    if (participantsByRole.length > 0) {
+      lines.push('Participantes:');
+      participantsByRole.forEach(g => lines.push(`${g.label}: ${g.names.join(', ')}`));
+      lines.push('');
+    }
+
+    if (slideLink.trim()) {
+      lines.push(`Slides: ${slideLink.trim()}`);
+      lines.push('');
+    }
+
+    columns.forEach(col => {
+      const colCards = validCards.filter(c => c.columnKey === col.id);
+      if (colCards.length === 0) return;
+
+      const isAction = col.theme === 'action' || col.id === 'actions';
+      lines.push(col.title);
+
+      if (isAction) {
+        colCards.forEach(c => {
+          const checkbox = c.isDone ? '[x]' : '[ ]';
+          const meta = [c.assignee, c.dueDate].filter(Boolean).join(' — ');
+          lines.push(`${checkbox} ${cleanContent(c.content)}${meta ? ` (${meta})` : ''}`);
+        });
+      } else {
+        const sorted = [...colCards].sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
+        sorted.forEach(c => lines.push(`- ${cleanContent(c.content)}`));
+      }
+      lines.push('');
+    });
+
+    return lines.join('\n').trim();
+  }, [boardData, participantsByRole, slideLink, columns, validCards]);
+
+  const handleTdn = () => {
+    navigator.clipboard.writeText(tdnText);
+    toast({
+      title: 'Texto TDN Copiado!',
+      description: 'Cole na página do TDN e ajuste tabela, embed do slide e checklist.',
     });
   };
 
@@ -586,6 +653,36 @@ export function ExportRetroDialog({
               </span>
             </div>
           </Button>
+
+          {/* Opção 4: Texto TDN (Wiki) */}
+          <div className="border-2 hover:border-indigo-500/40 rounded-xl overflow-hidden transition-all group">
+            <Button
+              onClick={handleTdn}
+              variant="outline"
+              className="h-14 w-full justify-start px-4 border-0 hover:bg-indigo-500/5 rounded-none"
+            >
+              <div className="h-8 w-8 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                <BookText className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col items-start truncate text-left">
+                <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
+                  Texto TDN (Wiki)
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  Participantes por papel, colunas e ações no padrão da wiki
+                </span>
+              </div>
+            </Button>
+            <div className="flex items-center gap-2 px-3 pb-3 pt-1 bg-muted/20 border-t border-border/50">
+              <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <Input
+                value={slideLink}
+                onChange={e => setSlideLink(e.target.value)}
+                placeholder="Link do slide (opcional)"
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Pré-visualização do Markdown (opcional) */}
