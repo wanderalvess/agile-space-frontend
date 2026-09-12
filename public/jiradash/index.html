@@ -16,6 +16,15 @@
     object-src 'none';
   " />
   <title>JiraDash - Sprint Dashboard</title>
+  <script>
+    // Acesso direto ao arquivo estático (fora do iframe de /jiradash) redireciona pra
+    // rota real da aplicação — que traz o header padrão e o modal de config em React.
+    try {
+      if (window.self === window.top) {
+        window.location.replace('/jiradash');
+      }
+    } catch (e) {}
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
           integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg=="
           crossorigin="anonymous"
@@ -38,7 +47,7 @@
         <div class="header-sub" id="dash-sub">Jira TOTVS</div>
       </div>
       <div class="header-actions">
-        <button class="btn" type="button" data-action="toggle-config">⚙ Configurar</button>
+        <button class="btn" type="button" data-action="toggle-config" id="btn-toggle-config-inner">⚙ Configurar</button>
         <button class="btn btn-primary" type="button" data-action="load-data">↻ Atualizar</button>
       </div>
     </header>
@@ -133,7 +142,7 @@
         Configure sua JQL e clique em Carregar Sprint para visualizar métricas completas de Burndown de horas reais, cycle time, capacidade por papel DEV/QA e reconciliação.
       </p>
       <div class="empty-state-actions">
-        <button class="btn btn-primary" type="button" data-action="toggle-config">⚙ Abrir Configuração / JQL</button>
+        <button class="btn btn-primary" type="button" data-action="toggle-config" id="btn-open-config-empty">⚙ Abrir Configuração / JQL</button>
         <button class="btn" type="button" data-action="load-data">↻ Carregar Sprint</button>
       </div>
       <div class="empty-state-pills">
@@ -177,7 +186,41 @@
           }
         }
       }
+
+      // Vem do modal de config em React (/jiradash), o "padrão" do app: token + JQL
+      // configurados ali e o carregamento é disparado aqui como se o usuário tivesse
+      // clicado em "Carregar sprint" — mesmo caminho de código, sem duplicar lógica.
+      if (event.data.type === 'JIRADASH_LOAD') {
+        const token = event.data.token;
+        if (token) {
+          sessionStorage.setItem('jira-pat', token);
+          const patInput = document.getElementById('pat-input');
+          if (patInput) patInput.value = token;
+        }
+        const jql = event.data.jql;
+        const jqlInput = document.getElementById('jql-input');
+        if (jqlInput && typeof jql === 'string') {
+          jqlInput.value = jql;
+          jqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        const configPanel = document.getElementById('config-panel');
+        if (configPanel && configPanel.open) configPanel.close();
+        document.querySelector('[data-action="load-data"]')?.click();
+      }
     });
+
+    // Embedado em /jiradash (React): "Configurar" pede pro modal padrão do app abrir,
+    // em vez do <dialog> interno deste HTML estático — só um lugar pra configurar.
+    if (window.self !== window.top) {
+      ['btn-toggle-config-inner', 'btn-open-config-empty'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.removeAttribute('data-action');
+        el.addEventListener('click', () => {
+          window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
+        });
+      });
+    }
 
     window.addEventListener('storage', (event) => {
       if (event.key === 'theme') {
