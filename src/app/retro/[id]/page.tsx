@@ -44,7 +44,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile]);
   const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
 
-  const [showStats, setShowStats] = useState(true);
+  const [showStats, setShowStats] = useState(false);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());

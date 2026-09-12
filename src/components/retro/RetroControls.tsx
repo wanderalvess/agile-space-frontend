@@ -157,7 +157,7 @@ export function RetroControls({
 
       {/* LAYOUT: preferência pessoal de visualização — sempre visível */}
       {onToggleLayoutMode && (
-        <div className="flex items-center p-0.5 bg-slate-100/70 rounded-xl border border-slate-200/40">
+        <div className="flex items-center p-0.5 bg-slate-100/70 dark:bg-slate-800/60 rounded-xl border border-slate-200/40 dark:border-slate-600/40">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -168,8 +168,8 @@ export function RetroControls({
                   className={cn(
                     "h-7 px-2.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all gap-1.5",
                     layoutMode === 'board'
-                      ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                      : "text-slate-400 hover:text-slate-600"
+                      ? "bg-white text-slate-800 dark:!bg-slate-700 dark:!text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   )}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />

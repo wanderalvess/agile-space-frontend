@@ -309,7 +309,7 @@ function RetroColumnComponent({
                     />
                   ) : (
                     <div className="flex items-center gap-2 group/title min-w-0">
-                      <h2 className="text-sm sm:text-base 2xl:text-lg font-black uppercase tracking-tighter text-slate-800 leading-tight italic line-clamp-2 break-words" title={title}>{title}</h2>
+                      <h2 className="min-w-0 flex-1 text-sm sm:text-base 2xl:text-lg font-black uppercase tracking-tighter text-slate-800 leading-tight italic line-clamp-2 break-words [overflow-wrap:anywhere]" title={title}>{title}</h2>
                       {isCreator && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
