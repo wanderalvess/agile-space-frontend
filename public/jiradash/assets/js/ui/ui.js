@@ -36,14 +36,20 @@ export const ui = {
   hideLoading() {
     dom.loadingArea.innerHTML = '';
   },
+  // `config-panel` é um <dialog> real (showModal/close) desde a migração pra modal —
+  // dá foco preso, backdrop e Esc de graça, e libera o espaço que o painel inline
+  // ocupava permanentemente na tela. `.open` é a propriedade nativa do <dialog>.
   toggleConfig() {
-    dom.configPanel.hidden = !dom.configPanel.hidden;
+    if (dom.configPanel.open) dom.configPanel.close();
+    else dom.configPanel.showModal();
   },
   setDashboardVisible(visible) {
     this.setHidden(dom.dashboard, !visible);
   },
   setConfigVisible(visible) {
-    this.setHidden(dom.configPanel, !visible);
+    if (!dom.configPanel) return;
+    if (visible && !dom.configPanel.open) dom.configPanel.showModal();
+    else if (!visible && dom.configPanel.open) dom.configPanel.close();
   },
   renderMetric({ label, value, sub = '', className = '' }) {
     // SEGURANÇA: `value` e `sub` são interpolados como HTML cru (alguns callers
