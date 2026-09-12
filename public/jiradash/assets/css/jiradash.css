@@ -1151,4 +1151,160 @@ button {
   color: var(--accent);
 }
 
+/* ── Layout: agrupamento de ações e seções do painel de config ─────────────── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.header-actions-secondary {
+  color: var(--text-muted);
+}
+
+.header-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 2px 4px;
+}
+
+@media (max-width: 640px) {
+  .header-divider { display: none; }
+  .header-actions-secondary {
+    width: 100%;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid var(--border-soft);
+  }
+}
+
+.config-section + .config-section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.config-section-title {
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-soft);
+}
+
+.chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jql-quick-row { margin-top: 10px; margin-bottom: 4px; }
+.jql-saved-row { margin-top: 10px; }
+
+.jql-row-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.auth-status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.auth-status-ok {
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* ── Modal de salvar JQL ────────────────────────────────────────────────────── */
+.modal-save-jql {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: 100%;
+  max-width: 400px;
+  height: fit-content;
+  max-height: calc(100vh - 48px);
+  padding: 20px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 40px -8px rgba(0, 0, 0, .35);
+}
+
+.modal-save-jql::backdrop {
+  background: rgba(0, 0, 0, .45);
+}
+
+.modal-save-jql h3 {
+  margin-bottom: 14px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.modal-save-jql label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+
+.modal-save-jql .field {
+  margin-bottom: 14px;
+}
+
+.modal-save-jql input[type="text"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.modal-save-jql .checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ── Estado vazio: título/descrição/ações ──────────────────────────────────── */
+.empty-state-title {
+  margin-bottom: 8px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+
+.empty-state-desc {
+  max-width: 520px;
+  margin: 0 auto 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
 

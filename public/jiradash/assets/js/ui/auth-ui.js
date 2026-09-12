@@ -14,12 +14,12 @@ export const authUI = {
     if (input && input.value !== auth.token) input.value = auth.token;
 
     if (auth.authenticated) {
-      el.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-              <span style="color:var(--success);font-weight:600;">✓ Token configurado</span>
+      el.innerHTML = `<div class="auth-status-row">
+              <span class="auth-status-ok">✓ Token configurado</span>
               <button class="btn btn-sm" type="button" data-action="clear-pat">Limpar token</button>
             </div>`;
     } else {
-      el.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      el.innerHTML = `<div class="auth-status-row">
               <span>Nenhum token configurado. Cole seu PAT do Jira abaixo.</span>
             </div>`;
     }

@@ -37,38 +37,47 @@
         <h1 id="dash-title">Sprint Dashboard</h1>
         <div class="header-sub" id="dash-sub">Jira TOTVS</div>
       </div>
-      <div class="btn-row">
+      <div class="header-actions">
         <button class="btn" type="button" data-action="toggle-config">⚙ Configurar</button>
         <button class="btn btn-primary" type="button" data-action="load-data">↻ Atualizar</button>
-        <span class="retro-sep" aria-hidden="true" style="display:inline-block;width:1px;height:16px;background:var(--border);margin:0 4px;"></span>
-        <button class="btn btn-sm" type="button" data-action="retro-send" data-retro-slot="q1" title="Envia a sprint carregada para o slot Q1 da retrospectiva">→ Retro Q1</button>
-        <button class="btn btn-sm" type="button" data-action="retro-send" data-retro-slot="q2" title="Envia a sprint carregada para o slot Q2 da retrospectiva">→ Retro Q2</button>
-        <button class="btn btn-sm" type="button" data-action="retro-open" title="Abre a retrospectiva do Espaço Ágil com os dados desta sprint">Abrir Retro ↗</button>
+        <span class="header-divider" aria-hidden="true"></span>
+        <span class="header-actions-secondary header-actions">
+          <button class="btn btn-sm" type="button" data-action="retro-send" data-retro-slot="q1" title="Envia a sprint carregada para o slot Q1 da retrospectiva">→ Retro Q1</button>
+          <button class="btn btn-sm" type="button" data-action="retro-send" data-retro-slot="q2" title="Envia a sprint carregada para o slot Q2 da retrospectiva">→ Retro Q2</button>
+          <button class="btn btn-sm" type="button" data-action="retro-open" title="Abre a retrospectiva do Espaço Ágil com os dados desta sprint">Abrir Retro ↗</button>
+        </span>
       </div>
     </header>
 
     <nav class="squad-tabs" id="squad-tabs" aria-label="Squads configuradas"></nav>
 
     <section class="config-panel" id="config-panel" aria-label="Configuração do dashboard">
-      <div id="auth-status" class="auth-status" aria-live="polite">Verificando token…</div>
+      <div class="config-section">
+        <div class="config-section-title">Autenticação</div>
+        <div id="auth-status" class="auth-status auth-status-row" aria-live="polite">Verificando token…</div>
 
-      <label for="pat-input">Personal Access Token (PAT) do Jira</label>
-      <input type="password" id="pat-input" autocomplete="off" spellcheck="false" data-action="save-pat"
-             placeholder="Cole aqui seu token de acesso pessoal do Jira" />
-
-      <label for="jql-input">JQL da Sprint</label>
-      <input type="text" id="jql-input" placeholder='project = "Meu Projeto" AND Sprint = 12345 AND status != Cancelled' />
-      <div style="display:flex;gap:8px;align-items:center;margin-top:6px;margin-bottom:12px;flex-wrap:wrap;">
-        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">Exemplos rápidos:</span>
-        <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in openSprints() AND status != Cancelled'>⚡ Sprint Aberta</button>
-        <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in futureSprints()'>📅 Próxima Sprint</button>
-        <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND status != Cancelled ORDER BY created DESC'>🔍 Últimas do Projeto</button>
-        <button type="button" class="jql-helper-btn" data-jql-example='project = "Varejo Front"  AND sprint = 52188 AND (issuetype in (História, "Débito Técnico", Legislação, Story) OR issuetype in (Manutencao, Manutenção, "Rejeição - Manutenção") AND priority = Crítica OR labels in (ApresentarReview)) AND sprint not in (futureSprints(), openSprints() )'>📊 Review DDPDV</button>
-        <button type="button" class="jql-helper-btn" id="btn-open-save-jql" style="border-style:dashed;">💾 Salvar Atual</button>
+        <label for="pat-input">Personal Access Token (PAT) do Jira</label>
+        <input type="password" id="pat-input" autocomplete="off" spellcheck="false" data-action="save-pat"
+               placeholder="Cole aqui seu token de acesso pessoal do Jira" />
       </div>
-      <div id="custom-jqls-container" style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
-        <span style="font-size:11px;color:var(--text-muted);font-weight:600;">Salvas:</span>
-        <div id="custom-jqls-list" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+
+      <div class="config-section">
+        <div class="config-section-title">Consulta JQL</div>
+        <label for="jql-input">JQL da Sprint</label>
+        <input type="text" id="jql-input" placeholder='project = "Meu Projeto" AND Sprint = 12345 AND status != Cancelled' />
+
+        <div class="jql-quick-row chip-row">
+          <span class="jql-row-label">Exemplos rápidos:</span>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in openSprints() AND status != Cancelled'>⚡ Sprint Aberta</button>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in futureSprints()'>📅 Próxima Sprint</button>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND status != Cancelled ORDER BY created DESC'>🔍 Últimas do Projeto</button>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "Varejo Front"  AND sprint = 52188 AND (issuetype in (História, "Débito Técnico", Legislação, Story) OR issuetype in (Manutencao, Manutenção, "Rejeição - Manutenção") AND priority = Crítica OR labels in (ApresentarReview)) AND sprint not in (futureSprints(), openSprints() )'>📊 Review DDPDV</button>
+          <button type="button" class="jql-helper-btn" id="btn-open-save-jql" style="border-style:dashed;">💾 Salvar Atual</button>
+        </div>
+        <div id="custom-jqls-container" class="jql-saved-row chip-row">
+          <span class="jql-row-label">Salvas:</span>
+          <div id="custom-jqls-list" class="chip-row"></div>
+        </div>
       </div>
 
       <div class="btn-row">
@@ -78,15 +87,17 @@
     </section>
 
     <!-- Modal simples para salvar JQL -->
-    <dialog id="modal-save-jql" style="border:none; border-radius:8px; padding:16px; background:var(--surface); color:var(--text); box-shadow:0 4px 12px rgba(0,0,0,0.15); max-width:400px; width:100%;">
-      <h3 style="margin-top:0; font-size:16px;">Salvar JQL Personalizada</h3>
-      <label style="display:block; margin-bottom:4px; font-size:13px;">Nome da JQL</label>
-      <input type="text" id="jql-save-name" style="width:100%; box-sizing:border-box; margin-bottom:12px; padding:8px; border:1px solid var(--border); border-radius:4px; background:var(--bg); color:var(--text);" placeholder="Ex: Bugs Críticos" />
-      <label style="display:block; margin-bottom:16px; font-size:13px; display:flex; align-items:center; gap:8px;">
+    <dialog id="modal-save-jql" class="modal-save-jql">
+      <h3>Salvar JQL Personalizada</h3>
+      <div class="field">
+        <label for="jql-save-name">Nome da JQL</label>
+        <input type="text" id="jql-save-name" placeholder="Ex: Bugs Críticos" />
+      </div>
+      <label class="checkbox-field">
         <input type="checkbox" id="jql-save-public" />
         Salvar como Pública (visível para todos)
       </label>
-      <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <div class="modal-footer">
         <button type="button" class="btn" id="btn-cancel-save-jql">Cancelar</button>
         <button type="button" class="btn btn-primary" id="btn-confirm-save-jql">Salvar</button>
       </div>
@@ -123,11 +134,11 @@
 
     <div id="empty-state" class="empty-state-card">
       <div class="empty-state-icon">⚡</div>
-      <h2 style="font-size:18px;font-weight:800;margin-bottom:8px;letter-spacing:-0.02em;">Nenhuma Sprint Carregada</h2>
-      <p style="max-width:520px;margin:0 auto 20px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+      <h2 class="empty-state-title">Nenhuma Sprint Carregada</h2>
+      <p class="empty-state-desc">
         Configure sua JQL e clique em Carregar Sprint para visualizar métricas completas de Burndown de horas reais, cycle time, capacidade por papel DEV/QA e reconciliação.
       </p>
-      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div class="empty-state-actions">
         <button class="btn btn-primary" type="button" data-action="toggle-config">⚙ Abrir Configuração / JQL</button>
         <button class="btn" type="button" data-action="load-data">↻ Carregar Sprint</button>
       </div>
@@ -165,8 +176,8 @@
           if (patInput) patInput.value = token;
           const authStatus = document.getElementById('auth-status');
           if (authStatus) {
-            authStatus.innerHTML = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-              <span style="color:var(--success);font-weight:600;">✓ Token configurado (Espaço Ágil)</span>
+            authStatus.innerHTML = `<div class="auth-status-row">
+              <span class="auth-status-ok">✓ Token configurado (Espaço Ágil)</span>
               <button class="btn btn-sm" type="button" data-action="clear-pat">Limpar token</button>
             </div>`;
           }
