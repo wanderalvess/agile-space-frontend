@@ -35,7 +35,7 @@
 // configuração do port ou escrita em `state`/`squadCache`. O primeiro efeito de execução
 // acontece quando `app.initialize()` é chamado — pelo bootstrap, no `DOMContentLoaded`.
 import { CONFIG } from './core/config.js';
-import { escapeHtml, formatDate, safeDomId } from './core/helpers.js';
+import { escapeHtml, formatDate, safeDomId, relativeTime } from './core/helpers.js';
 import { state, squadCache } from './core/state.js';
 import { numOrZero, validateConfigField, redactedCoordOf } from './domain/person-config.js';
 import { ISSUE_FILTER_KEYS, emptyIssueFilters, toggleFilterValue } from './domain/issue-filters.js';
@@ -83,7 +83,8 @@ export const app = {
     configureSquadLoadActions({
       beginLoad: () => this.beginLoad(),
       restoreFromCache: cached => this.restoreFromCache(cached),
-      loadData: () => this.loadData()
+      loadData: () => this.loadData(),
+      loadShared: (squadId, jql) => this.loadFromSharedOrFetch(squadId, jql)
     });
     auth.purgeLegacy();
     // Config compartilhada ANTES do primeiro render — capacity/papel de todo mundo
@@ -1085,6 +1086,55 @@ export const app = {
       pctElement.style.color = CONFIG.colors.muted;
     }
   },
+  // Pede ao React (fora do iframe) o snapshot compartilhado desta JQL. O JWT do app
+  // nunca entra aqui — quem fala com o backend é sempre o componente pai, que já tem
+  // authFetch; este método só troca postMessage com ele. Fora do iframe (acesso direto
+  // ao index.html, que hoje redireciona pra /jiradash antes disso rodar) não há pai pra
+  // perguntar — resolve null na hora, sem round-trip.
+  requestSharedSnapshot(jql) {
+    if (window.self === window.top) return Promise.resolve(null);
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = value => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        window.removeEventListener('message', onMessage);
+        resolve(value);
+      };
+      const onMessage = event => {
+        if (event.data?.type !== 'JIRADASH_SNAPSHOT_RESULT' || event.data.jql !== jql) return;
+        finish(event.data.snapshot || null);
+      };
+      // Backend fora do ar ou resposta perdida não pode travar a troca de squad pra
+      // sempre — cai pro fetch ao vivo depois de um tempo curto.
+      const timer = setTimeout(() => finish(null), 4000);
+      window.addEventListener('message', onMessage);
+      window.parent.postMessage({ type: 'JIRADASH_REQUEST_SNAPSHOT', jql }, '*');
+    });
+  },
+
+  // Ponto de entrada usado por squadStore.apply() quando não há nada no squadCache em
+  // memória: primeiro tenta o snapshot compartilhado (mesma JQL = mesmo dado pra todo
+  // mundo, sem bater no Jira); só cai pro fetch ao vivo se ninguém nunca carregou essa
+  // JQL ainda. O fetch ao vivo (loadData → publishLoadedDataset) é quem empurra o
+  // snapshot de volta pro backend, então a segunda pessoa a abrir já encontra cache.
+  async loadFromSharedOrFetch(squadId, jql) {
+    const snapshot = await this.requestSharedSnapshot(jql);
+    if (snapshot?.payload) {
+      const ok = await this.restoreFromCache(snapshot.payload);
+      if (ok) {
+        squadCache[squadId] = snapshot.payload;
+        this.renderSprintInfo(snapshot.payload.allIssues, snapshot.payload.sprintInfo, jql, {
+          fetchedAt: snapshot.fetchedAt,
+          fetchedByName: snapshot.fetchedByName
+        });
+      }
+      return;
+    }
+    this.loadData();
+  },
+
   // Devolve `true` só se a restauração foi realmente publicada E a geração dela ainda
   // é a corrente ao final. Quem chama usa isso para decidir se pode falar com o
   // usuário: o aviso "exibindo dados em cache" não pode aparecer sobre uma carga mais
@@ -1158,6 +1208,15 @@ export const app = {
       sprintInfo,
       sprintRemoved
     };
+    // Fetch REAL (nunca uma restauração — publishLoadedDataset só roda a partir de
+    // loadData) vira a versão compartilhada pra quem mais tiver essa JQL. postMessage
+    // é síncrono de disparar; o POST em si acontece no React, fora deste método.
+    if (window.self !== window.top) {
+      window.parent.postMessage(
+        { type: 'JIRADASH_PUSH_SNAPSHOT', jql, payload: squadCache[ctx.squadId] },
+        '*'
+      );
+    }
     this.updateHeader(issues, sprintInfo, jql);
     this.renderSprintInfo(issues, sprintInfo, jql);
     renderers.renderMetrics();
@@ -1291,7 +1350,7 @@ export const app = {
     document.title = title;
     squadStore.updateActiveName(projectKey || projectName || 'Squad');
   },
-  renderSprintInfo(issues, sprintInfo, jql) {
+  renderSprintInfo(issues, sprintInfo, jql, freshness) {
     const sprintId = jql.match(/Sprint\s*=\s*(\d+)/i)?.[1] || '—';
 
     dom.sprintInfo.innerHTML = sprintInfo?.name
@@ -1302,5 +1361,14 @@ export const app = {
               <span><strong>Término:</strong> ${formatDate(sprintInfo.endDate)}</span>
               <span><strong>Total:</strong> ${issues.length} issues</span>`
       : `<span><strong>Sprint:</strong> ${escapeHtml(sprintId)}</span><span><strong>Total:</strong> ${issues.length} issues</span>`;
+
+    // Dado veio de snapshot compartilhado (não de um fetch ao vivo nesta sessão): mostra
+    // quem/quando atualizou por último, pra quem tá vendo saber que pode estar velho.
+    if (freshness?.fetchedAt) {
+      const freshEl = document.createElement('span');
+      freshEl.className = 'sprint-info-freshness';
+      freshEl.textContent = `↻ ${relativeTime(freshness.fetchedAt)}${freshness.fetchedByName ? ` por ${freshness.fetchedByName}` : ''}`;
+      dom.sprintInfo.appendChild(freshEl);
+    }
   }
 };

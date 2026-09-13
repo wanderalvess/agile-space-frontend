@@ -257,7 +257,9 @@ export const squadStore = {
     if (cached) {
       loadActions.restoreFromCache(cached);
     } else {
-      loadActions.loadData();
+      // Sem cache em memória (reload da página, ou squad nova nesta aba): tenta o
+      // snapshot compartilhado antes de bater no Jira — ver app.loadFromSharedOrFetch.
+      loadActions.loadShared(squad.id, squad.jql);
     }
   },
   add() {

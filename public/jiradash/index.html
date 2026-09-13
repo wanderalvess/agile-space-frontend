@@ -207,6 +207,14 @@
         if (configPanel && configPanel.open) configPanel.close();
         document.querySelector('[data-action="load-data"]')?.click();
       }
+
+      // Ícone de refresh do header externo (React): o botão "Atualizar" de dentro do
+      // iframe fica escondido junto com #dash-header quando embedado, mas continua no
+      // DOM — clicar nele de fora dispara loadData() de verdade (nunca lê o snapshot
+      // compartilhado, sempre busca no Jira), sem duplicar a lógica de carregamento.
+      if (event.data.type === 'JIRADASH_FORCE_REFRESH') {
+        document.querySelector('[data-action="load-data"]')?.click();
+      }
     });
 
     // Embedado em /jiradash (React): o header próprio deste HTML (título + Configurar/

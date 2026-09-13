@@ -512,6 +512,13 @@ button {
 
 .sprint-info strong { color: var(--text); }
 
+.sprint-info-freshness {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-faint);
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));

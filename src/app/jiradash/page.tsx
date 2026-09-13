@@ -16,6 +16,7 @@ import { useSavedJqls } from '@/hooks/useSavedJqls';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getSnapshot, saveSnapshot } from './snapshotApi';
 
 const JQL_QUICK_PRESETS = [
   { label: 'Sprint Aberta', jql: 'project = "PROJETO" AND Sprint in openSprints() AND status != Cancelled' },
@@ -90,10 +91,32 @@ export default function JiraDashPage() {
   // entrada de config quando embedado: o HTML estático interno intercepta seus próprios
   // botões "Configurar" e pede pra abrir este aqui via postMessage, em vez de mostrar
   // o <dialog> dele. Evita duas UIs diferentes pra mesma coisa.
+  //
+  // As mesmas duas mensagens fazem o relé do cache compartilhado: o JWT do app nunca
+  // entra no iframe (ele só conhece o PAT do Jira) — quem fala com o backend é sempre
+  // este componente React, que já tem authFetch. O iframe só pede/empurra dado.
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'JIRADASH_OPEN_CONFIG') {
         setIsConfigOpen(true);
+        return;
+      }
+      if (event.data?.type === 'JIRADASH_REQUEST_SNAPSHOT') {
+        const jql = event.data.jql as string;
+        try {
+          const snapshot = await getSnapshot(jql);
+          iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_SNAPSHOT_RESULT', jql, snapshot }, '*');
+        } catch (e) {
+          console.warn('[JiraDash] Falha ao buscar snapshot compartilhado:', e);
+          iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_SNAPSHOT_RESULT', jql, snapshot: null }, '*');
+        }
+        return;
+      }
+      if (event.data?.type === 'JIRADASH_PUSH_SNAPSHOT') {
+        const { jql, payload } = event.data as { jql: string; payload: unknown };
+        saveSnapshot(jql, payload).catch((e) =>
+          console.warn('[JiraDash] Falha ao salvar snapshot compartilhado (dado local segue válido):', e)
+        );
       }
     };
     window.addEventListener('message', handleMessage);
@@ -122,15 +145,16 @@ export default function JiraDashPage() {
     setIsConfigOpen(false);
   };
 
-  const handleReloadIframe = () => {
-    if (iframeRef.current) {
-      iframeRef.current.src = '/jiradash/index.html';
-      toast({
-        title: 'Recarregando JiraDash',
-        description: 'A página interna está sendo atualizada...',
-        duration: 2000,
-      });
-    }
+  // Dispara um refresh de verdade (loadData → sempre busca no Jira, nunca lê o
+  // snapshot compartilhado) em vez de recarregar o iframe inteiro — que agora, com
+  // cache compartilhado, só voltaria a mostrar a mesma versão salva.
+  const handleForceRefresh = () => {
+    iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_FORCE_REFRESH' }, '*');
+    toast({
+      title: 'Atualizando JiraDash',
+      description: 'Buscando os dados mais recentes do Jira...',
+      duration: 2000,
+    });
   };
 
   return (
@@ -172,8 +196,8 @@ export default function JiraDashPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleReloadIframe}
-              title="Recarregar JiraDash"
+              onClick={handleForceRefresh}
+              title="Atualizar (busca no Jira agora)"
               className="text-muted-foreground hover:text-foreground"
             >
               <RefreshCw className="w-4 h-4" />

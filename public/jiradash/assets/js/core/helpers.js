@@ -36,6 +36,18 @@ export const initials = name =>
 export const secondsToHours = seconds => (seconds > 0 ? `${(seconds / 3600).toFixed(1)}h` : '—');
 export const secondsToHoursNumber = seconds => (seconds > 0 ? Number((seconds / 3600).toFixed(1)) : 0);
 export const formatDate = date => (date ? new Date(date).toLocaleDateString('pt-BR') : '—');
+// "há X min/h/dias" — usado no indicador de frescor do snapshot compartilhado do JiraDash.
+export const relativeTime = isoDate => {
+  if (!isoDate) return '—';
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return 'agora mesmo';
+  if (minutes < 60) return `há ${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `há ${hours}h`;
+  const days = Math.round(hours / 24);
+  return `há ${days}d`;
+};
 export const pctClass = pct => (pct >= 70 ? 'success' : pct >= 40 ? 'warning' : 'danger');
 export const safeDomId = value => String(value || '').replace(/[^a-zA-Z0-9]/g, '_');
 export const r1 = v => Math.round(v * 10) / 10;
