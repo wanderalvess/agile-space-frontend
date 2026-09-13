@@ -334,6 +334,14 @@ const PokerRoomComponent = ({
     [participants, presenceTick]
   );
 
+  // Pede permissão de notificação do navegador assim que o recurso é ligado,
+  // para poder avisar mesmo com a aba em segundo plano.
+  useEffect(() => {
+    if (!settings?.turnNotification) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission === 'default') Notification.requestPermission();
+  }, [settings?.turnNotification]);
+
   // Notificação "sua vez" (opt-in): avisa o votante quando uma nova rodada
   // abre e ele ainda não votou. Uma vez por tópico ativo (ref evita repetir).
   const notifiedTurnRef = useRef<string | null>(null);
@@ -350,7 +358,20 @@ const PokerRoomComponent = ({
         audio.play().catch(() => {});
       } catch { /* ignore */ }
     }
-  }, [settings?.turnNotification, settings?.allowManagementToVote, activeIssueId, votesRevealed, currentUserVote, currentUser, isSoundEnabled, toast]);
+    if (typeof document !== 'undefined' && document.hidden && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      const issueTitle = issuesQueue.find(i => i.id === activeIssueId)?.title;
+      try {
+        const notification = new Notification('🗳️ É a sua vez de votar!', {
+          body: issueTitle ? `Nova rodada aberta: ${issueTitle}` : 'Uma nova rodada foi aberta no Scrum Poker.',
+          tag: 'poker-turn-notification',
+        });
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch { /* ignore */ }
+    }
+  }, [settings?.turnNotification, settings?.allowManagementToVote, activeIssueId, votesRevealed, currentUserVote, currentUser, isSoundEnabled, toast, issuesQueue]);
 
   const isInitialState = issuesQueue.length === 0;
   // Sessão encerrada: ou a fila acabou (todos concluídos), ou o facilitador
