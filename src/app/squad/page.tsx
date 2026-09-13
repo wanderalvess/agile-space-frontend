@@ -239,16 +239,21 @@ function SquadHubContent() {
   useEffect(() => {
     const userIdentifier = userProfile?.jiraAccountId || userProfile?.id || userProfile?.email;
     if (userProfile?.squadId && userIdentifier) {
+      // Fetch avulso (não passa pelo squadApi/store) — sem essa flag, trocar
+      // de squad rápido enquanto isto está em voo podia gravar tarefas do
+      // squad antigo no state depois do efeito já ter reagido pro squad novo.
+      let cancelled = false;
       const fetchTasks = async () => {
         try {
           const res = await authFetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(userProfile.squadId)}/assignee/${encodeURIComponent(userIdentifier)}`);
           if (res.ok) {
             const data = await res.json();
-            setAssignedTasks(data);
+            if (!cancelled) setAssignedTasks(data);
           }
         } catch(e) {}
       };
       fetchTasks();
+      return () => { cancelled = true; };
     }
   }, [userProfile?.squadId, userProfile?.jiraAccountId, userProfile?.id, userProfile?.email]);
 

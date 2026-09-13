@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { squadApi } from '@/app/squad/api';
 import { userApi } from '@/app/users/api';
-import { fetchAllJiraIssues, type JiraIssue } from '@/services/jiraService';
+import { fetchAllJiraIssues, resolveSprintFieldId, fetchSprintInfo, type JiraIssue } from '@/services/jiraService';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import { isWeekend } from '@/lib/date-utils';
 import type {
@@ -60,6 +60,38 @@ function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
+}
+
+// sprintFieldId não configurado força FULL sync sempre (ver isFull em
+// syncSquad) e faz sprintRaw cair no "chute" por lista de customfields
+// candidatos (jiraService.ts). Descobre uma vez via /rest/api/2/field (mesma
+// estratégia do jiradash) e persiste no squad — evita repetir a chamada extra
+// em toda sync seguinte. Falha silenciosa aqui só mantém o comportamento
+// antigo (UNMAPPED_SPRINT_ID), sem quebrar o sync.
+async function withDiscoveredSprintFieldId(config: SquadConfig, squadId: string, domain: string, token: string): Promise<SquadConfig> {
+  if (config.sprintFieldId) return config;
+  const discovered = await resolveSprintFieldId(domain, token);
+  if (!discovered) return config;
+  squadApi.saveSquad(squadId, { sprintFieldId: discovered }).catch(() => {});
+  return { ...config, sprintFieldId: discovered };
+}
+
+// Sobrescreve nome/estado/datas de cada sprint encontrada no lote com os
+// dados oficiais da API (/rest/agile/1.0/sprint/{id}), em vez de confiar só
+// no blob embutido no customfield (parseSprintField trunca nome com vírgula
+// no formato Server/DC). Uma chamada por sprintId único no lote (tipicamente
+// 1, raramente mais que uma mão cheia) — falha em uma sprint mantém os
+// valores já parseados daquela sprint, sem derrubar a sync inteira.
+async function reconcileSprintMetaWithJira(sprintMeta: Map<string, ParsedSprint & { count: number }>, domain: string, token: string): Promise<void> {
+  const ids = Array.from(sprintMeta.keys()).filter(id => id && id !== UNMAPPED_SPRINT_ID);
+  if (ids.length === 0) return;
+  await Promise.all(ids.map(async id => {
+    const info = await fetchSprintInfo(domain, token, id);
+    if (!info) return;
+    const existing = sprintMeta.get(id);
+    if (!existing) return;
+    sprintMeta.set(id, { ...existing, name: info.name || existing.name, state: info.state || existing.state, startDate: info.startDate || existing.startDate, endDate: info.endDate || existing.endDate });
+  }));
 }
 
 interface SquadStoreState {
@@ -498,6 +530,11 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         return false;
       }) || null;
 
+      // Sem essa checagem, uma troca rápida de squad enquanto isto ainda
+      // estava em voo pisava no roster/claim do squad novo com dado do
+      // squad antigo — mesmo problema de race que fetchSquad/fetchSquadDetail
+      // já evitam via activeSquadId.
+      if (get().activeSquadId !== squadId) return;
       set({
         members,
         myClaim,
@@ -558,6 +595,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     set({ isLoadingMyIssues: true });
     try {
       const myIssues = await squadApi.getIssuesByAssignee(squadId, jiraAccountId);
+      if (get().activeSquadId !== squadId) return;
       set({ myIssues });
     } catch (err) {
       console.error('Erro ao buscar minhas issues:', err);
@@ -574,6 +612,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       cutoff.setDate(cutoff.getDate() - DAILY_SNAPSHOT_WINDOW_DAYS);
       const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
       const days = await squadApi.getDailySnapshots(squadId, cutoffStr);
+      if (get().activeSquadId !== squadId) return;
       set({ dailySnapshots: days });
     } catch (err) {
       console.error('Erro ao buscar produtividade diária:', err);
@@ -650,6 +689,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
 
       const { domain: personalDomain, token } = jiraCreds;
       const domain = config.jiraDomain || personalDomain;
+      config = await withDiscoveredSprintFieldId(config, squadId, domain, token);
+
       const rankingEnabled = !!config.rankingEnabled;
       const sprintFieldConfigured = !!config.sprintFieldId;
       const reconcileIntervalHours = config.reconcileIntervalHours || RECONCILE_INTERVAL_DEFAULT_HOURS;
@@ -677,7 +718,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       const fetchScope = async (jql: string) => fetchAllJiraIssues(domain, token, jql, { fields, sprintFieldId: config.sprintFieldId });
 
       const deltaJql = isFull ? config.syncJql : `(${config.syncJql}) AND updated >= "${formatForJql(subtractMinutes(config.lastSyncAt!, 2))}"`;
-      let { issues } = await fetchScope(deltaJql);
+      let { issues, truncated } = await fetchScope(deltaJql);
 
       const syncedAt = new Date().toISOString();
 
@@ -729,6 +770,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         isFull = true;
         const full = await fetchScope(config.syncJql);
         issues = full.issues;
+        truncated = truncated || full.truncated;
         sprintMeta.clear();
         snapshots = issues.map(issue => {
           const parsed = parseSprintField(issue.sprintRaw);
@@ -744,6 +786,16 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         });
         snapshots = applyOrderIndex(issues, snapshots);
         effectiveSprintId = pickEffectiveSprint(sprintMeta);
+      }
+
+      await reconcileSprintMetaWithJira(sprintMeta, domain, token);
+      snapshots = snapshots.map(s => {
+        const meta = s.sprintId ? sprintMeta.get(s.sprintId) : undefined;
+        return meta ? { ...s, sprintName: meta.name } : s;
+      });
+
+      if (truncated) {
+        console.warn(`[squad:${squadId}] sync truncado no teto de páginas — pode haver issues fora do escopo sincronizado.`);
       }
 
       // Roster: busca atual + auto-semeia novos assignees vistos neste lote
@@ -948,7 +1000,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       // Atualiza config do squad
       await squadApi.saveSquad(squadId, {
         lastSyncAt: syncedAt, lastSyncBy: uid, lastSyncStatus: 'success',
-        lastSyncIssueCount: totalIssueCountForActiveSprint, lastSyncError: '',
+        lastSyncIssueCount: totalIssueCountForActiveSprint,
+        lastSyncError: truncated ? 'Sync truncado no teto de páginas (2000 issues) — pode haver issues fora do escopo.' : '',
         activeSprintId: effectiveSprintId,
         lastFullReconcileAt: isFull ? syncedAt : (config.lastFullReconcileAt || syncedAt),
         schemaVersion: 2, sprintHistory: updatedSprintHistory,
@@ -1010,7 +1063,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   forceResyncSprint: async (uid, squadId, targetSprintId) => {
     set({ isForceResyncingSprint: true });
     try {
-      const config = await squadApi.getSquad(squadId);
+      let config = await squadApi.getSquad(squadId);
       if (!config) throw new Error('Squad sem configuração.');
 
       // Obtém credenciais do Jira (Spring Boot, localStorage ou Firestore)
@@ -1019,6 +1072,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
 
       const { domain: personalDomain, token } = jiraCreds;
       const domain = config.jiraDomain || personalDomain;
+      config = await withDiscoveredSprintFieldId(config, squadId, domain, token);
       const rankingEnabled = !!config.rankingEnabled;
       const baseFields = rankingEnabled ? SQUAD_SYNC_FIELDS_WITH_WORKLOG : SQUAD_SYNC_FIELDS_BASE;
       const fields = config.sprintFieldId ? [...baseFields, config.sprintFieldId] : baseFields;
@@ -1027,13 +1081,17 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
         ? config.syncJql.replace(/sprint\s+in\s+openSprints\(\)/i, `sprint = ${targetSprintId}`)
         : `project = ${config.jiraProjectKey} AND sprint = ${targetSprintId}`;
 
-      const { issues } = await fetchAllJiraIssues(domain, token, targetJql, { fields, sprintFieldId: config.sprintFieldId });
+      const { issues, truncated } = await fetchAllJiraIssues(domain, token, targetJql, { fields, sprintFieldId: config.sprintFieldId });
+      if (truncated) {
+        console.warn(`[squad:${squadId}] forceResyncSprint truncado no teto de páginas — pode haver issues fora do escopo sincronizado.`);
+      }
       const syncedAt = new Date().toISOString();
+      const sprintInfo = await fetchSprintInfo(domain, token, targetSprintId);
 
       let snapshots: SquadIssueSnapshot[] = issues.map(issue => ({
         ...toSquadIssueSnapshotBase(issue, syncedAt),
         sprintId: targetSprintId,
-        sprintName: '',
+        sprintName: sprintInfo?.name || '',
       }));
       snapshots = applyOrderIndex(issues, snapshots);
 

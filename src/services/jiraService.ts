@@ -419,6 +419,77 @@ const extractPlainTextFromDescription = (desc: unknown): string => {
   return '';
 };
 
+export interface JiraFieldMeta {
+  id: string;
+  name: string;
+  schema?: { custom?: string; type?: string };
+}
+
+/**
+ * Lista os campos do Jira (/rest/api/2/field via backend) e resolve o ID do
+ * customfield "Sprint" (schema.custom = gh-sprint, com fallback por nome) —
+ * esse ID varia por instância/projeto Jira, então não pode ficar hardcoded
+ * (ver UNMAPPED_SPRINT_ID em useSquadStore.ts). Retorna null se não achar ou
+ * se a chamada falhar — quem chama deve manter o comportamento de fallback
+ * atual nesse caso, sem quebrar o sync.
+ */
+export const resolveSprintFieldId = async (domain: string, token: string): Promise<string | null> => {
+  try {
+    const res = await authFetch('/api/jira/fields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim() }),
+    });
+    if (!res.ok) return null;
+    const fields: JiraFieldMeta[] = await res.json();
+    if (!Array.isArray(fields)) return null;
+    const byType = fields.find(f => f.schema?.custom === 'com.pyxis.greenhopper.jira:gh-sprint');
+    if (byType) return byType.id;
+    const byName = fields.find(f => f.name?.trim().toLowerCase() === 'sprint');
+    return byName?.id || null;
+  } catch {
+    return null;
+  }
+};
+
+export interface JiraSprintInfo {
+  id: string;
+  name: string;
+  state: string;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Busca metadados oficiais de uma sprint (/rest/agile/1.0/sprint/{id} via
+ * backend) — nome/estado/datas direto do Jira, não o blob embutido no
+ * customfield Sprint das issues (Server/DC serializa como toString() Java,
+ * sujeito a truncar nome com vírgula em parseSprintField). Retorna null em
+ * qualquer falha — quem chama deve manter os valores já parseados da issue
+ * como fallback nesse caso.
+ */
+export const fetchSprintInfo = async (domain: string, token: string, sprintId: string): Promise<JiraSprintInfo | null> => {
+  try {
+    const res = await authFetch('/api/jira/sprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim(), sprintId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.id) return null;
+    return {
+      id: String(data.id),
+      name: data.name || '',
+      state: data.state || '',
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
+    };
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Busca issues no Jira via API REST (Atualizado para trazer campos de evidência)
  */
@@ -641,7 +712,7 @@ export const fetchJiraIssues = async (
 export const fetchAllJiraIssues = async (
   domain: string, token: string, jql: string,
   opts?: { pageSize?: number; maxPages?: number; fields?: string[]; sprintFieldId?: string }
-): Promise<{ issues: JiraIssue[]; total: number }> => {
+): Promise<{ issues: JiraIssue[]; total: number; truncated: boolean }> => {
   const pageSize = opts?.pageSize ?? 100;
   const maxPages = opts?.maxPages ?? 20; // teto de segurança: 2000 issues
 
@@ -659,7 +730,11 @@ export const fetchAllJiraIssues = async (
     page += 1;
   }
 
-  return { issues: allIssues, total };
+  // truncated=true quando o teto de páginas foi atingido com issues ainda por
+  // buscar — sem esse sinal, um squad com >2000 issues no escopo perdia issues
+  // silenciosamente, sem aviso em lugar nenhum (nem log, nem lastSyncError).
+  const truncated = allIssues.length < total && page >= maxPages;
+  return { issues: allIssues, total, truncated };
 };
 
 /**
