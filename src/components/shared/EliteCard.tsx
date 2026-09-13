@@ -64,6 +64,9 @@ interface AgileCardProps {
   isTruncated?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: (id: string) => void;
+
+  // Conteúdo extra logo abaixo do texto principal (ex: linha do tempo de ideias fundidas)
+  contentExtra?: React.ReactNode;
   
   // Actions
   onEdit?: (id: string) => void;
@@ -116,6 +119,7 @@ export function AgileCard({
   isTruncated,
   isExpanded,
   onToggleExpand,
+  contentExtra,
   children,
   className
 }: AgileCardProps) {
@@ -229,6 +233,8 @@ export function AgileCard({
             </div>
         )}
       </div>
+
+      {showRealContent && contentExtra}
 
       {/* Extra Badges (Planner) */}
       {variant === 'planner' && (devHours !== undefined || qaHours !== undefined) && (

@@ -92,6 +92,35 @@ function RetroCardReactions({
   );
 }
 
+// Ideias fundidas viram uma linha do tempo conectada abaixo do texto
+// principal, em vez de um "- texto" concatenado dentro do content.
+// Acima de 3 no total, colapsa em "+N mais" pra não estourar o card.
+function RetroMergedTimeline({ items }: { items: string[] }) {
+  if (!items.length) return null;
+
+  const MAX_VISIBLE = 2;
+  const overflow = items.length > 3;
+  const visible = overflow ? items.slice(0, MAX_VISIBLE) : items;
+  const hiddenCount = overflow ? items.length - MAX_VISIBLE : 0;
+
+  return (
+    <div className="flex flex-col border-l-2 border-slate-200 dark:border-slate-700 ml-1 pl-3 mt-2.5" onClick={(e) => e.stopPropagation()}>
+      {visible.map((text, i) => (
+        <div key={i} className="relative py-1.5">
+          <span className="absolute -left-[18px] top-3 h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+          <p className="text-[12.5px] font-medium leading-relaxed text-slate-500 dark:text-slate-400 break-words whitespace-pre-wrap">{text}</p>
+        </div>
+      ))}
+      {hiddenCount > 0 && (
+        <div className="relative py-1.5">
+          <span className="absolute -left-[18px] top-3 h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">+{hiddenCount} mais</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface RetroCardProps {
   card: RetroCardType;
   isCardsRevealed: boolean;
@@ -262,6 +291,7 @@ export function RetroCard({
           onVote={() => onToggleVote(card.id, card.votes)}
           canVote={canVote && showVotes}
           voteIcon={Star}
+          contentExtra={!isActionPlan ? <RetroMergedTimeline items={card.originalTexts || []} /> : undefined}
           isDragging={isDragging}
           isOver={isOver}
           isMergingSource={mergingSourceId === card.id}

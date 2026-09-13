@@ -608,7 +608,14 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     if (!sourceCard || !targetCard) return;
 
     const combinedVotes = [...targetCard.votes, ...sourceCard.votes];
-    const newContent = `${targetCard.content}\n\n- ${sourceCard.content}`;
+    // Conteúdo do alvo nunca muda — as ideias fundidas entram como histórico
+    // separado (originalTexts) pra renderizar como linha do tempo, em vez de
+    // virar um texto único cheio de "- " concatenado.
+    const combinedOriginalTexts = [
+      ...(targetCard.originalTexts || []),
+      sourceCard.content,
+      ...(sourceCard.originalTexts || []),
+    ];
 
     try {
       setOptimisticCards(prev => {
@@ -616,7 +623,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         return withoutSource.map(c => c.id === targetId ? {
           ...c,
           votes: combinedVotes,
-          content: newContent,
+          originalTexts: combinedOriginalTexts,
           children: []
         } : c);
       });
@@ -625,7 +632,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       await retroApi.saveOrUpdateCard(boardId, {
         ...targetCard,
         votes: combinedVotes,
-        content: newContent
+        originalTexts: combinedOriginalTexts
       });
 
       // Exclui a origem
