@@ -28,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { DEFAULT_HEALTH_CHECK_QUESTION } from '@/components/retro/RetroSettingsDialog';
 import {
   Select,
   SelectContent,
@@ -156,6 +158,8 @@ interface CreateRetroDialogProps {
   onCustomColumnsChange: (columns: { title: string; theme: RetroColumnTheme }[]) => void;
   setupSettings: SetupSettings;
   onSetupSettingsChange: (settings: SetupSettings) => void;
+  healthCheckQuestion: string;
+  onHealthCheckQuestionChange: (value: string) => void;
   isCreating: boolean;
   onCreate: () => void;
   onCancel: () => void;
@@ -174,6 +178,8 @@ export function CreateRetroDialog({
   onCustomColumnsChange,
   setupSettings,
   onSetupSettingsChange,
+  healthCheckQuestion,
+  onHealthCheckQuestionChange,
   isCreating,
   onCreate,
   onCancel,
@@ -426,33 +432,51 @@ export function CreateRetroDialog({
                   const on = !!setupSettings[cfg.key];
                   const Icon = cfg.icon;
                   return (
-                    <div
-                      key={cfg.key}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on });
-                        }
-                      }}
-                      title={cfg.desc}
-                      className={cn(
-                        "w-full text-left px-3 py-2.5 rounded-xl border-2 flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none",
-                        on ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-muted/30 hover:border-primary/30"
+                    <div key={cfg.key}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on });
+                          }
+                        }}
+                        title={cfg.desc}
+                        className={cn(
+                          "w-full text-left px-3 py-2.5 rounded-xl border-2 flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none",
+                          on ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-muted/30 hover:border-primary/30",
+                          cfg.key === 'healthCheckEnabled' && on && "rounded-b-none border-b-0"
+                        )}
+                      >
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight text-foreground leading-tight">
+                            <Icon className="h-3 w-3 shrink-0 text-primary" />
+                            {cfg.title}
+                          </span>
+                          <span className="block text-[9px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[220px]">
+                            {cfg.desc}
+                          </span>
+                        </span>
+                        <Switch checked={on} className="pointer-events-none shrink-0 scale-90" />
+                      </div>
+
+                      {cfg.key === 'healthCheckEnabled' && on && (
+                        <div
+                          className="px-3 py-2.5 rounded-b-xl border-2 border-t-0 border-primary bg-primary/5 space-y-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Label className="text-[9px] font-black uppercase tracking-widest text-primary/80">Pergunta exibida</Label>
+                          <Textarea
+                            value={healthCheckQuestion}
+                            onChange={(e) => onHealthCheckQuestionChange(e.target.value)}
+                            placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
+                            className="min-h-[54px] text-xs font-bold bg-background rounded-xl focus-visible:ring-primary/20"
+                          />
+                          <p className="text-[9px] font-medium text-muted-foreground">vazio = usa a pergunta padrão</p>
+                        </div>
                       )}
-                    >
-                      <span className="min-w-0">
-                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight text-foreground leading-tight">
-                          <Icon className="h-3 w-3 shrink-0 text-primary" />
-                          {cfg.title}
-                        </span>
-                        <span className="block text-[9px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[220px]">
-                          {cfg.desc}
-                        </span>
-                      </span>
-                      <Switch checked={on} className="pointer-events-none shrink-0 scale-90" />
                     </div>
                   );
                 })}

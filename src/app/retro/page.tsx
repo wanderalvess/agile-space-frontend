@@ -40,6 +40,7 @@ export default function RetroHubPage() {
     { title: '', theme: 'action' },
   ]);
   const [setupSettings, setSetupSettings] = useState<SetupSettings>(DEFAULT_SETUP_SETTINGS);
+  const [healthCheckQuestion, setHealthCheckQuestion] = useState('');
   const [sprintId, setSprintId] = useState('');
 
   // Preenche o squad com o time do usuário assim que o perfil carregar (chega
@@ -146,6 +147,7 @@ export default function RetroHubPage() {
       votingStatus: 'disabled' as const,
       maxVotesPerParticipant: 5,
       ...setupSettings,
+      healthCheckQuestion: healthCheckQuestion.trim() || undefined,
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),
       team: resolvedTeam,
@@ -262,11 +264,14 @@ export default function RetroHubPage() {
         onCustomColumnsChange={setCustomColumns}
         setupSettings={setupSettings}
         onSetupSettingsChange={setSetupSettings}
+        healthCheckQuestion={healthCheckQuestion}
+        onHealthCheckQuestionChange={setHealthCheckQuestion}
         isCreating={isCreating}
         onCreate={handleCreate}
         onCancel={() => {
           setIsSetupOpen(false);
           setSetupSettings(DEFAULT_SETUP_SETTINGS);
+          setHealthCheckQuestion('');
         }}
       />
     </>
