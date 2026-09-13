@@ -85,6 +85,7 @@ interface RetroBoardProps {
   onToggleSyncStage: (value: boolean) => void;
   onToggleAutoRevealOnTimerEnd: (value: boolean) => void;
   onToggleAutoSortOnVoteEnd: (value: boolean) => void;
+  onSetMaxVotesPerParticipant: (max: number) => void;
   onToggleHealthCheck: (value: boolean) => void;
   onHealthCheckQuestionChange: (value: string) => void;
   onToggleColumnSort: (columnKey: string, isSorted: boolean) => void;
@@ -130,6 +131,7 @@ const RetroBoardComponent = ({
   onToggleSyncStage,
   onToggleAutoRevealOnTimerEnd,
   onToggleAutoSortOnVoteEnd,
+  onSetMaxVotesPerParticipant,
   onToggleHealthCheck,
   onHealthCheckQuestionChange,
   onToggleColumnSort,
@@ -146,6 +148,10 @@ const RetroBoardComponent = ({
   onOpenStats,
 }: RetroBoardProps) => {
   const { toast } = useToast();
+  const votesUsed = useMemo(
+    () => cards.filter(c => c.votes.includes(currentUserId)).length,
+    [cards, currentUserId]
+  );
   const [open, setOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -320,6 +326,9 @@ const RetroBoardComponent = ({
                   autoRevealOnTimerEnd={boardData.autoRevealOnTimerEnd}
                   layoutMode={layoutMode}
                   onToggleLayoutMode={handleToggleLayoutMode}
+                  maxVotesPerParticipant={boardData.maxVotesPerParticipant}
+                  onSetMaxVotesPerParticipant={onSetMaxVotesPerParticipant}
+                  votesUsed={votesUsed}
                 />
 
                 {boardData.creatorId === currentUserId && (

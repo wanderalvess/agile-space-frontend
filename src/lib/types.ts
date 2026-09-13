@@ -641,6 +641,7 @@ export type RetroBoard = {
   activeColumnKey?: RetroColumnKey; // só relevante quando syncStageEnabled=true
   autoRevealOnTimerEnd?: boolean;
   autoSortOnVoteEnd?: boolean;
+  maxVotesPerParticipant?: number; // 0/undefined = sem limite
   healthCheckEnabled?: boolean;
   healthCheckQuestion?: string;
 }

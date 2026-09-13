@@ -144,6 +144,7 @@ export default function RetroHubPage() {
       creatorId: userProfile.id,
       isCardsRevealed: false,
       votingStatus: 'disabled' as const,
+      maxVotesPerParticipant: 5,
       ...setupSettings,
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),

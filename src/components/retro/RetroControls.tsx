@@ -18,6 +18,7 @@ import {
   Maximize2,
   Clock,
   SlidersHorizontal,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,9 +55,14 @@ interface RetroControlsProps {
   // Layout Mode Props (Quadro completo vs Foco na coluna)
   layoutMode?: 'board' | 'focus';
   onToggleLayoutMode?: (mode: 'board' | 'focus') => void;
+  // Limite de votos por pessoa (dot-voting) — 0/undefined = sem limite
+  maxVotesPerParticipant?: number;
+  onSetMaxVotesPerParticipant?: (max: number) => void;
+  votesUsed?: number;
 }
 
 const DURATION_OPTIONS = [120, 180, 240, 300]; // 2, 3, 4, 5 mins
+const VOTE_LIMIT_OPTIONS = [0, 3, 5, 10]; // 0 = sem limite
 
 export function RetroControls({
   isCardsRevealed,
@@ -76,6 +82,9 @@ export function RetroControls({
   autoRevealOnTimerEnd,
   layoutMode = 'board',
   onToggleLayoutMode,
+  maxVotesPerParticipant = 0,
+  onSetMaxVotesPerParticipant,
+  votesUsed = 0,
 }: RetroControlsProps) {
   const [remainingTime, setRemainingTime] = useState(timer?.initialDuration ?? 300);
   const prevStatusRef = useRef(timer?.status);
@@ -151,6 +160,18 @@ export function RetroControls({
           )}>
             <Clock className="h-3 w-3" />
             {formatTime(remainingTime)}
+          </span>
+        )}
+        {!!maxVotesPerParticipant && (
+          <span
+            className={cn(
+              "flex items-center gap-1 font-code text-xs font-black tabular-nums",
+              votesUsed >= maxVotesPerParticipant ? "text-amber-600" : "text-slate-600"
+            )}
+            title="Seus votos usados / limite por pessoa"
+          >
+            <Star className="h-3 w-3" />
+            {votesUsed}/{maxVotesPerParticipant}
           </span>
         )}
       </div>
@@ -288,6 +309,31 @@ export function RetroControls({
                 </Button>
               )}
             </div>
+
+            {/* Limite de votos por pessoa */}
+            {onSetMaxVotesPerParticipant && (
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-700 flex items-center gap-1.5">
+                  <Star className="h-3 w-3" /> Votos por pessoa
+                </Label>
+                <div className="flex items-center gap-1">
+                  {VOTE_LIMIT_OPTIONS.map(n => (
+                    <Button
+                      key={n}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onSetMaxVotesPerParticipant(n)}
+                      className={cn(
+                        "h-6 px-1.5 text-[9px] font-black rounded-md transition-all",
+                        maxVotesPerParticipant === n ? "bg-white text-indigo-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      {n === 0 ? '∞' : n}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Timer */}
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2">

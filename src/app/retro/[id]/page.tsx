@@ -443,14 +443,33 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }
     retroApi.saveOrUpdateBoard(updates).catch(err => console.error(err));
   }, [boardData]);
-  
+
+  const handleSetMaxVotesPerParticipant = useCallback((max: number) => {
+    if (!boardData) return;
+    retroApi.saveOrUpdateBoard({ ...boardData, maxVotesPerParticipant: max }).catch(err => console.error(err));
+  }, [boardData]);
+
   const handleToggleVote = useCallback((cardId: string, currentVotes: string[]) => {
     if (!boardId || !isAuthenticated || !userProfile || !cards) return;
     const current = cards.find(c => c.id === cardId);
     if (!current) return;
 
     const existingIndex = currentVotes.indexOf(userProfile.id);
-    const newVotes = existingIndex !== -1
+    const isRemoving = existingIndex !== -1;
+
+    if (!isRemoving && boardData?.maxVotesPerParticipant) {
+      const votesUsed = optimisticCards.filter(c => c.votes.includes(userProfile.id)).length;
+      if (votesUsed >= boardData.maxVotesPerParticipant) {
+        toast({
+          title: "Limite de votos atingido",
+          description: `Você já usou seus ${boardData.maxVotesPerParticipant} votos. Remova um voto antes de votar em outro card.`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    const newVotes = isRemoving
       ? currentVotes.filter((_, i) => i !== existingIndex)
       : [...currentVotes, userProfile.id];
 
@@ -462,7 +481,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       console.error(err);
       setOptimisticCards(cards);
     });
-  }, [boardId, isAuthenticated, userProfile, cards]);
+  }, [boardId, isAuthenticated, userProfile, cards, optimisticCards, boardData, toast]);
 
   const handleToggleReaction = useCallback((cardId: string, type: RetroReactionType, currentUserIds: string[]) => {
     if (!boardId || !isAuthenticated || !userProfile || !cards) return;
@@ -472,10 +491,18 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     const current = optimisticCards.find(c => c.id === cardId) || cards.find(c => c.id === cardId);
     if (!current) return;
 
-    const newUserIds = currentUserIds.includes(userProfile.id)
-      ? currentUserIds.filter(uid => uid !== userProfile.id)
-      : [...currentUserIds, userProfile.id];
-    const newReactions = { ...(current.reactions || {}), [type]: newUserIds };
+    // Reações são mutuamente exclusivas por pessoa: tirar o usuário de todos
+    // os tipos antes de (re)aplicar no clicado, senão dá pra marcar os 4 ao
+    // mesmo tempo no mesmo card.
+    const wasActiveOnThisType = currentUserIds.includes(userProfile.id);
+    const allReactions = current.reactions || {};
+    const newReactions: typeof allReactions = {};
+    for (const key of Object.keys(allReactions) as RetroReactionType[]) {
+      newReactions[key] = (allReactions[key] || []).filter(uid => uid !== userProfile.id);
+    }
+    if (!wasActiveOnThisType) {
+      newReactions[type] = [...(newReactions[type] || []), userProfile.id];
+    }
 
     setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, reactions: newReactions } : c));
     retroApi.saveOrUpdateCard(boardId, {
@@ -937,6 +964,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onUpdateCard={handleUpdateCard}
         onToggleCardsRevealed={handleToggleCardsRevealed}
         onSetVotingStatus={handleSetVotingStatus}
+        onSetMaxVotesPerParticipant={handleSetMaxVotesPerParticipant}
         onToggleVote={handleToggleVote}
         onToggleReaction={handleToggleReaction}
         onToggleDone={handleToggleActionDone}
