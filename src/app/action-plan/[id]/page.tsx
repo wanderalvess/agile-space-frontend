@@ -19,7 +19,7 @@ export default function ActionPlanSessionPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
-  const { userProfile, requestIdentity } = useUserContext();
+  const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   const id = params.id as string;
 
@@ -31,10 +31,13 @@ export default function ActionPlanSessionPage() {
 
   // --- Auth & Identity Logic ---
   useEffect(() => {
-    if (!isLoading && !userProfile) {
+    // isInitializing precisa estar false também, senão requestIdentity() dispara
+    // à toa numa janela em que userProfile ainda não terminou de carregar do
+    // UserContext (mesma causa do modal de perfil abrindo sozinho no retro).
+    if (!isLoading && !isInitializing && !userProfile) {
       requestIdentity();
     }
-  }, [isLoading, userProfile, requestIdentity]);
+  }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   const fetchBoardAndTasks = React.useCallback(async () => {
     try {

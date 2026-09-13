@@ -39,10 +39,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   useEffect(() => {
-    if (!isLoading && !userProfile) {
+    // isInitializing precisa estar false também, senão requestIdentity() dispara
+    // à toa numa janela em que userProfile ainda não terminou de carregar do
+    // UserContext (mesma causa do modal de perfil abrindo sozinho no retro).
+    if (!isLoading && !isInitializing && !userProfile) {
       requestIdentity();
     }
-  }, [isLoading, userProfile, requestIdentity]);
+  }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   // Fallback seguro de offset de relógio local/servidor
   const clockOffset = 0;

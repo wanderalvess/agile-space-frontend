@@ -235,10 +235,15 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId]);
 
   useEffect(() => {
-    if (!isLoading && !userProfile) {
+    // isInitializing (do UserContext) precisa estar false também: isLoading
+    // (useAuth, só sessão/token) resolve antes do UserContext terminar de
+    // montar o userProfile, e nesse intervalo userProfile ainda é null —
+    // sem esperar isInitializing, requestIdentity() dispara à toa e o modal
+    // de perfil fica aberto mesmo com o usuário já logado.
+    if (!isLoading && !isInitializing && !userProfile) {
       requestIdentity();
     }
-  }, [isLoading, userProfile, requestIdentity]);
+  }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   // Mapeamento de Papel Global para Papel de Retro/Health
   const mapGlobalToTeamRole = (role: GlobalRole): TeamRole => {
