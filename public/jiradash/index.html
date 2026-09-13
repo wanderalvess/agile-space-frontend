@@ -184,6 +184,11 @@
               <button class="btn btn-sm" type="button" data-action="clear-pat">Limpar token</button>
             </div>`;
           }
+          // Este PAT chega assíncrono, DEPOIS do módulo app.js já ter rodado apply() (que
+          // roda no load do script, antes do onLoad do iframe disparar este postMessage).
+          // Avisa o app pra tentar de novo agora que a autenticação existe — ver
+          // `retryApplyAfterAuthReady` em app.js.
+          window.dispatchEvent(new CustomEvent('jiradash:pat-ready'));
         }
       }
 

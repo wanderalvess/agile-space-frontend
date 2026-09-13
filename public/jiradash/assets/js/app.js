@@ -73,6 +73,15 @@ let reconcileInFlight = false;
 // CP10 — mesma guarda para o ciclo de vida: arquivar e restaurar em sequência rápida sobre a
 // MESMA linha dariam a impressão de que a segunda decisão não pegou.
 let lifecycleInFlight = false;
+// O PAT chega por postMessage do pai (React) só no `onLoad` do iframe — que é DEPOIS do
+// module deste arquivo já ter rodado `initialize() → apply()` (script type=module roda
+// antes do evento load). Isso significa que `apply()` quase sempre decide com
+// `auth.authenticated === false` e cai no estado vazio, mesmo com PAT+JQL já configurados
+// — nunca chegando no caminho do snapshot compartilhado. `retryApplyAfterAuthReady`
+// reexecuta `apply()` quando o PAT finalmente chega, mas só uma vez e só se nada tiver
+// carregado ainda: um clique manual do usuário nesse meio-tempo já iniciou um `loadData()`
+// e tem prioridade sobre esse retry automático.
+let authAutoRetried = false;
 
 export const app = {
   async initialize() {
@@ -86,6 +95,9 @@ export const app = {
       loadData: () => this.loadData(),
       loadShared: (squadId, jql) => this.loadFromSharedOrFetch(squadId, jql)
     });
+    // Registrado ANTES de qualquer `await`: o PAT pode chegar durante o `sharedConfig.load()`
+    // logo abaixo, e um listener adicionado depois desse ponto perderia o evento.
+    window.addEventListener('jiradash:pat-ready', () => this.retryApplyAfterAuthReady());
     auth.purgeLegacy();
     // Config compartilhada ANTES do primeiro render — capacity/papel de todo mundo
     // vêm do servidor. Se falhar (proxy antigo/offline), segue com a config local.
@@ -1133,6 +1145,16 @@ export const app = {
       return;
     }
     this.loadData();
+  },
+
+  // Ver comentário de `authAutoRetried` no topo do arquivo. Chamado quando o pai (React)
+  // finalmente entrega o PAT via postMessage, tipicamente depois de `apply()` já ter
+  // decidido (errado) que não havia autenticação.
+  retryApplyAfterAuthReady() {
+    if (authAutoRetried) return;
+    authAutoRetried = true;
+    if (state.allIssues.length > 0) return;
+    squadStore.apply(squadStore.ensureInitialized());
   },
 
   // Devolve `true` só se a restauração foi realmente publicada E a geração dela ainda
