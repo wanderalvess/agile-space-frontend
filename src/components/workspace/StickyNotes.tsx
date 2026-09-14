@@ -6,8 +6,7 @@ import {
   Pin, 
   Trash2, 
   ArrowRight, 
-  Plus, 
-  Sparkles,
+  Plus,
   LayoutGrid,
   Clock
 } from 'lucide-react';
@@ -16,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import { StickyNote } from './types';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 const NOTE_COLORS: { name: string; class: string; dot: string; glow?: string }[] = [
   { name: 'Amarelo', class: 'bg-amber-50 border-amber-200/60 text-amber-900', dot: 'bg-amber-400' },
@@ -43,24 +43,22 @@ export function StickyNotes({ notes, isLoading, onAdd, onUpdate, onDelete, onCon
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex items-center justify-between shrink-0 px-1">
-        <div className="space-y-0.5">
-          <h3 className="text-lg font-black font-headline uppercase tracking-tight italic text-slate-900 dark:text-slate-100 leading-none">
-            Sticky <span className="text-primary not-italic">Notes</span>
-          </h3>
-          <div className="flex items-center gap-2 text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-            <Sparkles className="h-3 w-3 text-amber-500" />
-            <span>Captura Rápida de Insights</span>
-          </div>
-        </div>
-        <Button 
-          onClick={onAdd} 
-          className="h-10 px-6 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md gap-2 transition-all active:scale-95 group"
-        >
-          <Plus className="h-3.5 w-3.5 text-primary group-hover:rotate-90 transition-transform" />
-          Nova Nota
-        </Button>
-      </div>
+      <WorkspaceSectionHeader
+        kicker="Notas"
+        accent="amber"
+        title="Sticky"
+        titleAccent="Notes"
+        subtitle="Captura rápida de insights"
+        action={
+          <Button
+            onClick={onAdd}
+            className="h-10 px-6 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-white text-white dark:text-slate-900 text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md gap-2 transition-all active:scale-95 group"
+          >
+            <Plus className="h-3.5 w-3.5 text-primary group-hover:rotate-90 transition-transform" />
+            Nova Nota
+          </Button>
+        }
+      />
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-8">
         <AnimatePresence mode="popLayout">

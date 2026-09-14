@@ -148,7 +148,7 @@ export function RetroControls({
         {votingStatus !== 'disabled' && (
           <span className={cn(
             "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md",
-            votingStatus === 'active' ? "bg-slate-900 text-white animate-pulse" : "bg-slate-200 text-slate-500"
+            votingStatus === 'active' ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 animate-pulse" : "bg-slate-200 text-slate-500"
           )}>
             {votingStatus === 'active' ? 'Votando' : 'Votos'}
           </span>

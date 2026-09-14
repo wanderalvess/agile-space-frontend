@@ -126,7 +126,7 @@ export default function DateTimePage() {
 
               <Button 
                 onClick={calculateDiff}
-                className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest gap-2 hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
+                className="w-full h-14 rounded-2xl bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 font-black text-[10px] uppercase tracking-widest gap-2 hover:bg-slate-800 dark:hover:!bg-slate-200 transition-all shadow-xl shadow-slate-900/10"
               >
                 Calcular Diferença
               </Button>

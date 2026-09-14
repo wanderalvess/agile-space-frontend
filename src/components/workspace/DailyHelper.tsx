@@ -28,6 +28,7 @@ import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 export function DailyHelper({ userProfile }: { userProfile: any }) {
   const { toast } = useToast();
@@ -212,50 +213,43 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col w-full h-full bg-[#fcfcfc] relative overflow-hidden animate-in fade-in duration-700">
-
-      {/* HEADER TÁTICO ULTRA-COMPACTO */}
-      <div className="px-6 pt-4 pb-3 flex flex-col md:flex-row md:items-end justify-between gap-4 shrink-0 bg-white/60 backdrop-blur-md border-b border-slate-100">
-        <div className="space-y-0.5">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-indigo-50 text-indigo-600 border-indigo-100 font-black uppercase tracking-[0.2em] text-[7px] px-1.5 py-0 italic">Assíncrono</Badge>
-          </div>
-          <h1 className="text-2xl font-black italic tracking-tighter text-slate-900 uppercase flex items-center gap-3">
-            Meu <span className="text-indigo-600 not-italic">Histórico</span>
-          </h1>
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Progresso Individual • {myReports?.length || 0} Registros</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-[8px] font-black uppercase tracking-widest text-transparent select-none ml-1">Espaçador</span>
+    <div className="flex-1 flex flex-col w-full h-full relative overflow-hidden animate-in fade-in duration-700 gap-4">
+      <WorkspaceSectionHeader
+        kicker="Assíncrono"
+        accent="indigo"
+        title="Meu"
+        titleAccent="Histórico"
+        subtitle={`Progresso individual • ${myReports?.length || 0} registros`}
+        className="shrink-0"
+        action={
+          <div className="flex items-end gap-3">
             <Button
               onClick={handleOpenNewReport}
               variant="outline"
-              className="h-9 px-4 border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[8px] tracking-[0.2em] hover:bg-slate-50 transition-all gap-2"
+              className="h-10 px-4 border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[8px] tracking-[0.2em] hover:bg-slate-50 transition-all gap-2"
             >
               <Plus className="h-3 w-3" /> Novo Status
             </Button>
-          </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 ml-1">Referência</span>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <Input
-                type="date"
-                value={format(selectedDate, 'yyyy-MM-dd')}
-                onChange={(e) => setSelectedDate(parseISO(e.target.value))}
-                className="h-9 pl-9 bg-white rounded-lg border-slate-200 font-bold text-slate-700 w-[150px] text-xs shadow-sm focus-visible:ring-indigo-500/20"
-              />
+            <div className="flex flex-col gap-1">
+              <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 ml-1">Referência</span>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  type="date"
+                  value={format(selectedDate, 'yyyy-MM-dd')}
+                  onChange={(e) => setSelectedDate(parseISO(e.target.value))}
+                  className="h-9 pl-9 bg-white rounded-lg border-slate-200 font-bold text-slate-700 w-[150px] text-xs shadow-sm focus-visible:ring-indigo-500/20"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* CONTEÚDO EM GRID COMPACTO */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-5 p-6 pt-3">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-5 pb-6">
 
           {/* LADO ESQUERDO: TIMELINE (MAIOR DENSIDADE) */}
           <div className="lg:col-span-7 xl:col-span-8 overflow-y-auto no-scrollbar pb-10 px-1">

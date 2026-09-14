@@ -263,7 +263,7 @@ export default function VaultReaderPage() {
                 </div>
                 <Button 
                   onClick={() => router.push('/devtools/secret-vault')}
-                  className="h-20 px-12 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase text-[12px] tracking-[0.3em]"
+                  className="h-20 px-12 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-[1.5rem] font-black uppercase text-[12px] tracking-[0.3em]"
                 >
                   Voltar ao Cofre
                 </Button>

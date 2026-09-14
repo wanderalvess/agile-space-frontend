@@ -92,7 +92,7 @@ export function KnowledgeSidebar({ onSearchClick }: { onSearchClick?: () => void
               className={cn(
                 "w-full flex items-center gap-4 px-5 py-4 rounded-[1.25rem] transition-all group overflow-hidden relative",
                 isActive
-                  ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20"
+                  ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 shadow-2xl shadow-slate-900/20"
                   : "text-slate-800 hover:bg-slate-50 hover:text-slate-900 border border-transparent hover:border-slate-100"
               )}
             >

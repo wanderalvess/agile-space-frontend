@@ -471,7 +471,7 @@ export default function DocGeneratorPage() {
                     <Button variant="ghost" className="h-10 px-4 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-xl" onClick={exportCSV}>
                       <Download className="w-4 h-4" /> Exportar CSV
                     </Button>
-                    <Button className="h-12 px-6 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-slate-900/10 active:scale-95" onClick={() => {
+                    <Button className="h-12 px-6 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 dark:hover:!bg-blue-200 transition-all shadow-xl shadow-slate-900/10 active:scale-95" onClick={() => {
                       if (docType === 'CPF') generateCPF();
                       else if (docType === 'CNPJ_CLASSIC') generateCNPJClassic();
                       else generateCNPJAlpha();

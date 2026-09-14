@@ -22,6 +22,7 @@ import { deletePromptWithChildren } from '@/app/prompt-hub/deletePrompt';
 import { PromptCard } from '@/app/prompt-hub/components/PromptCard';
 import { PromptEditor } from '@/app/prompt-hub/components/PromptEditor';
 import { PromptView } from '@/app/prompt-hub/components/PromptView';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 export function MyPrompts({ userProfile }: { userProfile: any }) {
   const { session } = useAuth();
@@ -120,37 +121,35 @@ export function MyPrompts({ userProfile }: { userProfile: any }) {
 
   return (
     <div className="flex-1 flex flex-col space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black uppercase tracking-tighter italic text-slate-900 leading-none">
-            Meus <span className="text-primary not-italic">Prompts</span>
-          </h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">
-            Sua biblioteca privada de modelos de escrita e prompts.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative w-full md:w-64">
-            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Filtrar prompts..."
-              className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-primary/10 text-xs font-bold"
-            />
+      <WorkspaceSectionHeader
+        kicker="Prompts"
+        accent="orange"
+        title="Meus"
+        titleAccent="Prompts"
+        subtitle="Sua biblioteca privada de modelos de escrita e prompts"
+        action={
+          <div className="flex items-center gap-3">
+            <div className="relative w-full md:w-64">
+              <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Filtrar prompts..."
+                className="h-10 pl-9 rounded-xl border-slate-200 bg-white shadow-sm focus:ring-2 focus:ring-primary/10 text-xs font-bold"
+              />
+            </div>
+            <Button
+              onClick={() => {
+                setEditingPrompt(null);
+                setIsEditorOpen(true);
+              }}
+              className="h-10 px-6 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-black dark:hover:!bg-slate-200 transition-all gap-2 shrink-0"
+            >
+              <Plus className="h-4 w-4 text-primary" /> Novo
+            </Button>
           </div>
-          <Button
-            onClick={() => {
-              setEditingPrompt(null);
-              setIsEditorOpen(true);
-            }}
-            className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-black transition-all gap-2 shrink-0"
-          >
-            <Plus className="h-4 w-4 text-primary" /> Novo
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPrompts.length === 0 ? (

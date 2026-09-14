@@ -39,6 +39,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { KanbanCardData, KanbanStatus, KanbanPriority } from './types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 interface KanbanBoardProps {
   cards: KanbanCardData[];
@@ -98,7 +99,15 @@ export function KanbanBoard({ cards, isLoading, onUpdateStatus, onEditCard, onAd
   const activeCard = activeId ? cards.find(c => c.id === activeId) : null;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden gap-4">
+      <WorkspaceSectionHeader
+        kicker="Kanban"
+        accent="orange"
+        title="Quadro"
+        titleAccent="Kanban"
+        subtitle="Fluxo de trabalho da squad"
+        className="shrink-0"
+      />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}

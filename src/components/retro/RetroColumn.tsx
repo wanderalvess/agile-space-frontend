@@ -335,7 +335,7 @@ function RetroColumnComponent({
                       onClick={(e) => { e.stopPropagation(); onToggleFocusMode?.(!isFocusMode); }}
                       className={cn(
                         "h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all gap-1.5",
-                        isFocusMode ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
+                        isFocusMode ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 hover:bg-slate-800 dark:hover:!bg-slate-200" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
                       )}
                     >
                       {isFocusMode ? (

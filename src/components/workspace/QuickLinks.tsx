@@ -28,6 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 interface QuickLinkData {
   id: string;
   name: string;
@@ -89,71 +90,73 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col">
-           <h3 className="text-xl font-black uppercase tracking-tighter italic text-slate-900">Meus <span className="text-primary not-italic">Atalhos</span></h3>
-           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Links rápidos da sua squad</span>
-        </div>
-        
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button className="h-10 px-6 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-slate-900/10 active:scale-95 transition-all">
-              <Plus className="h-4 w-4" /> Novo Link
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] border-none bg-white/95 backdrop-blur-xl shadow-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic text-slate-900">Adicionar <span className="text-primary not-italic">Atalho</span></DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-6 py-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Atalho</Label>
-                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Jira Board" className="h-12 rounded-xl font-bold border-2" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">URL (Endereço)</Label>
-                <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Ex: jira.com/squad-x" className="h-12 rounded-xl font-bold border-2" />
-              </div>
-              
-              <div className="space-y-3">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ícone e Cor</Label>
-                <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                  {Object.entries(ICON_MAP).map(([key, Icon]) => (
-                    <button
-                      key={key}
-                      onClick={() => setSelectedIcon(key)}
-                      className={cn(
-                        "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                        selectedIcon === key ? "bg-primary text-white scale-110 shadow-lg" : "bg-white text-slate-400 hover:text-slate-600 border border-slate-200"
-                      )}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                  {COLOR_PRESETS.map((color) => (
-                    <button
-                      key={color.name}
-                      onClick={() => setSelectedColor(color.class)}
-                      className={cn(
-                        "w-8 h-8 rounded-full border-4 transition-all",
-                        selectedColor === color.class ? "border-primary scale-110 shadow-lg" : "border-white",
-                        color.class.split(' ')[1]
-                      )}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleAddLink} className="w-full h-12 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary/20">
-                Salvar Atalho
+      <WorkspaceSectionHeader
+        kicker="Atalhos"
+        accent="orange"
+        title="Meus"
+        titleAccent="Atalhos"
+        subtitle="Links rápidos da sua squad"
+        action={
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="h-10 px-6 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-slate-900/10 dark:!shadow-black/30 active:scale-95 transition-all">
+                <Plus className="h-4 w-4" /> Novo Link
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] border-none bg-white/95 backdrop-blur-xl shadow-2xl">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic text-slate-900">Adicionar <span className="text-primary not-italic">Atalho</span></DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-6 py-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Atalho</Label>
+                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Jira Board" className="h-12 rounded-xl font-bold border-2" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">URL (Endereço)</Label>
+                  <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Ex: jira.com/squad-x" className="h-12 rounded-xl font-bold border-2" />
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ícone e Cor</Label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    {Object.entries(ICON_MAP).map(([key, Icon]) => (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedIcon(key)}
+                        className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                          selectedIcon === key ? "bg-primary text-white scale-110 shadow-lg" : "bg-white text-slate-400 hover:text-slate-600 border border-slate-200"
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    {COLOR_PRESETS.map((color) => (
+                      <button
+                        key={color.name}
+                        onClick={() => setSelectedColor(color.class)}
+                        className={cn(
+                          "w-8 h-8 rounded-full border-4 transition-all",
+                          selectedColor === color.class ? "border-primary scale-110 shadow-lg" : "border-white",
+                          color.class.split(' ')[1]
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleAddLink} className="w-full h-12 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary/20">
+                  Salvar Atalho
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
         {links.length > 0 ? (

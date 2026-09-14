@@ -31,6 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 const LANGUAGES = [
   'javascript', 'typescript', 'python', 'sql', 'bash', 'json', 'html', 'css', 'java', 'csharp', 'other'
@@ -168,34 +169,32 @@ export function SnippetLibrary() {
 
   return (
     <div className="flex-1 flex flex-col space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 leading-none">
-            Snippet <span className="text-indigo-600 not-italic">Library</span>
-          </h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">
-            Organize seus fragmentos de código e utilitários técnicos.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative w-full md:w-72 group">
-            <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar snippet por título, linguagem ou código..."
-              className="h-12 pl-10 rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-4 focus:ring-indigo-500/5 text-xs font-bold"
-            />
+      <WorkspaceSectionHeader
+        kicker="Snippets"
+        accent="indigo"
+        title="Snippet"
+        titleAccent="Library"
+        subtitle="Organize seus fragmentos de código e utilitários técnicos"
+        action={
+          <div className="flex items-center gap-3">
+            <div className="relative w-full md:w-72 group">
+              <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar snippet por título, linguagem ou código..."
+                className="h-12 pl-10 rounded-2xl border-slate-200 bg-white shadow-sm focus:ring-4 focus:ring-indigo-500/5 text-xs font-bold"
+              />
+            </div>
+            <Button
+              onClick={() => handleOpenEditor()}
+              className="h-12 px-6 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-black dark:hover:!bg-slate-200 transition-all gap-2 shrink-0"
+            >
+              <Plus className="h-5 w-5 text-indigo-400" /> Novo Snippet
+            </Button>
           </div>
-          <Button
-            onClick={() => handleOpenEditor()}
-            className="h-12 px-6 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-black transition-all gap-2 shrink-0"
-          >
-            <Plus className="h-5 w-5 text-indigo-400" /> Novo Snippet
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
         {filteredSnippets.length === 0 ? (

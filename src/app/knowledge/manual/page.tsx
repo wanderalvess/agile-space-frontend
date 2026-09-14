@@ -68,7 +68,7 @@ export default function ManualPage() {
           </p>
         </div>
         <div className="flex gap-4">
-           <Button onClick={() => router.push('/knowledge/kb')} className="h-10 px-6 rounded-xl bg-slate-900 text-white font-black uppercase text-[9px] tracking-widest">Explorar Wiki</Button>
+           <Button onClick={() => router.push('/knowledge/kb')} className="h-10 px-6 rounded-xl bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 font-black uppercase text-[9px] tracking-widest">Explorar Wiki</Button>
         </div>
       </div>
 

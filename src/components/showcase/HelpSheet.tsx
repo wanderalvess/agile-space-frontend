@@ -133,7 +133,7 @@ export function HelpSheet({ open, onClose }: HelpSheetProps) {
         </ScrollArea>
         
         <div className="p-8 border-t bg-slate-50 shrink-0">
-           <Button onClick={onClose} className="w-full h-12 bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-slate-800 shadow-lg shadow-black/10 transition-all">
+           <Button onClick={onClose} className="w-full h-12 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-slate-800 dark:hover:!bg-slate-200 shadow-lg shadow-black/10 transition-all">
              Entendi, vamos começar!
            </Button>
         </div>

@@ -23,6 +23,7 @@ import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { MyApiKeysManager } from '@/components/shared/MyApiKeysManager';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 export function ConnectivitySettings() {
   const { toast } = useToast();
@@ -82,27 +83,23 @@ export function ConnectivitySettings() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Standard Header matching QuickLinks/DailyHelper */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-cyan-50 text-cyan-600 border-cyan-100 font-black uppercase tracking-[0.2em] text-[7px] px-1.5 py-0 italic">Integrações</Badge>
-          </div>
-          <h1 className="text-2xl font-black italic tracking-tighter text-slate-900 uppercase flex items-center gap-3">
-            Conexões e <span className="text-cyan-600 not-italic">Integrações</span>
-          </h1>
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Sincronização de dados com ferramentas externas</p>
-        </div>
-
-        <Button 
-          onClick={handleSaveAll} 
-          disabled={isSaving || loadingJira || loadingTdn}
-          className="h-10 px-8 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-slate-900/10 active:scale-95 transition-all"
-        >
-          {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3.5 w-3.5 text-cyan-400" />}
-          Salvar Configurações
-        </Button>
-      </div>
+      <WorkspaceSectionHeader
+        kicker="Integrações"
+        accent="cyan"
+        title="Conexões e"
+        titleAccent="Integrações"
+        subtitle="Sincronização de dados com ferramentas externas"
+        action={
+          <Button
+            onClick={handleSaveAll}
+            disabled={isSaving || loadingJira || loadingTdn}
+            className="h-10 px-8 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-slate-900/10 dark:!shadow-black/30 active:scale-95 transition-all"
+          >
+            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3.5 w-3.5 text-cyan-400" />}
+            Salvar Configurações
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
@@ -153,8 +150,8 @@ export function ConnectivitySettings() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100/20">
-              <p className="text-[10px] text-blue-700/70 leading-relaxed font-bold">
+            <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100/20 dark:!bg-blue-500/10 dark:!border-blue-400/20">
+              <p className="text-[10px] text-blue-700/70 leading-relaxed font-bold dark:!text-blue-300">
                 Utilizado para importar Histórias de Usuário e Critérios de Aceite para as sessões de Poker.
               </p>
             </div>
@@ -176,7 +173,7 @@ export function ConnectivitySettings() {
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Technical Knowledge Hub</p>
                 </div>
               </div>
-              <Badge className="bg-cyan-50 text-cyan-600 border-none font-black text-[8px] tracking-widest">Confluence</Badge>
+              <Badge className="bg-cyan-50 text-cyan-600 border-none dark:!bg-cyan-500/10 dark:!text-cyan-300 font-black text-[8px] tracking-widest">Confluence</Badge>
             </div>
 
             <div className="space-y-4">
@@ -229,8 +226,8 @@ export function ConnectivitySettings() {
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-cyan-50/50 border border-cyan-100/20">
-              <p className="text-[10px] text-cyan-700/70 leading-relaxed font-bold">
+            <div className="p-4 rounded-2xl bg-cyan-50/50 border border-cyan-100/20 dark:!border-cyan-400/20">
+              <p className="text-[10px] text-cyan-700/70 leading-relaxed font-bold dark:!text-cyan-300">
                 Permite buscar documentações técnicas da empresa e importá-las para sua Wiki local com um clique.
               </p>
             </div>

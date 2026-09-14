@@ -503,7 +503,7 @@ export function InfrastructureDetailsDialog({ open, onOpenChange }: any) {
             A infraestrutura está operando em capacidade otimizada. Todas as métricas de governança são computadas via agregadores de servidor para garantir custo-zero e performance estável.
           </p>
         </div>
-        <DialogFooter className="p-10 pt-0"><Button onClick={() => onOpenChange(false)} className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase text-[11px] font-headline tracking-widest">Fechar</Button></DialogFooter>
+        <DialogFooter className="p-10 pt-0"><Button onClick={() => onOpenChange(false)} className="w-full h-14 rounded-2xl bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 font-black uppercase text-[11px] font-headline tracking-widest">Fechar</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

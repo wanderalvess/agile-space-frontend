@@ -22,12 +22,13 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { HistoryItem } from './types';
 import Link from 'next/link';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 interface HistoryTimelineProps {
   items: HistoryItem[] | null;
@@ -38,23 +39,22 @@ interface HistoryTimelineProps {
 export function HistoryTimeline({ items, isLoading, userId }: HistoryTimelineProps) {
   return (
     <div className="w-full space-y-6">
+      <WorkspaceSectionHeader
+        kicker="Histórico"
+        accent="orange"
+        title="Linha do Tempo de"
+        titleAccent="Cerimônias"
+        subtitle="Registro de sessões e eventos da squad"
+        action={
+          !isLoading && items ? (
+            <Badge variant="outline" className="h-6 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+              {items.length} SESSÕES
+            </Badge>
+          ) : undefined
+        }
+      />
+
       <Card className="border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl shadow-lg rounded-3xl overflow-hidden">
-        <CardHeader className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 shrink-0 py-5 px-6">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base md:text-lg font-black font-headline uppercase tracking-tight italic flex items-center gap-3 text-slate-900 dark:text-slate-100">
-              <div className="w-9 h-9 bg-slate-900 dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-                <History className="h-4.5 w-4.5 text-primary" />
-              </div>
-              Linha do Tempo de Cerimônias
-            </CardTitle>
-            {!isLoading && items && (
-              <Badge variant="outline" className="h-6 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
-                {items.length} SESSÕES
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        
         <CardContent className="p-0">
             {isLoading ? (
               <div className="p-20 flex flex-col items-center justify-center space-y-6">

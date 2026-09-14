@@ -471,7 +471,7 @@ export function FocusTimer({ tasks, dbSessions, onSessionComplete, onAddTask, on
                 </button>
                 <button onClick={toggleTimer}
                   className={cn("h-16 w-16 lg:h-20 lg:w-20 rounded-[2rem] shadow-xl transition-all active:scale-95 flex items-center justify-center",
-                    isActive ? "bg-slate-900 text-white" : "bg-white text-slate-900 border-2 border-slate-200 hover:border-primary/40")}>
+                    isActive ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900" : "bg-white text-slate-900 border-2 border-slate-200 hover:border-primary/40")}>
                   {isActive ? <Pause className="h-6 w-6 lg:h-8 lg:w-8" /> : <Play className="h-6 w-6 lg:h-8 lg:w-8 ml-1" />}
                 </button>
                 {mode === 'work' && elapsedSeconds > 0 ? (
@@ -611,7 +611,7 @@ export function FocusTimer({ tasks, dbSessions, onSessionComplete, onAddTask, on
                  </select>
 
                  <Button type="submit" disabled={!manualTaskTitle.trim()}
-                   className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white disabled:opacity-40 hover:bg-slate-800 active:scale-95 shadow-md shrink-0">
+                   className="h-10 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 disabled:opacity-40 hover:bg-slate-800 dark:hover:!bg-slate-200 active:scale-95 shadow-md shrink-0">
                    Add
                  </Button>
                </form>
