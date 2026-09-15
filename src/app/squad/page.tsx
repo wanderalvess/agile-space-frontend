@@ -34,7 +34,7 @@ import { authFetch } from '@/lib/auth-client';
 // Dynamic imports for Daily Flow components
 const FocusPlayer = dynamic(() => import('@/app/daily-flow/components/FocusPlayer'), { ssr: false });
 const DailyTimesheet = dynamic(() => import('@/app/daily-flow/components/DailyTimesheet'), { ssr: false });
-const DailyReport = dynamic(() => import('@/app/daily-flow/components/DailyReport'), { ssr: false });
+const DailyRadar = dynamic(() => import('@/app/daily-flow/components/DailyRadar'), { ssr: false });
 const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
 const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/SquadDashboardView').then(mod => mod.SquadDashboardView), { ssr: false });
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
@@ -225,15 +225,16 @@ function SquadHubContent() {
       setJql(config.syncJql && !config.syncJql.includes('project = "MISSI"') && !config.syncJql.includes('project = MISSI') ? config.syncJql : defaultSyncJql);
       setRankingEnabled(!!config.rankingEnabled);
       setCapacityHours(config.defaultDailyCapacityHours || 6);
-      setJiraDomain(config.jiraDomain || '');
+      setJiraDomain(config.jiraDomain || jiraSettings?.domain || '');
       setSprintFieldId(config.sprintFieldId || '');
       setRapidViewId(config.rapidViewId || (activeKey === 'DDWMISSI' ? '11360' : ''));
     } else if (squadId) {
       setProjectKey(defaultKey);
       setJql(`project = "${defaultKey}" AND sprint in openSprints()`);
+      setJiraDomain(jiraSettings?.domain || '');
       if (defaultKey === 'DDWMISSI') setRapidViewId('11360');
     }
-  }, [config, squadId]);
+  }, [config, squadId, jiraSettings?.domain]);
 
   // Carrega tarefas atribuídas para o Daily Command Center
   useEffect(() => {
@@ -271,6 +272,14 @@ function SquadHubContent() {
     try {
       if (jiraToken.trim()) {
         const dom = jiraDomain.trim() || jiraSettings?.domain || '';
+        if (!dom) {
+          toast({
+            title: 'Domínio Jira obrigatório',
+            description: 'Informe o domínio (ex: suaempresa.atlassian.net) antes de salvar o token — sem ele a sincronização não encontra suas credenciais.',
+            variant: 'destructive',
+          });
+          return;
+        }
         await saveJiraSettings({ domain: dom, token: jiraToken.trim() });
       }
       await saveSquadConfig(squadId, {
@@ -906,16 +915,15 @@ function SquadHubContent() {
               </div>
 
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-12 md:col-span-3 h-[540px]">
+                <div className="col-span-12 md:col-span-4 h-[540px]">
                   <FocusPlayer />
                 </div>
-                <div className="col-span-12 md:col-span-5 h-[540px]">
+                <div className="col-span-12 md:col-span-8 h-[540px]">
                   <DailyTimesheet />
                 </div>
-                <div className="col-span-12 md:col-span-4 h-[540px]">
-                  <DailyReport />
-                </div>
               </div>
+
+              <DailyRadar squadJiraDomain={config?.jiraDomain} />
 
               {/* Minhas Tarefas Ativas no Jira */}
               <Card className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
@@ -1032,7 +1040,7 @@ function SquadHubContent() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    Domínio Jira (Opcional)
+                    Domínio Jira
                   </label>
                   <Input
                     value={jiraDomain}
