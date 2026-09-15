@@ -622,7 +622,17 @@ function KBExplorerContent() {
 
                 {/* Toolbar de Ações Administrativas */}
                 <div className="flex flex-wrap gap-2.5">
-                  <Button onClick={() => setIsTdnOpen(true)} className="h-10 px-4 bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-300/60 dark:border-cyan-900/30 text-cyan-700 dark:text-cyan-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all gap-2 shadow-none">
+                  <Button
+                    onClick={() => {
+                      if (!tdnSettings?.baseUrl || !tdnSettings?.token) {
+                        toast.error('Configure a URL e o Token do TDN primeiro em Configurações > Conexões.', {
+                          action: { label: 'Configurar', onClick: () => router.push('/workspace') },
+                        });
+                        return;
+                      }
+                      setIsTdnOpen(true);
+                    }}
+                    className="h-10 px-4 bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-300/60 dark:border-cyan-900/30 text-cyan-700 dark:text-cyan-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all gap-2 shadow-none">
                     <Search className="h-4 w-4" /> Buscar e Importar TDN
                   </Button>
                   <Button onClick={handleSyncManuals} disabled={isSyncing} className="h-10 px-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-300/60 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all gap-2 shadow-none">
