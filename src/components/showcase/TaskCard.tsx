@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
-  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -472,6 +472,19 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 colorScheme={{ label: 'text-emerald-600 dark:text-emerald-400', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
               />
             </div>
+          )}
+
+          {!isMetricsCard && (
+            <TextField
+              id={`acceptance-criteria-${task.id}`}
+              label="Critérios de Aceite"
+              icon={CheckSquare}
+              value={task.acceptanceCriteria}
+              onChange={(v) => onUpdate({ acceptanceCriteria: v })}
+              placeholder="O que precisa ser validado para considerar essa entrega aceita..."
+              multiline minRows={3}
+              colorScheme={{ label: 'text-violet-500 dark:text-violet-400', focus: 'focus:border-violet-200 dark:focus:border-violet-900/40', ring: 'focus:ring-1 focus:ring-violet-200/50 dark:focus:ring-violet-900/20' }}
+            />
           )}
 
           {/* ╔══════════════════════════════════════╗
