@@ -251,6 +251,10 @@
       // (nome da sprint carregada) e no <title> da aba — remover o nó quebraria isso.
       const dashHeader = document.getElementById('dash-header');
       if (dashHeader) dashHeader.hidden = true;
+      // #squad-tabs continua visível (troca de squad/JQL salva é útil mesmo embedado,
+      // sobretudo pra quem lidera várias) — só marca pra virar sub-barra do header do
+      // React em vez de flutuar solta. Ver .is-embedded .squad-tabs no CSS.
+      document.body.classList.add('is-embedded');
     }
 
     window.addEventListener('storage', (event) => {
