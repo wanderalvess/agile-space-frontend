@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
@@ -17,9 +16,7 @@ import {
   FolderTree,
   ChevronRight,
   Database,
-  CheckCircle2,
   FileUp,
-  History,
   RefreshCw,
   Download,
   BookOpen,
@@ -41,7 +38,6 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/context/AuthContext';
@@ -83,6 +79,8 @@ function KBExplorerContent() {
 
   // Estados de Gestão (vindos do admin)
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedModule, setSelectedModule] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSyncing, setIsSyncing] = useState(false);
   const [isTdnOpen, setIsTdnOpen] = useState(false);
@@ -398,13 +396,35 @@ function KBExplorerContent() {
     return Array.from(tagsSet).sort();
   }, [documents]);
 
-  // Filtro definitivo (Pesquisa + Rótulos selecionados)
+  const getModuleName = (doc: KnowledgeDocument) => doc.fullPath?.split('/')[0]?.trim() || 'Raiz';
+
+  // Módulos/pastas e categorias pro navegador lateral, com contagem.
+  const moduleCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    (documents || []).forEach(doc => {
+      const mod = getModuleName(doc);
+      counts.set(mod, (counts.get(mod) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  }, [documents]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    (documents || []).forEach(doc => {
+      if (doc.category) counts.set(doc.category, (counts.get(doc.category) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  }, [documents]);
+
+  // Filtro definitivo (Pesquisa + Módulo + Categoria + Rótulos selecionados)
   const finalDocs = useMemo(() => {
-    if (selectedTags.length === 0) return filteredDocs;
-    return filteredDocs.filter(doc => 
-      doc.tags && selectedTags.every(tag => doc.tags?.includes(tag))
-    );
-  }, [filteredDocs, selectedTags]);
+    return filteredDocs.filter(doc => {
+      if (selectedModule && getModuleName(doc) !== selectedModule) return false;
+      if (selectedCategory && doc.category !== selectedCategory) return false;
+      if (selectedTags.length > 0 && !(doc.tags && selectedTags.every(tag => doc.tags?.includes(tag)))) return false;
+      return true;
+    });
+  }, [filteredDocs, selectedModule, selectedCategory, selectedTags]);
 
   // Efeito de Inicialização quando clicado via URL
   useEffect(() => {
@@ -604,360 +624,416 @@ function KBExplorerContent() {
             </div>
           ) : (
             /* ========================================================================= */
-            /* 2. PAINEL DE GESTÃO DE DOCUMENTOS UNIFICADO (ANTIGO ADMIN)                */
+            /* 2. PAINEL DE GESTÃO DE DOCUMENTOS — mesmo padrão visual do Prompt Hub     */
+            /* (sidebar widescreen + hero editorial + tokens semânticos shadcn)          */
             /* ========================================================================= */
-            <ScrollArea className="flex-1">
-              <div className="max-w-[1400px] mx-auto px-6 md:px-10 lg:px-12 pt-8 pb-32 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                
-                {/* Título e Ação Rápida */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-6 gap-4">
+            <div className="flex w-full flex-1 overflow-hidden">
+              <div className="mx-auto flex w-full max-w-[1920px] flex-1 overflow-hidden px-4 sm:px-6 lg:px-8 xl:px-10">
+                {/* Barra Lateral Widescreen: Módulo/Pasta, Categoria e Rótulos */}
+                <aside className="hidden xl:flex xl:w-64 2xl:w-72 xl:shrink-0 flex-col gap-6 py-5 pr-6 border-r border-border/60 overflow-y-auto">
                   <div className="space-y-2">
-                    <h1 className="text-3xl font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
-                      Base de <span className="text-cyan-600 not-italic">Conhecimento</span>
-                    </h1>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                      Centralização, Gestão e Sincronização da Wiki Space • {documents?.length || 0} Artigos
-                    </p>
-                  </div>
-
-                  {/* Atalho pra documentação de integração (REST + MCP) desta KB. */}
-                  <ModuleIntegrationButton moduleId="knowledge" label="Consumir via API & MCP" />
-                </div>
-
-                {/* Toolbar de Ações Administrativas */}
-                <div className="flex flex-wrap gap-2.5">
-                  <Button
-                    onClick={() => {
-                      if (!tdnSettings?.baseUrl || !tdnSettings?.token) {
-                        toast.error('Configure a URL e o Token do TDN primeiro em Configurações > Conexões.', {
-                          action: { label: 'Configurar', onClick: () => router.push('/workspace') },
-                        });
-                        return;
-                      }
-                      setIsTdnOpen(true);
-                    }}
-                    className="h-10 px-4 bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-300/60 dark:border-cyan-900/30 text-cyan-700 dark:text-cyan-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all gap-2 shadow-none">
-                    <Search className="h-4 w-4" /> Buscar e Importar TDN
-                  </Button>
-                  <Button onClick={handleSyncManuals} disabled={isSyncing} className="h-10 px-4 bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-300/60 dark:border-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all gap-2 shadow-none">
-                    {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar Manuais
-                  </Button>
-                  <Button onClick={() => router.push('/knowledge/trash')} className="h-10 px-4 bg-slate-100/85 dark:bg-slate-800/60 border border-slate-300/60 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-black uppercase text-[9px] tracking-wider rounded-xl hover:bg-slate-200/80 dark:hover:bg-slate-700 transition-all gap-2 shadow-none">
-                    <Trash2 className="h-4 w-4" /> Lixeira
-                  </Button>
-                  <Button onClick={() => router.push('/knowledge/admin/new-asset')} className="h-10 px-4 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-black uppercase text-[9px] tracking-wider shadow-md hover:bg-black dark:hover:bg-slate-200 gap-2">
-                    <Plus className="h-4 w-4 text-cyan-500 dark:text-cyan-400" /> Criar Artigo
-                  </Button>
-                </div>
-
-                {/* Falhas da última sincronização TDN — some ao fechar ou ao rodar de novo. */}
-                {failedDocs.length > 0 && (
-                  <div className="rounded-2xl border border-rose-300/60 dark:border-rose-900/40 bg-rose-50/70 dark:bg-rose-950/20 p-4 space-y-2.5 animate-in fade-in slide-in-from-top-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-400">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        {failedDocs.length} {failedDocs.length === 1 ? 'documento falhou' : 'documentos falharam'} na sincronização
-                      </span>
+                    <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                      Módulo / Pasta
+                    </span>
+                    <div className="space-y-1">
                       <button
-                        onClick={() => setFailedDocs([])}
-                        className="text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
-                        title="Fechar"
+                        onClick={() => setSelectedModule(null)}
+                        className={cn(
+                          'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs transition-colors',
+                          !selectedModule
+                            ? 'bg-accent text-foreground font-semibold shadow-xs'
+                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                        )}
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-2.5">
+                          <FolderTree className="h-4 w-4 shrink-0" />
+                          <span>Todos os módulos</span>
+                        </div>
+                        <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                          {documents?.length || 0}
+                        </span>
                       </button>
+                      {moduleCounts.map(([mod, count]) => {
+                        const isActive = selectedModule === mod;
+                        return (
+                          <button
+                            key={mod}
+                            onClick={() => setSelectedModule(isActive ? null : mod)}
+                            className={cn(
+                              'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs transition-colors',
+                              isActive
+                                ? 'bg-accent text-foreground font-semibold shadow-xs'
+                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                            )}
+                          >
+                            <span className="truncate">{mod}</span>
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0 ml-2">
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <ul className="space-y-1">
-                      {failedDocs.map((f, i) => (
-                        <li key={`${f.title}-${i}`} className="text-[10px] text-rose-700 dark:text-rose-400">
-                          <span className="font-black uppercase">{f.title}</span>
-                          <span className="text-rose-500 dark:text-rose-500"> — {f.reason}</span>
-                        </li>
-                      ))}
-                    </ul>
                   </div>
-                )}
 
-                {/* Stats: 4 blocos equivalentes */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-cyan-50 dark:bg-cyan-950/40 rounded-lg text-cyan-700 dark:text-cyan-400 text-[7px] font-black uppercase tracking-widest">
-                      <Database className="h-2.5 w-2.5" /> Biblioteca
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">{documents?.length || 0}</p>
-                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Artigos ativos</p>
-                  </Card>
+                  {categoryCounts.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/40">
+                      <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                        Categoria
+                      </span>
+                      <div className="space-y-1">
+                        {categoryCounts.map(([cat, count]) => {
+                          const isActive = selectedCategory === cat;
+                          return (
+                            <button
+                              key={cat}
+                              onClick={() => setSelectedCategory(isActive ? null : cat)}
+                              className={cn(
+                                'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs transition-colors',
+                                isActive
+                                  ? 'bg-accent text-foreground font-semibold'
+                                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                              )}
+                            >
+                              <span className="truncate">{cat}</span>
+                              {isActive && <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 ml-2" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
-                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-indigo-50 dark:bg-indigo-950/40 rounded-lg text-indigo-600 dark:text-indigo-400 text-[7px] font-black uppercase tracking-widest">
-                      <FileText className="h-2.5 w-2.5" /> Armazenamento
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">
-                      {(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(1)} <span className="text-sm text-slate-400">MB</span>
-                    </p>
-                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Espaço utilizado</p>
-                  </Card>
-
-                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-emerald-50 dark:bg-emerald-950/40 rounded-lg text-emerald-600 dark:text-emerald-400 text-[7px] font-black uppercase tracking-widest">
-                      <RefreshCw className="h-2.5 w-2.5" /> TDN
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">{documents?.filter(d => d.tdnId).length || 0}</p>
-                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Manuais sincronizados</p>
-                  </Card>
-
-                  <Card className="p-4 bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl shadow-xs flex flex-col gap-2.5">
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit bg-amber-50 dark:bg-amber-950/40 rounded-lg text-amber-600 dark:text-amber-400 text-[7px] font-black uppercase tracking-widest">
-                      <Hash className="h-2.5 w-2.5" /> Taxonomia
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">{availableTags.length}</p>
-                    <p className="text-[9px] font-black uppercase tracking-wide text-slate-400 dark:text-slate-500">Rótulos ativos</p>
-                  </Card>
-                </div>
-
-                {/* Seção Principal: Busca e Tabela de Gestão */}
-                <div className="space-y-4 pt-2">
-                  
-                  {/* Barra de Busca e Filtro */}
-                  <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-2xl p-4 backdrop-blur-md shadow-sm">
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:max-w-xl">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
+                  {availableTags.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/40">
+                      <div className="flex items-center justify-between px-2">
+                        <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                          Rótulos
+                        </span>
+                        {selectedTags.length > 0 && (
+                          <button onClick={() => setSelectedTags([])} className="text-[10px] font-medium text-primary hover:underline">
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative px-1">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                           type="text"
-                          placeholder="Pesquisar por título, categoria ou pasta..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="pl-10 pr-4 h-10 w-full bg-slate-50/50 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 focus-visible:ring-cyan-500 rounded-xl text-xs font-semibold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                          placeholder="Buscar rótulo..."
+                          value={tagSearchTerm}
+                          onChange={(e) => setTagSearchTerm(e.target.value)}
+                          className="pl-8 h-8 text-xs"
                         />
                       </div>
-
-                      {/* Select List de Rótulos (Dropdown) */}
-                      {availableTags.length > 0 && (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              className="h-10 px-4 bg-white/80 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-800 rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 gap-2 shrink-0"
-                            >
-                              <Hash className="h-4 w-4 text-cyan-500" />
-                              <span>Rótulos</span>
-                              {selectedTags.length > 0 && (
-                                <span className="ml-1 px-1.5 py-0.5 text-[9px] font-black bg-cyan-600 dark:bg-cyan-500 text-white rounded-md tabular-nums">
-                                  {selectedTags.length}
-                                </span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-72 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl" align="start">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Filtrar por Rótulo</span>
-                                {selectedTags.length > 0 && (
-                                  <button onClick={() => setSelectedTags([])} className="text-[9px] font-black uppercase text-rose-600 hover:underline">
-                                    Limpar
-                                  </button>
-                                )}
-                              </div>
-                              <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                                <Input 
-                                  type="text" 
-                                  placeholder="Buscar rótulo..." 
-                                  value={tagSearchTerm}
-                                  onChange={(e) => setTagSearchTerm(e.target.value)}
-                                  className="pl-8 pr-2 h-8 w-full bg-slate-50/50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 focus-visible:ring-cyan-500 rounded-lg text-[11px] placeholder:text-slate-400"
-                                />
-                              </div>
-                              <ScrollArea className="h-48 pr-2">
-                                <div className="space-y-1">
-                                  {availableTags
-                                    .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
-                                    .map(tag => {
-                                      const isChecked = selectedTags.includes(tag);
-                                      return (
-                                        <div 
-                                          key={tag} 
-                                          onClick={() => {
-                                            setSelectedTags(prev => 
-                                              isChecked ? prev.filter(t => t !== tag) : [...prev, tag]
-                                            );
-                                          }}
-                                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
-                                        >
-                                          <Checkbox checked={isChecked} onCheckedChange={() => {}} className="pointer-events-none" />
-                                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">{tag}</span>
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              </ScrollArea>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                    </div>
-
-                    {/* Filtros Ativos Renderizados Compactamente */}
-                    {selectedTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 items-center px-2 py-1 bg-white/40 dark:bg-slate-900/40 border border-slate-300/50 dark:border-slate-800/50 rounded-xl max-w-max animate-in fade-in slide-in-from-top-1">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mr-1 pl-1">Filtros ativos:</span>
-                        {selectedTags.map(tag => (
-                          <span key={tag} className="inline-flex items-center gap-1 bg-cyan-50/80 dark:bg-cyan-950/40 border border-cyan-300/60 dark:border-cyan-900/30 text-cyan-700 dark:text-cyan-400 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider">
-                            <Hash className="h-2 w-2 opacity-60" />
-                            {tag}
-                            <button onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))} className="hover:text-rose-600 transition-colors ml-0.5 font-bold text-[10px]">×</button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                      {selectedIds.size > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 animate-in fade-in zoom-in duration-300">
-                          <Button 
-                            onClick={handleSyncMultiple} 
-                            disabled={isSyncing}
-                            className="h-10 px-4 bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
-                          </Button>
-                          
-                          <Button 
-                            onClick={handleDownloadMultiple} 
-                            className="h-10 px-4 bg-emerald-600 dark:bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 text-white rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 shadow-md transition-all active:scale-95"
-                          >
-                            <Download className="h-4 w-4" /> Baixar ({selectedIds.size})
-                          </Button>
-         
-                          <Button 
-                            onClick={handleDeleteMultiple} 
-                            className="h-10 px-4 bg-rose-600 dark:bg-rose-600 hover:bg-rose-700 dark:hover:bg-rose-500 text-white rounded-xl font-black uppercase text-[9px] tracking-widest gap-2 shadow-md transition-all active:scale-95"
-                          >
-                            <Trash2 className="h-4 w-4" /> Excluir ({selectedIds.size})
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
- 
-                  {/* Tabela de Alta Densidade com layout Bento */}
-                  <div className="bg-white/60 dark:bg-slate-900/60 border border-slate-300/80 dark:border-slate-800/80 rounded-[2.5rem] shadow-xl backdrop-blur-md overflow-hidden">
-                    {isLoading ? (
-                      <div className="py-40 flex flex-col items-center justify-center gap-4">
-                        <AgileSpinner size="md" variant="indigo" />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 animate-pulse">Carregando Base...</span>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full table-auto">
-                          <thead>
-                            <tr className="bg-slate-50/80 dark:bg-slate-950/80 border-b border-slate-300 dark:border-slate-800">
-                              <th className="px-4 py-4 text-left w-12">
-                                <Checkbox 
-                                  checked={selectedIds.size === finalDocs.length && finalDocs.length > 0} 
-                                  onCheckedChange={toggleSelectAll}
-                                />
-                              </th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Título do Documento</th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Módulo / Pasta</th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Categoria</th>
-                              <th className="px-4 py-4 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Atualização</th>
-                              <th className="px-4 py-4 text-right pr-6 text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 w-36">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {finalDocs.map((docItem) => {
-                              const moduleName = docItem.fullPath?.split('/')[0]?.trim() || "Raiz";
-                              const subFolder = docItem.fullPath?.split('/')?.slice(1)?.join(' / ')?.trim();
+                      <ScrollArea className="h-40">
+                        <div className="flex flex-wrap gap-1.5 px-1 pt-1">
+                          {availableTags
+                            .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                            .map(tag => {
+                              const isSelected = selectedTags.includes(tag);
                               return (
-                                <tr key={docItem.id} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors group">
-                                  <td className="px-4 py-3">
-                                    <Checkbox 
-                                      checked={selectedIds.has(docItem.id)} 
-                                      onCheckedChange={() => toggleSelect(docItem.id)}
-                                    />
-                                  </td>
-                                  <td className="px-4 py-3 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50" onClick={() => handleOpenDoc(docItem)}>
-                                    <div className="flex flex-col">
-                                      <span className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight italic flex items-center gap-1.5">
-                                        {docItem.tdnId ? (
-                                          <FileUp className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
-                                        ) : (
-                                          <FileText className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                                        )}
-                                        {docItem.title}
-                                      </span>
-                                      {docItem.tags && docItem.tags.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1.5 max-h-5 overflow-hidden">
-                                          {docItem.tags.slice(0, 4).map(tag => (
-                                            <span key={tag} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded text-[7px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 leading-none">
-                                              {tag}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-col">
-                                      <span className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-200 flex items-center gap-1">
-                                        <FolderTree className="h-3.5 w-3.5 text-slate-400" /> {moduleName}
-                                      </span>
-                                      {subFolder && (
-                                        <span className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-500 ml-4">
-                                          {subFolder}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <span className="text-[9px] font-black uppercase bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-md text-slate-600 dark:text-slate-400 shadow-3xs">
-                                      {docItem.category}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex items-center gap-2">
-                                      <Clock className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
-                                      <span className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100 tabular-nums">
-                                        {formatDocDate(docItem.updatedAt)}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-right pr-6">
-                                    <div className="flex justify-end gap-1.5 transition-all">
-                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/40 text-slate-600 dark:text-slate-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 hover:text-cyan-600 dark:hover:text-cyan-400 shadow-none" onClick={() => handleDownload(docItem)} title="Baixar Documento">
-                                        <Download className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/40 text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-none" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)}>
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button size="icon" className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/40 text-slate-500 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-600 shadow-none" onClick={() => handleDelete(docItem.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
+                                <button
+                                  key={tag}
+                                  onClick={() => setSelectedTags(prev => isSelected ? prev.filter(t => t !== tag) : [...prev, tag])}
+                                  className={cn(
+                                    'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                                    isSelected
+                                      ? 'bg-primary text-primary-foreground font-semibold'
+                                      : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
+                                  )}
+                                >
+                                  #{tag}
+                                </button>
                               );
                             })}
-                            {finalDocs.length === 0 && (
-                              <tr>
-                                <td colSpan={6} className="py-20 text-center">
-                                  <div className="flex flex-col items-center justify-center gap-2">
-                                    <ShieldAlert className="h-8 w-8 text-slate-300 dark:text-slate-700 animate-pulse" />
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Nenhum documento encontrado nesta busca</span>
-                                  </div>
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
+                </aside>
 
+                {/* Área Principal: Ações, Hero, Busca e Tabela */}
+                <main className="flex flex-1 min-w-0 flex-col overflow-hidden xl:pl-6">
+                  <ScrollArea className="flex-1">
+                    <div className="pt-6 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+                      {/* Ações + Atalho de integração */}
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => {
+                              if (!tdnSettings?.baseUrl || !tdnSettings?.token) {
+                                toast.error('Configure a URL e o Token do TDN primeiro em Configurações > Conexões.', {
+                                  action: { label: 'Configurar', onClick: () => router.push('/workspace') },
+                                });
+                                return;
+                              }
+                              setIsTdnOpen(true);
+                            }}
+                          >
+                            <Search className="h-4 w-4" /> Buscar e Importar TDN
+                          </Button>
+                          <Button variant="outline" size="sm" className="gap-2" onClick={handleSyncManuals} disabled={isSyncing}>
+                            {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar Manuais
+                          </Button>
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => router.push('/knowledge/trash')}>
+                            <Trash2 className="h-4 w-4" /> Lixeira
+                          </Button>
+                          <Button size="sm" className="gap-2" onClick={() => router.push('/knowledge/admin/new-asset')}>
+                            <Plus className="h-4 w-4" /> Criar Artigo
+                          </Button>
+                        </div>
+                        <ModuleIntegrationButton moduleId="knowledge" label="Consumir via API & MCP" />
+                      </div>
+
+                      {/* Falhas da última sincronização TDN — some ao fechar ou ao rodar de novo. */}
+                      {failedDocs.length > 0 && (
+                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-2 text-xs font-semibold text-destructive">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              {failedDocs.length} {failedDocs.length === 1 ? 'documento falhou' : 'documentos falharam'} na sincronização
+                            </span>
+                            <button
+                              onClick={() => setFailedDocs([])}
+                              className="text-destructive/70 hover:text-destructive transition-colors"
+                              title="Fechar"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <ul className="space-y-1">
+                            {failedDocs.map((f, i) => (
+                              <li key={`${f.title}-${i}`} className="text-xs text-destructive/90">
+                                <span className="font-medium">{f.title}</span>
+                                <span className="text-destructive/70"> — {f.reason}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Vitrine de Entrada: Hero Editorial, igual ao Prompt Hub */}
+                      <section className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="max-w-2xl space-y-2.5">
+                            <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-primary font-semibold">
+                              <BookOpen className="h-3.5 w-3.5" />
+                              Wiki Space
+                            </div>
+                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                              Base de Conhecimento
+                            </h1>
+                            <p className="text-sm leading-relaxed text-muted-foreground max-w-xl">
+                              Centralização, gestão e sincronização dos manuais e artigos da squad. Busque, importe do TDN e mantenha tudo atualizado num lugar só.
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs backdrop-blur-sm">
+                            <div className="text-right">
+                              <span className="block font-mono text-xl font-bold text-foreground leading-none">
+                                {documents?.length || 0}
+                              </span>
+                              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                Artigos ativos
+                              </span>
+                            </div>
+                            <div className="h-7 w-[1px] bg-border/80" />
+                            <div className="text-right">
+                              <span className="block font-mono text-xl font-bold text-primary leading-none">
+                                {(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(1)}
+                              </span>
+                              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                MB usados
+                              </span>
+                            </div>
+                            <div className="h-7 w-[1px] bg-border/80" />
+                            <div className="text-right">
+                              <span className="block font-mono text-xl font-bold text-foreground leading-none">
+                                {documents?.filter(d => d.tdnId).length || 0}
+                              </span>
+                              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                Do TDN
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      {/* Busca + filtros ativos + ações em lote */}
+                      <div className="space-y-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="relative flex-1 sm:max-w-md">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              placeholder="Buscar por título, categoria ou pasta..."
+                              className="h-10 pl-10 text-sm"
+                            />
+                          </div>
+
+                          {selectedIds.size > 0 && (
+                            <div className="flex flex-wrap items-center gap-2 animate-in fade-in zoom-in duration-300">
+                              <Button size="sm" className="gap-2" onClick={handleSyncMultiple} disabled={isSyncing}>
+                                {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
+                              </Button>
+                              <Button size="sm" variant="outline" className="gap-2" onClick={handleDownloadMultiple}>
+                                <Download className="h-4 w-4" /> Baixar ({selectedIds.size})
+                              </Button>
+                              <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={handleDeleteMultiple}>
+                                <Trash2 className="h-4 w-4" /> Excluir ({selectedIds.size})
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {(selectedModule || selectedCategory || selectedTags.length > 0) && (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs text-muted-foreground mr-1">Filtros ativos:</span>
+                            {selectedModule && (
+                              <span className="inline-flex items-center gap-1 bg-accent text-foreground px-2 py-0.5 rounded-md text-xs font-medium">
+                                {selectedModule}
+                                <button onClick={() => setSelectedModule(null)} className="text-muted-foreground hover:text-foreground ml-0.5">×</button>
+                              </span>
+                            )}
+                            {selectedCategory && (
+                              <span className="inline-flex items-center gap-1 bg-accent text-foreground px-2 py-0.5 rounded-md text-xs font-medium">
+                                {selectedCategory}
+                                <button onClick={() => setSelectedCategory(null)} className="text-muted-foreground hover:text-foreground ml-0.5">×</button>
+                              </span>
+                            )}
+                            {selectedTags.map(tag => (
+                              <span key={tag} className="inline-flex items-center gap-1 bg-accent text-foreground px-2 py-0.5 rounded-md text-xs font-medium">
+                                #{tag}
+                                <button onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))} className="text-muted-foreground hover:text-foreground ml-0.5">×</button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tabela de Gestão */}
+                      <div className="bg-card border border-border rounded-2xl shadow-xs overflow-hidden">
+                        {isLoading ? (
+                          <div className="py-32 flex flex-col items-center justify-center gap-4">
+                            <AgileSpinner size="md" variant="indigo" />
+                            <span className="text-xs text-muted-foreground">Carregando base...</span>
+                          </div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full table-auto">
+                              <thead>
+                                <tr className="bg-muted/40 border-b border-border">
+                                  <th className="px-4 py-3 text-left w-12">
+                                    <Checkbox
+                                      checked={selectedIds.size === finalDocs.length && finalDocs.length > 0}
+                                      onCheckedChange={toggleSelectAll}
+                                    />
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Título do documento</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Módulo / pasta</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Categoria</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Atualização</th>
+                                  <th className="px-4 py-3 text-right pr-6 text-xs font-medium text-muted-foreground w-36">Ações</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {finalDocs.map((docItem) => {
+                                  const moduleName = getModuleName(docItem);
+                                  const subFolder = docItem.fullPath?.split('/')?.slice(1)?.join(' / ')?.trim();
+                                  return (
+                                    <tr key={docItem.id} className="border-b border-border/60 hover:bg-muted/30 transition-colors group">
+                                      <td className="px-4 py-3">
+                                        <Checkbox
+                                          checked={selectedIds.has(docItem.id)}
+                                          onCheckedChange={() => toggleSelect(docItem.id)}
+                                        />
+                                      </td>
+                                      <td className="px-4 py-3 cursor-pointer" onClick={() => handleOpenDoc(docItem)}>
+                                        <div className="flex flex-col gap-1">
+                                          <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                                            {docItem.tdnId ? (
+                                              <FileUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                                            ) : (
+                                              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                            )}
+                                            {docItem.title}
+                                          </span>
+                                          {docItem.tags && docItem.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {docItem.tags.slice(0, 4).map(tag => (
+                                                <span key={tag} className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-medium text-muted-foreground">
+                                                  {tag}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex flex-col">
+                                          <span className="text-xs text-foreground flex items-center gap-1.5">
+                                            <FolderTree className="h-3.5 w-3.5 text-muted-foreground" /> {moduleName}
+                                          </span>
+                                          {subFolder && (
+                                            <span className="text-[10px] text-muted-foreground ml-5">
+                                              {subFolder}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <span className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
+                                          {docItem.category}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                          <Clock className="h-3.5 w-3.5" />
+                                          {formatDocDate(docItem.updatedAt)}
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-3 text-right pr-6">
+                                        <div className="flex justify-end gap-1.5">
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(docItem)} title="Baixar documento">
+                                            <Download className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar">
+                                            <Edit className="h-4 w-4" />
+                                          </Button>
+                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(docItem.id)} title="Excluir">
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                                {finalDocs.length === 0 && (
+                                  <tr>
+                                    <td colSpan={6} className="py-20 text-center">
+                                      <div className="flex flex-col items-center justify-center gap-2">
+                                        <ShieldAlert className="h-8 w-8 text-muted-foreground/50" />
+                                        <span className="text-xs text-muted-foreground">Nenhum documento encontrado nesta busca</span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </main>
               </div>
-            </ScrollArea>
+            </div>
           )}
         </main>
       </div>
