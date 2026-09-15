@@ -115,6 +115,11 @@ export function UserProfileModal() {
 
   const isOpen = isEditProfileOpen || (isIdentityRequested && !isPublicExploration);
   const isNewUser = !userProfile || userProfile.isGuest || !userProfile.name;
+  // Projeto/Squad de conta real já onboardada só troca pelo seletor do header
+  // (useAuth().switchProject — autorizado, persiste no backend). Esse campo
+  // aqui grava só localmente via updateProfile() e é sobrescrito no próximo
+  // refresh de sessão, então deixar editável fingia uma troca que não pegava.
+  const squadEditLocked = !isNewUser;
 
   // Carrega projetos (tabela projects) e squads (tabela squads) da API
   useEffect(() => {
@@ -514,6 +519,7 @@ export function UserProfileModal() {
                     <Building2 className="h-3.5 w-3.5 text-primary" /> Projeto
                   </Label>
                   <Select
+                    disabled={squadEditLocked}
                     value={availableProjects.some(p => p.id === projectId) ? projectId : (projectId ? 'other' : '')}
                     onValueChange={(v) => {
                       setProjectId(v);
@@ -521,7 +527,7 @@ export function UserProfileModal() {
                       setSquadId('none');
                     }}
                   >
-                    <SelectTrigger className="h-9 rounded-xl bg-background/50 border-input text-foreground font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all">
+                    <SelectTrigger className="h-9 rounded-xl bg-background/50 border-input text-foreground font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
                       <SelectValue placeholder="Selecione o projeto..." />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border border-border bg-card shadow-2xl p-1 max-h-[220px]">
@@ -557,7 +563,7 @@ export function UserProfileModal() {
                     <Users className="h-3.5 w-3.5 text-primary" /> Squad / Equipe
                   </Label>
                   <Select
-                    disabled={!projectId || (availableSquadsForProject.length === 0 && projectId !== 'other')}
+                    disabled={squadEditLocked || !projectId || (availableSquadsForProject.length === 0 && projectId !== 'other')}
                     value={availableSquadsForProject.some(sq => sq.id === squadId) ? squadId : (squadId === 'other' ? 'other' : 'none')}
                     onValueChange={(v) => { setSquadId(v); setIsCustomSquad(v === 'other'); }}
                   >
@@ -613,8 +619,14 @@ export function UserProfileModal() {
                 </div>
               </div>
 
+              {squadEditLocked && (
+                <p className="text-[10px] text-muted-foreground font-medium -mt-1.5">
+                  Projeto e squad de contas já vinculadas trocam pelo seletor no topo da tela, não aqui.
+                </p>
+              )}
+
               {/* CAMPOS CUSTOMIZADOS SE NECESSÁRIO */}
-              {isCustomProject && (
+              {isCustomProject && !squadEditLocked && (
                 <div className="animate-in slide-in-from-top-2 duration-200 space-y-1">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Nome do Projeto Customizado</Label>
                   <Input 
@@ -626,7 +638,7 @@ export function UserProfileModal() {
                 </div>
               )}
 
-              {isCustomSquad && (
+              {isCustomSquad && !squadEditLocked && (
                 <div className="animate-in slide-in-from-top-2 duration-200 space-y-1">
                   <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Nome da Squad Customizada</Label>
                   <Input 
