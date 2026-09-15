@@ -274,18 +274,27 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.line(M, y, M + CW, y);
         y += 6;
 
-        wrapped('O PROBLEMA', M, textW, 8, 'bold', [225, 29, 72]);
-        wrapped(task.evidence.problem || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
-        y += 3;
+        const isMetricsCard = task.cardKind === 'metrics';
+        const metrics = task.metrics?.filter(m => m.field.trim()) || [];
 
-        wrapped('A SOLUÇÃO', M, textW, 8, 'bold', [5, 150, 105]);
-        wrapped(task.evidence.solution || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
-        y += 3;
-
-        if (task.acceptanceCriteria) {
-          wrapped('CRITÉRIOS DE ACEITE', M, textW, 8, 'bold', [124, 58, 237]);
-          wrapped(task.acceptanceCriteria, M, textW, 8.5, 'normal', [100, 116, 139]);
+        if (isMetricsCard) {
+          wrapped('CONTEXTO', M, textW, 8, 'bold', [124, 58, 237]);
+          wrapped(task.description || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
           y += 3;
+        } else {
+          wrapped('O PROBLEMA', M, textW, 8, 'bold', [225, 29, 72]);
+          wrapped(task.evidence.problem || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
+          y += 3;
+
+          wrapped('A SOLUÇÃO', M, textW, 8, 'bold', [5, 150, 105]);
+          wrapped(task.evidence.solution || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
+          y += 3;
+
+          if (task.acceptanceCriteria) {
+            wrapped('CRITÉRIOS DE ACEITE', M, textW, 8, 'bold', [124, 58, 237]);
+            wrapped(task.acceptanceCriteria, M, textW, 8.5, 'normal', [100, 116, 139]);
+            y += 3;
+          }
         }
 
         const vText = versionsText(task);
@@ -304,8 +313,38 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.text(task.evidence.dev || '—', M, y);
         doc.text(task.evidence.qa || '—', M + textW / 2, y);
 
-        // Coluna direita: evidência visual (imagem real quando carregou) ou link
-        if (image) {
+        // Coluna direita: gráfico de métricas (card de métricas), imagem real
+        // (quando carregou) ou link de evidência
+        if (isMetricsCard) {
+          setFont(7, 'bold', [129, 140, 248]);
+          doc.text((task.chartTitle || 'MÉTRICAS DE IMPACTO').toUpperCase(), imgX, imgTop);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.4);
+          doc.roundedRect(imgX, imgTop + 4, imgW, imgBottom - imgTop - 4, 3, 3, 'S');
+          if (metrics.length > 0) {
+            const chartX = imgX + 8;
+            const chartW = imgW - 16;
+            const maxValue = Math.max(...metrics.map(m => Math.max(0, m.value)), 1);
+            const rowH = Math.min(16, (imgBottom - imgTop - 16) / metrics.length);
+            let cy = imgTop + 12;
+            metrics.forEach(m => {
+              setFont(8.5, 'bold', [51, 65, 85]);
+              doc.text(m.field, chartX, cy);
+              setFont(9, 'bold', [124, 58, 237]);
+              doc.text(m.value.toLocaleString('pt-BR'), chartX + chartW, cy, { align: 'right' });
+              const barY = cy + 2.5;
+              doc.setFillColor(241, 245, 249);
+              doc.roundedRect(chartX, barY, chartW, 3, 1.5, 1.5, 'F');
+              const barW = Math.max(3, (Math.max(0, m.value) / maxValue) * chartW);
+              doc.setFillColor(124, 58, 237);
+              doc.roundedRect(chartX, barY, barW, 3, 1.5, 1.5, 'F');
+              cy += rowH;
+            });
+          } else {
+            setFont(9, 'bold', [148, 163, 184]);
+            doc.text('Sem métricas preenchidas', imgX + imgW / 2, imgTop + (imgBottom - imgTop) / 2, { align: 'center' });
+          }
+        } else if (image) {
           const boxW = imgW, boxH = imgBottom - imgTop;
           const scale = Math.min(boxW / image.width, boxH / image.height);
           const w = image.width * scale, h = image.height * scale;
