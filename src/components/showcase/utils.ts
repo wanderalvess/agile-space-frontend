@@ -1,3 +1,18 @@
+import { ShowcaseTask } from './types';
+
+/**
+ * Prontidão real de uma task, derivada do conteúdo preenchido — a mesma
+ * conta que colore a borda do TaskCard. Fonte única: antes disso o header da
+ * sala contava `preparationStatus` (dropdown manual, esquecível) e o card
+ * calculava isReady por conta própria, podendo discordar sem aviso nenhum.
+ */
+export const isTaskContentComplete = (task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics'>): boolean => {
+  if (task.cardKind === 'metrics') {
+    return (task.metrics || []).some(m => m.field.trim() && m.value);
+  }
+  return !!(task.evidence.problem && task.evidence.solution && (task.evidence.screenshot || task.evidence.video));
+};
+
 export const formatTime = (seconds?: number) => {
   if (!seconds || seconds <= 0) return '';
   const h = Math.floor(seconds / 3600);

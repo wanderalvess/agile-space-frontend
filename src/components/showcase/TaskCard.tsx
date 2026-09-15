@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
-  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ChevronDown, ArrowRight
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ShowcaseTask, ImpactMetric, ChartType, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
-import { isPdfUrl } from './utils';
+import { isPdfUrl, isTaskContentComplete } from './utils';
 import { ChartRenderer } from './ChartRenderer';
 import { CHART_PRESETS, getCategoryColor } from './chartPresets';
 
@@ -288,6 +288,11 @@ function MetricsEditor({
   );
 }
 
+function truncate(text: string | undefined, n: number) {
+  if (!text) return 'não preenchido';
+  return text.length > n ? text.slice(0, n).trim() + '…' : text;
+}
+
 // ── Componente Principal ──────────────────────────────────────────────────────
 function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }: TaskCardProps) {
   const onUpdate = React.useCallback(
@@ -296,12 +301,13 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
   );
   const onRemove = React.useCallback(() => onRemoveTask(task.id), [task.id, onRemoveTask]);
   const isMetricsCard = task.cardKind === 'metrics';
-  const hasProblem = !!task.evidence.problem;
-  const hasSolution = !!task.evidence.solution;
-  const hasEvidence = !!(task.evidence.screenshot || task.evidence.video);
-  const hasMetricValue = (task.metrics || []).some(m => m.field.trim() && m.value);
-  const isReady = isMetricsCard ? hasMetricValue : (hasProblem && hasSolution && hasEvidence);
+  const isReady = isTaskContentComplete(task);
   const isManual = task.id.startsWith('manual_') || task.key.startsWith('MANUAL-');
+  // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint
+  // grande) — sprint de 40 itens não vira scroll infinito de card 100% aberto.
+  // Não reage a isReady depois (useState só lê o valor inicial): card não
+  // fecha sozinho debaixo do cursor de quem tá editando.
+  const [collapsed, setCollapsed] = React.useState(isReady);
 
   return (
     <motion.div
@@ -409,6 +415,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               onValueChange={(v) => onUpdate({ preparationStatus: v as PreparationStatus })}
             >
               <SelectTrigger
+                data-tour={index === 0 ? 'first-card-status' : undefined}
                 className={cn(
                   "h-7 w-fit px-3 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors shrink-0 border",
                   PREPARATION_STATUS[task.preparationStatus || 'todo'].cls,
@@ -426,6 +433,15 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               </SelectContent>
             </Select>
 
+            {/* Recolher/Expandir */}
+            <Button
+              variant="ghost" size="icon" onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? 'Expandir' : 'Recolher'}
+              className="h-7 w-7 rounded-lg text-slate-300 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-all shrink-0"
+            >
+              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', !collapsed && 'rotate-180')} />
+            </Button>
+
             {/* Deletar */}
             <Button
               variant="ghost" size="icon" onClick={onRemove}
@@ -435,6 +451,35 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             </Button>
           </div>
 
+          {collapsed ? (
+            /* ╔══════════════════════════════════════╗
+                ║  RESUMO — card recolhido             ║
+                ╚══════════════════════════════════════╝ */
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="w-full flex items-center gap-2.5 text-left"
+            >
+              <span className="flex-1 min-w-0 flex items-center gap-2 text-[11px] italic text-slate-400 dark:text-slate-500 truncate">
+                <span className="truncate">"{truncate(isMetricsCard ? task.description : task.evidence.problem, 42)}"</span>
+                {!isMetricsCard && (
+                  <>
+                    <ArrowRight className="h-3 w-3 text-slate-300 dark:text-slate-700 shrink-0" />
+                    <span className="truncate">"{truncate(task.evidence.solution, 42)}"</span>
+                  </>
+                )}
+              </span>
+              {!isMetricsCard && task.acceptanceCriteria && (
+                <span className="flex items-center gap-1 text-[9px] font-bold text-violet-500 dark:text-violet-400 shrink-0">
+                  <CheckSquare className="h-3 w-3" /> Critérios
+                </span>
+              )}
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
+                {task.evidence.dev || 'sem dev'}
+              </span>
+            </button>
+          ) : (
+          <>
           {/* ╔══════════════════════════════════════╗
               ║  SEÇÃO 2 — Conteúdo da Entrega       ║
               ╚══════════════════════════════════════╝ */}
@@ -660,6 +705,8 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 />
               </div>
             </motion.div>
+          )}
+          </>
           )}
         </div>
       </Card>
