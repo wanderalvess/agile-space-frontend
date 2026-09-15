@@ -104,23 +104,18 @@ export default function XlsxToCsvPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Configurações Globais do Jira (Postgres via Spring Boot)
-  const { settings: jiraGlobalSettings } = useJiraSettings();
+  // Configurações Globais do Jira — fonte única (mesmo slot do Workspace/ConnectivitySettings)
+  const { settings: jiraGlobalSettings, saveSettings: saveJiraSettings } = useJiraSettings();
 
-  // Carregar credenciais e histórico no primeiro acesso
+  // Carregar credenciais no primeiro acesso
   useEffect(() => {
-    // 1. Tentar ler do Perfil salvo no backend
     if (jiraGlobalSettings?.token) {
       setJiraPat(jiraGlobalSettings.token);
-    } else if (typeof window !== 'undefined') {
-      // 2. Se não houver token salvo, ler do LocalStorage
-      const savedPat = localStorage.getItem('jira_pat');
-      if (savedPat) setJiraPat(savedPat);
     }
 
-    // Carregar histórico de chaves recentes
+    // Carregar histórico de chaves recentes (não é credencial, fica local mesmo)
     if (typeof window !== 'undefined') {
-      const savedKeys = localStorage.getItem('jira_recent_keys');
+      const savedKeys = localStorage.getItem('totvs_jira_recent_keys');
       if (savedKeys) {
         try {
           setRecentKeys(JSON.parse(savedKeys));
@@ -354,13 +349,9 @@ export default function XlsxToCsvPage() {
     const keys = jiraKey.split(',').map(k => k.trim().toUpperCase()).filter(Boolean);
     setFileName(keys.length === 1 ? `${keys[0]}.xlsx` : `Consolidado (${keys.length} Casos).xlsx`);
 
-    // Salvar token no localStorage
-    if (typeof window !== 'undefined') {
-      if (saveCredentials) {
-        localStorage.setItem('totvs_jira_pat', jiraPat);
-      } else {
-        localStorage.removeItem('totvs_jira_pat');
-      }
+    // Salva token na fonte única (useJiraSettings), não em localStorage próprio
+    if (saveCredentials) {
+      saveJiraSettings({ domain: jiraGlobalSettings?.domain || '', token: jiraPat });
     }
 
     try {

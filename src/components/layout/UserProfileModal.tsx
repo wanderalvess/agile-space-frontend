@@ -53,8 +53,10 @@ import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { userApi } from '@/app/users/api';
 import { Badge } from '@/components/ui/badge';
 import { authFetch } from '@/lib/auth-client';
+import { useJiraSettings } from '@/hooks/useJiraSettings';
 
 export function UserProfileModal() {
+  const { settings: jiraSettingsStore, saveSettings: saveJiraSettings } = useJiraSettings();
   const {
     userProfile,
     userSquads,
@@ -244,15 +246,14 @@ export function UserProfileModal() {
       .map(s => ({ id: s.id, name: s.name || s.id }));
   })();
 
-  // Carrega configurações de Jira salvas
+  // Carrega configurações de Jira salvas — fonte única é useJiraSettings (mesma
+  // usada em ConnectivitySettings/JiraImportDialog), sem slots de localStorage próprios.
   useEffect(() => {
-    try {
-      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || localStorage.getItem('agileSpace_jiraDomain') || '';
-      const savedToken = localStorage.getItem('agileSpace_jiraSync_token') || localStorage.getItem('agileSpace_jiraToken') || '';
-      setJiraDomain(savedDomain);
-      setJiraToken(savedToken);
-    } catch {}
-  }, [isOpen]);
+    if (isOpen && jiraSettingsStore) {
+      setJiraDomain(jiraSettingsStore.domain || '');
+      setJiraToken(jiraSettingsStore.token || '');
+    }
+  }, [isOpen, jiraSettingsStore]);
 
   useEffect(() => {
     if (userProfile && isOpen && isSquadsLoaded) {
@@ -298,8 +299,8 @@ export function UserProfileModal() {
   };
 
   const handleSyncFromJira = async (customToken?: string, customDomain?: string) => {
-    const tokenToUse = (customToken || jiraToken || localStorage.getItem('agileSpace_jiraToken') || localStorage.getItem('agileSpace_jiraSync_token') || '').trim();
-    const domainToUse = (customDomain || jiraDomain || localStorage.getItem('agileSpace_jiraSync_domain') || '').trim();
+    const tokenToUse = (customToken || jiraToken || jiraSettingsStore?.token || '').trim();
+    const domainToUse = (customDomain || jiraDomain || jiraSettingsStore?.domain || '').trim();
 
     if (!tokenToUse) {
       toast({
@@ -319,10 +320,9 @@ export function UserProfileModal() {
         const resolvedEmail = jiraUser.emailAddress || email || '';
         if (resolvedEmail) setEmail(resolvedEmail);
 
-        // Salva tokens no localStorage
-        localStorage.setItem('agileSpace_jiraToken', tokenToUse);
-        localStorage.setItem('agileSpace_jiraSync_token', tokenToUse);
-        localStorage.setItem('agileSpace_jiraSync_domain', domainToUse);
+        // Salva credenciais na fonte única (useJiraSettings): localStorage escopado por
+        // usuário + backend, mesmo slot usado em ConnectivitySettings/JiraImportDialog.
+        saveJiraSettings({ domain: domainToUse, token: tokenToUse });
         setJiraToken(tokenToUse);
         setJiraDomain(domainToUse);
         setJiraAccountDetails(jiraUser);
