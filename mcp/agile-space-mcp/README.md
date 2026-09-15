@@ -71,6 +71,7 @@ Prompt Hub (só legado, sem `source`):
 - `get_prompt(id)` — um prompt público por id
 - `list_prompt_collections(ownerId?, page?, pageSize?)` — lista coleções públicas
 - `get_prompt_collection(id)` — uma coleção pública por id, com os itens embutidos
+- `import_skill(name?, content, description?, tags?, visibility?)` — importa ou atualiza uma skill (formato Agent Skills / SKILL.md)
 
 ## Dev
 

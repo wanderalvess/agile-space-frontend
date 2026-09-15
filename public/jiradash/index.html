@@ -32,9 +32,12 @@
   <script>
     try {
       const theme = localStorage.getItem('theme');
-      if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark');
-      }
+      const variant = localStorage.getItem('theme-variant') || 'default';
+      const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      
+      document.documentElement.classList.remove('dark', 'light', 'theme-default', 'theme-nebula', 'theme-cyberpunk', 'theme-midnight', 'theme-nordic');
+      document.documentElement.classList.add(isDark ? 'dark' : 'light');
+      document.documentElement.classList.add('theme-' + variant);
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="./assets/css/jiradash.css">
@@ -156,10 +159,24 @@
 
   <script>
     // Bridge com Espaço Ágil (auto-autenticação e sincronização de tema)
-    function applyTheme(isDark) {
-      document.documentElement.classList.toggle('dark', isDark);
+    function applyTheme(mode, variant) {
+      const isDark = mode === 'dark';
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(isDark ? 'dark' : 'light');
+
+      if (variant) {
+        document.documentElement.classList.remove(
+          'theme-default',
+          'theme-nebula',
+          'theme-cyberpunk',
+          'theme-midnight',
+          'theme-nordic'
+        );
+        document.documentElement.classList.add('theme-' + variant);
+      }
+
       if (typeof Chart !== 'undefined' && Chart.defaults) {
-        Chart.defaults.color = isDark ? '#94a3b8' : '#666666';
+        Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
         Chart.defaults.borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
       }
     }
@@ -168,7 +185,7 @@
       if (!event.data) return;
 
       if (event.data.type === 'SET_THEME') {
-        applyTheme(event.data.mode === 'dark');
+        applyTheme(event.data.mode, event.data.variant);
       }
 
       if (event.data.type === 'SET_JIRA_CREDENTIALS' || event.data.type === 'SET_JIRA_PAT') {

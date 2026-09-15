@@ -1,6 +1,6 @@
 :root {
   --bg: #f8fafc;
-  --surface: #fff;
+  --surface: #ffffff;
   --surface-muted: #f1f5f9;
   --surface-blue: #eff6ff;
   --surface-blue-soft: #f5f9ff;
@@ -29,6 +29,27 @@
   --transition: .15s ease;
 }
 
+/* Explicit Light Mode */
+:root.light,
+html.light,
+body.light {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-muted: #f1f5f9;
+  --surface-blue: #eff6ff;
+  --surface-blue-soft: #f5f9ff;
+  --border: #e2e8f0;
+  --border-soft: #eef2f7;
+  --text: #0f1729;
+  --text-muted: #64748b;
+  --text-soft: #94a3b8;
+  --text-faint: #cbd5e1;
+  --card-glass: rgba(255, 255, 255, .75);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04), 0 1px 3px rgba(15, 23, 42, .04);
+  --shadow-lift: 0 16px 32px -14px rgba(15, 23, 42, .18);
+}
+
+/* Base Dark Mode */
 :root.dark,
 html.dark,
 body.dark,
@@ -59,33 +80,92 @@ body.dark,
   --transition: .15s ease;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not(.light) {
-    --bg: #020617;
-    --surface: #0f172a;
-    --surface-muted: #1e293b;
-    --surface-blue: #16233b;
-    --surface-blue-soft: #182b47;
-    --border: #2a3b56;
-    --border-soft: #1a283c;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-soft: #64748b;
-    --text-faint: #475569;
-    --primary: #ff7a1a;
-    --primary-hover: #ff8f3d;
-    --accent: var(--primary);
-    --accent-subtle: rgba(255, 122, 26, .16);
-    --info: #60a5fa;
-    --success: #34d399;
-    --warning: #fbbf24;
-    --danger: #f87171;
-    --card-glass: rgba(15, 23, 42, .62);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3), 0 1px 3px rgba(0, 0, 0, .2);
-    --shadow-lift: 0 16px 32px -12px rgba(0, 0, 0, .5);
-    --shadow-focus: 0 0 0 3px rgba(255, 122, 26, .25);
-    --transition: .15s ease;
-  }
+/* ─────────────────────────────────────────────────────────────
+   Variantes de Tema sincronizadas com Espaço Ágil
+   ───────────────────────────────────────────────────────────── */
+
+/* 1. Nebula (Cosmic Violet & Indigo) */
+.theme-nebula {
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --accent: #8b5cf6;
+  --accent-subtle: rgba(139, 92, 246, 0.15);
+  --shadow-focus: 0 0 0 3px rgba(139, 92, 246, 0.25);
+}
+.dark.theme-nebula,
+.dark .theme-nebula {
+  --bg: #070711;
+  --surface: #0f0f1d;
+  --surface-muted: #1a1930;
+  --surface-blue: #16152e;
+  --surface-blue-soft: #1c1b3a;
+  --border: #3b2d60;
+  --border-soft: #251c3d;
+  --card-glass: rgba(15, 15, 29, 0.75);
+}
+
+/* 2. Cyberpunk (Neon Pink & Cyan) */
+.theme-cyberpunk {
+  --primary: #ff1493;
+  --primary-hover: #e00b80;
+  --accent: #00e5ff;
+  --accent-subtle: rgba(255, 20, 147, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(255, 20, 147, 0.25);
+}
+.dark.theme-cyberpunk,
+.dark .theme-cyberpunk {
+  --bg: #09020e;
+  --surface: #14051b;
+  --surface-muted: #240a30;
+  --surface-blue: #1b0a2c;
+  --surface-blue-soft: #260e3e;
+  --border: #4d1052;
+  --border-soft: #320b35;
+  --card-glass: rgba(20, 5, 27, 0.75);
+}
+
+/* 3. Midnight Tech (Pitch Black & Electric Blue) */
+.theme-midnight {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --accent: #3b82f6;
+  --accent-subtle: rgba(59, 130, 246, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.25);
+}
+.dark.theme-midnight,
+.dark .theme-midnight {
+  --bg: #050505;
+  --surface: #0e0e0e;
+  --surface-muted: #18181b;
+  --surface-blue: #0f1c2e;
+  --surface-blue-soft: #13243c;
+  --border: #1e3a5f;
+  --border-soft: #14253c;
+  --card-glass: rgba(14, 14, 14, 0.8);
+}
+
+/* 4. Nordic Calm (Forest Green & Sage) */
+.theme-nordic {
+  --primary: #1b4d3e;
+  --primary-hover: #153c30;
+  --accent: #2e6f5c;
+  --accent-subtle: rgba(27, 77, 62, 0.14);
+  --shadow-focus: 0 0 0 3px rgba(27, 77, 62, 0.25);
+}
+.dark.theme-nordic,
+.dark .theme-nordic {
+  --primary: #34d399;
+  --primary-hover: #10b981;
+  --accent: #34d399;
+  --accent-subtle: rgba(52, 211, 153, 0.16);
+  --bg: #050e0a;
+  --surface: #0b1c15;
+  --surface-muted: #132b21;
+  --surface-blue: #0f241c;
+  --surface-blue-soft: #153126;
+  --border: #1d4334;
+  --border-soft: #132f24;
+  --card-glass: rgba(11, 28, 21, 0.75);
 }
 
 *, *::before, *::after {
@@ -100,6 +180,7 @@ body {
   font-size: 15px;
   color: var(--text);
   background: var(--bg);
+  transition: background var(--transition), color var(--transition);
 }
 
 button,
@@ -113,9 +194,10 @@ button {
 }
 
 .container {
-  width: min(1100px, 100%);
+  width: 100%;
+  max-width: 1720px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: 1.25rem 2rem;
 }
 
 .header {
@@ -875,15 +957,15 @@ button {
 
 .chart-title {
   margin-bottom: 12px;
-  color: #555;
+  color: var(--text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .chart-subtitle {
   margin-top: -8px;
   margin-bottom: 10px;
-  color: #999;
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 400;
 }
@@ -919,7 +1001,7 @@ button {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #444;
+  color: var(--text-muted);
 }
 
 .donut-legend .dot {
@@ -937,12 +1019,12 @@ button {
 
 .donut-legend .value {
   font-weight: 600;
-  color: #555;
+  color: var(--text);
   white-space: nowrap;
 }
 
 .donut-legend .value .pct {
-  color: #888;
+  color: var(--text-soft);
   font-weight: 400;
   margin-left: 4px;
 }

@@ -186,7 +186,7 @@ export function PromptEditor({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+      <DialogContent className="flex max-h-[94vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl lg:max-w-5xl xl:max-w-6xl">
         <DialogHeader className="border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-lg font-semibold">
             {initialData ? 'Editar item' : 'Publicar na biblioteca'}
@@ -196,379 +196,387 @@ export function PromptEditor({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-          {/* 1. Tipo — define rótulos, ajuda e formato do conteúdo abaixo */}
-          <section className="space-y-2">
-            <Label className="text-sm font-medium">Tipo de item</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {TYPE_ORDER.map(type => {
-                const meta = TYPE_META[type];
-                const Icon = meta.icon;
-                const isActive = formData.type === type;
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-8">
+            {/* Coluna Esquerda (Principal): Tipo, Identificação, Conteúdo / Prompt e Link */}
+            <div className="lg:col-span-7 xl:col-span-7 space-y-5">
+              {/* 1. Tipo — define rótulos, ajuda e formato do conteúdo abaixo */}
+              <section className="space-y-2">
+                <Label className="text-sm font-medium">Tipo de item</Label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {TYPE_ORDER.map(type => {
+                    const meta = TYPE_META[type];
+                    const Icon = meta.icon;
+                    const isActive = formData.type === type;
 
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => update({ type })}
-                    title={meta.summary}
-                    className={cn(
-                      'flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm transition-colors',
-                      isActive
-                        ? 'border-foreground/25 bg-accent font-medium text-foreground'
-                        : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                    )}
-                  >
-                    <Icon className={cn('h-4 w-4 shrink-0', isActive && meta.accent)} />
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground">{typeMeta.summary}</p>
-          </section>
-
-          {/* 2. Identificação */}
-          <section className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="prompt-title" className="text-sm font-medium">
-                Título
-              </Label>
-              <Input
-                id="prompt-title"
-                value={formData.title || ''}
-                onChange={e => update({ title: e.target.value })}
-                placeholder="Ex: Gerador de critérios de aceite em Gherkin"
-                className="h-10"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="prompt-description" className="text-sm font-medium">
-                Descrição
-              </Label>
-              <Textarea
-                id="prompt-description"
-                value={formData.description || ''}
-                onChange={e => update({ description: e.target.value })}
-                placeholder="O que este item resolve e quando usar."
-                className="min-h-[72px] resize-y text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Aparece no card e é usada na busca. Uma ou duas frases bastam.
-              </p>
-            </div>
-
-            {similarItems.length > 0 && (
-              <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                <p className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
-                  <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
-                  {similarItems.length === 1
-                    ? 'Já existe um item parecido na biblioteca'
-                    : 'Já existem itens parecidos na biblioteca'}
-                </p>
-                <ul className="space-y-1">
-                  {similarItems.map(({ item, reason }) => (
-                    <li key={item.id} className="flex items-baseline gap-2 text-xs">
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                        {SIMILARITY_REASON_LABEL[reason]}
-                      </span>
-                      <span className="min-w-0 truncate text-foreground">
-                        {item.title?.trim() || 'Item sem título'}
-                      </span>
-                      <span className="shrink-0 text-muted-foreground">
-                        · {item.authorName?.split(' ')[0] || 'Membro'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-muted-foreground">
-                  Considere editar o item existente em vez de criar outro. Se for uma variação
-                  proposital, siga em frente.
-                </p>
-              </div>
-            )}
-          </section>
-
-          {/* 3. Conteúdo — rótulo, dica e formato mudam conforme o tipo */}
-          <section className="space-y-1.5">
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="prompt-content" className="text-sm font-medium">
-                {typeMeta.contentLabel}
-                {typeMeta.linkFirst && (
-                  <span className="ml-2 font-normal text-muted-foreground">(opcional)</span>
-                )}
-              </Label>
-
-              {formData.type === 'skill' && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push('/prompt-hub/tutorial')}
-                  className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <GraduationCap className="h-3.5 w-3.5" />
-                  Ver tutorial
-                </Button>
-              )}
-            </div>
-
-            {typeMeta.contentHint && (
-              <p className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                {typeMeta.contentHint}
-              </p>
-            )}
-
-            <Textarea
-              id="prompt-content"
-              value={formData.content || ''}
-              onChange={e => update({ content: e.target.value })}
-              placeholder={typeMeta.contentPlaceholder}
-              className={cn(
-                'min-h-[220px] resize-y',
-                typeMeta.mono ? 'font-code text-[13px] leading-relaxed' : 'text-sm'
-              )}
-            />
-
-            {/* Conferência ao vivo do formato SKILL.md */}
-            {skillCheck && (
-              <div className="space-y-1.5 pt-1">
-                {skillCheck.errors.length === 0 && skillCheck.warnings.length === 0 && (
-                  <p className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
-                    <CircleCheck className="h-3.5 w-3.5 shrink-0" />
-                    Formato válido
-                    {skillCheck.name && (
-                      <span className="font-code text-muted-foreground">— {skillCheck.name}</span>
-                    )}
-                  </p>
-                )}
-
-                {skillCheck.errors.map(error => (
-                  <p
-                    key={error}
-                    className="flex items-start gap-2 text-xs leading-relaxed text-destructive"
-                  >
-                    <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    {error}
-                  </p>
-                ))}
-
-                {skillCheck.warnings.map(warning => (
-                  <p
-                    key={warning}
-                    className="flex items-start gap-2 text-xs leading-relaxed text-amber-700 dark:text-amber-400"
-                  >
-                    <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    {warning}
-                  </p>
-                ))}
-
-                {skillCheck.warnings.length > 0 && skillCheck.errors.length === 0 && (
-                  <p className="pl-5 text-xs text-muted-foreground">
-                    Avisos não impedem a publicação.
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
-
-          {/* 4. Link — protagonista nos tipos que apontam para ferramenta externa */}
-          <section className="space-y-1.5">
-            <Label htmlFor="prompt-link" className="text-sm font-medium">
-              Link da ferramenta
-              {!typeMeta.linkFirst && (
-                <span className="ml-2 font-normal text-muted-foreground">(opcional)</span>
-              )}
-            </Label>
-            <div className="relative">
-              <LinkIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="prompt-link"
-                value={formData.gemLink || ''}
-                onChange={e => update({ gemLink: e.target.value })}
-                placeholder="https://gemini.google.com/gems/..."
-                className="h-10 pl-9"
-              />
-            </div>
-          </section>
-
-          {/* 5. Visibilidade e tags */}
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Quem pode ver</Label>
-              <Select
-                value={formData.visibility}
-                onValueChange={(value: PromptVisibility) => update({ visibility: value })}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(VISIBILITY_META) as PromptVisibility[])
-                    .filter(key => VISIBILITY_META[key].available)
-                    .map(key => (
-                      <SelectItem key={key} value={key}>
-                        {VISIBILITY_META[key].label}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {VISIBILITY_META[(formData.visibility as PromptVisibility) || 'private'].description}
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="prompt-tags" className="text-sm font-medium">
-                Tags
-              </Label>
-              <Input
-                id="prompt-tags"
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddTag(tagInput);
-                  }
-                }}
-                placeholder="Digite e pressione Enter"
-                className="h-10"
-              />
-
-              {formData.tags && formData.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {formData.tags.map(tag => (
-                    <span
-                      key={tag}
-                      className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-foreground"
-                    >
-                      #{tag}
+                    return (
                       <button
+                        key={type}
                         type="button"
-                        onClick={() => removeTag(tag)}
-                        className="text-muted-foreground hover:text-destructive"
-                        title={`Remover ${tag}`}
+                        onClick={() => update({ type })}
+                        title={meta.summary}
+                        className={cn(
+                          'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors',
+                          isActive
+                            ? 'border-foreground/25 bg-accent font-medium text-foreground'
+                            : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                        )}
                       >
-                        <X className="h-3 w-3" />
+                        <Icon className={cn('h-3.5 w-3.5 shrink-0', isActive && meta.accent)} />
+                        {meta.label}
                       </button>
-                    </span>
-                  ))}
+                    );
+                  })}
                 </div>
-              )}
+                <p className="text-xs text-muted-foreground">{typeMeta.summary}</p>
+              </section>
 
-              {(!formData.tags || formData.tags.length === 0) && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {SUGGESTED_TAGS.slice(0, 5).map(tag => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleAddTag(tag)}
-                      className="rounded-md border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-solid hover:text-foreground"
-                    >
-                      + {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 6. Detalhes de iniciativa — recolhidos por padrão */}
-          <section className="rounded-lg border border-border">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(v => !v)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
-            >
-              <span className="text-sm font-medium text-foreground">Detalhes de iniciativa</span>
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                Objetivo, status, impacto, público-alvo
-                <ChevronDown
-                  className={cn('h-4 w-4 transition-transform', showAdvanced && 'rotate-180')}
-                />
-              </span>
-            </button>
-
-            {showAdvanced && (
-              <div className="space-y-4 border-t border-border px-4 py-4">
+              {/* 2. Identificação */}
+              <section className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="prompt-goal" className="text-sm font-medium">
-                    Objetivo de negócio
+                  <Label htmlFor="prompt-title" className="text-sm font-medium">
+                    Título
                   </Label>
-                  <Textarea
-                    id="prompt-goal"
-                    value={formData.businessGoal || ''}
-                    onChange={e => update({ businessGoal: e.target.value })}
-                    placeholder="Que problema isso resolve e qual ganho é esperado."
-                    className="min-h-[64px] resize-y text-sm"
+                  <Input
+                    id="prompt-title"
+                    value={formData.title || ''}
+                    onChange={e => update({ title: e.target.value })}
+                    placeholder="Ex: Gerador de critérios de aceite em Gherkin"
+                    className="h-10"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Status</Label>
-                    <Select value={formData.status} onValueChange={(v: any) => update({ status: v })}>
-                      <SelectTrigger className="h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ideacao">Ideação</SelectItem>
-                        <SelectItem value="planejamento">Planejamento</SelectItem>
-                        <SelectItem value="desenvolvimento">Em desenvolvimento</SelectItem>
-                        <SelectItem value="producao">Em produção</SelectItem>
-                        <SelectItem value="arquivado">Arquivado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="prompt-description" className="text-sm font-medium">
+                    Descrição
+                  </Label>
+                  <Textarea
+                    id="prompt-description"
+                    value={formData.description || ''}
+                    onChange={e => update({ description: e.target.value })}
+                    placeholder="O que este item resolve e quando usar."
+                    className="min-h-[64px] resize-y text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Aparece no card e é usada na busca. Uma ou duas frases bastam.
+                  </p>
+                </div>
+              </section>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-medium">Impacto esperado</Label>
-                    <Select value={formData.impact} onValueChange={(v: any) => update({ impact: v })}>
-                      <SelectTrigger className="h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="baixo">Baixo</SelectItem>
-                        <SelectItem value="medio">Médio</SelectItem>
-                        <SelectItem value="alto">Alto</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {/* 3. Conteúdo — rótulo, dica e formato mudam conforme o tipo */}
+              <section className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="prompt-content" className="text-sm font-medium">
+                    {typeMeta.contentLabel}
+                    {typeMeta.linkFirst && (
+                      <span className="ml-2 font-normal text-muted-foreground">(opcional)</span>
+                    )}
+                  </Label>
+
+                  {formData.type === 'skill' && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push('/prompt-hub/tutorial')}
+                      className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <GraduationCap className="h-3.5 w-3.5" />
+                      Ver tutorial
+                    </Button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prompt-audience" className="text-sm font-medium">
-                      Público-alvo
-                    </Label>
-                    <Input
-                      id="prompt-audience"
-                      value={formData.targetAudience || ''}
-                      onChange={e => update({ targetAudience: e.target.value })}
-                      placeholder="Ex: devs, QA, produto"
-                      className="h-10"
-                    />
-                  </div>
+                {typeMeta.contentHint && (
+                  <p className="flex items-start gap-2 rounded-lg bg-muted px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {typeMeta.contentHint}
+                  </p>
+                )}
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prompt-doc" className="text-sm font-medium">
-                      Link de documentação
-                    </Label>
-                    <Input
-                      id="prompt-doc"
-                      value={formData.architectureLink || ''}
-                      onChange={e => update({ architectureLink: e.target.value })}
-                      placeholder="Miro, Confluence, Notion..."
-                      className="h-10"
-                    />
+                <Textarea
+                  id="prompt-content"
+                  value={formData.content || ''}
+                  onChange={e => update({ content: e.target.value })}
+                  placeholder={typeMeta.contentPlaceholder}
+                  className={cn(
+                    'min-h-[260px] lg:min-h-[300px] resize-y',
+                    typeMeta.mono ? 'font-code text-[13px] leading-relaxed' : 'text-sm'
+                  )}
+                />
+
+                {/* Conferência ao vivo do formato SKILL.md */}
+                {skillCheck && (
+                  <div className="space-y-1.5 pt-1">
+                    {skillCheck.errors.length === 0 && skillCheck.warnings.length === 0 && (
+                      <p className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+                        <CircleCheck className="h-3.5 w-3.5 shrink-0" />
+                        Formato válido
+                        {skillCheck.name && (
+                          <span className="font-code text-muted-foreground">— {skillCheck.name}</span>
+                        )}
+                      </p>
+                    )}
+
+                    {skillCheck.errors.map(error => (
+                      <p
+                        key={error}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-destructive"
+                      >
+                        <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {error}
+                      </p>
+                    ))}
+
+                    {skillCheck.warnings.map(warning => (
+                      <p
+                        key={warning}
+                        className="flex items-start gap-2 text-xs leading-relaxed text-amber-700 dark:text-amber-400"
+                      >
+                        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        {warning}
+                      </p>
+                    ))}
+
+                    {skillCheck.warnings.length > 0 && skillCheck.errors.length === 0 && (
+                      <p className="pl-5 text-xs text-muted-foreground">
+                        Avisos não impedem a publicação.
+                      </p>
+                    )}
                   </div>
+                )}
+              </section>
+
+              {/* 4. Link — protagonista nos tipos que apontam para ferramenta externa */}
+              <section className="space-y-1.5">
+                <Label htmlFor="prompt-link" className="text-sm font-medium">
+                  Link da ferramenta
+                  {!typeMeta.linkFirst && (
+                    <span className="ml-2 font-normal text-muted-foreground">(opcional)</span>
+                  )}
+                </Label>
+                <div className="relative">
+                  <LinkIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="prompt-link"
+                    value={formData.gemLink || ''}
+                    onChange={e => update({ gemLink: e.target.value })}
+                    placeholder="https://gemini.google.com/gems/..."
+                    className="h-10 pl-9"
+                  />
                 </div>
-              </div>
-            )}
-          </section>
+              </section>
+            </div>
+
+            {/* Coluna Direita (Configurações & Metadados): Avisos, Visibilidade, Tags e Iniciativa */}
+            <div className="lg:col-span-5 xl:col-span-5 space-y-5 lg:border-l lg:border-border/60 lg:pl-6">
+              {similarItems.length > 0 && (
+                <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
+                    {similarItems.length === 1
+                      ? 'Já existe um item parecido na biblioteca'
+                      : 'Já existem itens parecidos na biblioteca'}
+                  </p>
+                  <ul className="space-y-1">
+                    {similarItems.map(({ item, reason }) => (
+                      <li key={item.id} className="flex items-baseline gap-2 text-xs">
+                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                          {SIMILARITY_REASON_LABEL[reason]}
+                        </span>
+                        <span className="min-w-0 truncate text-foreground">
+                          {item.title?.trim() || 'Item sem título'}
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                          · {item.authorName?.split(' ')[0] || 'Membro'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Considere editar o item existente em vez de criar outro. Se for uma variação
+                    proposital, siga em frente.
+                  </p>
+                </div>
+              )}
+
+              {/* 5. Visibilidade e tags */}
+              <section className="space-y-4 rounded-xl border border-border bg-muted/20 p-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Quem pode ver</Label>
+                  <Select
+                    value={formData.visibility}
+                    onValueChange={(value: PromptVisibility) => update({ visibility: value })}
+                  >
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(VISIBILITY_META) as PromptVisibility[])
+                        .filter(key => VISIBILITY_META[key].available)
+                        .map(key => (
+                          <SelectItem key={key} value={key}>
+                            {VISIBILITY_META[key].label}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {VISIBILITY_META[(formData.visibility as PromptVisibility) || 'private'].description}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="prompt-tags" className="text-sm font-medium">
+                    Tags
+                  </Label>
+                  <Input
+                    id="prompt-tags"
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddTag(tagInput);
+                      }
+                    }}
+                    placeholder="Digite e pressione Enter"
+                    className="h-10"
+                  />
+
+                  {formData.tags && formData.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {formData.tags.map(tag => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-foreground"
+                        >
+                          #{tag}
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title={`Remover ${tag}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {(!formData.tags || formData.tags.length === 0) && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {SUGGESTED_TAGS.slice(0, 5).map(tag => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => handleAddTag(tag)}
+                          className="rounded-md border border-dashed border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-solid hover:text-foreground"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* 6. Detalhes de iniciativa */}
+              <section className="rounded-xl border border-border">
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(v => !v)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left"
+                >
+                  <span className="text-sm font-medium text-foreground">Detalhes de iniciativa</span>
+                  <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                    Objetivo, status, impacto
+                    <ChevronDown
+                      className={cn('h-4 w-4 transition-transform', showAdvanced && 'rotate-180')}
+                    />
+                  </span>
+                </button>
+
+                {showAdvanced && (
+                  <div className="space-y-4 border-t border-border px-4 py-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="prompt-goal" className="text-sm font-medium">
+                        Objetivo de negócio
+                      </Label>
+                      <Textarea
+                        id="prompt-goal"
+                        value={formData.businessGoal || ''}
+                        onChange={e => update({ businessGoal: e.target.value })}
+                        placeholder="Que problema isso resolve e qual ganho é esperado."
+                        className="min-h-[64px] resize-y text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Status</Label>
+                        <Select value={formData.status} onValueChange={(v: any) => update({ status: v })}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ideacao">Ideação</SelectItem>
+                            <SelectItem value="planejamento">Planejamento</SelectItem>
+                            <SelectItem value="desenvolvimento">Em desenvolvimento</SelectItem>
+                            <SelectItem value="producao">Em produção</SelectItem>
+                            <SelectItem value="arquivado">Arquivado</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-sm font-medium">Impacto esperado</Label>
+                        <Select value={formData.impact} onValueChange={(v: any) => update({ impact: v })}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="baixo">Baixo</SelectItem>
+                            <SelectItem value="medio">Médio</SelectItem>
+                            <SelectItem value="alto">Alto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="prompt-audience" className="text-sm font-medium">
+                          Público-alvo
+                        </Label>
+                        <Input
+                          id="prompt-audience"
+                          value={formData.targetAudience || ''}
+                          onChange={e => update({ targetAudience: e.target.value })}
+                          placeholder="Ex: devs, QA, produto"
+                          className="h-10"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="prompt-doc" className="text-sm font-medium">
+                          Link de documentação
+                        </Label>
+                        <Input
+                          id="prompt-doc"
+                          value={formData.architectureLink || ''}
+                          onChange={e => update({ architectureLink: e.target.value })}
+                          placeholder="Miro, Confluence, Notion..."
+                          className="h-10"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-4">

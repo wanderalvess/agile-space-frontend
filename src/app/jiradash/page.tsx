@@ -28,7 +28,7 @@ export default function JiraDashPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { settings, loading, saveSettings } = useJiraSettings();
   const { savedJqls, saveJql, deleteJql } = useSavedJqls();
-  const { mode } = useTheme();
+  const { mode, variant } = useTheme();
   const { toast } = useToast();
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -56,18 +56,19 @@ export default function JiraDashPage() {
     }
   };
 
-  // Sincroniza tema escuro / claro em tempo real com o iframe
+  // Sincroniza tema escuro / claro e variante de cor em tempo real com o iframe
   useEffect(() => {
     if (iframeLoaded && iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         {
           type: 'SET_THEME',
           mode,
+          variant,
         },
         '*'
       );
     }
-  }, [iframeLoaded, mode]);
+  }, [iframeLoaded, mode, variant]);
 
   useEffect(() => {
     if (iframeLoaded && settings?.token) {
@@ -77,6 +78,16 @@ export default function JiraDashPage() {
 
   const handleIframeLoad = () => {
     setIframeLoaded(true);
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        {
+          type: 'SET_THEME',
+          mode,
+          variant,
+        },
+        '*'
+      );
+    }
     if (settings?.token) {
       sendTokenToIframe(settings.token);
       toast({
@@ -164,23 +175,15 @@ export default function JiraDashPage() {
         toolIcon={<Gauge className="w-5 h-5 text-amber-500" />}
         toolColorClass="text-amber-500"
         badge={
-          <div className="flex items-center gap-2">
+          settings?.token ? (
             <Badge
               variant="outline"
-              className="hidden lg:inline-flex text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+              className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 flex items-center gap-1"
             >
-              TOTVS Agile Intelligence
+              <ShieldCheck className="w-3 h-3" />
+              PAT Ativo
             </Badge>
-            {settings?.token && (
-              <Badge
-                variant="outline"
-                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 flex items-center gap-1"
-              >
-                <ShieldCheck className="w-3 h-3" />
-                PAT Ativo
-              </Badge>
-            )}
-          </div>
+          ) : undefined
         }
         actions={
           <div className="flex items-center gap-2">

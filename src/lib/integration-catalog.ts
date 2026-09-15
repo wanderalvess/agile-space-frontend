@@ -64,6 +64,7 @@ export type ApiKeyScope =
   | 'KNOWLEDGE_WRITE'
   | 'SQUAD_READ'
   | 'PROMPTHUB_READ'
+  | 'PROMPTHUB_WRITE'
   | 'POKER_READ'
   | 'POKER_WRITE';
 
@@ -181,7 +182,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
   {
     id: 'prompt-hub',
     label: 'Prompt Hub',
-    tagline: 'Ler prompts e coleções públicas de fora da aplicação, por REST ou MCP.',
+    tagline: 'Consultar prompts/coleções públicas e publicar/atualizar skills de agentes por REST ou MCP.',
     rest: [
       {
         method: 'GET',
@@ -213,6 +214,14 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         returns: 'coleção + items[], ou 404 (mesmo status pra inexistente ou privada)',
         scope: 'PROMPTHUB_READ',
       },
+      {
+        method: 'POST',
+        path: '/api/v1/prompt-hub/items',
+        summary: 'Importa ou atualiza uma skill (formato Agent Skills / Markdown com frontmatter YAML).',
+        params: 'body { title?, content, description?, tags?: string[] | "a,b,c", type?: "skill", visibility?: "public" }',
+        returns: '201 com o prompt/skill salvo (idempotente por título para skills)',
+        scope: 'PROMPTHUB_WRITE',
+      },
     ],
     mcp: [
       {
@@ -234,28 +243,52 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         params: 'id (UUID)',
         scope: 'PROMPTHUB_READ',
       },
+      {
+        name: 'importSkill',
+        summary: 'Importa ou atualiza uma skill individual (formato Agent Skills / SKILL.md).',
+        params: 'name?, content, description?, tags?, visibility?',
+        write: true,
+        scope: 'PROMPTHUB_WRITE',
+      },
+      {
+        name: 'batchImportSkills',
+        summary: 'Importa múltiplas skills em lote via array JSON.',
+        params: 'skillsJson (string JSON contendo [{ name?, content, description?, tags?, visibility? }])',
+        write: true,
+        scope: 'PROMPTHUB_WRITE',
+      },
     ],
-    snippet: `curl -s "${EXAMPLE_HOST}/api/v1/prompt-hub/items?q=retrospectiva&page=1&pageSize=10" \\
-  -H "X-Api-Key: ask_SUA_CHAVE_AQUI"`,
+    snippet: `# 1. Listar prompts públicos:
+curl -s "${EXAMPLE_HOST}/api/v1/prompt-hub/items?q=retrospectiva&page=1&pageSize=10" \\
+  -H "X-Api-Key: ask_SUA_CHAVE_AQUI"
+
+# 2. Subir ou atualizar uma skill (SKILL.md com YAML frontmatter):
+curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
+  -H "X-Api-Key: ask_SUA_CHAVE_AQUI" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "content": "---\\nname: map-java-project\\ndescription: Diagnóstico arquitetural de projetos Spring Boot\\n---\\n# Guia de Mapeamento Java...",
+    "type": "skill",
+    "visibility": "public"
+  }'`,
     snippetResponse: `{
-  "items": [
-    {
-      "id": "c53b...",
-      "title": "Retro em 3 perguntas",
-      "type": "prompt",
-      "visibility": "public",
-      "authorName": "Fulano",
-      "useCount": 12,
-      "forkCount": 2,
-      "updatedAt": "2026-09-01T13:22:10"
-    }
-  ],
-  "page": 1, "pageSize": 10, "total": 1, "totalPages": 1
+  "id": "e9b254bc-876b-4e09-b472-132da970db2b",
+  "title": "map-java-project",
+  "description": "Diagnóstico arquitetural de projetos Spring Boot",
+  "type": "skill",
+  "visibility": "public",
+  "status": "producao",
+  "impact": "medio",
+  "tags": ["skill"],
+  "authorName": "Wanderson Alves",
+  "createdAt": "2026-09-14T17:30:00Z"
 }`,
     notes: [
-      'Sempre restrito a visibility="public" — inclusive filtrando por authorId/ownerId, tanto no REST quanto no MCP: uma API key nunca enxerga mais do que um visitante anônimo veria.',
+      'Leituras sempre restritas a visibility="public" — inclusive filtrando por authorId/ownerId, tanto no REST quanto no MCP: uma API key nunca enxerga mais do que um visitante anônimo veria.',
       'Coleção pública com item privado dentro: o item privado é filtrado do array, a coleção continua aparecendo.',
-      'Nenhuma escrita: criar ou editar prompt continua exclusivo da UI autenticada por JWT.',
+      'Upload e ingestão de skills (REST POST /api/v1/prompt-hub/items ou MCP importSkill/batchImportSkills) requer o escopo PROMPTHUB_WRITE.',
+      'O endpoint extrai automaticamente name/description de blocos YAML frontmatter (---) caso não sejam informados explicitamente.',
+      'A importação de skills é idempotente por título: se o autor ou sistema já possuir uma skill com o mesmo nome, o conteúdo existente é atualizado em vez de duplicar.',
     ],
   },
   {

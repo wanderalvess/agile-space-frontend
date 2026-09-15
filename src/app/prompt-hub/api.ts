@@ -40,6 +40,28 @@ export const promptApi = {
     return res.json();
   },
 
+  async createPromptsBatch(prompts: Partial<PromptItem>[]): Promise<PromptItem[]> {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/prompts/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prompts),
+      });
+      if (res.ok) {
+        return res.json();
+      }
+    } catch {
+      // continua pro fallback
+    }
+    // Fallback individual caso o batch não responda
+    const results: PromptItem[] = [];
+    for (const prompt of prompts) {
+      const created = await promptApi.createPrompt(prompt);
+      results.push(created);
+    }
+    return results;
+  },
+
   async updatePrompt(id: string, prompt: Partial<PromptItem>): Promise<PromptItem> {
     const res = await authFetch(`${API_BASE_URL}/prompts/${id}`, {
       method: 'PUT',

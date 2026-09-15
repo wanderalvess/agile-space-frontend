@@ -34,7 +34,7 @@ const SECTIONS = [
   { id: 'workflows', label: 'Workflows e validação' },
   { id: 'antipadroes', label: 'Anti-padrões' },
   { id: 'checklist', label: 'Checklist final' },
-  { id: 'onde-instalar', label: 'Onde instalar' },
+  { id: 'onde-instalar', label: 'Onde instalar e subir' },
   { id: 'padroes-empresa', label: 'Padrões da empresa' }
 ];
 
@@ -560,28 +560,77 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
             </div>
           </Section>
 
-          <Section id="onde-instalar" title="Onde a skill vai morar" icon={FolderTree}>
-            <div className="space-y-3 text-sm leading-relaxed text-foreground">
+          <Section id="onde-instalar" title="Onde a skill vai morar e como subir ao Prompt Hub" icon={FolderTree}>
+            <div className="space-y-4 text-sm leading-relaxed text-foreground">
               <p>
-                O local muda conforme a ferramenta, e <strong>skills não sincronizam entre elas</strong>:
+                O local muda conforme a ferramenta, e <strong>skills não sincronizam entre elas automaticamente</strong>:
                 subir numa não disponibiliza na outra.
               </p>
               <ul className="space-y-2">
                 <li>
-                  <strong>Claude Code:</strong> pasta no sistema de arquivos —{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">~/.claude/skills/</code> para uso pessoal ou{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">.claude/skills/</code> dentro do projeto, para o time inteiro
-                  via repositório.
+                  <strong>Claude Code / Agentes Locais:</strong> pasta no sistema de arquivos —{' '}
+                  <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">~/.claude/skills/</code> ou{' '}
+                  <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">~/.agents/skills/</code> para uso pessoal ou{' '}
+                  <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">.claude/skills/</code> dentro da raiz do repositório, para o time inteiro.
                 </li>
                 <li>
-                  <strong>claude.ai:</strong> upload de um .zip em Configurações &gt; Recursos. É
-                  individual: cada pessoa precisa subir a sua.
+                  <strong>claude.ai:</strong> upload de um arquivo .zip em Configurações &gt; Recursos. É
+                  individual para cada conta.
                 </li>
                 <li>
-                  <strong>API:</strong> upload pelos endpoints de skills. Aí sim o acesso é
-                  compartilhado por workspace.
+                  <strong>Agile Space Prompt Hub (Biblioteca de IA):</strong> central compartilhada da squad/empresa,
+                  com busca, tags, versionamento e execução.
                 </li>
               </ul>
+
+              <div className="mt-6 rounded-lg border border-border bg-card p-5 space-y-4">
+                <h4 className="font-semibold text-foreground flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  3 Formas de Subir Skills para o Agile Space Prompt Hub
+                </h4>
+
+                <div className="space-y-4 pt-1">
+                  <div className="rounded-md border border-border/80 bg-muted/30 p-3.5 space-y-1.5">
+                    <p className="font-medium text-foreground">1. Pelo Navegador (Upload de Pasta em Lote)</p>
+                    <p className="text-xs text-muted-foreground leading-normal">
+                      No topo do <strong>Prompt Hub</strong>, clique no botão <strong>Importar pasta</strong>. Selecione o diretório onde suas skills estão salvas (ex: <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">.agents/skills</code>). O sistema varre automaticamente todos os subdiretórios em busca de arquivos <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">SKILL.md</code>, valida o frontmatter YAML, exibe o preview do que será criado ou atualizado e permite o envio em massa com 1 clique.
+                    </p>
+                  </div>
+
+                  <div className="rounded-md border border-border/80 bg-muted/30 p-3.5 space-y-1.5">
+                    <p className="font-medium text-foreground">2. Via Protocolo MCP (Model Context Protocol)</p>
+                    <p className="text-xs text-muted-foreground leading-normal">
+                      Para que agentes de IA (como Claude Desktop, Antigravity ou Cursor) importem e mantenham suas skills sincronizadas automaticamente, utilize as ferramentas MCP integradas:
+                    </p>
+                    <ul className="text-xs text-muted-foreground list-disc list-inside space-y-1 pl-1">
+                      <li><code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">importSkill</code>: Importa ou atualiza uma skill individual a partir do conteúdo bruto do arquivo.</li>
+                      <li><code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">batchImportSkills</code>: Recebe um array JSON com múltiplas skills e realiza o upsert de todas em lote.</li>
+                    </ul>
+                  </div>
+
+                  <div className="rounded-md border border-border/80 bg-muted/30 p-3.5 space-y-2">
+                    <p className="font-medium text-foreground">3. Via API REST Externa</p>
+                    <p className="text-xs text-muted-foreground leading-normal">
+                      Disponível para integrações em pipelines de CI/CD ou scripts externos. Envie uma requisição <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">POST /api/v1/prompt-hub/items</code> autenticada com uma chave de API (<code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">X-Api-Key</code>) que contenha o escopo <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">PROMPTHUB_WRITE</code>:
+                    </p>
+                    <CodeBlock
+                      code={`curl -X POST "http://localhost:3000/api/v1/prompt-hub/items" \\
+  -H "X-Api-Key: ask_SUA_CHAVE_AQUI" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "content": "---\\nname: minha-skill\\ndescription: Diagnóstico automatizado\\n---\\n# Minha Skill...",
+    "type": "skill",
+    "visibility": "public"
+  }'`}
+                      caption="Exemplo de upload de skill via curl"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      O backend extrai automaticamente o <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">name</code> e a <code className="font-code text-[12px] bg-muted px-1 py-0.5 rounded">description</code> do frontmatter caso omitidos e realiza <strong>upsert idempotente</strong> por título.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                 <p>

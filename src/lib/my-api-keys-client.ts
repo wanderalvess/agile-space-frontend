@@ -31,6 +31,7 @@ export const API_KEY_SCOPES: { value: string; label: string; description: string
   { value: 'KNOWLEDGE_WRITE', label: 'Base de Conhecimento · escrita', description: 'Criar documentos na KB.' },
   { value: 'SQUAD_READ', label: 'Squad · leitura', description: 'Status, membros e issues — sempre restrito à sua própria squad.' },
   { value: 'PROMPTHUB_READ', label: 'Prompt Hub · leitura', description: 'Prompts e coleções públicas.' },
+  { value: 'PROMPTHUB_WRITE', label: 'Prompt Hub · escrita', description: 'Criar e importar prompts e skills.' },
   { value: 'POKER_READ', label: 'Scrum Poker · leitura', description: 'Buscar estimativas de rodadas já feitas.' },
   { value: 'POKER_WRITE', label: 'Scrum Poker · escrita', description: 'Criar sessão de planning poker.' },
 ];

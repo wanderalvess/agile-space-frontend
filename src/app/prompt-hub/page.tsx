@@ -54,7 +54,7 @@ export default function PromptHubPage() {
   // 1. Loading State
   if (authLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-white">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
@@ -63,53 +63,51 @@ export default function PromptHubPage() {
   // 2. Identity Gate Check
   if (mustOnboard && !showPublicOnly) {
     return (
-      <div className="flex-1 min-h-screen bg-slate-900 flex items-center justify-center p-6 lg:p-20 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full -z-10" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/10 blur-[100px] rounded-full -z-10" />
-        
-        <div className="max-w-2xl w-full text-center space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-          <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/5 rounded-2xl border border-white/10 text-cyan-400">
-             <Zap className="h-4 w-4" />
-             <span className="text-[10px] font-black uppercase tracking-[0.3em]">Protocolo de Identidade Requerido</span>
+      <div className="flex-1 min-h-screen bg-background flex items-center justify-center p-6 lg:p-16">
+        <div className="max-w-xl w-full text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full border border-primary/20 text-primary text-xs font-medium">
+             <Zap className="h-3.5 w-3.5" />
+             <span>Identificação de Squad Requerida</span>
           </div>
           
-          <div className="space-y-4">
-             <h1 className="text-5xl md:text-6xl font-black uppercase tracking-tighter italic text-white leading-none">
-                Quase lá, <span className="text-white/40">Comandante.</span>
+          <div className="space-y-3">
+             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+                Conecte seu Cargo e Squad
              </h1>
-             <p className="text-lg font-medium text-slate-400 leading-relaxed max-w-lg mx-auto">
-                Para acessar os modelos de squad da Biblioteca, precisamos saber qual é o seu **Cargo** e a sua **Squad**. 
+             <p className="text-sm sm:text-base font-normal text-muted-foreground leading-relaxed max-w-md mx-auto">
+                Para acessar e compartilhar modelos com o seu time na Biblioteca de IA, informe seu cargo e sua squad.
              </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div className="p-6 bg-white/5 border border-white/10 rounded-[2rem] text-left space-y-2">
-                <ShieldCheck className="h-6 w-6 text-indigo-400" />
-                <h4 className="font-black text-white italic uppercase tracking-tighter text-lg">Semântica de Cargo</h4>
-                <p className="text-[10px] font-medium text-slate-500 leading-relaxed">Libera bibliotecas exclusivas para sua função profissional.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+             <div className="p-5 bg-card border border-border rounded-xl space-y-2 shadow-xs">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                <h4 className="font-semibold text-foreground text-sm">Modelos por Função</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">Libera bibliotecas e assistentes recomendados para o seu papel técnico.</p>
              </div>
-             <div className="p-6 bg-white/5 border border-white/10 rounded-[2rem] text-left space-y-2">
-                <Users className="h-6 w-6 text-cyan-400" />
-                <h4 className="font-black text-white italic uppercase tracking-tighter text-lg">Sincronia de Squad</h4>
-                <p className="text-[10px] font-medium text-slate-500 leading-relaxed">Permite compartilhar modelos síncronos com seu time.</p>
+             <div className="p-5 bg-card border border-border rounded-xl space-y-2 shadow-xs">
+                <Users className="h-5 w-5 text-primary" />
+                <h4 className="font-semibold text-foreground text-sm">Sincronia de Squad</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed">Compartilhe e reutilize prompts e automações criados pela sua equipe.</p>
              </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-center pt-2">
             <Button 
               onClick={() => {
                 setIsPublicExploration(false);
                 setIsEditProfileOpen(true);
               }}
               size="lg"
-              className="h-16 px-12 bg-white text-slate-900 hover:bg-slate-100 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl transition-all active:scale-95 group"
+              className="h-11 px-8 rounded-xl font-medium text-sm group"
             >
-               Completar Perfil <ArrowRight className="ml-3 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+               Completar Perfil <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Button>
             <Button 
               onClick={handleShowPublic}
               variant="ghost"
-              className="text-white/40 hover:text-white font-black uppercase text-[10px] tracking-widest"
+              size="lg"
+              className="h-11 text-muted-foreground hover:text-foreground font-medium text-sm"
             >
                Apenas Ver Modelos Públicos
             </Button>

@@ -244,3 +244,51 @@ export function listPromptCollections(params: { ownerId?: string; page?: number;
 export function getPromptCollection(id: string): Promise<PromptCollectionDetail> {
   return callJson<PromptCollectionDetail>('legacy', `/api/v1/prompt-hub/collections/${encodeURIComponent(id)}`);
 }
+
+export function importSkill(params: {
+  name?: string;
+  content: string;
+  description?: string;
+  tags?: string;
+  visibility?: 'public' | 'private' | 'squad';
+}): Promise<PromptDetail> {
+  let title = params.name;
+  let description = params.description;
+
+  // Extração automática básica do frontmatter se não informado
+  if (!title || !description) {
+    const match = params.content.match(/^\s*---\r?\n([\s\S]*?)\r?\n---/);
+    if (match) {
+      const block = match[1];
+      if (!title) {
+        const nameMatch = block.match(/^name\s*:\s*(.*)$/im);
+        if (nameMatch) title = nameMatch[1].trim().replace(/^["']|["']$/g, '');
+      }
+      if (!description) {
+        const descMatch = block.match(/^description\s*:\s*(.*)$/im);
+        if (descMatch) description = descMatch[1].trim().replace(/^["']|["']$/g, '');
+      }
+    }
+  }
+
+  const tagsList = params.tags
+    ? params.tags.split(',').map(t => t.trim().replace(/^#/, ''))
+    : ['skill'];
+  if (!tagsList.includes('skill')) tagsList.push('skill');
+
+  const body = {
+    title: title || 'Nova Skill',
+    content: params.content,
+    description: description || '',
+    type: 'skill',
+    visibility: params.visibility || 'public',
+    status: 'producao',
+    impact: 'medio',
+    tags: tagsList,
+  };
+
+  return callJson<PromptDetail>('new', '/api/prompts', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}

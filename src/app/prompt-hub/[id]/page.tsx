@@ -49,7 +49,7 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
 
   if (authLoading || loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-slate-900">
+      <div className="flex h-screen w-full items-center justify-center bg-background">
         <AgileSpinner size="lg" variant="indigo" />
       </div>
     );
@@ -57,24 +57,29 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
 
   if (error) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-slate-900 space-y-6">
-        <ShieldAlert className="h-16 w-16 text-rose-500" />
-        <p className="text-lg font-bold text-white text-center max-w-md">{error}</p>
-        <Button 
-          onClick={() => router.push('/prompt-hub')}
-          className="bg-slate-800 hover:bg-slate-700 text-white font-black uppercase tracking-widest px-8 rounded-xl h-12"
-        >
-           <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao Hub
-        </Button>
+      <div className="flex h-screen w-full flex-col items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full bg-card border border-border rounded-2xl p-8 text-center space-y-5 shadow-xs">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <ShieldAlert className="h-6 w-6" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-foreground">Acesso ao Ativo de IA</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">{error}</p>
+          </div>
+          <Button 
+            variant="outline"
+            onClick={() => router.push('/prompt-hub')}
+            className="w-full h-10 font-medium"
+          >
+             <ArrowLeft className="h-4 w-4 mr-2" /> Voltar ao Hub
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/10 blur-[120px] rounded-full -z-10" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/10 blur-[100px] rounded-full -z-10" />
-      
+    <div className="min-h-screen bg-background flex items-center justify-center">
       <PromptView 
         prompt={prompt} 
         isOpen={!!prompt} 

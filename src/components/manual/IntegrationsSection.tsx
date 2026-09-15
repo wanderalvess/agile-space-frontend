@@ -21,6 +21,7 @@ const SCOPES_EXPLAINED = [
   { scope: 'KNOWLEDGE_WRITE', label: 'Base de Conhecimento · escrita', memberCanSelfIssue: false },
   { scope: 'SQUAD_READ', label: 'Squad · leitura, travada na própria squad', memberCanSelfIssue: true },
   { scope: 'PROMPTHUB_READ', label: 'Prompt Hub · leitura', memberCanSelfIssue: false },
+  { scope: 'PROMPTHUB_WRITE', label: 'Prompt Hub · escrita', memberCanSelfIssue: false },
   { scope: 'POKER_READ', label: 'Scrum Poker · leitura', memberCanSelfIssue: false },
   { scope: 'POKER_WRITE', label: 'Scrum Poker · escrita (criar sessão)', memberCanSelfIssue: false },
 ];

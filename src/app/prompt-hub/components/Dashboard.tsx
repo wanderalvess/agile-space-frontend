@@ -13,16 +13,19 @@ import {
   Star,
   X,
   TrendingUp,
-  Inbox
+  Inbox,
+  Sparkles,
+  FolderUp
 } from 'lucide-react';
 import { PromptGuide } from '@/components/prompt-hub/PromptGuide';
+import { SkillImportDialog } from './SkillImportDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useUserContext } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { PromptItem, PromptFilters } from '../types';
 import { TYPE_ORDER, getTypeMeta, SORT_OPTIONS, type SortKey } from '../constants';
-import { PromptCard } from './PromptCard';
+import { PromptSpecimenCard } from './PromptSpecimenCard';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
@@ -41,7 +44,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 
-const HIGHLIGHT_COUNT = 3;
+const HIGHLIGHT_COUNT = 4;
 
 const toMillis = (value: any): number => {
   if (!value) return 0;
@@ -63,6 +66,7 @@ export function PromptDashboard({
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState<PromptItem | null>(null);
   const [viewingPrompt, setViewingPrompt] = useState<PromptItem | null>(null);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -207,6 +211,24 @@ export function PromptDashboard({
       .sort((a, b) => (b.useCount || 0) - (a.useCount || 0))
       .slice(0, HIGHLIGHT_COUNT);
   }, [scopedPrompts, hasActiveFilters]);
+
+  const totalUses = useMemo(() => {
+    return rawPrompts.reduce((acc, curr) => acc + (curr.useCount || 0), 0);
+  }, [rawPrompts]);
+
+  const popularTags = useMemo(() => {
+    const tagCount = new Map<string, number>();
+    for (const prompt of rawPrompts) {
+      if (prompt.tags) {
+        for (const tag of prompt.tags) {
+          tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
+        }
+      }
+    }
+    return Array.from(tagCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+  }, [rawPrompts]);
 
   const clearFilters = () =>
     setFilters({
@@ -401,251 +423,462 @@ export function PromptDashboard({
             <PromptGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
 
             {!isPublicView && (
-              <Button
-                onClick={() => {
-                  setEditingPrompt(null);
-                  setIsEditorOpen(true);
-                }}
-                size="sm"
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Publicar item</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsImportOpen(true)}
+                  className="gap-2"
+                >
+                  <FolderUp className="h-4 w-4" />
+                  <span className="hidden sm:inline">Importar pasta</span>
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setEditingPrompt(null);
+                    setIsEditorOpen(true);
+                  }}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Publicar item</span>
+                </Button>
+              </div>
             )}
           </div>
         }
       />
 
-      <div className="flex w-full flex-1 flex-col overflow-hidden">
-        <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col overflow-hidden px-4 lg:px-8">
-          {/* Barra de descoberta: busca em destaque, escopo e ordenação ao lado. */}
-          <div className="flex flex-col gap-3 py-5 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={filters.search}
-                onChange={e => setFilters({ ...filters, search: e.target.value })}
-                placeholder="Buscar por título, descrição, conteúdo, tag ou autor..."
-                className="h-11 pl-10 text-sm"
-              />
-              {filters.search && (
+      <div className="flex w-full flex-1 overflow-hidden">
+        <div className="mx-auto flex w-full max-w-[1920px] 2xl:max-w-[2160px] 3xl:max-w-[2400px] flex-1 overflow-hidden px-4 sm:px-6 lg:px-8 xl:px-10">
+          {/* Barra Lateral Widescreen (Studio Navigator): visível a partir de xl (1280px+) */}
+          <aside className="hidden xl:flex xl:w-64 2xl:w-72 xl:shrink-0 flex-col gap-6 py-5 pr-6 border-r border-border/60 overflow-y-auto">
+            {/* 1. Categorias / Tipos */}
+            <div className="space-y-2">
+              <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                Tipos de Ativos
+              </span>
+              <div className="space-y-1">
                 <button
-                  onClick={() => setFilters({ ...filters, search: '' })}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  title="Limpar busca"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {!isPublicView && (
-                <Select
-                  value={filters.visibility}
-                  onValueChange={(value: any) => setFilters({ ...filters, visibility: value })}
-                >
-                  <SelectTrigger className="h-11 w-[150px] text-sm">
-                    <SelectValue placeholder="Escopo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os itens</SelectItem>
-                    <SelectItem value="public">Públicos</SelectItem>
-                    <SelectItem value="private">Meus privados</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-
-              <Select value={sort} onValueChange={(value: any) => setSort(value)}>
-                <SelectTrigger className="h-11 w-[150px] text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map(option => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {!isPublicView && (
-                <Button
-                  variant={filters.onlyFavorites ? 'default' : 'outline'}
-                  size="icon"
-                  onClick={() => setFilters({ ...filters, onlyFavorites: !filters.onlyFavorites })}
-                  title={filters.onlyFavorites ? 'Mostrar todos' : 'Mostrar apenas favoritos'}
-                  className="h-11 w-11 shrink-0"
-                >
-                  <Star className={cn('h-4 w-4', filters.onlyFavorites && 'fill-current')} />
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Categorias com contagem: dá noção do acervo antes de clicar. */}
-          <div className="flex flex-wrap items-center gap-2 pb-4">
-            <button
-              onClick={() => setFilters({ ...filters, type: 'all' })}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
-                filters.type === 'all'
-                  ? 'border-foreground/20 bg-accent font-medium text-foreground'
-                  : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Tudo
-              <span className="text-xs text-muted-foreground">{scopedPrompts.length}</span>
-            </button>
-
-            {TYPE_ORDER.map(type => {
-              const meta = getTypeMeta(type);
-              const count = typeCounts.get(type) ?? 0;
-              const Icon = meta.icon;
-              const isActive = filters.type === type;
-
-              return (
-                <button
-                  key={type}
-                  onClick={() => setFilters({ ...filters, type: isActive ? 'all' : type })}
-                  disabled={count === 0 && !isActive}
-                  title={meta.summary}
+                  onClick={() => setFilters({ ...filters, type: 'all' })}
                   className={cn(
-                    'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
-                    isActive
-                      ? 'border-foreground/20 bg-accent font-medium text-foreground'
-                      : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                    count === 0 && !isActive && 'cursor-not-allowed opacity-40 hover:bg-transparent'
+                    'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs font-medium transition-colors',
+                    filters.type === 'all'
+                      ? 'bg-accent text-foreground font-semibold shadow-xs'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                   )}
                 >
-                  <Icon className={cn('h-4 w-4', isActive && meta.accent)} />
-                  {meta.label}
-                  <span className="text-xs text-muted-foreground">{count}</span>
+                  <div className="flex items-center gap-2.5">
+                    <LayoutGrid className="h-4 w-4 shrink-0" />
+                    <span>Todos os Ativos</span>
+                  </div>
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    {scopedPrompts.length}
+                  </span>
                 </button>
-              );
-            })}
-          </div>
 
-          {/* Tags ativas + limpar filtros */}
-          {(filters.tags.length > 0 || hasActiveFilters) && (
-            <div className="flex flex-wrap items-center gap-2 pb-4">
-              {filters.tags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-foreground"
-                  title="Remover esta tag do filtro"
-                >
-                  #{tag}
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-7 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Limpar filtros
-              </Button>
+                {TYPE_ORDER.map(type => {
+                  const meta = getTypeMeta(type);
+                  const count = typeCounts.get(type) ?? 0;
+                  const Icon = meta.icon;
+                  const isActive = filters.type === type;
+
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => setFilters({ ...filters, type: isActive ? 'all' : type })}
+                      disabled={count === 0 && !isActive}
+                      title={meta.summary}
+                      className={cn(
+                        'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs transition-colors',
+                        isActive
+                          ? 'bg-accent text-foreground font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                        count === 0 && !isActive && 'cursor-not-allowed opacity-40 hover:bg-transparent'
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={cn('h-4 w-4 shrink-0', isActive && meta.accent)} />
+                        <span>{meta.label}</span>
+                      </div>
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          )}
 
-          <div className="flex-1 overflow-y-auto pb-16">
-            {highlights.length > 0 && (
-              <section className="mb-8">
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Mais utilizados
-                </h2>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {highlights.map(prompt => (
-                    <PromptCard
-                      key={`highlight-${prompt.id}`}
-                      prompt={prompt}
-                      isOwner={prompt.authorId === session?.id}
-                      isReadOnly={isPublicView}
-                      onFork={handleFork}
-                      onEdit={handleEdit}
-                      onView={setViewingPrompt}
-                      onDelete={handleDelete}
-                      onToggleFavorite={handleToggleFavorite}
-                      onSelectTag={toggleTag}
-                      onCopy={handleCopy}
-                      onSelectAuthor={authorId => router.push(`/prompt-hub/autor/${authorId}`)}
-                    />
-                  ))}
+            {/* 2. Escopo de Acesso (se logado) */}
+            {!isPublicView && (
+              <div className="space-y-2 pt-2 border-t border-border/40">
+                <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                  Visibilidade
+                </span>
+                <div className="space-y-1">
+                  {[
+                    { id: 'all', label: 'Todos os Itens' },
+                    { id: 'public', label: 'Públicos da Empresa' },
+                    { id: 'private', label: 'Meus Privados' }
+                  ].map(scopeItem => {
+                    const isActive = filters.visibility === scopeItem.id;
+                    return (
+                      <button
+                        key={scopeItem.id}
+                        onClick={() => setFilters({ ...filters, visibility: scopeItem.id as any })}
+                        className={cn(
+                          'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs transition-colors',
+                          isActive
+                            ? 'bg-accent text-foreground font-semibold'
+                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                        )}
+                      >
+                        <span>{scopeItem.label}</span>
+                        {isActive && <div className="h-1.5 w-1.5 rounded-full bg-primary" />}
+                      </button>
+                    );
+                  })}
                 </div>
-              </section>
+              </div>
             )}
 
-            <section>
-              <div className="mb-3 flex items-baseline justify-between gap-3">
-                <h2 className="text-sm font-semibold text-foreground">
-                  {hasActiveFilters ? 'Resultados' : 'Todos os itens'}
-                </h2>
-                <span className="text-xs text-muted-foreground">
-                  {sortedPrompts.length}{' '}
-                  {sortedPrompts.length === 1 ? 'item' : 'itens'}
+            {/* 3. Favoritos */}
+            {!isPublicView && (
+              <div className="pt-2 border-t border-border/40">
+                <button
+                  onClick={() => setFilters({ ...filters, onlyFavorites: !filters.onlyFavorites })}
+                  className={cn(
+                    'flex items-center justify-between w-full rounded-lg px-3 py-2 text-xs transition-colors',
+                    filters.onlyFavorites
+                      ? 'bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-400 font-semibold'
+                      : 'border border-border text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Star className={cn('h-3.5 w-3.5', filters.onlyFavorites && 'fill-current text-amber-500')} />
+                    <span>Apenas Favoritos</span>
+                  </div>
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                    {favoriteIds.size}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* 4. Tags Frequentes */}
+            {popularTags.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/40">
+                <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                  Tags Populares
                 </span>
+                <div className="flex flex-wrap gap-1.5 px-1">
+                  {popularTags.map(([tag, count]) => {
+                    const isSelected = filters.tags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                          isSelected
+                            ? 'bg-primary text-primary-foreground font-semibold'
+                            : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
+                        )}
+                        title={`Filtrar por #${tag} (${count} itens)`}
+                      >
+                        #{tag}
+                        <span className="opacity-60 text-[9px]">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Área Principal (Main Canvas): Busca, Ordenação, Vitrine Hero e Grid de Cards */}
+          <main className="flex flex-1 min-w-0 flex-col overflow-hidden xl:pl-6">
+            {/* Barra de descoberta: busca em destaque, escopo e ordenação ao lado. */}
+            <div className="flex flex-col gap-3 py-5 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={filters.search}
+                  onChange={e => setFilters({ ...filters, search: e.target.value })}
+                  placeholder="Buscar por título, descrição, conteúdo, tag ou autor..."
+                  className="h-11 pl-10 text-sm"
+                />
+                {filters.search && (
+                  <button
+                    onClick={() => setFilters({ ...filters, search: '' })}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    title="Limpar busca"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
-              {sortedPrompts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-16 text-center">
-                  <Inbox className="mb-3 h-8 w-8 text-muted-foreground" />
-                  <h3 className="text-base font-semibold text-foreground">
-                    {hasActiveFilters ? 'Nenhum item encontrado' : 'A biblioteca está vazia'}
-                  </h3>
-                  <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                    {hasActiveFilters
-                      ? 'Tente outro termo, remova filtros ou amplie o escopo da busca.'
-                      : 'Publique o primeiro prompt, skill ou agente para o time começar a reaproveitar.'}
-                  </p>
-                  <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                    {hasActiveFilters && (
-                      <Button variant="outline" size="sm" onClick={clearFilters}>
-                        Limpar filtros
-                      </Button>
-                    )}
-                    {!isPublicView && (
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setEditingPrompt(null);
-                          setIsEditorOpen(true);
-                        }}
-                        className="gap-2"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Publicar item
-                      </Button>
-                    )}
+              <div className="flex items-center gap-2">
+                {!isPublicView && (
+                  <div className="xl:hidden">
+                    <Select
+                      value={filters.visibility}
+                      onValueChange={(value: any) => setFilters({ ...filters, visibility: value })}
+                    >
+                      <SelectTrigger className="h-11 w-[150px] text-sm">
+                        <SelectValue placeholder="Escopo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os itens</SelectItem>
+                        <SelectItem value="public">Públicos</SelectItem>
+                        <SelectItem value="private">Meus privados</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
-                  {sortedPrompts.map(prompt => (
-                    <PromptCard
-                      key={prompt.id}
-                      prompt={prompt}
-                      isOwner={prompt.authorId === session?.id}
-                      isReadOnly={isPublicView}
-                      onFork={handleFork}
-                      onEdit={handleEdit}
-                      onView={setViewingPrompt}
-                      onDelete={handleDelete}
-                      onToggleFavorite={handleToggleFavorite}
-                      onSelectTag={toggleTag}
-                      onCopy={handleCopy}
-                      onSelectAuthor={authorId => router.push(`/prompt-hub/autor/${authorId}`)}
-                    />
-                  ))}
-                </div>
+                )}
+
+                <Select value={sort} onValueChange={(value: any) => setSort(value)}>
+                  <SelectTrigger className="h-11 w-[150px] text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SORT_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {!isPublicView && (
+                  <Button
+                    variant={filters.onlyFavorites ? 'default' : 'outline'}
+                    size="icon"
+                    onClick={() => setFilters({ ...filters, onlyFavorites: !filters.onlyFavorites })}
+                    title={filters.onlyFavorites ? 'Mostrar todos' : 'Mostrar apenas favoritos'}
+                    className="h-11 w-11 shrink-0 xl:hidden"
+                  >
+                    <Star className={cn('h-4 w-4', filters.onlyFavorites && 'fill-current')} />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Categorias em pílulas horizontais: visíveis apenas em telas menores que xl */}
+            <div className="flex flex-wrap items-center gap-2 pb-4 xl:hidden">
+              <button
+                onClick={() => setFilters({ ...filters, type: 'all' })}
+                className={cn(
+                  'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
+                  filters.type === 'all'
+                    ? 'border-foreground/20 bg-accent font-medium text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Tudo
+                <span className="text-xs text-muted-foreground">{scopedPrompts.length}</span>
+              </button>
+
+              {TYPE_ORDER.map(type => {
+                const meta = getTypeMeta(type);
+                const count = typeCounts.get(type) ?? 0;
+                const Icon = meta.icon;
+                const isActive = filters.type === type;
+
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilters({ ...filters, type: isActive ? 'all' : type })}
+                    disabled={count === 0 && !isActive}
+                    title={meta.summary}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors',
+                      isActive
+                        ? 'border-foreground/20 bg-accent font-medium text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+                      count === 0 && !isActive && 'cursor-not-allowed opacity-40 hover:bg-transparent'
+                    )}
+                  >
+                    <Icon className={cn('h-4 w-4', isActive && meta.accent)} />
+                    {meta.label}
+                    <span className="text-xs text-muted-foreground">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Tags ativas + limpar filtros */}
+            {(filters.tags.length > 0 || hasActiveFilters) && (
+              <div className="flex flex-wrap items-center gap-2 pb-4">
+                {filters.tags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-foreground"
+                    title="Remover esta tag do filtro"
+                  >
+                    #{tag}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Limpar filtros
+                </Button>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto pb-16">
+              {/* Vitrine de Entrada: Hero Editorial Técnico */}
+              {!hasActiveFilters && (
+                <section className="mb-8 mt-1 overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
+                  <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="max-w-2xl space-y-2.5">
+                      <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-primary font-semibold">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Ateliê de Engenharia de IA
+                      </div>
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                        Acervo de Prompts, Skills e Agentes
+                      </h1>
+                      <p className="text-sm leading-relaxed text-muted-foreground max-w-xl">
+                        Modelos de IA calibrados e validados por squads para acelerar refinamentos, testes, code reviews e rituais ágeis. Encontre o contrato certo, preencha variáveis e copie direto.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 lg:flex-col lg:items-end lg:gap-2">
+                      <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs backdrop-blur-sm">
+                        <div className="text-left sm:text-right">
+                          <span className="block font-mono text-xl font-bold text-foreground leading-none">
+                            {rawPrompts.length}
+                          </span>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Ativos Disponíveis
+                          </span>
+                        </div>
+                        <div className="h-7 w-[1px] bg-border/80" />
+                        <div className="text-left sm:text-right">
+                          <span className="block font-mono text-xl font-bold text-primary leading-none">
+                            {totalUses}
+                          </span>
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                            Execuções / Cópias
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               )}
-            </section>
-          </div>
+
+              {highlights.length > 0 && (
+                <section className="mb-8">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      Destaques da Bancada · Mais executados
+                    </h2>
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      Baseado no uso real das squads
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xxl:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4">
+                    {highlights.map(prompt => (
+                      <PromptSpecimenCard
+                        key={`highlight-${prompt.id}`}
+                        prompt={prompt}
+                        featured={true}
+                        isOwner={prompt.authorId === session?.id}
+                        isReadOnly={isPublicView}
+                        onFork={handleFork}
+                        onEdit={handleEdit}
+                        onView={setViewingPrompt}
+                        onDelete={handleDelete}
+                        onToggleFavorite={handleToggleFavorite}
+                        onSelectTag={toggleTag}
+                        onCopy={handleCopy}
+                        onSelectAuthor={authorId => router.push(`/prompt-hub/autor/${authorId}`)}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section>
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {hasActiveFilters ? 'Resultados' : 'Todos os itens'}
+                  </h2>
+                  <span className="text-xs text-muted-foreground">
+                    {sortedPrompts.length}{' '}
+                    {sortedPrompts.length === 1 ? 'item' : 'itens'}
+                  </span>
+                </div>
+
+                {sortedPrompts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-16 text-center">
+                    <Inbox className="mb-3 h-8 w-8 text-muted-foreground" />
+                    <h3 className="text-base font-semibold text-foreground">
+                      {hasActiveFilters ? 'Nenhum item encontrado' : 'A biblioteca está vazia'}
+                    </h3>
+                    <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                      {hasActiveFilters
+                        ? 'Tente outro termo, remova filtros ou amplie o escopo da busca.'
+                        : 'Publique o primeiro prompt, skill ou agente para o time começar a reaproveitar.'}
+                    </p>
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                      {hasActiveFilters && (
+                        <Button variant="outline" size="sm" onClick={clearFilters}>
+                          Limpar filtros
+                        </Button>
+                      )}
+                      {!isPublicView && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setEditingPrompt(null);
+                            setIsEditorOpen(true);
+                          }}
+                          className="gap-2"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Publicar item
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xxl:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4">
+                    {sortedPrompts.map(prompt => (
+                      <PromptSpecimenCard
+                        key={prompt.id}
+                        prompt={prompt}
+                        isOwner={prompt.authorId === session?.id}
+                        isReadOnly={isPublicView}
+                        onFork={handleFork}
+                        onEdit={handleEdit}
+                        onView={setViewingPrompt}
+                        onDelete={handleDelete}
+                        onToggleFavorite={handleToggleFavorite}
+                        onSelectTag={toggleTag}
+                        onCopy={handleCopy}
+                        onSelectAuthor={authorId => router.push(`/prompt-hub/autor/${authorId}`)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          </main>
         </div>
       </div>
 
@@ -666,6 +899,23 @@ export function PromptDashboard({
         onSave={handleSave}
         initialData={editingPrompt}
         existingItems={rawPrompts}
+      />
+
+      <SkillImportDialog
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onSuccess={loadData}
+        currentUser={
+          session
+            ? {
+                id: session.id,
+                name: userProfile?.name || session.name,
+                role: userProfile?.role,
+                squadId: userProfile?.squadId,
+                avatarSeed: userProfile?.avatarSeed
+              }
+            : undefined
+        }
       />
 
       <PromptView

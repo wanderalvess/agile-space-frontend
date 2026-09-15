@@ -2,7 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { listDocs, getDoc, downloadDoc, createDoc, listPrompts, getPrompt, listPromptCollections, getPromptCollection, type Source } from './client.js';
+import { listDocs, getDoc, downloadDoc, createDoc, listPrompts, getPrompt, listPromptCollections, getPromptCollection, importSkill, type Source } from './client.js';
 
 const server = new McpServer({
   name: 'agile-space-mcp',
@@ -172,6 +172,24 @@ server.registerTool(
   async ({ id }) => {
     const collection = await getPromptCollection(id);
     return { content: [{ type: 'text', text: JSON.stringify(collection, null, 2) }] };
+  }
+);
+
+server.registerTool(
+  'import_skill',
+  {
+    description: 'Importa ou atualiza uma skill (SKILL.md) no Prompt Hub do Espaço Ágil.',
+    inputSchema: {
+      name: z.string().optional().describe('Nome/título da skill (se omitido, extrai do frontmatter)'),
+      content: z.string().min(1).describe('Conteúdo Markdown da skill com frontmatter YAML'),
+      description: z.string().optional().describe('Descrição resumida da finalidade da skill'),
+      tags: z.string().optional().describe('Tags separadas por vírgula'),
+      visibility: z.enum(['public', 'private', 'squad']).optional().describe('Visibilidade (padrão public)'),
+    },
+  },
+  async ({ name, content, description, tags, visibility }) => {
+    const result = await importSkill({ name, content, description, tags, visibility });
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }
 );
 
