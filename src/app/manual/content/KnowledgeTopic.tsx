@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Sparkles, Key, MessageSquare, Database, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { ManualHero } from '../components/ManualHero';
+import { ModuleApiToolSection } from '../components/ModuleApiToolSection';
 import { getTopicById } from '../data/topics';
 
 export function KnowledgeTopic() {
@@ -106,6 +107,9 @@ export function KnowledgeTopic() {
           </Card>
         </div>
       </div>
+
+      {/* Seção Detalhada de API e MCP Tools */}
+      <ModuleApiToolSection moduleId="knowledge" />
     </div>
   );
 }

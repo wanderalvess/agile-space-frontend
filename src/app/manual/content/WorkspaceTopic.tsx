@@ -90,6 +90,24 @@ export function WorkspaceTopic() {
           </Card>
         </div>
       </div>
+
+      {/* Seção de Conectividade & API Keys */}
+      <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/30 dark:shadow-none overflow-hidden">
+        <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
+          <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+            Conectividade & Chaves de API Pessoais
+          </CardTitle>
+          <CardDescription className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            Como emitir sua credencial para integrar scripts e agentes sem precisar de acesso de Administrador.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-8 space-y-4">
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+            Na aba <strong>Conectividade</strong> do Meu Espaço, qualquer desenvolvedor autenticado pode gerar e revogar suas próprias chaves de API (<code className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">X-Api-Key</code>). 
+            Essas chaves permitem consumir a API REST e invocar ferramentas MCP (Model Context Protocol) com o mesmo nível de permissão e squad do seu usuário.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
