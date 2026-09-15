@@ -3,41 +3,35 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MessageSquare,
   Sparkles,
   Send,
   BookOpen,
-  AlertCircle,
   X,
-  Search,
   Loader2,
   ChevronRight,
   Database,
-  Target,
   Globe,
   Download,
-  CheckCircle,
-  FileText
+  FileText,
+  Copy,
+  Check
 } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import { useTdnSettings } from '@/hooks/useTdnSettings';
-import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
-import { useToast } from '@/hooks/use-toast';
-import { searchKnowledgeBase } from '@/services/oracleService';
-import { KnowledgeDocument } from '@/lib/knowledge-types';
-import { useAuth } from '@/context/AuthContext';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { useTdnSettings } from '@/hooks/useTdnSettings';
+import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
 import { knowledgeApi } from '@/app/knowledge/api';
 import { analyzeDocument, TechnicalExtraction } from '@/lib/tech-extractor';
-import { authFetch } from '@/lib/auth-client';
-import { Copy, Check } from 'lucide-react';
+import { KnowledgeDocument } from '@/lib/knowledge-types';
 
 interface ExtractedDoc extends KnowledgeDocument {
   tech?: TechnicalExtraction;
@@ -52,7 +46,6 @@ interface Message {
   tdnResults?: TdnSearchResult[];
   extractedEndpoints?: string[];
   extractedTables?: string[];
-  copiedItem?: string;
 }
 
 interface PokerChatProps {
@@ -63,7 +56,7 @@ interface PokerChatProps {
   activeIssue?: any;
 }
 
-export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }: PokerChatProps) {
+export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerChatProps) {
   const { session } = useAuth();
   const { settings: tdnSettings } = useTdnSettings();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -90,7 +83,6 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [availableDocs, setAvailableDocs] = useState<KnowledgeDocument[]>([]);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -103,19 +95,6 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading, isOpen]);
-
-  // Carrega documentos populares da KB via Spring Boot PostgreSQL
-  useEffect(() => {
-    const fetchDocs = async () => {
-      try {
-        const res = await knowledgeApi.listDocuments('', [], 0, 5);
-        if (res?.content) setAvailableDocs(res.content);
-      } catch (e) {
-        console.error('Erro ao buscar documentos da Base de Conhecimento:', e);
-      }
-    };
-    fetchDocs();
-  }, []);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -207,54 +186,18 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const allEndpoints = Array.from(new Set(localResults.flatMap(d => d.tech?.endpoints || [])));
       const allTables = Array.from(new Set(localResults.flatMap(d => d.tech?.tables || [])));
 
-      // 4. Geração RAG via IA (Lynn/TOTVS, credencial global — ver /api/ai/chat).
-      // Sem LYNN_API_KEY/LYNN_BASE_URL configurados no servidor, a rota devolve 401 com
-      // mensagem clara e cai no fallback determinístico abaixo, igual a antes.
+      // 4. Resposta determinística (sem IA) a partir dos resultados da Base de Conhecimento/TDN.
       let responseText = '';
-      try {
-        const aiRes = await authFetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: 'lynn',
-            messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-            contextDocuments: localResults,
-            taskContext: activeIssue ? {
-              title: activeIssue.title,
-              description: activeIssue.description,
-              jiraLink: activeIssue.jiraLink,
-              acceptanceCriteria: activeIssue.acceptanceCriteria,
-              devNotes: activeIssue.devNotes,
-              qaNotes: activeIssue.qaNotes,
-            } : (activeTopic ? { title: activeTopic } : undefined),
-          })
-        });
-
-        if (aiRes.ok) {
-          const aiData = await aiRes.json();
-          if (aiData.content) {
-            responseText = aiData.content;
-          }
-        } else {
-          console.warn('[PokerChat] Lynn indisponível (', aiRes.status, '), utilizando fallback local determinístico.');
+      if (localResults.length > 0) {
+        const topDoc = localResults[0];
+        responseText = `Encontrei **${localResults.length} documento(s)** relevante(s) na Base de Conhecimento interna.`;
+        if (topDoc.tech?.bestSnippet) {
+          responseText += `\n\n📌 **Trecho em Destaque (${topDoc.title}):**\n> "${topDoc.tech.bestSnippet}"`;
         }
-      } catch (aiErr) {
-        console.warn('[PokerChat] Chamada para API de IA (Lynn) falhou, utilizando fallback local:', aiErr);
-      }
-
-      // Fallback determinístico (Sem usar API do Gemini)
-      if (!responseText) {
-        if (localResults.length > 0) {
-          const topDoc = localResults[0];
-          responseText = `Encontrei **${localResults.length} documento(s)** relevante(s) na Base de Conhecimento interna.`;
-          if (topDoc.tech?.bestSnippet) {
-            responseText += `\n\n📌 **Trecho em Destaque (${topDoc.title}):**\n> "${topDoc.tech.bestSnippet}"`;
-          }
-        } else if (tdnResults.length > 0) {
-          responseText = `Encontrei **${tdnResults.length} página(s)** correspondente(s) no TDN (Confluence):`;
-        } else {
-          responseText = `Não encontrei nenhum documento exato para **"${userQuery}"** na base de conhecimento. Tente buscar por termos como nome da API, serviço ou tabela (ex: PCPEDC).`;
-        }
+      } else if (tdnResults.length > 0) {
+        responseText = `Encontrei **${tdnResults.length} página(s)** correspondente(s) no TDN (Confluence):`;
+      } else {
+        responseText = `Não encontrei nenhum documento exato para **"${userQuery}"** na base de conhecimento. Tente buscar por termos como nome da API, serviço ou tabela (ex: PCPEDC).`;
       }
 
       const assistantMessage: Message = {
@@ -338,7 +281,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 opacity-60">Mascote IA</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 opacity-60">Assistente Local</span>
                     {tdnSettings?.token && (
                       <Badge variant="secondary" className="text-[8px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900 uppercase font-black tracking-tighter h-4 px-1.5">
                         Motor Ativo
