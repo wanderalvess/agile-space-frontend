@@ -217,12 +217,24 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
 
       setFont(10, 'bold', [216, 180, 254]);
       doc.text((session.squadName || 'Product Team').toUpperCase(), M, 30);
+
+      // Título em quase largura cheia — não só 62% — porque os KPIs saíram
+      // do canto superior direito (colidiam com qualquer nome de sessão
+      // normal) e agora formam uma faixa própria mais abaixo.
+      const titleLines = doc.splitTextToSize(session.name || 'Sprint Review', CW * 0.85) as string[];
       setFont(34, 'bold', [255, 255, 255]);
-      (doc.splitTextToSize(session.name || 'Sprint Review', CW * 0.62) as string[]).forEach((line, i) => {
-        doc.text(line, M, 46 + i * 13);
-      });
+      titleLines.forEach((line, i) => doc.text(line, M, 62 + i * 13));
+      const titleBottom = 62 + (titleLines.length - 1) * 13;
+
       setFont(11, 'normal', [221, 214, 254]);
-      doc.text(session.period || 'Ciclo de entrega atual', M, PH - 20);
+      doc.text(session.period || 'Ciclo de entrega atual', M, titleBottom + 12);
+
+      // Faixa de KPIs: linha divisória + 4 colunas de largura igual
+      // ocupando a página toda, sempre abaixo do título (nunca em cima).
+      const kpiY = 145;
+      doc.setDrawColor(139, 92, 246);
+      doc.setLineWidth(0.4);
+      doc.line(M, kpiY - 14, PW - M, kpiY - 14);
 
       const kpis: Array<[string, string, [number, number, number]]> = [
         ['Tarefas', String(tasks.length), [255, 255, 255]],
@@ -230,18 +242,21 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         ['Ajustes', String(adjustments.length), [252, 211, 77]],
         ['Rejeitadas', String(rejected.length), [253, 164, 175]],
       ];
-      const kpiW = 48;
+      const kpiColW = CW / kpis.length;
       kpis.forEach((kpi, idx) => {
-        const x = PW - M - kpiW * (kpis.length - idx);
+        const x = M + idx * kpiColW;
         setFont(8, 'bold', [216, 180, 254]);
-        doc.text(kpi[0].toUpperCase(), x, 26);
-        setFont(22, 'bold', kpi[2]);
-        doc.text(kpi[1], x, 38);
+        doc.text(kpi[0].toUpperCase(), x, kpiY - 4);
+        setFont(26, 'bold', kpi[2]);
+        doc.text(kpi[1], x, kpiY + 14);
       });
 
       // -------------------------------------------------- Uma página por task
-      tasks.forEach((task, idx) => {
-        if (idx > 0) addPage();
+      // addPage() sempre, mesmo na primeira: a capa já ocupa a página 1
+      // inteira, então a task 0 precisa da sua própria página nova também
+      // (sem isso ela era desenhada por cima da capa, ambas na página 1).
+      tasks.forEach((task) => {
+        addPage();
 
         const image = images.get(task.id);
         const textW = CW * 0.42;
