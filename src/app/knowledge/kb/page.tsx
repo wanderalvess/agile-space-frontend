@@ -24,7 +24,9 @@ import {
   Download,
   BookOpen,
   Star,
-  Hash
+  Hash,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sanitizeHtml } from '@/lib/sanitize-html';
@@ -220,9 +222,7 @@ function KBExplorerContent() {
       }
     }
 
-    if (failedDocsList.length > 0) {
-      setFailedDocs(failedDocsList);
-    }
+    setFailedDocs(failedDocsList);
 
     toast.success(`${tdnCount} de ${tdnDocs.length} manuais sincronizados com sucesso.`);
     fetchDocuments();
@@ -230,7 +230,13 @@ function KBExplorerContent() {
   };
 
   const handleSyncMultiple = async () => {
-    if (selectedIds.size === 0 || !session || !tdnSettings) return;
+    if (selectedIds.size === 0 || !session) return;
+
+    if (!tdnSettings || !tdnSettings.baseUrl || !tdnSettings.token) {
+      toast.error("Configurações do TDN não encontradas. Configure o token de acesso primeiro.");
+      return;
+    }
+
     setIsSyncing(true);
     let tdnCount = 0;
     const failedDocsList: { title: string; reason: string }[] = [];
@@ -258,9 +264,7 @@ function KBExplorerContent() {
       }
     }
 
-    if (failedDocsList.length > 0) {
-      setFailedDocs(failedDocsList);
-    }
+    setFailedDocs(failedDocsList);
 
     toast.success(`${tdnCount} manuais sincronizados.`);
     setSelectedIds(new Set());
@@ -645,6 +649,33 @@ function KBExplorerContent() {
                     <Plus className="h-4 w-4 text-cyan-500 dark:text-cyan-400" /> Criar Artigo
                   </Button>
                 </div>
+
+                {/* Falhas da última sincronização TDN — some ao fechar ou ao rodar de novo. */}
+                {failedDocs.length > 0 && (
+                  <div className="rounded-2xl border border-rose-300/60 dark:border-rose-900/40 bg-rose-50/70 dark:bg-rose-950/20 p-4 space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-400">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {failedDocs.length} {failedDocs.length === 1 ? 'documento falhou' : 'documentos falharam'} na sincronização
+                      </span>
+                      <button
+                        onClick={() => setFailedDocs([])}
+                        className="text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 transition-colors"
+                        title="Fechar"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <ul className="space-y-1">
+                      {failedDocs.map((f, i) => (
+                        <li key={`${f.title}-${i}`} className="text-[10px] text-rose-700 dark:text-rose-400">
+                          <span className="font-black uppercase">{f.title}</span>
+                          <span className="text-rose-500 dark:text-rose-500"> — {f.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 {/* Stats: 4 blocos equivalentes */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
