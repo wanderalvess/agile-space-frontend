@@ -29,6 +29,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
 import { promptApi } from '../api';
+import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 interface PromptViewProps {
   prompt: PromptItem | null;
@@ -93,6 +94,7 @@ export function PromptView({
 }: PromptViewProps) {
   const { session } = useAuth();
 
+  const [viewMode, setViewMode] = React.useState<'formatted' | 'raw'>('formatted');
   const [variableValues, setVariableValues] = React.useState<Record<string, string>>({});
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [newComment, setNewComment] = React.useState('');
@@ -144,11 +146,13 @@ export function PromptView({
   React.useEffect(() => {
     setVariableValues({});
     setNewComment('');
+    setViewMode('formatted');
   }, [prompt?.id]);
 
   if (!prompt) return null;
 
   const type = getTypeMeta(prompt.type);
+  const supportsMarkdownPreview = prompt.type === 'skill' || prompt.type === 'resource';
   const status = getStatusMeta(prompt.status);
   const impact = getImpactMeta(prompt.impact);
   const visibility = getVisibilityMeta(prompt.visibility);
@@ -378,15 +382,45 @@ export function PromptView({
 
               {hasContent && (
                 <section className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold text-foreground">{type.contentLabel}</h3>
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      {processedContent.length} chars · {processedContent.split('\n').length} linhas
-                    </span>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {supportsMarkdownPreview && (
+                        <div className="flex items-center rounded-lg border border-border p-0.5">
+                          <button
+                            onClick={() => setViewMode('formatted')}
+                            className={cn(
+                              'px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors',
+                              viewMode === 'formatted' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            Formatado
+                          </button>
+                          <button
+                            onClick={() => setViewMode('raw')}
+                            className={cn(
+                              'px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors',
+                              viewMode === 'raw' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            Cru
+                          </button>
+                        </div>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {processedContent.length} chars · {processedContent.split('\n').length} linhas
+                      </span>
+                    </div>
                   </div>
-                  <pre className="max-h-[520px] min-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-muted/30 p-4 font-code text-[13px] leading-relaxed text-foreground select-text">
-                    {processedContent}
-                  </pre>
+                  {supportsMarkdownPreview && viewMode === 'formatted' ? (
+                    <div className="max-h-[520px] min-h-[200px] overflow-auto rounded-xl border border-border bg-muted/30 p-4">
+                      <MarkdownRenderer content={processedContent} />
+                    </div>
+                  ) : (
+                    <pre className="max-h-[520px] min-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-muted/30 p-4 font-code text-[13px] leading-relaxed text-foreground select-text">
+                      {processedContent}
+                    </pre>
+                  )}
                 </section>
               )}
             </div>
