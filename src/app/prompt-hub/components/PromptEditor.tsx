@@ -186,7 +186,7 @@ export function PromptEditor({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex max-h-[94vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl lg:max-w-5xl xl:max-w-6xl">
+      <DialogContent className="flex max-h-[94vh] w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-lg font-semibold">
             {initialData ? 'Editar item' : 'Publicar na biblioteca'}
@@ -197,9 +197,9 @@ export function PromptEditor({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-8">
+          <div className="space-y-6 md:space-y-0 md:grid md:grid-cols-12 md:gap-8">
             {/* Coluna Esquerda (Principal): Tipo, Identificação, Conteúdo / Prompt e Link */}
-            <div className="lg:col-span-7 xl:col-span-7 space-y-5">
+            <div className="md:col-span-7 space-y-5">
               {/* 1. Tipo — define rótulos, ajuda e formato do conteúdo abaixo */}
               <section className="space-y-2">
                 <Label className="text-sm font-medium">Tipo de item</Label>
@@ -369,7 +369,7 @@ export function PromptEditor({
             </div>
 
             {/* Coluna Direita (Configurações & Metadados): Avisos, Visibilidade, Tags e Iniciativa */}
-            <div className="lg:col-span-5 xl:col-span-5 space-y-5 lg:border-l lg:border-border/60 lg:pl-6">
+            <div className="md:col-span-5 space-y-5 md:border-l md:border-border/60 md:pl-6">
               {similarItems.length > 0 && (
                 <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
                   <p className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400">
