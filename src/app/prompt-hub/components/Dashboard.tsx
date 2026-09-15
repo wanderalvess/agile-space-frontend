@@ -98,19 +98,21 @@ export function PromptDashboard({
     }
   }, [session]);
 
+  const sessionId = session?.id;
+
   const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
-      const publicResponse = await promptApi.listPrompts(undefined, undefined, 0, 100);
-      let myResponseContent: PromptItem[] = [];
-      if (session?.id && !isPublicView) {
-        const myResponse = await promptApi.listPrompts(undefined, session.id, 0, 100);
-        myResponseContent = myResponse.content;
-      }
-      
+      const [publicResponse, myResponse] = await Promise.all([
+        promptApi.listPrompts(undefined, undefined, 0, 100),
+        sessionId && !isPublicView
+          ? promptApi.listPrompts(undefined, sessionId, 0, 100)
+          : Promise.resolve(null),
+      ]);
+
       const map = new Map<string, PromptItem>();
       publicResponse.content.forEach(item => map.set(item.id, item));
-      myResponseContent.forEach(item => map.set(item.id, item));
+      myResponse?.content.forEach(item => map.set(item.id, item));
 
       setRawPrompts(Array.from(map.values()));
     } catch (err: any) {
@@ -119,7 +121,7 @@ export function PromptDashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [session, isPublicView]);
+  }, [sessionId, isPublicView]);
 
   React.useEffect(() => {
     loadData();
