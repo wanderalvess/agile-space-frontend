@@ -347,25 +347,25 @@ export function PromptEditor({
                 )}
               </section>
 
-              {/* 4. Link — protagonista nos tipos que apontam para ferramenta externa */}
-              <section className="space-y-1.5">
-                <Label htmlFor="prompt-link" className="text-sm font-medium">
-                  Link da ferramenta
-                  {!typeMeta.linkFirst && (
-                    <span className="ml-2 font-normal text-muted-foreground">(opcional)</span>
-                  )}
-                </Label>
-                <div className="relative">
-                  <LinkIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="prompt-link"
-                    value={formData.gemLink || ''}
-                    onChange={e => update({ gemLink: e.target.value })}
-                    placeholder="https://gemini.google.com/gems/..."
-                    className="h-10 pl-9"
-                  />
-                </div>
-              </section>
+              {/* 4. Link — só faz sentido pra tipos que apontam pra ferramenta externa (Gem).
+                     Outros tipos já têm "Link de documentação" em Detalhes de iniciativa. */}
+              {typeMeta.linkFirst && (
+                <section className="space-y-1.5">
+                  <Label htmlFor="prompt-link" className="text-sm font-medium">
+                    Link da ferramenta
+                  </Label>
+                  <div className="relative">
+                    <LinkIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="prompt-link"
+                      value={formData.gemLink || ''}
+                      onChange={e => update({ gemLink: e.target.value })}
+                      placeholder="https://gemini.google.com/gems/..."
+                      className="h-10 pl-9"
+                    />
+                  </div>
+                </section>
+              )}
             </div>
 
             {/* Coluna Direita (Configurações & Metadados): Avisos, Visibilidade, Tags e Iniciativa */}
