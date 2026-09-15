@@ -166,8 +166,10 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 })}
               </div>
 
-              {/* Sorting & Session Info */}
-              <div className="hidden md:flex items-center gap-4 shrink-0">
+              {/* Sorting & Session Info — só cabe sem colidir com os botões
+                  de decisão à direita a partir de xl; abaixo disso fica
+                  oculto (dots já mostram o progresso). */}
+              <div className="hidden xl:flex items-center gap-4 shrink-0">
                 {!isCover && (
                   <div className="flex flex-col">
                     <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Progresso</span>
@@ -188,31 +190,38 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 </div>
               </div>
 
-              {/* Navigation Controls */}
+              {/* Navigation Controls — texto só a partir de xl; abaixo disso
+                  fica só o ícone pra não sobrepor os botões de decisão à
+                  direita (ambos os grupos têm shrink-0 e não cabem juntos
+                  em telas menores). */}
               <div className="flex items-center gap-2 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => onIndexChange(isCover ? -1 : currentIndex - 1)}
                   disabled={isCover}
+                  aria-label="Card anterior"
+                  title="Card anterior"
                   className={cn(
-                    "h-9 px-4 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 border transition-all",
+                    "h-9 px-2.5 xl:px-4 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 border transition-all",
                     isLight
                       ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900"
                       : "bg-white/8 text-white/70 border-white/10 hover:bg-white/15 hover:text-white",
                     "disabled:opacity-30 disabled:cursor-not-allowed"
                   )}
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  <ChevronLeft className="h-3.5 w-3.5" /> <span className="hidden xl:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => onIndexChange(isCover ? 0 : Math.min(session.tasks.length - 1, currentIndex + 1))}
                   disabled={!isCover && currentIndex === session.tasks.length - 1}
-                  className="h-9 px-5 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
+                  aria-label={isCover ? 'Começar' : 'Próximo card'}
+                  title={isCover ? 'Começar' : 'Próximo card'}
+                  className="h-9 px-2.5 xl:px-5 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
                 >
-                  {isCover ? 'Começar' : 'Próxima'} <ChevronRight className="h-3.5 w-3.5" />
+                  <span className="hidden xl:inline">{isCover ? 'Começar' : 'Próxima'}</span> <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
