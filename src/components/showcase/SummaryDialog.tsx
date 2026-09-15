@@ -425,12 +425,15 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           </DialogHeader>
         </div>
 
-        {/* Header */}
-        <div className="bg-slate-950 p-10 text-white shrink-0 relative overflow-hidden">
+        {/* Header — compacto (p-6, não p-10): em telas de altura menor esse
+            bloco e o footer são shrink-0 e disputam espaço com a lista de
+            itens, que é o flex-1 real; header+footer grandes deixavam
+            quase nada pra lista (chegava a sumir por completo). */}
+        <div className="bg-slate-950 p-6 text-white shrink-0 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-72 h-72 bg-violet-500/15 blur-[90px] rounded-full" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="space-y-4">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/30">
                   <Sparkles className="h-4 w-4" />
@@ -442,7 +445,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               </h2>
 
               {session?.members && session.members.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {session.members.map(m => (
                     <Badge key={m.id} className="bg-white/5 hover:bg-white/10 text-white/60 border-white/5 rounded-lg px-2.5 py-1 font-black text-[7px] uppercase tracking-widest transition-colors">
                       {m.name}
@@ -452,12 +455,12 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               )}
             </div>
 
-            <div className="flex gap-4">
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[120px]">
+            <div className="flex gap-3">
+              <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
                 <p className="text-2xl font-black italic text-white leading-none mb-1">{approvalRate === null ? '—' : `${approvalRate}%`}</p>
                 <p className="text-[7px] font-black uppercase tracking-widest text-white/40">Taxa Aprovação</p>
               </div>
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[120px]">
+              <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
                 <p className={cn("text-2xl font-black italic leading-none mb-1", efficiency === null ? "text-white/40" : efficiency > 100 ? "text-rose-400" : "text-emerald-400")}>
                   {efficiency === null ? '—' : `${efficiency}%`}
                 </p>
@@ -546,8 +549,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-8 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0">
+        {/* Footer Actions — texto só a partir de md; abaixo disso os 3
+            botões de exportação viram icon-only (com title/aria-label) pra
+            não transbordar da tela em janelas menores que ~960px, e
+            flex-wrap como rede de segurança se ainda assim não couber. */}
+        <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <Button
             onClick={onClose}
             variant="ghost"
@@ -560,24 +566,30 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
             <Button
               onClick={generateApprovalsSummary}
               variant="outline"
-              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              title="Resumo de Aprovações"
+              aria-label="Resumo de Aprovações"
+              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
-              <Copy className="h-3.5 w-3.5" /> Resumo de Aprovações
+              <Copy className="h-3.5 w-3.5" /> <span className="hidden md:inline">Resumo de Aprovações</span>
             </Button>
             <Button
               onClick={generateLog}
               variant="outline"
-              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              title="Log Markdown"
+              aria-label="Log Markdown"
+              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
-              <FileText className="h-3.5 w-3.5" /> Log Markdown
+              <FileText className="h-3.5 w-3.5" /> <span className="hidden md:inline">Log Markdown</span>
             </Button>
             <Button
               onClick={handlePDF}
               disabled={isExportingPdf}
-              className="h-12 px-10 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[9px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
+              title="Exportar Slides PDF"
+              aria-label="Exportar Slides PDF"
+              className="h-11 px-4 md:px-10 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[9px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
             >
               {isExportingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              {isExportingPdf ? 'Gerando PDF...' : 'Exportar Slides PDF'}
+              <span className="hidden md:inline">{isExportingPdf ? 'Gerando PDF...' : 'Exportar Slides PDF'}</span>
             </Button>
           </div>
         </div>
