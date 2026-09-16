@@ -25,7 +25,7 @@ const STEPS: TourStep[] = [
   {
     target: 'first-card-status',
     title: 'Problema e Solução já vêm do Jira',
-    desc: 'O sistema tenta extrair isso sozinho da descrição da issue. Complete a evidência (print/vídeo) e marque o status aqui conforme avança na preparação.',
+    desc: 'O sistema tenta extrair isso sozinho da descrição da issue. Complete a evidência (print/vídeo) e marque o status aqui conforme avança. Quando marcar "Pronta", o card recolhe sozinho — clique nele pra reabrir se precisar reconferir algo.',
   },
   {
     target: 'jira-import',

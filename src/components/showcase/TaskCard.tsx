@@ -339,15 +339,22 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
   const canCollapse = task.preparationStatus === 'done';
   // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint
   // grande) — sprint de 40 itens não vira scroll infinito de card 100% aberto.
-  // Não reage a canCollapse depois (useState só lê o valor inicial): card não
-  // fecha sozinho debaixo do cursor de quem tá editando.
   const [collapsed, setCollapsed] = React.useState(canCollapse);
 
-  // Reabre automaticamente se o status regredir de "Pronta" — nunca deixa um
-  // card fora do critério de recolher escondido (efeito unidirecional: só
-  // abre, nunca fecha sozinho — isso continua exigindo clique, ver acima).
+  // Colapsa/reabre sozinho seguindo a transição de "Pronta" — mas só na
+  // TRANSIÇÃO (via ref), nunca a cada render: marcar "Pronta" já é uma ação
+  // discreta e deliberada no próprio header do card (clique num dropdown),
+  // então reagir a ela colapsando na hora é a confirmação visual esperada,
+  // não vira fechar "debaixo do cursor" de quem tá digitando num campo de
+  // texto. Reabre se o status regredir de "Pronta" — nunca deixa escondido
+  // um card fora do critério de recolher. Sem o `prev` isso brigaria com
+  // reabrir manualmente um card já pronto pra reconferir algo.
+  const prevCanCollapseRef = React.useRef(canCollapse);
   React.useEffect(() => {
-    if (!canCollapse && collapsed) setCollapsed(false);
+    const prev = prevCanCollapseRef.current;
+    prevCanCollapseRef.current = canCollapse;
+    if (canCollapse && !prev) setCollapsed(true);
+    else if (!canCollapse && collapsed) setCollapsed(false);
   }, [canCollapse, collapsed]);
 
   return (
