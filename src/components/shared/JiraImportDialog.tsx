@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, JiraIssue } from '@/services/jiraService';
+import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, enrichWithParentContext, JiraIssue } from '@/services/jiraService';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useSavedJqls } from '@/hooks/useSavedJqls';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -127,7 +127,11 @@ export function JiraImportDialog({
       // Problema/solução às vezes só existem na subtarefa "Codificação"
       // (issue filha), não na história em si — busca extra só pra quem
       // ainda ficou sem os dois campos.
-      const enriched = await enrichWithCodificacaoChildren(domain, token, issues);
+      const enrichedFromChildren = await enrichWithCodificacaoChildren(domain, token, issues);
+      // Caminho inverso: quando a própria subtarefa é a issue buscada (JQL
+      // trouxe a "Codificação" direto, não a história), o contexto costuma
+      // estar na história pai, não repetido na subtarefa.
+      const enriched = await enrichWithParentContext(domain, token, enrichedFromChildren);
       setResults(enriched);
       clearFilters();
       setSelected(new Set(enriched.map(i => i.key))); // Select all by default

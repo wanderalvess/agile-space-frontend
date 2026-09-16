@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Gauge, ExternalLink, RefreshCw, KeyRound, ShieldCheck, Activity, Settings, Play, Bookmark, Globe, User, X } from 'lucide-react';
+import { Gauge, RefreshCw, KeyRound, ShieldCheck, Settings, Play, Bookmark, Globe, User, X } from 'lucide-react';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -204,33 +203,6 @@ export default function JiraDashPage() {
               className="text-muted-foreground hover:text-foreground"
             >
               <RefreshCw className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="hidden sm:flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10"
-              title="Comparar com o módulo Squad Pulse anterior"
-            >
-              <Link href="/squad">
-                <Activity className="w-3.5 h-3.5" />
-                Squad Pulse
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              asChild
-              className="hidden sm:flex items-center gap-1.5 text-xs"
-            >
-              <a
-                href="https://jiraproducao.totvs.com.br"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Jira TOTVS
-              </a>
             </Button>
           </div>
         }

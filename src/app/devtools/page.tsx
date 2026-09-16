@@ -226,6 +226,15 @@ const TOOLS = [
     bg: 'bg-fuchsia-50'
   },
   {
+    title: 'Visualizador de Markdown',
+    description: 'Leia arquivos .md formatados (tabelas, listas, links) lado a lado com o texto cru.',
+    href: '/devtools/markdown-viewer',
+    icon: FileText,
+    category: 'Textos & Conteúdo',
+    color: 'text-fuchsia-600',
+    bg: 'bg-fuchsia-50'
+  },
+  {
     title: 'Calculadoras Rápidas',
     description: 'Calculadora de áreas geográficas, científica e cálculos básicos de escritório.',
     href: '/devtools/calculators',

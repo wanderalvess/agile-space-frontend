@@ -11,6 +11,10 @@ export interface Evidence {
   qa: string;
   screenshot: string;
   video: string;
+  // Só importa quando os dois campos acima estão preenchidos (com só um,
+  // esse é o que aparece, sem ambiguidade). Ausente = 'video', mesmo default
+  // de antes dessa flag existir — não muda o comportamento de card já criado.
+  evidencePreference?: 'video' | 'screenshot';
   timeSpent?: number;
   timeEstimate?: number;
   planned?: { dev?: string; qa?: string; tu?: string } | null;
@@ -44,6 +48,10 @@ export interface ShowcaseTask {
   cardKind?: CardKind;
   chartType?: ChartType;
   chartTitle?: string;
+  // Só lido pro card padrão com métrica avulsa ('story' + metrics). Card
+  // 'metrics' puro ignora isso e é sempre 'featured' (é o único conteúdo que
+  // ele tem pra mostrar). Ausente = 'compact' (comportamento anterior).
+  chartDisplay?: 'compact' | 'featured';
   metrics?: ImpactMetric[];
   assignee: string; 
   url: string;
@@ -52,9 +60,10 @@ export interface ShowcaseTask {
   preparationStatus: PreparationStatus;
   feedback: string; 
   project?: string;
+  versionSuporte?: string;
   versionMaster?: string;
-  versionDevelop?: string;
   versionRelease?: string;
+  versionDevelop?: string;
   approvedAt?: string;
   // Trilha de decisão — quem decidiu e quando, pra qualquer decisão (não só
   // approved). Sem isso a SummaryDialog não tinha como mostrar autoria.

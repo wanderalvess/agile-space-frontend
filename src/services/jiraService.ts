@@ -6,6 +6,31 @@
 
 import { authFetch } from '@/lib/auth-client';
 
+/**
+ * Busca um anexo/thumbnail do próprio Jira (ex.: /secure/attachment/...,
+ * /secure/thumbnail/...) via proxy autenticado com o PAT — usado quando a
+ * evidência de uma task é uma imagem hospedada no Jira, que como <img>
+ * cross-origin nunca carrega (Jira exige sessão/cookie que o navegador não
+ * envia numa requisição de terceiro; só funciona em navegação de página
+ * inteira, tipo abrir em nova aba). Retorna um blob URL local, ou null se
+ * falhar (token sem permissão, anexo não é imagem, etc.) — quem chama deve
+ * cair pro fallback de link externo nesse caso.
+ */
+export const fetchJiraAttachmentBlobUrl = async (domain: string, token: string, url: string): Promise<string | null> => {
+  try {
+    const res = await authFetch('/api/jira/attachment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim(), url }),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+};
+
 export interface JiraIssue {
   key: string;
   title: string;
@@ -44,9 +69,10 @@ export interface JiraIssue {
   labels?: string[];
   worklogs?: any[];
   project?: string;
+  versionSuporte?: string;
   versionMaster?: string;
-  versionDevelop?: string;
   versionRelease?: string;
+  versionDevelop?: string;
   // Valor bruto do campo Sprint (customfield_XXXXX) — só vem preenchido
   // quando fetchJiraIssues é chamado com opts.sprintFieldId (ID varia por
   // instância Jira, ver SquadConfig.sprintFieldId). Formato varia: array de
@@ -89,8 +115,8 @@ const parsePlannedFromTitle = (title: string) => {
  * Extrai dados de CI/CD (Projeto e Versões) de um único texto/comentário
  */
 const parseCicdFromText = (text: string) => {
-  const info: { project?: string; versionMaster?: string; versionDevelop?: string; versionRelease?: string } = {};
-  
+  const info: { project?: string; versionSuporte?: string; versionMaster?: string; versionRelease?: string; versionDevelop?: string } = {};
+
   if (!text || !text.includes('Esteira de Integração Continua')) {
     return info;
   }
@@ -107,7 +133,9 @@ const parseCicdFromText = (text: string) => {
     const version = versionMatch[1].trim();
     const branch = branchMatch[1].trim().toLowerCase();
 
-    if (branch.includes('master') || branch.includes('main')) {
+    if (branch.includes('suporte') || branch.includes('support') || branch.includes('hotfix')) {
+      info.versionSuporte = version;
+    } else if (branch.includes('master') || branch.includes('main')) {
       info.versionMaster = version;
     } else if (branch.includes('develop') || branch.includes('dev')) {
       info.versionDevelop = version;
@@ -123,16 +151,17 @@ const parseCicdFromText = (text: string) => {
  * Acumula os dados de CI/CD de múltiplos comentários
  */
 const parseCicdFromComments = (comments: string[]) => {
-  const result: { project?: string; versionMaster?: string; versionDevelop?: string; versionRelease?: string } = {};
-  
+  const result: { project?: string; versionSuporte?: string; versionMaster?: string; versionRelease?: string; versionDevelop?: string } = {};
+
   for (const comment of comments) {
     const parsed = parseCicdFromText(comment);
     if (parsed.project) result.project = parsed.project;
+    if (parsed.versionSuporte) result.versionSuporte = parsed.versionSuporte;
     if (parsed.versionMaster) result.versionMaster = parsed.versionMaster;
-    if (parsed.versionDevelop) result.versionDevelop = parsed.versionDevelop;
     if (parsed.versionRelease) result.versionRelease = parsed.versionRelease;
+    if (parsed.versionDevelop) result.versionDevelop = parsed.versionDevelop;
   }
-  
+
   return result;
 };
 
@@ -146,42 +175,204 @@ const extractDriveLink = (text: string): string => {
 };
 
 /**
- * Remove tags HTML e decodifica entidades de texto
+ * Remove marcação wiki do Jira — a API v2 devolve a description/comentário
+ * como texto CRU nesse formato (não HTML), então sem isso a pontuação de
+ * negrito/heading/cor sobra visível no meio do texto extraído
+ * ("h3. *Descrição da Situação:*" em vez de "Descrição da Situação:").
+ * O `*` de negrito ("*palavra*", sem espaço colado no `*`) é distinto do `*`
+ * de marcador de lista ("* item", com espaço) — só o primeiro é removido.
+ */
+const stripWikiMarkup = (text: string): string => {
+  if (!text) return text;
+  return text
+    .replace(/^h[1-6]\.[ \t]*/gm, '')
+    .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
+    .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    .replace(/^-{3,}[ \t]*$/gm, '');
+};
+
+/**
+ * Remove tags HTML, marcação wiki do Jira, e decodifica entidades de texto,
+ * preservando quebra de linha (vira '\n' em vez de espaço) — os campos que
+ * consomem isso no TaskCard são textarea multi-linha, então lista/bullet
+ * colapsada numa linha só fica ilegível.
  */
 const stripHtml = (html: string): string => {
   if (!html) return '';
-  // Limpa as tags HTML
-  let text = html.replace(/<[^>]*>?/gm, ' ');
-  // Decodifica entidades comuns que o Jira exporta
+  let text = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]*>?/gm, '');
   text = text.replace(/&nbsp;/g, ' ')
              .replace(/&quot;/g, '"')
              .replace(/&amp;/g, '&')
              .replace(/&lt;/g, '<')
              .replace(/&gt;/g, '>')
              .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)));
-  // Remove espaços duplos e colchetes residuais de links
-  return text.replace(/\s+/g, ' ').trim();
+  text = stripWikiMarkup(text);
+  const lines = text.split('\n').map(l => l.replace(/[ \t]+/g, ' ').trim());
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 };
 
 /**
- * Helpers para extração de dados da descrição via Regex
+ * Extração tolerante de Problema/Solução/Critérios de Aceite. O time não
+ * escreve religiosamente com esses cabeçalhos — varia sinônimo, ordem,
+ * emoji/negrito na frente do título ("📝 Contexto", "*Solução:*"), ou não usa
+ * cabeçalho nenhum — então em vez de regex rígido por campo, isto localiza
+ * QUALQUER cabeçalho conhecido (de qualquer categoria) pra servir de fim de
+ * seção, independente da ordem em que apareçam no texto.
  */
+const SECTION_ALIASES = {
+  problem: [
+    'PROBLEMA', 'CONTEXTO', 'MOTIVA[ÇC][ÃA]O', 'POR\\s+QU[ÊE]', 'ERRO\\s+ENCONTRADO',
+    // "CENÁRIO" sozinho fica de fora: palavra comum demais — aparece solta
+    // em item de lista ("1. Cenário: X") e não só em header de seção real.
+    // "Cenário" como problema sem header dedicado ainda cai no fallback do
+    // preâmbulo (guessProblemFromPreamble).
+  ],
+  solution: [
+    'SOLU[ÇC][ÃA]O', 'RESOLU[ÇC][ÃA]O', 'AN[ÁA]LISE',
+    'O\\s+QUE\\s+FOI\\s+FEITO', 'COMO\\s+FOI\\s+FEITO', 'IMPLEMENTA[ÇC][ÃA]O',
+    'ALTERA[ÇC][ÕO]ES?\\s+REALIZADAS?', 'PROPOSTA\\s+(?:DE\\s+)?SOLU[ÇC][ÃA]O',
+    // Histórias de usuário formais (sem bug report por trás) descrevem "a
+    // solução" com esses títulos em vez de "Solução" mesmo.
+    'DETALHAMENTO\\s+FUNCIONAL', 'OBJETIVO\\s+DA\\s+MUDAN[ÇC]A', 'IMPACTOS?\\s+T[ÉE]CNICOS?',
+    // "CORREÇÃO" sozinho NÃO entra: bate com títulos de seção-container tipo
+    // "Correção/Alteração Efetuada na Rotina" (template real visto em
+    // produção) antes de achar o "Solução" de verdade lá dentro.
+  ],
+  acceptanceCriteria: [
+    'CRIT[ÉE]RIOS?\\s+DE\\s+ACEITE', 'CRIT[ÉE]RIOS?\\s+DE\\s+ACEITA[ÇC][ÃA]O',
+    'ACCEPTANCE\\s+CRITERIA', 'O\\s+QUE\\s+SER[ÁA]\\s+TESTADO',
+    'CEN[ÁA]RIOS?\\s+DE\\s+TESTE', 'COMPORTAMENTO\\s+ESPERADO',
+    'ROTEIRO\\s+DE\\s+TESTES?', 'CHECKLIST',
+  ],
+  // Só servem de delimitador de fim de seção — não viram nenhum dos 3 campos,
+  // mas sem eles na lista o conteúdo deles é engolido pela seção anterior
+  // (ex.: "Pontos de Atenção" grudado no fim dos Critérios de Aceite).
+  other: [
+    'PONTOS?\\s+DE\\s+ATEN[ÇC][ÃA]O', 'DOCUMENTA[ÇC][ÃA]O(?:\\s+E\\s+EVID[ÊE]NCIAS)?',
+    'DADOS\\s+T[ÉE]CNICOS(?:\\s+E\\s+LINKS)?', 'V[ÍI]DEO', 'EVID[ÊE]NCIAS?',
+    // Seções fixas de um template de ticket real (TOTVS) — não são nenhum
+    // dos 3 campos, só cabeçalho de container; sem eles entram como conteúdo
+    // do Problema/Solução/Critério da seção anterior.
+    'ROTINA', 'VERS[ÃA]O\\s+PARA\\s+TESTE', 'TABELAS\\s+UTILIZADAS',
+    'NECESSITA\\s+DE\\s+PERMISS[ÃA]O(?:\\s+OU\\s+PARAMETRIZA[ÇC][ÃA]O)?(?:\\?\\s*QUAIS\\?)?',
+    'CEN[ÁA]RIOS?\\s+A\\s+SEREM\\s+TESTADOS',
+  ],
+};
+
+const ALL_ALIASES = [
+  ...SECTION_ALIASES.problem, ...SECTION_ALIASES.solution,
+  ...SECTION_ALIASES.acceptanceCriteria, ...SECTION_ALIASES.other,
+];
+
+// Pula opcionalmente "h1."-"h6." (heading de wiki markup do Jira — começa
+// com letra, não é "símbolo" pro skip abaixo) e depois até 8 caracteres
+// não-letra (emoji, *, #, número, espaço) antes do cabeçalho — cobre
+// "📝 Contexto", "🛠 Alterações Realizadas", "*Solução:*", "h2. Solução".
+const HEADER_LEAD = '^(?:h[1-6]\\.[ \\t]*)?[^\\p{L}\\n]{0,8}';
+// Cabeçalhos colados tipo "Contexto/Problema" viram um cabeçalho só (senão a
+// busca pelo fim da 1ª seção acha o 2º alias colado e zera o conteúdo).
+const HEADER_GLUE = `(?:\\s*[\\/,]\\s*(?:${ALL_ALIASES.join('|')}))*`;
+// A palavra extra tolerada ("Problema Atual", "Critério Geral") só conta se
+// vier seguida de quebra de linha (lookahead, não consome) — sem essa
+// âncora, "Problema Identificou-se uma falha..." (frase corrida colada no
+// cabeçalho) comia a primeira palavra da frase como se fosse qualificador.
+const HEADER_TAIL = '(?:[ \\t]+\\p{L}{2,20}(?=[ \\t]*(?:\\n|$)))?(?:\\s*\\([^)]{0,40}\\))?[ \\t]*:?[ \\t]*\\n?';
+
+const findHeader = (text: string, aliases: string[]): RegExpMatchArray | null => {
+  const re = new RegExp(`${HEADER_LEAD}(?:${aliases.join('|')})${HEADER_GLUE}${HEADER_TAIL}`, 'imu');
+  return text.match(re);
+};
+
+// Junta TODAS as ocorrências da mesma categoria (ex.: "Cenários de Teste" e
+// "Comportamento Esperado" são as duas Critérios de Aceite) em vez de só a
+// primeira — senão a segunda seção do mesmo tipo se perde.
+const extractSection = (text: string, aliases: string[]): string => {
+  const parts: string[] = [];
+  let searchFrom = 0;
+  while (searchFrom < text.length) {
+    const rest = text.slice(searchFrom);
+    const startMatch = findHeader(rest, aliases);
+    if (!startMatch || startMatch.index === undefined) break;
+    const absStart = searchFrom + startMatch.index;
+    const afterStart = absStart + startMatch[0].length;
+    const endMatch = findHeader(text.slice(afterStart), ALL_ALIASES);
+    const absEnd = endMatch && endMatch.index !== undefined ? afterStart + endMatch.index : text.length;
+    parts.push(text.slice(afterStart, absEnd));
+    searchFrom = absEnd;
+  }
+  return stripHtml(parts.join('\n\n'));
+};
+
+const GHERKIN_LINE = /^\s*(?:dado|given|quando|when|ent[ãa]o|then)\b/i;
+const BULLET_LINE = /^\s*(?:[-*•#]|\d+[.)]|\[[ xX]\])\s+/;
+
+// Tira spans já reconhecidos por outro campo (Problema, Solução, "other" —
+// Dados Técnicos, Documentação, Pontos de Atenção...) antes de varrer por
+// bullets soltos — senão uma lista de links vira "Critério de Aceite" só
+// por ter marcador de lista, ou um bullet que já virou Solução (via
+// "Objetivo da Mudança"/"Detalhamento Funcional" etc.) aparece duplicado
+// como Critério de Aceite também.
+const stripKnownSections = (text: string, aliases: string[]): string => {
+  let result = text;
+  let searchFrom = 0;
+  const spans: Array<[number, number]> = [];
+  while (searchFrom < result.length) {
+    const rest = result.slice(searchFrom);
+    const m = findHeader(rest, aliases);
+    if (!m || m.index === undefined) break;
+    const absStart = searchFrom + m.index;
+    const afterHeader = absStart + m[0].length;
+    const endM = findHeader(result.slice(afterHeader), ALL_ALIASES);
+    const absEnd = endM && endM.index !== undefined ? afterHeader + endM.index : result.length;
+    spans.push([absStart, absEnd]);
+    searchFrom = absEnd;
+  }
+  for (let i = spans.length - 1; i >= 0; i--) {
+    result = result.slice(0, spans[i][0]) + result.slice(spans[i][1]);
+  }
+  return result;
+};
+
+/** Sem cabeçalho de critério: procura um bloco de linhas em Gherkin ou lista com marcador. */
+const guessAcceptanceCriteria = (text: string): string => {
+  const claimed = [...SECTION_ALIASES.other, ...SECTION_ALIASES.problem, ...SECTION_ALIASES.solution];
+  const lines = stripHtml(stripKnownSections(text, claimed)).split('\n');
+  const hits = lines.filter(l => GHERKIN_LINE.test(l) || BULLET_LINE.test(l));
+  return hits.join('\n');
+};
+
 const parseAcceptanceCriteriaFromDescription = (desc: string) => {
   if (!desc) return '';
-  const acMatch = desc.match(/(?:CRIT[ÉÉ]RIOS? DE ACEITE|ACCEPTANCE CRITERIA|CRIT[ÉÉ]RIOS? DE ACEITAÇÃO|O QUE SERÁ TESTADO):?\s*([\s\S]*?)(?:PROBLEMA|SOLUÇÃO|VÍDEO|---|[#*]|$)/i);
-  return acMatch ? stripHtml(acMatch[1]) : '';
+  return extractSection(desc, SECTION_ALIASES.acceptanceCriteria) || guessAcceptanceCriteria(desc);
 };
 
 const parseProblemFromDescription = (desc: string) => {
   if (!desc) return '';
-  const probMatch = desc.match(/(?:PROBLEMA|MOTIVAÇÃO|POR QUE):?([\s\S]*?)(?:SOLUÇÃO|VÍDEO|---|<br|[#*]|$)/i);
-  return probMatch ? stripHtml(probMatch[1]) : '';
+  return extractSection(desc, SECTION_ALIASES.problem);
 };
 
 const parseSolutionFromDescription = (desc: string) => {
   if (!desc) return '';
-  const solMatch = desc.match(/(?:SOLUÇÃO|O QUE FOI FEITO|COMO FOI FEITO):?([\s\S]*?)(?:PROBLEMA|VÍDEO|---|<br|[#*]|$)/i);
-  return solMatch ? stripHtml(solMatch[1]) : '';
+  return extractSection(desc, SECTION_ALIASES.solution);
+};
+
+/**
+ * Último recurso pro Problema: sem cabeçalho dedicado, usa o preâmbulo — tudo
+ * antes do primeiro cabeçalho conhecido, de qualquer categoria. Cobre abrir a
+ * descrição direto com o contexto, sem rotular nada; sem cabeçalho NENHUM no
+ * texto, o preâmbulo é o texto inteiro. Chamado à parte (não embutido nos
+ * parse*FromDescription) pra não atropelar quem tenta uma fonte (comentário)
+ * e cai pra outra (descrição) antes de aceitar o preâmbulo como resposta.
+ */
+const guessProblemFromPreamble = (text: string): string => {
+  if (!text) return '';
+  const firstHeader = findHeader(text, ALL_ALIASES);
+  const preamble = firstHeader && firstHeader.index !== undefined ? text.slice(0, firstHeader.index) : text;
+  return stripHtml(preamble);
 };
 
 const parseQAFromDescription = (desc: string) => {
@@ -272,33 +463,26 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         }
       });
 
-      // --- EXTRAÇÃO DE CRITÉRIOS DE ACEITE DA DESCRIÇÃO ---
-      if (!acceptanceCriteria && description) {
-        const acMatch = description.match(/(?:CRIT[ÉÉ]RIOS? DE ACEITE|ACCEPTANCE CRITERIA|CRIT[ÉÉ]RIOS? DE ACEITAÇÃO):?\s*([\s\S]*?)(?:PROBLEMA|SOLUÇÃO|VÍDEO|---|#|$)/i);
-        if (acMatch) acceptanceCriteria = stripHtml(acMatch[1]);
-      }
-
       // Varrer COMENTÁRIOS para achar Problema, Solução e Vídeos
       const comments = Array.from(item.querySelectorAll('comment')).map(c => ({
         author: c.getAttribute('author') || '',
         text: c.textContent?.trim() || ''
       }));
 
-      // Extrair Vídeo de qualquer comentário (prioridade Drive)
-      const allText = description + ' ' + comments.map(c => c.text).join(' ');
-      videoUrl = extractDriveLink(allText);
+      // Comentários do DEV entram primeiro no texto combinado (prioridade
+      // sem descartar o resto) — se o mesmo cabeçalho aparecer em dois
+      // lugares, o parser pega a primeira ocorrência.
+      const devComments = comments.filter(c => c.author === devUsername).map(c => c.text);
+      const otherComments = comments.filter(c => c.author !== devUsername).map(c => c.text);
+      const combinedText = [...devComments, description, ...otherComments].filter(Boolean).join('\n\n');
 
-      // Prioridade para comentários do DEV para Problema e Solução
-      const devComments = comments.filter(c => c.author === devUsername);
-      const searchTarget = devComments.length > 0 ? devComments.map(c => c.text).join(' ') : allText;
+      videoUrl = extractDriveLink(combinedText);
 
-      const probMatch = searchTarget.match(/PROBLEMA:?([\s\S]*?)(?:SOLUÇÃO|VÍDEO|---|<br|$)/i);
-      const solMatch = searchTarget.match(/SOLUÇÃO:?([\s\S]*?)(?:PROBLEMA|VÍDEO|---|<br|$)/i);
+      if (!acceptanceCriteria) acceptanceCriteria = parseAcceptanceCriteriaFromDescription(combinedText);
+      problem = parseProblemFromDescription(combinedText);
+      solution = parseSolutionFromDescription(combinedText);
 
-      problem = probMatch ? stripHtml(probMatch[1]) : '';
-      solution = solMatch ? stripHtml(solMatch[1]) : '';
-
-      // Fallback para campos específicos se não achar no texto
+      // Fallback para campo específico se não achar solução no texto
       if (!solution) {
         item.querySelectorAll('customfield').forEach(cf => {
           if (cf.getAttribute('id') === 'customfield_10410') {
@@ -309,11 +493,9 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         });
       }
 
-      // Cleanup final do problema se estiver vazio
-      if (!problem && description) {
-        const dMatch = description.match(/PROBLEMA:?([\s\S]*?)(?:SOLUÇÃO|---|<br|$)/i);
-        problem = dMatch ? stripHtml(dMatch[1]) : stripHtml(description.split('----')[0]);
-      }
+      // Sem cabeçalho de Problema achado: usa o preâmbulo do texto combinado
+      // pra não perder a informação deixando o campo em branco.
+      if (!problem) problem = guessProblemFromPreamble(combinedText);
 
       // Story points
       let points = 0;
@@ -334,9 +516,10 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         problem, solution, qa, videoUrl, devName,
         timeSpent, timeEstimate, planned,
         project: cicdInfo.project,
+        versionSuporte: cicdInfo.versionSuporte,
         versionMaster: cicdInfo.versionMaster,
-        versionDevelop: cicdInfo.versionDevelop,
-        versionRelease: cicdInfo.versionRelease
+        versionRelease: cicdInfo.versionRelease,
+        versionDevelop: cicdInfo.versionDevelop
       });
 
       // Se for issue de Gestão (ex: Refinamento), extrair issues associadas do issuelinks
@@ -366,9 +549,10 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
               timeEstimate: 0,
               planned: undefined,
               project: '',
+              versionSuporte: '',
               versionMaster: '',
-              versionDevelop: '',
-              versionRelease: ''
+              versionRelease: '',
+              versionDevelop: ''
             });
           }
         });
@@ -556,17 +740,6 @@ export const fetchJiraIssues = async (
       ? renderedDescription
       : desc;
 
-    // Automação simplificada via API (Regex na descrição e campos custom)
-    const probMatch = desc.match(/PROBLEMA:?([\s\S]*?)(?:SOLUÇÃO|$)/i);
-    const solMatch = desc.match(/SOLUÇÃO:?([\s\S]*?)(?:PROBLEMA|$)/i);
-
-    // Extração Inteligente de Critérios de Aceite
-    let acceptanceCriteria = fields?.customfield_10100 || '';
-    if (!acceptanceCriteria) {
-      const acMatch = desc.match(/(?:CRIT[ÉÉ]RIOS? DE ACEITE|ACCEPTANCE CRITERIA|CRIT[ÉÉ]RIOS? DE ACEITAÇÃO):?\s*([\s\S]*?)(?:PROBLEMA|SOLUÇÃO|VÍDEO|---|#|$)/i);
-      if (acMatch) acceptanceCriteria = acMatch[1].trim();
-    }
-
     // Tenta extrair pontos (Story Points)
     let points = 0;
     const possiblePointFields = [
@@ -655,8 +828,8 @@ export const fetchJiraIssues = async (
       labels: fields?.labels || [],
       points,
       planned: parsePlannedFromTitle(fields?.summary || ''),
-      acceptanceCriteria: acceptanceCriteria || parseAcceptanceCriteriaFromDescription(desc),
-      problem: parseProblemFromDescription(commentsText) || parseProblemFromDescription(desc),
+      acceptanceCriteria: fields?.customfield_10100 || parseAcceptanceCriteriaFromDescription(desc),
+      problem: parseProblemFromDescription(commentsText) || parseProblemFromDescription(desc) || guessProblemFromPreamble(desc),
       solution: parseSolutionFromDescription(commentsText) || parseSolutionFromDescription(desc),
       qa: formatJiraName(fields?.customfield_25307?.displayName || fields?.customfield_25307 || '') || parseQAFromDescription(desc),
       videoUrl: extractDriveLink(commentsText) || extractDriveLink(desc),
@@ -666,9 +839,10 @@ export const fetchJiraIssues = async (
       timeRemaining: fields?.aggregatetimeestimate || fields?.timeestimate || 0,
       worklogs: fields?.worklog?.worklogs || [],
       project: cicdParsed.project,
+      versionSuporte: cicdParsed.versionSuporte,
       versionMaster: cicdParsed.versionMaster,
-      versionDevelop: cicdParsed.versionDevelop,
       versionRelease: cicdParsed.versionRelease,
+      versionDevelop: cicdParsed.versionDevelop,
       sprintRaw: (() => {
         if (opts?.sprintFieldId && fields?.[opts.sprintFieldId]) return fields[opts.sprintFieldId];
         if (!fields) return undefined;
@@ -807,11 +981,58 @@ export const enrichWithCodificacaoChildren = async (
       solution: issue.solution || bestSubtask?.solution || anyWithSolution?.solution,
       videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
       project: issue.project || bestSubtask?.project || anyWithProject?.project,
+      versionSuporte: issue.versionSuporte || bestSubtask?.versionSuporte || anyWithProject?.versionSuporte,
       versionMaster: issue.versionMaster || bestSubtask?.versionMaster || anyWithProject?.versionMaster,
-      versionDevelop: issue.versionDevelop || bestSubtask?.versionDevelop || anyWithProject?.versionDevelop,
       versionRelease: issue.versionRelease || bestSubtask?.versionRelease || anyWithProject?.versionRelease,
+      versionDevelop: issue.versionDevelop || bestSubtask?.versionDevelop || anyWithProject?.versionDevelop,
       qa: issue.qa || anyWithQA?.qa,
       devName: issue.devName || (bestSubtask?.devName && isDevSubtask(bestSubtask) ? bestSubtask.devName : anyWithDev?.devName),
+    };
+  });
+};
+
+/**
+ * Caminho inverso do enrichWithCodificacaoChildren: quando a subtarefa (ex.:
+ * "Codificação") é ela mesma a issue importada — não a história pai — o
+ * contexto (problema/critérios) geralmente está descrito na história, não
+ * repetido na subtarefa. Sem isso, importar a subtarefa direto (em vez da
+ * história) trazia o card sem problema/critério nenhum, mesmo a história pai
+ * tendo tudo isso preenchido.
+ */
+export const enrichWithParentContext = async (
+  domain: string, token: string, issues: JiraIssue[]
+): Promise<JiraIssue[]> => {
+  const pending = issues.filter(i => i.parentKey && (!i.problem || !i.solution || !i.acceptanceCriteria));
+  if (pending.length === 0) return issues;
+
+  const parentKeys = Array.from(new Set(pending.map(i => i.parentKey!)));
+  const parentsByKey = new Map<string, JiraIssue>();
+  // 30 chaves por chamada mantém a URL da GET /search em tamanho seguro
+  for (let i = 0; i < parentKeys.length; i += 30) {
+    const chunkKeys = parentKeys.slice(i, i + 30);
+    const jql = `key in (${chunkKeys.join(',')})`;
+    try {
+      const { issues: parents } = await fetchJiraIssues(domain, token, jql, { maxResults: 100 });
+      parents.forEach(p => parentsByKey.set(p.key, p));
+    } catch (e) {
+      // Uma falha pontual nessa busca extra não derruba a importação
+      console.warn('[enrichWithParentContext] Falha ao buscar issue pai:', e);
+    }
+  }
+
+  if (parentsByKey.size === 0) return issues;
+
+  return issues.map(issue => {
+    if (!issue.parentKey) return issue;
+    const parent = parentsByKey.get(issue.parentKey);
+    if (!parent) return issue;
+
+    return {
+      ...issue,
+      problem: issue.problem || parent.problem,
+      solution: issue.solution || parent.solution,
+      acceptanceCriteria: issue.acceptanceCriteria || parent.acceptanceCriteria,
+      videoUrl: issue.videoUrl || parent.videoUrl,
     };
   });
 };

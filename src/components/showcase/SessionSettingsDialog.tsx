@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Settings, Sparkles, Link as LinkIcon, Check, AlertTriangle, 
-  Layout, Target, Users, Palette, Globe, ChevronRight, Video, SortAsc
+import {
+  Settings, Sparkles, Link as LinkIcon, Check, AlertTriangle,
+  Layout, Target, Palette, Globe, ChevronRight, Video, SortAsc, Camera
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShowcaseSession, PRESETS, PRESENTATION_PRESETS } from './types';
+import { ShowcaseSession, ShowcaseTask, PRESETS, PRESENTATION_PRESETS } from './types';
 import { getDirectImageUrl } from './utils';
 
 interface SessionSettingsDialogProps {
@@ -20,11 +20,78 @@ interface SessionSettingsDialogProps {
   onClose: () => void;
   session: ShowcaseSession | null;
   onUpdate: (updates: Partial<ShowcaseSession>) => void;
+  // true quando o dialog foi reaberto porque o usuário tentou apresentar
+  // sem preencher Objetivos/Capa — mostra o banner de aviso em vez de abrir
+  // silencioso como o botão de Config normal.
+  presentWarning?: boolean;
+  onPresentAnyway?: () => void;
 }
 
-type TabType = 'geral' | 'identidade' | 'apresentacao' | 'squad';
+type TabType = 'geral' | 'identidade' | 'apresentacao';
 
-export function SessionSettingsDialog({ open, onClose, session: initialSession, onUpdate: onCommit }: SessionSettingsDialogProps) {
+/**
+ * Réplica em miniatura do painel lateral do Modo Teatro (TeatroMode.tsx) —
+ * mesma lógica de fundo/tema, só em escala menor. Sem isso a aba só deixava
+ * escolher fundo/tema às cegas, o resultado real só aparecia abrindo a
+ * apresentação inteira.
+ */
+function PresentationPreview({ background, theme, task }: { background?: string; theme?: ShowcaseSession['presentationTheme']; task?: ShowcaseTask }) {
+  const isLight = background === '#ffffff';
+  const isGlass = theme === 'glass';
+  const isMinimalist = theme === 'minimalist';
+
+  const bgStyle: React.CSSProperties = background
+    ? {
+        background: background.startsWith('http')
+          ? `linear-gradient(rgba(5, 5, 16, 0.9), rgba(5, 5, 16, 0.95)), url(${background})`
+          : background,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : { background: 'linear-gradient(135deg, #0f172a 0%, #020205 100%)' };
+
+  // Sem cards ainda: mostra o layout com um rótulo de exemplo em vez de
+  // inventar uma issue que não existe (achou que era um card real quebrado).
+  const badgeKey = task?.key || 'EXEMPLO';
+  const title = task?.title || 'Assim seus cards vão aparecer aqui';
+  const desc = task?.evidence?.problem || task?.description || 'Importe do Jira ou crie um card manual pra ver a prévia real.';
+
+  return (
+    <div className="relative w-full h-full rounded-xl overflow-hidden" style={bgStyle}>
+      <div
+        className={cn(
+          'absolute inset-y-0 left-0 w-[58%] max-w-[260px] p-5 flex flex-col gap-3 border-r',
+          isLight
+            ? 'bg-white border-slate-200'
+            : cn(isGlass ? 'bg-white/[0.02] backdrop-blur-2xl' : 'bg-[#080812]/95 backdrop-blur-2xl', 'border-white/10'),
+          isMinimalist && 'border-r-0 shadow-none'
+        )}
+      >
+        <div className="flex items-center justify-between">
+          <span className={cn('text-[9px] font-bold px-2.5 py-1 rounded-full shrink-0', task ? 'bg-violet-600/90 text-white' : 'bg-white/10 text-white/50 tracking-widest')}>{badgeKey}</span>
+          {task && (
+            <span className="bg-emerald-500/15 text-emerald-400 text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0">
+              <Check className="h-2.5 w-2.5" /> Aprovado
+            </span>
+          )}
+        </div>
+        <h4 className={cn('text-[15px] font-semibold leading-tight', isLight ? 'text-slate-900' : 'text-white')}>
+          {title}
+        </h4>
+        <p className={cn('text-[10.5px] leading-relaxed', isLight ? 'text-slate-500' : 'text-white/50')}>
+          {desc}
+        </p>
+      </div>
+      <div className="absolute inset-y-0 right-0 left-[58%] flex items-center justify-center">
+        <div className={cn('w-2/3 aspect-video rounded-xl border border-dashed flex items-center justify-center', isLight ? 'border-slate-900/15' : 'border-white/15')}>
+          <Camera className={cn('h-6 w-6', isLight ? 'text-slate-900/20' : 'text-white/20')} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function SessionSettingsDialog({ open, onClose, session: initialSession, onUpdate: onCommit, presentWarning, onPresentAnyway }: SessionSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>('geral');
   const [session, setSession] = useState<Partial<ShowcaseSession>>({});
   const [coverUrl, setCoverUrl] = useState('');
@@ -59,11 +126,19 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   };
   
   const tabs = [
-    { id: 'geral', label: 'Geral', icon: Layout, description: 'Informações básicas' },
+    { id: 'geral', label: 'Geral', icon: Layout, description: 'Identificação & squad' },
     { id: 'identidade', label: 'Capa & Início', icon: Palette, description: 'Visual da Capa' },
     { id: 'apresentacao', label: 'Modo Teatro', icon: Video, description: 'Fundo & Temas' },
-    { id: 'squad', label: 'Squad', icon: Users, description: 'Nome do time' },
   ];
+
+  // Prontidão da sessão: os 3 campos que fazem diferença real numa
+  // apresentação (o resto tem fallback razoável ou não é essencial).
+  const checklist = [
+    { key: 'squad', label: 'Squad / Time', done: !!session?.squadName?.trim(), tab: 'geral' as TabType },
+    { key: 'objetivos', label: 'Objetivos da Sprint', done: !!session?.description?.trim(), tab: 'geral' as TabType },
+    { key: 'capa', label: 'Capa da sessão', done: !!session?.coverImage, tab: 'identidade' as TabType },
+  ];
+  const doneCount = checklist.filter(c => c.done).length;
 
   const renderGeral = () => (
     <motion.div 
@@ -89,9 +164,20 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           </div>
           
           <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1">Squad / Time</label>
+            <Input
+              value={session?.squadName || ''}
+              onChange={(e) => onUpdate({ squadName: e.target.value })}
+              placeholder="Ex: Squad Phoenix"
+              className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
+            />
+            <p className="text-[8.5px] text-slate-400 dark:text-slate-500 font-semibold ml-1">Aparece no topo do showcase e nos relatórios.</p>
+          </div>
+
+          <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1">Data / Ciclo</label>
-            <Input 
-              value={session?.period || ''} 
+            <Input
+              value={session?.period || ''}
               onChange={(e) => onUpdate({ period: e.target.value })}
               placeholder="Ex: 2026 / Q1"
               className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
@@ -149,7 +235,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           <Textarea 
             value={session?.description || ''} 
             onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="Destaque as principais entregas e valor gerado para o cliente nesta sprint..."
+            placeholder="Ex: reduzimos o tempo de fechamento de pedido de 40s para 12s..."
             className="w-full h-24 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all resize-none p-3"
           />
         </div>
@@ -229,7 +315,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             <div className="flex-1 min-h-[160px] p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex flex-col items-center justify-center text-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
               <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Erro no Preview</p>
-              <p className="text-[9px] text-slate-400 leading-normal max-w-[180px]">Verifique a URL informada.</p>
+              <p className="text-[9px] text-slate-400 leading-normal max-w-[180px]">Essa imagem não carregou. Confira se o link está correto e é público — alguns sites bloqueiam exibir a imagem fora deles.</p>
             </div>
           ) : coverUrl ? (
             <div className="flex-1 min-h-[160px] rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 relative bg-slate-950/20 flex items-center justify-center shadow-inner">
@@ -257,23 +343,24 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   );
 
   const renderApresentacao = () => (
-    <motion.div 
+    <motion.div
       initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Card 1: Fundo da Apresentação */}
-        <div className="md:col-span-7 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
-          <div className="space-y-2">
+        {/* Coluna esquerda: controles */}
+        <div className="md:col-span-5 space-y-4">
+          <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Presets de Fundo (Modo Teatro)</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Presets de Fundo</h3>
             </div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {PRESENTATION_PRESETS.map((p: any) => (
-                <button 
+                <button
                   key={p.id}
                   onClick={() => onUpdate({ presentationBackground: p.value })}
+                  title={p.name}
                   className={cn(
                     "group relative aspect-square rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.05] hover:shadow-md",
                     session?.presentationBackground === p.value ? "border-violet-600 shadow-md shadow-violet-600/20" : "border-transparent"
@@ -284,9 +371,6 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                   ) : (
                     <div style={{ background: p.value }} className="w-full h-full" />
                   )}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-1">
-                     <p className="text-[7.5px] font-black text-white uppercase text-center leading-tight">{p.name}</p>
-                  </div>
                   {session?.presentationBackground === p.value && (
                     <div className="absolute top-1 right-1 bg-violet-600 text-white p-0.5 rounded-md shadow-lg">
                       <Check className="h-2 w-2" />
@@ -295,44 +379,41 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-            <div className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Cor ou Link Customizado</h3>
+            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="h-3.5 w-3.5 text-violet-500" />
+                <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Cor ou Link Customizado</h3>
+              </div>
+              <Input
+                value={session?.presentationBackground || ''}
+                onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
+                placeholder="Ex: #0f172a ou link da imagem..."
+                className="h-9 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
+              />
             </div>
-            <Input 
-              value={session?.presentationBackground || ''}
-              onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
-              placeholder="Ex: #0f172a ou link da imagem..."
-              className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
-            />
           </div>
-        </div>
 
-        {/* Card 2: Temas de Interface */}
-        <div className="md:col-span-5 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3 flex flex-col justify-between">
-          <div className="space-y-2">
+          <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
             <div className="flex items-center gap-2">
               <Palette className="h-4 w-4 text-violet-500" />
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Temas de Interface</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {(['cinematic', 'minimalist', 'corporate', 'glass'] as const).map(t => (
-                <button 
+                <button
                   key={t}
                   onClick={() => onUpdate({ presentationTheme: t })}
                   className={cn(
                     "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02]",
-                    session?.presentationTheme === t 
-                      ? "border-violet-600 bg-violet-50/50 text-violet-600 dark:bg-violet-950/20 dark:text-violet-400 shadow-sm" 
+                    session?.presentationTheme === t
+                      ? "border-violet-600 bg-violet-50/50 text-violet-600 dark:bg-violet-950/20 dark:text-violet-400 shadow-sm"
                       : "border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-900/40"
                   )}
                 >
                   <div className={cn(
                     "w-7 h-3 rounded-sm shadow-inner transition-all",
-                    t === 'glass' ? "bg-slate-200/50 backdrop-blur-sm dark:bg-slate-700/50 border border-white/10" : 
+                    t === 'glass' ? "bg-slate-200/50 backdrop-blur-sm dark:bg-slate-700/50 border border-white/10" :
                     t === 'minimalist' ? "bg-white border dark:bg-slate-800 dark:border-slate-700" :
                     t === 'corporate' ? "bg-slate-800 dark:bg-slate-950" : "bg-[#050510]"
                   )} />
@@ -348,46 +429,16 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             </p>
           </div>
         </div>
-      </div>
-    </motion.div>
-  );
 
-  const renderSquad = () => (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
-    >
-      <div className="p-6 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4 max-w-xl">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center">
-            <Users className="h-5 w-5 text-violet-500" />
+        {/* Coluna direita: prévia ao vivo */}
+        <div className="md:col-span-7 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Video className="h-4 w-4 text-violet-500" />
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Pré-visualização ao vivo</h3>
           </div>
-          <div>
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Nome do Squad / Time</h3>
-            <p className="text-[9.5px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">Identifique o time responsável por esta Sprint Review.</p>
+          <div className="flex-1 min-h-[360px] rounded-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-inner">
+            <PresentationPreview background={session?.presentationBackground} theme={session?.presentationTheme} task={session?.tasks?.[0]} />
           </div>
-        </div>
-
-        <div className="space-y-1.5 pt-2">
-          <Input 
-            value={session?.squadName || ''} 
-            onChange={(e) => onUpdate({ squadName: e.target.value })}
-            placeholder="Ex: Squad Phoenix"
-            className="h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-bold text-sm focus:ring-violet-500/20 dark:text-slate-100 transition-all"
-          />
-        </div>
-
-        <div className="pt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center gap-3">
-          <div className="flex -space-x-1.5">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase">
-                {String.fromCharCode(64 + i)}
-              </div>
-            ))}
-          </div>
-          <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 tracking-normal">
-            O nome do Squad aparecerá no topo do showcase e nos relatórios.
-          </span>
         </div>
       </div>
     </motion.div>
@@ -446,11 +497,31 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               </nav>
             </div>
 
-            <div className="pt-6 border-t border-white/5">
+            <div className="pt-6 border-t border-white/5 space-y-4">
+               <div>
+                  <div className="flex items-center justify-between mb-2">
+                     <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Prontidão</span>
+                     <span className="text-[9px] font-black text-violet-400">{doneCount}/{checklist.length}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-3">
+                     <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
+                  </div>
+                  <div className="space-y-1.5">
+                     {checklist.map(c => (
+                        <button key={c.key} type="button" onClick={() => setActiveTab(c.tab)} className="w-full flex items-center gap-2 text-left group">
+                           {c.done
+                             ? <Check className="h-3 w-3 text-emerald-400 shrink-0" />
+                             : <div className="h-3 w-3 rounded-full border border-white/20 shrink-0" />}
+                           <span className={cn("text-[9px] font-bold", c.done ? "text-white/50 line-through" : "text-white/70 group-hover:text-white")}>{c.label}</span>
+                        </button>
+                     ))}
+                  </div>
+               </div>
+
                <div className="bg-white/5 rounded-xl p-3 border border-white/5 shadow-inner">
                   <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1.5">Dica Elite</p>
                   <p className="text-[10px] text-slate-300 leading-normal italic">
-                     Use imagens do Unsplash para um visual cinematográfico na sua show.
+                     Prefira fotos mais escuras ou com área neutra na base — o título da review fica sobreposto em branco ali.
                   </p>
                </div>
             </div>
@@ -459,6 +530,19 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           {/* Content Area */}
           <div className="flex-1 flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+               {presentWarning && (
+                 <div className="mb-5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center gap-3">
+                   <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                   <div className="flex-1">
+                     <p className="text-[11px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wide">Sessão ainda sem Objetivos ou Capa</p>
+                     <p className="text-[10px] text-amber-600/80 dark:text-amber-400/70 font-medium">Complete agora ou apresente do jeito que está.</p>
+                   </div>
+                   <Button onClick={onPresentAnyway} variant="outline" className="h-9 px-4 rounded-xl border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-black text-[9px] uppercase tracking-widest shrink-0 hover:bg-amber-100 dark:hover:bg-amber-950/40">
+                     Apresentar mesmo assim
+                   </Button>
+                 </div>
+               )}
+
                <div className="mb-6 flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
@@ -472,7 +556,6 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                  {activeTab === 'geral' && renderGeral()}
                  {activeTab === 'identidade' && renderIdentidade()}
                  {activeTab === 'apresentacao' && renderApresentacao()}
-                 {activeTab === 'squad' && renderSquad()}
                </AnimatePresence>
             </div>
 

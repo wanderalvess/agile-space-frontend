@@ -40,6 +40,16 @@ export const promptApi = {
     return res.json();
   },
 
+  async saveOrUpdateSkill(prompt: Partial<PromptItem>): Promise<PromptItem> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/skill-upsert`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prompt),
+    });
+    if (!res.ok) throw new Error(`Falha ao importar "${prompt.title || 'skill'}" (${res.status})`);
+    return res.json();
+  },
+
   async createPromptsBatch(prompts: Partial<PromptItem>[]): Promise<PromptItem[]> {
     try {
       const res = await authFetch(`${API_BASE_URL}/prompts/batch`, {
@@ -50,15 +60,31 @@ export const promptApi = {
       if (res.ok) {
         return res.json();
       }
-    } catch {
-      // continua pro fallback
+      console.warn(`[promptApi] POST /prompts/batch retornou ${res.status}, tentando item a item`);
+    } catch (err) {
+      console.warn('[promptApi] POST /prompts/batch falhou (rede), tentando item a item:', err);
     }
-    // Fallback individual caso o batch não responda
+
+    // Fallback item a item — mantém upsert por autor+título pra skill (idempotência),
+    // e reporta falhas em vez de engolir silenciosamente.
     const results: PromptItem[] = [];
+    const failures: { title?: string; error: string }[] = [];
     for (const prompt of prompts) {
-      const created = await promptApi.createPrompt(prompt);
-      results.push(created);
+      try {
+        const created = prompt.type === 'skill'
+          ? await promptApi.saveOrUpdateSkill(prompt)
+          : await promptApi.createPrompt(prompt);
+        results.push(created);
+      } catch (err: any) {
+        failures.push({ title: prompt.title, error: err?.message || 'erro desconhecido' });
+      }
     }
+
+    if (failures.length > 0) {
+      const details = failures.map(f => `${f.title || 'sem título'}: ${f.error}`).join('; ');
+      throw new Error(`${results.length} de ${prompts.length} importados. Falhas — ${details}`);
+    }
+
     return results;
   },
 

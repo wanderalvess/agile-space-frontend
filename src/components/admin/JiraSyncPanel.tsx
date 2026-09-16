@@ -36,6 +36,7 @@ import { ROLES, GlobalRole } from '@/lib/types';
 import { authFetch } from '@/lib/auth-client';
 import { useUserContext } from '@/context/UserContext';
 import { useAuth } from '@/context/AuthContext';
+import { useJiraSettings } from '@/hooks/useJiraSettings';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -85,6 +86,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
   const { userProfile } = useUserContext();
   const { session } = useAuth();
   const { toast } = useToast();
+  const { settings: jiraSettingsStore, saveSettings: saveJiraSettings } = useJiraSettings();
   const [projectKey, setProjectKey] = useState('');
   const [jiraDomain, setJiraDomain] = useState('');
   const [token, setToken] = useState('');
@@ -100,21 +102,26 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
   const [replaceExisting, setReplaceExisting] = useState(true);
   const [syncUsers, setSyncUsers] = useState(true);
 
-  // Carrega configurações salvas no localStorage ao montar o componente
+  // Carrega chave de projeto / unidade de estimativa (locais deste painel) ao montar.
   React.useEffect(() => {
     try {
       const activeProject = userProfile?.squadId || session?.activeProjectId || localStorage.getItem('agileSpace_activeSquadId') || '';
       const savedKey = localStorage.getItem('agileSpace_jiraSync_projectKey') || activeProject;
-      const savedDomain = localStorage.getItem('agileSpace_jiraSync_domain') || '';
-      const savedToken = localStorage.getItem('agileSpace_jiraSync_token') || localStorage.getItem('agileSpace_jiraToken') || '';
       const savedUnit = localStorage.getItem('agileSpace_projectEstimationUnit') || 'SP';
 
       setProjectKey(savedKey);
-      setJiraDomain(savedDomain);
-      setToken(savedToken);
       setEstimationUnit(savedUnit);
     } catch {}
   }, [userProfile?.squadId, session?.activeProjectId]);
+
+  // Domínio/token do Jira vêm da fonte única (useJiraSettings) — mesmo slot usado em
+  // ConnectivitySettings/JiraImportDialog, sem localStorage próprio deste painel.
+  React.useEffect(() => {
+    if (jiraSettingsStore) {
+      setJiraDomain(jiraSettingsStore.domain || '');
+      setToken(jiraSettingsStore.token || '');
+    }
+  }, [jiraSettingsStore]);
 
   const handleKeyChange = (val: string) => {
     const upper = val.toUpperCase();
@@ -124,15 +131,10 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
 
   const handleDomainChange = (val: string) => {
     setJiraDomain(val);
-    try { localStorage.setItem('agileSpace_jiraSync_domain', val); } catch {}
   };
 
   const handleTokenChange = (val: string) => {
     setToken(val);
-    try { 
-      localStorage.setItem('agileSpace_jiraSync_token', val); 
-      localStorage.setItem('agileSpace_jiraToken', val);
-    } catch {}
   };
 
   // Passo 1: Consulta a API do Jira e abre o modal de validação prévia
@@ -142,17 +144,16 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
     setError(null);
     setSyncResult(null);
 
-    // Salvar configurações
+    // Salva chave de projeto / unidade de estimativa (locais); domínio+token do Jira
+    // vão pra fonte única via saveJiraSettings.
     try {
       localStorage.setItem('agileSpace_jiraSync_projectKey', projectKey);
-      localStorage.setItem('agileSpace_jiraSync_domain', jiraDomain);
-      localStorage.setItem('agileSpace_jiraSync_token', token);
-      localStorage.setItem('agileSpace_jiraToken', token);
       localStorage.setItem('agileSpace_projectEstimationUnit', estimationUnit);
       if (projectKey) {
         localStorage.setItem(`agileSpace_estimationUnit_${projectKey}`, estimationUnit);
       }
     } catch {}
+    saveJiraSettings({ domain: jiraDomain, token });
 
     try {
       const res = await authFetch(`${API_BASE}/admin/jira/preview-project`, {

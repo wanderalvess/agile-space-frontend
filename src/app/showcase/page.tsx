@@ -95,7 +95,7 @@ export default function ShowcaseHubPage() {
       setIsSetupOpen(false);
       setName('');
       setSprintName('');
-      router.push(`/showcase/${newSession.id}`);
+      router.push(`/showcase/${newSession.id}?setup=1`);
     } catch (err) {
       console.error(err);
       toast({ title: 'Erro ao criar sessão', variant: 'destructive' });

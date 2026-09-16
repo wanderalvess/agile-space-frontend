@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, ShowcaseTask, Decision, DECISION } from './types';
-import { formatTime, getDirectImageUrl } from './utils';
+import { formatTime, getDirectImageUrl, stripWikiMarkup, stripNonLatin1ForPdf } from './utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface SummaryDialogProps {
@@ -35,9 +35,10 @@ const decidedWhen = (iso?: string) => {
 
 const versionsText = (t: ShowcaseTask) => [
   t.project ? `Projeto: ${t.project}` : '',
+  t.versionSuporte ? `Suporte: ${t.versionSuporte}` : '',
   t.versionMaster ? `Master: ${t.versionMaster}` : '',
-  t.versionDevelop ? `Develop: ${t.versionDevelop}` : '',
-  t.versionRelease ? `Release: ${t.versionRelease}` : ''
+  t.versionRelease ? `Release: ${t.versionRelease}` : '',
+  t.versionDevelop ? `Develop: ${t.versionDevelop}` : ''
 ].filter(Boolean).join(' | ');
 
 type LoadedImage = { dataUrl: string; width: number; height: number; format: 'PNG' | 'JPEG' | 'WEBP' };
@@ -135,12 +136,12 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     const tableHeader = [
       `# 🏆 Resumo de Aprovações — ${sessionName}`,
       `Data: ${new Date().toLocaleString('pt-BR')}\n`,
-      `| Issue | URL | Dev | QA | Projeto | Master | Develop | Release |`,
-      `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`
+      `| Issue | URL | Dev | QA | Projeto | Suporte | Master | Release | Develop |`,
+      `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`
     ];
 
     const tableRows = approved.map(t =>
-      `| ${t.key} | ${t.url || '—'} | ${t.evidence.dev || '—'} | ${t.evidence.qa || '—'} | ${t.project || '—'} | ${t.versionMaster || '—'} | ${t.versionDevelop || '—'} | ${t.versionRelease || '—'} |`
+      `| ${t.key} | ${t.url || '—'} | ${t.evidence.dev || '—'} | ${t.evidence.qa || '—'} | ${t.project || '—'} | ${t.versionSuporte || '—'} | ${t.versionMaster || '—'} | ${t.versionRelease || '—'} | ${t.versionDevelop || '—'} |`
     );
 
     const lines = [...tableHeader, ...tableRows].join('\n');
@@ -196,15 +197,21 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
       };
       const addPage = () => { doc.addPage(); y = M; };
       const ensure = (h: number) => { if (y + h > BOTTOM) addPage(); };
+      // Ponto único de saída de texto pro PDF — texto vindo do Jira ainda pode
+      // trazer marcação wiki crua ("h2. *Solução:*") e emoji, que as fontes
+      // padrão do jsPDF (Helvetica/WinAnsi) não sabem desenhar e viram lixo
+      // visual ("Ø=ÜÝ"). Sanitiza aqui pra cobrir título/problema/solução/
+      // critérios/versões/nomes de uma vez, sem repetir em cada chamada.
+      const forPdf = (text: string) => stripNonLatin1ForPdf(stripWikiMarkup(text));
       const wrapped = (text: string, x: number, width: number, size: number, style: 'normal' | 'bold' = 'normal', color: [number, number, number] = [30, 41, 59], lineH = size * 0.42 + 1.3) => {
         setFont(size, style, color);
-        const lines = doc.splitTextToSize(text || '', width) as string[];
+        const lines = doc.splitTextToSize(forPdf(text || ''), width) as string[];
         lines.forEach(line => { ensure(lineH); doc.text(line, x, y); y += lineH; });
         return lines.length * lineH;
       };
       const measure = (text: string, width: number, size: number, lineH = size * 0.42 + 1.3) => {
         doc.setFontSize(size);
-        return (doc.splitTextToSize(text || '', width) as string[]).length * lineH;
+        return (doc.splitTextToSize(forPdf(text || ''), width) as string[]).length * lineH;
       };
       const decisionRGB = (d: Decision): [number, number, number] =>
         d === 'approved' ? [5, 150, 105] : d === 'rejected' ? [225, 29, 72] : d === 'needs_adjustment' ? [217, 119, 6] : [100, 116, 139];
@@ -216,13 +223,25 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
       doc.rect(0, 0, 3, PH, 'F');
 
       setFont(10, 'bold', [216, 180, 254]);
-      doc.text((session.squadName || 'Product Team').toUpperCase(), M, 30);
+      doc.text(forPdf((session.squadName || 'Product Team').toUpperCase()), M, 30);
+
+      // Título em quase largura cheia — não só 62% — porque os KPIs saíram
+      // do canto superior direito (colidiam com qualquer nome de sessão
+      // normal) e agora formam uma faixa própria mais abaixo.
+      const titleLines = doc.splitTextToSize(forPdf(session.name || 'Sprint Review'), CW * 0.85) as string[];
       setFont(34, 'bold', [255, 255, 255]);
-      (doc.splitTextToSize(session.name || 'Sprint Review', CW * 0.62) as string[]).forEach((line, i) => {
-        doc.text(line, M, 46 + i * 13);
-      });
+      titleLines.forEach((line, i) => doc.text(line, M, 62 + i * 13));
+      const titleBottom = 62 + (titleLines.length - 1) * 13;
+
       setFont(11, 'normal', [221, 214, 254]);
-      doc.text(session.period || 'Ciclo de entrega atual', M, PH - 20);
+      doc.text(session.period || 'Ciclo de entrega atual', M, titleBottom + 12);
+
+      // Faixa de KPIs: linha divisória + 4 colunas de largura igual
+      // ocupando a página toda, sempre abaixo do título (nunca em cima).
+      const kpiY = 145;
+      doc.setDrawColor(139, 92, 246);
+      doc.setLineWidth(0.4);
+      doc.line(M, kpiY - 14, PW - M, kpiY - 14);
 
       const kpis: Array<[string, string, [number, number, number]]> = [
         ['Tarefas', String(tasks.length), [255, 255, 255]],
@@ -230,18 +249,21 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         ['Ajustes', String(adjustments.length), [252, 211, 77]],
         ['Rejeitadas', String(rejected.length), [253, 164, 175]],
       ];
-      const kpiW = 48;
+      const kpiColW = CW / kpis.length;
       kpis.forEach((kpi, idx) => {
-        const x = PW - M - kpiW * (kpis.length - idx);
+        const x = M + idx * kpiColW;
         setFont(8, 'bold', [216, 180, 254]);
-        doc.text(kpi[0].toUpperCase(), x, 26);
-        setFont(22, 'bold', kpi[2]);
-        doc.text(kpi[1], x, 38);
+        doc.text(kpi[0].toUpperCase(), x, kpiY - 4);
+        setFont(26, 'bold', kpi[2]);
+        doc.text(kpi[1], x, kpiY + 14);
       });
 
       // -------------------------------------------------- Uma página por task
-      tasks.forEach((task, idx) => {
-        if (idx > 0) addPage();
+      // addPage() sempre, mesmo na primeira: a capa já ocupa a página 1
+      // inteira, então a task 0 precisa da sua própria página nova também
+      // (sem isso ela era desenhada por cima da capa, ambas na página 1).
+      tasks.forEach((task) => {
+        addPage();
 
         const image = images.get(task.id);
         const textW = CW * 0.42;
@@ -256,7 +278,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         setFont(8, 'bold', [255, 255, 255]);
         doc.text(task.key, M + 13, y + 4.8, { align: 'center' });
         setFont(8, 'bold', [148, 163, 184]);
-        doc.text(task.type.toUpperCase(), M + 30, y + 4.8);
+        doc.text(forPdf(task.type.toUpperCase()), M + 30, y + 4.8);
 
         const dColor = decisionRGB(task.decision);
         const dLabel = DECISION[task.decision]?.label.toUpperCase() || 'ABERTA';
@@ -264,7 +286,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.text(dLabel, M + CW, y + 4.8, { align: 'right' });
         if (task.decidedByName) {
           setFont(7, 'normal', [148, 163, 184]);
-          doc.text(`${task.decidedByName}${decidedWhen(task.decidedAt) ? ` · ${decidedWhen(task.decidedAt)}` : ''}`, M + CW, y + 9.5, { align: 'right' });
+          doc.text(forPdf(`${task.decidedByName}${decidedWhen(task.decidedAt) ? ` · ${decidedWhen(task.decidedAt)}` : ''}`), M + CW, y + 9.5, { align: 'right' });
         }
         y += 12;
         wrapped(task.title, M, textW, 15, 'bold', [15, 23, 42], 6.5);
@@ -274,18 +296,27 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.line(M, y, M + CW, y);
         y += 6;
 
-        wrapped('O PROBLEMA', M, textW, 8, 'bold', [225, 29, 72]);
-        wrapped(task.evidence.problem || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
-        y += 3;
+        const isMetricsCard = task.cardKind === 'metrics';
+        const metrics = task.metrics?.filter(m => m.field.trim()) || [];
 
-        wrapped('A SOLUÇÃO', M, textW, 8, 'bold', [5, 150, 105]);
-        wrapped(task.evidence.solution || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
-        y += 3;
-
-        if (task.acceptanceCriteria) {
-          wrapped('CRITÉRIOS DE ACEITE', M, textW, 8, 'bold', [124, 58, 237]);
-          wrapped(task.acceptanceCriteria, M, textW, 8.5, 'normal', [100, 116, 139]);
+        if (isMetricsCard) {
+          wrapped('CONTEXTO', M, textW, 8, 'bold', [124, 58, 237]);
+          wrapped(task.description || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
           y += 3;
+        } else {
+          wrapped('O PROBLEMA', M, textW, 8, 'bold', [225, 29, 72]);
+          wrapped(task.evidence.problem || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
+          y += 3;
+
+          wrapped('A SOLUÇÃO', M, textW, 8, 'bold', [5, 150, 105]);
+          wrapped(task.evidence.solution || 'Não informado.', M, textW, 9.5, 'normal', [51, 65, 85]);
+          y += 3;
+
+          if (task.acceptanceCriteria) {
+            wrapped('CRITÉRIOS DE ACEITE', M, textW, 8, 'bold', [124, 58, 237]);
+            wrapped(task.acceptanceCriteria, M, textW, 8.5, 'normal', [100, 116, 139]);
+            y += 3;
+          }
         }
 
         const vText = versionsText(task);
@@ -301,11 +332,41 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.text('QA', M + textW / 2, y);
         y += 5;
         setFont(10, 'bold', [15, 23, 42]);
-        doc.text(task.evidence.dev || '—', M, y);
-        doc.text(task.evidence.qa || '—', M + textW / 2, y);
+        doc.text(forPdf(task.evidence.dev) || '—', M, y);
+        doc.text(forPdf(task.evidence.qa) || '—', M + textW / 2, y);
 
-        // Coluna direita: evidência visual (imagem real quando carregou) ou link
-        if (image) {
+        // Coluna direita: gráfico de métricas (card de métricas), imagem real
+        // (quando carregou) ou link de evidência
+        if (isMetricsCard) {
+          setFont(7, 'bold', [129, 140, 248]);
+          doc.text(forPdf((task.chartTitle || 'MÉTRICAS DE IMPACTO').toUpperCase()), imgX, imgTop);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.4);
+          doc.roundedRect(imgX, imgTop + 4, imgW, imgBottom - imgTop - 4, 3, 3, 'S');
+          if (metrics.length > 0) {
+            const chartX = imgX + 8;
+            const chartW = imgW - 16;
+            const maxValue = Math.max(...metrics.map(m => Math.max(0, m.value)), 1);
+            const rowH = Math.min(16, (imgBottom - imgTop - 16) / metrics.length);
+            let cy = imgTop + 12;
+            metrics.forEach(m => {
+              setFont(8.5, 'bold', [51, 65, 85]);
+              doc.text(m.field, chartX, cy);
+              setFont(9, 'bold', [124, 58, 237]);
+              doc.text(m.value.toLocaleString('pt-BR'), chartX + chartW, cy, { align: 'right' });
+              const barY = cy + 2.5;
+              doc.setFillColor(241, 245, 249);
+              doc.roundedRect(chartX, barY, chartW, 3, 1.5, 1.5, 'F');
+              const barW = Math.max(3, (Math.max(0, m.value) / maxValue) * chartW);
+              doc.setFillColor(124, 58, 237);
+              doc.roundedRect(chartX, barY, barW, 3, 1.5, 1.5, 'F');
+              cy += rowH;
+            });
+          } else {
+            setFont(9, 'bold', [148, 163, 184]);
+            doc.text('Sem métricas preenchidas', imgX + imgW / 2, imgTop + (imgBottom - imgTop) / 2, { align: 'center' });
+          }
+        } else if (image) {
           const boxW = imgW, boxH = imgBottom - imgTop;
           const scale = Math.min(boxW / image.width, boxH / image.height);
           const w = image.width * scale, h = image.height * scale;
@@ -371,12 +432,15 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           </DialogHeader>
         </div>
 
-        {/* Header */}
-        <div className="bg-slate-950 p-10 text-white shrink-0 relative overflow-hidden">
+        {/* Header — compacto (p-6, não p-10): em telas de altura menor esse
+            bloco e o footer são shrink-0 e disputam espaço com a lista de
+            itens, que é o flex-1 real; header+footer grandes deixavam
+            quase nada pra lista (chegava a sumir por completo). */}
+        <div className="bg-slate-950 p-6 text-white shrink-0 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-72 h-72 bg-violet-500/15 blur-[90px] rounded-full" />
 
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="space-y-4">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/30">
                   <Sparkles className="h-4 w-4" />
@@ -388,7 +452,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               </h2>
 
               {session?.members && session.members.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-2">
+                <div className="flex flex-wrap gap-2 pt-1">
                   {session.members.map(m => (
                     <Badge key={m.id} className="bg-white/5 hover:bg-white/10 text-white/60 border-white/5 rounded-lg px-2.5 py-1 font-black text-[7px] uppercase tracking-widest transition-colors">
                       {m.name}
@@ -398,12 +462,12 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               )}
             </div>
 
-            <div className="flex gap-4">
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[120px]">
+            <div className="flex gap-3">
+              <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
                 <p className="text-2xl font-black italic text-white leading-none mb-1">{approvalRate === null ? '—' : `${approvalRate}%`}</p>
                 <p className="text-[7px] font-black uppercase tracking-widest text-white/40">Taxa Aprovação</p>
               </div>
-              <div className="px-6 py-4 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[120px]">
+              <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
                 <p className={cn("text-2xl font-black italic leading-none mb-1", efficiency === null ? "text-white/40" : efficiency > 100 ? "text-rose-400" : "text-emerald-400")}>
                   {efficiency === null ? '—' : `${efficiency}%`}
                 </p>
@@ -443,7 +507,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           </div>
 
           {/* Log Feed — agrupado por decisão */}
-          <div className="flex-1 flex flex-col min-h-0">
+          {/* min-w-0 é essencial aqui: sem ele, um flex-1 nunca encolhe abaixo
+              da largura intrínseca do conteúdo (título longo do card), e
+              empurra a coluna toda pra fora do modal em vez de deixar o
+              truncate cortar o texto internamente. */}
+          <div className="flex-1 flex flex-col min-h-0 min-w-0">
             <div className="px-10 pt-8 pb-4 flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Linha do Tempo da Review</h3>
               <Badge variant="outline" className="rounded-lg font-black text-[8px] uppercase border-slate-200 dark:border-slate-800 dark:text-slate-400">{tasks.length} Entradas</Badge>
@@ -492,8 +560,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-8 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-4 shrink-0">
+        {/* Footer Actions — texto só a partir de md; abaixo disso os 3
+            botões de exportação viram icon-only (com title/aria-label) pra
+            não transbordar da tela em janelas menores que ~960px, e
+            flex-wrap como rede de segurança se ainda assim não couber. */}
+        <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 shrink-0">
           <Button
             onClick={onClose}
             variant="ghost"
@@ -506,24 +577,30 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
             <Button
               onClick={generateApprovalsSummary}
               variant="outline"
-              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              title="Resumo de Aprovações"
+              aria-label="Resumo de Aprovações"
+              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
-              <Copy className="h-3.5 w-3.5" /> Resumo de Aprovações
+              <Copy className="h-3.5 w-3.5" /> <span className="hidden md:inline">Resumo de Aprovações</span>
             </Button>
             <Button
               onClick={generateLog}
               variant="outline"
-              className="h-12 px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              title="Log Markdown"
+              aria-label="Log Markdown"
+              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
-              <FileText className="h-3.5 w-3.5" /> Log Markdown
+              <FileText className="h-3.5 w-3.5" /> <span className="hidden md:inline">Log Markdown</span>
             </Button>
             <Button
               onClick={handlePDF}
               disabled={isExportingPdf}
-              className="h-12 px-10 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[9px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
+              title="Exportar Slides PDF"
+              aria-label="Exportar Slides PDF"
+              className="h-11 px-4 md:px-10 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[9px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
             >
               {isExportingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              {isExportingPdf ? 'Gerando PDF...' : 'Exportar Slides PDF'}
+              <span className="hidden md:inline">{isExportingPdf ? 'Gerando PDF...' : 'Exportar Slides PDF'}</span>
             </Button>
           </div>
         </div>

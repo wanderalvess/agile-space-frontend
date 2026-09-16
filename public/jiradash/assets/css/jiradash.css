@@ -235,6 +235,14 @@ button {
 .btn-row { gap: 8px; }
 .retro-sep { width: 1px; align-self: stretch; background: var(--border, #d5dde5); margin: 2px 2px; }
 .squad-tabs { gap: 6px; margin-bottom: 1rem; }
+
+/* Embedado (React já mostra o header próprio, ver index.html): #squad-tabs vira
+   sub-barra colada nele, não fileira de pills flutuando solta abaixo do header. */
+body.is-embedded .squad-tabs {
+  margin: -0.75rem -2rem 1.25rem;
+  padding: 0.625rem 2rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
 .filter-bar { gap: 8px; margin-bottom: 1rem; }
 
 .btn,

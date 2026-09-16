@@ -289,20 +289,21 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                     <PrintChart type={task.chartType} metrics={metrics} maxValue={maxMetricValue} />
                   </div>
                 )}
-                {(task.project || task.versionMaster || task.versionDevelop || task.versionRelease) && (
+                {(task.project || task.versionSuporte || task.versionMaster || task.versionRelease || task.versionDevelop) && (
                   <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
                     <p style={{ fontSize: '7px', fontWeight: 900, color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>CI/CD & Versões</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '9px', color: 'rgba(255,255,255,0.6)' }}>
                       {task.project && <div><strong>Projeto:</strong> {task.project}</div>}
                       <div style={{ display: 'flex', gap: '12px' }}>
+                        {task.versionSuporte && <div><strong>Suporte:</strong> {task.versionSuporte}</div>}
                         {task.versionMaster && <div><strong>Master:</strong> {task.versionMaster}</div>}
-                        {task.versionDevelop && <div><strong>Develop:</strong> {task.versionDevelop}</div>}
                         {task.versionRelease && <div><strong>Release:</strong> {task.versionRelease}</div>}
+                        {task.versionDevelop && <div><strong>Develop:</strong> {task.versionDevelop}</div>}
                       </div>
                     </div>
                   </div>
                 )}
-                <div style={{ marginTop: (task.project || task.versionMaster || task.versionDevelop || task.versionRelease) ? '8px' : 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ marginTop: (task.project || task.versionSuporte || task.versionMaster || task.versionRelease || task.versionDevelop) ? '8px' : 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between' }}>
                   <div>
                     <p style={{ fontSize: '7px', fontWeight: 900, color: 'rgba(255,255,255,0.2)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '4px' }}>Desenvolvedor</p>
                     <p style={{ fontSize: '10px', fontWeight: 900, color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', margin: 0 }}>{task.evidence.dev || '—'}</p>

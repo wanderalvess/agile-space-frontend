@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
-  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ArrowRight, Maximize2, Minimize2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ShowcaseTask, ImpactMetric, ChartType, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
-import { isPdfUrl } from './utils';
+import { isPdfUrl, isTaskContentComplete } from './utils';
 import { ChartRenderer } from './ChartRenderer';
 import { CHART_PRESETS, getCategoryColor } from './chartPresets';
 
@@ -191,6 +191,35 @@ function ChartTypePicker({ value, onChange }: { value: ChartType | undefined; on
   );
 }
 
+const CHART_DISPLAY_OPTIONS: { value: 'compact' | 'featured'; label: string; title: string; icon: React.ElementType }[] = [
+  { value: 'compact', label: 'Compacto', title: 'Aparece pequeno junto com os detalhes', icon: Minimize2 },
+  { value: 'featured', label: 'Destaque', title: 'Vira o destaque grande da apresentação (substitui a evidência na tela principal)', icon: Maximize2 },
+];
+
+function ChartDisplayPicker({ value, onChange }: { value: 'compact' | 'featured' | undefined; onChange: (v: 'compact' | 'featured') => void }) {
+  const current = value || 'compact';
+  return (
+    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit shrink-0">
+      {CHART_DISPLAY_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          title={opt.title}
+          className={cn(
+            'h-7 px-2 rounded-md flex items-center gap-1 text-[9px] font-black uppercase tracking-wider transition-all',
+            current === opt.value
+              ? 'bg-violet-500 text-white shadow-sm'
+              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+          )}
+        >
+          <opt.icon className="h-3 w-3" /> {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PresetPicker({ onApply }: { onApply: (preset: typeof CHART_PRESETS[number]) => void }) {
   const [open, setOpen] = React.useState(false);
   return (
@@ -288,6 +317,11 @@ function MetricsEditor({
   );
 }
 
+function truncate(text: string | undefined, n: number) {
+  if (!text) return 'não preenchido';
+  return text.length > n ? text.slice(0, n).trim() + '…' : text;
+}
+
 // ── Componente Principal ──────────────────────────────────────────────────────
 function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }: TaskCardProps) {
   const onUpdate = React.useCallback(
@@ -296,12 +330,32 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
   );
   const onRemove = React.useCallback(() => onRemoveTask(task.id), [task.id, onRemoveTask]);
   const isMetricsCard = task.cardKind === 'metrics';
-  const hasProblem = !!task.evidence.problem;
-  const hasSolution = !!task.evidence.solution;
-  const hasEvidence = !!(task.evidence.screenshot || task.evidence.video);
-  const hasMetricValue = (task.metrics || []).some(m => m.field.trim() && m.value);
-  const isReady = isMetricsCard ? hasMetricValue : (hasProblem && hasSolution && hasEvidence);
+  const isReady = isTaskContentComplete(task);
   const isManual = task.id.startsWith('manual_') || task.key.startsWith('MANUAL-');
+  // Só pode recolher quando a squad já marcou a preparação como "Pronta" —
+  // colapsar um card ainda em aberto escondia campo vazio que precisava de
+  // atenção. Critério é o status explícito (preparationStatus), não o
+  // isReady calculado por conteúdo — são coisas diferentes.
+  const canCollapse = task.preparationStatus === 'done';
+  // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint
+  // grande) — sprint de 40 itens não vira scroll infinito de card 100% aberto.
+  const [collapsed, setCollapsed] = React.useState(canCollapse);
+
+  // Colapsa/reabre sozinho seguindo a transição de "Pronta" — mas só na
+  // TRANSIÇÃO (via ref), nunca a cada render: marcar "Pronta" já é uma ação
+  // discreta e deliberada no próprio header do card (clique num dropdown),
+  // então reagir a ela colapsando na hora é a confirmação visual esperada,
+  // não vira fechar "debaixo do cursor" de quem tá digitando num campo de
+  // texto. Reabre se o status regredir de "Pronta" — nunca deixa escondido
+  // um card fora do critério de recolher. Sem o `prev` isso brigaria com
+  // reabrir manualmente um card já pronto pra reconferir algo.
+  const prevCanCollapseRef = React.useRef(canCollapse);
+  React.useEffect(() => {
+    const prev = prevCanCollapseRef.current;
+    prevCanCollapseRef.current = canCollapse;
+    if (canCollapse && !prev) setCollapsed(true);
+    else if (!canCollapse && collapsed) setCollapsed(false);
+  }, [canCollapse, collapsed]);
 
   return (
     <motion.div
@@ -409,6 +463,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               onValueChange={(v) => onUpdate({ preparationStatus: v as PreparationStatus })}
             >
               <SelectTrigger
+                data-tour={index === 0 ? 'first-card-status' : undefined}
                 className={cn(
                   "h-7 w-fit px-3 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors shrink-0 border",
                   PREPARATION_STATUS[task.preparationStatus || 'todo'].cls,
@@ -426,6 +481,26 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               </SelectContent>
             </Select>
 
+            {/* Recolher/Expandir — Maximize2/Minimize2, não Chevron: um
+                caret de seta aqui ficava parecido demais com a seta do
+                select de Decisão do PO ao lado, sobretudo quando ele ainda
+                mostra "Aguardando" (mesmo texto/cor do preparationStatus
+                'todo') e perde o texto por falta de espaço. */}
+            <Button
+              variant="ghost" size="icon"
+              onClick={() => canCollapse && setCollapsed(c => !c)}
+              disabled={!canCollapse}
+              title={!canCollapse ? 'Marque a preparação como "Pronta" pra poder recolher' : (collapsed ? 'Expandir' : 'Recolher')}
+              className={cn(
+                'h-7 w-7 rounded-lg transition-all shrink-0',
+                canCollapse
+                  ? 'text-slate-300 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+                  : 'text-slate-200 dark:text-slate-700 cursor-not-allowed'
+              )}
+            >
+              {collapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+            </Button>
+
             {/* Deletar */}
             <Button
               variant="ghost" size="icon" onClick={onRemove}
@@ -435,6 +510,35 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             </Button>
           </div>
 
+          {collapsed ? (
+            /* ╔══════════════════════════════════════╗
+                ║  RESUMO — card recolhido             ║
+                ╚══════════════════════════════════════╝ */
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="w-full flex items-center gap-2.5 text-left"
+            >
+              <span className="flex-1 min-w-0 flex items-center gap-2 text-[11px] italic text-slate-400 dark:text-slate-500 truncate">
+                <span className="truncate">"{truncate(isMetricsCard ? task.description : task.evidence.problem, 42)}"</span>
+                {!isMetricsCard && (
+                  <>
+                    <ArrowRight className="h-3 w-3 text-slate-300 dark:text-slate-700 shrink-0" />
+                    <span className="truncate">"{truncate(task.evidence.solution, 42)}"</span>
+                  </>
+                )}
+              </span>
+              {!isMetricsCard && task.acceptanceCriteria && (
+                <span className="flex items-center gap-1 text-[9px] font-bold text-violet-500 dark:text-violet-400 shrink-0">
+                  <CheckSquare className="h-3 w-3" /> Critérios
+                </span>
+              )}
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
+                {task.evidence.dev || 'sem dev'}
+              </span>
+            </button>
+          ) : (
+          <>
           {/* ╔══════════════════════════════════════╗
               ║  SEÇÃO 2 — Conteúdo da Entrega       ║
               ╚══════════════════════════════════════╝ */}
@@ -472,6 +576,19 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 colorScheme={{ label: 'text-emerald-600 dark:text-emerald-400', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
               />
             </div>
+          )}
+
+          {!isMetricsCard && (
+            <TextField
+              id={`acceptance-criteria-${task.id}`}
+              label="Critérios de Aceite"
+              icon={CheckSquare}
+              value={task.acceptanceCriteria}
+              onChange={(v) => onUpdate({ acceptanceCriteria: v })}
+              placeholder="O que precisa ser validado para considerar essa entrega aceita..."
+              multiline minRows={3}
+              colorScheme={{ label: 'text-violet-500 dark:text-violet-400', focus: 'focus:border-violet-200 dark:focus:border-violet-900/40', ring: 'focus:ring-1 focus:ring-violet-200/50 dark:focus:ring-violet-900/20' }}
+            />
           )}
 
           {/* ╔══════════════════════════════════════╗
@@ -542,8 +659,15 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400">Versões (M / D / R)</label>
-                  <div className="grid grid-cols-3 gap-1">
+                  <label className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400">Versões (S / M / R / D)</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    <ControlledInput
+                      value={task.versionSuporte}
+                      onChange={(v: string) => onUpdate({ versionSuporte: v })}
+                      placeholder="Suporte"
+                      title="Versão Suporte"
+                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
+                    />
                     <ControlledInput
                       value={task.versionMaster}
                       onChange={(v: string) => onUpdate({ versionMaster: v })}
@@ -552,17 +676,17 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                       className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
                     />
                     <ControlledInput
-                      value={task.versionDevelop}
-                      onChange={(v: string) => onUpdate({ versionDevelop: v })}
-                      placeholder="Develop"
-                      title="Versão Develop"
-                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
-                    />
-                    <ControlledInput
                       value={task.versionRelease}
                       onChange={(v: string) => onUpdate({ versionRelease: v })}
                       placeholder="Release"
                       title="Versão Release"
+                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
+                    />
+                    <ControlledInput
+                      value={task.versionDevelop}
+                      onChange={(v: string) => onUpdate({ versionDevelop: v })}
+                      placeholder="Develop"
+                      title="Versão Develop"
                       className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
                     />
                   </div>
@@ -596,6 +720,34 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                     <Video className="h-3 w-3" />
                   </Button>
                 </div>
+                {/* Só faz sentido escolher quando os dois links estão
+                    preenchidos — com um só, esse é o que aparece na
+                    apresentação, sem ambiguidade nenhuma. */}
+                {task.evidence.screenshot && task.evidence.video && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Na apresentação:</span>
+                    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
+                      {([
+                        { value: 'video' as const, label: 'Vídeo', icon: Video },
+                        { value: 'screenshot' as const, label: 'Print', icon: Camera },
+                      ]).map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, evidencePreference: opt.value } }))}
+                          className={cn(
+                            'h-6 px-2 rounded-md flex items-center gap-1 text-[8px] font-black uppercase tracking-wider transition-all',
+                            (task.evidence.evidencePreference || 'video') === opt.value
+                              ? 'bg-violet-500 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+                          )}
+                        >
+                          <opt.icon className="h-3 w-3" /> {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -608,7 +760,10 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               ╚══════════════════════════════════════╝ */}
           {!isMetricsCard && ((task.metrics && task.metrics.length > 0) ? (
             <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
-              <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+                <ChartDisplayPicker value={task.chartDisplay} onChange={(chartDisplay) => onUpdate({ chartDisplay })} />
+              </div>
               <MetricsEditor
                 metrics={task.metrics}
                 onChange={(metrics) => onUpdate({ metrics })}
@@ -647,6 +802,8 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 />
               </div>
             </motion.div>
+          )}
+          </>
           )}
         </div>
       </Card>

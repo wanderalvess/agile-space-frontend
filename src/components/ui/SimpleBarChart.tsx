@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { WidgetCard } from "@/components/ui/WidgetCard";
 import { formatCompactNumber } from "@/lib/utils";
+import { getChartTheme } from "@/components/ui/chart-theme";
 
 interface BarChartData {
   name: string;
@@ -25,6 +26,8 @@ interface SimpleBarChartProps {
   data: BarChartData[];
   defaultColor?: string;
   height?: number;
+  isLight?: boolean;
+  bare?: boolean;
 }
 
 export function SimpleBarChart({
@@ -32,55 +35,57 @@ export function SimpleBarChart({
   data,
   defaultColor,
   height = 230,
+  isLight,
+  bare,
 }: SimpleBarChartProps) {
-  return (
-    <WidgetCard title={title}>
-      <div style={{ width: "100%", height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="hsl(var(--border))"
-              opacity={0.6}
-            />
-            <XAxis
-              dataKey="name"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontWeight: 600 }}
-              dy={8}
-            />
-            <YAxis
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-              tickFormatter={formatCompactNumber}
-            />
-            <Tooltip
-              cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }}
-              formatter={(value: number) => value.toLocaleString('pt-BR')}
-              contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                borderColor: "hsl(var(--border))",
-                borderRadius: "12px",
-                color: "hsl(var(--card-foreground))",
-                fontSize: "12px",
-                boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)",
-              }}
-              itemStyle={{ color: "hsl(var(--card-foreground))" }}
-            />
-            <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={55}>
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.color || defaultColor || "hsl(var(--primary))"}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </WidgetCard>
+  const theme = getChartTheme(isLight);
+  const chart = (
+    <div style={{ width: "100%", height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
+          <CartesianGrid
+            strokeDasharray="3 3"
+            vertical={false}
+            stroke={theme.grid}
+            opacity={0.6}
+          />
+          <XAxis
+            dataKey="name"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: theme.tick, fontSize: 11, fontWeight: 600 }}
+            dy={8}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: theme.tick, fontSize: 11 }}
+            tickFormatter={formatCompactNumber}
+          />
+          <Tooltip
+            cursor={{ fill: theme.cursor, opacity: isLight === undefined ? 0.3 : 1 }}
+            formatter={(value: number) => value.toLocaleString('pt-BR')}
+            contentStyle={{
+              backgroundColor: theme.tooltipBg,
+              borderColor: theme.tooltipBorder,
+              borderRadius: "12px",
+              color: theme.tooltipText,
+              fontSize: "12px",
+              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.2)",
+            }}
+            itemStyle={{ color: theme.tooltipText }}
+          />
+          <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={55}>
+            {data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={entry.color || defaultColor || "hsl(var(--primary))"}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
+  return bare ? chart : <WidgetCard title={title}>{chart}</WidgetCard>;
 }

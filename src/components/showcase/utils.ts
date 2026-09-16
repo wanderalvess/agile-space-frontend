@@ -1,3 +1,18 @@
+import { ShowcaseTask } from './types';
+
+/**
+ * Prontidão real de uma task, derivada do conteúdo preenchido — a mesma
+ * conta que colore a borda do TaskCard. Fonte única: antes disso o header da
+ * sala contava `preparationStatus` (dropdown manual, esquecível) e o card
+ * calculava isReady por conta própria, podendo discordar sem aviso nenhum.
+ */
+export const isTaskContentComplete = (task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics'>): boolean => {
+  if (task.cardKind === 'metrics') {
+    return (task.metrics || []).some(m => m.field.trim() && m.value);
+  }
+  return !!(task.evidence.problem && task.evidence.solution && (task.evidence.screenshot || task.evidence.video));
+};
+
 export const formatTime = (seconds?: number) => {
   if (!seconds || seconds <= 0) return '';
   const h = Math.floor(seconds / 3600);
@@ -57,6 +72,35 @@ export const getDirectImageUrl = (url: string) => {
   }
 
   return url;
+};
+
+/**
+ * Remove marcação wiki do Jira que ainda sobrou no texto salvo (problema/
+ * solução/critérios) — mesma regra do stripWikiMarkup em jiraService.ts, mas
+ * aplicada aqui na exibição/exportação porque nem todo texto que chega no
+ * showcase passou pela extração daquele serviço (ex.: sessão antiga, edição
+ * manual, ou campo colado direto do Jira). Sem isso "h2. *Solução:*" aparece
+ * literal em vez de virar "Solução:".
+ */
+export const stripWikiMarkup = (text?: string): string => {
+  if (!text) return text || '';
+  return text
+    .replace(/^h[1-6]\.[ \t]*/gm, '')
+    .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
+    .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    .replace(/^-{3,}[ \t]*$/gm, '');
+};
+
+/**
+ * As fontes padrão do jsPDF (Helvetica/WinAnsi) não têm glifo pra emoji —
+ * qualquer codepoint fora do Latin-1 vira lixo visual no PDF (ex.: "📝" virou
+ * "Ø=ÜÝ" na exportação). No app normal o emoji renderiza certo (fonte do
+ * navegador cobre), então isso só se aplica ao texto que vai pro jsPDF.
+ */
+export const stripNonLatin1ForPdf = (text?: string): string => {
+  if (!text) return text || '';
+  return Array.from(text).filter(ch => ch.codePointAt(0)! <= 0xFF).join('');
 };
 
 export const extractMediaUrl = (text: string) => {
@@ -121,8 +165,9 @@ export const makeTask = (issue: any): any => {
     preparationStatus: 'todo',
     feedback: '',
     project: issue.project || '',
+    versionSuporte: issue.versionSuporte || '',
     versionMaster: issue.versionMaster || '',
-    versionDevelop: issue.versionDevelop || '',
     versionRelease: issue.versionRelease || '',
+    versionDevelop: issue.versionDevelop || '',
   };
 };

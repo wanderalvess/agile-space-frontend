@@ -17,7 +17,7 @@ export interface AuthResponse {
   activeProjectRole?: string;
   segmentName?: string;
   tribeName?: string;
-  isTransversalLeader: boolean;
+  transversalLeader: boolean;
   accessibleProjects: Array<{
     projectId: string;
     projectName: string;
@@ -25,8 +25,8 @@ export interface AuthResponse {
     tribeName?: string;
     roleName?: string;
     roleKey?: string;
-    isDirectAssignment: boolean;
-    isLeadership: boolean;
+    directAssignment: boolean;
+    leadership: boolean;
   }>;
 }
 
