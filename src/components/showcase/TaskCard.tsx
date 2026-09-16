@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
-  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ChevronDown, ArrowRight, Maximize2, Minimize2
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ArrowRight, Maximize2, Minimize2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -332,11 +332,23 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
   const isMetricsCard = task.cardKind === 'metrics';
   const isReady = isTaskContentComplete(task);
   const isManual = task.id.startsWith('manual_') || task.key.startsWith('MANUAL-');
+  // Só pode recolher quando a squad já marcou a preparação como "Pronta" —
+  // colapsar um card ainda em aberto escondia campo vazio que precisava de
+  // atenção. Critério é o status explícito (preparationStatus), não o
+  // isReady calculado por conteúdo — são coisas diferentes.
+  const canCollapse = task.preparationStatus === 'done';
   // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint
   // grande) — sprint de 40 itens não vira scroll infinito de card 100% aberto.
-  // Não reage a isReady depois (useState só lê o valor inicial): card não
+  // Não reage a canCollapse depois (useState só lê o valor inicial): card não
   // fecha sozinho debaixo do cursor de quem tá editando.
-  const [collapsed, setCollapsed] = React.useState(isReady);
+  const [collapsed, setCollapsed] = React.useState(canCollapse);
+
+  // Reabre automaticamente se o status regredir de "Pronta" — nunca deixa um
+  // card fora do critério de recolher escondido (efeito unidirecional: só
+  // abre, nunca fecha sozinho — isso continua exigindo clique, ver acima).
+  React.useEffect(() => {
+    if (!canCollapse && collapsed) setCollapsed(false);
+  }, [canCollapse, collapsed]);
 
   return (
     <motion.div
@@ -462,13 +474,24 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               </SelectContent>
             </Select>
 
-            {/* Recolher/Expandir */}
+            {/* Recolher/Expandir — Maximize2/Minimize2, não Chevron: um
+                caret de seta aqui ficava parecido demais com a seta do
+                select de Decisão do PO ao lado, sobretudo quando ele ainda
+                mostra "Aguardando" (mesmo texto/cor do preparationStatus
+                'todo') e perde o texto por falta de espaço. */}
             <Button
-              variant="ghost" size="icon" onClick={() => setCollapsed(c => !c)}
-              title={collapsed ? 'Expandir' : 'Recolher'}
-              className="h-7 w-7 rounded-lg text-slate-300 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-all shrink-0"
+              variant="ghost" size="icon"
+              onClick={() => canCollapse && setCollapsed(c => !c)}
+              disabled={!canCollapse}
+              title={!canCollapse ? 'Marque a preparação como "Pronta" pra poder recolher' : (collapsed ? 'Expandir' : 'Recolher')}
+              className={cn(
+                'h-7 w-7 rounded-lg transition-all shrink-0',
+                canCollapse
+                  ? 'text-slate-300 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+                  : 'text-slate-200 dark:text-slate-700 cursor-not-allowed'
+              )}
             >
-              <ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200', !collapsed && 'rotate-180')} />
+              {collapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
             </Button>
 
             {/* Deletar */}
