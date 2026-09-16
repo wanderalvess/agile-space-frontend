@@ -56,9 +56,10 @@ export interface ShowcaseTask {
   preparationStatus: PreparationStatus;
   feedback: string; 
   project?: string;
+  versionSuporte?: string;
   versionMaster?: string;
-  versionDevelop?: string;
   versionRelease?: string;
+  versionDevelop?: string;
   approvedAt?: string;
   // Trilha de decisão — quem decidiu e quando, pra qualquer decisão (não só
   // approved). Sem isso a SummaryDialog não tinha como mostrar autoria.

@@ -136,8 +136,9 @@ export const makeTask = (issue: any): any => {
     preparationStatus: 'todo',
     feedback: '',
     project: issue.project || '',
+    versionSuporte: issue.versionSuporte || '',
     versionMaster: issue.versionMaster || '',
-    versionDevelop: issue.versionDevelop || '',
     versionRelease: issue.versionRelease || '',
+    versionDevelop: issue.versionDevelop || '',
   };
 };

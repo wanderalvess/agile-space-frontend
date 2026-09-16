@@ -431,7 +431,7 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
   }, [task?.id]);
 
   const hasEffort = (task?.evidence.timeSpent || 0) > 0 || (task?.evidence.timeEstimate || 0) > 0;
-  const hasVersions = !!(task?.project || task?.versionMaster || task?.versionDevelop || task?.versionRelease);
+  const hasVersions = !!(task?.project || task?.versionSuporte || task?.versionMaster || task?.versionRelease || task?.versionDevelop);
   const metrics = task?.metrics?.filter(m => m.field.trim()) || [];
   const isMetricsCard = task?.cardKind === 'metrics';
   // Card padrão pode pedir pra métrica virar o destaque da tela principal
@@ -552,24 +552,30 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                           <span className={cn("font-medium truncate max-w-[200px]", isLight ? "text-slate-700" : "text-white")}>{task.project}</span>
                         </div>
                       )}
-                      {(task.versionMaster || task.versionDevelop || task.versionRelease) && (
-                        <div className={cn("grid grid-cols-3 gap-2 border-t border-dashed pt-2", isLight ? "border-slate-200" : "border-white/5")}>
+                      {(task.versionSuporte || task.versionMaster || task.versionRelease || task.versionDevelop) && (
+                        <div className={cn("grid grid-cols-4 gap-2 border-t border-dashed pt-2", isLight ? "border-slate-200" : "border-white/5")}>
+                          {task.versionSuporte && (
+                            <div className="flex flex-col">
+                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Suporte</span>
+                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-rose-400")}>{task.versionSuporte}</span>
+                            </div>
+                          )}
                           {task.versionMaster && (
                             <div className="flex flex-col">
                               <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
                               <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
                             </div>
                           )}
-                          {task.versionDevelop && (
-                            <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
-                            </div>
-                          )}
                           {task.versionRelease && (
                             <div className="flex flex-col">
                               <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
                               <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
+                            </div>
+                          )}
+                          {task.versionDevelop && (
+                            <div className="flex flex-col">
+                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
+                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
                             </div>
                           )}
                         </div>

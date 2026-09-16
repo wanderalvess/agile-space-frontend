@@ -35,9 +35,10 @@ const decidedWhen = (iso?: string) => {
 
 const versionsText = (t: ShowcaseTask) => [
   t.project ? `Projeto: ${t.project}` : '',
+  t.versionSuporte ? `Suporte: ${t.versionSuporte}` : '',
   t.versionMaster ? `Master: ${t.versionMaster}` : '',
-  t.versionDevelop ? `Develop: ${t.versionDevelop}` : '',
-  t.versionRelease ? `Release: ${t.versionRelease}` : ''
+  t.versionRelease ? `Release: ${t.versionRelease}` : '',
+  t.versionDevelop ? `Develop: ${t.versionDevelop}` : ''
 ].filter(Boolean).join(' | ');
 
 type LoadedImage = { dataUrl: string; width: number; height: number; format: 'PNG' | 'JPEG' | 'WEBP' };
@@ -135,12 +136,12 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     const tableHeader = [
       `# 🏆 Resumo de Aprovações — ${sessionName}`,
       `Data: ${new Date().toLocaleString('pt-BR')}\n`,
-      `| Issue | URL | Dev | QA | Projeto | Master | Develop | Release |`,
-      `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`
+      `| Issue | URL | Dev | QA | Projeto | Suporte | Master | Release | Develop |`,
+      `| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |`
     ];
 
     const tableRows = approved.map(t =>
-      `| ${t.key} | ${t.url || '—'} | ${t.evidence.dev || '—'} | ${t.evidence.qa || '—'} | ${t.project || '—'} | ${t.versionMaster || '—'} | ${t.versionDevelop || '—'} | ${t.versionRelease || '—'} |`
+      `| ${t.key} | ${t.url || '—'} | ${t.evidence.dev || '—'} | ${t.evidence.qa || '—'} | ${t.project || '—'} | ${t.versionSuporte || '—'} | ${t.versionMaster || '—'} | ${t.versionRelease || '—'} | ${t.versionDevelop || '—'} |`
     );
 
     const lines = [...tableHeader, ...tableRows].join('\n');

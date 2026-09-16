@@ -659,8 +659,15 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400">Versões (M / D / R)</label>
-                  <div className="grid grid-cols-3 gap-1">
+                  <label className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400">Versões (S / M / R / D)</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    <ControlledInput
+                      value={task.versionSuporte}
+                      onChange={(v: string) => onUpdate({ versionSuporte: v })}
+                      placeholder="Suporte"
+                      title="Versão Suporte"
+                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
+                    />
                     <ControlledInput
                       value={task.versionMaster}
                       onChange={(v: string) => onUpdate({ versionMaster: v })}
@@ -669,17 +676,17 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                       className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
                     />
                     <ControlledInput
-                      value={task.versionDevelop}
-                      onChange={(v: string) => onUpdate({ versionDevelop: v })}
-                      placeholder="Develop"
-                      title="Versão Develop"
-                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
-                    />
-                    <ControlledInput
                       value={task.versionRelease}
                       onChange={(v: string) => onUpdate({ versionRelease: v })}
                       placeholder="Release"
                       title="Versão Release"
+                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
+                    />
+                    <ControlledInput
+                      value={task.versionDevelop}
+                      onChange={(v: string) => onUpdate({ versionDevelop: v })}
+                      placeholder="Develop"
+                      title="Versão Develop"
                       className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
                     />
                   </div>

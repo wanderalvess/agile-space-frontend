@@ -265,9 +265,10 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       preparationStatus: 'todo',
       feedback: '',
       project: '',
+      versionSuporte: '',
       versionMaster: '',
-      versionDevelop: '',
       versionRelease: '',
+      versionDevelop: '',
     };
 
     try {

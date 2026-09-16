@@ -69,9 +69,10 @@ export interface JiraIssue {
   labels?: string[];
   worklogs?: any[];
   project?: string;
+  versionSuporte?: string;
   versionMaster?: string;
-  versionDevelop?: string;
   versionRelease?: string;
+  versionDevelop?: string;
   // Valor bruto do campo Sprint (customfield_XXXXX) — só vem preenchido
   // quando fetchJiraIssues é chamado com opts.sprintFieldId (ID varia por
   // instância Jira, ver SquadConfig.sprintFieldId). Formato varia: array de
@@ -114,8 +115,8 @@ const parsePlannedFromTitle = (title: string) => {
  * Extrai dados de CI/CD (Projeto e Versões) de um único texto/comentário
  */
 const parseCicdFromText = (text: string) => {
-  const info: { project?: string; versionMaster?: string; versionDevelop?: string; versionRelease?: string } = {};
-  
+  const info: { project?: string; versionSuporte?: string; versionMaster?: string; versionRelease?: string; versionDevelop?: string } = {};
+
   if (!text || !text.includes('Esteira de Integração Continua')) {
     return info;
   }
@@ -132,7 +133,9 @@ const parseCicdFromText = (text: string) => {
     const version = versionMatch[1].trim();
     const branch = branchMatch[1].trim().toLowerCase();
 
-    if (branch.includes('master') || branch.includes('main')) {
+    if (branch.includes('suporte') || branch.includes('support') || branch.includes('hotfix')) {
+      info.versionSuporte = version;
+    } else if (branch.includes('master') || branch.includes('main')) {
       info.versionMaster = version;
     } else if (branch.includes('develop') || branch.includes('dev')) {
       info.versionDevelop = version;
@@ -148,16 +151,17 @@ const parseCicdFromText = (text: string) => {
  * Acumula os dados de CI/CD de múltiplos comentários
  */
 const parseCicdFromComments = (comments: string[]) => {
-  const result: { project?: string; versionMaster?: string; versionDevelop?: string; versionRelease?: string } = {};
-  
+  const result: { project?: string; versionSuporte?: string; versionMaster?: string; versionRelease?: string; versionDevelop?: string } = {};
+
   for (const comment of comments) {
     const parsed = parseCicdFromText(comment);
     if (parsed.project) result.project = parsed.project;
+    if (parsed.versionSuporte) result.versionSuporte = parsed.versionSuporte;
     if (parsed.versionMaster) result.versionMaster = parsed.versionMaster;
-    if (parsed.versionDevelop) result.versionDevelop = parsed.versionDevelop;
     if (parsed.versionRelease) result.versionRelease = parsed.versionRelease;
+    if (parsed.versionDevelop) result.versionDevelop = parsed.versionDevelop;
   }
-  
+
   return result;
 };
 
@@ -512,9 +516,10 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         problem, solution, qa, videoUrl, devName,
         timeSpent, timeEstimate, planned,
         project: cicdInfo.project,
+        versionSuporte: cicdInfo.versionSuporte,
         versionMaster: cicdInfo.versionMaster,
-        versionDevelop: cicdInfo.versionDevelop,
-        versionRelease: cicdInfo.versionRelease
+        versionRelease: cicdInfo.versionRelease,
+        versionDevelop: cicdInfo.versionDevelop
       });
 
       // Se for issue de Gestão (ex: Refinamento), extrair issues associadas do issuelinks
@@ -544,9 +549,10 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
               timeEstimate: 0,
               planned: undefined,
               project: '',
+              versionSuporte: '',
               versionMaster: '',
-              versionDevelop: '',
-              versionRelease: ''
+              versionRelease: '',
+              versionDevelop: ''
             });
           }
         });
@@ -833,9 +839,10 @@ export const fetchJiraIssues = async (
       timeRemaining: fields?.aggregatetimeestimate || fields?.timeestimate || 0,
       worklogs: fields?.worklog?.worklogs || [],
       project: cicdParsed.project,
+      versionSuporte: cicdParsed.versionSuporte,
       versionMaster: cicdParsed.versionMaster,
-      versionDevelop: cicdParsed.versionDevelop,
       versionRelease: cicdParsed.versionRelease,
+      versionDevelop: cicdParsed.versionDevelop,
       sprintRaw: (() => {
         if (opts?.sprintFieldId && fields?.[opts.sprintFieldId]) return fields[opts.sprintFieldId];
         if (!fields) return undefined;
@@ -974,9 +981,10 @@ export const enrichWithCodificacaoChildren = async (
       solution: issue.solution || bestSubtask?.solution || anyWithSolution?.solution,
       videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
       project: issue.project || bestSubtask?.project || anyWithProject?.project,
+      versionSuporte: issue.versionSuporte || bestSubtask?.versionSuporte || anyWithProject?.versionSuporte,
       versionMaster: issue.versionMaster || bestSubtask?.versionMaster || anyWithProject?.versionMaster,
-      versionDevelop: issue.versionDevelop || bestSubtask?.versionDevelop || anyWithProject?.versionDevelop,
       versionRelease: issue.versionRelease || bestSubtask?.versionRelease || anyWithProject?.versionRelease,
+      versionDevelop: issue.versionDevelop || bestSubtask?.versionDevelop || anyWithProject?.versionDevelop,
       qa: issue.qa || anyWithQA?.qa,
       devName: issue.devName || (bestSubtask?.devName && isDevSubtask(bestSubtask) ? bestSubtask.devName : anyWithDev?.devName),
     };
