@@ -94,6 +94,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             qa: t.evidence?.qa || '',
             screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
             video: t.evidence?.video || t.evidence?.videoLink || '',
+            // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
+            // existe no backend mas nunca chega na UI.
+            evidencePreference: t.evidence?.evidencePreference,
             timeSpent: t.evidence?.timeSpent || 0,
             timeEstimate: t.evidence?.timeEstimate || 0,
             planned: t.evidence?.planned || null
@@ -141,6 +144,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               qa: t.evidence?.qa || '',
               screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
               video: t.evidence?.video || t.evidence?.videoLink || '',
+              // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
+              // existe no backend mas nunca chega na UI.
+              evidencePreference: t.evidence?.evidencePreference,
               timeSpent: t.evidence?.timeSpent || 0,
               timeEstimate: t.evidence?.timeEstimate || 0,
               planned: t.evidence?.planned || null

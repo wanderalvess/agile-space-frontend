@@ -720,6 +720,34 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                     <Video className="h-3 w-3" />
                   </Button>
                 </div>
+                {/* Só faz sentido escolher quando os dois links estão
+                    preenchidos — com um só, esse é o que aparece na
+                    apresentação, sem ambiguidade nenhuma. */}
+                {task.evidence.screenshot && task.evidence.video && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Na apresentação:</span>
+                    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
+                      {([
+                        { value: 'video' as const, label: 'Vídeo', icon: Video },
+                        { value: 'screenshot' as const, label: 'Print', icon: Camera },
+                      ]).map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, evidencePreference: opt.value } }))}
+                          className={cn(
+                            'h-6 px-2 rounded-md flex items-center gap-1 text-[8px] font-black uppercase tracking-wider transition-all',
+                            (task.evidence.evidencePreference || 'video') === opt.value
+                              ? 'bg-violet-500 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+                          )}
+                        >
+                          <opt.icon className="h-3 w-3" /> {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

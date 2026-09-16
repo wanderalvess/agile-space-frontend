@@ -381,7 +381,12 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
 function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean, jiraSettings: JiraSettings | null }) {
   const [imgError, setImgError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const url = task?.evidence.video || task?.evidence.screenshot;
+  // Com as duas preenchidas, respeita a preferência escolhida no card
+  // (padrão 'video', igual ao comportamento de antes dessa flag existir).
+  // Com só uma preenchida, essa é a que aparece — sem ambiguidade nesse caso.
+  const preferScreenshot = task?.evidence.evidencePreference === 'screenshot';
+  const url = (preferScreenshot ? task?.evidence.screenshot : task?.evidence.video)
+    || task?.evidence.screenshot || task?.evidence.video;
 
   // Anexo/thumbnail do próprio Jira (ex.: /secure/attachment/..., /secure/
   // thumbnail/...) exige sessão — como <img> cross-origin não manda o cookie

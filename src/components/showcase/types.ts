@@ -11,6 +11,10 @@ export interface Evidence {
   qa: string;
   screenshot: string;
   video: string;
+  // Só importa quando os dois campos acima estão preenchidos (com só um,
+  // esse é o que aparece, sem ambiguidade). Ausente = 'video', mesmo default
+  // de antes dessa flag existir — não muda o comportamento de card já criado.
+  evidencePreference?: 'video' | 'screenshot';
   timeSpent?: number;
   timeEstimate?: number;
   planned?: { dev?: string; qa?: string; tu?: string } | null;
