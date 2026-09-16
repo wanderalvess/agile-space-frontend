@@ -16,7 +16,11 @@ import { getCategoryColor } from './chartPresets';
 import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl } from './utils';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
+import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
+import { fetchJiraAttachmentBlobUrl } from '@/services/jiraService';
 import type { GlobalRole } from '@/lib/types';
+
+const cleanJiraDomain = (d: string) => d.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
 // Quem pode registrar aceite/ajuste/rejeição — cargo global do perfil
 // (mesmo campo que o Squad Pulse já usa em isSquadLeadershipViewer), não um
@@ -35,6 +39,10 @@ interface TeatroModeProps {
 
 export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish }: TeatroModeProps) {
   const { userProfile } = useUserContext();
+  // Levantado aqui (não dentro de TaskSlide) porque TaskSlide remonta a cada
+  // troca de card (key={task.id}) — buscar de novo a cada slide seria uma
+  // chamada extra por card, sem necessidade.
+  const { settings: jiraSettings } = useJiraSettings();
   const canDecide = !!userProfile && CAN_DECIDE_ROLES.includes(userProfile.role);
   const isCover = currentIndex === -1;
   const task = !isCover ? session.tasks[currentIndex] : null;
@@ -305,7 +313,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               <ShowcaseCover session={session} onStart={() => onIndexChange(0)} onClose={onClose} isLight={isLight} />
             </motion.div>
           ) : task ? (
-            <TaskSlide key={task.id} task={task} session={session} isLight={isLight} />
+            <TaskSlide key={task.id} task={task} session={session} isLight={isLight} jiraSettings={jiraSettings} />
           ) : null}
         </AnimatePresence>
       </div>
@@ -370,15 +378,51 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   );
 }
 
-function TaskSlide({ task, session, isLight }: { task: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean }) {
+function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean, jiraSettings: JiraSettings | null }) {
   const [imgError, setImgError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const url = task?.evidence.video || task?.evidence.screenshot;
 
-  // Reset error when URL changes
+  // Anexo/thumbnail do próprio Jira (ex.: /secure/attachment/..., /secure/
+  // thumbnail/...) exige sessão — como <img> cross-origin não manda o cookie
+  // do Jira (bloqueado por padrão em requisição de terceiro), a imagem nunca
+  // carrega direto. Detectando que a URL é do mesmo domínio configurado,
+  // busca via proxy autenticado (PAT) abaixo em vez de tentar direto.
+  const isJiraAttachment = !!(jiraSettings?.domain && url && (() => {
+    try { return new URL(url).hostname === cleanJiraDomain(jiraSettings.domain); } catch { return false; }
+  })());
+  const [jiraBlobUrl, setJiraBlobUrl] = useState<string | null>(null);
+  const [jiraBlobFailed, setJiraBlobFailed] = useState(false);
+
+  // Reset error when URL changes (jiraSettings?.domain na dependência cobre
+  // o caso em que a config do Jira ainda não tinha carregado na primeira
+  // tentativa — sem isso, o <img> falhava antes de saber que era pra usar
+  // o proxy, e imgError ficava travado em true mesmo depois de isJiraAttachment
+  // virar true).
   useEffect(() => {
     setImgError(false);
-  }, [url]);
+  }, [url, jiraSettings?.domain]);
+
+  useEffect(() => {
+    setJiraBlobUrl(null);
+    setJiraBlobFailed(false);
+    if (!isJiraAttachment || !jiraSettings || !url) return;
+    let cancelled = false;
+    fetchJiraAttachmentBlobUrl(jiraSettings.domain, jiraSettings.token, url).then(blobUrl => {
+      if (cancelled) return;
+      if (blobUrl) setJiraBlobUrl(blobUrl);
+      else setJiraBlobFailed(true);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, isJiraAttachment, jiraSettings?.domain, jiraSettings?.token]);
+
+  // Revoga o object URL só depois de trocado/desmontado — revogar no mesmo
+  // effect que cria (cleanup roda antes do próximo set) invalidaria a src
+  // que acabou de ser aplicada na tag <img>.
+  useEffect(() => {
+    return () => { if (jiraBlobUrl) URL.revokeObjectURL(jiraBlobUrl); };
+  }, [jiraBlobUrl]);
 
   // Cada task entra com os detalhes recolhidos — reabrir a cada slide seria
   // voltar pra densidade que a gente tava tentando tirar.
@@ -644,6 +688,20 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                         <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">PDF Mode</span>
                       </div>
                     )}
+                    {/* Saída pra nova aba sempre visível — vários hosts (Drive
+                        privado, sites com X-Frame-Options) recusam ser
+                        embutidos e o iframe fica em branco sem dar nenhuma
+                        saída pro apresentador. */}
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Abrir evidência em nova aba"
+                      className="absolute top-6 left-10 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/10 text-white/70 hover:text-white transition-colors"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Nova Aba</span>
+                    </a>
                     <iframe
                       src={embedUrl}
                       title={`Evidência da Tarefa: ${task.title}`}
@@ -655,7 +713,30 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                 );
               }
 
-              if (isImage && !imgError) {
+              // Anexo do próprio Jira que ainda não terminou (ou falhou) de
+              // buscar via proxy autenticado: `jiraBlobFailed` deixa cair pro
+              // fallback final (Link Externo) em vez de tentar a URL crua,
+              // que já se sabe que não carrega sem o proxy.
+              if (isImage && !imgError && !(isJiraAttachment && jiraBlobFailed)) {
+                if (isJiraAttachment && !jiraBlobUrl) {
+                  return (
+                    <motion.div
+                      key={`jira-loading-${url}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center space-y-6"
+                    >
+                      <div className={cn(
+                        "w-40 h-40 rounded-[4rem] border flex items-center justify-center mx-auto animate-pulse",
+                        isLight ? "bg-slate-100 border-slate-200 text-slate-300" : "bg-white/5 border-white/10 text-white/20"
+                      )}>
+                        <Camera className="h-16 w-16" />
+                      </div>
+                      <p className={cn("text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-slate-300" : "text-white/20")}>Carregando evidência do Jira...</p>
+                    </motion.div>
+                  );
+                }
                 return (
                   <motion.div
                     key={`image-${url}`}
@@ -669,7 +750,7 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                     )}
                   >
                     <img
-                      src={getDirectImageUrl(url)}
+                      src={isJiraAttachment ? jiraBlobUrl! : getDirectImageUrl(url)}
                       onError={() => setImgError(true)}
                       alt={`Evidência visual: ${task.title}`}
                       className="max-w-full max-h-full object-contain transition-all duration-1000 group-hover:scale-110"

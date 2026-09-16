@@ -6,6 +6,31 @@
 
 import { authFetch } from '@/lib/auth-client';
 
+/**
+ * Busca um anexo/thumbnail do próprio Jira (ex.: /secure/attachment/...,
+ * /secure/thumbnail/...) via proxy autenticado com o PAT — usado quando a
+ * evidência de uma task é uma imagem hospedada no Jira, que como <img>
+ * cross-origin nunca carrega (Jira exige sessão/cookie que o navegador não
+ * envia numa requisição de terceiro; só funciona em navegação de página
+ * inteira, tipo abrir em nova aba). Retorna um blob URL local, ou null se
+ * falhar (token sem permissão, anexo não é imagem, etc.) — quem chama deve
+ * cair pro fallback de link externo nesse caso.
+ */
+export const fetchJiraAttachmentBlobUrl = async (domain: string, token: string, url: string): Promise<string | null> => {
+  try {
+    const res = await authFetch('/api/jira/attachment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim(), url }),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
+};
+
 export interface JiraIssue {
   key: string;
   title: string;
