@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, ChevronDown, X, Camera, Ban, AlertTriangle, Maximize2, Minimize2, Check, FileText, ExternalLink, Lock, User, UserCheck, Clock3, TrendingUp
+  ChevronLeft, ChevronRight, ChevronDown, X, Camera, Ban, AlertTriangle, Maximize2, Minimize2, Check, FileText, ExternalLink, Lock, User, UserCheck, Clock3, TrendingUp, PanelLeftClose, PanelLeftOpen, ZoomIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
 import { ChartRenderer } from './ChartRenderer';
 import { getCategoryColor } from './chartPresets';
-import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl } from './utils';
+import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup } from './utils';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
 import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
@@ -51,6 +51,9 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   const [pendingDecision, setPendingDecision] = useState<Decision>('needs_adjustment');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionTime, setSessionTime] = useState(0);
+  // Colapsar a sidebar dá mais espaço pra evidência (foto/vídeo) na tela —
+  // pedido de quem apresenta, mantém o estado entre slides (não é por card).
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isLight = session.presentationBackground === '#ffffff';
 
   // Timer da Sessão
@@ -287,6 +290,9 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               )}
 
               <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setSidebarCollapsed(v => !v)} title={sidebarCollapsed ? 'Mostrar painel lateral' : 'Recolher painel lateral'} className="h-10 w-10 rounded-xl bg-white/5 text-white hover:bg-white/10">
+                  {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </Button>
                 <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-10 w-10 rounded-xl bg-white/5 text-white hover:bg-white/10">
                   {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
@@ -313,7 +319,15 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               <ShowcaseCover session={session} onStart={() => onIndexChange(0)} onClose={onClose} isLight={isLight} />
             </motion.div>
           ) : task ? (
-            <TaskSlide key={task.id} task={task} session={session} isLight={isLight} jiraSettings={jiraSettings} />
+            <TaskSlide
+              key={task.id}
+              task={task}
+              nextTask={session.tasks[currentIndex + 1]}
+              session={session}
+              isLight={isLight}
+              jiraSettings={jiraSettings}
+              sidebarCollapsed={sidebarCollapsed}
+            />
           ) : null}
         </AnimatePresence>
       </div>
@@ -378,9 +392,10 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   );
 }
 
-function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean, jiraSettings: JiraSettings | null }) {
+function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarCollapsed }: { task: import('./types').ShowcaseTask, nextTask?: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean, jiraSettings: JiraSettings | null, sidebarCollapsed?: boolean }) {
   const [imgError, setImgError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [imageExpanded, setImageExpanded] = useState(false);
   // Com as duas preenchidas, respeita a preferência escolhida no card
   // (padrão 'video', igual ao comportamento de antes dessa flag existir).
   // Com só uma preenchida, essa é a que aparece — sem ambiguidade nesse caso.
@@ -433,7 +448,16 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
   // voltar pra densidade que a gente tava tentando tirar.
   useEffect(() => {
     setShowDetails(false);
+    setImageExpanded(false);
   }, [task?.id]);
+
+  // Pré-carrega o vídeo/embed do próximo card num iframe invisível — é a
+  // maior demora sentida ao apresentar (Loom/Drive/YouTube levam segundos
+  // pra montar o player). Quando o apresentador avança, o iframe real troca
+  // pra essa mesma URL e o navegador já tem boa parte em cache/conexão aberta.
+  const nextUrl = nextTask ? (nextTask.evidence.video || nextTask.evidence.screenshot) : undefined;
+  const nextEmbedUrl = nextUrl ? getEmbedUrl(nextUrl) : undefined;
+  const nextIsPreloadableEmbed = !!nextUrl && !!nextEmbedUrl && (nextEmbedUrl !== nextUrl || isPdfUrl(nextUrl) || nextUrl.includes('loom.com'));
 
   const hasEffort = (task?.evidence.timeSpent || 0) > 0 || (task?.evidence.timeEstimate || 0) > 0;
   const hasVersions = !!(task?.project || task?.versionSuporte || task?.versionMaster || task?.versionRelease || task?.versionDevelop);
@@ -454,7 +478,8 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
       className="flex-1 flex overflow-hidden"
     >
       <div className={cn(
-        "w-full md:w-[30%] lg:w-[26%] min-w-[380px] max-w-[560px] border-r flex flex-col shrink-0 z-20 transition-all duration-700",
+        "border-r flex flex-col shrink-0 z-20 transition-all duration-300 overflow-hidden",
+        sidebarCollapsed ? "w-0 min-w-0 border-r-0" : "w-full md:w-[30%] lg:w-[26%] min-w-[380px] max-w-[560px]",
         isLight
           ? "bg-[#fff] border-slate-200 shadow-[40px_0_100px_rgba(0,0,0,0.05)]"
           : cn(
@@ -483,8 +508,8 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
               <h2 className={cn("text-2xl font-semibold leading-tight tracking-tight", isLight ? "text-slate-900" : "text-white")}>{task?.title}</h2>
               <p className={cn("text-[13px] leading-relaxed", isLight ? "text-slate-500" : "text-white/60")}>
                 {isMetricsCard
-                  ? (task?.description || "Sem contexto descrito.")
-                  : (task?.evidence.problem || "Sem problema/motivação descrita.")}
+                  ? (stripWikiMarkup(task?.description) || "Sem contexto descrito.")
+                  : (stripWikiMarkup(task?.evidence.problem) || "Sem problema/motivação descrita.")}
               </p>
 
               {/* Resumo de impacto sempre visível — é o número que a squad quer
@@ -536,14 +561,14 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                 <section className="space-y-1.5">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400">A Solução</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
-                    {task?.evidence.solution || "Descrição da solução técnica não disponível."}
+                    {stripWikiMarkup(task?.evidence.solution) || "Descrição da solução técnica não disponível."}
                   </p>
                 </section>
 
                 <section className="space-y-1.5">
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">Critérios de Aceite</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
-                    {task?.acceptanceCriteria || "Nenhum critério detalhado para esta issue."}
+                    {stripWikiMarkup(task?.acceptanceCriteria) || "Nenhum critério detalhado para esta issue."}
                   </p>
                 </section>
 
@@ -764,9 +789,11 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                     exit={{ opacity: 0, scale: 1.1 }}
                     transition={{ duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
                     className={cn(
-                      "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border flex items-center justify-center group",
+                      "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border flex items-center justify-center group cursor-zoom-in",
                       isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
                     )}
+                    onClick={() => setImageExpanded(true)}
+                    title="Clique para ampliar"
                   >
                     <img
                       src={isJiraAttachment ? jiraBlobUrl! : getDirectImageUrl(url)}
@@ -775,6 +802,10 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                       className="max-w-full max-h-full object-contain transition-all duration-1000 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <ZoomIn className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Ampliar</span>
+                    </div>
                   </motion.div>
                 );
               }
@@ -819,6 +850,46 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Preload silencioso do próximo vídeo/embed — 1x1, fora da tela, sem
+          som/foco. Só existe pra esquentar a conexão/cache antes do avançar. */}
+      {nextIsPreloadableEmbed && (
+        <iframe
+          key={`preload-${nextEmbedUrl}`}
+          src={nextEmbedUrl}
+          title="Preload da próxima evidência"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="w-px h-px absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none border-none"
+        />
+      )}
+
+      <AnimatePresence>
+        {imageExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-8 cursor-zoom-out"
+            onClick={() => setImageExpanded(false)}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setImageExpanded(false)}
+              className="absolute top-6 right-8 h-10 w-10 rounded-xl bg-white/10 text-white hover:bg-white/20"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <img
+              src={isJiraAttachment ? jiraBlobUrl! : getDirectImageUrl(url || '')}
+              alt={`Evidência visual ampliada: ${task.title}`}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.main>
   );
 }

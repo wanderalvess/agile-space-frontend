@@ -74,6 +74,35 @@ export const getDirectImageUrl = (url: string) => {
   return url;
 };
 
+/**
+ * Remove marcação wiki do Jira que ainda sobrou no texto salvo (problema/
+ * solução/critérios) — mesma regra do stripWikiMarkup em jiraService.ts, mas
+ * aplicada aqui na exibição/exportação porque nem todo texto que chega no
+ * showcase passou pela extração daquele serviço (ex.: sessão antiga, edição
+ * manual, ou campo colado direto do Jira). Sem isso "h2. *Solução:*" aparece
+ * literal em vez de virar "Solução:".
+ */
+export const stripWikiMarkup = (text?: string): string => {
+  if (!text) return text || '';
+  return text
+    .replace(/^h[1-6]\.[ \t]*/gm, '')
+    .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
+    .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    .replace(/^-{3,}[ \t]*$/gm, '');
+};
+
+/**
+ * As fontes padrão do jsPDF (Helvetica/WinAnsi) não têm glifo pra emoji —
+ * qualquer codepoint fora do Latin-1 vira lixo visual no PDF (ex.: "📝" virou
+ * "Ø=ÜÝ" na exportação). No app normal o emoji renderiza certo (fonte do
+ * navegador cobre), então isso só se aplica ao texto que vai pro jsPDF.
+ */
+export const stripNonLatin1ForPdf = (text?: string): string => {
+  if (!text) return text || '';
+  return Array.from(text).filter(ch => ch.codePointAt(0)! <= 0xFF).join('');
+};
+
 export const extractMediaUrl = (text: string) => {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s"']+)/g;

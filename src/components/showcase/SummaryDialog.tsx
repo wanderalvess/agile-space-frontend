@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, ShowcaseTask, Decision, DECISION } from './types';
-import { formatTime, getDirectImageUrl } from './utils';
+import { formatTime, getDirectImageUrl, stripWikiMarkup, stripNonLatin1ForPdf } from './utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface SummaryDialogProps {
@@ -197,15 +197,21 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
       };
       const addPage = () => { doc.addPage(); y = M; };
       const ensure = (h: number) => { if (y + h > BOTTOM) addPage(); };
+      // Ponto único de saída de texto pro PDF — texto vindo do Jira ainda pode
+      // trazer marcação wiki crua ("h2. *Solução:*") e emoji, que as fontes
+      // padrão do jsPDF (Helvetica/WinAnsi) não sabem desenhar e viram lixo
+      // visual ("Ø=ÜÝ"). Sanitiza aqui pra cobrir título/problema/solução/
+      // critérios/versões/nomes de uma vez, sem repetir em cada chamada.
+      const forPdf = (text: string) => stripNonLatin1ForPdf(stripWikiMarkup(text));
       const wrapped = (text: string, x: number, width: number, size: number, style: 'normal' | 'bold' = 'normal', color: [number, number, number] = [30, 41, 59], lineH = size * 0.42 + 1.3) => {
         setFont(size, style, color);
-        const lines = doc.splitTextToSize(text || '', width) as string[];
+        const lines = doc.splitTextToSize(forPdf(text || ''), width) as string[];
         lines.forEach(line => { ensure(lineH); doc.text(line, x, y); y += lineH; });
         return lines.length * lineH;
       };
       const measure = (text: string, width: number, size: number, lineH = size * 0.42 + 1.3) => {
         doc.setFontSize(size);
-        return (doc.splitTextToSize(text || '', width) as string[]).length * lineH;
+        return (doc.splitTextToSize(forPdf(text || ''), width) as string[]).length * lineH;
       };
       const decisionRGB = (d: Decision): [number, number, number] =>
         d === 'approved' ? [5, 150, 105] : d === 'rejected' ? [225, 29, 72] : d === 'needs_adjustment' ? [217, 119, 6] : [100, 116, 139];
@@ -217,12 +223,12 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
       doc.rect(0, 0, 3, PH, 'F');
 
       setFont(10, 'bold', [216, 180, 254]);
-      doc.text((session.squadName || 'Product Team').toUpperCase(), M, 30);
+      doc.text(forPdf((session.squadName || 'Product Team').toUpperCase()), M, 30);
 
       // Título em quase largura cheia — não só 62% — porque os KPIs saíram
       // do canto superior direito (colidiam com qualquer nome de sessão
       // normal) e agora formam uma faixa própria mais abaixo.
-      const titleLines = doc.splitTextToSize(session.name || 'Sprint Review', CW * 0.85) as string[];
+      const titleLines = doc.splitTextToSize(forPdf(session.name || 'Sprint Review'), CW * 0.85) as string[];
       setFont(34, 'bold', [255, 255, 255]);
       titleLines.forEach((line, i) => doc.text(line, M, 62 + i * 13));
       const titleBottom = 62 + (titleLines.length - 1) * 13;
@@ -272,7 +278,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         setFont(8, 'bold', [255, 255, 255]);
         doc.text(task.key, M + 13, y + 4.8, { align: 'center' });
         setFont(8, 'bold', [148, 163, 184]);
-        doc.text(task.type.toUpperCase(), M + 30, y + 4.8);
+        doc.text(forPdf(task.type.toUpperCase()), M + 30, y + 4.8);
 
         const dColor = decisionRGB(task.decision);
         const dLabel = DECISION[task.decision]?.label.toUpperCase() || 'ABERTA';
@@ -280,7 +286,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.text(dLabel, M + CW, y + 4.8, { align: 'right' });
         if (task.decidedByName) {
           setFont(7, 'normal', [148, 163, 184]);
-          doc.text(`${task.decidedByName}${decidedWhen(task.decidedAt) ? ` · ${decidedWhen(task.decidedAt)}` : ''}`, M + CW, y + 9.5, { align: 'right' });
+          doc.text(forPdf(`${task.decidedByName}${decidedWhen(task.decidedAt) ? ` · ${decidedWhen(task.decidedAt)}` : ''}`), M + CW, y + 9.5, { align: 'right' });
         }
         y += 12;
         wrapped(task.title, M, textW, 15, 'bold', [15, 23, 42], 6.5);
@@ -326,14 +332,14 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.text('QA', M + textW / 2, y);
         y += 5;
         setFont(10, 'bold', [15, 23, 42]);
-        doc.text(task.evidence.dev || '—', M, y);
-        doc.text(task.evidence.qa || '—', M + textW / 2, y);
+        doc.text(forPdf(task.evidence.dev) || '—', M, y);
+        doc.text(forPdf(task.evidence.qa) || '—', M + textW / 2, y);
 
         // Coluna direita: gráfico de métricas (card de métricas), imagem real
         // (quando carregou) ou link de evidência
         if (isMetricsCard) {
           setFont(7, 'bold', [129, 140, 248]);
-          doc.text((task.chartTitle || 'MÉTRICAS DE IMPACTO').toUpperCase(), imgX, imgTop);
+          doc.text(forPdf((task.chartTitle || 'MÉTRICAS DE IMPACTO').toUpperCase()), imgX, imgTop);
           doc.setDrawColor(226, 232, 240);
           doc.setLineWidth(0.4);
           doc.roundedRect(imgX, imgTop + 4, imgW, imgBottom - imgTop - 4, 3, 3, 'S');
@@ -501,7 +507,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           </div>
 
           {/* Log Feed — agrupado por decisão */}
-          <div className="flex-1 flex flex-col min-h-0">
+          {/* min-w-0 é essencial aqui: sem ele, um flex-1 nunca encolhe abaixo
+              da largura intrínseca do conteúdo (título longo do card), e
+              empurra a coluna toda pra fora do modal em vez de deixar o
+              truncate cortar o texto internamente. */}
+          <div className="flex-1 flex flex-col min-h-0 min-w-0">
             <div className="px-10 pt-8 pb-4 flex items-center justify-between">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Linha do Tempo da Review</h3>
               <Badge variant="outline" className="rounded-lg font-black text-[8px] uppercase border-slate-200 dark:border-slate-800 dark:text-slate-400">{tasks.length} Entradas</Badge>
