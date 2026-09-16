@@ -44,6 +44,10 @@ export interface ShowcaseTask {
   cardKind?: CardKind;
   chartType?: ChartType;
   chartTitle?: string;
+  // Só lido pro card padrão com métrica avulsa ('story' + metrics). Card
+  // 'metrics' puro ignora isso e é sempre 'featured' (é o único conteúdo que
+  // ele tem pra mostrar). Ausente = 'compact' (comportamento anterior).
+  chartDisplay?: 'compact' | 'featured';
   metrics?: ImpactMetric[];
   assignee: string; 
   url: string;

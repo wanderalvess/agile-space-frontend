@@ -434,6 +434,11 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
   const hasVersions = !!(task?.project || task?.versionMaster || task?.versionDevelop || task?.versionRelease);
   const metrics = task?.metrics?.filter(m => m.field.trim()) || [];
   const isMetricsCard = task?.cardKind === 'metrics';
+  // Card padrão pode pedir pra métrica virar o destaque da tela principal
+  // (mesmo tratamento visual do card 'metrics' puro) em vez do resumo pequeno
+  // de sempre — troca só a tela principal, sidebar (dev/qa/detalhes) continua.
+  const isFeaturedChart = !isMetricsCard && task?.chartDisplay === 'featured' && metrics.length > 0;
+  const showBigMetricsStage = isMetricsCard || isFeaturedChart;
 
   return (
     <motion.main
@@ -573,7 +578,9 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                   </section>
                 )}
 
-                {metrics.length > 0 && (
+                {/* Em destaque o gráfico já vai grande na tela principal —
+                    repetir ele pequeno aqui embaixo seria duplicado. */}
+                {metrics.length > 0 && !isFeaturedChart && (
                   <section className="space-y-1.5">
                     <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">{task?.chartTitle || 'Métricas de Impacto'}</p>
                     <ChartRenderer
@@ -582,6 +589,7 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                       data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))}
                       height={140}
                       defaultColor="hsl(262, 83%, 65%)"
+                      isLight={isLight}
                     />
                   </section>
                 )}
@@ -605,10 +613,10 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
             {(() => {
               if (!task) return null;
 
-              // Card de métricas: o gráfico É a evidência principal — mostra
-              // ele grande aqui em vez de procurar screenshot/vídeo, que essa
-              // entrega normalmente não tem.
-              if (isMetricsCard) return (
+              // Card de métricas (sempre) ou card padrão com gráfico em
+              // destaque (opt-in): o gráfico É a evidência principal — mostra
+              // ele grande aqui em vez de procurar screenshot/vídeo.
+              if (showBigMetricsStage) return (
                 <motion.div
                   key="metrics-chart"
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -633,7 +641,7 @@ function TaskSlide({ task, session, isLight, jiraSettings }: { task: import('./t
                           </div>
                         ))}
                       </div>
-                      <ChartRenderer type={task.chartType} title="" data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))} height={280} defaultColor="hsl(262, 83%, 65%)" />
+                      <ChartRenderer type={task.chartType} title="" data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))} height={280} defaultColor="hsl(262, 83%, 65%)" isLight={isLight} bare />
                     </>
                   ) : (
                     <p className={cn("text-center text-sm font-bold uppercase tracking-widest", isLight ? "text-slate-300" : "text-white/20")}>Sem métricas preenchidas ainda</p>

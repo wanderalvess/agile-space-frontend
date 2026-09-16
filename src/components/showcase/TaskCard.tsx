@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
-  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ChevronDown, ArrowRight
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ChevronDown, ArrowRight, Maximize2, Minimize2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -185,6 +185,35 @@ function ChartTypePicker({ value, onChange }: { value: ChartType | undefined; on
           )}
         >
           <opt.icon className="h-3.5 w-3.5" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const CHART_DISPLAY_OPTIONS: { value: 'compact' | 'featured'; label: string; title: string; icon: React.ElementType }[] = [
+  { value: 'compact', label: 'Compacto', title: 'Aparece pequeno junto com os detalhes', icon: Minimize2 },
+  { value: 'featured', label: 'Destaque', title: 'Vira o destaque grande da apresentação (substitui a evidência na tela principal)', icon: Maximize2 },
+];
+
+function ChartDisplayPicker({ value, onChange }: { value: 'compact' | 'featured' | undefined; onChange: (v: 'compact' | 'featured') => void }) {
+  const current = value || 'compact';
+  return (
+    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit shrink-0">
+      {CHART_DISPLAY_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          title={opt.title}
+          className={cn(
+            'h-7 px-2 rounded-md flex items-center gap-1 text-[9px] font-black uppercase tracking-wider transition-all',
+            current === opt.value
+              ? 'bg-violet-500 text-white shadow-sm'
+              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+          )}
+        >
+          <opt.icon className="h-3 w-3" /> {opt.label}
         </button>
       ))}
     </div>
@@ -666,7 +695,10 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               ╚══════════════════════════════════════╝ */}
           {!isMetricsCard && ((task.metrics && task.metrics.length > 0) ? (
             <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
-              <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+                <ChartDisplayPicker value={task.chartDisplay} onChange={(chartDisplay) => onUpdate({ chartDisplay })} />
+              </div>
               <MetricsEditor
                 metrics={task.metrics}
                 onChange={(metrics) => onUpdate({ metrics })}
