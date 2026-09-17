@@ -131,18 +131,121 @@ export const PREPARATION_STATUS = {
   done:   { label: 'Pronta',          cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900/30' },
 } as const;
  
-export const PRESENTATION_PRESETS = [
-  { id: 'noir', name: 'Deep Space', value: 'linear-gradient(rgba(5, 5, 16, 0.9), rgba(5, 5, 16, 0.95))', preview: '#050510' },
-  { id: 'indigo', name: 'Indigo Flow', value: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', preview: '#312e81' },
-  { id: 'emerald', name: 'Tech Emerald', value: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)', preview: '#065f46' },
-  { id: 'sunset', name: 'Sunset Glow', value: 'linear-gradient(135deg, #31103f 0%, #721c38 50%, #962a32 100%)', preview: '#721c38' },
-  { id: 'slate', name: 'Slate Minimal', value: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', preview: '#1e293b' },
-  { id: 'midnight', name: 'Midnight Violet', value: 'linear-gradient(135deg, #180828 0%, #2c0c4d 100%)', preview: '#2c0c4d' },
-  { id: 'ocean', name: 'Ocean Abyss', value: 'linear-gradient(135deg, #030712 0%, #0b3c5d 100%)', preview: '#0b3c5d' },
-  { id: 'corporate', name: 'Modern Office', value: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop', preview: 'url' },
-  { id: 'cyber', name: 'Cyber Neon', value: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop', preview: 'url' },
-  { id: 'white', name: 'Clean White', value: '#ffffff', preview: '#ffffff' },
+export interface PresentationPreset {
+  id: string;
+  name: string;
+  category: 'dark' | 'light';
+  value: string;
+  preview: string;
+  description: string;
+  isLight?: boolean;
+}
+
+export const PRESENTATION_PRESETS: PresentationPreset[] = [
+  // --- TONS ESCUROS (CINEMATOGRÁFICO) ---
+  {
+    id: 'noir',
+    name: 'Deep Space',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)',
+    preview: '#050510',
+    description: 'Preto cósmico profundo com sutis reflexos violeta',
+    isLight: false,
+  },
+  {
+    id: 'midnight',
+    name: 'Noite Índigo',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #0b0f19 0%, #1e1b4b 50%, #0f172a 100%)',
+    preview: '#1e1b4b',
+    description: 'Azul índigo noturno elegante e sóbrio',
+    isLight: false,
+  },
+  {
+    id: 'cyber',
+    name: 'Cyber Violet',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #180828 0%, #3b0764 50%, #130324 100%)',
+    preview: '#3b0764',
+    description: 'Violeta dinâmico para squads de tecnologia e inovação',
+    isLight: false,
+  },
+  {
+    id: 'emerald',
+    name: 'Tech Emerald',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)',
+    preview: '#064e3b',
+    description: 'Verde esmeralda escuro focado em estabilidade e métricas',
+    isLight: false,
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset Wine',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #2a0818 0%, #4a0e2e 50%, #18030f 100%)',
+    preview: '#4a0e2e',
+    description: 'Bordô e carmesim aveludado de alto contraste',
+    isLight: false,
+  },
+  {
+    id: 'ocean',
+    name: 'Ocean Abyss',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #020b18 0%, #0c2340 50%, #030712 100%)',
+    preview: '#0c2340',
+    description: 'Azul marinho profundo, técnico e limpo',
+    isLight: false,
+  },
+  {
+    id: 'slate',
+    name: 'Grafite Minimal',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+    preview: '#1e293b',
+    description: 'Cinza chumbo industrial discreto',
+    isLight: false,
+  },
+
+  // --- TONS CLAROS (SALA ILUMINADA / PROJETOR) ---
+  {
+    id: 'white',
+    name: 'Branco Puro',
+    category: 'light',
+    value: '#ffffff',
+    preview: '#ffffff',
+    description: 'Branco total de alto contraste para salas iluminadas e projetores',
+    isLight: true,
+  },
+  {
+    id: 'soft-snow',
+    name: 'Studio Off-White',
+    category: 'light',
+    value: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+    preview: '#f8fafc',
+    description: 'Cinza claríssimo moderno com acabamento de galeria',
+    isLight: true,
+  },
+  {
+    id: 'ice-blue',
+    name: 'Gelo Ártico',
+    category: 'light',
+    value: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
+    preview: '#e0f2fe',
+    description: 'Azul celeste sutil e iluminado, descansado para os olhos',
+    isLight: true,
+  },
+  {
+    id: 'warm-cream',
+    name: 'Editorial Cream',
+    category: 'light',
+    value: 'linear-gradient(135deg, #fafaf9 0%, #f5f5f4 100%)',
+    preview: '#f5f5f4',
+    description: 'Tom de papel encorpado, suave e corporativo',
+    isLight: true,
+  },
 ];
+
 
 export const PRESETS = [
   { id: 'totvs', name: 'Corporativo Agile', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente profissional e moderno' },

@@ -50,7 +50,7 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
         setConfig(data);
         applyTheme(data);
       } catch (error) {
-        console.error("SystemConfigProvider: Error fetching configs:", error);
+        console.warn("SystemConfigProvider: Could not fetch remote configs, using defaults:", error);
       } finally {
         if (!cancelled) setIsLoading(false);
       }

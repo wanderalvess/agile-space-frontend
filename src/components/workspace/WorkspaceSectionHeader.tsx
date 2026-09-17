@@ -44,10 +44,10 @@ export function WorkspaceSectionHeader({ kicker, accent, title, titleAccent, sub
             {kicker}
           </Badge>
         </div>
-        <h1 className="text-2xl font-black italic tracking-tighter text-slate-900 uppercase flex items-center gap-3">
+        <h1 className="text-2xl font-black italic tracking-tighter text-foreground uppercase flex items-center gap-3 font-headline">
           {title} <span className={cn("not-italic", ACCENT_TEXT_CLASSES[accent])}>{titleAccent}</span>
         </h1>
-        <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">{subtitle}</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{subtitle}</p>
       </div>
       {action}
     </div>

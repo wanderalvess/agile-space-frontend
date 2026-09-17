@@ -1,4 +1,32 @@
-import { ShowcaseTask } from './types';
+import { ShowcaseTask, PRESENTATION_PRESETS } from './types';
+
+/**
+ * Determina com precisão se o fundo escolhido para a apresentação é claro.
+ * Usado para ajustar tipografia, contraste de bordas, badges e controles no Modo Teatro.
+ */
+export const isLightBackground = (bg?: string): boolean => {
+  if (!bg) return false;
+  const val = bg.trim().toLowerCase();
+  if (['#ffffff', '#fff', 'white', '#fafafa', '#f8fafc', '#f1f5f9', '#f0f9ff', '#fafaf9', '#f5f5f4', '#f3f4f6'].includes(val)) {
+    return true;
+  }
+  const preset = PRESENTATION_PRESETS.find(p => p.value.toLowerCase() === val);
+  if (preset && 'isLight' in preset) {
+    return !!preset.isLight;
+  }
+  if (val.includes('#f8fafc') || val.includes('#f0f9ff') || val.includes('#fafaf9') || val.includes('#ffffff') || val.includes('#e2e8f0') || val.includes('#e0f2fe')) {
+    return true;
+  }
+  const hexMatch = val.match(/^#([0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const r = parseInt(hexMatch[1].slice(0, 2), 16);
+    const g = parseInt(hexMatch[1].slice(2, 4), 16);
+    const b = parseInt(hexMatch[1].slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+    return luminance > 175;
+  }
+  return false;
+};
 
 /**
  * Prontidão real de uma task, derivada do conteúdo preenchido — a mesma

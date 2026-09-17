@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import {
   Settings, Sparkles, Link as LinkIcon, Check, AlertTriangle,
-  Layout, Target, Palette, Globe, ChevronRight, Video, SortAsc, Camera
+  Layout, Target, Palette, Globe, ChevronRight, Video, SortAsc, Camera,
+  Sun, Moon, Pipette
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,8 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShowcaseSession, ShowcaseTask, PRESETS, PRESENTATION_PRESETS } from './types';
-import { getDirectImageUrl } from './utils';
+import { ShowcaseSession, ShowcaseTask, PRESETS, PRESENTATION_PRESETS, PresentationPreset } from './types';
+import { getDirectImageUrl, isLightBackground } from './utils';
 
 interface SessionSettingsDialogProps {
   open: boolean;
@@ -36,7 +37,7 @@ type TabType = 'geral' | 'identidade' | 'apresentacao';
  * apresentação inteira.
  */
 function PresentationPreview({ background, theme, task }: { background?: string; theme?: ShowcaseSession['presentationTheme']; task?: ShowcaseTask }) {
-  const isLight = background === '#ffffff';
+  const isLight = isLightBackground(background);
   const isGlass = theme === 'glass';
   const isMinimalist = theme === 'minimalist';
 
@@ -48,43 +49,79 @@ function PresentationPreview({ background, theme, task }: { background?: string;
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
-    : { background: 'linear-gradient(135deg, #0f172a 0%, #020205 100%)' };
+    : { background: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)' };
 
-  // Sem cards ainda: mostra o layout com um rótulo de exemplo em vez de
-  // inventar uma issue que não existe (achou que era um card real quebrado).
-  const badgeKey = task?.key || 'EXEMPLO';
-  const title = task?.title || 'Assim seus cards vão aparecer aqui';
-  const desc = task?.evidence?.problem || task?.description || 'Importe do Jira ou crie um card manual pra ver a prévia real.';
+  const badgeKey = task?.key || 'DEMO-101';
+  const title = task?.title || 'Assim seus cards vão aparecer na tela';
+  const desc = task?.evidence?.problem || task?.description || 'Evidência, contexto do negócio e resultados da entrega.';
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden" style={bgStyle}>
+    <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl transition-all duration-500" style={bgStyle}>
+      {/* Indicador de Modo Claro/Escuro */}
+      <div className="absolute top-3 right-3 z-20">
+        <span className={cn(
+          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider backdrop-blur-md border shadow-sm transition-colors",
+          isLight
+            ? "bg-white/90 text-slate-800 border-slate-200 shadow-slate-900/5"
+            : "bg-slate-950/80 text-white/90 border-white/10"
+        )}>
+          {isLight ? <Sun className="h-3 w-3 text-amber-500 shrink-0" /> : <Moon className="h-3 w-3 text-violet-400 shrink-0" />}
+          {isLight ? "Modo Claro Ativo" : "Modo Escuro Ativo"}
+        </span>
+      </div>
+
+      {/* Painel lateral do card */}
       <div
         className={cn(
-          'absolute inset-y-0 left-0 w-[58%] max-w-[260px] p-5 flex flex-col gap-3 border-r',
+          'absolute inset-y-0 left-0 w-[58%] max-w-[270px] p-5 flex flex-col justify-between border-r transition-all duration-300',
           isLight
-            ? 'bg-white border-slate-200'
-            : cn(isGlass ? 'bg-white/[0.02] backdrop-blur-2xl' : 'bg-[#080812]/95 backdrop-blur-2xl', 'border-white/10'),
+            ? (isGlass ? 'bg-white/80 backdrop-blur-xl border-slate-200/90 shadow-sm' : 'bg-white/95 backdrop-blur-md border-slate-200 shadow-sm')
+            : (isGlass ? 'bg-white/[0.03] backdrop-blur-2xl border-white/10' : 'bg-[#080812]/95 backdrop-blur-2xl border-white/10'),
           isMinimalist && 'border-r-0 shadow-none'
         )}
       >
-        <div className="flex items-center justify-between">
-          <span className={cn('text-[9px] font-bold px-2.5 py-1 rounded-full shrink-0', task ? 'bg-violet-600/90 text-white' : 'bg-white/10 text-white/50 tracking-widest')}>{badgeKey}</span>
-          {task && (
-            <span className="bg-emerald-500/15 text-emerald-400 text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn(
+              'text-[9px] font-bold px-2.5 py-1 rounded-full shrink-0 tracking-wide',
+              task ? 'bg-violet-600 text-white shadow-sm' : (isLight ? 'bg-violet-100 text-violet-700' : 'bg-white/10 text-white/70')
+            )}>
+              {badgeKey}
+            </span>
+            <span className={cn(
+              "text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0",
+              isLight ? "bg-emerald-100 text-emerald-700 border border-emerald-200/60" : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
+            )}>
               <Check className="h-2.5 w-2.5" /> Aprovado
             </span>
-          )}
+          </div>
+          <h4 className={cn('text-[14px] font-bold leading-tight line-clamp-2 transition-colors', isLight ? 'text-slate-900' : 'text-white')}>
+            {title}
+          </h4>
+          <p className={cn('text-[10.5px] leading-relaxed line-clamp-3 transition-colors', isLight ? 'text-slate-600' : 'text-white/60')}>
+            {desc}
+          </p>
         </div>
-        <h4 className={cn('text-[15px] font-semibold leading-tight', isLight ? 'text-slate-900' : 'text-white')}>
-          {title}
-        </h4>
-        <p className={cn('text-[10.5px] leading-relaxed', isLight ? 'text-slate-500' : 'text-white/50')}>
-          {desc}
-        </p>
+
+        <div className={cn(
+          'pt-3 border-t flex items-center justify-between text-[9px] font-bold uppercase tracking-wider transition-colors',
+          isLight ? 'border-slate-100 text-slate-400' : 'border-white/5 text-white/40'
+        )}>
+          <span>Desenvolvedor</span>
+          <span className={cn('font-black', isLight ? 'text-slate-800' : 'text-white/90')}>{task?.evidence?.dev || 'Ana Silva'}</span>
+        </div>
       </div>
-      <div className="absolute inset-y-0 right-0 left-[58%] flex items-center justify-center">
-        <div className={cn('w-2/3 aspect-video rounded-xl border border-dashed flex items-center justify-center', isLight ? 'border-slate-900/15' : 'border-white/15')}>
-          <Camera className={cn('h-6 w-6', isLight ? 'text-slate-900/20' : 'text-white/20')} />
+
+      {/* Área de evidência à direita */}
+      <div className="absolute inset-y-0 right-0 left-[58%] flex items-center justify-center p-6">
+        <div className={cn(
+          'w-full max-w-[210px] aspect-video rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all shadow-sm',
+          isLight
+            ? 'bg-white/80 border-slate-200/90 text-slate-500 shadow-slate-200/50'
+            : 'bg-white/[0.03] border-white/10 text-white/40'
+        )}>
+          <Camera className="h-7 w-7 opacity-70" />
+          <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">Evidência / Demo</span>
         </div>
       </div>
     </div>
@@ -93,6 +130,7 @@ function PresentationPreview({ background, theme, task }: { background?: string;
 
 export function SessionSettingsDialog({ open, onClose, session: initialSession, onUpdate: onCommit, presentWarning, onPresentAnyway }: SessionSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>('geral');
+  const [presetFilter, setPresetFilter] = useState<'all' | 'light' | 'dark'>('all');
   const [session, setSession] = useState<Partial<ShowcaseSession>>({});
   const [coverUrl, setCoverUrl] = useState('');
   const [previewError, setPreviewError] = useState(false);
@@ -342,111 +380,290 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
     </motion.div>
   );
 
-  const renderApresentacao = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Coluna esquerda: controles */}
-        <div className="md:col-span-5 space-y-4">
-          <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Presets de Fundo</h3>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {PRESENTATION_PRESETS.map((p: any) => (
+  const renderApresentacao = () => {
+    const filteredPresets = PRESENTATION_PRESETS.filter(p => {
+      if (presetFilter === 'light') return p.category === 'light';
+      if (presetFilter === 'dark') return p.category === 'dark';
+      return true;
+    });
+
+    const isLightBg = isLightBackground(session?.presentationBackground);
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+        className="space-y-4"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          {/* Coluna esquerda: Controles e Seleção de Fundo */}
+          <div className="md:col-span-6 space-y-4">
+            {/* Bloco 1: Presets Curados */}
+            <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-violet-500" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                    Paleta de Cores do Modo Teatro
+                  </h3>
+                </div>
+                {isLightBg && (
+                  <span className="text-[8.5px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Sun className="h-2.5 w-2.5" /> Fundo Claro Ativo
+                  </span>
+                )}
+              </div>
+
+              {/* Filtros de Categoria */}
+              <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
                 <button
-                  key={p.id}
-                  onClick={() => onUpdate({ presentationBackground: p.value })}
-                  title={p.name}
+                  type="button"
+                  onClick={() => setPresetFilter('all')}
                   className={cn(
-                    "group relative aspect-square rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.05] hover:shadow-md",
-                    session?.presentationBackground === p.value ? "border-violet-600 shadow-md shadow-violet-600/20" : "border-transparent"
+                    "flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all",
+                    presetFilter === 'all'
+                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
                   )}
                 >
-                  {p.preview === 'url' ? (
-                    <img src={p.value} className="w-full h-full object-cover" alt={p.name} />
-                  ) : (
-                    <div style={{ background: p.value }} className="w-full h-full" />
-                  )}
-                  {session?.presentationBackground === p.value && (
-                    <div className="absolute top-1 right-1 bg-violet-600 text-white p-0.5 rounded-md shadow-lg">
-                      <Check className="h-2 w-2" />
-                    </div>
-                  )}
+                  Todos ({PRESENTATION_PRESETS.length})
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setPresetFilter('light')}
+                  className={cn(
+                    "flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                    presetFilter === 'light'
+                      ? "bg-amber-500 text-white shadow-sm"
+                      : "text-slate-500 hover:text-amber-600 dark:hover:text-amber-400"
+                  )}
+                >
+                  <Sun className="h-3 w-3" /> Fundo Claro ({PRESENTATION_PRESETS.filter(p => p.category === 'light').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresetFilter('dark')}
+                  className={cn(
+                    "flex-1 py-1.5 px-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
+                    presetFilter === 'dark'
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-slate-500 hover:text-violet-600 dark:hover:text-violet-400"
+                  )}
+                >
+                  <Moon className="h-3 w-3" /> Escuros ({PRESENTATION_PRESETS.filter(p => p.category === 'dark').length})
+                </button>
+              </div>
+
+              {/* Lista de Cards de Presets */}
+              <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                {filteredPresets.map((p) => {
+                  const isSelected = session?.presentationBackground === p.value;
+                  const isLightPreset = p.isLight;
+
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => onUpdate({ presentationBackground: p.value })}
+                      className={cn(
+                        "group relative p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition-all hover:scale-[1.01] hover:shadow-md",
+                        isSelected
+                          ? "border-violet-600 bg-violet-50/60 dark:bg-violet-950/30 shadow-sm ring-2 ring-violet-500/20"
+                          : "border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900/70 hover:border-slate-300 dark:hover:border-slate-700"
+                      )}
+                    >
+                      {/* Swatch redondinho com anel de contraste */}
+                      <div
+                        style={{ background: p.value }}
+                        className={cn(
+                          "w-9 h-9 rounded-lg shrink-0 flex items-center justify-center relative shadow-inner overflow-hidden",
+                          isLightPreset
+                            ? "border-2 border-slate-300 dark:border-slate-600 shadow-sm"
+                            : "border border-white/15"
+                        )}
+                      >
+                        {isSelected && (
+                          <div className={cn(
+                            "w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-md",
+                            isLightPreset ? "bg-violet-600 text-white" : "bg-white text-slate-900"
+                          )}>
+                            <Check className="h-3 w-3 stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Títulos e detalhes */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className={cn(
+                            "text-[10px] font-black truncate leading-tight",
+                            isSelected ? "text-violet-700 dark:text-violet-300" : "text-slate-800 dark:text-slate-200"
+                          )}>
+                            {p.name}
+                          </p>
+                          {p.id === 'white' && (
+                            <span className="text-[7.5px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
+                              PROJETOR
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[8px] text-slate-400 dark:text-slate-500 font-medium line-clamp-1 mt-0.5 leading-snug">
+                          {p.description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Seletor Customizado & Paleta Rápida */}
+              <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Pipette className="h-3.5 w-3.5 text-violet-500" />
+                    <h3 className="text-[9.5px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                      Cor Livre ou Link
+                    </h3>
+                  </div>
+                  <span className="text-[8px] font-bold text-slate-400">Hexadecimal / CSS</span>
+                </div>
+
+                <div className="flex gap-2 items-center">
+                  <label className="relative flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer overflow-hidden shrink-0 hover:scale-105 transition-transform shadow-inner" title="Abrir Seletor de Cores">
+                    <input
+                      type="color"
+                      value={session?.presentationBackground?.startsWith('#') && session.presentationBackground.length === 7 ? session.presentationBackground : '#ffffff'}
+                      onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
+                      className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    />
+                    <div
+                      className="w-full h-full rounded-xl flex items-center justify-center"
+                      style={{ background: session?.presentationBackground || '#050510' }}
+                    >
+                      <Palette className={cn("h-4 w-4 drop-shadow", isLightBg ? "text-slate-800" : "text-white")} />
+                    </div>
+                  </label>
+
+                  <Input
+                    value={session?.presentationBackground || ''}
+                    onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
+                    placeholder="Ex: #ffffff, #0f172a ou https://..."
+                    className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all flex-1"
+                  />
+                </div>
+
+                {/* Chips de Atalho Rápido */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-1">Rápidos:</span>
+                  {[
+                    { label: 'Branco Puro', value: '#ffffff', border: true },
+                    { label: 'Studio Off-White', value: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', border: true },
+                    { label: 'Deep Space', value: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)' },
+                    { label: 'Noite Índigo', value: 'linear-gradient(135deg, #0b0f19 0%, #1e1b4b 50%, #0f172a 100%)' },
+                    { label: 'Tech Emerald', value: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)' },
+                  ].map((chip) => {
+                    const isChipActive = session?.presentationBackground === chip.value;
+                    return (
+                      <button
+                        key={chip.label}
+                        type="button"
+                        onClick={() => onUpdate({ presentationBackground: chip.value })}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-[8.5px] font-bold transition-all flex items-center gap-1.5 border",
+                          isChipActive
+                            ? "border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30 font-black shadow-sm"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
+                        )}
+                      >
+                        <span
+                          className={cn("w-2.5 h-2.5 rounded-full shrink-0", chip.border && "border border-slate-300 dark:border-slate-600")}
+                          style={{ background: chip.value }}
+                        />
+                        {chip.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-              <div className="flex items-center gap-2">
-                <LinkIcon className="h-3.5 w-3.5 text-violet-500" />
-                <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Cor ou Link Customizado</h3>
+            {/* Bloco 2: Temas de Interface */}
+            <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Layout className="h-4 w-4 text-violet-500" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                    Estilo de Interface
+                  </h3>
+                </div>
+                <span className="text-[8px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">
+                  {session?.presentationTheme || 'cinematic'}
+                </span>
               </div>
-              <Input
-                value={session?.presentationBackground || ''}
-                onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
-                placeholder="Ex: #0f172a ou link da imagem..."
-                className="h-9 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
+
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'cinematic', label: 'Cinematográfico', desc: 'Foco no conteúdo com bordas suaves e presença cênica' },
+                  { id: 'minimalist', label: 'Minimalista', desc: 'Sem divisórias laterais, layout limpo e direto' },
+                  { id: 'corporate', label: 'Corporativo', desc: 'Estrutura sólida executiva para stakeholders' },
+                  { id: 'glass', label: 'Glassmorphism', desc: 'Painéis translúcidos com efeito de desfoque moderno' }
+                ].map((t) => {
+                  const isThemeSelected = (session?.presentationTheme || 'cinematic') === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => onUpdate({ presentationTheme: t.id as any })}
+                      className={cn(
+                        "p-2.5 rounded-xl border-2 flex flex-col text-left gap-1 transition-all hover:scale-[1.01]",
+                        isThemeSelected
+                          ? "border-violet-600 bg-violet-50/50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-300 shadow-sm"
+                          : "border-slate-100 dark:border-slate-800 text-slate-500 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-900/40"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9.5px] font-black uppercase tracking-wider">{t.label}</span>
+                        {isThemeSelected && <Check className="h-3 w-3 text-violet-600" />}
+                      </div>
+                      <span className="text-[7.5px] font-medium text-slate-400 dark:text-slate-500 line-clamp-1 leading-snug">
+                        {t.desc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Coluna direita: Prévia ao vivo em tempo real */}
+          <div className="md:col-span-6 flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Video className="h-4 w-4 text-violet-500" />
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                  Pré-visualização em Tempo Real
+                </h3>
+              </div>
+              <span className="text-[8.5px] font-bold text-slate-400 dark:text-slate-500">
+                Como a audiência verá
+              </span>
+            </div>
+
+            <div className="flex-1 min-h-[380px] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-inner bg-slate-950/5">
+              <PresentationPreview
+                background={session?.presentationBackground}
+                theme={session?.presentationTheme}
+                task={session?.tasks?.[0]}
               />
             </div>
           </div>
-
-          <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Temas de Interface</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {(['cinematic', 'minimalist', 'corporate', 'glass'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => onUpdate({ presentationTheme: t })}
-                  className={cn(
-                    "h-14 rounded-xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all hover:scale-[1.02]",
-                    session?.presentationTheme === t
-                      ? "border-violet-600 bg-violet-50/50 text-violet-600 dark:bg-violet-950/20 dark:text-violet-400 shadow-sm"
-                      : "border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-900/40"
-                  )}
-                >
-                  <div className={cn(
-                    "w-7 h-3 rounded-sm shadow-inner transition-all",
-                    t === 'glass' ? "bg-slate-200/50 backdrop-blur-sm dark:bg-slate-700/50 border border-white/10" :
-                    t === 'minimalist' ? "bg-white border dark:bg-slate-800 dark:border-slate-700" :
-                    t === 'corporate' ? "bg-slate-800 dark:bg-slate-950" : "bg-[#050510]"
-                  )} />
-                  <span className="text-[9px] font-bold uppercase tracking-wider">{t}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-violet-500/5 dark:bg-slate-950/40 p-2.5 rounded-xl border border-violet-500/10 dark:border-slate-800/60">
-            <p className="text-[8.5px] font-semibold text-slate-500 dark:text-slate-400 leading-normal">
-              O tema altera a visualização da tela principal do Showcase (Modo Apresentação).
-            </p>
-          </div>
         </div>
-
-        {/* Coluna direita: prévia ao vivo */}
-        <div className="md:col-span-7 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Video className="h-4 w-4 text-violet-500" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Pré-visualização ao vivo</h3>
-          </div>
-          <div className="flex-1 min-h-[360px] rounded-2xl border border-slate-100 dark:border-slate-800/80 overflow-hidden shadow-inner">
-            <PresentationPreview background={session?.presentationBackground} theme={session?.presentationTheme} task={session?.tasks?.[0]} />
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
+      </motion.div>
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[920px] w-[95vw] h-[85vh] sm:h-[580px] rounded-[2rem] p-0 border-none shadow-2xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col focus:outline-none">
+      <DialogContent className="sm:max-w-[980px] w-[96vw] h-[90vh] sm:h-[660px] max-h-[92vh] rounded-[2rem] p-0 border-none shadow-2xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col focus:outline-none">
         <div className="sr-only">
           <DialogTitle>Configurações da Sessão</DialogTitle>
           <DialogDescription>Ajuste o nome, identidade visual e squad da sua Sprint Review.</DialogDescription>
@@ -519,9 +736,9 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                </div>
 
                <div className="bg-white/5 rounded-xl p-3 border border-white/5 shadow-inner">
-                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1.5">Dica Elite</p>
-                  <p className="text-[10px] text-slate-300 leading-normal italic">
-                     Prefira fotos mais escuras ou com área neutra na base — o título da review fica sobreposto em branco ali.
+                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1.5">Dica de Cerimônia</p>
+                  <p className="text-[9.5px] text-slate-300 leading-normal">
+                     Para projetores ou salas com muita luz ambiente, selecione o preset <strong>Branco Puro</strong> na aba Modo Teatro para contraste impecável.
                   </p>
                </div>
             </div>

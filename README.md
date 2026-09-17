@@ -24,6 +24,36 @@ Estimativas em Fibonacci, T-Shirt ou Horas encapsuladas em uma **UI Glassmorphis
 - **Tracking de Sobrecarga:** Termômetros de desenvolvimento e qualidade em tempo real.
 - **Exportação e Compartilhamento:** Geração de links somente-leitura.
 
+### 🎭 Showcase Sessions (Sprint Review)
+*Apresentação Executiva de Entregas e Resultados*
+- **Modo Teatro Imersivo:** Experiência de apresentação ao vivo sem distrações para demonstração a stakeholders e clientes.
+- **Evidências do Jira Integradas:** Renderização e proxy autenticado de mídias (vídeos e capturas de tela) anexadas diretamente às issues do Jira.
+- **Gestão de Prontidão (Readiness):** Controle de histórias prontas para demonstração, ordenação por versão (Suporte, Master, Release, Develop) e toggle de destaque.
+- **Exportação em PDF Executiva:** Geração de relatórios com capa elegante, resumo de entrega, cards de métricas e paginação automática.
+
+### 🔄 Retrospectiva Inteligente (Retro Boards)
+*Inspeção e Adaptação Colaborativa Síncrona*
+- **Dinâmicas Configuráveis:** Suporte a formatos clássicos e customizados (Start/Stop/Continue, Mad/Sad/Glad, 4Ls, etc.).
+- **Votação com Limite por Participante:** Distribuição equilibrada de votos para priorização democrática dos tópicos.
+- **Fusão de Cards com Histórico:** Agrupamento inteligente de tópicos similares preservando o histórico integral dos textos originais.
+- **Ponte com Plano de Ação:** Conversão de melhorias levantadas diretamente em tarefas com responsáveis e prazos.
+
+### 🧠 Prompt Hub & Skills de IA
+*Repositório Colaborativo de Engenharia de Prompts*
+- **Filtro por Papel Ágil:** Prompts prontos para Scrum Masters, Product Owners, Desenvolvedores e Engenheiros de QA.
+- **Importação e Exportação em Lote:** Sincronização em massa de bibliotecas de prompts e skills em formato JSON/Markdown.
+- **Tags, Favoritos e Forks:** Organização por tecnologias, frameworks ágeis e histórico de adaptações.
+
+### 📈 Squad Pulse & Jira Dashboards (Jiradash)
+*Métricas Operacionais e Engenharia de Sprints*
+- **Radar Automático da Sprint:** Indicadores dinâmicos de progresso e saúde integrados ao Daily Flow diário.
+- **Cache Compartilhado de JQL:** Alta velocidade na consulta de snapshots e dados consolidados do Jira corporativo.
+- **Métricas Consolidadas:** Acompanhamento de capacidade planejada x realizada, burnup/burndown e worklogs.
+
+### 🔐 Gestão de Acessos & Convites
+- **Convites por Link:** Geração de links seguros com token para onboarding simplificado de novos membros da squad.
+- **Níveis de Acesso Rígidos:** Separação entre administrador de sistema (`ADMIN`) e lideranças ágeis (`Agile Master`, `Product Owner`).
+
 ### 🧠 Knowledge Base (Base de Conhecimento)
 Repositório centralizado de ativos técnicos do time.
 - **Design Bento Grid**: Documentos exibidos em cartões Bento altamente informativos e estéticos.
@@ -52,7 +82,7 @@ Espaço colaborativo e síncrono estruturado para facilitação de dinâmicas de
 Ambiente pessoal de concentração extrema equipado com cronômetros Pomodoro customizados, controle de tarefas do dia e trilhas sonoras Lo-Fi/ambientais integradas.
 
 ### 🏢 Workspace Dashboard
-Painel consolidado da Squad com métricas de progresso das sprints, links rápidos, visão geral do time e consolidação dos status de trabalho.
+Painel consolidado do usuário e da Squad com métricas de progresso, links rápidos, sticky notes e kanban pessoal.
 
 ### ⚖️ Governança & Suporte
 - **Governance**: Acompanhamento e auditoria dos processos e métricas ágeis da organização.
@@ -73,25 +103,23 @@ Seguimos um conjunto estrito de regras de design e engenharia para manter a cons
 
 ---
 
-## 📂 Organização de Regras, Conhecimento e Infra
+## 📂 Organização de Regras e Arquitetura
 
-Para entender as regras e configurações do projeto, consulte os arquivos abaixo:
+Para entender as diretrizes de código e a arquitetura do projeto, consulte os arquivos abaixo:
 
-* **Estilo e Código**: [AI_INSTRUCTIONS.md](file:///c:/Users/wanderson.alves/projetosWanderson/Agile-Space/AI_INSTRUCTIONS.md)
-* **Conhecimento e Arquitetura**: [ARCHITECTURE.md](file:///c:/Users/wanderson.alves/projetosWanderson/Agile-Space/ARCHITECTURE.md)
-* **Regras de Infra**:
-  - Deploy & Hosting: [apphosting.yaml](./apphosting.yaml)
-  - Configurações Core: [firebase.json](./firebase.json)
+* **Estilo e Código**: [AI_INSTRUCTIONS.md](./AI_INSTRUCTIONS.md)
+* **Conhecimento e Arquitetura**: [ARCHITECTURE.md](./ARCHITECTURE.md)
+* **Integração com Backend**: [.agent/skills/backend-integration/SKILL.md](./.agent/skills/backend-integration/SKILL.md)
 
 ---
 
 ## 🛠️ Tecnologias
 
 - **Frontend:** Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS e Shadcn/UI
-- **Backend & Database:** Spring Boot (Java), PostgreSQL, WebSockets Nativos, Firebase Auth (Apenas Identidade)
+- **Backend & Database:** Spring Boot 3.x (Java 17+), PostgreSQL, WebSockets Nativos (Stomp), Autenticação JWT
 - **Interatividade & Animação:** `@dnd-kit`, Framer Motion, Tailwind Animate
 - **Gráficos & Visualização:** Recharts
-- **Ferramentas Adicionais:** Monaco Editor, Zod
+- **Ferramentas Adicionais:** Monaco Editor, Zod, Tiptap, Excalidraw, jsPDF / html2canvas
 
 ---
 

@@ -226,20 +226,20 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
             <Button
               onClick={handleOpenNewReport}
               variant="outline"
-              className="h-10 px-4 border-slate-200 text-slate-600 rounded-lg font-black uppercase text-[8px] tracking-[0.2em] hover:bg-slate-50 transition-all gap-2"
+              className="h-10 px-4 border-border/80 text-foreground hover:bg-muted/60 rounded-lg font-black uppercase text-[8px] tracking-[0.2em] transition-all gap-2"
             >
               <Plus className="h-3 w-3" /> Novo Status
             </Button>
 
             <div className="flex flex-col gap-1">
-              <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 ml-1">Referência</span>
+              <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground ml-1">Referência</span>
               <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   type="date"
                   value={format(selectedDate, 'yyyy-MM-dd')}
                   onChange={(e) => setSelectedDate(parseISO(e.target.value))}
-                  className="h-9 pl-9 bg-white rounded-lg border-slate-200 font-bold text-slate-700 w-[150px] text-xs shadow-sm focus-visible:ring-indigo-500/20"
+                  className="h-9 pl-9 bg-background rounded-lg border-border text-foreground font-bold w-[150px] text-xs shadow-xs focus-visible:ring-indigo-500/20"
                 />
               </div>
             </div>
@@ -255,11 +255,11 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
           <div className="lg:col-span-7 xl:col-span-8 overflow-y-auto no-scrollbar pb-10 px-1">
             <div className="relative">
               {myReports && myReports.length > 0 && (
-                <div className="absolute left-[17px] top-4 bottom-4 w-[1px] bg-slate-200/50" />
+                <div className="absolute left-[17px] top-4 bottom-4 w-[1px] bg-border/60" />
               )}
 
               {isLoading ? (
-                <div className="h-64 flex flex-col items-center justify-center gap-4 text-slate-400">
+                <div className="h-64 flex flex-col items-center justify-center gap-4 text-muted-foreground">
                   <AgileSpinner size="md" variant="indigo" />
                   <p className="text-[9px] font-black uppercase tracking-[0.3em] animate-pulse">Sincronizando...</p>
                 </div>
@@ -277,57 +277,59 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                         className="relative pl-10"
                       >
                         <div className={cn(
-                          "absolute left-3 top-5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10",
-                          reportHasBlocker ? "bg-rose-500" : "bg-indigo-600"
+                          "absolute left-3 top-5 w-2.5 h-2.5 rounded-full border-2 border-background shadow-xs z-10",
+                          reportHasBlocker ? "bg-rose-500 ring-2 ring-rose-500/20" : "bg-indigo-600 ring-2 ring-indigo-500/20"
                         )} />
 
                         <div className={cn(
-                          "group p-4 rounded-2xl border bg-white shadow-sm hover:shadow-md transition-all duration-200",
-                          reportHasBlocker ? "border-rose-100 bg-rose-50/5" : "border-slate-100 bg-white/80"
+                          "group p-4 rounded-2xl border shadow-xs hover:shadow-md transition-all duration-200",
+                          reportHasBlocker
+                            ? "border-rose-500/30 bg-rose-500/5 text-card-foreground"
+                            : "border-border/80 bg-card text-card-foreground hover:border-indigo-500/40"
                         )}>
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-slate-900 italic tracking-tight">
+                              <span className="text-xs font-black text-foreground italic tracking-tight">
                                 {format(parseISO(report.date), "dd 'de' MMM", { locale: ptBR })}
                               </span>
-                              <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-none bg-slate-50 text-slate-400 py-0 px-1 h-3.5">
+                              <Badge variant="outline" className="text-[7px] font-black uppercase tracking-widest border-border/60 bg-muted/60 text-muted-foreground py-0 px-1.5 h-3.5">
                                 {isToday(parseISO(report.date)) ? 'Hoje' : isYesterday(parseISO(report.date)) ? 'Ontem' : format(parseISO(report.date), "EEEE", { locale: ptBR })}
                               </Badge>
                             </div>
 
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                              <Button variant="ghost" size="icon" onClick={() => handleCopy(report)} className="h-6 w-6 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"><Copy className="h-3 w-3" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleEditReport(report)} className="h-6 w-6 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100"><Pencil className="h-3 w-3" /></Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteReport(report.id)} className="h-6 w-6 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50"><Trash2 className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleCopy(report)} className="h-6 w-6 rounded-md text-muted-foreground hover:text-indigo-600 hover:bg-indigo-500/10"><Copy className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleEditReport(report)} className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><Pencil className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDeleteReport(report.id)} className="h-6 w-6 rounded-md text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"><Trash2 className="h-3 w-3" /></Button>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-6 gap-y-3">
                             <div className="space-y-1">
-                              <div className="flex items-center gap-1 opacity-40">
-                                <History className="h-2 w-2 text-indigo-500" />
-                                <span className="text-[7px] font-black uppercase tracking-widest">Ontem</span>
+                              <div className="flex items-center gap-1 opacity-60">
+                                <History className="h-2.5 w-2.5 text-indigo-500" />
+                                <span className="text-[7px] font-black uppercase tracking-widest text-muted-foreground">Ontem</span>
                               </div>
-                              <p className="text-[10px] font-medium text-slate-500 leading-relaxed pl-3 border-l border-slate-100 break-words whitespace-pre-wrap">
+                              <p className="text-[10px] font-medium text-muted-foreground leading-relaxed pl-3 border-l border-border/70 break-words whitespace-pre-wrap">
                                 {report.yesterday}
                               </p>
                             </div>
 
                              <div className="space-y-1">
                               <div className="flex items-center gap-1">
-                                <Activity className="h-2.5 w-2.5 text-indigo-600" />
-                                <span className="text-[7px] font-black uppercase tracking-widest text-indigo-600 font-black">Hoje</span>
+                                <Activity className="h-2.5 w-2.5 text-indigo-500" />
+                                <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500">Hoje</span>
                               </div>
-                              <p className="text-[10px] font-bold text-slate-700 leading-relaxed pl-3 border-l border-indigo-200 break-words whitespace-pre-wrap">
+                              <p className="text-[10px] font-bold text-foreground leading-relaxed pl-3 border-l border-indigo-500/50 break-words whitespace-pre-wrap">
                                 {report.today}
                               </p>
                             </div>
                           </div>
 
                           {reportHasBlocker && (
-                            <div className="mt-3 pt-2 border-t border-rose-100/50">
-                                <p className="text-[10px] font-bold text-rose-600 bg-rose-50/50 px-2 py-1 rounded-lg border border-rose-100/20 flex items-center gap-2 break-words whitespace-pre-wrap">
-                                  <AlertCircle className="h-2.5 w-2.5 shrink-0" />
+                            <div className="mt-3 pt-2 border-t border-rose-500/20">
+                                <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2.5 py-1.5 rounded-lg border border-rose-500/20 flex items-center gap-2 break-words whitespace-pre-wrap">
+                                  <AlertCircle className="h-3 w-3 shrink-0" />
                                   <span className="flex-1">{report.blockers}</span>
                                 </p>
                             </div>
@@ -339,9 +341,9 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                   </AnimatePresence>
                 </div>
               ) : (
-                <div className="h-64 flex flex-col items-center justify-center text-center py-10 bg-slate-50/30 rounded-3xl border-2 border-dashed border-slate-100">
-                  <Calendar className="h-6 w-6 text-slate-200 mb-3" />
-                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[8px]">Nenhum registro encontrado</p>
+                <div className="h-64 flex flex-col items-center justify-center text-center py-10 bg-muted/20 rounded-3xl border-2 border-dashed border-border/60">
+                  <Calendar className="h-6 w-6 text-muted-foreground/40 mb-3" />
+                  <p className="text-muted-foreground font-bold uppercase tracking-widest text-[8px]">Nenhum registro encontrado</p>
                 </div>
               )}
             </div>
@@ -350,34 +352,34 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
           {/* LADO DIREITO: FORMULÁRIO SLIM (COM SCROLL PRÓPRIO SE NECESSÁRIO) */}
           <div className="lg:col-span-5 xl:col-span-4 overflow-y-auto no-scrollbar pb-10">
             <div className="sticky top-0">
-              <Card id="status-form" className="rounded-2xl border border-slate-100 shadow-xl shadow-indigo-500/5 bg-white overflow-hidden p-4 animate-in fade-in slide-in-from-right-2 duration-300">
+              <Card id="status-form" className="rounded-2xl border border-border/80 shadow-xl shadow-indigo-500/5 bg-card text-card-foreground overflow-hidden p-4 animate-in fade-in slide-in-from-right-2 duration-300">
                 <div className="space-y-4">
                   <div className="space-y-0.5">
-                    <h3 className="text-base font-black italic tracking-tighter text-slate-900 uppercase">
-                      {editingReport ? 'Editar' : 'Novo'} <span className="text-indigo-600">Status</span>
+                    <h3 className="text-base font-black italic tracking-tighter text-foreground uppercase">
+                      {editingReport ? 'Editar' : 'Novo'} <span className="text-indigo-500">Status</span>
                     </h3>
-                    <p className="text-[7px] font-black uppercase tracking-widest text-slate-400">Sincronização diária individual</p>
+                    <p className="text-[7px] font-black uppercase tracking-widest text-muted-foreground">Sincronização diária individual</p>
                   </div>
 
                   <div className="space-y-3">
                      <div className="space-y-1">
-                       <label className="text-[7px] font-black uppercase tracking-widest text-slate-500 italic ml-1 flex items-center gap-1.5">
-                         <span className="w-1 h-1 rounded-full bg-slate-300" />
+                       <label className="text-[7px] font-black uppercase tracking-widest text-muted-foreground italic ml-1 flex items-center gap-1.5">
+                         <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
                          O que você fez ontem?
                        </label>
 
                        {/* Banner de sugestão de importação técnico */}
                        {yesterdayTotalMinutes > 0 && (
-                         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-medium text-slate-600 border border-slate-200 bg-slate-50 p-2 rounded-xl">
+                         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground border border-border/80 bg-muted/30 p-2 rounded-xl">
                            <div className="flex items-center gap-1.5 min-w-0">
                              <Clock className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                             <span className="truncate">Detectamos {yesterdayTotalMinutes} minutos de foco registrados ontem.</span>
+                             <span className="truncate">Detectamos {yesterdayTotalMinutes} min de foco ontem.</span>
                            </div>
                            <Button
                              variant="outline"
                              size="sm"
                              onClick={handleImportYesterdayFocus}
-                             className="h-6 px-2 text-[8px] font-black uppercase tracking-wider rounded-md border-indigo-200 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 hover:text-indigo-700 transition-all shrink-0"
+                             className="h-6 px-2 text-[8px] font-black uppercase tracking-wider rounded-md border-indigo-500/30 text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 hover:text-indigo-400 transition-all shrink-0"
                            >
                              Importar Dados
                            </Button>
@@ -388,33 +390,34 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                          value={formData.yesterday}
                          onChange={e => setFormData({...formData, yesterday: e.target.value})}
                          placeholder="Resumo das entregas..."
-                         className="bg-slate-50/50 border-slate-100 rounded-xl min-h-[80px] text-[10px] font-bold text-slate-700 focus-visible:ring-indigo-500/10 resize-none p-2.5"
+                         className="bg-background border-border/80 text-foreground rounded-xl min-h-[80px] text-[10px] font-medium focus-visible:ring-indigo-500/20 resize-none p-2.5 placeholder:text-muted-foreground/50"
                        />
                      </div>
 
                     <div className="space-y-1">
                       <label className="text-[7px] font-black uppercase tracking-widest text-indigo-500 italic ml-1 flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-indigo-400" />
+                        <span className="w-1 h-1 rounded-full bg-indigo-500" />
                         Foco para hoje?
                       </label>
                       <Textarea
                         value={formData.today}
                         onChange={e => setFormData({...formData, today: e.target.value})}
                         placeholder="Principais objetivos..."
-                        className="bg-indigo-50/20 border-indigo-100/50 rounded-xl min-h-[80px] text-[10px] font-bold text-slate-800 focus-visible:ring-indigo-500/10 resize-none p-2.5"
+                        className="bg-background border-indigo-500/30 text-foreground rounded-xl min-h-[80px] text-[10px] font-medium focus-visible:ring-indigo-500/20 resize-none p-2.5 placeholder:text-muted-foreground/50"
                       />
                     </div>
 
                     <div className="pt-0.5">
                       <button
                         onClick={() => setHasBlocker(!hasBlocker)}
+                        type="button"
                         className={cn(
                           "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-[7px] font-black uppercase tracking-widest transition-all",
-                          hasBlocker ? "bg-rose-50 border-rose-200 text-rose-600" : "bg-white border-slate-100 text-slate-400 hover:bg-slate-50"
+                          hasBlocker ? "bg-rose-500/10 border-rose-500/30 text-rose-500" : "bg-card border-border/80 text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         )}
                       >
                         Bloqueios?
-                        <div className={cn("w-1 h-1 rounded-full", hasBlocker ? "bg-rose-500 animate-pulse" : "bg-slate-200")} />
+                        <div className={cn("w-1.5 h-1.5 rounded-full", hasBlocker ? "bg-rose-500 animate-pulse" : "bg-muted-foreground/30")} />
                       </button>
                     </div>
 
@@ -430,7 +433,7 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                             value={formData.blockers}
                             onChange={e => setFormData({...formData, blockers: e.target.value})}
                             placeholder="Descreva o que está travando..."
-                            className="bg-rose-50/30 border-rose-100 rounded-xl min-h-[40px] text-[10px] font-bold text-rose-700 focus-visible:ring-rose-500/10 resize-none p-2.5"
+                            className="bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400 rounded-xl min-h-[40px] text-[10px] font-medium focus-visible:ring-rose-500/20 resize-none p-2.5 placeholder:text-rose-400/50"
                           />
                         </motion.div>
                       )}
@@ -442,8 +445,8 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                       className={cn(
                         "w-full h-10 text-white rounded-lg font-black uppercase text-[8px] tracking-[0.2em] shadow-lg transition-all gap-2 mt-1",
                         editingReport
-                          ? "bg-slate-900 shadow-slate-900/20 hover:bg-slate-800"
-                          : "bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-700"
+                          ? "bg-slate-900 dark:bg-slate-100 dark:text-slate-950 shadow-slate-900/20 hover:bg-slate-800"
+                          : "bg-indigo-600 shadow-indigo-500/20 hover:bg-indigo-500"
                       )}
                     >
                       {isSubmitting ? <AgileSpinner size="xs" variant="white" /> : (

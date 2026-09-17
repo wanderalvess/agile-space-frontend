@@ -51,7 +51,7 @@ export function GlobalAnnouncementListener() {
           });
         }
       } catch (error) {
-        console.error("GlobalAnnouncementListener: error fetching announcements:", error);
+        console.warn("GlobalAnnouncementListener: could not fetch announcements:", error);
       }
     })();
 

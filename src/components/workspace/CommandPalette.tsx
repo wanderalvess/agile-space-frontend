@@ -138,14 +138,14 @@ export function CommandPalette({
         </CommandGroup>
       </CommandList>
 
-      <div className="flex items-center justify-between border-t p-3 bg-slate-50/50">
-        <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-           <span className="flex items-center gap-1.5"><kbd className="bg-white border rounded px-1 py-0.5">↑↓</kbd> Navegar</span>
-           <span className="flex items-center gap-1.5"><kbd className="bg-white border rounded px-1 py-0.5">Enter</kbd> Selecionar</span>
+      <div className="flex items-center justify-between border-t border-border/80 p-3 bg-muted/30 text-muted-foreground">
+        <div className="flex items-center gap-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+           <span className="flex items-center gap-1.5"><kbd className="bg-background border border-border/80 text-foreground rounded px-1.5 py-0.5 font-code shadow-2xs">↑↓</kbd> Navegar</span>
+           <span className="flex items-center gap-1.5"><kbd className="bg-background border border-border/80 text-foreground rounded px-1.5 py-0.5 font-code shadow-2xs">Enter</kbd> Selecionar</span>
         </div>
         <div className="flex items-center gap-2">
-           <Rocket className="h-3 w-3 text-indigo-400" />
-           <span className="text-[9px] font-black uppercase text-indigo-400 tracking-tighter italic">Command Center v3.12</span>
+           <Rocket className="h-3 w-3 text-indigo-500" />
+           <span className="text-[9px] font-black uppercase text-indigo-500 tracking-tighter italic">Command Center</span>
         </div>
       </div>
     </CommandDialog>

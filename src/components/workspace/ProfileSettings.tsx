@@ -9,7 +9,8 @@ import {
   Users, 
   Save, 
   Sparkles,
-  Camera
+  Camera,
+  Check
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -91,120 +92,116 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   };
 
   return (
-    <div className="w-full space-y-8 animate-in fade-in duration-700">
+    <div className="w-full space-y-6 animate-in fade-in duration-700">
       <WorkspaceSectionHeader
         kicker="Perfil"
         accent="orange"
         title="Configuração do"
         titleAccent="Perfil"
-        subtitle="Informações básicas visíveis na squad"
+        subtitle="Informações básicas e identidade visíveis na sua squad"
         action={
           <Button
             onClick={handleSave}
             disabled={!name.trim() || !role}
-            className="h-10 px-8 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-slate-900/10 dark:!shadow-black/30 active:scale-95 transition-all"
+            className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/20 gap-2 active:scale-95 transition-all"
           >
-            <Save className="h-3.5 w-3.5 text-primary" />
+            <Save className="h-4 w-4" />
             Salvar Perfil
           </Button>
         }
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Dados da Conta */}
-        <Card className="rounded-[2.5rem] border border-slate-100 bg-white shadow-xl shadow-slate-200/5 p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
+        <Card className="col-span-1 xl:col-span-7 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
           <div className="space-y-6 relative z-10">
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
                 <NiceAvatar
-                  className="h-12 w-12 rounded-2xl shadow-lg"
+                  className="h-14 w-14 rounded-2xl shadow-sm border border-border/80"
                   {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))}
                 />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-md flex items-center justify-center text-white border-2 border-white dark:border-slate-900 shadow-md">
-                  <Camera className="h-2.5 w-2.5" />
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-md flex items-center justify-center text-primary-foreground border-2 border-background shadow-xs">
+                  <Check className="h-3 w-3" />
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Dados da Conta</h3>
-                <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-tight">
-                  <ShieldCheck className="h-3 w-3 text-emerald-500" /> Sincronização Ativa
-                </div>
+                <h3 className="text-sm font-bold text-foreground uppercase tracking-tight">{name || 'Seu Nome'}</h3>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">{role || 'Função'}</p>
+                <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{email || 'email@exemplo.com'}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
-              <div className="space-y-2 sm:col-span-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                  <UserIcon className="h-3 w-3" /> Nome Completo
-                </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/60">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome Completo</Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold text-sm focus:bg-white focus:ring-primary/20"
-                  placeholder="Ex: Francisco Alves"
+                  className="h-11 rounded-xl font-medium border-border/80 bg-background text-foreground"
+                  placeholder="Como você quer ser chamado?"
                 />
               </div>
 
-              <div className="space-y-2 sm:col-span-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                  <Mail className="h-3 w-3" /> E-mail Profissional
-                </Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">E-mail Profissional</Label>
                 <Input
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold text-sm focus:bg-white focus:ring-primary/20"
-                  placeholder="email@suaempresa.com"
+                  disabled
+                  className="h-11 rounded-xl font-medium border-border/80 bg-muted text-muted-foreground cursor-not-allowed opacity-75"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                  <Briefcase className="h-3 w-3" /> Cargo / Papel
-                </Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Papel na Squad</Label>
                 <Select value={role} onValueChange={(v: GlobalRole) => setRole(v)}>
-                  <SelectTrigger className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold text-sm">
-                    <SelectValue placeholder="Selecione..." />
+                  <SelectTrigger className="h-11 rounded-xl font-medium border-border/80 bg-background text-foreground">
+                    <SelectValue placeholder="Selecione seu papel" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-none shadow-2xl p-2">
+                  <SelectContent className="rounded-xl border border-border bg-popover shadow-xl p-1.5">
                     {ROLES.map(r => (
-                      <SelectItem key={r} value={r} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{r}</SelectItem>
+                      <SelectItem key={r} value={r} className="font-semibold text-xs py-2 rounded-lg">{r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                  <Users className="h-3 w-3" /> Squad Principal
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1 flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5" /> Squad Principal
                 </Label>
                 <div className="flex flex-col gap-2">
                   <Select
                     value={dynamicSquads.some(s => s.id === team) ? team : (team ? 'other' : '')}
                     onValueChange={(v) => { if (v !== 'other') setTeam(v); else setTeam(''); }}
                   >
-                    <SelectTrigger className="h-12 rounded-xl border-slate-100 bg-slate-50/50 font-bold text-sm">
-                      <SelectValue placeholder="Selecione o projeto..." />
+                    <SelectTrigger className="h-11 rounded-xl font-medium border-border/80 bg-background text-foreground">
+                      <SelectValue placeholder="Selecione sua Squad" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-xl border-none shadow-2xl p-2 max-h-[300px]">
+                    <SelectContent className="rounded-xl border border-border bg-popover shadow-xl p-1.5 max-h-56">
                       {!isSquadsLoaded && (
-                        <SelectItem value="loading" disabled className="text-xs text-slate-400 font-bold">
+                        <SelectItem value="loading" disabled className="text-xs text-muted-foreground">
                           Carregando projetos...
                         </SelectItem>
                       )}
-                      {isSquadsLoaded && dynamicSquads.map(sq => (
-                        <SelectItem key={sq.id} value={sq.id} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{sq.name}</SelectItem>
+                      {isSquadsLoaded && dynamicSquads.map((sq) => (
+                        <SelectItem key={sq.id} value={sq.id} className="font-semibold text-xs py-2 rounded-lg">
+                          {sq.name}
+                        </SelectItem>
                       ))}
-                      <SelectItem value="other" className="text-[9px] font-black text-primary py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase border-t border-slate-100 mt-1">+ Digitar Novo</SelectItem>
+                      <SelectItem value="other" className="font-semibold text-xs py-2 rounded-lg text-primary">
+                        + Outra Squad (Digitar)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
 
-                  {(!dynamicSquads.some(s => s.id === team) || team === 'other' || team === '') && (
+                  {(team === 'other' || (!dynamicSquads.some(s => s.id === team) && team !== '')) && (
                     <Input
                       value={team === 'other' ? '' : team}
                       onChange={(e) => setTeam(e.target.value)}
-                      className="h-10 rounded-lg border-primary/20 bg-primary/5 font-black uppercase text-[10px] tracking-widest text-primary"
+                      className="h-10 rounded-xl border-primary/30 bg-primary/5 font-bold uppercase text-xs tracking-wider text-primary"
                       placeholder="Nome da Squad"
                     />
                   )}
@@ -214,31 +211,31 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
           </div>
         </Card>
 
-        {/* Personalização */}
-        <Card className="rounded-[2.5rem] border border-slate-100 bg-white shadow-xl shadow-slate-200/5 p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
+        {/* Personalização de Avatar */}
+        <Card className="col-span-1 xl:col-span-5 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
           <div className="space-y-6 relative z-10">
             <div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Personalização</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Escolha seu avatar de alta performance</p>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Identidade & Avatar</h3>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">Selecione seu avatar para cerimônias e votações no Espaço Ágil</p>
             </div>
 
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-4">
+            <div className="flex flex-wrap gap-2.5">
               {AVATAR_SEEDS.map((seed) => (
                 <button
                   key={seed}
                   onClick={() => setAvatarSeed(seed)}
                   className={cn(
-                    "relative aspect-square transition-all outline-none rounded-2xl border-4",
+                    "relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 transition-all outline-none rounded-2xl border-2 p-1",
                     avatarSeed === seed
-                      ? "border-primary bg-white shadow-2xl scale-110 z-10 shadow-primary/20"
-                      : "border-transparent opacity-40 hover:opacity-100 hover:scale-105 bg-slate-50/50"
+                      ? "border-primary bg-background shadow-md scale-105 z-10 ring-2 ring-primary/20"
+                      : "border-transparent opacity-50 hover:opacity-100 hover:scale-105 bg-muted/30"
                   )}
                 >
-                  <NiceAvatar className="w-full h-full rounded-lg" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
+                  <NiceAvatar className="w-full h-full rounded-xl" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
                   {avatarSeed === seed && (
-                    <div className="absolute -top-2 -right-2 bg-primary text-white p-1 rounded-full shadow-lg">
+                    <div className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground p-1 rounded-full shadow-xs">
                       <Sparkles className="h-3 w-3" />
                     </div>
                   )}

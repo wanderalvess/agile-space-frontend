@@ -381,7 +381,7 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className="min-h-dvh flex flex-col justify-between w-full bg-[#fafafa] dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden font-body selection:bg-primary/30">
+    <div className="min-h-dvh flex flex-col justify-between w-full bg-background text-foreground relative overflow-x-hidden font-body selection:bg-primary/30">
       {/* Background Mesh Glow */}
       <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
@@ -404,24 +404,28 @@ export default function WorkspacePage() {
 
       <div className="w-full flex-1 flex flex-col">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
-          {/* PADRONIZAÇÃO DO HEADER */}
+          {/* HEADER PADRONIZADO COM VISUAL COCKPIT */}
           <RoomHeader
-            title="Meu Espaço de Trabalho"
+            title="Meu Espaço"
             toolIcon={<LayoutGrid className="h-4 w-4" />}
             toolColorClass="text-primary"
             onOpenFeedback={() => setFeedbackSignal(Date.now())}
-            badge={<Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">V3 WORKSPACE</Badge>}
+            badge={
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-full">
+                Cockpit Pessoal
+              </Badge>
+            }
             actions={
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsCommandPaletteOpen(true)}
-                  className="hidden md:flex h-8 px-3 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-[10px] font-bold gap-2 hover:bg-slate-200/80 dark:hover:bg-slate-700/60 transition-colors"
+                  className="hidden md:flex h-8 px-3 rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground text-xs font-bold gap-2 border border-border/60 transition-colors"
                 >
                   <Search className="h-3.5 w-3.5" />
                   <span>Busca</span>
-                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-1 font-code text-[8px] font-medium text-slate-400">
+                  <kbd className="pointer-events-none inline-flex h-4 select-none items-center gap-0.5 rounded border border-border bg-background px-1.5 font-code text-[9px] font-medium text-muted-foreground">
                     ⌘K
                   </kbd>
                 </Button>
@@ -435,37 +439,66 @@ export default function WorkspacePage() {
             }
           />
 
-          {/* PADRONIZAÇÃO DAS ABAS */}
-          <div className="w-full bg-white dark:bg-slate-900/40 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50 sticky top-12 z-[40]">
-            <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-2.5 overflow-x-auto no-scrollbar">
-              <TabsList className="bg-slate-100/80 dark:bg-slate-800/60 p-1.5 rounded-2xl h-auto gap-1.5 inline-flex w-auto min-w-full sm:min-w-0 flex-nowrap items-center border border-slate-200/50 dark:border-slate-800/50">
+          {/* BARRA DE ABAS ERGONÔMICA COM BADGES DINÂMICOS - FULL WIDTH */}
+          <div className="w-full bg-card/80 dark:bg-background/80 backdrop-blur-xl border-b border-border/80 sticky top-12 z-[40] transition-colors">
+            <div className="w-full px-4 md:px-6 lg:px-8 py-2 overflow-x-auto no-scrollbar">
+              <TabsList className="bg-muted/60 p-1.5 rounded-2xl h-auto gap-1 inline-flex w-auto min-w-full sm:min-w-0 flex-nowrap items-center border border-border/60">
                 {[
                   { id: 'home', label: 'Início', icon: <Home className="h-3.5 w-3.5" /> },
-                  { id: 'kanban', label: 'Kanban', icon: <LayoutGrid className="h-3.5 w-3.5" /> },
-                  { id: 'notes', label: 'Notas', icon: <StickyNoteIcon className="h-3.5 w-3.5" /> },
-                  { id: 'history', label: 'Histórico', icon: <History className="h-3.5 w-3.5" /> },
+                  { 
+                    id: 'kanban', 
+                    label: 'Kanban', 
+                    icon: <LayoutGrid className="h-3.5 w-3.5" />,
+                    badge: cards.filter(c => c.status === 'todo').length
+                  },
+                  { 
+                    id: 'notes', 
+                    label: 'Notas', 
+                    icon: <StickyNoteIcon className="h-3.5 w-3.5" />,
+                    badge: notes.length
+                  },
+                  { 
+                    id: 'history', 
+                    label: 'Histórico', 
+                    icon: <History className="h-3.5 w-3.5" />,
+                    badge: mergedHistory?.length || 0
+                  },
                   { id: 'profile', label: 'Perfil', icon: <UserIcon className="h-3.5 w-3.5" /> },
                   { id: 'connectivity', label: 'Conectividade', icon: <Link2 className="h-3.5 w-3.5" /> },
-                  { id: 'links', label: 'Atalhos', icon: <ExternalLink className="h-3.5 w-3.5" /> },
+                  { 
+                    id: 'links', 
+                    label: 'Atalhos', 
+                    icon: <ExternalLink className="h-3.5 w-3.5" />,
+                    badge: userLinks.length
+                  },
                   { id: 'prompts', label: 'Prompts', icon: <BrainCircuit className="h-3.5 w-3.5" /> },
                   { id: 'daily', label: 'Daily Helper', icon: <ClipboardList className="h-3.5 w-3.5" /> },
                   { id: 'snippets', label: 'Snippets', icon: <Code className="h-3.5 w-3.5" /> },
-                ].map((tab) => (
-                  <TabsTrigger
-                    key={tab.id}
+                ].map(tab => (
+                  <TabsTrigger 
+                    key={tab.id} 
                     value={tab.id}
-                    className="data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-xl px-4 py-2 text-[10.5px] font-black uppercase tracking-wider transition-all gap-2 flex items-center border border-transparent data-[state=active]:border-slate-200/80 dark:data-[state=active]:border-slate-800 whitespace-nowrap shrink-0 justify-center"
+                    className={cn(
+                      "flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all tracking-tight whitespace-nowrap",
+                      "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs",
+                      "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                    )}
                   >
-                    {tab.icon}
+                    <span className="shrink-0">{tab.icon}</span>
                     <span>{tab.label}</span>
+                    {tab.badge !== undefined && tab.badge > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-primary/10 text-primary border border-primary/20 leading-tight">
+                        {tab.badge}
+                      </span>
+                    )}
                   </TabsTrigger>
                 ))}
               </TabsList>
             </div>
           </div>
 
-          {/* ÁREA DE CONTEÚDO COM CONTAINER MAX-W-7XL */}
-          <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+          {/* ÁREA DE CONTEÚDO FULL WIDTH */}
+          <div className="relative z-10 px-4 md:px-6 lg:px-8 py-6 flex-1 w-full">
             <main className="w-full space-y-6">
               <TabsContent value="home" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
                 <BentoDashboard
@@ -540,21 +573,21 @@ export default function WorkspacePage() {
         </Tabs>
       </div>
 
-      {/* TASK MODAL */}
+      {/* TASK MODAL COM DESIGN DUAL-THEME REFINADO */}
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-3xl border-none shadow-2xl p-0 overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
-          <DialogHeader className="p-6 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-900 text-white">
-            <DialogTitle className="text-xl font-black font-headline uppercase tracking-tight italic text-white">
+        <DialogContent className="sm:max-w-[520px] rounded-3xl border border-border shadow-2xl p-0 overflow-hidden bg-card text-card-foreground backdrop-blur-xl">
+          <DialogHeader className="p-6 pb-4 border-b border-border bg-muted/40">
+            <DialogTitle className="text-xl font-black font-headline uppercase tracking-tight italic text-foreground">
               {editingCardId ? 'Ajustar' : 'Nova'} <span className="text-primary not-italic">Tarefa</span>
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-5 p-6">
             {currentOriginLink && (
-              <div className="p-3.5 bg-primary/5 border border-primary/10 rounded-2xl flex items-center justify-between">
+              <div className="p-3.5 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase text-primary tracking-widest">Vinculado a Cerimônia</span>
                 </div>
-                <Button asChild variant="ghost" size="sm" className="h-8 text-primary hover:bg-primary/10 font-black text-[9px] uppercase rounded-xl">
+                <Button asChild variant="ghost" size="sm" className="h-8 text-primary hover:bg-primary/10 font-bold text-xs rounded-xl">
                   <Link href={currentOriginLink} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Ver Sala
                   </Link>
@@ -562,43 +595,67 @@ export default function WorkspacePage() {
               </div>
             )}
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título da Atividade</Label>
-              <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} className="h-11 rounded-xl font-bold border-2 focus-visible:ring-primary/20" />
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Título da Atividade</Label>
+              <Input 
+                value={newTaskTitle} 
+                onChange={(e) => setNewTaskTitle(e.target.value)} 
+                placeholder="Ex: Alinhar critérios do Spike de Auth"
+                className="h-11 rounded-xl font-bold border-border bg-background focus-visible:ring-primary/20" 
+              />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrição / Detalhes</Label>
-              <Textarea value={newTaskDescription} onChange={(e) => setNewTaskDescription(e.target.value)} className="min-h-[90px] rounded-xl text-sm border-2 focus-visible:ring-primary/20" />
+              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Descrição / Detalhes</Label>
+              <Textarea 
+                value={newTaskDescription} 
+                onChange={(e) => setNewTaskDescription(e.target.value)} 
+                placeholder="Descreva detalhes, links de documentação ou critérios de aceite..."
+                className="min-h-[90px] rounded-xl text-sm border-border bg-background focus-visible:ring-primary/20" 
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Urgência</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Urgência</Label>
                 <Select value={newTaskPriority} onValueChange={(v: KanbanPriority) => setNewTaskPriority(v)}>
-                  <SelectTrigger className="h-10 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectTrigger className="h-10 rounded-xl border-border bg-background font-bold"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl border border-border bg-popover">
                     <SelectItem value="baixa" className="text-xs font-bold">Baixa</SelectItem>
-                    <SelectItem value="media" className="text-xs font-bold text-blue-500">Média</SelectItem>
-                    <SelectItem value="alta" className="text-xs font-bold text-orange-500">Alta</SelectItem>
-                    <SelectItem value="critica" className="text-xs font-bold text-rose-600">Crítica</SelectItem>
+                    <SelectItem value="media" className="text-xs font-bold text-sky-500">Média</SelectItem>
+                    <SelectItem value="alta" className="text-xs font-bold text-amber-500">Alta</SelectItem>
+                    <SelectItem value="critica" className="text-xs font-bold text-rose-500">Crítica</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Status</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Status</Label>
                 <Select value={newTaskStatus} onValueChange={(v: KanbanStatus) => setNewTaskStatus(v)}>
-                  <SelectTrigger className="h-10 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
-                  <SelectContent className="rounded-xl">
+                  <SelectTrigger className="h-10 rounded-xl border-border bg-background font-bold"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl border border-border bg-popover">
                     <SelectItem value="todo" className="text-xs font-bold">A Fazer</SelectItem>
-                    <SelectItem value="doing" className="text-xs font-bold">Em Andamento</SelectItem>
-                    <SelectItem value="done" className="text-xs font-bold">Concluído</SelectItem>
+                    <SelectItem value="doing" className="text-xs font-bold text-amber-500">Em Andamento</SelectItem>
+                    <SelectItem value="done" className="text-xs font-bold text-emerald-500">Concluído</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
-          <DialogFooter className="p-6 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-            {editingCardId && <Button variant="ghost" onClick={handleDeleteTask} className="sm:mr-auto text-destructive hover:bg-rose-50 dark:hover:bg-rose-950/30 font-black text-[10px] uppercase tracking-widest">Excluir</Button>}
-            <Button variant="ghost" onClick={() => setIsTaskModalOpen(false)} className="font-black text-[10px] uppercase tracking-widest">Cancelar</Button>
-            <Button onClick={handleSaveTask} disabled={!newTaskTitle.trim()} className="h-10 px-6 font-black text-[10px] uppercase tracking-widest rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md">Salvar Tarefa</Button>
+          <DialogFooter className="p-6 bg-muted/20 border-t border-border flex items-center justify-between">
+            {editingCardId ? (
+              <Button variant="ghost" onClick={handleDeleteTask} className="text-destructive hover:bg-destructive/10 font-bold text-xs uppercase tracking-wider">
+                Excluir
+              </Button>
+            ) : <div />}
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => setIsTaskModalOpen(false)} className="font-bold text-xs">
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleSaveTask} 
+                disabled={!newTaskTitle.trim()} 
+                className="h-10 px-6 font-bold text-xs rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20"
+              >
+                Salvar Tarefa
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
