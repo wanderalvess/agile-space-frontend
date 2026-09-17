@@ -403,101 +403,103 @@ export function UserProfileModal() {
         setIsIdentityRequested(false);
       }
     }}>
-      <DialogContent className="sm:max-w-[560px] rounded-[2rem] p-0 overflow-hidden bg-card text-card-foreground border border-border/80 shadow-2xl font-body animate-in zoom-in-95 duration-200 focus:outline-none">
-        
-        {/* HERO HEADER */}
-        <div className="relative overflow-hidden shrink-0 bg-slate-950 text-slate-50 border-b border-white/10">
-          <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/25 blur-[80px] rounded-full pointer-events-none transition-colors duration-500" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/15 blur-[80px] rounded-full pointer-events-none transition-colors duration-500" />
-          <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:16px_16px]" />
+      <DialogContent className="sm:max-w-[700px] md:max-w-[740px] max-h-[90vh] rounded-3xl p-0 overflow-hidden bg-card text-card-foreground border border-border/80 shadow-2xl font-body animate-in zoom-in-95 duration-200 focus:outline-none flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full overflow-hidden">
           
-          <div className="relative px-6 py-4 flex items-center justify-between z-10">
-            <div className="space-y-0.5">
-              <DialogTitle className="text-xl font-black uppercase tracking-tighter italic text-white leading-none font-headline flex items-center gap-2">
-                Minha <span className="text-primary not-italic transition-colors duration-300">Identidade</span>
-              </DialogTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <DialogDescription className="text-slate-400 text-[10px] font-bold uppercase tracking-widest font-body">
-                  Gestão de Perfil & Integração Jira API
-                </DialogDescription>
-                {jiraToken && (
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md">
-                    Jira Ativo
-                  </Badge>
-                )}
+          {/* HERO HEADER */}
+          <div className="relative overflow-hidden shrink-0 bg-slate-950 text-slate-50 border-b border-white/10">
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/25 blur-[80px] rounded-full pointer-events-none transition-colors duration-500" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/15 blur-[80px] rounded-full pointer-events-none transition-colors duration-500" />
+            <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:16px_16px]" />
+            
+            <div className="relative px-7 py-5 flex items-center justify-between z-10 pr-14">
+              <div className="flex items-center gap-4">
+                <div className="relative shrink-0">
+                  <div className="absolute inset-0 bg-primary/30 blur-md rounded-2xl opacity-60" />
+                  <NiceAvatar 
+                    className="h-12 w-12 rounded-2xl border-2 border-white/20 shadow-md bg-slate-900 relative z-10" 
+                    {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <DialogTitle className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white leading-none font-headline flex items-center gap-2">
+                    Minha <span className="text-primary not-italic">Identidade</span>
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <DialogDescription className="text-slate-400 text-xs font-semibold tracking-wide font-body">
+                      Gestão de Perfil & Integração Jira API
+                    </DialogDescription>
+                    {jiraToken && (
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                        Jira Ativo
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-            
-            <div className="relative shrink-0 z-10">
-               <div className="absolute inset-0 bg-primary/30 blur-md rounded-full opacity-60 transition-opacity duration-300" />
-               <NiceAvatar 
-                 className="h-11 w-11 rounded-xl border-2 border-white/20 shadow-md bg-slate-900 relative z-10" 
-                 {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))} 
-               />
-            </div>
-          </div>
 
-          <div className="px-6 pb-2 relative z-10">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="bg-white/10 backdrop-blur-md border border-white/10 p-0.5 h-8 rounded-lg w-full max-w-[280px]">
+            <div className="px-7 pb-3 relative z-10">
+              <TabsList className="bg-white/10 backdrop-blur-md border border-white/10 p-1 h-9 rounded-xl w-full max-w-[320px]">
                 <TabsTrigger 
                   value="profile" 
-                  className="rounded-md text-[9px] font-black uppercase tracking-widest text-slate-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex-1 py-1 shadow-sm"
+                  className="rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex-1 py-1.5 shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  <User className="h-3 w-3 mr-1.5" />
+                  <User className="h-3.5 w-3.5" />
                   Perfil
                 </TabsTrigger>
                 <TabsTrigger 
                   value="security" 
-                  className="rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex-1 py-1 shadow-sm"
+                  className="rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex-1 py-1.5 shadow-sm flex items-center justify-center gap-1.5"
                 >
-                  <Shield className="h-3 w-3 mr-1.5" />
+                  <Shield className="h-3.5 w-3.5" />
                   Jira & Segurança
                 </TabsTrigger>
               </TabsList>
-            </Tabs>
+            </div>
           </div>
-        </div>
 
-        <div className="bg-card text-card-foreground transition-colors duration-300">
-          <Tabs value={activeTab} className="w-full">
-            <TabsContent value="profile" className="m-0 px-6 py-4 space-y-3.5 animate-in fade-in duration-200">
+          {/* SCROLLABLE TAB CONTENT */}
+          <div className="flex-1 overflow-y-auto px-7 py-5 space-y-4 bg-card text-card-foreground">
+            <TabsContent value="profile" className="m-0 space-y-4 animate-in fade-in duration-200">
               
               {/* GRID NOME & EMAIL */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <User className="h-3.5 w-3.5 text-primary" /> Nome Completo
                   </Label>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="h-9 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/40 font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all"
+                    autoComplete="off"
+                    className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/40 font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all"
                     placeholder="Seu nome completo"
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <ChevronRight className="h-3.5 w-3.5 text-primary" /> E-mail Corporativo
                   </Label>
                   <Input
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="h-9 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/40 font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all"
+                    autoComplete="off"
+                    className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/40 font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all"
                     placeholder="seu.email@empresa.com"
                   />
                 </div>
               </div>
 
               {/* GRID CARGO & PROJETO */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <ChevronRight className="h-3.5 w-3.5 text-primary" /> Cargo / Papel
                   </Label>
                   <Select value={role} onValueChange={(v: GlobalRole) => setRole(v)}>
-                    <SelectTrigger className="h-9 rounded-xl bg-background/50 border-input text-foreground font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all">
+                    <SelectTrigger className="h-10 rounded-xl bg-background/50 border-input text-foreground font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all">
                       <SelectValue placeholder="Selecione o cargo..." />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border border-border bg-card shadow-2xl p-1 max-h-[220px]">
@@ -514,8 +516,8 @@ export function UserProfileModal() {
                   </Select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-primary" /> Projeto
                   </Label>
                   <Select
@@ -527,7 +529,7 @@ export function UserProfileModal() {
                       setSquadId('none');
                     }}
                   >
-                    <SelectTrigger className="h-9 rounded-xl bg-background/50 border-input text-foreground font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
+                    <SelectTrigger className="h-10 rounded-xl bg-background/50 border-input text-foreground font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
                       <SelectValue placeholder="Selecione o projeto..." />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl border border-border bg-card shadow-2xl p-1 max-h-[220px]">
@@ -547,7 +549,7 @@ export function UserProfileModal() {
                       ))}
                       <SelectItem
                         value="other"
-                        className="text-[10px] font-black text-primary py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary border-t border-border/70 mt-1"
+                        className="text-xs font-bold text-primary py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary border-t border-border/70 mt-1"
                       >
                         + Digitar Novo Projeto
                       </SelectItem>
@@ -557,9 +559,9 @@ export function UserProfileModal() {
               </div>
 
               {/* GRID SQUAD & AVATAR */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-primary" /> Squad / Equipe
                   </Label>
                   <Select
@@ -567,7 +569,7 @@ export function UserProfileModal() {
                     value={availableSquadsForProject.some(sq => sq.id === squadId) ? squadId : (squadId === 'other' ? 'other' : 'none')}
                     onValueChange={(v) => { setSquadId(v); setIsCustomSquad(v === 'other'); }}
                   >
-                    <SelectTrigger className="h-9 rounded-xl bg-background/50 border-input text-foreground font-bold text-xs focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
+                    <SelectTrigger className="h-10 rounded-xl bg-background/50 border-input text-foreground font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
                       <SelectValue placeholder={
                         !projectId 
                           ? "Selecione um projeto primeiro" 
@@ -589,7 +591,7 @@ export function UserProfileModal() {
                       ))}
                       <SelectItem
                         value="other"
-                        className="text-[10px] font-black text-primary py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary border-t border-border/70 mt-1"
+                        className="text-xs font-bold text-primary py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary border-t border-border/70 mt-1"
                       >
                         + Digitar Nova Squad
                       </SelectItem>
@@ -597,22 +599,22 @@ export function UserProfileModal() {
                   </Select>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <ChevronRight className="h-3.5 w-3.5 text-primary" /> Avatar Escolhido
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <ChevronRight className="h-3.5 w-3.5 text-primary" /> Escolher Avatar
                   </Label>
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pr-1">
+                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 pr-1">
                     {AVATAR_SEEDS.map((seed) => (
                       <button
                         key={seed}
                         type="button"
                         onClick={() => setAvatarSeed(seed)}
                         className={cn(
-                          "relative shrink-0 h-8 w-8 transition-all rounded-lg border-2",
-                          avatarSeed === seed ? "border-primary scale-105 shadow-md shadow-primary/20" : "border-transparent opacity-50 hover:opacity-80"
+                          "relative shrink-0 h-9 w-9 transition-all rounded-xl border-2",
+                          avatarSeed === seed ? "border-primary scale-110 shadow-md shadow-primary/25" : "border-transparent opacity-50 hover:opacity-90 hover:scale-105"
                         )}
                       >
-                        <NiceAvatar className="w-full h-full rounded-[6px]" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
+                        <NiceAvatar className="w-full h-full rounded-[8px]" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
                       </button>
                     ))}
                   </div>
@@ -620,131 +622,167 @@ export function UserProfileModal() {
               </div>
 
               {squadEditLocked && (
-                <p className="text-[10px] text-muted-foreground font-medium -mt-1.5">
-                  Projeto e squad de contas já vinculadas trocam pelo seletor no topo da tela, não aqui.
+                <p className="text-xs text-muted-foreground font-medium pt-1">
+                  💡 Projeto e squad de contas já vinculadas trocam pelo seletor no topo da tela, não aqui.
                 </p>
               )}
 
               {/* CAMPOS CUSTOMIZADOS SE NECESSÁRIO */}
               {isCustomProject && !squadEditLocked && (
-                <div className="animate-in slide-in-from-top-2 duration-200 space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Nome do Projeto Customizado</Label>
+                <div className="animate-in slide-in-from-top-2 duration-200 space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-primary">Nome do Projeto Customizado</Label>
                   <Input 
                     value={customProject} 
                     onChange={(e) => setCustomProject(e.target.value)} 
-                    className="h-9 rounded-xl border-primary/30 bg-primary/5 font-bold text-xs text-foreground focus-visible:ring-primary focus-visible:border-primary" 
+                    autoComplete="off"
+                    className="h-10 rounded-xl border-primary/30 bg-primary/5 font-bold text-sm text-foreground focus-visible:ring-primary focus-visible:border-primary" 
                     placeholder="Nome do projeto"
                   />
                 </div>
               )}
 
               {isCustomSquad && !squadEditLocked && (
-                <div className="animate-in slide-in-from-top-2 duration-200 space-y-1">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Nome da Squad Customizada</Label>
+                <div className="animate-in slide-in-from-top-2 duration-200 space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-primary">Nome da Squad Customizada</Label>
                   <Input 
                     value={customSquad} 
                     onChange={(e) => setCustomSquad(e.target.value)} 
-                    className="h-9 rounded-xl border-primary/30 bg-primary/5 font-bold text-xs text-foreground focus-visible:ring-primary focus-visible:border-primary" 
+                    autoComplete="off"
+                    className="h-10 rounded-xl border-primary/30 bg-primary/5 font-bold text-sm text-foreground focus-visible:ring-primary focus-visible:border-primary" 
                     placeholder="Nome da squad"
                   />
                 </div>
               )}
             </TabsContent>
 
-            <TabsContent value="security" className="m-0 px-6 py-4 space-y-3.5 animate-in fade-in duration-200">
-              <div className="space-y-3">
+            <TabsContent value="security" className="m-0 space-y-4 animate-in fade-in duration-200">
+              <div className="space-y-4">
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-widest text-foreground flex items-center gap-2 font-headline">
+                  <h4 className="text-sm font-extrabold uppercase tracking-wide text-foreground flex items-center gap-2 font-headline">
                     <Key className="h-4 w-4 text-primary" /> Conexão Jira API & Token
                   </h4>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">
-                    Configure seu Personal Access Token (PAT) para consultar seus dados no endpoint <code>/rest/api/2/myself</code>.
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Configure seu Personal Access Token (PAT) corporativo para sincronizar suas permissões e dados no Jira.
                   </p>
                 </div>
 
-                <div className="space-y-2.5 bg-muted/30 p-3 rounded-xl border border-border/70">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                      <Globe className="h-3 w-3 text-primary" /> Domínio Jira
-                    </Label>
-                    <Input
-                      value={jiraDomain}
-                      onChange={(e) => setJiraDomain(e.target.value)}
-                      placeholder="jira.empresa.com"
-                      className="h-9 rounded-xl text-xs bg-background/50 border-input text-foreground font-medium focus-visible:ring-primary focus-visible:border-primary"
-                    />
-                  </div>
+                <div className="space-y-3.5 bg-muted/30 p-4 sm:p-5 rounded-2xl border border-border/70">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Globe className="h-3.5 w-3.5 text-primary" /> Domínio Jira
+                      </Label>
+                      <Input
+                        name="jiraInstanceDomain"
+                        id="jiraInstanceDomain"
+                        autoComplete="off"
+                        data-lpignore="true"
+                        value={jiraDomain}
+                        onChange={(e) => setJiraDomain(e.target.value)}
+                        placeholder="empresa.atlassian.net"
+                        className="h-10 rounded-xl text-sm bg-background/50 border-input text-foreground font-medium focus-visible:ring-primary focus-visible:border-primary"
+                      />
+                    </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                      <Key className="h-3 w-3 text-primary" /> Token de Acesso (PAT)
-                    </Label>
-                    <Input
-                      type="password"
-                      value={jiraToken}
-                      onChange={(e) => setJiraToken(e.target.value)}
-                      placeholder="Cole seu Personal Access Token do Jira"
-                      className="h-9 rounded-xl text-xs bg-background/50 border-input text-foreground font-code focus-visible:ring-primary focus-visible:border-primary"
-                    />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Key className="h-3.5 w-3.5 text-primary" /> Token de Acesso (PAT)
+                      </Label>
+                      <Input
+                        type="password"
+                        name="jiraPersonalAccessToken"
+                        id="jiraPersonalAccessToken"
+                        autoComplete="new-password"
+                        data-lpignore="true"
+                        value={jiraToken}
+                        onChange={(e) => setJiraToken(e.target.value)}
+                        placeholder="Cole seu token PAT"
+                        className="h-10 rounded-xl text-sm bg-background/50 border-input text-foreground font-code focus-visible:ring-primary focus-visible:border-primary"
+                      />
+                    </div>
                   </div>
 
                   <Button
                     type="button"
                     onClick={() => handleSyncFromJira(jiraToken, jiraDomain)}
                     disabled={isSyncingJira}
-                    className="w-full h-9 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase text-[10px] tracking-widest gap-2 shadow-md shadow-primary/20 transition-all mt-1"
+                    className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase text-xs tracking-wider gap-2 shadow-md shadow-primary/20 transition-all mt-1"
                   >
-                    {isSyncingJira ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                    {isSyncingJira ? 'Sincronizando...' : 'Testar e Puxar Dados do Jira'}
+                    {isSyncingJira ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {isSyncingJira ? 'Sincronizando com Jira...' : 'Testar e Puxar Dados do Jira'}
                   </Button>
                 </div>
 
                 {jiraAccountDetails && (
-                  <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-1.5 animate-in fade-in">
+                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2 animate-in fade-in">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      <span className="text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Conta Jira Conectada
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Conta Jira Conectada com Sucesso
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-[11px]">
-                      <div>
-                        <span className="text-muted-foreground text-[9px] uppercase font-bold block">Nome de Exibição</span>
-                        <span className="font-bold text-foreground">{jiraAccountDetails.displayName || '—'}</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">Nome de Exibição</span>
+                        <span className="font-bold text-foreground truncate block" title={jiraAccountDetails.displayName}>{jiraAccountDetails.displayName || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-[9px] uppercase font-bold block">Usuário</span>
-                        <span className="font-code text-foreground">{jiraAccountDetails.name || jiraAccountDetails.key || '—'}</span>
+                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">Usuário</span>
+                        <span className="font-code text-foreground truncate block">{jiraAccountDetails.name || jiraAccountDetails.key || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-[9px] uppercase font-bold block">E-mail</span>
-                        <span className="text-foreground">{jiraAccountDetails.emailAddress || '—'}</span>
+                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">E-mail</span>
+                        <span className="text-foreground truncate block" title={jiraAccountDetails.emailAddress}>{jiraAccountDetails.emailAddress || '—'}</span>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-[9px] uppercase font-bold block">Fuso Horário</span>
-                        <span className="text-foreground">{jiraAccountDetails.timeZone || '—'}</span>
+                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
+                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">Fuso Horário</span>
+                        <span className="text-foreground truncate block">{jiraAccountDetails.timeZone || '—'}</span>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
             </TabsContent>
-          </Tabs>
-        </div>
-
-        {activeTab === 'profile' && (
-          <div className="shrink-0 px-6 py-3 border-t border-border/70 bg-card flex items-center justify-between transition-colors duration-300">
-            <div className="flex gap-2">
-               <Button
-                onClick={handleSave}
-                className="h-9 px-7 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase text-[10px] tracking-widest shadow-md shadow-primary/20 active:scale-95 transition-all"
-               >
-                 {mustOnboard ? 'Finalizar Acesso' : 'Salvar Alterações'}
-               </Button>
-            </div>
           </div>
-        )}
 
+          {/* FOOTER ACTIONS */}
+          <div className="shrink-0 px-7 py-4 border-t border-border/70 bg-muted/20 flex items-center justify-between transition-colors duration-300">
+            {activeTab === 'profile' ? (
+              <>
+                <p className="text-xs text-muted-foreground font-medium hidden sm:block">
+                  {squadEditLocked ? 'Projeto e squad vinculados à sessão ativa.' : 'Defina seus dados para personalizar seu acesso.'}
+                </p>
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                  <Button
+                    onClick={handleSave}
+                    className="h-10 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase text-xs tracking-wider shadow-md shadow-primary/20 active:scale-95 transition-all w-full sm:w-auto"
+                  >
+                    {mustOnboard ? 'Finalizar Acesso' : 'Salvar Alterações'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground font-medium hidden sm:block">
+                  {jiraToken ? 'Credenciais do Jira ativas e salvas.' : 'Informe o PAT para sincronização com o Jira.'}
+                </p>
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditProfileOpen(false);
+                      setIsIdentityRequested(false);
+                    }}
+                    className="h-10 px-6 rounded-xl font-bold uppercase text-xs tracking-wider w-full sm:w-auto"
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+
+        </Tabs>
       </DialogContent>
     </Dialog>
   );

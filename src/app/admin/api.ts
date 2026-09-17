@@ -159,14 +159,22 @@ export const adminApi = {
 // porque essas telas rodam acima do AuthProvider na árvore de providers.
 export const publicApi = {
   async getSystemConfig(): Promise<Record<string, string>> {
-    const res = await fetch(`${API_BASE_URL}/public/system-config`);
-    if (!res.ok) throw new Error(`Public config error ${res.status}`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/public/system-config`);
+      if (!res.ok) return {};
+      return await res.json();
+    } catch {
+      return {};
+    }
   },
 
   async getAnnouncements(): Promise<Announcement[]> {
-    const res = await fetch(`${API_BASE_URL}/public/announcements`);
-    if (!res.ok) throw new Error(`Public announcements error ${res.status}`);
-    return res.json();
+    try {
+      const res = await fetch(`${API_BASE_URL}/public/announcements`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
   }
 };

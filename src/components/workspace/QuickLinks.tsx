@@ -89,7 +89,7 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="w-full space-y-6">
       <WorkspaceSectionHeader
         kicker="Atalhos"
         accent="orange"
@@ -99,48 +99,66 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
         action={
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
-              <Button className="h-10 px-6 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest gap-2 shadow-lg shadow-slate-900/10 dark:!shadow-black/30 active:scale-95 transition-all">
+              <Button className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/20 gap-2 active:scale-95 transition-all">
                 <Plus className="h-4 w-4" /> Novo Link
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] rounded-[2.5rem] border-none bg-white/95 backdrop-blur-xl shadow-2xl">
+            <DialogContent className="sm:max-w-[460px] rounded-3xl border border-border bg-card text-card-foreground shadow-2xl p-6">
               <DialogHeader>
-                <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic text-slate-900">Adicionar <span className="text-primary not-italic">Atalho</span></DialogTitle>
+                <DialogTitle className="text-xl font-black font-headline uppercase tracking-tight italic text-foreground">
+                  Adicionar <span className="text-primary not-italic">Atalho</span>
+                </DialogTitle>
               </DialogHeader>
-              <div className="grid gap-6 py-4">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome do Atalho</Label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Jira Board" className="h-12 rounded-xl font-bold border-2" />
+              <div className="grid gap-5 py-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome do Atalho</Label>
+                  <Input 
+                    value={newName} 
+                    onChange={(e) => setNewName(e.target.value)} 
+                    placeholder="Ex: Jira Board da Squad" 
+                    className="h-11 rounded-xl font-medium border-border bg-background focus-visible:ring-primary/20" 
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">URL (Endereço)</Label>
-                  <Input value={newUrl} onChange={(e) => setNewUrl(e.target.value)} placeholder="Ex: jira.com/squad-x" className="h-12 rounded-xl font-bold border-2" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">URL (Endereço)</Label>
+                  <Input 
+                    value={newUrl} 
+                    onChange={(e) => setNewUrl(e.target.value)} 
+                    placeholder="Ex: jira.suaempresa.com/board" 
+                    className="h-11 rounded-xl font-medium border-border bg-background focus-visible:ring-primary/20" 
+                  />
                 </div>
 
-                <div className="space-y-3">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Ícone e Cor</Label>
-                  <div className="flex flex-wrap gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Ícone</Label>
+                  <div className="flex flex-wrap gap-2 p-3 bg-muted/40 rounded-2xl border border-border/60">
                     {Object.entries(ICON_MAP).map(([key, Icon]) => (
                       <button
                         key={key}
+                        type="button"
                         onClick={() => setSelectedIcon(key)}
                         className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                          selectedIcon === key ? "bg-primary text-white scale-110 shadow-lg" : "bg-white text-slate-400 hover:text-slate-600 border border-slate-200"
+                          "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
+                          selectedIcon === key ? "bg-primary text-primary-foreground scale-105 shadow-xs" : "bg-card text-muted-foreground hover:text-foreground border border-border/60"
                         )}
                       >
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-4 w-4" />
                       </button>
                     ))}
                   </div>
-                  <div className="flex gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Cor de Destaque</Label>
+                  <div className="flex gap-3 p-3 bg-muted/40 rounded-2xl border border-border/60">
                     {COLOR_PRESETS.map((color) => (
                       <button
                         key={color.name}
+                        type="button"
                         onClick={() => setSelectedColor(color.class)}
                         className={cn(
-                          "w-8 h-8 rounded-full border-4 transition-all",
-                          selectedColor === color.class ? "border-primary scale-110 shadow-lg" : "border-white",
+                          "w-7 h-7 rounded-full border-2 transition-all",
+                          selectedColor === color.class ? "border-primary scale-110 shadow-xs ring-2 ring-primary/20" : "border-border/60",
                           color.class.split(' ')[1]
                         )}
                       />
@@ -149,7 +167,11 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={handleAddLink} className="w-full h-12 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-xl shadow-primary/20">
+                <Button 
+                  onClick={handleAddLink} 
+                  disabled={!newName.trim() || !newUrl.trim()}
+                  className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-xs uppercase tracking-wider shadow-md shadow-primary/20"
+                >
                   Salvar Atalho
                 </Button>
               </DialogFooter>
@@ -158,7 +180,7 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
         {links.length > 0 ? (
           links.map((link) => {
             const Icon = ICON_MAP[link.iconType] || Link2;
@@ -168,17 +190,19 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="relative group flex items-center gap-4 p-5 bg-white border border-slate-100 rounded-[2rem] transition-all hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5"
+                whileHover={{ y: -2 }}
+                className="relative group flex items-center gap-3.5 p-4 bg-card text-card-foreground border border-border/80 rounded-2xl transition-all hover:border-primary/40 hover:shadow-md shadow-xs"
               >
-                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110", link.color)}>
-                  <Icon className="h-7 w-7" />
+                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105", link.color)}>
+                  <Icon className="h-6 w-6" />
                 </div>
-                <div className="flex flex-col min-w-0">
-                   <span className="text-sm font-black text-slate-800 truncate leading-tight tracking-tight">{link.name}</span>
-                   <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-primary opacity-60">Acessar</span>
-                      <ExternalLink className="h-2.5 w-2.5 text-primary opacity-60" />
+                <div className="flex flex-col min-w-0 pr-6">
+                   <span className="text-xs font-bold text-foreground truncate leading-tight tracking-tight group-hover:text-primary transition-colors">
+                     {link.name}
+                   </span>
+                   <div className="flex items-center gap-1 mt-1 text-[10px] font-bold uppercase tracking-wider text-primary">
+                      <span>Acessar</span>
+                      <ExternalLink className="h-3 w-3" />
                    </div>
                 </div>
                 
@@ -186,17 +210,18 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                   variant="ghost"
                   size="icon"
                   onClick={(e) => handleDelete(e, link.id)}
-                  className="absolute top-4 right-4 h-8 w-8 rounded-xl opacity-0 group-hover:opacity-100 bg-red-50 text-red-400 hover:text-red-600 hover:bg-red-100 transition-all active:scale-90"
+                  className="absolute top-3 right-3 h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-90"
+                  title="Excluir atalho"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </motion.a>
             );
           })
         ) : (
-          <div className="col-span-full py-20 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center space-y-4 opacity-40">
-             <Link2 className="h-10 w-10" />
-             <p className="text-[10px] font-black uppercase tracking-widest">Nenhum atalho configurado</p>
+          <div className="col-span-full py-16 bg-muted/20 rounded-3xl border border-dashed border-border/80 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
+             <Link2 className="h-8 w-8 opacity-50" />
+             <p className="text-xs font-bold uppercase tracking-wider">Nenhum atalho configurado</p>
           </div>
         )}
       </div>

@@ -5,11 +5,12 @@ Este documento fornece um mapeamento técnico completo do ecossistema **Espaço 
 ---
 
 ## 1. Visão Geral da Arquitetura
-O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta performance, projetada para ser síncrona e colaborativa em tempo real.
+O **Espaço Ágil** é uma aplicação **Next.js 16 (App Router, Turbopack)** de alta performance, projetada para ser síncrona e colaborativa em tempo real.
 
-- **Frontend**: React 19 com renderização híbrida. Interfaces baseadas em Glassmorphism e animações fluidas com Framer Motion.
-- **Backend (Real-time)**: Utiliza **Spring Boot + PostgreSQL** com **WebSockets Nativos** como barramento de eventos e banco de dados.
-- **Sincronização**: A sincronização é feita através de conexões WebSocket para notificações (e.g., `REFRESH_BOARD`) e chamadas REST (via axios/fetch) para persistência e recuperação de dados de forma eficiente.
+- **Frontend**: React 19 com renderização híbrida. Interfaces baseadas em Glassmorphism, Tailwind CSS, Shadcn/UI e animações fluidas com Framer Motion. Executa por padrão na porta `9002`.
+- **Backend (API & Persistência)**: Spring Boot 3.x (Java 17+) executando na porta `8002` (`http://localhost:8002/api`), com banco PostgreSQL gerenciado por migrações versionadas do **Flyway** e integridade validada pelo Hibernate (`ddl-auto: validate`).
+- **Segurança & Autenticação**: Autenticação corporativa nativa JWT (HS256) com senhas criptografadas em BCrypt. O cliente HTTP centralizado `authFetch` (`src/lib/auth-client.ts`) anexa automaticamente o cabeçalho `Authorization: Bearer <token>` a partir do `localStorage['agileSpace_auth_token']` e intercepta respostas 401 via `UNAUTHORIZED_EVENT` para redirecionamento automático ao login.
+- **Sincronização em Tempo Real**: Spring WebSockets (Stomp/SockJS) operando como barramento Pub/Sub para propagação instantânea de eventos das cerimônias (virada de cartas, movimentação de notas na Retro, votações, anúncios globais), combinado com chamadas REST para persistência e recuperação eficiente de estado.
 
 ---
 
@@ -20,25 +21,30 @@ O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta perfo
 - **Componentes Chave**: `src/components/poker/PokerRoom.tsx`, `src/components/poker/AsyncPokerRoom.tsx`, `src/components/poker/VotingArea.tsx`, `src/components/poker/Results.tsx`.
 - **Responsabilidade**: Facilita estimativas técnicas (Fibonacci/T-Shirt/Horas) em modos síncrono e assíncrono.
 
-### 🔄 Retrospectiva
+### 🔄 Retrospectiva Inteligente (Retro Boards)
 - **Rota Principal**: `src/app/retro/page.tsx` e `src/app/retro/[id]/page.tsx`
-- **Componentes Chave**: `src/components/retro/RetroBoard.tsx`, `src/components/retro/RetroCard.tsx`, `src/components/retro/RetroColumn.tsx`.
-- **Responsabilidade**: Cerimônia de retrospectiva síncrona com colunas de feedback, votação e geração de itens de ação.
+- **Componentes Chave**: `src/components/retro/RetroBoard.tsx`, `src/components/retro/RetroCard.tsx`, `src/components/retro/RetroColumn.tsx`, `src/components/retro/RetroHeader.tsx`, `src/components/retro/RetroMergeModal.tsx`.
+- **Responsabilidade**: Cerimônia síncrona de retrospectiva com colunas configuráveis (Start/Stop/Continue, Mad/Sad/Glad, 4Ls), controle de limite de votos por participante, fusão inteligente de tópicos similares preservando o histórico integral dos textos originais (`originalTexts`), reações emoji e geração direta de itens para o Plano de Ação.
+
+### 🎭 Sprint Showcase (Apresentação Executiva & Modo Teatro)
+- **Rota Principal**: `src/app/showcase/page.tsx`
+- **Componentes Chave**: `src/components/showcase/TeatroMode.tsx`, `src/components/showcase/TaskCard.tsx`, `src/components/showcase/ShowcaseCover.tsx`, `src/components/showcase/SessionSettingsDialog.tsx`, `src/components/showcase/JiraAttachmentModal.tsx`, `src/components/showcase/utils.ts` (`exportToPdf`).
+- **Responsabilidade**: Apresentação cinematográfica e interativa dos resultados da sprint. Conta com Modo Teatro imersivo, cards de histórias e métricas com visualização customizável (destaque x compacto), ordenação por versão (Suporte, Master, Release, Develop), proxy autenticado para exibição de evidências e mídias do Jira corporativo (fotos e vídeos), controle de prontidão da sessão e exportação em PDF executiva de alta fidelidade.
 
 ### 📅 Sprint Planner (Engenharia de Capacidade)
 - **Rota Principal**: `src/app/sprint-planner/page.tsx`
 - **Componentes Chave**: `src/components/planner/SprintPlannerContent.tsx`, `src/components/planner/PlannerGuide.tsx`.
-- **Responsabilidade**: Planejamento de capacidade da squad com métricas reais de foco e horas disponíveis.
+- **Responsabilidade**: Planejamento de capacidade da squad com suporte a modo simples (em massa) e detalhado (foco individual, férias e ausências), importação em lote inteligente de cards e tracking de sobrecarga em tempo real.
 
-### 🎬 Sprint Showcase (Cinematic Evolution)
-- **Rota Principal**: `src/app/showcase/page.tsx`
-- **Componentes Chave**: `src/components/showcase/TeatroMode.tsx`, `src/components/showcase/TaskCard.tsx`, `src/components/showcase/ShowcaseCover.tsx`.
-- **Responsabilidade**: Interface cinematográfica para apresentação dos resultados da sprint.
+### 📈 Squad Pulse & Jira Dashboards (Jiradash)
+- **Rotas Principais**: `src/app/jiradash/page.tsx` e `src/app/squad/page.tsx`
+- **Componentes Chave**: `src/components/jiradash/*`, radar da sprint integrado à Daily.
+- **Responsabilidade**: Monitoramento contínuo da saúde e entregas da squad. Inclui radar automático de progresso da sprint, capacidade planejada x realizada, burnup/burndown, worklogs, rollups consolidados e cache compartilhado no backend de consultas JQL para alta performance.
 
 ### ⚡ Daily Flow & Helper
-- **Rota Principal**: `src/app/daily-flow/page.tsx` e `src/app/daily-helper/page.tsx` (Nota: Helper costuma ser um submódulo).
+- **Rota Principal**: `src/app/daily-flow/page.tsx`
 - **Componentes Chave**: `src/components/daily-flow/DailyFlowGuide.tsx`, `src/app/daily-flow/SquadManagementSheet.tsx`.
-- **Responsabilidade**: Mural de sincronização assíncrona para status diários e impedimentos.
+- **Responsabilidade**: Mural de sincronização diária assíncrona com registro de humor, acompanhamento de impedimentos e radar da sprint automático.
 
 ### 🧠 Knowledge Base & Chat de Documentação (Base de Conhecimento)
 - **Rotas Principais**:
@@ -73,13 +79,12 @@ O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta perfo
 - **Componentes Chave**: `src/components/health-check/*`.
 - **Responsabilidade**: Diagnóstico anônimo do clima e cultura da squad.
 
-### 📚 Biblioteca de IA (Prompt Hub)
+### 📚 Biblioteca de IA (Prompt Hub & Skills)
 - **Rota Principal**: `src/app/prompt-hub/page.tsx`
-- **Rotas Auxiliares**: `src/app/prompt-hub/[id]/page.tsx` (link compartilhável), `autor/[authorId]/page.tsx` (perfil), `colecoes/page.tsx` e `colecoes/[id]/page.tsx` (trilhas), `tutorial/page.tsx` (guia de skills), `seed/page.tsx` (carga inicial, restrita a admin).
+- **Rotas Auxiliares**: `src/app/prompt-hub/[id]/page.tsx` (link compartilhável), `autor/[authorId]/page.tsx` (perfil), `colecoes/page.tsx` e `colecoes/[id]/page.tsx` (trilhas), `tutorial/page.tsx` (guia de skills).
 - **Componentes Chave**: `src/app/prompt-hub/components/*` (catálogo, card, editor, detalhe, coleções) e `src/components/prompt-hub/PromptGuide.tsx` (painel de ajuda).
-- **Coleções Firestore**: `prompt_hub` (+ subcoleção `comments`), `prompt_collections`, `users/{uid}/prompt_favorites`.
-- **Responsabilidade**: Acervo de ativos de IA da empresa — prompts, skills, agentes, Gems, instruções, workflows, MCP e recursos —, com descoberta, reaproveitamento e trilhas.
-- **Detalhes**: ver `src/app/prompt-hub/requisitos.md`.
+- **Persistência**: Integrado via API REST do Spring Boot (`/api/prompt-hub/**` e `/api/v1/prompt-hub/**`).
+- **Responsabilidade**: Acervo colaborativo de prompts, skills, agentes, instruções e workflows da organização categorizados por papéis ágeis (Scrum Master, Product Owner, Dev, QA), com suporte a importação/exportação em lote (JSON/Markdown), tags e versionamento.
 
 ### 📋 Plano de Ação (Action Plan)
 - **Rota Principal**: `src/app/action-plan/page.tsx` e `src/app/action-plan/[id]/page.tsx`
@@ -98,12 +103,17 @@ O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta perfo
 
 ### 🏢 Workspace Dashboard
 - **Rota Principal**: `src/app/workspace/page.tsx`
-- **Componentes Chave**: `src/components/workspace/*`.
-- **Responsabilidade**: Painel analítico unificado da squad.
+- **Componentes Chave**: `src/components/workspace/*` (BentoDashboard, KanbanBoard, StickyNotes, QuickLinks, ProfileSettings).
+- **Responsabilidade**: Painel de produtividade pessoal do usuário integrado à squad, com quadro kanban privado, notas adesivas, atalhos rápidos e gerenciamento de perfil.
 
-### ⚖️ Governança (Governance)
-- **Rota Principal**: `src/app/governance/page.tsx`
-- **Responsabilidade**: Painéis de conformidade, auditoria e acompanhamento de métricas do ecossistema.
+### 🔐 Gestão de Acessos & Convites
+- **Rotas Principais**: `src/app/admin/page.tsx` e `src/app/invite/[token]/page.tsx`
+- **Componentes Chave**: `src/app/admin/api.ts`, fluxos de aceitação de convite.
+- **Responsabilidade**: Painel restrito a administradores de sistema (`role = ADMIN`) para gestão global de usuários, emissão de links de convite seguro com token de expiração e segregação de autorização entre o nível de sistema e lideranças de squad.
+
+### ⚖️ Governança & Suporte
+- **Rotas Principais**: `src/app/governance/page.tsx`, `src/app/support/page.tsx`, `src/app/changelog/page.tsx`
+- **Responsabilidade**: Painéis de conformidade, auditoria e acompanhamento de métricas do ecossistema, central de tickets de suporte e visualização de notas de versão (changelog).
 
 ---
 
@@ -112,40 +122,47 @@ O **Espaço Ágil** é uma aplicação **Next.js 15 (App Router)** de alta perfo
 Para evitar redundância, utilize sempre os componentes em `src/components/shared/`:
 
 - **EliteCard / AgileCard**: Wrapper principal de cartões com suporte a múltiplos temas e variações.
-- **AgileBaseCard**: O componente atômico de cartão com Glassmorphism.
-- **RoomHeader**: Cabeçalho padrão para módulos administrativos e salas de cerimônia. Inclui breadcrumbs, controle de tema (claro/escuro) e o botão do modo de foco (modo calmaria).
-- **EliteSidebar**: Menu lateral padrão de navegação interna.
-- **EliteTimer**: Componente universal de cronômetro.
-- **JiraImportDialog**: Componente unificado para importação de tarefas do Jira via XML/JSON.
-- **TdnImportDialog**: Componente unificado para importação e atualização de manuais do TDN.
-- **AgileSpinner**: Indicador de carregamento padrão do sistema.
+- **AgileBaseCard**: O componente atômico de cartão com acabamento Glassmorphism (`backdrop-blur-xl`).
+- **RoomHeader**: Cabeçalho unificado para módulos de cerimônias e páginas administrativas (breadcrumbs, controle de tema, modo calmaria).
+- **EliteSidebar**: Barra de navegação lateral retrátil com suporte a grupos de rotas e status da conexão.
+- **EliteTimer**: Componente universal de cronômetro com alertas sonoros e visuais.
+- **JiraImportDialog**: Modal padrão para importação de tarefas do Jira via busca JQL ou payloads.
+- **TdnImportDialog**: Diálogo padrão para sincronização e atualização de manuais técnicos externos.
+- **AgileSpinner**: Indicador visual de carregamento com consistência estética com o restante da aplicação.
+- **UserProfileModal**: Modal global para edição de perfil, preferências de avatar e visualização de squads.
+- **GlobalAnnouncementListener**: Listener em tempo real via WebSocket para alertas e avisos broadcast da administração.
 
 ---
 
 ## 4. Fluxo de Dados (State & Persistence)
 
-### Estado Global
-- **UserContext** (`src/context/UserContext.tsx`): Gerencia a identidade do usuário (Auth Firebase), perfil global e anonimização.
-- **SystemConfigContext** (`src/context/SystemConfigContext.tsx`): Configurações globais de sistema e flags.
+### Autenticação & Sessão
+- **AuthContext** (`src/context/AuthContext.tsx`): Mantém o estado reativo da sessão autenticada (`user`, `token`, `isAuthenticated`). Realiza login e logout corporativos comunicando-se com `/api/auth/login` e `/api/auth/me`.
+- **UserContext** (`src/context/UserContext.tsx`): Gerencia o perfil ativo do usuário, squads atribuídas, papéis de liderança (`isLeadership`) e estado de onboarding.
+- **SystemConfigContext** (`src/context/SystemConfigContext.tsx`): Distribui configurações globais de sistema, flags de recursos e conectividade.
+- **Cliente HTTP Centralizado (`authFetch`)** (`src/lib/auth-client.ts`):
+  - Injeta automaticamente `Authorization: Bearer <token>` a partir do `localStorage['agileSpace_auth_token']`.
+  - Garante o cabeçalho padrão `Content-Type: application/json` em corpos JSON (preservando o boundary em requisições `FormData`).
+  - Emite o evento global `UNAUTHORIZED_EVENT` quando recebe status `401 Unauthorized`, limpando a sessão e redirecionando para a tela de login.
 
-### Persistência e Sync (API & WebSockets)
-A aplicação não usa Redux/Sagas de forma pesada. O estado em tempo real é gerenciado assim:
-- **REST API**: Funções encapsuladas em diretórios `api` ou serviços no frontend (ex: `retroApi`) para ler/escrever no backend Spring Boot.
-- **WebSockets**: Conexões nativas aos handlers do Spring Boot (`/ws/...`) para receber sinais de atualização e coordenar re-fetches sem sobrecarregar o cliente.
+### Persistência REST & Sincronização Síncrona
+A aplicação adota um modelo claro e leve de fluxo de dados, evitando a complexidade desnecessária de stores pesadas:
+- **Serviços REST**: Funções encapsuladas por domínio (e.g., `src/app/**/api.ts` ou `src/services/*`) realizam leituras e mutações diretamente nos endpoints da API Spring Boot (`http://localhost:8002/api`).
+- **WebSockets Stomp**: Conexões nativas sobre SockJS escutam canais dedicados (e.g., `/topic/poker/{roomId}`, `/topic/retro/{boardId}`, `/topic/announcements`) para sincronização em tempo real entre todos os participantes da cerimônia, disparando re-fetches pontuais sem sobrecarregar o cliente nem o servidor.
 
-### Utilitários de Negócio
-- `src/lib/types.ts`: Definições globais de interfaces TypeScript.
-- `src/lib/utils.ts`: Funções utilitárias de formatação e manipulação de classes Tailwind (`cn`).
-- `src/lib/jolt-lite.ts`: Engine core para transformações JSON complexas.
+### Utilitários Core
+- `src/lib/types.ts`: Tipagem completa e contratos TypeScript de todos os domínios da aplicação.
+- `src/lib/utils.ts`: Utilitários compartilhados de formatação, debounce e composição de classes Tailwind via `clsx` e `tailwind-merge` (`cn`).
+- `src/lib/jolt-lite.ts`: Engine client-side para pré-visualização e validação de transformações Jolt.
 
 ---
 
-## 5. Regras de Integridade e Componentização
+## 5. Regras de Integridade e Engenharia (Elite Guidelines)
 
-1. **NUNCA** duplique a lógica de conexão com o backend; utilize as instâncias centralizadas de API e WebSocket.
-2. **NUNCA** crie componentes de card do zero; estenda o `AgileBaseCard` ou `EliteCard`.
-3. **RESPEITE** a separação de domínios em `src/components/[modulo]`.
-4. **COMPONENTIZAÇÃO OBRIGATÓRIA**: Arquivos que excedam 300 linhas de código devem ser imediatamente divididos em componentes menores. A lógica do estado local ou hooks pesados devem ser isolados em hooks personalizados.
-5. **REAPROVEITAMENTO**: Antes de criar qualquer novo modal, diálogo ou formulário, estude os componentes compartilhados e busque a padronização visual com o resto do sistema.
-6. **RESPONSIVIDADE E TELA**: Garanta o aproveitamento máximo do espaço de tela (`h-screen`, `flex-1`, grids eficientes) sem transbordamentos na visualização mobile.
+1. **AUTENTICAÇÃO PADRONIZADA**: Sempre utilize `authFetch` para qualquer requisição HTTP autenticada. Nunca instancie chamadas `fetch` brutas com tokens manuais.
+2. **CENTRALIZAÇÃO DE WEBSOCKETS**: Nunca abra conexões WebSocket duplicadas; conecte-se através dos canais estabelecidos e desinscreva-se adequadamente no ciclo de vida do componente (`useEffect` cleanup).
+3. **DESIGN SYSTEM**: Nunca crie cartões, botões ou modais estilizados do zero; estenda `AgileBaseCard`, `EliteCard` e os componentes da biblioteca Shadcn/UI.
+4. **LIMITE DE 300 LINHAS DE CÓDIGO**: Arquivos que ultrapassarem 300 linhas devem ser imediatamente decompostos em subcomponentes menores e hooks customizados.
+5. **ZERO-SCROLL PRINCIPAL**: Mantenha a viewport principal livre de rolagem da janela geral (`h-screen`, `overflow-hidden`), utilizando painéis de scroll internos (`ScrollArea`) para áreas de conteúdo denso.
+6. **LIGHT/DARK MODE TOTAL**: Garanta contraste e legibilidade adequados em ambos os temas através de variáveis semânticas do Tailwind.
 
