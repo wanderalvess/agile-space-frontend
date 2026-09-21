@@ -6,17 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Footer } from '@/components/layout/Footer';
-import { 
-  ArrowLeft,
-  Rocket,
-  Shield,
+import {
   Lock,
-  Eye,
   Server,
   FileCheck,
   Users,
   Globe,
-  CloudOff,
   KeyRound,
   ShieldCheck,
   AlertTriangle,
@@ -39,12 +34,12 @@ import { useState, useCallback } from 'react';
 const SECURITY_PILLARS = [
   {
     icon: Lock,
-    title: "Autenticação Segura",
-    description: "Login exclusivo via Google OAuth 2.0 (Firebase Authentication). Nenhuma senha é armazenada pelo Espaço Ágil.",
+    title: "Autenticação",
+    description: "Login por email e senha, autenticado direto pelo backend próprio (Spring Boot) — sem depender de um provedor externo. Login com Google Workspace está em desenvolvimento, ainda não disponível.",
     details: [
-      "Tokens JWT assinados pelo Firebase com expiração automática",
-      "Sessões gerenciadas pelo Firebase SDK, sem cookies sensíveis",
-      "Logout global disponível a qualquer momento"
+      "Token JWT emitido e validado pelo backend, com expiração",
+      "Recuperação de senha própria (/api/auth/forgot-password)",
+      "Nenhuma senha em texto puro: hash + verificação no servidor"
     ],
     color: "text-emerald-600",
     bg: "bg-emerald-50",
@@ -52,12 +47,12 @@ const SECURITY_PILLARS = [
   },
   {
     icon: Database,
-    title: "Dados Isolados por Usuário",
-    description: "Cada usuário só acessa seus próprios dados. Regras de segurança (Firestore Security Rules) garantem isolamento total.",
+    title: "Autorização por Recurso",
+    description: "Um filtro único exige token válido em toda chamada a /api/**, com exceções explícitas e documentadas (login, changelog público, Vault por design).",
     details: [
-      "Kanban, Notas e Configurações são privados por UID",
-      "Salas de Poker e Retro usam participantIds para controle de acesso",
-      "Token de uso do motor é registrado exclusivamente por userId"
+      "Endpoints administrativos exigem role ADMIN no próprio token",
+      "Dados pessoais (ex.: sessões de foco) exigem que o token bata com o dono do recurso",
+      "Squads têm um módulo próprio de liderança (SquadLeadership) para checagem de acesso por squad"
     ],
     color: "text-sky-600",
     bg: "bg-sky-50",
@@ -65,25 +60,25 @@ const SECURITY_PILLARS = [
   },
   {
     icon: ShieldCheck,
-    title: "Firestore Security Rules",
-    description: "Todas as operações de leitura e escrita são validadas no servidor pelo Firebase antes de serem executadas.",
+    title: "Persistência em PostgreSQL",
+    description: "Todo dado de negócio fica no backend próprio (Spring Boot + PostgreSQL) — não há mais dependência de um provedor de dados externo.",
     details: [
-      "Regras declarativas impedem acesso não autorizado a qualquer coleção",
-      "Validações de schema garantem integridade dos dados",
-      "Administradores possuem acesso controlado via role-based check"
+      "Campos sensíveis (ex.: token de integração com Jira) cifrados em repouso com AES-GCM",
+      "Cofre de Segredos usa criptografia zero-knowledge no navegador: o backend nunca vê o texto puro",
+      "Sem migrations manuais: o schema é derivado diretamente das entidades"
     ],
     color: "text-indigo-600",
     bg: "bg-indigo-50",
     border: "border-indigo-100"
   },
   {
-    icon: CloudOff,
-    title: "Zero Backend Proprietário",
-    description: "O Espaço Ágil não mantém servidores próprios. Toda a infraestrutura é gerida pelo Google Cloud via Firebase.",
+    icon: Server,
+    title: "Tempo Real Autenticado",
+    description: "As conexões WebSocket (Poker, Retro, Brainstorming, Radar de Saúde, Showcase) também exigem token válido no handshake, não só nas chamadas REST.",
     details: [
-      "Hospedagem via Firebase App Hosting (Google Cloud Run, CDN global com HTTPS automático)",
-      "Banco de dados via Cloud Firestore (Google Cloud Platform)",
-      "Sem acesso a sistemas internos ou redes corporativas do cliente"
+      "Handshake validado por um interceptor dedicado antes de abrir a conexão",
+      "O payload do WebSocket é só um sinal de atualização — o dado em si sempre vem de uma chamada REST autenticada",
+      "Mesma identidade (uid, role) usada nas chamadas REST e no tempo real"
     ],
     color: "text-amber-600",
     bg: "bg-amber-50",
@@ -91,29 +86,40 @@ const SECURITY_PILLARS = [
   },
   {
     icon: KeyRound,
-    title: "Chaves de API do Usuário",
-    description: "As chaves de API do motor (Gemini) são fornecidas e armazenadas pelo próprio usuário, criptografadas no Firestore.",
+    title: "CORS Restrito",
+    description: "Ao contrário de liberar qualquer origem, o backend só aceita chamadas de uma lista explícita de domínios configurados.",
     details: [
-      "Chaves nunca são transmitidas para servidores do Espaço Ágil",
-      "Utilizadas apenas em server-side API routes (Next.js) durante a sessão",
-      "O usuário pode revogar ou trocar a chave a qualquer momento"
+      "Lista de origens permitidas vem de configuração (ALLOWED_ORIGINS), não de um curinga",
+      "Aplicado antes do processamento normal da requisição, cobrindo inclusive respostas 401/403",
+      "Reduz a superfície de ataque de sites de terceiros tentando usar a sessão de um usuário logado"
     ],
     color: "text-rose-600",
     bg: "bg-rose-50",
     border: "border-rose-100"
   },
   {
-    icon: Eye,
-    title: "Transparência Total",
-    description: "Nenhum dado é vendido, compartilhado com terceiros ou utilizado para fins de machine learning pela plataforma.",
+    icon: Sparkles,
+    title: "Transparência de Código",
+    description: "Sem coleta de dados comportamentais escondida no código.",
     details: [
-      "Sem rastreadores de terceiros (Google Analytics, Mixpanel, etc.)",
-      "Sem coleta de dados comportamentais para revenda",
-      "Código auditável — o frontend é open-source"
+      "Nenhuma dependência de analytics ou rastreamento de terceiros no código-fonte (conferível no package.json)",
+      "Conversas com o assistente de IA não treinam modelos de terceiros — ficam isoladas por usuário",
+      "Este documento é mantido junto do código; uma divergência encontrada é bug, não intenção"
     ],
     color: "text-violet-600",
     bg: "bg-violet-50",
     border: "border-violet-100"
+  }
+];
+
+const KNOWN_LIMITATIONS = [
+  {
+    title: "Validação de certificado do Jira",
+    detail: "O backend tenta validar o certificado TLS normalmente primeiro; só aceita qualquer certificado como fallback quando detecta o erro específico de handshake típico de um Jira corporativo com CA própria. Ainda assim, esse fallback existe e vale acompanhar."
+  },
+  {
+    title: "Escopo desta revisão",
+    detail: "Confirmamos autenticação, autorização de admin, dados pessoais, WebSocket e CORS. Não auditamos individualmente se todos os domínios com dado por squad (Jira, Daily Flow, Sprint Planner, Plano de Ação, Base de Conhecimento) aplicam o módulo de liderança de squad de forma consistente — o módulo existe e é usado em pelo menos convites e gestão de squad."
   }
 ];
 
@@ -124,6 +130,8 @@ const DATA_CATEGORIES = [
   { category: "Conversas com Assistente", data: "Mensagens, histórico de consultas", storage: "PostgreSQL (filtrado por userId)", access: "Somente o usuário" },
   { category: "Uso de Tokens do Motor", data: "Contagem de tokens consumidos", storage: "PostgreSQL", access: "Usuário + Admin (métricas)" },
   { category: "Tickets de Suporte", data: "Assunto, descrição, respostas", storage: "PostgreSQL", access: "Usuário criador + Admin" },
+  { category: "Cofre de Segredos (Vault)", data: "Segredo cifrado + IV — backend nunca vê o texto puro", storage: "PostgreSQL, AES-GCM cifrado no navegador", access: "Quem tiver o link/ID (zero-knowledge, por design)" },
+  { category: "Integração Jira/TDN do usuário", data: "Token e URL da integração pessoal", storage: "PostgreSQL, campo cifrado (AES-GCM)", access: "Somente o usuário dono" },
 ];
 
 export default function GovernancePage() {
@@ -153,8 +161,8 @@ export default function GovernancePage() {
           badge={<Badge className="bg-emerald-500/10 text-emerald-600 border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">PORTAL CORPORATIVO</Badge>}
           actions={
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => setIsGuideOpen(true)}
                 className="h-8 px-3 rounded-xl border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 text-[9px] font-bold gap-1.5"
@@ -165,7 +173,7 @@ export default function GovernancePage() {
               </Button>
               <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/40 rounded-full">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Política v2.0</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Política v3.0</span>
               </div>
             </div>
           }
@@ -185,8 +193,9 @@ export default function GovernancePage() {
                 <span className="text-primary not-italic">da confiança.</span>
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-2xl">
-                Este documento descreve como o Espaço Ágil protege seus dados, gerencia acessos e 
-                garante a segurança da sua operação. Todas as informações aqui são reais e verificáveis.
+                Este documento descreve como o Espaço Ágil protege seus dados, gerencia acessos e
+                garante a segurança da sua operação — incluindo o que ainda está em progresso. Preferimos
+                listar uma limitação conhecida a prometer algo que o código não sustenta.
               </p>
             </section>
 
@@ -199,11 +208,12 @@ export default function GovernancePage() {
                 <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Infraestrutura Técnica</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Frontend", value: "Next.js 16", sub: "React Server Components", icon: Globe, color: "text-slate-900" },
-                  { label: "Banco de Dados", value: "Cloud Firestore", sub: "Google Cloud Platform", icon: Database, color: "text-amber-600" },
-                  { label: "Autenticação", value: "Firebase Auth", sub: "Google OAuth 2.0", icon: Fingerprint, color: "text-emerald-600" },
+                  { label: "Frontend", value: "Next.js", sub: "React Server Components", icon: Globe, color: "text-slate-900" },
+                  { label: "Backend", value: "Spring Boot 3", sub: "Java · REST + WebSocket", icon: Server, color: "text-indigo-600" },
+                  { label: "Banco de Dados", value: "PostgreSQL", sub: "Spring Data JPA", icon: Database, color: "text-amber-600" },
+                  { label: "Autenticação", value: "JWT Próprio", sub: "Emitido pelo backend", icon: Fingerprint, color: "text-emerald-600" },
                 ].map((item, i) => (
                   <Card key={i} className="border-2 border-slate-100 rounded-2xl p-5 hover:shadow-lg transition-all group">
                     <div className="flex items-start gap-4">
@@ -252,6 +262,28 @@ export default function GovernancePage() {
                         ))}
                       </div>
                     </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
+
+            {/* KNOWN LIMITATIONS */}
+            <section className="space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-white" />
+                </div>
+                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Limitações Conhecidas</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {KNOWN_LIMITATIONS.map((item, i) => (
+                  <Card key={i} className="border-2 border-amber-100 bg-amber-50/40 rounded-2xl p-5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                      <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">{item.title}</h4>
+                    </div>
+                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed">{item.detail}</p>
                   </Card>
                 ))}
               </div>
@@ -309,7 +341,7 @@ export default function GovernancePage() {
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
                     <p>O Espaço Ágil é uma ferramenta de apoio a cerimônias ágeis e produtividade. <strong>Não substitui</strong> ferramentas de gestão empresarial (Jira, Azure DevOps) nem possui SLA garantido.</p>
-                    <p>A plataforma não se responsabiliza por perda de dados em caso de falhas no Firebase/Google Cloud, embora tais eventos sejam extremamente raros.</p>
+                    <p>A plataforma não se responsabiliza por perda de dados em caso de falha na infraestrutura de banco de dados ou backend.</p>
                   </div>
                 </Card>
 
@@ -319,7 +351,7 @@ export default function GovernancePage() {
                     <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Uso Corporativo</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>O Espaço Ágil pode ser utilizado em ambientes corporativos desde que os participantes estejam cientes de que os dados trafegam por infraestrutura Google Cloud (Firebase).</p>
+                    <p>Login e dados de negócio são geridos inteiramente pelo backend e banco PostgreSQL próprios do Espaço Ágil — consulte o time de plataforma para detalhes de hospedagem.</p>
                     <p>Para empresas com requisitos LGPD avançados, recomendamos revisão com o time de compliance antes da adoção em larga escala.</p>
                   </div>
                 </Card>
@@ -327,11 +359,10 @@ export default function GovernancePage() {
                 <Card className="border-2 border-slate-100 rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-cyan-500" />
-                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Motor de Processamento Avançado</h4>
+                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Assistente de IA da Base de Conhecimento</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>O módulo de Base de Conhecimento utiliza a API do Google Gemini para chat e busca semântica. <strong>A chave de API é fornecida pelo próprio usuário</strong> e não é compartilhada com a plataforma.</p>
-                    <p>Nenhuma conversa com o assistente virtual é utilizada para treinar modelos de terceiros.</p>
+                    <p>O módulo de Base de Conhecimento utiliza modelos de IA para chat e busca semântica. Nenhuma conversa com o assistente virtual é utilizada para treinar modelos de terceiros, e o histórico fica isolado por usuário no banco do Espaço Ágil.</p>
                   </div>
                 </Card>
 
@@ -341,8 +372,8 @@ export default function GovernancePage() {
                     <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">LGPD & Privacidade</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>O Espaço Ágil coleta apenas os dados estritamente necessários para o funcionamento da aplicação. Não há coleta de dados sensíveis (biometria, localização, etc.).</p>
-                    <p>O usuário pode solicitar a exclusão completa de seus dados a qualquer momento via canal de suporte.</p>
+                    <p>Tecnicamente, o Espaço Ágil não coleta dados sensíveis (biometria, localização, etc.). O enquadramento formal em LGPD — base legal, DPO, retenção — é uma decisão do time jurídico/compliance da empresa, não algo que este documento certifica sozinho.</p>
+                    <p>O usuário pode solicitar a exclusão de seus dados a qualquer momento via canal de suporte.</p>
                   </div>
                 </Card>
               </div>
@@ -353,7 +384,7 @@ export default function GovernancePage() {
               <div className="max-w-2xl">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                    <Rocket className="h-5 w-5 text-white" />
+                    <ShieldCheck className="h-5 w-5 text-white" />
                   </div>
                   <p className="text-[11px] font-black uppercase tracking-widest text-white/70">Precisa de Mais Informações?</p>
                 </div>
@@ -365,14 +396,14 @@ export default function GovernancePage() {
                   Se sua empresa possui requisitos específicos de compliance, auditoria ou segurança, entre em contato conosco pelo canal de suporte.
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <Button 
-                    onClick={() => router.push('/support')} 
+                  <Button
+                    onClick={() => router.push('/support')}
                     className="h-11 px-8 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-primary hover:text-white transition-all gap-2"
                   >
                     Abrir Suporte <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
-                  <Button 
-                    onClick={() => router.push('/manual')} 
+                  <Button
+                    onClick={() => router.push('/manual')}
                     className="h-11 px-8 bg-white/10 border border-white/20 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-white/20 transition-all gap-2"
                   >
                     Manual do Usuário
@@ -385,10 +416,10 @@ export default function GovernancePage() {
       </div>
 
       <Footer className="mt-8 shrink-0" onOpenFeedback={handleOpenFeedback} />
-      <FeedbackWidget 
-        toolName="Espaço Ágil - Governança" 
-        externalTriggerSignal={feedbackSignal} 
-        triggerVariant="none" 
+      <FeedbackWidget
+        toolName="Espaço Ágil - Governança"
+        externalTriggerSignal={feedbackSignal}
+        triggerVariant="none"
       />
     </div>
   );
