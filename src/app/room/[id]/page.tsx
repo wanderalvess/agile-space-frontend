@@ -426,6 +426,38 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, toast]);
 
+  // Auto-início por quórum: o efeito abaixo já carimba o startedAt sozinho a
+  // partir do 2º item (quando o facilitador troca de tarefa ativa), mas o 1º
+  // item nasce ativo sem nenhuma troca para disparar isso — por isso hoje
+  // depende 100% de alguém clicar em "Iniciar Refinamento". Assim que houver
+  // 1 dev + 1 QA online na sala (offline = aba fechada, não conta — mesmo
+  // critério de `isParticipantOnline` usado no quórum de votação), inicia
+  // sozinho, sem esperar o clique.
+  useEffect(() => {
+    if (!isCurrentUserFacilitator || !roomData) return;
+    if (roomData.sessionStartedAt || roomData.sessionEndedAt || !roomData.activeIssueId) return;
+
+    const nowMs = Date.now();
+    const hasDev = participants.some(p => p.role === 'dev' && isParticipantOnline(p, nowMs));
+    const hasQa = participants.some(p => p.role === 'qa' && isParticipantOnline(p, nowMs));
+    if (!hasDev || !hasQa) return;
+
+    const now = new Date(nowMs).toISOString();
+    pokerApi.saveOrUpdateRoom({
+      ...roomData,
+      sessionStartedAt: now,
+      sessionEndedAt: undefined,
+      issuesQueue: (roomData.issuesQueue || []).map(i =>
+        i.id === roomData.activeIssueId ? { ...i, startedAt: now } : i
+      ),
+    }).then(() => {
+      toast({
+        title: 'Refinamento iniciado automaticamente',
+        description: 'Quórum atingido (1 dev + 1 QA online) — o cronômetro começou.',
+      });
+    }).catch(err => console.error(err));
+  }, [isCurrentUserFacilitator, roomData, participants, toast]);
+
   // Carimba startedAt da tarefa ativa de forma automática
   useEffect(() => {
     if (!isCurrentUserFacilitator || !roomData) return;

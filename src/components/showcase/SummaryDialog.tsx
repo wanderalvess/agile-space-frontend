@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, ShowcaseTask, Decision, DECISION } from './types';
-import { formatTime, getDirectImageUrl, stripWikiMarkup, stripNonLatin1ForPdf } from './utils';
+import { formatTime, getDirectImageUrl, stripWikiMarkup, stripNonLatin1ForPdf, getEvidenceUrls } from './utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface SummaryDialogProps {
@@ -113,7 +113,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         `**Solução:** ${t.evidence.solution}`,
         `**Time:** Dev: ${t.evidence.dev} / QA: ${t.evidence.qa}`,
         versionsText(t) ? `**Projeto & Versões:** ${versionsText(t)}` : '',
-        `**Evidência:** ${t.evidence.video || t.evidence.screenshot || 'Sem link'}`,
+        `**Evidência${getEvidenceUrls(t.evidence).length > 1 ? 's' : ''}:** ${getEvidenceUrls(t.evidence).join(' | ') || 'Sem link'}`,
         t.decidedByName ? `**Aprovado por:** ${t.decidedByName}${decidedWhen(t.decidedAt) ? ` em ${decidedWhen(t.decidedAt)}` : ''}` : '',
         `---`
       ].filter(Boolean).join('\n')),

@@ -48,6 +48,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const { toast } = useToast();
 
   const [session, setSession] = useState<ShowcaseSession | null>(null);
+  // Buffer local do título: permite selecionar-tudo-e-apagar antes de retitular sem
+  // disparar persist({ name: '' }) a cada tecla (backend rejeita name em branco).
+  const [nameDraft, setNameDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPresenting, setIsPresenting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -189,6 +192,10 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       setBy(session.defaultSort);
     }
   }, [session?.defaultSort]);
+
+  useEffect(() => {
+    setNameDraft(session?.name || '');
+  }, [session?.name]);
 
   useEffect(() => {
     const baseTitle = "Espaço Ágil";
@@ -521,8 +528,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             // RoomHeader.title como React.ReactNode, ou migrar para isEditable/onTitleChange.
             (
               <input
-                value={session?.name || ''}
-                onChange={(e) => persist({ name: e.target.value })}
+                value={nameDraft}
+                onChange={(e) => {
+                  setNameDraft(e.target.value);
+                  if (e.target.value.trim()) persist({ name: e.target.value });
+                }}
                 placeholder="Nome da Sprint Review..."
                 className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 italic text-sm md:text-base bg-transparent border-none outline-none min-w-[200px] focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
               />

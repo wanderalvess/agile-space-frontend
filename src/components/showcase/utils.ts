@@ -1,4 +1,4 @@
-import { ShowcaseTask, PRESENTATION_PRESETS } from './types';
+import { Evidence, ShowcaseTask, PRESENTATION_PRESETS } from './types';
 
 /**
  * Determina com precisão se o fundo escolhido para a apresentação é claro.
@@ -129,6 +129,19 @@ export const stripWikiMarkup = (text?: string): string => {
 export const stripNonLatin1ForPdf = (text?: string): string => {
   if (!text) return text || '';
   return Array.from(text).filter(ch => ch.codePointAt(0)! <= 0xFF).join('');
+};
+
+/**
+ * Screenshot e vídeo podem coexistir — cada um pode ser imagem ou vídeo, o
+ * tipo é sempre detectado pelo conteúdo da URL (ver getEmbedUrl/isPdfUrl),
+ * nunca pelo campo de origem. `evidencePreference` só decide qual delas abre
+ * primeiro no Modo Teatro quando as duas estão preenchidas — quem apresenta
+ * ainda alterna pra outra por lá, nenhuma fica inacessível.
+ */
+export const getEvidenceUrls = (evidence: Pick<Evidence, 'screenshot' | 'video' | 'evidencePreference'>): string[] => {
+  const preferScreenshot = evidence.evidencePreference === 'screenshot';
+  const ordered = preferScreenshot ? [evidence.screenshot, evidence.video] : [evidence.video, evidence.screenshot];
+  return ordered.filter((u): u is string => !!u);
 };
 
 export const extractMediaUrl = (text: string) => {

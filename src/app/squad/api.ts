@@ -6,6 +6,22 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+// O backend devolve o corpo de erro do Spring (`{message: "..."}`) pra exceções
+// de negócio (ex: freio de segurança do sync abortando por segurança) — sem
+// isso, o erro exibido na tela seria o JSON cru em vez da frase feita pra
+// gente ler, exatamente o tipo de mensagem que o sync sempre teve o cuidado
+// de produzir (ver SquadSyncService).
+async function extractErrorMessage(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    if (typeof json?.message === 'string' && json.message) return json.message;
+  } catch {
+    // corpo não é JSON — cai no fallback abaixo
+  }
+  return `Squad API error ${res.status}: ${text}`;
+}
+
 // Raw backend shape for /api/squads/{squadId}/panels — deliberately NOT the
 // rich `SquadPanel` type from '@/lib/types' (that one models the UI's JQL
 // panel domain: chartType/groupBy/aggregateMetric/resultRows/etc). The
@@ -51,6 +67,18 @@ export const squadApi = {
         name: data.name || (data as any)?.squadName || squadId
       })
     });
+  },
+
+  // ----- Sync (motor roda no backend — ver SquadSyncService) -----
+  async sync(squadId: string, forceFull?: boolean): Promise<void> {
+    const qs = forceFull ? '?forceFull=true' : '';
+    const res = await authFetch(`${API_BASE_URL}/squads/${squadId}/sync${qs}`, { method: 'POST' });
+    if (!res.ok) throw new Error(await extractErrorMessage(res));
+  },
+
+  async forceResyncSprint(squadId: string, sprintId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/squads/${squadId}/force-resync-sprint?sprintId=${encodeURIComponent(sprintId)}`, { method: 'POST' });
+    if (!res.ok) throw new Error(await extractErrorMessage(res));
   },
 
   // ----- Metrics Rollup -----
