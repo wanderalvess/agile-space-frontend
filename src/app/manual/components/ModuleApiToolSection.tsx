@@ -143,13 +143,17 @@ export function ModuleApiToolSection({ moduleId }: ModuleApiToolSectionProps) {
           <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-slate-100">
             Exemplo Prático de Chamada
           </h4>
-          <CodeBlock code={snippet} language="bash" />
+          <CodeBlock
+            code={snippet}
+            label={rest && rest.length > 0 ? 'curl' : 'tool call'}
+            language="bash"
+          />
           {snippetResponse && (
             <div className="space-y-1.5 pt-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Exemplo de Resposta (JSON):
               </span>
-              <CodeBlock code={snippetResponse} language="json" />
+              <CodeBlock code={snippetResponse} label="Resposta esperada" language="json" />
             </div>
           )}
         </div>

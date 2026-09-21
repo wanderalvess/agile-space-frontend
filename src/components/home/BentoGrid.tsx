@@ -11,11 +11,6 @@ import {
   LayoutDashboard,
   Eye,
   Terminal,
-  ChevronRight,
-  GitBranch,
-  Sparkles,
-  BookOpen,
-  FileText,
   Lock,
   ArrowUpRight,
   Users2,
@@ -28,9 +23,7 @@ import {
   Binary,
   Clock,
   Braces,
-  Activity,
-  Gauge,
-  TrendingDown
+  Activity
 } from 'lucide-react';
 
 export function BentoGrid() {
@@ -501,177 +494,45 @@ export function BentoGrid() {
         </Card>
       </motion.div>
 
-      {/* 8. JIRADASH (col-span-8) - Painel Ágil Profissional */}
+      {/* 8. SQUAD PULSE (col-span-12) - Dashboard de produtividade via Jira */}
       <motion.div
         variants={itemVariants}
-        className="lg:col-span-8 md:col-span-2 col-span-1"
-        whileHover="hover"
-      >
-        <Card
-          onClick={() => router.push('/jiradash')}
-          className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-amber-500/40 dark:hover:border-amber-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[300px] overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center shrink-0 border border-amber-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <Gauge className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 flex items-center gap-1.5 group-hover:text-amber-500 transition-colors">
-                    JiraDash <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-amber-500" />
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    Métricas de Sprint, Fluxo & Capacity Oficial TOTVS
-                  </p>
-                </div>
-              </div>
-              <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-                Oficial POC
-              </span>
-            </div>
-
-            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-              Análise completa de sprints: Burndown de horas reais vs estimadas, vazão & WIP, cycle time, capacidade por papel (DEV/QA), carry-over e exportação para retrospectiva.
-            </p>
-
-            {/* Cockpit Telemetry & Burndown Sparkline Mock */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 my-4">
-              {/* Telemetry Micro-Cards */}
-              <div className="md:col-span-5 grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Vazão DEV/QA</span>
-                    <TrendingDown className="h-3 w-3 text-amber-500" />
-                  </div>
-                  <div className="mt-1">
-                    <span className="text-sm font-black text-slate-900 dark:text-slate-100">94.2%</span>
-                    <span className="block text-[8px] font-semibold text-emerald-500">+4.1% vs média</span>
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[8px] font-black uppercase tracking-wider text-slate-400">Cycle Time</span>
-                    <Clock className="h-3 w-3 text-amber-500" />
-                  </div>
-                  <div className="mt-1">
-                    <span className="text-sm font-black text-slate-900 dark:text-slate-100">2.1d</span>
-                    <span className="block text-[8px] font-semibold text-slate-400">Meta: &lt; 3.0d</span>
-                  </div>
-                </div>
-                <div className="col-span-2 p-2.5 rounded-2xl bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[9px] font-bold text-slate-700 dark:text-slate-300">8 Visões Agilistas Integradas</span>
-                  </div>
-                  <span className="text-[8px] font-code font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">TOTVS JQL</span>
-                </div>
-              </div>
-
-              {/* Mini Burndown Sparkline Graph */}
-              <div className="md:col-span-7 rounded-2xl bg-slate-50/90 dark:bg-slate-950/60 border border-slate-200/70 dark:border-slate-800/70 p-3 flex flex-col justify-between relative overflow-hidden group-hover:border-amber-500/30 transition-colors">
-                <div className="flex items-center justify-between border-b border-slate-200/40 dark:border-slate-800/40 pb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-extrabold uppercase tracking-wide text-slate-800 dark:text-slate-200">Burndown Horas Reais</span>
-                    <span className="text-[7.5px] font-code text-slate-400">(Sprint Atual)</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[8px] font-bold">
-                    <span className="flex items-center gap-1 text-slate-400">
-                      <span className="w-2 h-0.5 bg-slate-400/60 border-t border-dashed"></span> Ideal
-                    </span>
-                    <span className="flex items-center gap-1 text-amber-500">
-                      <span className="w-2 h-1 bg-amber-500 rounded-full"></span> Real
-                    </span>
-                  </div>
-                </div>
-                
-                {/* SVG Sparkline */}
-                <div className="relative h-12 w-full mt-2">
-                  <svg className="w-full h-full overflow-visible" viewBox="0 0 240 50" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="burndownAmberGlow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgb(245, 158, 11)" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="rgb(245, 158, 11)" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    {/* Ideal Line (Dashed) */}
-                    <line x1="10" y1="8" x2="230" y2="44" stroke="currentColor" strokeDasharray="3 3" className="text-slate-300 dark:text-slate-700" strokeWidth="1.5" />
-                    {/* Area fill under curve */}
-                    <polygon points="10,8 50,14 90,22 130,20 170,30 210,36 210,50 10,50" fill="url(#burndownAmberGlow)" />
-                    {/* Real Burndown Curve */}
-                    <polyline
-                      fill="none"
-                      stroke="rgb(245, 158, 11)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      points="10,8 50,14 90,22 130,20 170,30 210,36"
-                    />
-                    {/* Active Node with Glow */}
-                    <circle cx="210" cy="36" r="3.5" className="fill-amber-500 stroke-white dark:stroke-slate-950" strokeWidth="1.5" />
-                    <circle cx="210" cy="36" r="6.5" className="fill-amber-500/30 animate-ping" />
-                  </svg>
-                </div>
-
-                <div className="flex items-center justify-between pt-1 border-t border-slate-200/40 dark:border-slate-800/40 text-[7.5px] font-code text-slate-400">
-                  <span>Dia 1 (420h)</span>
-                  <span className="text-amber-500 font-bold">Hoje: -32h restante</span>
-                  <span>Dia 10 (0h)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-              8 Abas Integradas · JQL Direta · Gráficos PNG & CSV
-            </span>
-            <Button
-              size="sm"
-              className="h-10 px-6 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
-            >
-              Abrir JiraDash
-            </Button>
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* 9. SQUAD PULSE (col-span-4) - Dashboard de produtividade via Jira */}
-      <motion.div
-        variants={itemVariants}
-        className="lg:col-span-4 md:col-span-1 col-span-1"
+        className="lg:col-span-12 md:col-span-2 col-span-1"
         whileHover="hover"
       >
         <Card
           onClick={() => router.push('/squad')}
-          className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-indigo-500/40 dark:hover:border-indigo-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[300px] overflow-hidden"
+          className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 md:p-8 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-indigo-500/40 dark:hover:border-indigo-500/40 transition-all duration-500 cursor-pointer overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between gap-6"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
 
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center shrink-0 border border-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
-                <Activity className="h-5 w-5 text-indigo-500" />
-              </div>
-              <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Novo</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-5 relative z-10 max-w-3xl">
+            <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center shrink-0 border border-indigo-500/20 group-hover:scale-110 transition-transform duration-300">
+              <Activity className="h-6 w-6 text-indigo-500" />
             </div>
-
-            <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-indigo-500 transition-colors flex items-center gap-1.5">
-              Squad Pulse <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-indigo-500" />
-            </h3>
-            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-              Produtividade do time sincronizada com o Jira: sprint atual, itens parados e proporção de bugs.
-            </p>
+            <div>
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 group-hover:text-indigo-500 transition-colors flex items-center gap-1.5">
+                  Squad Pulse <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-indigo-500" />
+                </h3>
+                <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2.5 py-0.5 rounded-full border border-indigo-500/20">
+                  Hub 360º
+                </span>
+              </div>
+              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
+                Produtividade do time sincronizada com o Jira: sprint atual, quadro scrum, timeline de planos e capacidade da equipe.
+              </p>
+            </div>
           </div>
 
-          <Button
-            size="sm"
-            className="w-full h-10 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
-          >
-            Abrir Squad Pulse
-          </Button>
+          <div className="flex items-center gap-3 shrink-0 relative z-10">
+            <Button
+              size="sm"
+              className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
+            >
+              Abrir Squad Pulse
+            </Button>
+          </div>
         </Card>
       </motion.div>
 
