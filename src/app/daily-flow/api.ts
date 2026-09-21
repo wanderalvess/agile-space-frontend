@@ -1,5 +1,6 @@
 import { Worklog } from '@/store/useDailyStore';
 import { authFetch } from '@/lib/auth-client';
+import type { DailyDigestResult } from '@/lib/dailyDigestExtract';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -11,6 +12,27 @@ export interface DailyReportData {
   blockers: string;
   date: string;
   timestamp?: string;
+}
+
+export interface DailyCheckinData {
+  id?: string;
+  userId: string;
+  userName: string;
+  userRole?: string;
+  userAvatar?: string;
+  squadId: string;
+  date: string;
+  yesterday?: string;
+  today: string;
+  blockers: string;
+  blockerDuration?: string;
+  hasBlocker: boolean;
+  isPrivate?: boolean;
+}
+
+export interface DailyDigestExtractResponse extends DailyDigestResult {
+  source: 'ai' | 'rules';
+  warning?: string;
 }
 
 export const dailyFlowApi = {
@@ -91,5 +113,37 @@ export const dailyFlowApi = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Falha ao excluir daily report');
-  }
+  },
+
+  // --- Daily Digest com IA ---
+  async extractDigest(rawText: string, useAi: boolean, apiKey?: string): Promise<DailyDigestExtractResponse> {
+    const res = await fetch('/api/daily-digest/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawText, useAi, apiKey }),
+    });
+    if (!res.ok) throw new Error('Falha ao extrair resumo da daily');
+    return res.json();
+  },
+
+  async listCheckins(squadId: string, date: string): Promise<DailyCheckinData[]> {
+    try {
+      const params = new URLSearchParams({ squadId, date });
+      const res = await authFetch(`${API_BASE_URL}/daily-checkins?${params.toString()}`);
+      if (!res.ok) return [];
+      return res.json();
+    } catch (err) {
+      console.warn('Backend offline ou inacessível ao buscar daily checkins:', err);
+      return [];
+    }
+  },
+
+  async saveCheckinsBatch(checkins: DailyCheckinData[]): Promise<DailyCheckinData[]> {
+    const res = await authFetch(`${API_BASE_URL}/daily-checkins/batch`, {
+      method: 'POST',
+      body: JSON.stringify(checkins),
+    });
+    if (!res.ok) throw new Error('Falha ao salvar os checkins da daily');
+    return res.json();
+  },
 };
