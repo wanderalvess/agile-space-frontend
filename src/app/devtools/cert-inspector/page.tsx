@@ -25,7 +25,15 @@ import forge from 'node-forge';
 interface CertAnalysis {
   subject: { commonName: string; organization: string; country: string };
   issuer: { commonName: string; organization: string };
-  validity: { notBefore: string; notAfter: string; daysRemaining: number; isExpired: boolean; isSelfSigned: boolean };
+  validity: {
+    notBefore: string;
+    notAfter: string;
+    daysRemaining: number; // dias até notAfter (negativo se já expirado)
+    daysUntilValid: number; // dias até notBefore (só relevante se isNotYetValid)
+    isExpired: boolean;
+    isNotYetValid: boolean;
+    isSelfSigned: boolean;
+  };
   algorithm: string;
   keySize: string;
   keyUsage: string[];
@@ -49,13 +57,25 @@ function getField(attrs: forge.pki.CertificateField[], shortName: string): strin
   return typeof value === 'string' && value.length > 0 ? value : '—';
 }
 
-function parseCertificate(pem: string): CertAnalysis {
+// DN completo (não só CN) para detectar self-signed de verdade — dois certificados de
+// uma cadeia podem legitimamente compartilhar o mesmo CN sem serem o mesmo certificado.
+function getDN(attrs: forge.pki.CertificateField[]): string {
+  return attrs
+    .filter((a) => typeof a.value === 'string' && a.value.length > 0)
+    .map((a) => `${a.shortName || a.type}=${a.value}`)
+    .sort()
+    .join(',');
+}
+
+export function parseCertificate(pem: string): CertAnalysis {
   const cert = forge.pki.certificateFromPem(pem);
 
   const now = new Date();
   const { notBefore, notAfter } = cert.validity;
   const daysRemaining = Math.ceil((notAfter.getTime() - now.getTime()) / 86400000);
-  const isExpired = now > notAfter || now < notBefore;
+  const daysUntilValid = Math.ceil((notBefore.getTime() - now.getTime()) / 86400000);
+  const isExpired = now > notAfter;
+  const isNotYetValid = now < notBefore;
 
   const algorithmOid = (cert as any).siginfo?.algorithmOid;
   const algorithm = (algorithmOid && (forge.pki.oids as Record<string, string>)[algorithmOid]) || algorithmOid || 'Desconhecido';
@@ -71,11 +91,16 @@ function parseCertificate(pem: string): CertAnalysis {
     ? Object.entries(KEY_USAGE_LABELS).filter(([key]) => keyUsageExt[key]).map(([, label]) => label)
     : [];
 
-  const der = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
-  const fingerprint = forge.md.sha256.create().update(der).digest().toHex().toUpperCase().match(/.{1,2}/g)!.join(':');
+  // Hash dos bytes DER originais do PEM (não uma reserialização do objeto já parseado) —
+  // certificados com encoding não-canônico podem não sobreviver a um round-trip por
+  // certificateToAsn1, o que geraria uma fingerprint diferente da real.
+  const derBytes = forge.pem.decode(pem)[0].body;
+  const fingerprint = forge.md.sha256.create().update(derBytes).digest().toHex().toUpperCase().match(/.{1,2}/g)!.join(':');
 
   const subjectCN = getField(cert.subject.attributes, 'CN');
   const issuerCN = getField(cert.issuer.attributes, 'CN');
+  const subjectDN = getDN(cert.subject.attributes);
+  const issuerDN = getDN(cert.issuer.attributes);
 
   return {
     subject: {
@@ -91,8 +116,10 @@ function parseCertificate(pem: string): CertAnalysis {
       notBefore: notBefore.toISOString().split('T')[0],
       notAfter: notAfter.toISOString().split('T')[0],
       daysRemaining,
+      daysUntilValid,
       isExpired,
-      isSelfSigned: subjectCN !== '—' && subjectCN === issuerCN,
+      isNotYetValid,
+      isSelfSigned: subjectDN !== '' && subjectDN === issuerDN,
     },
     algorithm,
     keySize,
@@ -215,20 +242,20 @@ export default function CertInspectorPage() {
               {analysis.validity.isSelfSigned && (
                 <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
                   <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span className="text-[11px] font-bold text-amber-700">Certificado autoassinado (subject e issuer são o mesmo CN) — normal para CAs internas, inesperado para um servidor público.</span>
+                  <span className="text-[11px] font-bold text-amber-700">Certificado autoassinado (subject e issuer têm o mesmo DN completo) — normal para CAs internas, inesperado para um servidor público.</span>
                 </div>
               )}
 
               {/* Summary Widgets */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex items-center gap-4">
-                    <div className={cn("p-3 bg-white rounded-2xl shadow-sm", analysis.validity.isExpired ? "text-red-500" : "text-cyan-600")}>
+                    <div className={cn("p-3 bg-white rounded-2xl shadow-sm", analysis.validity.isExpired || analysis.validity.isNotYetValid ? "text-amber-500" : "text-cyan-600")}>
                        <CheckCircle2 className="h-5 w-5" />
                     </div>
                     <div className="flex flex-col">
                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</span>
-                       <span className={cn("text-sm font-black italic uppercase", analysis.validity.isExpired ? "text-red-500" : "text-cyan-600")}>
-                         {analysis.validity.isExpired ? 'Expirado' : 'Válido'}
+                       <span className={cn("text-sm font-black italic uppercase", analysis.validity.isExpired || analysis.validity.isNotYetValid ? "text-amber-500" : "text-cyan-600")}>
+                         {analysis.validity.isExpired ? 'Expirado' : analysis.validity.isNotYetValid ? 'Ainda não válido' : 'Válido'}
                        </span>
                     </div>
                  </div>
@@ -238,9 +265,11 @@ export default function CertInspectorPage() {
                     </div>
                     <div className="flex flex-col">
                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                         {analysis.validity.isExpired ? 'Expirou há' : 'Expiração'}
+                         {analysis.validity.isExpired ? 'Expirou há' : analysis.validity.isNotYetValid ? 'Válido em' : 'Expiração'}
                        </span>
-                       <span className="text-sm font-black italic uppercase text-blue-500">{Math.abs(analysis.validity.daysRemaining)} Dias</span>
+                       <span className="text-sm font-black italic uppercase text-blue-500">
+                         {Math.abs(analysis.validity.isNotYetValid ? analysis.validity.daysUntilValid : analysis.validity.daysRemaining)} Dias
+                       </span>
                     </div>
                  </div>
                  <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex items-center gap-4">
