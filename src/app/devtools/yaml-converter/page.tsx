@@ -33,6 +33,9 @@ export default function YamlConverterPage() {
     try {
       if (mode === 'YAML_TO_JSON') {
         const parsed = loadYaml(input);
+        if (parsed === undefined) {
+          throw new Error('O documento não contém nenhum valor (só comentários/espaços em branco?)');
+        }
         setOutput(JSON.stringify(parsed, null, 2));
       } else {
         const parsed = JSON.parse(input);
