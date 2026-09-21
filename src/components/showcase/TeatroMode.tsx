@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
 import { ChartRenderer } from './ChartRenderer';
 import { getCategoryColor } from './chartPresets';
-import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground } from './utils';
+import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls } from './utils';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
 import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
@@ -440,12 +440,19 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
   const [imgError, setImgError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [imageExpanded, setImageExpanded] = useState(false);
-  // Com as duas preenchidas, respeita a preferência escolhida no card
-  // (padrão 'video', igual ao comportamento de antes dessa flag existir).
-  // Com só uma preenchida, essa é a que aparece — sem ambiguidade nesse caso.
-  const preferScreenshot = task?.evidence.evidencePreference === 'screenshot';
-  const url = (preferScreenshot ? task?.evidence.screenshot : task?.evidence.video)
-    || task?.evidence.screenshot || task?.evidence.video;
+  // Screenshot e vídeo podem coexistir — cada um pode ser imagem ou vídeo, o
+  // tipo é sempre detectado pelo conteúdo da URL logo abaixo, nunca pelo
+  // campo de origem. evidencePreference só decide qual abre primeiro (padrão
+  // 'video', igual ao comportamento de antes dessa flag existir) — quem
+  // apresenta alterna pra outra logo abaixo, nenhuma fica escondida.
+  const [evidenceIndex, setEvidenceIndex] = useState(0);
+  const evidenceUrls = getEvidenceUrls(task?.evidence || { screenshot: '', video: '' });
+  const safeIndex = Math.min(evidenceIndex, Math.max(evidenceUrls.length - 1, 0));
+  const url = evidenceUrls[safeIndex];
+  const goToEvidence = (i: number) => {
+    if (i < 0 || i >= evidenceUrls.length) return;
+    setEvidenceIndex(i);
+  };
 
   // Anexo/thumbnail do próprio Jira (ex.: /secure/attachment/..., /secure/
   // thumbnail/...) exige sessão — como <img> cross-origin não manda o cookie
@@ -493,13 +500,14 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
   useEffect(() => {
     setShowDetails(false);
     setImageExpanded(false);
+    setEvidenceIndex(0);
   }, [task?.id]);
 
   // Pré-carrega o vídeo/embed do próximo card num iframe invisível — é a
   // maior demora sentida ao apresentar (Loom/Drive/YouTube levam segundos
   // pra montar o player). Quando o apresentador avança, o iframe real troca
   // pra essa mesma URL e o navegador já tem boa parte em cache/conexão aberta.
-  const nextUrl = nextTask ? (nextTask.evidence.video || nextTask.evidence.screenshot) : undefined;
+  const nextUrl = nextTask ? getEvidenceUrls(nextTask.evidence)[0] : undefined;
   const nextEmbedUrl = nextUrl ? getEmbedUrl(nextUrl) : undefined;
   const nextIsPreloadableEmbed = !!nextUrl && !!nextEmbedUrl && (nextEmbedUrl !== nextUrl || isPdfUrl(nextUrl) || nextUrl.includes('loom.com'));
 
@@ -734,7 +742,6 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                 </motion.div>
               );
 
-              const url = task.evidence.video || task.evidence.screenshot;
               if (!url) return (
                 <motion.div
                   key="no-evidence"
@@ -904,6 +911,37 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             })()}
           </AnimatePresence>
         </div>
+
+        {evidenceUrls.length > 1 && (
+          <div className={cn(
+            "absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1.5 rounded-2xl border backdrop-blur-xl shadow-xl",
+            isLight ? "bg-white/90 border-slate-200" : "bg-white/5 border-white/10"
+          )}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => goToEvidence(safeIndex - 1)}
+              disabled={safeIndex === 0}
+              title="Evidência anterior"
+              className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-slate-500 hover:bg-slate-100" : "text-white/70 hover:bg-white/10")}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className={cn("px-2 text-[10px] font-black uppercase tracking-widest tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
+              Evidência {safeIndex + 1}/{evidenceUrls.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => goToEvidence(safeIndex + 1)}
+              disabled={safeIndex === evidenceUrls.length - 1}
+              title="Próxima evidência"
+              className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-slate-500 hover:bg-slate-100" : "text-white/70 hover:bg-white/10")}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Preload silencioso do próximo vídeo/embed — 1x1, fora da tela, sem

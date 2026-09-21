@@ -720,12 +720,13 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                     <Video className="h-3 w-3" />
                   </Button>
                 </div>
-                {/* Só faz sentido escolher quando os dois links estão
-                    preenchidos — com um só, esse é o que aparece na
-                    apresentação, sem ambiguidade nenhuma. */}
+                {/* Só faz sentido escolher quando os dois links estão preenchidos
+                    — com um só, esse é o que aparece na apresentação, sem
+                    ambiguidade nenhuma. Com os dois, essa escolha só decide qual
+                    abre primeiro: quem apresenta ainda alterna pra outra lá. */}
                 {task.evidence.screenshot && task.evidence.video && (
                   <div className="flex items-center gap-2 pt-0.5">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Na apresentação:</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Abre primeiro:</span>
                     <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
                       {([
                         { value: 'video' as const, label: 'Vídeo', icon: Video },
