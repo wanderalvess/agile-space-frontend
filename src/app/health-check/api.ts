@@ -20,8 +20,8 @@ export const healthCheckApi = {
     return res.json();
   },
 
-  async listBoards(): Promise<HealthCheckBoard[]> {
-    const res = await authFetch(`${API_BASE_URL}/health-checks`);
+  async listBoards(squadId: string): Promise<HealthCheckBoard[]> {
+    const res = await authFetch(`${API_BASE_URL}/health-checks?squadId=${encodeURIComponent(squadId)}`);
     if (!res.ok) throw new Error('Falha ao listar radares');
     return res.json();
   },

@@ -277,11 +277,12 @@ export function BacklogManager({
       </div>
 
       {/* Overlays */}
-      <PokerSessionPicker 
+      <PokerSessionPicker
         isOpen={showPokerImport}
         onClose={() => setShowPokerImport(false)}
         onSelect={(room) => { onPokerImport(room); setShowPokerImport(false); }}
         importedIds={[]} // This would need the list of imported IDs if used
+        squadId={activeSquad}
       />
 
       <Dialog open={showBatchImport} onOpenChange={setShowBatchImport}>

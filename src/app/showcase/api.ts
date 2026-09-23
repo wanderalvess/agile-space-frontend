@@ -17,8 +17,8 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const showcaseApi = {
-  async getSessions(limit = 50): Promise<ShowcaseSession[]> {
-    return req<ShowcaseSession[]>(`/showcase-sessions?limit=${limit}`);
+  async getSessions(squadId: string, limit = 50): Promise<ShowcaseSession[]> {
+    return req<ShowcaseSession[]>(`/showcase-sessions?limit=${limit}&squadId=${encodeURIComponent(squadId)}`);
   },
 
   async getSession(id: string): Promise<ShowcaseSession | null> {

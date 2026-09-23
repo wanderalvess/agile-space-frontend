@@ -19,8 +19,8 @@ export const pokerApi = {
     return res.json();
   },
 
-  async listRooms(): Promise<Room[]> {
-    const res = await authFetch(`${API_BASE_URL}/poker`);
+  async listRooms(squadId: string): Promise<Room[]> {
+    const res = await authFetch(`${API_BASE_URL}/poker?squadId=${encodeURIComponent(squadId)}`);
     if (!res.ok) throw new Error('Falha ao listar salas de Poker');
     return res.json();
   },

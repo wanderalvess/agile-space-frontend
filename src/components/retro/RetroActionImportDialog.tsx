@@ -41,19 +41,19 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && team) {
       fetchPending();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, team]);
 
   const fetchPending = async () => {
     setLoading(true);
     try {
-      const allBoards = await retroApi.listBoards();
+      const allBoards = await retroApi.listBoards({ team });
 
       const candidates = allBoards
-        .filter(b => b.id !== currentBoardId && b.team === team);
+        .filter(b => b.id !== currentBoardId);
 
       const results = await Promise.all(candidates.map(async (board) => {
         const cardsList = await retroApi.getCards(board.id);

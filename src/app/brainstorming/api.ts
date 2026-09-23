@@ -21,8 +21,8 @@ export const brainstormingApi = {
     return res.json();
   },
 
-  async listBoards(): Promise<BrainstormingBoard[]> {
-    const res = await authFetch(`${API_BASE_URL}/brainstormings`);
+  async listBoards(squadId: string): Promise<BrainstormingBoard[]> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings?squadId=${encodeURIComponent(squadId)}`);
     if (!res.ok) throw new Error('Falha ao listar murais');
     return res.json();
   },

@@ -43,9 +43,11 @@ export default function ShowcaseHubPage() {
   const [dbSessions, setDbSessions] = useState<ShowcaseSession[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
 
-  const fetchSessions = async () => {
+  const currentSquadId = session?.activeProjectId || userProfile?.squadId;
+
+  const fetchSessions = async (squadId: string) => {
     try {
-      const data = await showcaseApi.getSessions();
+      const data = await showcaseApi.getSessions(squadId);
       setDbSessions(data);
     } catch (e) {
       console.error(e);
@@ -55,8 +57,8 @@ export default function ShowcaseHubPage() {
   };
 
   useEffect(() => {
-    fetchSessions();
-  }, []);
+    if (currentSquadId) fetchSessions(currentSquadId);
+  }, [currentSquadId]);
 
   const handleCreate = async () => {
     if (isCreating) return;

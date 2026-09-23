@@ -58,17 +58,19 @@ const MODE_OPTIONS = [
   { key: 'sync', emoji: '🚀', name: 'Síncrono', tagline: 'Ao vivo', desc: 'Todos votam juntos, em tempo real, com revelação simultânea. Ideal para o time reunido.' },
   { key: 'async', emoji: '🕰️', name: 'Assíncrono', tagline: 'No seu tempo', desc: 'Cada um vota por tarefa quando puder. Ideal para times distribuídos ou fusos diferentes.' },
 ] as const;
-import { 
-  WalletCards, 
-  Zap, 
-  Target, 
-  Users, 
+import {
+  WalletCards,
+  Zap,
+  Target,
+  Users,
   Lock,
   ArrowRight as ArrowRightIcon,
   MessageSquare,
   Trophy,
   ListPlus,
-  Shield
+  Shield,
+  ChevronRight,
+  UserCheck
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { pokerApi } from './api';
@@ -89,9 +91,78 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+
+/** Card de lista de sessões do histórico do Poker — mesmo padrão visual do card
+ * "Sessões Recentes" do ToolHubLayout (rounded-[2.5rem], backdrop-blur, hover/chevron,
+ * skeleton e empty state reais) em vez do bloco de divs cru que existia aqui antes. */
+function SessionListCard({
+  icon,
+  title,
+  loading,
+  rooms,
+  emptyLabel,
+  onOpen,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  loading: boolean;
+  rooms: any[];
+  emptyLabel: string;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <Card className="relative border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col overflow-hidden min-h-[320px]">
+      <div className="flex items-center gap-2 mb-4 shrink-0">
+        <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+          {icon}
+        </div>
+        <h3 className="text-[14px] font-black uppercase tracking-wider text-slate-950 dark:text-slate-50">{title}</h3>
+      </div>
+
+      <div className="space-y-2.5 flex-1 overflow-y-auto custom-scrollbar pr-1">
+        {loading ? (
+          <div className="space-y-2 py-2 animate-pulse">
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+          </div>
+        ) : rooms.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-10 gap-2">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-700">
+              {icon}
+            </div>
+            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{emptyLabel}</p>
+          </div>
+        ) : (
+          rooms.map((r) => (
+            <div
+              key={r.id}
+              onClick={() => onOpen(r.id)}
+              className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
+            >
+              <div className="space-y-0.5 truncate flex-1 min-w-0 pr-2">
+                <h5 className="text-[12px] font-bold text-slate-800 dark:text-slate-200 truncate">
+                  {r.title || 'Sem título'}
+                </h5>
+                <p className="text-[9px] text-slate-400 truncate uppercase tracking-wider">
+                  {r.team || 'Squad Geral'}
+                  {r.createdAt ? ` · ${formatDistanceToNow(new Date(r.createdAt), { addSuffix: true, locale: ptBR })}` : ''}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-300 group-item-hover:text-slate-600 dark:group-item-hover:text-slate-400 group-item-hover:translate-x-0.5 transition-all shrink-0" />
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export default function PokerHubPage() {
   const router = useRouter();
@@ -140,10 +211,13 @@ export default function PokerHubPage() {
     if (userTeam) setTeam(userTeam);
   }, [session, userProfile, teamTouched]);
 
+  const currentSquadId = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
+
   useEffect(() => {
+    if (!currentSquadId) return;
     const fetchRooms = async () => {
       try {
-        const data = await pokerApi.listRooms();
+        const data = await pokerApi.listRooms(currentSquadId);
         setRooms(data);
       } catch (err) {
         console.error("Erro ao listar salas", err);
@@ -152,12 +226,12 @@ export default function PokerHubPage() {
       }
     };
     fetchRooms();
-  }, []);
+  }, [currentSquadId]);
 
   const SETUP_TOTAL = SETUP_GROUPS.reduce((n, g) => n + g.items.length, 0);
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
 
-  const mySquadRooms = rooms.filter(r => r.team && r.team === (userProfile?.squadId || userProfile?.team));
+  // Backend já devolve só as salas da squad atual — rooms É a lista "da minha squad".
   const myParticipatedRooms = rooms.filter(r => session?.id && (r.participantIds?.includes(session.id) || r.creatorId === session.id));
 
   const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
@@ -342,24 +416,22 @@ export default function PokerHubPage() {
         isCreating={isCreating}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold">Sessões da Minha Squad</h3>
-            {loadingRooms ? <p>Carregando...</p> : mySquadRooms.length === 0 ? <p className="text-muted-foreground">Nenhuma sessão encontrada.</p> : mySquadRooms.map(r => (
-               <div key={r.id} className="p-4 border rounded shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900" onClick={() => router.push(`/room/${r.id}`)}>
-                 <h4 className="font-bold">{r.title}</h4>
-                 <p className="text-sm text-muted-foreground">{r.team}</p>
-               </div>
-            ))}
-          </div>
-          <div className="space-y-4">
-            <h3 className="text-xl font-bold">Minhas Sessões Participadas</h3>
-            {loadingRooms ? <p>Carregando...</p> : myParticipatedRooms.length === 0 ? <p className="text-muted-foreground">Nenhuma sessão encontrada.</p> : myParticipatedRooms.map(r => (
-               <div key={r.id} className="p-4 border rounded shadow cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900" onClick={() => router.push(`/room/${r.id}`)}>
-                 <h4 className="font-bold">{r.title}</h4>
-                 <p className="text-sm text-muted-foreground">{r.team}</p>
-               </div>
-            ))}
-          </div>
+          <SessionListCard
+            icon={<Users className="h-4 w-4" />}
+            title="Sessões da Minha Squad"
+            loading={loadingRooms}
+            rooms={rooms}
+            emptyLabel="Nenhuma sessão da squad ainda"
+            onOpen={(id) => router.push(`/room/${id}`)}
+          />
+          <SessionListCard
+            icon={<UserCheck className="h-4 w-4" />}
+            title="Minhas Sessões Participadas"
+            loading={loadingRooms}
+            rooms={myParticipatedRooms}
+            emptyLabel="Você ainda não participou de nenhuma sessão"
+            onOpen={(id) => router.push(`/room/${id}`)}
+          />
         </div>
       </ToolHubLayout>
 

@@ -115,17 +115,19 @@ export default function WorkspacePage() {
   const [healthHistory, setHealthHistory] = useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
 
+  const currentSquadId = session?.activeProjectId || userProfile?.squadId;
+
   useEffect(() => {
-    if (!effectiveUserId) return;
+    if (!effectiveUserId || !currentSquadId) return;
     let cancelled = false;
 
     const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
         const [rooms, retros, healths] = await Promise.all([
-          pokerApi.listRooms(),
-          retroApi.listBoards(),
-          healthCheckApi.listBoards(),
+          pokerApi.listRooms(currentSquadId),
+          retroApi.listBoards({ squadId: currentSquadId }),
+          healthCheckApi.listBoards(currentSquadId),
         ]);
         if (cancelled) return;
         const isMine = (r: any) => r.participantIds?.includes(effectiveUserId) || r.creatorId === effectiveUserId;
@@ -141,7 +143,7 @@ export default function WorkspacePage() {
 
     fetchHistory();
     return () => { cancelled = true; };
-  }, [effectiveUserId]);
+  }, [effectiveUserId, currentSquadId]);
 
   const mergedHistory = useMemo(() => {
     if (isLoadingHistory) return null;
