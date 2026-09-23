@@ -36,6 +36,7 @@ interface AuthContextType {
   switchProject: (projectId: string) => Promise<void>;
   createProject: (payload: CreateProjectPayload) => Promise<AuthResponse>;
   joinProject: (projectKey: string, roleName: string) => Promise<AuthResponse>;
+  claimRosterMember: (memberId: string) => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -158,6 +159,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }, []);
 
+  /**
+   * "Sou eu": liga a conta a uma pessoa que já existe no roster do projeto,
+   * preservando o papel que veio do Jira. Resolve o caso do e-mail do Jira
+   * diferente do e-mail de login sem precisar de convite.
+   */
+  const claimRosterMember = useCallback(async (memberId: string) => {
+    const res = await authFetch(`${API_BASE_URL}/onboarding/claim/${encodeURIComponent(memberId)}`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      throw new Error(await parseErrorMessage(res, 'Não foi possível concluir o vínculo'));
+    }
+    const data: AuthResponse = await res.json();
+    setSession(data);
+    return data;
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -170,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         switchProject,
         createProject,
         joinProject,
+        claimRosterMember,
       }}
     >
       {children}

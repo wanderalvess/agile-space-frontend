@@ -11,6 +11,8 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  ArrowRight,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -146,24 +148,36 @@ export default function LoginPage() {
 
   return (
       <div className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-8 overflow-hidden bg-slate-950">
-        {/* BACKGROUND COM IMAGEM E OVERLAY */}
-        <div className="absolute inset-0 z-0">
-          <div
-              className="absolute inset-0 bg-cover bg-center opacity-10 mix-blend-luminosity"
-              style={{ backgroundImage: "url('https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2000')" }}
-          />
+        {/* BACKGROUND ATMOSFÉRICO: aurora em CSS puro (sem dependência de imagem externa) */}
+        {/* overflow-hidden aqui evita que os blobs com offset negativo criem uma região de
+            scroll no container externo (o navegador rola pra focar a aba ao trocar de tab) */}
+        <div className="absolute inset-0 z-0 overflow-hidden">
+          <div className="absolute -top-48 -left-48 w-[560px] h-[560px] bg-primary/20 blur-[140px] rounded-full animate-aurora-drift" />
+          <div className="absolute top-1/4 -right-40 w-[480px] h-[480px] bg-blue-600/15 blur-[130px] rounded-full animate-aurora-drift" style={{ animationDelay: '-8s' }} />
+          <div className="absolute -bottom-48 left-1/4 w-[500px] h-[500px] bg-violet-600/10 blur-[140px] rounded-full animate-aurora-drift" style={{ animationDelay: '-15s' }} />
+
           {/* Overlay escuro radial para focar a luz no centro */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(2,6,23,0.95)_0%,rgba(0,0,0,1)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(2,6,23,0.85)_0%,rgba(0,0,0,0.98)_100%)]" />
         </div>
 
+        {/* Glow ambiente atrás do card, centralizado independente do fluxo flex */}
+        <div
+            className="absolute inset-0 m-auto z-[5] w-[820px] h-[420px] max-w-[85vw] max-h-[70vh] bg-primary/15 blur-[110px] rounded-full animate-aurora-drift pointer-events-none"
+            aria-hidden="true"
+        />
+
         {/* ENVOLTÓRIO 3D (Reflexo sutil, sem borda branca dura) */}
-        <div className="relative z-10 w-full max-w-[1000px] rounded-[2.6rem] p-[1px] bg-gradient-to-b from-white/10 via-white/5 to-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)]">
+        <div className="relative z-10 w-full max-w-[1000px] rounded-[2.6rem] p-[1px] bg-gradient-to-b from-white/10 via-white/5 to-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in-95 slide-in-from-bottom-6 duration-700">
 
           {/* CENTRAL CARD */}
           <div className="w-full flex flex-col lg:flex-row backdrop-blur-2xl rounded-[2.5rem] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] overflow-hidden lg:min-h-[600px]">
 
             {/* LADO ESQUERDO: INFORMAÇÕES SINTETIZADAS (SEMPRE ESCURO COM ACENTOS DO TEMA) */}
             <div className="hidden lg:flex lg:w-5/12 bg-slate-950/40 backdrop-blur-xl p-10 flex-col justify-between relative overflow-hidden text-slate-50 border-r border-white/10">
+              {/* Starfield temático (Espaço Ágil) */}
+              <div className="starfield-sm absolute inset-0 opacity-50 animate-twinkle pointer-events-none" />
+              <div className="starfield-lg absolute inset-0 opacity-30 animate-twinkle pointer-events-none" style={{ animationDelay: '-2.5s' }} />
+
               {/* Efeitos de Glow internos dinâmicos com o tema */}
               <div className="absolute -top-32 -left-32 w-80 h-80 bg-primary/25 blur-[100px] rounded-full pointer-events-none transition-colors duration-500" />
               <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-primary/15 blur-[100px] rounded-full pointer-events-none transition-colors duration-500" />
@@ -190,7 +204,7 @@ export default function LoginPage() {
                 </p>
 
                 <div className="space-y-2.5 pt-2">
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/10 hover:-translate-y-0.5">
                     <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
                       <CheckCircle2 className="w-4 h-4" />
                     </div>
@@ -200,7 +214,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/10 hover:-translate-y-0.5">
                     <div className="p-2 rounded-xl bg-primary/20 text-primary shrink-0 transition-colors duration-300">
                       <CheckCircle2 className="w-4 h-4" />
                     </div>
@@ -210,13 +224,13 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10">
+                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/10 hover:-translate-y-0.5">
                     <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
-                      <CheckCircle2 className="w-4 h-4" />
+                      <Activity className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-200 font-headline tracking-tight">Daily Flow & Impedimentos</h4>
-                      <p className="text-[11px] text-slate-400 font-body">Gestão de horas e blockers em tempo real</p>
+                      <h4 className="text-xs font-bold text-slate-200 font-headline tracking-tight">Squad Pulse & Radar Diário</h4>
+                      <p className="text-[11px] text-slate-400 font-body">Board e bloqueios sincronizados com o Jira</p>
                     </div>
                   </div>
                 </div>
@@ -298,14 +312,17 @@ export default function LoginPage() {
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
                                     <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
                                   </label>
-                                  <Input
-                                      type="email"
-                                      placeholder="nome@empresa.com.br"
-                                      value={email}
-                                      onChange={(e) => setEmail(e.target.value)}
-                                      required
-                                      className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                  />
+                                  <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                                    <Input
+                                        type="email"
+                                        placeholder="nome@empresa.com.br"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
+                                    />
+                                  </div>
                                 </div>
 
                                 <div className="space-y-1">
@@ -318,13 +335,14 @@ export default function LoginPage() {
                                     </a>
                                   </div>
                                   <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
                                     <Input
                                         type={showPassword ? "text" : "password"}
                                         placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pr-10 focus-visible:ring-primary focus-visible:border-primary transition-all"
+                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 pr-10 focus-visible:ring-primary focus-visible:border-primary transition-all"
                                     />
                                     <button
                                         type="button"
@@ -339,9 +357,10 @@ export default function LoginPage() {
                                 <Button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
+                                    className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
                                 >
                                   Acessar Plataforma
+                                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                                 </Button>
                               </form>
                           ) : activeTab === 'register' ? (
@@ -350,51 +369,61 @@ export default function LoginPage() {
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
                                     <UserIcon className="w-3.5 h-3.5" /> Nome Completo
                                   </label>
-                                  <Input
-                                      type="text"
-                                      placeholder="João da Silva"
-                                      value={name}
-                                      onChange={(e) => setName(e.target.value)}
-                                      required
-                                      className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                  />
+                                  <div className="relative">
+                                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                                    <Input
+                                        type="text"
+                                        placeholder="João da Silva"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        required
+                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
+                                    />
+                                  </div>
                                 </div>
 
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
                                     <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
                                   </label>
-                                  <Input
-                                      type="email"
-                                      placeholder="nome@empresa.com.br"
-                                      value={email}
-                                      onChange={(e) => setEmail(e.target.value)}
-                                      required
-                                      className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                  />
+                                  <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                                    <Input
+                                        type="email"
+                                        placeholder="nome@empresa.com.br"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
+                                    />
+                                  </div>
                                 </div>
 
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
                                     <Lock className="w-3.5 h-3.5" /> Definir Senha
                                   </label>
-                                  <Input
-                                      type="password"
-                                      placeholder="Mínimo 8 caracteres"
-                                      value={password}
-                                      onChange={(e) => setPassword(e.target.value)}
-                                      required
-                                      minLength={8}
-                                      className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                  />
+                                  <div className="relative">
+                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                                    <Input
+                                        type="password"
+                                        placeholder="Mínimo 8 caracteres"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        minLength={8}
+                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
+                                    />
+                                  </div>
                                 </div>
 
                                 <Button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
+                                    className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
                                 >
                                   Criar Conta
+                                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                                 </Button>
                               </form>
                           ) : (
@@ -403,14 +432,17 @@ export default function LoginPage() {
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
                                     <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
                                   </label>
-                                  <Input
-                                      type="email"
-                                      placeholder="nome@empresa.com.br"
-                                      value={email}
-                                      onChange={(e) => setEmail(e.target.value)}
-                                      required
-                                      className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                  />
+                                  <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                                    <Input
+                                        type="email"
+                                        placeholder="nome@empresa.com.br"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
+                                    />
+                                  </div>
                                 </div>
 
                                 <div className="pt-2">
@@ -427,9 +459,10 @@ export default function LoginPage() {
                                         <Button
                                             type="submit"
                                             disabled={loading}
-                                            className="w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all"
+                                            className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all"
                                         >
                                           Enviar Link
+                                          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
                                         </Button>
                                         <Button
                                             type="button"
