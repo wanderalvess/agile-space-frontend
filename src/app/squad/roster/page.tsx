@@ -28,7 +28,9 @@ import {
   Copy,
   Trash2,
   Ban,
-  Mail
+  Mail,
+  ChevronDown,
+  GraduationCap
 } from 'lucide-react';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 
@@ -39,6 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { SquadMember } from '@/lib/types';
 import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
 import { inviteApi, type Invite } from '@/lib/invite-api';
+import { squadApi, type ResolvedPersonConfig } from '@/app/squad/api';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -212,6 +215,64 @@ function RosterContent() {
   // Edit draft state per member: { [jiraAccountId]: { capacity: number, role: string, notes: string } }
   const [editDrafts, setEditDrafts] = useState<Record<string, { capacity: number; role: string; notes: string }>>({});
   const [savingMemberId, setSavingMemberId] = useState<string | null>(null);
+
+  // Papel & Capacidade com herança (Fase 6 — SquadCapacityService/SquadPersonConfig).
+  // Modelo separado do capacityHoursPerDay acima: papel DEV/QA + dias por fase
+  // (Codificação/Teste vs Regressivo), escopado à sprint ativa do squad, com herança
+  // sprint anterior -> default global. Carregado sob demanda ao expandir a linha —
+  // evita N chamadas por membro em toda visita à tela.
+  const activeSprintId = config?.activeSprintId || undefined;
+  const [expandedPersonConfigId, setExpandedPersonConfigId] = useState<string | null>(null);
+  const [personConfigs, setPersonConfigs] = useState<Record<string, ResolvedPersonConfig>>({});
+  const [personConfigDrafts, setPersonConfigDrafts] = useState<Record<string, { papel: string; diasCodificacaoTeste: number; diasRegressivo: number; horasProdutivas: number }>>({});
+  const [loadingPersonConfigId, setLoadingPersonConfigId] = useState<string | null>(null);
+  const [savingPersonConfigId, setSavingPersonConfigId] = useState<string | null>(null);
+
+  const handleTogglePersonConfig = async (m: SquadMember) => {
+    const id = m.jiraAccountId;
+    if (expandedPersonConfigId === id) {
+      setExpandedPersonConfigId(null);
+      return;
+    }
+    setExpandedPersonConfigId(id);
+    if (!personConfigs[id]) {
+      setLoadingPersonConfigId(id);
+      try {
+        const resolved = await squadApi.getPersonConfig(activeSquadId, id, activeSprintId);
+        setPersonConfigs(prev => ({ ...prev, [id]: resolved }));
+        setPersonConfigDrafts(prev => ({
+          ...prev,
+          [id]: {
+            papel: resolved.papel,
+            diasCodificacaoTeste: resolved.diasCodificacaoTeste,
+            diasRegressivo: resolved.diasRegressivo,
+            horasProdutivas: resolved.horasProdutivas,
+          },
+        }));
+      } catch (err: any) {
+        toast({ title: 'Erro ao carregar papel/capacidade', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+        setExpandedPersonConfigId(null);
+      } finally {
+        setLoadingPersonConfigId(null);
+      }
+    }
+  };
+
+  const handleSavePersonConfig = async (jiraAccountId: string) => {
+    const draft = personConfigDrafts[jiraAccountId];
+    if (!draft) return;
+    setSavingPersonConfigId(jiraAccountId);
+    try {
+      await squadApi.savePersonConfig(activeSquadId, jiraAccountId, activeSprintId, draft);
+      const resolved = await squadApi.getPersonConfig(activeSquadId, jiraAccountId, activeSprintId);
+      setPersonConfigs(prev => ({ ...prev, [jiraAccountId]: resolved }));
+      toast({ title: 'Papel & capacidade salvos', description: 'Valor definido para esta sprint.' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao salvar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setSavingPersonConfigId(null);
+    }
+  };
 
   // Import Modal State
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -1118,6 +1179,22 @@ function RosterContent() {
                       {/* Action Buttons */}
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleTogglePersonConfig(m)}
+                                  className={`h-7 w-7 rounded-lg ${expandedPersonConfigId === m.jiraAccountId ? 'text-violet-600 bg-violet-50 dark:bg-violet-950/40' : 'text-slate-400 hover:text-violet-600'}`}
+                                >
+                                  {expandedPersonConfigId === m.jiraAccountId ? <ChevronDown className="h-3.5 w-3.5" /> : <GraduationCap className="h-3.5 w-3.5" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-[10px]">Papel & Capacidade (Dev/QA, por fase da sprint)</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
                           {isOverridden && (
                             <TooltipProvider>
                               <Tooltip>
@@ -1160,6 +1237,102 @@ function RosterContent() {
                   );
                 })
               )}
+              {filteredMembers.map(m => {
+                if (expandedPersonConfigId !== m.jiraAccountId) return null;
+                const isLoadingThis = loadingPersonConfigId === m.jiraAccountId;
+                const resolved = personConfigs[m.jiraAccountId];
+                const draft = personConfigDrafts[m.jiraAccountId];
+                const isSavingThis = savingPersonConfigId === m.jiraAccountId;
+                return (
+                  <tr key={`${m.jiraAccountId}-person-config`} className="bg-violet-50/30 dark:bg-violet-950/10">
+                    <td colSpan={9} className="p-4">
+                      {isLoadingThis || !draft || !resolved ? (
+                        <p className="text-xs text-slate-400 py-2">Carregando papel & capacidade...</p>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <GraduationCap className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                            <p className="text-xs font-black uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                              Papel & Capacidade — {activeSprintId ? `Sprint ${activeSprintId}` : 'Sem sprint ativa (default do squad)'}
+                            </p>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-2xl">
+                            Modelo separado das Horas Reais acima: aqui a capacidade é calculada por dias em cada fase da sprint
+                            (Codificação/Teste vs Regressivo) × horas produtivas/dia, com papel DEV ou QA. Campo não definido nesta
+                            sprint herda da sprint anterior mais recente e depois do default do squad — indicado por &quot;Herdado&quot;.
+                          </p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-extrabold uppercase text-slate-500 flex items-center gap-1">
+                                Papel {resolved.papelInherited && <Badge variant="outline" className="text-[9px] font-normal">Herdado{resolved.papelSource ? `: ${resolved.papelSource}` : ''}</Badge>}
+                              </Label>
+                              <Select
+                                value={draft.papel || '__NONE__'}
+                                onValueChange={val => setPersonConfigDrafts(prev => ({ ...prev, [m.jiraAccountId]: { ...prev[m.jiraAccountId], papel: val === '__NONE__' ? '' : val } }))}
+                              >
+                                <SelectTrigger className="h-9 rounded-xl text-xs bg-white dark:bg-slate-950">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__NONE__">Não definido</SelectItem>
+                                  <SelectItem value="DEV">DEV</SelectItem>
+                                  <SelectItem value="QA">QA</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-extrabold uppercase text-slate-500 flex items-center gap-1">
+                                Dias Codificação/Teste {resolved.diasCodificacaoTesteInherited && <Badge variant="outline" className="text-[9px] font-normal">Herdado</Badge>}
+                              </Label>
+                              <Input
+                                type="number" min={0} max={31}
+                                value={draft.diasCodificacaoTeste}
+                                onChange={e => setPersonConfigDrafts(prev => ({ ...prev, [m.jiraAccountId]: { ...prev[m.jiraAccountId], diasCodificacaoTeste: Number(e.target.value) || 0 } }))}
+                                className="h-9 rounded-xl text-xs bg-white dark:bg-slate-950"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-extrabold uppercase text-slate-500 flex items-center gap-1">
+                                Dias Regressivo {resolved.diasRegressivoInherited && <Badge variant="outline" className="text-[9px] font-normal">Herdado</Badge>}
+                              </Label>
+                              <Input
+                                type="number" min={0} max={31}
+                                value={draft.diasRegressivo}
+                                onChange={e => setPersonConfigDrafts(prev => ({ ...prev, [m.jiraAccountId]: { ...prev[m.jiraAccountId], diasRegressivo: Number(e.target.value) || 0 } }))}
+                                className="h-9 rounded-xl text-xs bg-white dark:bg-slate-950"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] font-extrabold uppercase text-slate-500 flex items-center gap-1">
+                                Horas Produtivas/dia {resolved.horasProdutivasInherited && <Badge variant="outline" className="text-[9px] font-normal">Herdado</Badge>}
+                              </Label>
+                              <Input
+                                type="number" min={0} max={24} step="0.25"
+                                value={draft.horasProdutivas}
+                                onChange={e => setPersonConfigDrafts(prev => ({ ...prev, [m.jiraAccountId]: { ...prev[m.jiraAccountId], horasProdutivas: Number(e.target.value) || 0 } }))}
+                                className="h-9 rounded-xl text-xs bg-white dark:bg-slate-950"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-bold text-violet-700 dark:text-violet-300">
+                              Capacidade total no período: {(draft.horasProdutivas * (draft.diasCodificacaoTeste + draft.diasRegressivo)).toFixed(2)}h
+                            </p>
+                            <Button
+                              size="sm"
+                              onClick={() => handleSavePersonConfig(m.jiraAccountId)}
+                              disabled={isSavingThis}
+                              className="h-8 px-3 text-xs font-bold gap-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white"
+                            >
+                              <Save className="h-3.5 w-3.5" /> {isSavingThis ? 'Salvando...' : 'Salvar Papel & Capacidade'}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

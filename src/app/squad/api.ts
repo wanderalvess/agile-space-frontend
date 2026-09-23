@@ -311,4 +311,41 @@ export const squadApi = {
   async deletePanel(squadId: string, panelId: string): Promise<void> {
     return req<void>(`/squads/${squadId}/panels/${panelId}`, { method: 'DELETE' });
   },
+
+  // ----- Person Config (papel DEV/QA + capacidade por fase, com herança de sprint
+  // anterior -> default global do squad — ver SquadCapacityService) -----
+  async getPersonConfig(squadId: string, jiraAccountId: string, sprintId?: string): Promise<ResolvedPersonConfig> {
+    const qs = sprintId ? `?sprintId=${encodeURIComponent(sprintId)}` : '';
+    return req<ResolvedPersonConfig>(`/squads/${squadId}/person-config/${encodeURIComponent(jiraAccountId)}${qs}`);
+  },
+
+  async savePersonConfig(
+    squadId: string,
+    jiraAccountId: string,
+    sprintId: string | undefined,
+    updates: Partial<Pick<ResolvedPersonConfig, 'papel' | 'diasCodificacaoTeste' | 'diasRegressivo' | 'horasProdutivas'>>
+  ): Promise<void> {
+    const qs = sprintId ? `?sprintId=${encodeURIComponent(sprintId)}` : '';
+    await req<unknown>(`/squads/${squadId}/person-config/${encodeURIComponent(jiraAccountId)}${qs}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
 };
+
+// Espelha SquadCapacityService.ResolvedPersonConfig no backend.
+export interface ResolvedPersonConfig {
+  jiraAccountId: string;
+  papel: string;
+  diasCodificacaoTeste: number;
+  diasRegressivo: number;
+  horasProdutivas: number;
+  papelInherited: boolean;
+  diasCodificacaoTesteInherited: boolean;
+  diasRegressivoInherited: boolean;
+  horasProdutivasInherited: boolean;
+  papelSource: string | null;
+  diasCodificacaoTesteSource: string | null;
+  diasRegressivoSource: string | null;
+  horasProdutivasSource: string | null;
+}
