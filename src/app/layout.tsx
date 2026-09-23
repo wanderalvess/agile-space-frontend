@@ -70,10 +70,11 @@ export default function RootLayout({
               (function() {
                 try {
                   var savedTheme = localStorage.getItem('theme');
-                  var theme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var isDark = savedTheme === 'dark' || (savedTheme !== 'light' && prefersDark);
                   var variant = localStorage.getItem('theme-variant') || 'default';
                   var root = document.documentElement;
-                  if (theme === 'dark') {
+                  if (isDark) {
                     root.classList.add('dark');
                   } else {
                     root.classList.remove('dark');

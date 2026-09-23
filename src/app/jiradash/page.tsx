@@ -27,7 +27,7 @@ export default function JiraDashPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { settings, loading, saveSettings } = useJiraSettings();
   const { savedJqls, saveJql, deleteJql } = useSavedJqls();
-  const { mode, variant } = useTheme();
+  const { resolvedMode, variant } = useTheme();
   const { toast } = useToast();
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -61,13 +61,13 @@ export default function JiraDashPage() {
       iframeRef.current.contentWindow.postMessage(
         {
           type: 'SET_THEME',
-          mode,
+          mode: resolvedMode,
           variant,
         },
         '*'
       );
     }
-  }, [iframeLoaded, mode, variant]);
+  }, [iframeLoaded, resolvedMode, variant]);
 
   useEffect(() => {
     if (iframeLoaded && settings?.token) {
@@ -81,7 +81,7 @@ export default function JiraDashPage() {
       iframeRef.current.contentWindow.postMessage(
         {
           type: 'SET_THEME',
-          mode,
+          mode: resolvedMode,
           variant,
         },
         '*'

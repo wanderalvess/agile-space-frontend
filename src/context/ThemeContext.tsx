@@ -2,11 +2,14 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
+export type ResolvedThemeMode = 'light' | 'dark';
 export type ThemeVariant = 'default' | 'nebula' | 'cyberpunk' | 'midnight' | 'nordic';
 
 interface ThemeContextType {
   mode: ThemeMode;
+  /** Aparência realmente aplicada ('system' já resolvido para light/dark) */
+  resolvedMode: ResolvedThemeMode;
   variant: ThemeVariant;
   setMode: (mode: ThemeMode) => void;
   setVariant: (variant: ThemeVariant) => void;
@@ -14,21 +17,24 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const getSystemPreference = (): ResolvedThemeMode =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>('light');
+  const [mode, setModeState] = useState<ThemeMode>('system');
+  const [resolvedMode, setResolvedMode] = useState<ResolvedThemeMode>('light');
   const [variant, setVariantState] = useState<ThemeVariant>('default');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // Read initial theme and variant from localStorage (safe on client side)
-    const savedTheme = localStorage.getItem('theme') as ThemeMode | null;
+    const savedTheme = (localStorage.getItem('theme') as ThemeMode | null) || 'system';
     const savedVariant = localStorage.getItem('theme-variant') as ThemeVariant | null;
 
-    if (savedTheme) {
-      setModeState(savedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setModeState('dark');
-    }
+    setModeState(savedTheme);
+    setResolvedMode(savedTheme === 'system' ? getSystemPreference() : savedTheme);
 
     if (savedVariant) {
       setVariantState(savedVariant);
@@ -37,25 +43,39 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setMounted(true);
   }, []);
 
+  // Enquanto o modo 'system' estiver ativo, acompanha mudanças de claro/escuro do SO em tempo real.
+  // O guard `mounted` evita rodar com o placeholder 'system' antes da preferência salva ser lida acima.
+  useEffect(() => {
+    if (!mounted || mode !== 'system' || typeof window === 'undefined') return;
+
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => setResolvedMode(e.matches ? 'dark' : 'light');
+
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, [mounted, mode]);
+
   const setMode = (newMode: ThemeMode) => {
     setModeState(newMode);
     localStorage.setItem('theme', newMode);
-    applyThemeClasses(newMode, variant);
+    const nextResolved = newMode === 'system' ? getSystemPreference() : newMode;
+    setResolvedMode(nextResolved);
+    applyThemeClasses(nextResolved, variant);
   };
 
   const setVariant = (newVariant: ThemeVariant) => {
     setVariantState(newVariant);
     localStorage.setItem('theme-variant', newVariant);
-    applyThemeClasses(mode, newVariant);
+    applyThemeClasses(resolvedMode, newVariant);
   };
 
-  const applyThemeClasses = (currentMode: ThemeMode, currentVariant: ThemeVariant) => {
+  const applyThemeClasses = (currentResolvedMode: ResolvedThemeMode, currentVariant: ThemeVariant) => {
     if (typeof window === 'undefined') return;
 
     const root = document.documentElement;
 
     // Apply base mode (light/dark)
-    if (currentMode === 'dark') {
+    if (currentResolvedMode === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
@@ -82,12 +102,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Sync classes on initial mount
   useEffect(() => {
     if (mounted) {
-      applyThemeClasses(mode, variant);
+      applyThemeClasses(resolvedMode, variant);
     }
-  }, [mounted, mode, variant]);
+  }, [mounted, resolvedMode, variant]);
 
   return (
-    <ThemeContext.Provider value={{ mode, variant, setMode, setVariant }}>
+    <ThemeContext.Provider value={{ mode, resolvedMode, variant, setMode, setVariant }}>
       {children}
     </ThemeContext.Provider>
   );
