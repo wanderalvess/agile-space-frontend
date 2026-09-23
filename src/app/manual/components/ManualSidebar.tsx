@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { 
   MANUAL_CATEGORIES, 
   MANUAL_TOPICS, 
-  ManualCategory 
 } from '../data/topics';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +14,6 @@ import {
   BookOpen, 
   Search, 
   ChevronRight, 
-  Sparkles, 
   X,
   Compass,
   ArrowUpRight
@@ -46,7 +44,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
   };
 
   return (
-    <aside className={cn("w-72 flex flex-col border-r border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl h-full", className)}>
+    <aside className={cn("w-72 flex flex-col border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 backdrop-blur-xl h-full select-none", className)}>
       {/* Brand & Guide Subtitle */}
       <div className="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-3">
         <Link 
@@ -54,7 +52,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
           onClick={onNavigate}
           className="flex items-center gap-3 group"
         >
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-md shadow-primary/25 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md shadow-primary/25 group-hover:scale-105 transition-transform">
             <BookOpen className="h-5 w-5" />
           </div>
           <div>
@@ -75,12 +73,13 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar guia ou tópico..."
-            className="pl-9 pr-8 h-9 text-xs rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border-slate-200/60 dark:border-slate-700/60 focus-visible:ring-1 focus-visible:ring-primary font-medium"
+            className="pl-9 pr-8 h-9 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border-slate-200/60 dark:border-slate-700/60 focus-visible:ring-1 focus-visible:ring-primary font-medium placeholder:text-slate-400"
           />
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery('')}
               className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              aria-label="Limpar busca"
             >
               <X className="h-4 w-4" />
             </button>
@@ -98,13 +97,13 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
             className={cn(
               "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group",
               pathname === '/manual'
-                ? "bg-primary text-white shadow-md shadow-primary/20"
+                ? "bg-primary text-white shadow-sm shadow-primary/30 font-black"
                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60"
             )}
           >
             <Compass className={cn("h-4 w-4 shrink-0", pathname === '/manual' ? "text-white" : "text-slate-400 group-hover:text-primary")} />
             <span className="flex-1 truncate">Visão Geral & Índice</span>
-            {pathname === '/manual' && <ChevronRight className="h-3 w-3 text-white/70" />}
+            {pathname === '/manual' && <ChevronRight className="h-3.5 w-3.5 text-white/80" />}
           </Link>
         </div>
 
@@ -128,15 +127,20 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                     href={`/manual/${topic.id}`}
                     onClick={onNavigate}
                     className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all group",
+                      "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all group",
                       active
-                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                        ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white shadow-sm font-bold ring-1 ring-slate-700"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold"
                     )}
                   >
-                    <Icon className={cn("h-4 w-4 shrink-0", active ? (pathname.includes('/manual') ? "text-primary" : topic.color) : topic.color)} />
-                    <span className="flex-1 truncate">{topic.title}</span>
-                    <ChevronRight className={cn("h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity", active && "opacity-100")} />
+                    <div className={cn(
+                      "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
+                      active ? "bg-white/10 dark:bg-white/15" : "bg-slate-100 dark:bg-slate-800"
+                    )}>
+                      <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : topic.color)} />
+                    </div>
+                    <span className="flex-1 truncate text-[11px]">{topic.title}</span>
+                    <ChevronRight className={cn("h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity", active && "opacity-100")} />
                   </Link>
                 );
               })
@@ -152,7 +156,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
               return (
                 <div key={category.id} className="space-y-1.5">
                   <div className="px-3 py-1">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                       {category.label}
                     </p>
                   </div>
@@ -167,17 +171,17 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                           href={`/manual/${topic.id}`}
                           onClick={onNavigate}
                           className={cn(
-                            "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all group",
+                            "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all group",
                             active
-                              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm font-bold"
-                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                              ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white shadow-sm font-bold ring-1 ring-slate-700/50"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold"
                           )}
                         >
                           <div className={cn(
-                            "w-6 h-6 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110",
-                            active ? "bg-white/10 dark:bg-slate-900/10" : "bg-slate-100 dark:bg-slate-800"
+                            "w-6 h-6 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
+                            active ? "bg-white/10 dark:bg-white/15" : "bg-slate-100 dark:bg-slate-800"
                           )}>
-                            <Icon className={cn("h-3.5 w-3.5", topic.color)} />
+                            <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : topic.color)} />
                           </div>
                           <span className="flex-1 truncate text-[11px]">{topic.title}</span>
                           {active && <ChevronRight className="h-3 w-3 opacity-80" />}

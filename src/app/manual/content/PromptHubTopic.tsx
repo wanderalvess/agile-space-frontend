@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { MessageSquare, GitFork, Sliders, Zap, Sparkles } from 'lucide-react';
 import { ManualHero } from '../components/ManualHero';
+import { ModuleApiToolSection } from '../components/ModuleApiToolSection';
 import { getTopicById } from '../data/topics';
 
 export function PromptHubTopic() {
@@ -74,6 +75,9 @@ export function PromptHubTopic() {
           </Card>
         </div>
       </div>
+
+      {/* Seção Detalhada de API e MCP Tools */}
+      <ModuleApiToolSection moduleId="prompt-hub" />
     </div>
   );
 }

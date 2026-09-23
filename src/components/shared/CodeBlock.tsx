@@ -8,6 +8,8 @@ interface CodeBlockProps {
   code: string;
   /** Rótulo curto no topo do bloco (ex: "curl", "Resposta", "claude_desktop_config.json"). */
   label?: string;
+  /** Linguagem ou identificador de formato (ex: "bash", "json"). Usado como fallback quando `label` não for definido. */
+  language?: string;
   className?: string;
 }
 
@@ -16,8 +18,9 @@ interface CodeBlockProps {
  * de integração (/manual#integracoes e o dialog por módulo). Sem realce de
  * sintaxe de propósito: os trechos são curtos e o app não carrega highlighter.
  */
-export function CodeBlock({ code, label, className }: CodeBlockProps) {
+export function CodeBlock({ code, label, language, className }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const displayLabel = label || language || 'Exemplo';
 
   const handleCopy = async () => {
     try {
@@ -34,7 +37,7 @@ export function CodeBlock({ code, label, className }: CodeBlockProps) {
     <div className={cn('rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-950', className)}>
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-          {label || 'Exemplo'}
+          {displayLabel}
         </span>
         <button
           type="button"

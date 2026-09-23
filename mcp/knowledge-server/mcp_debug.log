@@ -19,3 +19,9 @@
 [2026-09-10T21:02:04.463Z] Response from https://espacoagil.com.br/api/v1/knowledge/docs?page=1&pageSize=20: HTTP 200
 [2026-09-11T12:59:10.773Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
 [2026-09-14T17:04:04.245Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-15T17:34:17.785Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-17T12:12:17.610Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-18T12:40:18.045Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-18T19:20:33.206Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-21T11:56:08.855Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
+[2026-09-21T12:12:21.510Z] Knowledge server module loaded. ENV: LEGACY_BASE_URL=https://espacoagil.com.br, LEGACY_API_KEY=ask_2914..., NEW_BASE_URL=undefined
