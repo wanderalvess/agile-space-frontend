@@ -9,7 +9,6 @@ export interface AdminStats {
   totalSprintPlannings: number;
   totalHealthCheckBoards: number;
   totalBrainstormingBoards: number;
-  totalDailyCheckins: number;
   totalSessions: number;
   totalParticipations: number;
   avgSessionDurationMinutes: number | null;

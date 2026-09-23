@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Clock, Flame, PieChart as ChartIcon, ChevronDown, ChevronUp, Calendar, FileText, 
+import {
+  Clock, Flame, PieChart as ChartIcon, Calendar,
   CheckCircle2, TrendingUp, Layers, Sparkles, Filter, ShieldCheck, Gauge, Users,
-  Target, AlertTriangle, Zap, Activity, ArrowUpRight, Award, UserCheck, CheckSquare,
+  Target, Zap, Activity, ArrowUpRight, Award, UserCheck, CheckSquare,
   Bug, Code2, RefreshCw
 } from 'lucide-react';
 import { 
@@ -12,7 +12,6 @@ import {
   PieChart, Pie, Cell, ComposedChart, Line
 } from 'recharts';
 import { useSquadStore } from '@/store/useSquadStore';
-import { useDailyStore } from '@/store/useDailyStore';
 import { WidgetCard } from '@/components/ui/WidgetCard';
 import { RetroHistoryPanel } from '@/components/retro/RetroHistoryPanel';
 import { KPICard } from '@/components/ui/KPICard';
@@ -42,11 +41,7 @@ export function SquadPerformanceView() {
     activeSquadId
   } = useSquadStore();
 
-  const { weeklyWorklogs, dailyReports } = useDailyStore();
-
-  const [expandedReportIdx, setExpandedReportIdx] = useState<number | null>(0);
   const [periodFilter, setPeriodFilter] = useState<'hoje' | 'semana' | 'quinzena' | 'mes'>('semana');
-  const [typeFilter, setTypeFilter] = useState<'todas' | 'jira' | 'manual'>('todas');
   const [selectedMember, setSelectedMember] = useState<string>('all');
   const [isMounted, setIsMounted] = useState(false);
 
@@ -91,27 +86,7 @@ export function SquadPerformanceView() {
     return dates;
   };
 
-  // Worklogs combinados
-  const baseWorklogs = useMemo(() => {
-    return weeklyWorklogs && weeklyWorklogs.length > 0 ? weeklyWorklogs : [];
-  }, [weeklyWorklogs]);
-
-  // Filtragem de worklogs
-  const filteredWorklogs = useMemo(() => {
-    return baseWorklogs.filter(w => {
-      if (periodFilter === 'hoje' && w.date !== todayStr) return false;
-      if (periodFilter === 'semana' && !weekDates.includes(w.date)) return false;
-      if (periodFilter === 'quinzena' && !getPastDates(15).includes(w.date)) return false;
-      if (periodFilter === 'mes' && !getPastDates(30).includes(w.date)) return false;
-
-      if (typeFilter === 'jira' && !w.isJira) return false;
-      if (typeFilter === 'manual' && w.isJira) return false;
-
-      return true;
-    });
-  }, [baseWorklogs, periodFilter, typeFilter, todayStr, weekDates]);
-
-  // Dados para gráfico de tendência diária (Daily Snapshots ou Worklogs)
+  // Dados para gráfico de tendência diária (Daily Snapshots da Squad, via Jira sync)
   const chartData = useMemo(() => {
     let dateKeys: { key: string; label: string }[] = [];
     if (periodFilter === 'hoje') {
@@ -131,45 +106,16 @@ export function SquadPerformanceView() {
     }
 
     return dateKeys.map(pd => {
-      // Buscar do dailySnapshots da Squad se existir
       const snap = dailySnapshots.find(s => s.snapshotDate === pd.key);
-      const dayLogs = filteredWorklogs.filter(w => w.date === pd.key);
-
-      const focadoMinutes = dayLogs.filter(w => !w.isJira).reduce((sum, w) => sum + w.durationMinutes, 0);
-      const jiraMinutes = dayLogs.filter(w => w.isJira).reduce((sum, w) => sum + w.durationMinutes, 0);
-      
-      const snapLoggedHours = snap ? parseFloat((snap.loggedSec / 3600).toFixed(1)) : 0;
-      const totalLoggedHours = snapLoggedHours > 0 
-        ? snapLoggedHours 
-        : parseFloat(((focadoMinutes + jiraMinutes) / 60).toFixed(1));
-
-      const doneItems = snap ? snap.doneIssues : (jiraMinutes > 0 ? 1 : 0);
-
       return {
         name: pd.label,
-        focado: parseFloat((focadoMinutes / 60).toFixed(1)),
-        jira: parseFloat((jiraMinutes / 60).toFixed(1)),
-        totalHoras: totalLoggedHours,
-        entregas: doneItems
+        totalHoras: snap ? parseFloat((snap.loggedSec / 3600).toFixed(1)) : 0,
+        entregas: snap ? snap.doneIssues : 0
       };
     });
-  }, [periodFilter, dailySnapshots, filteredWorklogs, todayStr, weekDates]);
+  }, [periodFilter, dailySnapshots, todayStr, weekDates]);
 
   // Donut de Categorias de Trabalho
-  const getCategory = (title: string) => {
-    const t = (title || '').toLowerCase();
-    if (t.includes('bug') || t.includes('fix') || t.includes('hotfix') || t.includes('erro') || t.includes('correção')) {
-      return 'Bugs';
-    }
-    if (t.includes('reunião') || t.includes('daily') || t.includes('meeting') || t.includes('alinhamento') || t.includes('planning') || t.includes('showcase') || t.includes('sprint')) {
-      return 'Reuniões / Rituais';
-    }
-    if (t.includes('infra') || t.includes('setup') || t.includes('config') || t.includes('deploy') || t.includes('ci/cd') || t.includes('build') || t.includes('apoio')) {
-      return 'Infra & Setup';
-    }
-    return 'Desenvolvimento';
-  };
-
   const categoryData = useMemo(() => {
     const catMap: Record<string, number> = {
       'Desenvolvimento': 0,
@@ -178,12 +124,7 @@ export function SquadPerformanceView() {
       'Infra & Setup': 0
     };
 
-    if (filteredWorklogs.length > 0) {
-      filteredWorklogs.forEach(w => {
-        const cat = getCategory(w.title);
-        catMap[cat] = (catMap[cat] || 0) + w.durationMinutes;
-      });
-    } else if (activeIssues.length > 0) {
+    if (activeIssues.length > 0) {
       activeIssues.forEach(iss => {
         const typeStr = (iss.type || '').toLowerCase();
         if (typeStr.includes('bug')) catMap['Bugs'] += 60;
@@ -211,7 +152,7 @@ export function SquadPerformanceView() {
     }).filter(c => c.value > 0);
 
     return list.length > 0 ? list : [{ name: 'Sem registros', value: 100, color: 'hsl(var(--muted))' }];
-  }, [filteredWorklogs, activeIssues]);
+  }, [activeIssues]);
 
   // Cálculos de KPI Principais
   const squadTotalCapacityHours = useMemo(() => {
@@ -220,12 +161,8 @@ export function SquadPerformanceView() {
   }, [members]);
 
   const loggedHoursTotal = useMemo(() => {
-    if (activeRollup?.loggedTotalSec) {
-      return (activeRollup.loggedTotalSec / 3600).toFixed(1);
-    }
-    const mins = filteredWorklogs.reduce((sum, w) => sum + w.durationMinutes, 0);
-    return (mins / 60).toFixed(1);
-  }, [activeRollup, filteredWorklogs]);
+    return activeRollup?.loggedTotalSec ? (activeRollup.loggedTotalSec / 3600).toFixed(1) : '0.0';
+  }, [activeRollup]);
 
   const estimatedHoursTotal = useMemo(() => {
     return activeRollup?.estimateTotalSec ? (activeRollup.estimateTotalSec / 3600).toFixed(0) : '0';
@@ -251,14 +188,10 @@ export function SquadPerformanceView() {
       const snap = dailySnapshots.find(s => s.snapshotDate === dStr);
       if (snap && snap.loggedSec >= 14400) {
         count++;
-      } else {
-        const dayLogs = baseWorklogs.filter(w => w.date === dStr);
-        const dayMin = dayLogs.reduce((sum, w) => sum + w.durationMinutes, 0);
-        if (dayMin >= 240) count++;
       }
     });
     return count;
-  }, [dailySnapshots, baseWorklogs]);
+  }, [dailySnapshots]);
 
   // Lista formatada de Membros da Squad
   const squadMemberList = useMemo(() => {
@@ -316,19 +249,6 @@ export function SquadPerformanceView() {
     if (selectedMember === 'all') return squadMemberList;
     return squadMemberList.filter(m => m.jiraAccountId === selectedMember || m.displayName === selectedMember);
   }, [squadMemberList, selectedMember]);
-
-  const formatReportDay = (dateStr: string) => {
-    if (!dateStr) return '';
-    if (dateStr === todayStr) return 'Hoje';
-    try {
-      const parts = dateStr.split('-');
-      const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      const dayName = date.toLocaleDateString('pt-BR', { weekday: 'long' });
-      return dayName.charAt(0).toUpperCase() + dayName.slice(1);
-    } catch (_) {
-      return dateStr;
-    }
-  };
 
   if (!isMounted) return null;
 
@@ -392,20 +312,6 @@ export function SquadPerformanceView() {
             </div>
           )}
 
-          {/* Origem */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Origem:</span>
-            <Select value={typeFilter} onValueChange={(val: any) => setTypeFilter(val)}>
-              <SelectTrigger className="w-36 h-8 text-[9.5px] font-black uppercase tracking-wider bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl focus:ring-1 focus:ring-indigo-500">
-                <SelectValue placeholder="Origem" />
-              </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl">
-                <SelectItem value="todas" className="text-[9.5px] font-black uppercase">Todas Demandas</SelectItem>
-                <SelectItem value="jira" className="text-[9.5px] font-black uppercase">Apenas Jira</SelectItem>
-                <SelectItem value="manual" className="text-[9.5px] font-black uppercase">Apenas Manuais</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -538,8 +444,7 @@ export function SquadPerformanceView() {
                   iconType="circle"
                   wrapperStyle={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' }} 
                 />
-                <Bar yAxisId="left" name="Horas Foco" dataKey="focado" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} />
-                <Bar yAxisId="left" name="Horas Jira" dataKey="jira" fill="#06b6d4" radius={[4, 4, 0, 0]} barSize={18} />
+                <Bar yAxisId="left" name="Horas Logadas" dataKey="totalHoras" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} />
                 <Line yAxisId="right" name="Entregas (Done)" type="monotone" dataKey="entregas" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
               </ComposedChart>
             </ResponsiveContainer>
@@ -667,80 +572,6 @@ export function SquadPerformanceView() {
             ))}
           </div>
         )}
-      </WidgetCard>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          HISTÓRICO DE DAILIES E SINCRONIZAÇÕES
-         ═══════════════════════════════════════════════════════════════════ */}
-      <WidgetCard 
-        title="Histórico de Rituais Diários & Sincronizações" 
-        headerIcon={<FileText className="h-4 w-4 text-emerald-500" />}
-      >
-        <div className="space-y-2 max-h-[220px] overflow-y-auto no-scrollbar pr-1 mt-1">
-          {dailyReports.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-6 text-slate-400 gap-1.5">
-              <FileText className="h-6 w-6 opacity-30 animate-pulse" />
-              <span className="text-[9px] font-bold uppercase tracking-wider">Nenhum relatório diário registrado nesta squad.</span>
-            </div>
-          ) : (
-            dailyReports.map((item, idx) => {
-              const isExpanded = expandedReportIdx === idx;
-              return (
-                <div 
-                  key={idx} 
-                  className="border border-slate-200/60 dark:border-slate-800/60 rounded-xl overflow-hidden transition-all bg-slate-50/50 dark:bg-slate-950/20"
-                >
-                  <button
-                    onClick={() => setExpandedReportIdx(isExpanded ? null : idx)}
-                    className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-slate-100/50 dark:hover:bg-slate-900/40 transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{formatReportDay(item.date)}</span>
-                        <span className="text-[9px] font-medium text-slate-400 block tracking-wider">{item.date}</span>
-                      </div>
-                    </div>
-                    {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                    )}
-                  </button>
-
-                  {isExpanded && (
-                    <div className="px-3.5 pb-3 pt-1 border-t border-slate-100 dark:border-slate-800/40 space-y-2 text-xs text-slate-600 dark:text-slate-400 animate-in fade-in duration-200">
-                      <div>
-                        <h5 className="font-black text-slate-800 dark:text-slate-300 uppercase tracking-widest text-[8px] mb-0.5">Realizado:</h5>
-                        <p className="whitespace-pre-line leading-relaxed pl-2 border-l-2 border-indigo-500/30 text-[10px]">
-                          {item.yesterday}
-                        </p>
-                      </div>
-
-                      <div>
-                        <h5 className="font-black text-slate-800 dark:text-slate-300 uppercase tracking-widest text-[8px] mb-0.5">Planejado:</h5>
-                        <p className="whitespace-pre-line leading-relaxed pl-2 border-l-2 border-cyan-500/30 text-[10px]">
-                          {item.today}
-                        </p>
-                      </div>
-
-                      {item.blockers && item.blockers !== 'Nenhum' && (
-                        <div>
-                          <h5 className="font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest text-[8px] mb-0.5 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3 inline" /> Impedimento:
-                          </h5>
-                          <p className="leading-relaxed pl-2 border-l-2 border-rose-500/40 text-rose-600 dark:text-rose-400 font-semibold text-[10px]">
-                            {item.blockers}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
       </WidgetCard>
 
       {/* ═══════════════════════════════════════════════════════════════════

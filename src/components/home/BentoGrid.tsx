@@ -16,9 +16,7 @@ import {
   BookOpen,
   FileText,
   ArrowUpRight,
-  Users2,
   Calendar,
-  AlertCircle,
   Clock,
   Activity,
   Gauge,
@@ -202,65 +200,6 @@ export function BentoGrid() {
             className="w-full h-10 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
           >
             Iniciar Retro
-          </Button>
-        </Card>
-      </motion.div>
-
-      {/* 4. DAILY FLOW (col-span-4) - Sincronização e Impedimentos */}
-      <motion.div
-        variants={itemVariants}
-        className="lg:col-span-4 md:col-span-1 col-span-1"
-        whileHover="hover"
-      >
-        <Card 
-          onClick={() => router.push('/daily-flow')}
-          className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-cyan-500/40 dark:hover:border-cyan-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[300px] overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-          
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-cyan-500/10 rounded-xl flex items-center justify-center shrink-0 border border-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
-                <Users2 className="h-5 w-5 text-cyan-500" />
-              </div>
-              <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Diário</span>
-            </div>
-            
-            <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-cyan-500 transition-colors flex items-center gap-1.5">
-              Daily Flow <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-cyan-500" />
-            </h3>
-            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-              Mural de sincronização assíncrona. Acompanhe status, metas da sprint e bloqueios.
-            </p>
-          </div>
-
-          {/* Daily Mockup Stats */}
-          <div className="my-4 space-y-2">
-            <div className="flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 rounded-xl p-2.5">
-              <div className="flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                </span>
-                <span className="text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-300">Status da Squad</span>
-              </div>
-              <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase">8/10 Sincronizados</span>
-            </div>
-
-            <div className="flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 rounded-xl p-2.5">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
-                <span className="text-[10px] font-extrabold uppercase text-slate-700 dark:text-slate-300">Impedimentos ativos</span>
-              </div>
-              <span className="text-[9px] font-black bg-rose-500/10 text-rose-500 border border-rose-500/20 px-2 py-0.5 rounded-md">2 Críticos</span>
-            </div>
-          </div>
-
-          <Button
-            size="sm"
-            className="w-full h-10 bg-cyan-600 hover:bg-cyan-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
-          >
-            Abrir Daily
           </Button>
         </Card>
       </motion.div>

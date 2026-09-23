@@ -19,13 +19,11 @@ import {
   Home,
   Link2,
   BrainCircuit,
-  ClipboardList,
   Code,
   Search
 } from 'lucide-react';
 
 import { MyPrompts } from '@/components/workspace/MyPrompts';
-import { DailyHelper } from '@/components/workspace/DailyHelper';
 import { SnippetLibrary } from '@/components/workspace/SnippetLibrary';
 import { CommandPalette } from '@/components/workspace/CommandPalette';
 import { QuickLinks } from '@/components/workspace/QuickLinks';
@@ -472,7 +470,6 @@ export default function WorkspacePage() {
                     badge: userLinks.length
                   },
                   { id: 'prompts', label: 'Prompts', icon: <BrainCircuit className="h-3.5 w-3.5" /> },
-                  { id: 'daily', label: 'Daily Helper', icon: <ClipboardList className="h-3.5 w-3.5" /> },
                   { id: 'snippets', label: 'Snippets', icon: <Code className="h-3.5 w-3.5" /> },
                 ].map(tab => (
                   <TabsTrigger 
@@ -561,9 +558,6 @@ export default function WorkspacePage() {
                 <MyPrompts userProfile={userProfile} />
               </TabsContent>
 
-              <TabsContent value="daily" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
-                <DailyHelper userProfile={userProfile} />
-              </TabsContent>
 
               <TabsContent value="snippets" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
                 <SnippetLibrary />

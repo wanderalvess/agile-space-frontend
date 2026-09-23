@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity, RefreshCw, Settings2, Bug, ListChecks, TrendingUp, AlertTriangle,
   Users, Trophy, Gauge, ShieldAlert, CalendarRange, LayoutGrid, User, UserCog,
-  ListTodo, LayoutDashboard, History, Timer, Flame, Sparkles, CheckCircle2,
+  ListTodo, LayoutDashboard, History, Flame, Sparkles, CheckCircle2,
   ArrowRight, ShieldCheck, HelpCircle, Layers, Code2, Compass, Play, FileText,
   Workflow, XCircle
 } from 'lucide-react';
@@ -16,7 +16,6 @@ import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDi
 import { SquadWorkflowPhasesDialog } from '@/components/squad/SquadWorkflowPhasesDialog';
 import { useUserContext } from '@/context/UserContext';
 import { useSquadStore } from '@/store/useSquadStore';
-import { useDailyStore } from '@/store/useDailyStore';
 import { SQUAD_ADMIN_ROLES, SQUAD_LEADERSHIP_VIEW_ROLES, SQUAD_PEOPLE_ADMIN_ROLES, type SquadMember, type SquadWorkflowPhase } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,11 +28,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useJiraSettings, getJiraCredentials } from '@/hooks/useJiraSettings';
 import Link from 'next/link';
-import { authFetch } from '@/lib/auth-client';
 
 // Dynamic imports for Daily Flow components
-const DailyTimesheet = dynamic(() => import('@/app/daily-flow/components/DailyTimesheet'), { ssr: false });
-const DailyRadar = dynamic(() => import('@/app/daily-flow/components/DailyRadar'), { ssr: false });
 const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
 const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/SquadDashboardView').then(mod => mod.SquadDashboardView), { ssr: false });
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
@@ -142,9 +138,6 @@ function SquadHubContent() {
     saveSquadConfig, syncSquad, selectSprint, forceResyncSprint, reset: resetSquadStore,
   } = useSquadStore();
 
-  const { selectedDate, fetchWorklogs, fetchWeeklyWorklogs, fetchDailyReports } = useDailyStore();
-  const [assignedTasks, setAssignedTasks] = useState<any[]>([]);
-
   const squadId = userProfile?.squadId || '';
   const role = userProfile?.role as string | undefined;
   const isLeadership = !!role && (SQUAD_ADMIN_ROLES as string[]).includes(role);
@@ -234,37 +227,6 @@ function SquadHubContent() {
       if (defaultKey === 'DDWMISSI') setRapidViewId('11360');
     }
   }, [config, squadId, jiraSettings?.domain]);
-
-  // Carrega tarefas atribuídas para o Daily Command Center
-  useEffect(() => {
-    const userIdentifier = userProfile?.jiraAccountId || userProfile?.id || userProfile?.email;
-    if (userProfile?.squadId && userIdentifier) {
-      // Fetch avulso (não passa pelo squadApi/store) — sem essa flag, trocar
-      // de squad rápido enquanto isto está em voo podia gravar tarefas do
-      // squad antigo no state depois do efeito já ter reagido pro squad novo.
-      let cancelled = false;
-      const fetchTasks = async () => {
-        try {
-          const res = await authFetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(userProfile.squadId)}/assignee/${encodeURIComponent(userIdentifier)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (!cancelled) setAssignedTasks(data);
-          }
-        } catch(e) {}
-      };
-      fetchTasks();
-      return () => { cancelled = true; };
-    }
-  }, [userProfile?.squadId, userProfile?.jiraAccountId, userProfile?.id, userProfile?.email]);
-
-  const effectiveUserId = userProfile?.id || userProfile?.email;
-  useEffect(() => {
-    if (effectiveUserId) {
-      fetchWorklogs(effectiveUserId, selectedDate);
-      fetchWeeklyWorklogs(effectiveUserId);
-      fetchDailyReports(effectiveUserId);
-    }
-  }, [effectiveUserId, selectedDate]);
 
   const handleSaveConfig = async () => {
     if (!squadId) return;
@@ -510,9 +472,6 @@ function SquadHubContent() {
                 <TabsTrigger value="pulse" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
                   Squad Pulse & Métricas
                 </TabsTrigger>
-                <TabsTrigger value="daily" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Daily & Timesheet
-                </TabsTrigger>
                 <TabsTrigger value="performance" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
                   Performance
                 </TabsTrigger>
@@ -551,12 +510,6 @@ function SquadHubContent() {
 
                   <div className="flex flex-wrap items-center gap-3 shrink-0">
                     <Button
-                      onClick={() => setActiveTab('daily')}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl h-11 px-5 text-xs font-black uppercase tracking-wider shadow-md shadow-indigo-600/20 gap-2"
-                    >
-                      <Timer className="h-4 w-4" /> Acessar Daily & Timesheet
-                    </Button>
-                    <Button
                       onClick={() => setActiveTab('board')}
                       variant="outline"
                       className="rounded-2xl h-11 px-5 text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 gap-2 shadow-xs"
@@ -580,12 +533,11 @@ function SquadHubContent() {
                   {[
                     { step: '1', name: 'Scrum Poker', desc: 'Refinamento técnico e estimativas de Story Points em tempo real.', href: '/room', icon: Trophy, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
                     { step: '2', name: 'Sprint Planner', desc: 'Planejamento de capacidade do time e alocação do escopo.', href: '/sprint-planner', icon: CalendarRange, color: 'text-violet-500 bg-violet-500/10 border-violet-500/20' },
-                    { step: '3', name: 'Daily & Timesheet', desc: 'Mural de foco diário, impedimentos e lançamento de worklog no Jira.', action: () => setActiveTab('daily'), icon: Timer, color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20' },
-                    { step: '4', name: 'Sprint Showcase', desc: 'Demonstração de entregas e veredito final com PO e stakeholders.', href: '/showcase', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-                    { step: '5', name: 'Retrospectiva', desc: 'Lições aprendidas com painel analítico da sprint automático.', href: '/retro', icon: History, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
-                    { step: '6', name: 'Plano de Ação 5W2H', desc: 'Ações corretivas estruturadas e cobradas na sprint seguinte.', href: '/action-plan', icon: ListTodo, color: 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20' },
-                    { step: '7', name: 'Radar Health Check', desc: 'Termômetro de clima, segurança psicológica e bem-estar.', href: '/health-check', icon: Activity, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' },
-                    { step: '8', name: 'Dashboards por Cargo', desc: 'Métricas especializadas para PO, AM, PL, Tech Lead e Tribo.', action: () => setActiveTab('dashboards'), icon: Gauge, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+                    { step: '3', name: 'Sprint Showcase', desc: 'Demonstração de entregas e veredito final com PO e stakeholders.', href: '/showcase', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+                    { step: '4', name: 'Retrospectiva', desc: 'Lições aprendidas com painel analítico da sprint automático.', href: '/retro', icon: History, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
+                    { step: '5', name: 'Plano de Ação 5W2H', desc: 'Ações corretivas estruturadas e cobradas na sprint seguinte.', href: '/action-plan', icon: ListTodo, color: 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20' },
+                    { step: '6', name: 'Radar Health Check', desc: 'Termômetro de clima, segurança psicológica e bem-estar.', href: '/health-check', icon: Activity, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' },
+                    { step: '7', name: 'Dashboards por Cargo', desc: 'Métricas especializadas para PO, AM, PL, Tech Lead e Tribo.', action: () => setActiveTab('dashboards'), icon: Gauge, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
                   ].map((ritual) => (
                     <Card
                       key={ritual.name}
@@ -877,75 +829,6 @@ function SquadHubContent() {
                     );
                   })}
                 </div>
-              </Card>
-            </div>
-          )}
-
-          {/* ═══════════════════════════════════════════════════════════════════
-              ABA 3: DAILY COMMAND CENTER & TIMESHEET
-             ═══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'daily' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {/* Header Banner Daily Command Center */}
-              <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-none font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5">
-                      DAILY COMMAND CENTER
-                    </Badge>
-                    <span className="text-xs text-slate-400 font-code">Foco & Produtividade</span>
-                  </div>
-                  <h2 className="text-xl md:text-2xl font-black italic tracking-tight uppercase font-headline text-slate-900 dark:text-white">
-                    Foco Diário, Timesheet & Relatório da Daily
-                  </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
-                    Mural de produtividade individual: execute blocos de foco, sincronize lançamentos no Jira e monte seu status diário de forma automática.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 px-4 py-2.5 rounded-2xl shrink-0 text-xs">
-                  <Timer className="h-4 w-4 text-orange-500 shrink-0" />
-                  <div>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Data Selecionada</p>
-                    <p className="text-xs font-black text-slate-800 dark:text-slate-200">
-                      {selectedDate.split('-').reverse().join('/')}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-12 h-[540px]">
-                  <DailyTimesheet />
-                </div>
-              </div>
-
-              <DailyRadar squadJiraDomain={config?.jiraDomain} />
-
-              {/* Minhas Tarefas Ativas no Jira */}
-              <Card className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
-                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-2">
-                  <ListTodo className="h-4 w-4 text-indigo-500" /> Minhas Tarefas Ativas ({assignedTasks.length})
-                </h4>
-                {assignedTasks.length === 0 ? (
-                  <p className="text-xs text-slate-400">Nenhuma tarefa atribuída no momento nesta sprint.</p>
-                ) : (
-                  <div className="flex gap-4 overflow-x-auto pb-2">
-                    {assignedTasks.map(t => (
-                      <div key={t.id || t.jiraKey} className="p-3.5 border rounded-2xl min-w-[240px] bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-code text-xs font-bold text-primary">{t.jiraKey}</span>
-                            <Badge variant="outline" className="text-[8px] font-bold uppercase">{t.status || 'Ativa'}</Badge>
-                          </div>
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2">{t.title}</p>
-                        </div>
-                        {t.pointsEstimated && (
-                          <span className="text-[9px] font-black text-slate-400 mt-3">{t.pointsEstimated} Story Points</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </Card>
             </div>
           )}

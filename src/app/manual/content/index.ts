@@ -4,7 +4,6 @@ import { BrainstormingTopic } from './BrainstormingTopic';
 import { RetroTopic } from './RetroTopic';
 import { PlannerTopic } from './PlannerTopic';
 import { HealthTopic } from './HealthTopic';
-import { DailyFlowTopic } from './DailyFlowTopic';
 import { WorkspaceTopic } from './WorkspaceTopic';
 import { JoltTopic } from './JoltTopic';
 import { KnowledgeTopic } from './KnowledgeTopic';
@@ -20,7 +19,6 @@ export const TOPIC_COMPONENTS: Record<string, React.ComponentType> = {
   'retro': RetroTopic,
   'planner': PlannerTopic,
   'health': HealthTopic,
-  'daily-flow': DailyFlowTopic,
   'workspace': WorkspaceTopic,
   'jolt': JoltTopic,
   'knowledge': KnowledgeTopic,

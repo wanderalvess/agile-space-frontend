@@ -64,7 +64,6 @@ export function Header() {
     pathname.startsWith('/sprint-planner') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/showcase') ||
-    pathname.startsWith('/daily-flow') ||
     pathname.startsWith('/squad') ||
     pathname.startsWith('/jiradash') ||
     pathname.startsWith('/qa') ||

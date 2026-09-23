@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   CalendarDays,
   HeartPulse,
-  Zap,
   LayoutGrid,
   FileJson,
   Network,
@@ -138,28 +137,12 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     actionUrl: '/health-check',
     actionLabel: 'Abrir Radar de Saúde'
   },
-  {
-    id: 'daily-flow',
-    title: 'Daily Flow',
-    subtitle: 'Check-in Assíncrono & Bloqueios',
-    description: 'Sincronização assíncrona para squads de alta performance. Elimine reuniões redundantes e sinalize bloqueios instantaneamente.',
-    category: 'agile',
-    icon: Zap,
-    color: 'text-indigo-600 dark:text-indigo-400',
-    badgeBg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
-    badgeBorder: 'border-indigo-500/20',
-    badgeText: 'text-indigo-600 dark:text-indigo-400',
-    heroBg: 'from-indigo-600 to-blue-700',
-    actionUrl: '/daily-flow',
-    actionLabel: 'Abrir Daily Flow'
-  },
-
   // Categoria Engenharia
   {
     id: 'workspace',
     title: 'Meu Espaço',
     subtitle: 'Central de Produtividade Individual',
-    description: 'Ferramentas projetadas para acelerar o fluxo solo de engenharia: Daily Helper, repositório privado de snippets e anotações.',
+    description: 'Ferramentas projetadas para acelerar o fluxo solo de engenharia: repositório privado de snippets, anotações e prompts.',
     category: 'engineering',
     icon: LayoutGrid,
     color: 'text-slate-900 dark:text-slate-100',

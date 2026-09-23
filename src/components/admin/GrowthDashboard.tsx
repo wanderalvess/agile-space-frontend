@@ -33,7 +33,6 @@ interface Stats {
   plannings: number;
   health: number;
   brainstorming: number;
-  checkins: number;
   feedbacks: number;
   sessions: number;
   participations: number;
@@ -50,7 +49,6 @@ export function GrowthDashboard() {
     plannings: 0,
     health: 0,
     brainstorming: 0,
-    checkins: 0,
     feedbacks: 0,
     sessions: 0,
     participations: 0,
@@ -75,7 +73,6 @@ export function GrowthDashboard() {
           plannings: data.totalSprintPlannings,
           health: data.totalHealthCheckBoards,
           brainstorming: data.totalBrainstormingBoards,
-          checkins: data.totalDailyCheckins,
           feedbacks: data.totalFeedbacks,
           sessions: data.totalSessions,
           participations: data.totalParticipations,
@@ -123,10 +120,9 @@ export function GrowthDashboard() {
     { label: 'Sprint Planner', count: stats.plannings, icon: CalendarRange, color: 'bg-indigo-500' },
     { label: 'Brainstorming', count: stats.brainstorming, icon: Lightbulb, color: 'bg-amber-500' },
     { label: 'Health Check', count: stats.health, icon: HeartPulse, color: 'bg-emerald-500' },
-    { label: 'Daily Flow', count: stats.checkins, icon: Zap, color: 'bg-indigo-400' },
   ].sort((a, b) => b.count - a.count);
 
-  const totalInteractions = stats.rooms + stats.retros + stats.plannings + stats.brainstorming + stats.health + stats.checkins;
+  const totalInteractions = stats.rooms + stats.retros + stats.plannings + stats.brainstorming + stats.health;
 
   return (
     <div className="space-y-10">
