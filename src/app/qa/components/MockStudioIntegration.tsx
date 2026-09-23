@@ -11,16 +11,14 @@ import {
   Plus, 
   Trash2, 
   Copy, 
-  Check, 
-  Sparkles, 
-  ExternalLink,
+  Check,
+  Sparkles,
   Flame,
   AlertCircle,
   Clock,
   Layers
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 
 interface SavedMock {
   id: string;
@@ -147,12 +145,6 @@ export function MockStudioIntegration() {
             </p>
           </div>
         </div>
-
-        <Link href="/devtools/mock">
-          <Button variant="outline" className="h-9 text-xs font-bold gap-2 rounded-xl">
-            <ExternalLink className="h-4 w-4 text-purple-500" /> Motor de Mock Avançado
-          </Button>
-        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

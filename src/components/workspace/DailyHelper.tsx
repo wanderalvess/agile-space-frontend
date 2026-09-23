@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   Trash2,
   Copy,
   Send,
   AlertCircle,
-  Clock,
   Plus,
   Calendar,
   History,
@@ -20,9 +19,6 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { dailyFlowApi, DailyReportData } from '@/app/daily-flow/api';
-import { workspaceApi } from '@/app/workspace/api';
-import { focusApi, FocusSessionData } from '@/app/focus/api';
-import { KanbanCardData } from '@/components/workspace/types';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,8 +38,6 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   const [myReports, setMyReports] = useState<DailyReportData[]>([]);
-  const [focusSessions, setFocusSessions] = useState<FocusSessionData[]>([]);
-  const [kanbanCards, setKanbanCards] = useState<KanbanCardData[]>([]);
 
   const [formData, setFormData] = useState({
     yesterday: '',
@@ -51,7 +45,7 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
     blockers: ''
   });
 
-  // Carrega reports, sessões de foco e cards do kanban do Spring Boot (sem realtime)
+  // Carrega reports do Spring Boot (sem realtime)
   useEffect(() => {
     if (!effectiveUserId) {
       setIsLoading(false);
@@ -63,16 +57,10 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
 
     (async () => {
       try {
-        const [reports, sessions, cards] = await Promise.all([
-          dailyFlowApi.listDailyReports(effectiveUserId),
-          focusApi.getSessions(effectiveUserId).catch(() => []),
-          workspaceApi.getKanbanCards(effectiveUserId).catch(() => [])
-        ]);
+        const reports = await dailyFlowApi.listDailyReports(effectiveUserId);
         if (cancelled) return;
         reports.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         setMyReports(reports);
-        setFocusSessions(sessions);
-        setKanbanCards(cards);
       } catch (err) {
         console.error('Erro ao carregar dados do Daily Helper:', err);
       } finally {
@@ -82,47 +70,6 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
 
     return () => { cancelled = true; };
   }, [effectiveUserId]);
-
-  const yesterdaySessions = useMemo(() => {
-    if (!focusSessions || focusSessions.length === 0) return [];
-    const yesterdayDate = new Date(selectedDate);
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yestStr = format(yesterdayDate, 'yyyy-MM-dd');
-    return focusSessions.filter((s) => {
-      if (!s.createdAt) return false;
-      const date = new Date(s.createdAt);
-      return !isNaN(date.getTime()) && format(date, 'yyyy-MM-dd') === yestStr;
-    });
-  }, [focusSessions, selectedDate]);
-
-  const yesterdayTotalMinutes = useMemo(() => {
-    return yesterdaySessions.reduce((acc: number, s) => acc + (s.durationMinutes || 0), 0);
-  }, [yesterdaySessions]);
-
-  const getTaskName = (taskId?: string) => {
-    if (!taskId) return undefined;
-    const card = kanbanCards.find((c) => c.id === taskId);
-    return card ? card.title : undefined;
-  };
-
-  const handleImportYesterdayFocus = () => {
-    if (yesterdaySessions.length === 0) return;
-    let importText = `[SESSÃO DE FOCO]\n`;
-    yesterdaySessions.forEach((s) => {
-      const taskName = getTaskName((s as any).taskId) || s.taskCategory || 'Sessão de Foco';
-      importText += `- TAREFA: ${taskName} (${s.durationMinutes} min)\n`;
-    });
-    setFormData(prev => ({
-      ...prev,
-      yesterday: prev.yesterday ? `${prev.yesterday}\n\n${importText.trim()}` : importText.trim()
-    }));
-    toast({
-      title: "Dados Importados",
-      description: "As sessões de foco de ontem foram adicionadas ao seu relatório de forma técnica."
-    });
-  };
-
-
 
   // Auto-fill logic
   const handleOpenNewReport = () => {
@@ -367,24 +314,6 @@ export function DailyHelper({ userProfile }: { userProfile: any }) {
                          <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
                          O que você fez ontem?
                        </label>
-
-                       {/* Banner de sugestão de importação técnico */}
-                       {yesterdayTotalMinutes > 0 && (
-                         <div className="mb-2 flex items-center justify-between gap-2 text-[10px] font-medium text-muted-foreground border border-border/80 bg-muted/30 p-2 rounded-xl">
-                           <div className="flex items-center gap-1.5 min-w-0">
-                             <Clock className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                             <span className="truncate">Detectamos {yesterdayTotalMinutes} min de foco ontem.</span>
-                           </div>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={handleImportYesterdayFocus}
-                             className="h-6 px-2 text-[8px] font-black uppercase tracking-wider rounded-md border-indigo-500/30 text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 hover:text-indigo-400 transition-all shrink-0"
-                           >
-                             Importar Dados
-                           </Button>
-                         </div>
-                       )}
 
                        <Textarea
                          value={formData.yesterday}

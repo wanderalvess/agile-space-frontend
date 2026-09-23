@@ -371,7 +371,6 @@ export const MODULES_WITHOUT_INTEGRATION = [
   'Brainstorming',
   'Showcase',
   'Jolt Hub',
-  'DevTools',
   'Governança',
 ];
 

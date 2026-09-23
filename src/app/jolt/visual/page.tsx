@@ -17,7 +17,6 @@ import {
   ChevronUp,
   PanelLeftClose,
   PanelLeftOpen,
-  Headphones,
   Eye,
   Copy,
   Check,
@@ -41,7 +40,6 @@ import {
   Settings2,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { VisualJoltGuide } from '@/components/jolt/VisualJoltGuide';
@@ -842,10 +840,6 @@ export default function VisualJoltMapperPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isDark, setIsDark] = useState(true);
 
-  // Calmaria (Focus Mode with audio + timer)
-  const { toggleOpen: toggleCalmaria, isTimerRunning, activeSounds } = useCalmariaStore();
-  const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
-
   // Panel state
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isCanvasPanelOpen, setIsCanvasPanelOpen] = useState(true);
@@ -1605,36 +1599,6 @@ export default function VisualJoltMapperPage() {
           <div className="flex items-center gap-2">
             {/* Theme toggle */}
             <ThemeToggle className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-800" />
-
-            {/* Calmaria — Modo Foco */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleCalmaria}
-                  className={cn(
-                    'h-8 w-8 rounded-lg border transition-all relative',
-                    isFocusActive
-                      ? 'bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500 border-orange-500/30'
-                      : 'border-slate-200 dark:border-slate-800 text-slate-400 hover:text-orange-500 hover:bg-orange-100/50',
-                  )}
-                  title="Modo de Foco (Calmaria)"
-                  aria-label="Toggle Calmaria Focus Mode"
-                >
-                  <Headphones className={cn('h-4 w-4', isFocusActive && 'animate-pulse')} />
-                  {isFocusActive && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="text-xs font-medium">
-                {isFocusActive ? 'Calmaria ativa — sons e timer rodando' : 'Modo Foco — sons ambiente e timer'}
-              </TooltipContent>
-            </Tooltip>
 
             {/* Menu Projetos Salvos (Nuvem + Local) */}
             <DropdownMenu>

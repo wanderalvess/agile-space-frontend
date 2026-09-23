@@ -3,10 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
-import { Zap, Headphones, User, LogOut, Settings } from 'lucide-react';
+import { Zap, User, LogOut, Settings } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { useCalmariaStore } from '@/store/useCalmariaStore';
-import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import {
   DropdownMenu,
@@ -31,9 +29,6 @@ const DAILY_TIPS = [
 export function GreetingWidget() {
   const { userProfile, requestIdentity, isInitializing, setIsEditProfileOpen, logout } = useUserContext();
   const [greeting, setGreeting] = useState('Olá');
-  const { toggleOpen, isTimerRunning, activeSounds } = useCalmariaStore();
-  const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
-  
   const [phraseIndex, setPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -80,29 +75,6 @@ export function GreetingWidget() {
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.preventDefault();
-                toggleOpen();
-              }}
-              className={cn(
-                "h-6 w-6 rounded-lg transition-all relative border-none",
-                isFocusActive 
-                  ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500" 
-                  : "text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-800/50"
-              )}
-              title="Modo de Foco (Calmaria)"
-            >
-              <Headphones className={cn("h-3.5 w-3.5", isFocusActive && "animate-pulse")} />
-              {isFocusActive && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-duration-1000"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-orange-500"></span>
-                </span>
-              )}
-            </Button>
             <ThemeToggle className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

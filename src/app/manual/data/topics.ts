@@ -7,7 +7,6 @@ import {
   Zap,
   LayoutGrid,
   FileJson,
-  Terminal,
   Network,
   Sparkles,
   MessageSquare,
@@ -185,21 +184,6 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     heroBg: 'from-blue-600 to-cyan-700',
     actionUrl: '/jolt',
     actionLabel: 'Abrir Jolt Hub'
-  },
-  {
-    id: 'devtools',
-    title: 'DevTools',
-    subtitle: 'Engineering Toolkit Completo',
-    description: 'Coleção de utilitários rápidos para desenvolvedores: formatadores, geradores de dados fake, decoders, gerador JUnit e canvas de arquitetura.',
-    category: 'engineering',
-    icon: Terminal,
-    color: 'text-slate-700 dark:text-slate-300',
-    badgeBg: 'bg-slate-500/10 dark:bg-slate-500/20',
-    badgeBorder: 'border-slate-500/20',
-    badgeText: 'text-slate-700 dark:text-slate-300',
-    heroBg: 'from-slate-700 to-indigo-900',
-    actionUrl: '/devtools',
-    actionLabel: 'Explorar DevTools'
   },
   {
     id: 'integracoes',

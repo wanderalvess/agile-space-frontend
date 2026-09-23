@@ -2,8 +2,6 @@ export interface AdminStats {
   totalUsers: number;
   totalShowcaseSessions: number;
   totalFeedbacks: number;
-  totalVaultSecrets: number;
-  totalFocusSessions: number;
   totalKanbanCards: number;
   totalReleases: number;
   totalPokerRooms: number;

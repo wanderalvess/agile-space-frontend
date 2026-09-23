@@ -13,15 +13,13 @@ import {
   Settings, 
   Database,
   SearchIcon,
-  Plus,
-  Headphones
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { KnowledgeGuide } from '@/components/knowledge/KnowledgeGuide';
 import { HelpCircle } from 'lucide-react';
-import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { useUserContext } from '@/context/UserContext';
 
@@ -36,7 +34,6 @@ export default function KnowledgeLayout({
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const { isOpen: isFocusActive, toggleOpen } = useCalmariaStore();
 
   const navItems = [
     { label: 'Base de Conhecimento', path: '/knowledge/kb', icon: BookOpen },
@@ -121,28 +118,6 @@ export default function KnowledgeLayout({
             </div>
  
             <div className="flex items-center gap-3">
-                {/* Calmaria Focus Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleOpen}
-                  className={cn(
-                    "h-10 w-10 border rounded-xl transition-all relative bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800",
-                    isFocusActive 
-                      ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500 border border-orange-500/30" 
-                      : "text-slate-600 hover:text-orange-500 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
-                  )}
-                  title="Modo de Foco (Calmaria)"
-                >
-                  <Headphones className={cn("h-4.5 w-4.5", isFocusActive && "animate-pulse")} />
-                  {isFocusActive && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-duration-1000"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                    </span>
-                  )}
-                </Button>
- 
                 {/* Theme Switcher Toggle */}
                 <ThemeToggle className="h-10 w-10 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40" />
  

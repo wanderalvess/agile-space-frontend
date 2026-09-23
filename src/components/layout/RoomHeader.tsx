@@ -11,11 +11,9 @@ import {
   Home,
   LayoutGrid,
   MessageSquareHeart,
-  Headphones,
   Building2
 } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
-import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -55,12 +53,9 @@ export function RoomHeader({
 }: RoomHeaderProps) {
   const router = useRouter();
   const { userProfile, logout, setIsEditProfileOpen, requestIdentity } = useUserContext();
-  const { toggleOpen, isTimerRunning, activeSounds } = useCalmariaStore();
   const [isMounted, setIsMounted] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
-  
-  const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
 
   useEffect(() => {
     setIsMounted(true);
@@ -141,31 +136,6 @@ export function RoomHeader({
           <div className="flex items-center gap-1.5">
              {actions}
           </div>
-
-          {/* Calmaria Widget Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleOpen}
-            className={cn(
-              // Some abaixo de md: em telas estreitas o título da sala não
-              // sobrava espaço nenhum, e foco/feedback não são de uso constante.
-              "h-8 w-8 rounded-xl transition-all relative hidden md:inline-flex",
-              isFocusActive
-                ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500 border border-orange-500/30" 
-                : "text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-800/50"
-            )}
-            title="Modo de Foco (Calmaria)"
-            aria-label="Toggle Calmaria Focus Mode"
-          >
-            <Headphones className={cn("h-4 w-4", isFocusActive && "animate-pulse")} />
-            {isFocusActive && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-duration-1000"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-              </span>
-            )}
-          </Button>
 
           {/* Theme Toggle */}
           <ThemeToggle className="h-8 w-8 rounded-xl border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:text-slate-300 dark:hover:text-slate-100" />

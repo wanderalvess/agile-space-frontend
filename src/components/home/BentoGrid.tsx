@@ -5,7 +5,6 @@ import { motion, type Variants } from 'framer-motion';
 import { HeroWidget } from './HeroWidget';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import {
   WalletCards,
   LayoutDashboard,
@@ -16,18 +15,11 @@ import {
   Sparkles,
   BookOpen,
   FileText,
-  Lock,
   ArrowUpRight,
   Users2,
   Calendar,
   AlertCircle,
-  Zap,
-  Fingerprint,
-  Database,
-  ShieldCheck,
-  Binary,
   Clock,
-  Braces,
   Activity,
   Gauge,
   TrendingDown
@@ -35,65 +27,6 @@ import {
 
 export function BentoGrid() {
   const router = useRouter();
-
-  const devtoolsButtons = [
-    {
-      title: 'Base64 / URL',
-      desc: 'Codificar & Decodificar',
-      route: '/devtools/base64',
-      icon: Zap,
-      color: 'text-orange-500 bg-orange-500/10 border-orange-500/20 hover:border-orange-500/40 hover:bg-orange-500/5',
-    },
-    {
-      title: 'Gerador UUID',
-      desc: 'Criar chaves exclusivas',
-      route: '/devtools/uuid-generator',
-      icon: Fingerprint,
-      color: 'text-rose-500 bg-rose-500/10 border-rose-500/20 hover:border-rose-500/40 hover:bg-rose-500/5',
-    },
-    {
-      title: 'Secret Vault',
-      desc: 'Criptografia AES local',
-      route: '/devtools/secret-vault',
-      icon: Lock,
-      color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/5',
-    },
-    {
-      title: 'Formatador SQL',
-      desc: 'Sanitizar instruções',
-      route: '/devtools/sql-formatter',
-      icon: Database,
-      color: 'text-blue-500 bg-blue-500/10 border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-500/5',
-    },
-    {
-      title: 'Decodificador JWT',
-      desc: 'Análise local de tokens',
-      route: '/devtools/jwt-inspector',
-      icon: ShieldCheck,
-      color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20 hover:border-cyan-500/40 hover:bg-cyan-500/5',
-    },
-    {
-      title: 'Laboratório Regex',
-      desc: 'Validar buscas complexas',
-      route: '/devtools/regex-lab',
-      icon: Binary,
-      color: 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20 hover:border-fuchsia-500/40 hover:bg-fuchsia-500/5',
-    },
-    {
-      title: 'Interpretador Cron',
-      desc: 'Traduzir agendamentos',
-      route: '/devtools/cron-decoder',
-      icon: Clock,
-      color: 'text-amber-500 bg-amber-500/10 border-amber-500/20 hover:border-amber-500/40 hover:bg-amber-500/5',
-    },
-    {
-      title: 'Validador JSON',
-      desc: 'Sanitizar payloads',
-      route: '/devtools/json',
-      icon: Braces,
-      color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20 hover:border-indigo-500/40 hover:bg-indigo-500/5',
-    }
-  ];
 
   // Container animation
   const containerVariants: Variants = {
@@ -435,69 +368,6 @@ export function BentoGrid() {
           >
             Abrir Sandbox
           </Button>
-        </Card>
-      </motion.div>
-
-      {/* 7. DEVTOOLS CENTRAL (col-span-4) - Ao lado do Sandbox Jolt */}
-      <motion.div
-        variants={itemVariants}
-        className="lg:col-span-4 md:col-span-1 col-span-1"
-      >
-        <Card className="border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col justify-between h-full min-h-[300px] hover:shadow-2xl dark:hover:shadow-none hover:border-teal-500/40 dark:hover:border-teal-500/40 transition-all duration-500 overflow-hidden relative">
-          {/* Glow */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 dark:bg-teal-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col h-full">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-teal-500/10 rounded-xl flex items-center justify-center shrink-0 border border-teal-500/20">
-                  <Terminal className="h-5 w-5 text-teal-500" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50">
-                    DevTools Hub
-                  </h3>
-                  <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-500 mt-0.5 leading-none">
-                    Utilitários rápidos offline
-                  </p>
-                </div>
-              </div>
-              <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80 shrink-0">
-                20+
-              </span>
-            </div>
-
-            {/* Quick Access — 2-col grid, first 4 tools */}
-            <div className="grid grid-cols-2 gap-2.5 my-2 flex-1">
-              {devtoolsButtons.slice(0, 4).map((tool, idx) => {
-                const Icon = tool.icon;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => router.push(tool.route)}
-                    className="flex items-center gap-2.5 p-3 rounded-2xl bg-white/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 hover:border-teal-500/40 hover:bg-teal-500/5 shadow-sm active:scale-95 transition-all text-left group/btn"
-                  >
-                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 group-hover/btn:scale-110 transition-transform duration-300", tool.color)}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 leading-none truncate">{tool.title}</p>
-                      <p className="text-[8px] font-bold text-slate-500 dark:text-slate-500 mt-1 truncate">{tool.desc}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <Button
-              size="sm"
-              className="w-full mt-4 h-10 bg-teal-600 hover:bg-teal-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl active:scale-95 transition-all border-none"
-              onClick={() => router.push('/devtools')}
-            >
-              Ver todas as utilidades
-            </Button>
-          </div>
         </Card>
       </motion.div>
 

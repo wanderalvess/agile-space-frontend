@@ -32,7 +32,6 @@ import Link from 'next/link';
 import { authFetch } from '@/lib/auth-client';
 
 // Dynamic imports for Daily Flow components
-const FocusPlayer = dynamic(() => import('@/app/daily-flow/components/FocusPlayer'), { ssr: false });
 const DailyTimesheet = dynamic(() => import('@/app/daily-flow/components/DailyTimesheet'), { ssr: false });
 const DailyRadar = dynamic(() => import('@/app/daily-flow/components/DailyRadar'), { ssr: false });
 const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
@@ -915,10 +914,7 @@ function SquadHubContent() {
               </div>
 
               <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-12 md:col-span-4 h-[540px]">
-                  <FocusPlayer />
-                </div>
-                <div className="col-span-12 md:col-span-8 h-[540px]">
+                <div className="col-span-12 h-[540px]">
                   <DailyTimesheet />
                 </div>
               </div>

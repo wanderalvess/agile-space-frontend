@@ -60,9 +60,9 @@ export function Header() {
     pathname.startsWith('/brainstorming') ||
     pathname.startsWith('/health-check') ||
     pathname.startsWith('/workspace') ||
+    pathname.startsWith('/painel') ||
     pathname.startsWith('/sprint-planner') ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/devtools') ||
     pathname.startsWith('/showcase') ||
     pathname.startsWith('/daily-flow') ||
     pathname.startsWith('/squad') ||
@@ -72,10 +72,8 @@ export function Header() {
     pathname.startsWith('/governance') ||
     pathname.startsWith('/changelog') ||
     pathname.startsWith('/support') ||
-    pathname.startsWith('/vault') ||
     pathname.startsWith('/prompt-hub') ||
     pathname.startsWith('/dashboards') ||
-    pathname.startsWith('/focus') ||
     pathname.startsWith('/action-plan');
 
   if (isMinimalLayout) {
