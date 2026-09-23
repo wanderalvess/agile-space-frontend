@@ -38,6 +38,36 @@ export function ModuleGrid() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
+          {/* CARD 0: Painel do Time */}
+          <Card
+            onClick={() => router.push('/painel')}
+            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-primary/40 dark:hover:border-primary/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 dark:bg-orange-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
+
+            <div>
+              <div className="flex items-center justify-between mb-4 relative z-10">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 border border-primary/20 group-hover:scale-110 transition-transform duration-300">
+                  <LayoutDashboard className="h-5 w-5 text-primary" />
+                </div>
+                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Squad</span>
+              </div>
+              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-primary transition-colors flex items-center gap-1.5 relative z-10">
+                Painel do Time <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-primary" />
+              </h4>
+              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed relative z-10">
+                Sprint, board e movimentos da sua squad numa leitura só — o que está em jogo agora.
+              </p>
+            </div>
+
+            <Button
+              variant="ghost"
+              className="mt-6 justify-start px-0 h-auto text-[11px] font-black uppercase tracking-widest text-primary hover:bg-transparent hover:opacity-80 relative z-10"
+            >
+              Abrir painel <ChevronRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          </Card>
+
           {/* CARD 1: Workspace */}
           <Card
             onClick={() => router.push('/workspace')}

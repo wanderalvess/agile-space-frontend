@@ -853,6 +853,10 @@ export interface GoogleCalendarEvent {
   start: { date?: string; dateTime?: string };
   end: { date?: string; dateTime?: string };
   status: string;
+  htmlLink?: string;
+  hangoutLink?: string;
+  location?: string;
+  attendees?: { email?: string; responseStatus?: string; self?: boolean }[];
 }
 
 // --- Action Plan (5W2H) ---
@@ -976,6 +980,30 @@ export type SquadConfig = {
   // Denormalizado pra alimentar o seletor de sprint sem query extra —
   // upsertado a cada sync FULL.
   sprintHistory?: SquadSprintHistoryEntry[];
+
+  // --- Card "Próxima cerimônia" (/painel) ---
+  // 'google_calendar' (default/ausente) = cada membro conecta a própria agenda pessoal;
+  // 'manual' = a squad cadastra `ceremonies` uma vez. Nunca as duas juntas — são duas
+  // respostas pra mesma pergunta ("quando é a próxima cerimônia"), não fontes que se somam.
+  ceremonyMode?: 'google_calendar' | 'manual';
+  ceremonies?: SquadCeremony[];
+};
+
+// Um dia da semana no formato ISO abreviado em inglês, pra bater 1:1 com
+// Date#getDay() via CEREMONY_DAY_INDEX (ver src/lib/ceremony-schedule.ts) sem
+// depender de locale.
+export type CeremonyDayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+// Uma cerimônia recorrente cadastrada à mão pela squad (SquadConfig.ceremonies,
+// só usado quando ceremonyMode === 'manual'). Recorrência semanal simples —
+// sem exceções/feriados; quem cadastrou reedita se mudar.
+export type SquadCeremony = {
+  id: string;
+  title: string; // ex: "Daily", "Planning"
+  daysOfWeek: CeremonyDayOfWeek[];
+  startTime: string; // "HH:mm", 24h
+  durationMinutes: number;
+  meetLink?: string;
 };
 
 export type SquadSprintHistoryEntry = {
