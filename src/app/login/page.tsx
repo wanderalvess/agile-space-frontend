@@ -112,7 +112,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-      const res = await fetch(`${baseUrl}/public/forgot-password`, {
+      const res = await fetch(`${baseUrl}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

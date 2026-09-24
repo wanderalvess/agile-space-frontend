@@ -168,7 +168,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId
       + '?token=' + encodeURIComponent(getAuthToken() || '');
 
-    console.log("Conectando ao WebSocket do Poker Room:", wsUrl);
+    console.log("Conectando ao WebSocket do Poker Room:", roomId);
     let socket: WebSocket | null = new WebSocket(wsUrl);
     let reconnectTimer: NodeJS.Timeout;
 

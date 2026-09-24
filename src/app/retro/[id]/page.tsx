@@ -95,7 +95,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
     const connect = () => {
       const wsUrl = buildWsUrl();
-      console.log("Conectando ao WebSocket do Board Retro:", wsUrl);
+      console.log("Conectando ao WebSocket do Board Retro:", boardId);
       socket = new WebSocket(wsUrl);
 
       socket.onmessage = (event) => {

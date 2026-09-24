@@ -130,7 +130,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
     // WebSocket Nativo para tempo real
     const wsUrl = showcaseApi.getWebSocketUrl(id);
-    console.log("Conectando ao WebSocket do Showcase:", wsUrl);
+    console.log("Conectando ao WebSocket do Showcase:", id);
     let socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
