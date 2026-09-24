@@ -90,7 +90,10 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
 
   // Persistence State
   const [shareId, setShareId] = useState<string | null>(initialPlannerId || null);
-  const [isReadOnly, setIsReadOnly] = useState(false);
+  // Só o autor edita (o backend também recusa escrita de terceiros). Enquanto o perfil
+  // ainda carrega, fica somente leitura — evita o auto-save disparar em nome de outra pessoa.
+  const [plannerCreatedBy, setPlannerCreatedBy] = useState<string | null>(null);
+  const isReadOnly = !!plannerCreatedBy && plannerCreatedBy !== 'anonymous' && plannerCreatedBy !== userProfile?.id;
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>(undefined);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const isSaving = saveStatus === 'saving';
@@ -131,10 +134,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
             
             setImportedPokerRoomIds(data.importedPokerRoomIds || []);
             
-            const localCreatorId = localStorage.getItem('sprint_planner_creator_id');
-            if (data.createdBy && data.createdBy !== localCreatorId) {
-              setIsReadOnly(true);
-            }
+            setPlannerCreatedBy(data.createdBy || null);
           }
         } catch (error) {
           console.error("Error loading planner:", error);
@@ -198,7 +198,7 @@ export function SprintPlannerContent({ initialPlannerId }: SprintPlannerContentP
 
       setSaveStatus('saved');
       if (!shareId && saved && saved.id) {
-        localStorage.setItem('sprint_planner_creator_id', userProfile?.id || 'anonymous');
+        setPlannerCreatedBy(saved.createdBy || null);
         setShareId(saved.id);
         router.push(`/sprint-planner/${saved.id}`);
       }
