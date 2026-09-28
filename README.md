@@ -84,11 +84,6 @@ flowchart LR
 - **Download em Massa:** Exportação múltipla de documentações e manuais técnicos.
 - **RAG Vetorial Autônomo:** Ingestão de documentações técnicas e consulta semântica via `pgvector` no backend, sem dependência de chaves de IA externas pagas.
 
-### 📈 Squad Pulse & Jira Dashboards (Jiradash)
-*Métricas Operacionais e Engenharia de Sprints (`/jiradash`)*
-- **Radar da Sprint:** Indicadores dinâmicos de ritmo e saúde da sprint.
-- **Cache Otimizado de JQL:** Alta velocidade na consulta de snapshots e dados consolidados do Jira corporativo.
-- **Métricas Consolidadas:** Acompanhamento de burnup/burndown, worklogs individuais e capacidade realizada.
 
 ### 🛡️ Secret Vault (Cofre de Segredos)
 *Compartilhamento Seguro de Credenciais (`/vault`)*
