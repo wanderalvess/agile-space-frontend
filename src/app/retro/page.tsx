@@ -147,16 +147,16 @@ export default function RetroHubPage() {
       votingStatus: 'disabled' as const,
       maxVotesPerParticipant: 5,
       ...setupSettings,
-      healthCheckQuestion: healthCheckQuestion.trim() || undefined,
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),
       team: resolvedTeam,
-      squadId: userProfile.squadId || undefined,
-      sprintId: sprintId || undefined,
       createdAt: new Date().toISOString(),
       participantIds: [userProfile.id],
       columns,
       templateKey: template,
+      ...(healthCheckQuestion.trim() ? { healthCheckQuestion: healthCheckQuestion.trim() } : {}),
+      ...(userProfile.squadId ? { squadId: userProfile.squadId } : {}),
+      ...(sprintId ? { sprintId } : {}),
     };
 
     try {
