@@ -60,7 +60,8 @@ import {
   CloudDownload,
   Bot,
   Ban,
-  MessageSquareText
+  MessageSquareText,
+  MessagesSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -110,6 +111,7 @@ import { RoomHeader } from '@/components/layout/RoomHeader';
 import { EliteSidebar } from '../shared/EliteSidebar';
 import { PokerGuide } from './PokerGuide';
 import { PokerChat } from './PokerChat';
+import { TeamChat } from './team-chat/TeamChat';
 import { IssueDetail } from './IssueDetail';
 import { OutlierPrompt } from './OutlierPrompt';
 import { SessionVelocity } from './SessionVelocity';
@@ -214,6 +216,9 @@ interface PokerRoomProps {
   onUpdateSettings: (settings: Partial<NonNullable<Room['settings']>>) => void;
   onClaimFacilitator: () => void;
   creatorId: string;
+  messagesByChannel?: Record<string, any[]>;
+  onSendMessage?: (text: string, kind: 'text' | 'code', channelId: string) => void;
+  onDeleteMessage?: (messageId: string, channelId: string) => void;
 }
 
 const PokerRoomComponent = ({
@@ -280,6 +285,9 @@ const PokerRoomComponent = ({
   onUpdateSettings,
   onClaimFacilitator,
   creatorId,
+  messagesByChannel = {},
+  onSendMessage = () => {},
+  onDeleteMessage = () => {},
 }: PokerRoomProps) => {
   const { toast } = useToast();
 
@@ -291,6 +299,19 @@ const PokerRoomComponent = ({
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isTeamChatOpen, setIsTeamChatOpen] = useState(false);
+  const [teamChatUnread, setTeamChatUnread] = useState(0);
+
+  // Assistente da Base e chat do time abrem no mesmo painel lateral: abrir um
+  // fecha o outro para não empilhar dois painéis no mesmo lugar.
+  const toggleKnowledgeChat = () => {
+    setIsTeamChatOpen(false);
+    setIsChatOpen(v => !v);
+  };
+  const toggleTeamChat = () => {
+    setIsChatOpen(false);
+    setIsTeamChatOpen(v => !v);
+  };
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [pendingIssueId, setPendingIssueId] = useState<string | null>(null);
   // Pular e Adiar dividem um botao so ("Tirar da mesa") e um modal so: o modo
@@ -896,9 +917,24 @@ const PokerRoomComponent = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setIsChatOpen(!isChatOpen)}
+                  onClick={toggleTeamChat}
+                  className={cn("relative h-9 w-9 rounded-xl transition-all", isTeamChatOpen ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/20" : "text-slate-400 dark:text-muted-foreground")}
+                  title="Chat da sala"
+                >
+                  <MessagesSquare className="h-4 w-4" />
+                  {teamChatUnread > 0 && !isTeamChatOpen && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
+                      {teamChatUnread > 99 ? '99+' : teamChatUnread}
+                    </span>
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleKnowledgeChat}
                   className={cn("h-9 w-9 rounded-xl transition-all", isChatOpen ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/20" : "text-slate-400 dark:text-muted-foreground")}
-                  title="Assistente IA"
+                  title="Base de Conhecimento"
                 >
                   <Sparkles className="h-4 w-4" />
                 </Button>
@@ -962,9 +998,18 @@ const PokerRoomComponent = ({
                       Configurações da cerimônia
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => setIsChatOpen(!isChatOpen)} className="gap-2 text-xs font-bold">
+                  <DropdownMenuItem onClick={toggleTeamChat} className="gap-2 text-xs font-bold">
+                    <MessagesSquare className="h-4 w-4" />
+                    Chat da sala
+                    {teamChatUnread > 0 && (
+                      <span className="ml-auto min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
+                        {teamChatUnread > 99 ? '99+' : teamChatUnread}
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={toggleKnowledgeChat} className="gap-2 text-xs font-bold">
                     <Sparkles className="h-4 w-4" />
-                    Assistente IA
+                    Base de conhecimento
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleCopyLink} className="gap-2 text-xs font-bold">
@@ -2060,9 +2105,9 @@ const PokerRoomComponent = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* FLOATING CHAT BUTTON */}
+      {/* FLOATING TEAM CHAT BUTTON */}
       <AnimatePresence>
-        {!isChatOpen && (
+        {!isTeamChatOpen && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -2070,12 +2115,17 @@ const PokerRoomComponent = ({
             className="fixed bottom-6 right-6 z-[60]"
           >
             <Button
-              onClick={() => setIsChatOpen(true)}
-              className="h-16 w-16 rounded-full bg-slate-900 hover:bg-black text-white shadow-2xl shadow-indigo-500/40 flex items-center justify-center group relative overflow-hidden"
+              onClick={toggleTeamChat}
+              className="h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-500/40 flex items-center justify-center group relative"
+              title="Chat da sala"
+              aria-label={teamChatUnread > 0 ? `Chat da sala, ${teamChatUnread} mensagens não lidas` : 'Chat da sala'}
             >
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <Sparkles className="h-7 w-7 text-indigo-400 group-hover:scale-110 group-hover:text-indigo-300 transition-all duration-300" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-slate-900 animate-pulse" />
+              <MessagesSquare className="h-7 w-7 group-hover:scale-110 transition-transform" />
+              {teamChatUnread > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900 animate-pulse">
+                  {teamChatUnread > 99 ? '99+' : teamChatUnread}
+                </span>
+              )}
             </Button>
           </motion.div>
         )}
@@ -2086,7 +2136,22 @@ const PokerRoomComponent = ({
         <ReactionOverlay reactions={reactions || []} onReact={onReact} />
       )}
 
-      {/* POKER CHAT SIDEBAR */}
+      {currentUser && (
+        <TeamChat
+          roomId={roomId}
+          currentUser={currentUser}
+          participants={participants}
+          canModerate={isCurrentUserFacilitator}
+          isOpen={isTeamChatOpen}
+          onClose={() => setIsTeamChatOpen(false)}
+          onUnreadChange={setTeamChatUnread}
+          messagesByChannel={messagesByChannel}
+          onSendMessage={onSendMessage}
+          onDeleteMessage={onDeleteMessage}
+        />
+      )}
+
+      {/* POKER CHAT SIDEBAR (Base de Conhecimento) */}
       <PokerChat
         roomId={roomId} 
         isOpen={isChatOpen} 

@@ -109,5 +109,28 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify({ type: 'REACTION', ...reaction }),
     });
+  },
+
+  async getChatMessages(roomId: string, channelId: string): Promise<any[]> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat?channelId=${encodeURIComponent(channelId)}`);
+    if (!res.ok) throw new Error('Falha ao carregar mensagens do chat');
+    return res.json();
+  },
+
+  async sendChatMessage(roomId: string, message: any): Promise<any> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify(message),
+    });
+    if (!res.ok) throw new Error('Falha ao enviar mensagem');
+    return res.json();
+  },
+
+  async deleteChatMessage(roomId: string, messageId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat/${encodeURIComponent(messageId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Falha ao apagar mensagem');
   }
 };
+

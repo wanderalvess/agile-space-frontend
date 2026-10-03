@@ -60,6 +60,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [votes, setVotes] = useState<Vote[]>([]);
   const [votingRounds, setVotingRounds] = useState<VotingRound[]>([]);
   const [reactions, setReactions] = useState<{ id: string; uid: string; emoji: string; ts: string; nickname?: string }[]>([]);
+  const [messagesByChannel, setMessagesByChannel] = useState<Record<string, any[]>>({});
 
   const [isRoomLoading, setIsRoomLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
@@ -255,6 +256,39 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
             });
             break;
 
+          case 'CHAT_MESSAGE_SAVED':
+            if (data.payload) {
+              const msg = data.payload;
+              const channel = msg.channelId;
+              if (channel) {
+                setMessagesByChannel(prev => {
+                  const currentList = prev[channel] || [];
+                  const exists = currentList.some(m => m.id === msg.id);
+                  if (exists) {
+                    return {
+                      ...prev,
+                      [channel]: currentList.map(m => m.id === msg.id ? msg : m)
+                    };
+                  }
+                  return {
+                    ...prev,
+                    [channel]: [...currentList, msg]
+                  };
+                });
+              }
+            }
+            break;
+
+          case 'CHAT_MESSAGE_DELETED':
+            if (data.payload?.messageId && data.payload?.channelId) {
+              const { messageId, channelId } = data.payload;
+              setMessagesByChannel(prev => ({
+                ...prev,
+                [channelId]: (prev[channelId] || []).filter(m => m.id !== messageId)
+              }));
+            }
+            break;
+
           case 'REFRESH_ROOM':
           default:
             reloadRoomData();
@@ -397,6 +431,31 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     setHasJoined(!!currentUser);
   }, [currentUser]);
+
+  // Carga inicial das mensagens do chat da sala (canal geral e canais relevantes)
+  useEffect(() => {
+    if (!currentUser || !roomId) return;
+    const channelsToLoad = ['geral'];
+    const myCat = getParticipantCategory(currentUser);
+    if (myCat) channelsToLoad.push(`role-${myCat}`);
+
+    (participants || []).forEach(p => {
+      if (p.id !== currentUser.id) {
+        channelsToLoad.push(`dm_${[currentUser.id, p.id].sort().join('_')}`);
+      }
+    });
+
+    channelsToLoad.forEach(channelId => {
+      pokerApi.getChatMessages(roomId, channelId)
+        .then(msgs => {
+          setMessagesByChannel(prev => ({
+            ...prev,
+            [channelId]: msgs || []
+          }));
+        })
+        .catch(err => console.error(`Erro ao carregar mensagens do canal ${channelId}:`, err));
+    });
+  }, [currentUser?.id, participants, roomId]);
 
   // Heartbeat de presença: envia lastSeen silenciosamente via REST a cada 25s
   useEffect(() => {
@@ -1605,6 +1664,29 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     handleStartTimer(roomData.timer?.initialDuration || 120);
   }, [roomData?.settings?.autoTimer, roomData?.activeIssueId, isCurrentUserFacilitator, handleStartTimer, roomData?.timer?.initialDuration]);
 
+  const handleSendMessage = useCallback((text: string, kind: string, channelId: string) => {
+    if (!currentUser) return;
+    const newMsg = {
+      id: generateId(),
+      roomId,
+      channelId,
+      senderId: currentUser.id,
+      senderName: currentUser.nickname,
+      senderCategory: currentUser.globalRole,
+      text,
+      kind,
+      ts: new Date().toISOString(),
+    };
+    pokerApi.sendChatMessage(roomId, newMsg).catch(err => console.error("Erro ao enviar mensagem:", err));
+  }, [currentUser, roomId]);
+
+  const handleDeleteMessage = useCallback((messageId: string, channelId: string) => {
+    pokerApi.deleteChatMessage(roomId, messageId).catch(err => console.error("Erro ao apagar mensagem:", err));
+  }, [roomId]);
+
+  const stableSendMessage = useStableCallback(handleSendMessage);
+  const stableDeleteMessage = useStableCallback(handleDeleteMessage);
+
   const stableVote = useStableCallback(handleVote);
   const stableSetConfidence = useStableCallback(handleSetConfidence);
   const stableSetDecisionNote = useStableCallback(handleSetDecisionNote);
@@ -1766,6 +1848,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onClaimFacilitator={stableClaimFacilitator}
         onOpenFeedback={stableOpenFeedback}
         onOpenRetro={stableOpenRetro}
+        messagesByChannel={messagesByChannel}
+        onSendMessage={stableSendMessage}
+        onDeleteMessage={stableDeleteMessage}
       />
       <FeedbackWidget
         toolName="Scrum Poker"
