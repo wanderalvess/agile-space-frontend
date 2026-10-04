@@ -889,7 +889,7 @@ const PokerRoomComponent = ({
               </Button>
 
               {/* Ações secundárias: soltas em telas largas, agrupadas abaixo de lg. */}
-              <div className="hidden lg:flex items-center gap-1.5">
+              <div className={cn("hidden items-center gap-1.5", isQueueOpen ? "2xl:flex" : "lg:flex")}>
                 {isCurrentUserFacilitator && (
                   <Button
                     variant="ghost"
@@ -978,7 +978,7 @@ const PokerRoomComponent = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="lg:hidden h-9 w-9 rounded-xl text-slate-400 dark:text-muted-foreground shrink-0"
+                    className={cn("h-9 w-9 rounded-xl text-slate-400 dark:text-muted-foreground shrink-0", isQueueOpen ? "2xl:hidden" : "lg:hidden")}
                     title="Mais opções"
                     aria-label="Mais opções da sala"
                   >
@@ -1420,7 +1420,7 @@ const PokerRoomComponent = ({
                             <Button
                               size="sm"
                               onClick={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-9 rounded-xl w-full"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] min-h-9 h-auto py-2 whitespace-normal leading-tight rounded-xl w-full"
                             >
                               <CloudDownload className="mr-2 h-3.5 w-3.5" /> Importar do Jira
                             </Button>
@@ -1428,7 +1428,7 @@ const PokerRoomComponent = ({
                               size="sm"
                               variant="outline"
                               onClick={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
-                              className="font-black uppercase tracking-widest text-[10px] h-8 rounded-xl w-full border-indigo-200 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+                              className="font-black uppercase tracking-widest text-[10px] min-h-8 h-auto py-2 whitespace-normal leading-tight rounded-xl w-full border-indigo-200 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
                             >
                               <ListPlus className="mr-2 h-3.5 w-3.5" /> Adicionar Manualmente
                             </Button>
@@ -1732,6 +1732,22 @@ const PokerRoomComponent = ({
                 </div>
               ) : votesRevealed ? (
                 <div className="space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
+                  {/* A mesa vem primeiro: virar as cartas é o momento da cerimônia; as métricas vêm logo abaixo. */}
+                  {settings?.anonymousReveal ? (
+                    <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
+                      <EyeOff className="h-4 w-4 opacity-50" />
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Revelação anônima — só a distribuição é exibida</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4 px-2">
+                        <Separator className="flex-1 opacity-20" />
+                        <h3 className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Detalhamento de Votos</h3>
+                        <Separator className="flex-1 opacity-20" />
+                      </div>
+                      <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} groupByRole={!!settings?.groupVotesByRole} />
+                    </div>
+                  )}
                   <div className="bg-card/90 backdrop-blur-xl p-4 md:p-6 rounded-[2rem] border border-white/20 shadow-xl">
                     <Results votes={votes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} tshirtEquivalents={settings?.tshirtEquivalents} />
                   </div>
@@ -1823,21 +1839,6 @@ const PokerRoomComponent = ({
                   {settings?.outlierPrompt && !settings?.anonymousReveal && (
                     <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
                   )}
-                  {settings?.anonymousReveal ? (
-                    <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
-                      <EyeOff className="h-4 w-4 opacity-50" />
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Revelação anônima — só a distribuição é exibida</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 px-2">
-                        <Separator className="flex-1 opacity-20" />
-                        <h3 className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Detalhamento de Votos</h3>
-                        <Separator className="flex-1 opacity-20" />
-                      </div>
-                      <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} groupByRole={!!settings?.groupVotesByRole} />
-                    </div>
-                  )}
                 </div>
               ) : (
                 <div className={cn(
@@ -1885,6 +1886,7 @@ const PokerRoomComponent = ({
                     confidenceEnabled={!!settings?.confidenceVote}
                     onSetConfidence={onSetConfidence}
                     currentUserConfidence={currentUserConfidence}
+                    onAllowManagementVote={isCurrentUserFacilitator ? () => onUpdateSettings({ allowManagementToVote: true }) : undefined}
                   />
                 </div>
                 )

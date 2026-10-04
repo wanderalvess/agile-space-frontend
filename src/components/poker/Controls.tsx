@@ -23,11 +23,14 @@ function DeckCard({
   selected,
   onSelect,
   disabled = false,
+  dense = false,
 }: {
   value: string;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
+  // Baralhos grandes (ex.: Horas, 22 cartas): cartas menores para tudo caber sem rolar.
+  dense?: boolean;
 }) {
   const special = isSpecialCard(value);
   const isCoffee = value === '☕';
@@ -41,7 +44,8 @@ function DeckCard({
       aria-pressed={selected}
       aria-label={isCoffee ? 'Pausa para o café' : isUnknown ? 'Não sei estimar' : `Votar ${value}`}
       className={cn(
-        'group/card relative h-16 w-[3.1rem] sm:h-24 sm:w-[4.5rem] shrink-0 rounded-xl sm:rounded-2xl border-2 shadow-sm',
+        'group/card relative shrink-0 rounded-xl sm:rounded-2xl border-2 shadow-sm',
+        dense ? 'h-14 w-[2.6rem] sm:h-[4.5rem] sm:w-14' : 'h-16 w-[3.1rem] sm:h-24 sm:w-[4.5rem]',
         'flex items-center justify-center transition-all duration-500 ease-out select-none uppercase',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         disabled && 'pointer-events-none opacity-10 grayscale',
@@ -81,6 +85,8 @@ interface ControlsProps {
   confidenceEnabled?: boolean;
   onSetConfidence?: (confidence: 'low' | 'medium' | 'high') => void;
   currentUserConfidence?: 'low' | 'medium' | 'high' | null;
+  // Facilitador de gestão: atalho para liberar o próprio voto (e o da gestão) sem abrir as configurações.
+  onAllowManagementVote?: () => void;
 }
 
 export const POKER_PHRASES = {
@@ -158,9 +164,11 @@ export function Controls({
   isSessionNotStarted = false,
   confidenceEnabled = false,
   onSetConfidence,
+  onAllowManagementVote,
   currentUserConfidence = null,
 }: ControlsProps) {
   const deckValues = DECKS[deck];
+  const isDenseDeck = deckValues.length > 14;
   const numberCards = useMemo(() => deckValues.filter(v => !isSpecialCard(v)), [deckValues]);
   const specialCards = useMemo(() => deckValues.filter(isSpecialCard), [deckValues]);
   const hasVoted = currentUserVote !== null;
@@ -331,9 +339,23 @@ export function Controls({
           <span className="text-[10px] font-black uppercase tracking-widest opacity-60 text-center">
             Gestão acompanha sem votar
           </span>
-          <span className="text-[9px] font-bold uppercase tracking-widest opacity-40 text-center">
-            O facilitador pode liberar o voto da gestão nas configurações
-          </span>
+          {onAllowManagementVote ? (
+            <>
+              <span className="text-[9px] font-bold uppercase tracking-widest opacity-40 text-center">
+                Você é o facilitador — quer participar da estimativa?
+              </span>
+              <Button
+                onClick={onAllowManagementVote}
+                className="mt-1 h-10 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px]"
+              >
+                Votar também
+              </Button>
+            </>
+          ) : (
+            <span className="text-[9px] font-bold uppercase tracking-widest opacity-40 text-center">
+              O facilitador pode liberar o voto da gestão nas configurações
+            </span>
+          )}
         </CardContent>
       </Card>
     );
@@ -385,11 +407,20 @@ export function Controls({
               <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500 w-full pt-4 pb-2">
                 <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 max-w-6xl">
                   {numberCards.map((value) => (
-                    <DeckCard key={value} value={value} selected={currentUserVote === value} onSelect={() => handleVote(value)} />
+                    <DeckCard key={value} value={value} dense={isDenseDeck} selected={currentUserVote === value} onSelect={() => handleVote(value)} />
                   ))}
+                  {/* Baralho grande: cartas sem número entram na mesma fileira, após um divisor. */}
+                  {isDenseDeck && specialCards.length > 0 && (
+                    <>
+                      <span className="hidden sm:block w-px h-12 bg-slate-200 dark:bg-slate-700/60 mx-1" aria-hidden="true" />
+                      {specialCards.map((value) => (
+                        <DeckCard key={value} value={value} dense selected={currentUserVote === value} onSelect={() => handleVote(value)} />
+                      ))}
+                    </>
+                  )}
                 </div>
 
-                {specialCards.length > 0 && (
+                {!isDenseDeck && specialCards.length > 0 && (
                   <div className="flex flex-col items-center gap-2">
                     <div className="flex items-center gap-3">
                       <span className="h-px w-8 bg-slate-200 dark:bg-slate-700/60" />
@@ -455,7 +486,7 @@ export function Controls({
           ) : (
             <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 pb-4">
               {deckValues.map((value) => (
-                <DeckCard key={value} value={value} selected={false} disabled onSelect={() => {}} />
+                <DeckCard key={value} value={value} dense={isDenseDeck} selected={false} disabled onSelect={() => {}} />
               ))}
             </div>
           )}

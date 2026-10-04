@@ -5,7 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Code,
   Bug,
-  Sparkles
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,6 +35,13 @@ export function RefinementNotes({
 }: RefinementNotesProps) {
   const [localDevNotes, setLocalDevNotes] = useState(devNotes);
   const [localQaNotes, setLocalQaNotes] = useState(qaNotes);
+
+  // Vazio = recolhido (uma linha): libera a mesa para o baralho. Com conteúdo, abre sozinho.
+  const [isOpen, setIsOpen] = useState(!!(devNotes || qaNotes));
+  useEffect(() => {
+    setIsOpen(!!(devNotes || qaNotes));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIssueId]);
 
   const devRef = useRef<HTMLTextAreaElement>(null);
   const qaRef = useRef<HTMLTextAreaElement>(null);
@@ -70,6 +78,25 @@ export function RefinementNotes({
   }, [localDevNotes, localQaNotes, devNotes, qaNotes, onUpdateNotes, activeIssueId]);
 
   if (!activeIssueId) return null;
+
+  if (!isOpen && !isTheaterMode) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="w-full flex items-center gap-2 px-1 py-0.5 text-left group"
+        aria-expanded={false}
+      >
+        <Code className="h-3.5 w-3.5 text-indigo-500" />
+        <Bug className="h-3.5 w-3.5 text-pink-500" />
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground group-hover:text-foreground transition-colors">
+          {readOnly ? 'Acompanhando o refinamento' : 'Notas de refinamento'}
+        </span>
+        <span className="text-[10px] font-medium text-muted-foreground/70">· solução técnica e cenários de QA</span>
+        <ChevronDown className="h-3.5 w-3.5 ml-auto text-muted-foreground group-hover:text-foreground transition-colors" />
+      </button>
+    );
+  }
 
   return (
     <div className={cn(

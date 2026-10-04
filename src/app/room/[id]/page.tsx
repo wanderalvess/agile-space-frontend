@@ -1731,6 +1731,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   if (isLoading || isInitializing || isRoomLoading || areParticipantsLoading || !session || !userProfile) {
     if (!userProfile) {
+      // Só pede para preencher a identidade quando a autenticação já assentou e
+      // de fato não há perfil; enquanto carrega, não faz sentido pedir nada.
+      if (isLoading || isInitializing) {
+        return <LoadingScreen message="Carregando seu perfil..." />;
+      }
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sala" />;
     }
     return <LoadingScreen message="Sincronizando cerimônia..." />;
