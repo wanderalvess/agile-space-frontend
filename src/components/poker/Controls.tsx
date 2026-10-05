@@ -7,7 +7,7 @@ import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Pencil, Check, Sparkles, Quote, EyeOff, Coffee, Keyboard, Lock } from 'lucide-react';
+import { Pencil, Check, Sparkles, Quote, Eye, EyeOff, Coffee, Keyboard, Lock } from 'lucide-react';
 
 /** `?` (indefinido) e `☕` (pausa) não são estimativas — recebem tratamento à parte. */
 const isSpecialCard = (v: string) => v === '?' || v === '☕';
@@ -36,6 +36,8 @@ function DeckCard({
   const isCoffee = value === '☕';
   const isUnknown = value === '?';
 
+  const showPips = !isCoffee && !dense;
+
   return (
     <button
       type="button"
@@ -44,24 +46,33 @@ function DeckCard({
       aria-pressed={selected}
       aria-label={isCoffee ? 'Pausa para o café' : isUnknown ? 'Não sei estimar' : `Votar ${value}`}
       className={cn(
-        'group/card relative shrink-0 rounded-xl sm:rounded-2xl border-2 shadow-sm',
+        'group/card relative shrink-0 overflow-hidden rounded-xl sm:rounded-2xl border-2',
         dense ? 'h-14 w-[2.6rem] sm:h-[4.5rem] sm:w-14' : 'h-16 w-[3.1rem] sm:h-24 sm:w-[4.5rem]',
-        'flex items-center justify-center transition-all duration-500 ease-out select-none uppercase',
+        'flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] select-none uppercase',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         disabled && 'pointer-events-none opacity-10 grayscale',
         selected
-          ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/35 scale-110 -translate-y-4 z-10 hover:bg-primary/95'
+          ? 'bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 border-white/30 text-white shadow-xl shadow-indigo-600/45 ring-4 ring-indigo-500/20 scale-110 -translate-y-5 z-10'
           : special
             ? isCoffee
-              ? 'bg-white dark:bg-card border-amber-200/90 dark:border-amber-900/40 text-amber-600 dark:text-amber-500 hover:-translate-y-3 hover:border-amber-400 hover:shadow-2xl z-0'
-              : 'bg-white dark:bg-card border-violet-200/90 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 hover:-translate-y-3 hover:border-violet-400 hover:shadow-2xl z-0'
-            : 'bg-white dark:bg-card border-slate-200/80 dark:border-border text-slate-800 dark:text-foreground hover:bg-slate-50 dark:hover:bg-muted hover:border-primary dark:hover:border-primary/55 hover:text-primary dark:hover:text-primary hover:-translate-y-3 hover:rotate-3 hover:shadow-2xl z-0'
+              ? 'bg-gradient-to-b from-white to-amber-50 dark:from-card dark:to-amber-950/20 border-amber-200/90 dark:border-amber-900/40 text-amber-600 dark:text-amber-500 shadow-sm hover:-translate-y-4 hover:scale-105 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/20 z-0'
+              : 'bg-gradient-to-b from-white to-violet-50 dark:from-card dark:to-violet-950/20 border-violet-200/90 dark:border-violet-900/40 text-violet-600 dark:text-violet-400 shadow-sm hover:-translate-y-4 hover:scale-105 hover:border-violet-400 hover:shadow-xl hover:shadow-violet-500/20 z-0'
+            : 'bg-gradient-to-b from-white to-slate-50 dark:from-card dark:to-slate-900/60 border-slate-200/80 dark:border-border text-slate-800 dark:text-foreground shadow-sm hover:-translate-y-4 hover:scale-105 hover:rotate-2 hover:border-indigo-400 dark:hover:border-indigo-400/60 hover:text-indigo-600 dark:hover:text-indigo-300 hover:shadow-xl hover:shadow-indigo-500/25 z-0'
       )}
     >
+      {showPips && (
+        <>
+          <span className="pointer-events-none absolute left-1.5 top-1 hidden text-[9px] font-black leading-none opacity-50 sm:block">{value}</span>
+          <span className="pointer-events-none absolute bottom-1 right-1.5 hidden rotate-180 text-[9px] font-black leading-none opacity-50 sm:block">{value}</span>
+        </>
+      )}
+      {selected && (
+        <span className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 opacity-70" />
+      )}
       {isCoffee ? (
         <Coffee className="h-6 w-6 sm:h-8 sm:w-8" />
       ) : (
-        <span className={cn('font-black italic leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-2xl')}>
+        <span className={cn('font-black italic leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl')}>
           {value}
         </span>
       )}
@@ -175,6 +186,23 @@ export function Controls({
 
   const [showControls, setShowControls] = useState(!hasVoted);
   const [activePhrase, setActivePhrase] = useState('');
+
+  // Voto secreto: esconde o valor do SEU voto na tela (útil ao compartilhar/apresentar).
+  // null = sem escolha explícita → oculta sozinho no modo apresentação. Ao alternar,
+  // a preferência vale daí em diante e fica salva neste navegador.
+  const [hideVotePref, setHideVotePref] = useState<boolean | null>(null);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('poker:hideMyVote');
+      if (saved === '1' || saved === '0') setHideVotePref(saved === '1');
+    } catch { /* storage indisponível: segue sem persistir */ }
+  }, []);
+  const hideVote = hideVotePref ?? isTheaterMode;
+  const toggleHideVote = () => {
+    const next = !hideVote;
+    setHideVotePref(next);
+    try { localStorage.setItem('poker:hideMyVote', next ? '1' : '0'); } catch { /* ignora */ }
+  };
 
   // Gate único (poker-utils.canParticipantVote) — antes havia uma lista de
   // MANAGEMENT_ROLES local aqui divergente da de poker-utils, gerando regras
@@ -407,14 +435,14 @@ export function Controls({
               <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-500 w-full pt-4 pb-2">
                 <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 max-w-6xl">
                   {numberCards.map((value) => (
-                    <DeckCard key={value} value={value} dense={isDenseDeck} selected={currentUserVote === value} onSelect={() => handleVote(value)} />
+                    <DeckCard key={value} value={value} dense={isDenseDeck} selected={!hideVote && currentUserVote === value} onSelect={() => handleVote(value)} />
                   ))}
                   {/* Baralho grande: cartas sem número entram na mesma fileira, após um divisor. */}
                   {isDenseDeck && specialCards.length > 0 && (
                     <>
                       <span className="hidden sm:block w-px h-12 bg-slate-200 dark:bg-slate-700/60 mx-1" aria-hidden="true" />
                       {specialCards.map((value) => (
-                        <DeckCard key={value} value={value} dense selected={currentUserVote === value} onSelect={() => handleVote(value)} />
+                        <DeckCard key={value} value={value} dense selected={!hideVote && currentUserVote === value} onSelect={() => handleVote(value)} />
                       ))}
                     </>
                   )}
@@ -429,7 +457,7 @@ export function Controls({
                     </div>
                     <div className="flex items-center justify-center gap-2 md:gap-3">
                       {specialCards.map((value) => (
-                        <DeckCard key={value} value={value} selected={currentUserVote === value} onSelect={() => handleVote(value)} />
+                        <DeckCard key={value} value={value} selected={!hideVote && currentUserVote === value} onSelect={() => handleVote(value)} />
                       ))}
                     </div>
                   </div>
@@ -457,11 +485,32 @@ export function Controls({
                 <div className="md:col-span-1 p-6 rounded-[2rem] bg-slate-50/50 dark:bg-slate-900/25 border border-slate-200/40 dark:border-border/30 shadow-sm flex flex-col items-center justify-center gap-4 min-h-[120px]">
                   <div className="flex flex-col items-center gap-3.5 w-full">
                     <div className="flex items-center justify-center gap-3 text-emerald-500">
-                      <div className="bg-emerald-500/10 p-2.5 rounded-full ring-4 ring-emerald-500/5 shrink-0">
-                        <Check className="h-4.5 w-4.5" />
+                      <div className="relative shrink-0">
+                        <div className="relative flex h-14 w-10 -rotate-6 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 via-violet-600 to-fuchsia-600 text-white shadow-lg shadow-indigo-600/30 animate-in zoom-in-50 duration-500">
+                          {hideVote ? (
+                            <Lock className="h-4 w-4 opacity-90" />
+                          ) : currentUserVote === '☕' ? (
+                            <Coffee className="h-5 w-5" />
+                          ) : (
+                            <span className={cn('font-black italic leading-none tracking-tighter', (currentUserVote?.length ?? 0) > 2 ? 'text-sm' : 'text-xl')}>{currentUserVote}</span>
+                          )}
+                          <span className="absolute -bottom-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white dark:ring-card">
+                            <Check className="h-2.5 w-2.5" />
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={toggleHideVote}
+                          aria-pressed={hideVote}
+                          aria-label={hideVote ? 'Mostrar meu voto' : 'Ocultar meu voto'}
+                          title={hideVote ? 'Mostrar meu voto' : 'Ocultar meu voto (ao apresentar a tela)'}
+                          className="absolute -left-2.5 -top-2.5 flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-indigo-600 dark:border-border dark:bg-card dark:text-slate-300"
+                        >
+                          {hideVote ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                        </button>
                       </div>
                       <div className="flex flex-col items-start text-left gap-0.5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-950 dark:text-foreground leading-none">Voto Confirmado</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-950 dark:text-foreground leading-none">{hideVote ? 'Voto secreto' : 'Voto Confirmado'}</p>
                         <div className="flex items-center gap-1 opacity-70">
                           <Sparkles className="h-2.5 w-2.5 text-blue-500 animate-pulse" />
                           <p className="text-[8px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 leading-none">Aguardando squad...</p>

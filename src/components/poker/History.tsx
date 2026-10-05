@@ -8,7 +8,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -202,37 +201,76 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
     return legacy;
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center text-xl">
-            <HistoryIcon className="mr-2 h-5 w-5" />
-            Histórico de Votação
-            </CardTitle>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {(!rounds || rounds.length === 0) ? (
-          <div className="text-center text-muted-foreground p-4">
-            <p>Nenhuma rodada de votação foi concluída ainda.</p>
-          </div>
-        ) : (
-          <Accordion type="single" collapsible className="w-full">
-            {rounds.map(round => {
-              const m = meta.get(round.id);
-              const votingLabel = m?.votingMs !== null && m?.votingMs !== undefined ? formatDuration(m.votingMs) : null;
-              const topicLabel = m?.topicMs !== null && m?.topicMs !== undefined ? formatDuration(m.topicMs) : null;
-              const roleEntries = finalRoleEntries(round);
+  // Mais recente primeiro: quem abre o histórico quer ver a última rodada, não rolar até ela.
+  const orderedRounds = useMemo(
+    () => [...(rounds || [])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    [rounds]
+  );
 
-              return (
-              <AccordionItem value={round.id} key={round.id}>
-                <AccordionTrigger>
-                  <div className="flex flex-col gap-1.5 w-full pr-4 text-left">
-                    <div className="flex justify-between items-start gap-4 w-full">
-                      <span className="font-semibold truncate">{round.topic}</span>
+  // Cor de status da rodada (barra lateral + selo do resultado).
+  const statusOf = (round: VotingRound, voters: number) => {
+    if (round.cancelled) return { bar: 'bg-rose-500', tone: 'text-rose-600 dark:text-rose-400', tile: 'bg-rose-500/10' };
+    if (round.skipped) return { bar: 'bg-amber-500', tone: 'text-amber-600 dark:text-amber-400', tile: 'bg-amber-500/10' };
+    if (voters > 1 && round.stats.consensus) return { bar: 'bg-emerald-500', tone: 'text-emerald-600 dark:text-emerald-400', tile: 'bg-emerald-500/10' };
+    if (voters > 1) return { bar: 'bg-rose-400', tone: 'text-slate-900 dark:text-white', tile: 'bg-slate-100 dark:bg-slate-900' };
+    return { bar: 'bg-indigo-400', tone: 'text-slate-900 dark:text-white', tile: 'bg-slate-100 dark:bg-slate-900' };
+  };
+
+  return (
+    <section className="space-y-3" aria-label="Histórico de votação">
+      <div className="flex items-center gap-2.5 px-1">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+          <HistoryIcon className="h-4 w-4" />
+        </div>
+        <h3 className="text-sm font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">Histórico da sessão</h3>
+        {rounds && rounds.length > 0 && (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black tabular-nums text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            {rounds.length} rodada{rounds.length !== 1 ? 's' : ''}
+          </span>
+        )}
+        <span className="h-px flex-1 bg-slate-100 dark:bg-border/40" />
+      </div>
+
+      {(!rounds || rounds.length === 0) ? (
+        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs font-medium text-muted-foreground dark:border-border">
+          Nenhuma rodada de votação foi concluída ainda.
+        </div>
+      ) : (
+        <Accordion type="single" collapsible className="w-full space-y-2">
+          {orderedRounds.map(round => {
+            const m = meta.get(round.id);
+            const voters = m?.voters ?? round.votes.length;
+            const votingLabel = m?.votingMs !== null && m?.votingMs !== undefined ? formatDuration(m.votingMs) : null;
+            const topicLabel = m?.topicMs !== null && m?.topicMs !== undefined ? formatDuration(m.topicMs) : null;
+            const roleEntries = finalRoleEntries(round);
+            const st = statusOf(round, voters);
+            const unit = round.deckType === 'hours' && !isNaN(Number(round.stats.avg)) ? 'h' : '';
+
+            return (
+            <AccordionItem
+              value={round.id}
+              key={round.id}
+              className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 px-5 shadow-sm backdrop-blur transition-shadow hover:shadow-md dark:border-border/60 dark:bg-card/70"
+            >
+              <span className={cn('absolute bottom-0 left-0 top-0 w-1.5', st.bar)} aria-hidden />
+              <AccordionTrigger className="py-4 hover:no-underline">
+                <div className="flex w-full items-center gap-4 pr-3 text-left">
+                  <div className={cn('flex h-12 min-w-[3.25rem] shrink-0 items-center justify-center rounded-xl px-2', st.tile)}>
+                    {round.cancelled ? (
+                      <Ban className="h-5 w-5 text-rose-500" />
+                    ) : round.skipped ? (
+                      <SkipForward className="h-5 w-5 text-amber-500" />
+                    ) : (
+                      <span className={cn('text-xl font-black italic leading-none tracking-tighter', st.tone)}>
+                        {round.stats.avg}{unit}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="flex items-start justify-between gap-4">
+                      <span className="truncate text-sm font-bold text-slate-900 dark:text-white">{round.topic}</span>
                       <span
-                        className="text-sm text-muted-foreground whitespace-nowrap"
+                        className="whitespace-nowrap text-[11px] font-medium text-muted-foreground"
                         title={format(new Date(round.timestamp), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
                       >
                         {formatDistanceToNow(new Date(round.timestamp), { addSuffix: true, locale: ptBR })}
@@ -261,11 +299,11 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                             </Badge>
                           )}
                           <Badge variant="outline" className="gap-1 text-[10px] font-bold border-slate-300 dark:border-border text-muted-foreground">
-                            <UsersIcon className="h-3 w-3" /> {m?.voters ?? round.votes.length} voto{(m?.voters ?? round.votes.length) !== 1 ? 's' : ''}
+                            <UsersIcon className="h-3 w-3" /> {voters} voto{voters !== 1 ? 's' : ''}
                           </Badge>
                           {/* Com um votante só não existe consenso nem divergência:
                               o badge mentiria dos dois jeitos. */}
-                          {(m?.voters ?? round.votes.length) > 1 && (
+                          {voters > 1 && (
                             <Badge
                               variant="outline"
                               className={cn(
@@ -288,87 +326,84 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                       )}
                     </div>
                   </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  {round.cancelled ? (
-                    <div className="flex flex-col gap-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 text-[11px] font-black text-rose-600 uppercase tracking-widest bg-rose-500/10 px-3 py-1 rounded-full border border-rose-400/20">
-                          <Ban className="h-3 w-3" />
-                          Tarefa Cancelada no Refinamento
-                        </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-5">
+                {round.cancelled ? (
+                  <div className="flex flex-col gap-3 py-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 rounded-full border border-rose-400/20 bg-rose-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-rose-600">
+                        <Ban className="h-3 w-3" />
+                        Tarefa cancelada no refinamento
                       </div>
-                      {round.note && (
-                        <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">
-                          <MessageSquare className="h-4 w-4 shrink-0 text-rose-500 mt-0.5" />
-                          <p className="font-medium italic">"{round.note}"</p>
-                        </div>
-                      )}
                     </div>
-                  ) : round.skipped ? (
-                    <div className="flex flex-col gap-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 text-[11px] font-black text-amber-600 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-400/20">
-                          <SkipForward className="h-3 w-3" />
-                          Tarefa Pulada / Sem Estimativa
-                        </div>
+                    {round.note && (
+                      <div className="flex items-start gap-2 rounded-xl bg-muted/30 p-3 text-sm text-muted-foreground">
+                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+                        <p className="font-medium italic">"{round.note}"</p>
                       </div>
-                      {round.note && (
-                        <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 rounded-xl p-3">
-                          <MessageSquare className="h-4 w-4 shrink-0 text-amber-500 mt-0.5" />
-                          <p className="font-medium italic">"{round.note}"</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                  <div className="grid grid-cols-3 gap-2 mb-4 text-center">
-                    <div>
-                      <p className="text-sm text-muted-foreground">{round.deckType === 'tshirt' ? 'Mais Votado' : 'Média'}</p>
-                      <p className="text-lg font-bold">{round.stats.avg}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Menor</p>
-                      <p className="text-lg font-bold">{round.stats.min}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Maior</p>
-                      <p className="text-lg font-bold">{round.stats.max}</p>
-                    </div>
+                    )}
                   </div>
-                  )}
-                  {!round.skipped && !round.cancelled && (
-                  <>
-                  {roleEntries.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-semibold text-sm mb-2">Estimativa final por papel:</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {roleEntries.map(([role, value]) => (
-                          <div key={role} className="flex items-center gap-2 text-sm p-1.5 rounded-md bg-muted/50">
-                            <span className="text-muted-foreground">{role === 'Developer' ? 'Dev' : role}</span>
-                            <Badge variant="secondary" className="font-bold">{value}h</Badge>
-                          </div>
-                        ))}
+                ) : round.skipped ? (
+                  <div className="flex flex-col gap-3 py-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-amber-600">
+                        <SkipForward className="h-3 w-3" />
+                        Tarefa pulada / sem estimativa
                       </div>
                     </div>
-                  )}
-
-                  {m && m.distribution.length > 1 && (
-                    <div className="mb-4">
-                      <h4 className="font-semibold text-sm mb-2">Distribuição:</h4>
-                      <div className="flex flex-wrap gap-1.5">
-                        {m.distribution.map(([value, count]) => (
-                          <span key={value} className="text-[11px] font-bold px-2 py-1 rounded-lg bg-muted/50 text-muted-foreground">
-                            {value} <span className="opacity-60">× {count}</span>
-                          </span>
-                        ))}
+                    {round.note && (
+                      <div className="flex items-start gap-2 rounded-xl bg-muted/30 p-3 text-sm text-muted-foreground">
+                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+                        <p className="font-medium italic">"{round.note}"</p>
                       </div>
-                    </div>
-                  )}
-
-                  <Separator className="my-4" />
+                    )}
+                  </div>
+                ) : (
                   <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { l: round.deckType === 'tshirt' ? 'Mais votado' : 'Média', v: round.stats.avg, strong: true },
+                        { l: 'Menor', v: round.stats.min },
+                        { l: 'Maior', v: round.stats.max },
+                      ].map(t => (
+                        <div key={t.l} className={cn('rounded-xl border p-2.5 text-center', t.strong ? 'border-indigo-200/70 bg-indigo-50/60 dark:border-indigo-900/40 dark:bg-indigo-950/20' : 'border-slate-100 bg-slate-50/70 dark:border-border/40 dark:bg-slate-900/40')}>
+                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{t.l}</p>
+                          <p className={cn('mt-0.5 text-xl font-black italic tracking-tighter', t.strong ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-100')}>{t.v}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {roleEntries.length > 0 && (
+                      <div>
+                        <h4 className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Estimativa final por papel</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {roleEntries.map(([role, value]) => (
+                            <div key={role} className="flex items-center gap-2 rounded-lg bg-muted/50 p-1.5 text-sm">
+                              <span className="text-muted-foreground">{role === 'Developer' ? 'Dev' : role}</span>
+                              <Badge variant="secondary" className="font-bold">{value}h</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {m && m.distribution.length > 1 && (
+                      <div>
+                        <h4 className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Distribuição</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {m.distribution.map(([value, count]) => (
+                            <span key={value} className="rounded-lg bg-muted/50 px-2 py-1 text-[11px] font-bold text-muted-foreground">
+                              {value} <span className="opacity-60">× {count}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <Separator />
                     <div>
-                      <h4 className="font-semibold text-sm mb-2">Votos individuais:</h4>
+                      <h4 className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Votos individuais</h4>
                       <div className="flex flex-wrap gap-2">
                         {round.votes.map(vote => {
                           const participant = participantMap.get(vote.participantId);
@@ -377,7 +412,7 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                           const nickname = participant?.nickname || vote.participantNickname || '...';
                           const roleLabel = vote.participantGlobalRole || participant?.globalRole || null;
                           return (
-                            <div key={vote.participantId} className="flex items-center gap-2 text-sm p-1.5 rounded-md bg-muted/50">
+                            <div key={vote.participantId} className="flex items-center gap-2 rounded-lg bg-muted/50 p-1.5 text-sm">
                               <div className="flex flex-col leading-tight">
                                 <span>{nickname}</span>
                                 {roleLabel && (
@@ -394,26 +429,24 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                                 </span>
                               )}
                             </div>
-                          )
+                          );
                         })}
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <Button variant="outline" size="sm" onClick={() => handleCopyRound(round)}>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copiar Estimativas
+                      <Button variant="outline" size="sm" onClick={() => handleCopyRound(round)} className="rounded-xl text-[10px] font-black uppercase tracking-widest">
+                        <Copy className="mr-2 h-3.5 w-3.5" />
+                        Copiar estimativas
                       </Button>
                     </div>
                   </div>
-                  </>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-              );
-            })}
-          </Accordion>
-        )}
-      </CardContent>
-    </Card>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+            );
+          })}
+        </Accordion>
+      )}
+    </section>
   );
 }

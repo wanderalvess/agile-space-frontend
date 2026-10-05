@@ -56,6 +56,7 @@ import {
   X,
   Settings,
   Flag,
+  Play,
   MoreHorizontal,
   CloudDownload,
   Bot,
@@ -103,6 +104,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '../ui/badge';
 import { pokerApi } from '../../app/room/api';
 import { TopicQueue } from './TopicQueue';
@@ -121,6 +123,7 @@ import { TopicTiming } from './TopicTiming';
 import { saveTemplate } from '@/lib/poker-templates';
 import { ReactionOverlay, type RoomReaction } from './ReactionOverlay';
 import { ShareRoomDialog } from './ShareRoomDialog';
+import { RoomWelcome, RoomWaiting } from './RoomWelcome';
 
 // Retorna true enquanto a viewport for menor que `px`. Usado para trocar as
 // sidebars fixas (desktop) por drawers (Sheet) no mobile/tablet.
@@ -523,13 +526,6 @@ const PokerRoomComponent = ({
     toast({ title: 'Template salvo!', description: 'Deck, configurações e backlog guardados para reusar numa nova sessão.' });
   };
 
-  // Auto-close settings when sidebars open or votes are revealed
-  useEffect(() => {
-    if (isQueueOpen || isParticipantsOpen) {
-      setIsFacilitatorSettingsOpen(false);
-    }
-  }, [isQueueOpen, isParticipantsOpen]);
-
   const handleReveal = () => {
     onReveal();
     setIsFacilitatorSettingsOpen(false);
@@ -798,14 +794,32 @@ const PokerRoomComponent = ({
         {isTheaterMode ? (
           <header className="sticky top-0 z-50 w-full shrink-0">
             <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/60 dark:border-slate-800/60 h-12 flex items-center justify-between gap-3 px-4 md:px-6">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="px-2.5 py-1 rounded-lg bg-pink-500/10 text-pink-600 dark:text-pink-400 text-[9px] font-black uppercase tracking-widest shrink-0">
-                  Apresentação
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase tracking-widest shrink-0">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-500" />
+                  </span>
+                  Apresentando
                 </span>
                 <span className="text-xs font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 truncate">
                   {roomTitle || 'Scrum Poker'}
                 </span>
               </div>
+              {/* Andamento da rodada: quem apresenta enxerga o quórum sem sair do modo. */}
+              {activeIssueId && !isSessionFinished && (
+                <div className="hidden md:flex items-center gap-3 min-w-0" aria-live="polite">
+                  <div className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                    <div
+                      className={cn('h-full rounded-full transition-all duration-700', votesRevealed ? 'bg-emerald-500' : 'bg-indigo-500')}
+                      style={{ width: `${votesRevealed ? 100 : Math.min(100, (votes.length / Math.max(1, eligibleVoters.length, votes.length)) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    {votesRevealed ? 'Votos revelados' : `${votes.length} de ${Math.max(eligibleVoters.length, votes.length)} votaram`}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-2 shrink-0">
                 {timer && (timer.initialDuration > 0 || timer.status !== 'stopped') && (
                   <div className="hidden sm:block">
@@ -828,7 +842,7 @@ const PokerRoomComponent = ({
                   size="sm"
                   variant="outline"
                   onClick={() => setIsTheaterMode(false)}
-                  className="h-9 px-4 rounded-xl border-2 border-pink-400/50 text-pink-600 dark:text-pink-400 hover:bg-pink-50 dark:hover:bg-pink-950/30 font-black uppercase text-[9px] tracking-widest gap-2"
+                  className="h-9 px-4 rounded-xl border-2 border-rose-400/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-black uppercase text-[9px] tracking-widest gap-2"
                 >
                   <X className="h-3.5 w-3.5" />
                   Sair <span className="hidden sm:inline">da apresentação</span>
@@ -869,6 +883,7 @@ const PokerRoomComponent = ({
                   />
                 </div>
               )}
+              <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
@@ -887,9 +902,11 @@ const PokerRoomComponent = ({
               >
                 <Users className="h-4 w-4" />
               </Button>
+              </div>
 
               {/* Ações secundárias: soltas em telas largas, agrupadas abaixo de lg. */}
               <div className={cn("hidden items-center gap-1.5", isQueueOpen ? "2xl:flex" : "lg:flex")}>
+                <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50">
                 {isCurrentUserFacilitator && (
                   <Button
                     variant="ghost"
@@ -906,7 +923,7 @@ const PokerRoomComponent = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setIsFacilitatorSettingsOpen(!isFacilitatorSettingsOpen)}
+                    onClick={() => setIsFacilitatorSettingsOpen(true)}
                     className={cn("h-9 w-9 rounded-xl transition-all", isFacilitatorSettingsOpen ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/20" : "text-slate-400 dark:text-muted-foreground")}
                     title="Configurações da Cerimônia"
                   >
@@ -938,8 +955,7 @@ const PokerRoomComponent = ({
                 >
                   <Sparkles className="h-4 w-4" />
                 </Button>
-
-                <div className="w-px h-4 bg-slate-200 dark:bg-border mx-1" />
+                </div>
 
                 <Button
                   variant="outline"
@@ -993,7 +1009,7 @@ const PokerRoomComponent = ({
                     </DropdownMenuItem>
                   )}
                   {isCurrentUserFacilitator && (
-                    <DropdownMenuItem onClick={() => setIsFacilitatorSettingsOpen(!isFacilitatorSettingsOpen)} className="gap-2 text-xs font-bold">
+                    <DropdownMenuItem onClick={() => setIsFacilitatorSettingsOpen(true)} className="gap-2 text-xs font-bold">
                       <Settings className="h-4 w-4" />
                       Configurações da cerimônia
                     </DropdownMenuItem>
@@ -1090,6 +1106,10 @@ const PokerRoomComponent = ({
                   untouchedCount={isSessionFinished ? issuesQueue.filter(i => !i.skipped && i.status !== 'completed').length : 0}
                   isTheaterMode={isTheaterMode}
                   onShowDetail={() => setIsDetailOpen(true)}
+                  votedCount={votes.length}
+                  totalVoters={Math.max(eligibleVoters.length, votes.length)}
+                  round={activeIssueId && !settings?.roundNudge ? currentRoundNumber : undefined}
+                  revealed={votesRevealed}
                 />
 
 
@@ -1108,28 +1128,6 @@ const PokerRoomComponent = ({
                         <Eye className="mr-1 lg:mr-1.5 h-3.5 w-3.5 transition-transform group-hover:scale-110" />
                         REVELAR VOTOS
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openOffTableDialog('skip')}
-                        title={canParkTask ? 'Tirar da mesa — pular de vez ou adiar pro fim da fila' : 'Pular — sai da estimativa desta sessão'}
-                        className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-amber-400/40 dark:border-amber-500/30 text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-700 dark:hover:text-amber-400 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
-                      >
-                        <SkipForward className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                        {canParkTask ? 'Tirar da mesa' : 'Pular'}
-                      </Button>
-                      {(settings?.cancelTask ?? true) && onCancelIssue && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => { setCancelNote(''); setIsCancelDialogOpen(true); }}
-                          title="Cancelar tarefa no refinamento"
-                          className="h-8 px-2.5 lg:h-9 lg:px-3 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-rose-400/50 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
-                        >
-                          <Ban className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                          Cancelar
-                        </Button>
-                      )}
                     </>
                   ) : (
                     <>
@@ -1196,18 +1194,57 @@ const PokerRoomComponent = ({
                     estouro de tempo pode acontecer tanto votando quanto com os
                     votos já revelados.
                   */}
-                  {onFinishSession && sessionStartedAt && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setIsFinishDialogOpen(true)}
-                      title="Encerrar a sessão e gerar o relatório — o que sobrar na fila entra como não abordado"
-                      className="h-8 px-2.5 lg:h-9 lg:px-3.5 font-black text-[9px] lg:text-[10px] uppercase tracking-wider rounded-xl border-2 border-rose-400/50 dark:border-rose-500/40 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:border-rose-500 hover:text-rose-700 dark:hover:text-rose-300 transition-all whitespace-nowrap bg-white/50 dark:bg-slate-900/40"
-                    >
-                      <Flag className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                      <span className="hidden sm:inline">Encerrar Sessão</span>
-                      <span className="inline sm:hidden">Encerrar</span>
-                    </Button>
+                  {(!votesRevealed || (onFinishSession && sessionStartedAt)) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          title="Mais ações da tarefa"
+                          aria-label="Mais ações da tarefa"
+                          className="h-8 w-8 lg:h-9 lg:w-9 p-0 rounded-xl border-slate-200 dark:border-border text-slate-500 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted shrink-0"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-64 rounded-xl p-2">
+                        {!votesRevealed && (
+                          <DropdownMenuItem onClick={() => openOffTableDialog('skip')} className="gap-2 rounded-lg py-2 text-xs font-bold text-amber-700 dark:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30">
+                            <SkipForward className="h-4 w-4" />
+                            <span className="flex flex-col">
+                              {canParkTask ? 'Tirar da mesa' : 'Pular tarefa'}
+                              <span className="text-[10px] font-medium text-slate-400">{canParkTask ? 'Pular de vez ou adiar para o fim da fila' : 'Sai da estimativa desta sessão'}</span>
+                            </span>
+                          </DropdownMenuItem>
+                        )}
+                        {!votesRevealed && (settings?.cancelTask ?? true) && onCancelIssue && (
+                          <DropdownMenuItem onClick={() => { setCancelNote(''); setIsCancelDialogOpen(true); }} className="gap-2 rounded-lg py-2 text-xs font-bold text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-950/30">
+                            <Ban className="h-4 w-4" />
+                            <span className="flex flex-col">
+                              Cancelar tarefa
+                              <span className="text-[10px] font-medium text-slate-400">Descartada no refinamento</span>
+                            </span>
+                          </DropdownMenuItem>
+                        )}
+                        {/*
+                          Encerrar com fila cheia: o tempo estourou e o time só chegou
+                          em parte dos itens. Vale tanto votando quanto com os votos
+                          já revelados.
+                        */}
+                        {onFinishSession && sessionStartedAt && (
+                          <>
+                            {!votesRevealed && <DropdownMenuSeparator />}
+                            <DropdownMenuItem onClick={() => setIsFinishDialogOpen(true)} className="gap-2 rounded-lg py-2 text-xs font-bold text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-950/30">
+                              <Flag className="h-4 w-4" />
+                              <span className="flex flex-col">
+                                Encerrar sessão
+                                <span className="text-[10px] font-medium text-slate-400">Gera o relatório; o que sobrar entra como não abordado</span>
+                              </span>
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
               )}
@@ -1262,70 +1299,99 @@ const PokerRoomComponent = ({
               primeiro voto ainda serve de rede de segurança.
             */}
             {activeIssueId && !sessionStartedAt && !isSessionFinished && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-indigo-200/70 dark:border-indigo-900/50 bg-indigo-50/70 dark:bg-indigo-950/20 px-5 py-4 mb-4 shrink-0">
-                <div className="flex items-center gap-3 text-center sm:text-left">
-                  <div className="p-2 rounded-xl bg-indigo-600 text-white shrink-0">
-                    <Clock className="h-4 w-4" />
+              <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden rounded-3xl border border-indigo-200/70 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-indigo-950/40 dark:via-card dark:to-violet-950/30 px-5 py-4 mb-4 shrink-0 shadow-[0_20px_50px_-28px_rgba(79,70,229,0.5)] animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-indigo-500/15 blur-3xl" aria-hidden />
+                <div className="relative flex items-center gap-4 text-center sm:text-left">
+                  <div className="relative shrink-0">
+                    <span className="absolute inset-0 rounded-2xl bg-indigo-500/30 animate-ping" aria-hidden />
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/30 -rotate-3">
+                      <Clock className="h-6 w-6" />
+                    </div>
                   </div>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400">
-                      Refinamento ainda não iniciado
+                    <p className="text-sm font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">
+                      {isCurrentUserFacilitator ? 'Tudo pronto para começar' : 'Aguardando o facilitador'}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    <p className="mt-0.5 max-w-md text-[11px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">
                       {isCurrentUserFacilitator
-                        ? 'Inicie quando o time estiver reunido — o tempo por tarefa conta a partir daí.'
-                        : 'O facilitador vai iniciar a sessão em instantes.'}
+                        ? 'Inicie quando o time estiver reunido — o cronômetro e o tempo de cada tarefa contam a partir daí, e o baralho é liberado para todos.'
+                        : 'Assim que ele iniciar o refinamento, o baralho é liberado e a votação começa.'}
                     </p>
                   </div>
                 </div>
                 {isCurrentUserFacilitator && onStartSession && (
                   <Button
                     onClick={onStartSession}
-                    className="h-11 px-7 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20 w-full sm:w-auto"
+                    className="relative h-11 w-full sm:w-auto shrink-0 gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-700 hover:to-violet-700 active:scale-95 transition-all"
                   >
-                    Iniciar Refinamento
+                    <Play className="h-4 w-4" /> Iniciar refinamento
                   </Button>
                 )}
               </div>
             )}
 
-            {isCurrentUserFacilitator && isFacilitatorSettingsOpen && (
-              <Card className="border border-white/20 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] bg-white/40 dark:bg-black/40 backdrop-blur-xl rounded-xl mb-4 px-2 py-1 shrink-0">
-                <CardContent className="p-6">
-                  <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+            {isCurrentUserFacilitator && (
+              <Dialog open={isFacilitatorSettingsOpen} onOpenChange={setIsFacilitatorSettingsOpen}>
+                <DialogContent className="flex max-h-[88vh] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-0 shadow-2xl dark:border-border dark:bg-card sm:rounded-3xl">
+                  <DialogHeader className="shrink-0 space-y-1.5 border-b border-slate-100 px-6 pb-4 pt-6 text-left dark:border-border/60">
+                    <div className="flex items-center gap-3 pr-8">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/25">
+                        <Settings className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <DialogTitle className="text-lg font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">Configurações da cerimônia</DialogTitle>
+                        <DialogDescription className="text-[11px] font-medium text-slate-500 dark:text-muted-foreground">
+                          Ajuste como a votação funciona nesta sala. Cada mudança vale na hora para todo o time.
+                        </DialogDescription>
+                      </div>
+                    </div>
+                  </DialogHeader>
+                  <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
                     <FacilitatorPanel
-                      deck={deck}
-                      onUpdateSettings={onUpdateSettings}
-                      allowManagementToVote={settings?.allowManagementToVote}
-                      autoReveal={settings?.autoReveal}
-                      outlierPrompt={settings?.outlierPrompt}
-                      confidenceVote={settings?.confidenceVote}
-                      showVelocity={settings?.showVelocity}
-                      anonymousReveal={settings?.anonymousReveal}
-                      turnNotification={settings?.turnNotification}
-                      showDistribution={settings?.showDistribution}
-                      decisionNotes={settings?.decisionNotes}
-                      perTopicTime={settings?.perTopicTime !== false}
-                      autoTimer={settings?.autoTimer}
-                      groomingFlag={settings?.groomingFlag}
-                      autoConsensus={settings?.autoConsensus}
-                      suggestRevote={settings?.suggestRevote}
-                      reactions={settings?.reactions}
-                      groupVotesByRole={settings?.groupVotesByRole}
-                      referenceStory={settings?.referenceStory}
-                      roundNudge={settings?.roundNudge}
-                      maxRounds={settings?.maxRounds}
-                      refinementNotes={settings?.refinementNotes}
-                      parkTask={settings?.parkTask}
-                      cancelTask={settings?.cancelTask}
-                      divergenceThresholds={settings?.divergenceThresholds}
-                      onSetDeck={onSetDeck}
-                      onSaveTemplate={handleSaveTemplate}
-                      isEmbeddedInSheet={true} /* Re-using the simplified layout */
-                    />
+                                deck={deck}
+                                onUpdateSettings={onUpdateSettings}
+                                allowManagementToVote={settings?.allowManagementToVote}
+                                autoReveal={settings?.autoReveal}
+                                outlierPrompt={settings?.outlierPrompt}
+                                confidenceVote={settings?.confidenceVote}
+                                showVelocity={settings?.showVelocity}
+                                anonymousReveal={settings?.anonymousReveal}
+                                turnNotification={settings?.turnNotification}
+                                showDistribution={settings?.showDistribution}
+                                decisionNotes={settings?.decisionNotes}
+                                perTopicTime={settings?.perTopicTime !== false}
+                                autoTimer={settings?.autoTimer}
+                                groomingFlag={settings?.groomingFlag}
+                                autoConsensus={settings?.autoConsensus}
+                                suggestRevote={settings?.suggestRevote}
+                                reactions={settings?.reactions}
+                                groupVotesByRole={settings?.groupVotesByRole}
+                                referenceStory={settings?.referenceStory}
+                                roundNudge={settings?.roundNudge}
+                                maxRounds={settings?.maxRounds}
+                                refinementNotes={settings?.refinementNotes}
+                                parkTask={settings?.parkTask}
+                                cancelTask={settings?.cancelTask}
+                                divergenceThresholds={settings?.divergenceThresholds}
+                                onSetDeck={onSetDeck}
+                                onSaveTemplate={handleSaveTemplate}
+                                isEmbeddedInSheet={true}
+                              />
                   </div>
-                </CardContent>
-              </Card>
+                  <DialogFooter className="shrink-0 flex-row items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-3 dark:border-border/60 dark:bg-slate-900/40 sm:justify-between">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Salvo automaticamente
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => setIsFacilitatorSettingsOpen(false)}
+                      className="h-9 rounded-xl bg-indigo-600 px-6 text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-700"
+                    >
+                      Concluir
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
 
             {settings?.refinementNotes && activeIssueId && !isSessionFinished && (
@@ -1333,10 +1399,9 @@ const PokerRoomComponent = ({
                 <RefinementNotes
                   devNotes={activeIssue?.devNotes || ''}
                   qaNotes={activeIssue?.qaNotes || ''}
-                  onUpdateNotes={isCurrentUserFacilitator ? onUpdateRefinementNotes : undefined}
+                  onUpdateNotes={onUpdateRefinementNotes}
                   activeIssueId={activeIssueId}
                   isTheaterMode={isTheaterMode}
-                  readOnly={!isCurrentUserFacilitator}
                 />
               </div>
             )}
@@ -1345,149 +1410,42 @@ const PokerRoomComponent = ({
               {isInitialState ? (
                 <div className="flex flex-col items-center justify-center py-3 sm:py-5 text-center animate-in fade-in zoom-in-95 duration-700">
                   {isCurrentUserFacilitator ? (
-                    <div className="w-full max-w-4xl space-y-5">
-                      {/* HERO */}
-                      <div className="flex items-center justify-center gap-3 sm:gap-4">
-                        <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 rotate-3">
-                          <Sparkles className="w-6 h-6" />
-                        </div>
-                        <div className="text-left">
-                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                            <h2 className="text-xl sm:text-2xl font-black italic tracking-tighter uppercase text-slate-900 dark:text-white leading-none">Sua sala está pronta</h2>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-900/50">
-                              <WalletCards className="h-3 w-3" /> {WELCOME_DECK_LABELS[deck] || deck}
-                            </span>
-                            {roomTeam && (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest">
-                                {roomTeam}
-                              </span>
-                            )}
-                            <span className="text-[11px] text-slate-400 dark:text-muted-foreground/70 font-medium">Faltam só 2 passos para começar.</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* CHECKLIST DE ONBOARDING */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left items-start">
-                        <div className="bg-white/90 dark:bg-card/80 backdrop-blur border border-slate-100 dark:border-border/60 rounded-2xl p-4 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.15)] flex flex-col gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-indigo-600 text-white text-[11px] font-black shrink-0">1</span>
-                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-foreground">Convide o time</h3>
-                          </div>
-                          {participants.length > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <div className="flex -space-x-3 shrink-0">
-                                {participants.slice(0, 5).map(p => (
-                                  <Avatar key={p.id} className={cn("h-8 w-8 border-2 border-white dark:border-card", !onlineIds.has(p.id) && "opacity-50")}>
-                                    <AvatarFallback className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black">
-                                      {getInitials(p.nickname)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ))}
-                                {participants.length > 5 && (
-                                  <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-card flex items-center justify-center text-[10px] font-black text-slate-500 dark:text-slate-400">
-                                    +{participants.length - 5}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-[11px] font-bold text-slate-500 dark:text-muted-foreground">
-                                {participants.length} já {participants.length === 1 ? 'entrou' : 'entraram'}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] font-medium text-slate-400 dark:text-muted-foreground/70 italic">Ninguém entrou ainda</span>
-                          )}
-                          <Button
-                            size="sm"
-                            onClick={handleCopyLink}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] h-9 rounded-xl w-full"
-                          >
-                            <Copy className="mr-2 h-3.5 w-3.5" /> Compartilhar Sala
-                          </Button>
-                        </div>
-
-                        <div className="bg-white/90 dark:bg-card/80 backdrop-blur border border-slate-100 dark:border-border/60 rounded-2xl p-4 shadow-[0_20px_50px_-24px_rgba(0,0,0,0.15)] flex flex-col gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-indigo-600 text-white text-[11px] font-black shrink-0">2</span>
-                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-foreground">Monte a fila</h3>
-                          </div>
-                          <p className="text-[11px] font-medium text-slate-500 dark:text-muted-foreground leading-relaxed -mt-1">
-                            Importe direto do Jira ou adicione tarefas manualmente.
-                          </p>
-                          <div className="flex flex-col gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] min-h-9 h-auto py-2 whitespace-normal leading-tight rounded-xl w-full"
-                            >
-                              <CloudDownload className="mr-2 h-3.5 w-3.5" /> Importar do Jira
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
-                              className="font-black uppercase tracking-widest text-[10px] min-h-8 h-auto py-2 whitespace-normal leading-tight rounded-xl w-full border-indigo-200 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
-                            >
-                              <ListPlus className="mr-2 h-3.5 w-3.5" /> Adicionar Manualmente
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="bg-slate-50/80 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-border/60 rounded-2xl p-4 flex flex-col gap-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-300 dark:bg-slate-700 text-white text-[11px] font-black shrink-0">3</span>
-                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-muted-foreground">Comece a votar</h3>
-                          </div>
-                          <p className="text-[11px] font-medium text-slate-400 dark:text-muted-foreground/70 leading-relaxed">
-                            A primeira tarefa adicionada já cai na mesa — a votação começa automaticamente, sem passo extra.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <RoomWelcome
+                      deck={deck}
+                      deckLabel={WELCOME_DECK_LABELS[deck] || deck}
+                      roomTeam={roomTeam}
+                      participants={participants}
+                      onlineIds={onlineIds}
+                      onShare={handleCopyLink}
+                      onImportJira={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
+                      onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
+                    />
                   ) : (
-                    <div className="w-full max-w-md space-y-7">
-                      <div className="mx-auto w-24 h-24 bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-slate-400 shadow-inner relative">
-                        <Hourglass className="w-12 h-12 animate-spin animate-duration-[3s]" />
-                        <div className="absolute inset-0 rounded-[2.5rem] border-4 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
-                      </div>
-                      <div className="space-y-3">
-                        <h2 className="text-3xl font-black italic tracking-tighter uppercase text-slate-900 dark:text-white leading-tight">Sala Pronta!</h2>
-                        <p className="text-slate-500 dark:text-muted-foreground text-sm font-medium leading-relaxed">
-                          O facilitador está preparando os motores. Relaxe um pouco, logo a primeira tarefa aparecerá aqui para votação.
-                        </p>
-                      </div>
-                      {participants.length > 1 && (
-                        <div className="flex items-center justify-center gap-2.5">
-                          <div className="flex -space-x-3">
-                            {participants.slice(0, 5).map(p => (
-                              <Avatar key={p.id} className="h-8 w-8 border-2 border-white dark:border-card">
-                                <AvatarFallback className="bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[10px] font-black">
-                                  {getInitials(p.nickname)}
-                                </AvatarFallback>
-                              </Avatar>
-                            ))}
-                          </div>
-                          <span className="text-[11px] font-bold text-slate-500 dark:text-muted-foreground">{participants.length} na sala</span>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-950/30 rounded-full w-fit mx-auto">
-                        <span className="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Aguardando Início...</span>
-                      </div>
-                    </div>
+                    <RoomWaiting
+                      deck={deck}
+                      deckLabel={WELCOME_DECK_LABELS[deck] || deck}
+                      roomTeam={roomTeam}
+                      participants={participants}
+                      onlineIds={onlineIds}
+                    />
                   )}
                 </div>
               ) : isSessionFinished && stats ? (
                 <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700">
-                  <div className="text-center space-y-3 mb-10">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 mb-2">
-                      <Award className="h-4 w-4" />
-                      Refinamento Finalizado
-                    </div>
-                    <h2 className="text-4xl font-black italic tracking-tighter uppercase text-slate-900 leading-tight">Dashboard da Cerimônia</h2>
-                    <p className="text-slate-500 text-sm font-medium">Resultados consolidados da rodada de hoje.</p>
+                  <div className="relative text-center space-y-3 mb-10 pt-2">
+                    <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-40 w-96 -translate-x-1/2 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden />
+                    <motion.div
+                      initial={{ scale: 0.4, rotate: -12, opacity: 0 }}
+                      animate={{ scale: 1, rotate: 3, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 160, damping: 12 }}
+                      className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-xl shadow-emerald-600/30"
+                    >
+                      <Award className="h-8 w-8" />
+                    </motion.div>
+                    <h2 className="inline-block px-2 pb-1.5 pt-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-4xl sm:text-5xl font-black italic tracking-tighter uppercase text-transparent leading-tight dark:from-emerald-300 dark:via-teal-300 dark:to-indigo-300">Cerimônia concluída</h2>
+                    <p className="text-slate-500 dark:text-muted-foreground text-sm font-medium">
+                      {stats.breakdown.estimated} tarefa{stats.breakdown.estimated !== 1 ? 's' : ''} estimada{stats.breakdown.estimated !== 1 ? 's' : ''} em {stats.durationStr} — resultados consolidados abaixo.
+                    </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                     <StatCard
@@ -1745,7 +1703,7 @@ const PokerRoomComponent = ({
                         <h3 className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Detalhamento de Votos</h3>
                         <Separator className="flex-1 opacity-20" />
                       </div>
-                      <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} groupByRole={!!settings?.groupVotesByRole} />
+                      <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} groupByRole={!!settings?.groupVotesByRole} large={isTheaterMode} />
                     </div>
                   )}
                   <div className="bg-card/90 backdrop-blur-xl p-4 md:p-6 rounded-[2rem] border border-white/20 shadow-xl">
@@ -1841,11 +1799,8 @@ const PokerRoomComponent = ({
                   )}
                 </div>
               ) : (
-                <div className={cn(
-                  "space-y-6 transition-all duration-500",
-                  isTheaterMode && "scale-105"
-                )}>
-                  <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} />
+                <div className="space-y-6 transition-all duration-500">
+                  <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} large={isTheaterMode} />
                 </div>
               )}
             </div>
@@ -1856,21 +1811,7 @@ const PokerRoomComponent = ({
                 <div className="relative">
                   <div className="absolute inset-x-0 -top-3 flex justify-center z-10 pointer-events-none">
                     <div className="px-4 py-0.5 bg-primary text-[9px] font-black text-primary-foreground rounded-full tracking-[0.2em] uppercase shadow-md border-2 border-background flex items-center justify-center gap-2">
-                      <span>Seu Baralho</span>
-                      {!votesRevealed && (
-                        <>
-                          <span className="opacity-50">•</span>
-                          <span className="text-primary-foreground/90 whitespace-nowrap">
-                            {votes.length === 0 ? "Aguardando Votos..." : `${votes.length} DE ${eligibleVoters.length} VOTARAM`}
-                          </span>
-                          {votes.length > 0 && pendingVoters > 0 && (
-                            <>
-                              <span className="opacity-50">•</span>
-                              <span className="text-amber-200 whitespace-nowrap">FALTAM {pendingVoters}</span>
-                            </>
-                          )}
-                        </>
-                      )}
+                      <span>Seu baralho</span>
                     </div>
                   </div>
                   <Controls
@@ -1903,7 +1844,7 @@ const PokerRoomComponent = ({
                 </Card>
               ) : null}
 
-              {votingRounds && votingRounds.length > 0 && (
+              {votingRounds && votingRounds.length > 0 && !isTheaterMode && (
                 <History roomId={roomId} rounds={votingRounds} participants={participants} issues={issuesQueue} />
               )}
             </div>
@@ -2109,26 +2050,33 @@ const PokerRoomComponent = ({
 
       {/* FLOATING TEAM CHAT BUTTON */}
       <AnimatePresence>
-        {!isTeamChatOpen && (
+        {!isTeamChatOpen && !isFacilitatorSettingsOpen && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
             className="fixed bottom-6 right-6 z-[60]"
           >
-            <Button
+            <button
+              type="button"
               onClick={toggleTeamChat}
-              className="h-16 w-16 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-500/40 flex items-center justify-center group relative"
+              className="group relative flex h-14 items-center gap-0 rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 pl-[1.1rem] pr-[1.1rem] text-white shadow-2xl shadow-indigo-600/40 ring-1 ring-white/20 transition-all duration-300 hover:gap-2 hover:pr-5 hover:shadow-indigo-500/60 hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
               title="Chat da sala"
               aria-label={teamChatUnread > 0 ? `Chat da sala, ${teamChatUnread} mensagens não lidas` : 'Chat da sala'}
             >
-              <MessagesSquare className="h-7 w-7 group-hover:scale-110 transition-transform" />
               {teamChatUnread > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-slate-900 animate-pulse">
+                <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-indigo-400/30" aria-hidden />
+              )}
+              <MessagesSquare className="relative h-6 w-6 shrink-0 transition-transform duration-300 group-hover:scale-110" />
+              <span className="relative max-w-0 overflow-hidden whitespace-nowrap text-[10px] font-black uppercase tracking-widest opacity-0 transition-all duration-300 group-hover:max-w-[7rem] group-hover:opacity-100">
+                Chat da sala
+              </span>
+              {teamChatUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-[22px] min-w-[22px] items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-black text-white dark:border-slate-900">
                   {teamChatUnread > 99 ? '99+' : teamChatUnread}
                 </span>
               )}
-            </Button>
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
