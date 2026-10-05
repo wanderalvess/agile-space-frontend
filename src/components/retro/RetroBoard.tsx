@@ -544,7 +544,9 @@ const RetroBoardComponent = ({
 
         {/* BARRA DE ABAS: navega entre colunas durante a apresentação (isFocusMode) */}
         {isFocusMode && (
-          <div className="fixed top-0 inset-x-0 z-[110] h-14 flex items-center gap-2 px-4 sm:px-6 bg-white/70 dark:!bg-slate-900/70 backdrop-blur-2xl border-b border-white/60 dark:!border-slate-700/50 shadow-sm overflow-x-auto scrollbar-none">
+          <div className="fixed top-0 inset-x-0 z-[110] h-14 flex items-center gap-2 px-4 sm:px-6 bg-white/70 dark:!bg-slate-900/70 backdrop-blur-2xl border-b border-white/60 dark:!border-slate-700/50 shadow-sm">
+            {/* Abas rolam sozinhas em telas estreitas; controles e Sair ficam sempre visíveis */}
+            <div className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {columns.map((col) => {
               const config = THEME_CONFIG[col.theme] || THEME_CONFIG.neutral;
               const Icon = config.icon;
@@ -564,7 +566,7 @@ const RetroBoardComponent = ({
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />
-                  <span className="whitespace-nowrap">{col.title}</span>
+                  <span className={cn("whitespace-nowrap", !isActive && "hidden xl:inline")}>{col.title}</span>
                   <span className={cn(
                     "h-[18px] min-w-[18px] px-1 rounded-full text-[9px] flex items-center justify-center shrink-0",
                     isActive ? "bg-white/25" : "bg-slate-900/10 dark:!bg-white/10"
@@ -574,7 +576,8 @@ const RetroBoardComponent = ({
                 </Button>
               );
             })}
-            <div className="flex-1" />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
             {boardData.syncStageEnabled && !isCurrentUserCreator && (
               <span title="Navegação controlada pelo facilitador" className="shrink-0 text-slate-400">
                 <Lock className="h-4 w-4" />
@@ -611,6 +614,7 @@ const RetroBoardComponent = ({
               <Minimize2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Sair</span>
             </Button>
+            </div>
           </div>
         )}
 
