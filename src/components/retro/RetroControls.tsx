@@ -290,7 +290,7 @@ export function RetroControls({
                   </div>
                 </TooltipTrigger>
                 {!isCardsRevealed && (
-                  <TooltipContent side="bottom" className="bg-slate-900 text-white border-none rounded-xl p-2 text-[9px] font-black uppercase tracking-widest">
+                  <TooltipContent side="bottom" className={cn("bg-slate-900 text-white border-none rounded-xl p-2 text-[9px] font-black uppercase tracking-widest", compact && "z-[130]")}>
                     Revele os cards primeiro
                   </TooltipContent>
                 )}
@@ -338,7 +338,8 @@ export function RetroControls({
               <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Controles</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-[300px] rounded-2xl border-slate-200 shadow-2xl p-3 space-y-2 bg-white/95 backdrop-blur-xl">
+          {/* Na barra de apresentação (z-[110]) e com a coluna em tela cheia (z-[100]), o z-50 padrão ficaria por baixo */}
+          <PopoverContent align="end" className={cn("w-[300px] rounded-2xl border-slate-200 shadow-2xl p-3 space-y-2 bg-white/95 backdrop-blur-xl", compact && "z-[130]")}>
             {/* Limite de votos por pessoa */}
             {onSetMaxVotesPerParticipant && (
               <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">

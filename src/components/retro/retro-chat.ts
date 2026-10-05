@@ -4,6 +4,7 @@ import {
   dmChannelId,
   participantCategory,
   roleChannelId,
+  type ChatMessage,
   type ChatParticipant,
 } from '../poker/team-chat/chatChannels';
 
@@ -35,4 +36,21 @@ export function chatChannelsFor(self: RetroParticipant, participants: RetroParti
     if (p.id !== self.id) channels.push(dmChannelId(self.id, p.id));
   }
   return channels;
+}
+
+// Insere ou substitui (por id) uma mensagem no canal, mantendo a ordem de chegada.
+export function upsertChatMessage(prev: Record<string, ChatMessage[]>, msg: ChatMessage): Record<string, ChatMessage[]> {
+  const channel = msg.channelId as string;
+  const list = prev[channel] || [];
+  const exists = list.some(m => m.id === msg.id);
+  return { ...prev, [channel]: exists ? list.map(m => (m.id === msg.id ? msg : m)) : [...list, msg] };
+}
+
+// Une o histórico carregado com o que já chegou pelo WebSocket enquanto a carga estava
+// em voo (sem isso a resposta atrasada sobrescreveria mensagens recém-recebidas).
+export function mergeChatHistory(current: ChatMessage[] | undefined, loaded: ChatMessage[]): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+  for (const m of loaded) byId.set(m.id, m);
+  for (const m of current || []) byId.set(m.id, m);
+  return [...byId.values()].sort((a, b) => a.ts.localeCompare(b.ts));
 }

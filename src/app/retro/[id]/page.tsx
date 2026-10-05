@@ -15,20 +15,12 @@ import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import type { ChatMessage, ChatMessageKind } from '@/components/poker/team-chat/chatChannels';
 import { participantCategory } from '@/components/poker/team-chat/chatChannels';
-import { chatChannelsFor, toChatParticipant } from '@/components/retro/retro-chat';
+import { chatChannelsFor, mergeChatHistory, toChatParticipant, upsertChatMessage } from '@/components/retro/retro-chat';
 import { useUserContext } from '@/context/UserContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi } from '../api';
 import { getAuthToken } from '@/lib/auth-client';
 import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
-
-// Insere ou substitui (por id) uma mensagem no canal, mantendo a ordem de chegada.
-function upsertChatMessage(prev: Record<string, ChatMessage[]>, msg: ChatMessage): Record<string, ChatMessage[]> {
-  const channel = msg.channelId as string;
-  const list = prev[channel] || [];
-  const exists = list.some(m => m.id === msg.id);
-  return { ...prev, [channel]: exists ? list.map(m => (m.id === msg.id ? msg : m)) : [...list, msg] };
-}
 
 export default function RetroRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -52,6 +44,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const [chatByChannel, setChatByChannel] = useState<Record<string, ChatMessage[]>>({});
+  const chatChannelsRef = useRef<Set<string>>(new Set());
+  const loadedChatChannelsRef = useRef<Set<string>>(new Set());
 
   const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile]);
   const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
@@ -171,7 +165,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
               break;
 
             case 'CHAT_MESSAGE_SAVED':
-              if (data.payload?.channelId) {
+              // Só canais que este usuário enxerga (geral, o da sua função e as suas DMs)
+              if (data.payload?.channelId && chatChannelsRef.current.has(data.payload.channelId)) {
                 const msg: ChatMessage = data.payload;
                 setChatByChannel(prev => upsertChatMessage(prev, msg));
               }
@@ -318,15 +313,29 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   // Carga inicial do chat: canal geral, o da função e uma DM por colega. Chaveia
   // pelos ids (não pelo array) para não refazer a carga a cada refetch de participantes.
   const chatChannelsKey = currentUser ? chatChannelsFor(currentUser, participants).join('|') : '';
+  // Trocar de board zera o que foi carregado do anterior.
+  useEffect(() => {
+    loadedChatChannelsRef.current = new Set();
+    setChatByChannel({});
+  }, [boardId]);
+
   useEffect(() => {
     if (!chatChannelsKey) return;
-    chatChannelsKey.split('|').forEach(channelId => {
+    const channels = chatChannelsKey.split('|');
+    chatChannelsRef.current = new Set(channels);
+    // Quando alguém entra/sai, só o canal novo precisa ser carregado.
+    channels.filter(c => !loadedChatChannelsRef.current.has(c)).forEach(channelId => {
+      loadedChatChannelsRef.current.add(channelId);
       retroApi.getChatMessages(boardId, channelId)
-        .then(msgs => setChatByChannel(prev => ({ ...prev, [channelId]: msgs || [] })))
-        .catch(err => console.error(`Erro ao carregar o canal ${channelId}:`, err));
+        .then(msgs => setChatByChannel(prev => ({ ...prev, [channelId]: mergeChatHistory(prev[channelId], msgs || []) })))
+        .catch(err => {
+          loadedChatChannelsRef.current.delete(channelId); // tenta de novo na próxima mudança
+          console.error(`Erro ao carregar o canal ${channelId}:`, err);
+        });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId, chatChannelsKey]);
+
 
   const handleSendChatMessage = useCallback((text: string, kind: ChatMessageKind, channelId: string) => {
     if (!currentUser) return;
