@@ -24,7 +24,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Rocket,
-  Users,
   RefreshCw,
   Loader2,
   ArrowRight,
@@ -37,7 +36,6 @@ import {
   Eye,
   Link as LinkIcon,
   Sparkles,
-  ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,10 +45,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
-import { projectService, type ProjectDetail, type ProjectMemberRoleItem } from '@/services/projectService';
 import { onboardingService, type OnboardingCandidate, type OnboardingRoster } from '@/services/onboardingService';
-import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
-import { useJiraSettings } from '@/hooks/useJiraSettings';
+import { JiraProfieldsImport } from '@/components/jira/JiraProfieldsImport';
 import { cn } from '@/lib/utils';
 
 type Step = 'suggestion' | 'search' | 'roster' | 'role' | 'create' | 'jira';
@@ -106,9 +102,8 @@ const ROLE_CHOICES = [
 export default function OnboardingPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { createProject, joinProject, claimRosterMember, switchProject } = useAuth();
+  const { createProject, joinProject, claimRosterMember } = useAuth();
   const { mustOnboard, isInitializing, userProfile, updateProfile, setIsPublicExploration } = useUserContext();
-  const { settings: jiraSettings, saveSettings: saveJiraSettings } = useJiraSettings();
 
   const [step, setStep] = useState<Step>('suggestion');
   const [busy, setBusy] = useState<string | null>(null);
@@ -131,12 +126,6 @@ export default function OnboardingPage() {
   const [projectName, setProjectName] = useState('');
   const [projectKey, setProjectKey] = useState('');
   const [keyEdited, setKeyEdited] = useState(false);
-
-  // Passo 6 — Jira
-  const [jiraDomain, setJiraDomain] = useState('');
-  const [jiraKey, setJiraKey] = useState('');
-  const [jiraToken, setJiraToken] = useState('');
-  const [syncedProject, setSyncedProject] = useState<ProjectDetail | null>(null);
 
   // Convite colado à mão
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -165,13 +154,6 @@ export default function OnboardingPage() {
   }, []);
 
   useEffect(() => {
-    if (jiraSettings) {
-      if (jiraSettings.domain && !jiraDomain) setJiraDomain(jiraSettings.domain);
-      if (jiraSettings.token && !jiraToken) setJiraToken(jiraSettings.token);
-    }
-  }, [jiraSettings]);
-
-  useEffect(() => {
     if (step !== 'search') return;
     const q = debouncedQuery.trim();
     if (q.length < 2) {
@@ -188,11 +170,21 @@ export default function OnboardingPage() {
   const firstSuggestion = suggestions[0];
   const firstCandidate = firstSuggestion?.members?.[0];
 
-  const finish = useCallback((title: string, description: string) => {
+  const finish = useCallback((title: string, description: string, route: string = DONE_ROUTE) => {
     doneRef.current = true;
     toast({ title, description });
-    router.push(DONE_ROUTE);
+    router.push(route);
   }, [router, toast]);
+
+  /** Leva o que a pessoa já digitou na busca pro formulário de criação — sem digitar de novo. */
+  const startCreate = useCallback(() => {
+    const typed = query.trim();
+    if (typed && !projectName) {
+      setProjectName(typed);
+      if (!keyEdited) setProjectKey(slugify(typed));
+    }
+    setStep('create');
+  }, [query, projectName, keyEdited]);
 
   /** "Sou eu" — liga a conta à linha do roster e entra no time com o papel do Jira. */
   const handleClaim = useCallback(async (candidate: OnboardingCandidate, projectId: string) => {
@@ -246,62 +238,16 @@ export default function OnboardingPage() {
     try {
       await createProject({ id: key, name });
       await updateProfile({ squadId: key });
-      finish('Time criado', `${name} (${key}). Você é o Agile Master e pode passar isso pra outra pessoa depois.`);
+      try { localStorage.setItem(`agileSpace_newSquad_${key}`, '1'); } catch { /* sem storage: só não mostra o aviso */ }
+      // Time recém-criado não tem dados do Jira: o painel estaria vazio. A home, com
+      // as ferramentas (Poker, Retro...), é o destino útil.
+      finish('Time criado', `${name} (${key}). Você é o Agile Master e pode passar isso pra outra pessoa depois.`, '/');
     } catch (err: any) {
       toast({ title: 'Não foi possível criar o time', description: err.message, variant: 'destructive' });
     } finally {
       setBusy(null);
     }
   }, [projectName, projectKey, createProject, updateProfile, finish, toast]);
-
-  const handleJiraPreview = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!jiraKey.trim() || !jiraToken.trim()) {
-      toast({ title: 'Informe a chave do projeto e seu token do Jira', variant: 'destructive' });
-      return;
-    }
-    setBusy('jira');
-    try {
-      const preview = await projectService.previewProjectProfields(
-        jiraKey.trim().toUpperCase(), jiraDomain.trim(), jiraToken.trim()
-      );
-      setSyncedProject(preview);
-      toast({ title: 'Dados encontrados no Jira', description: 'Nada foi gravado ainda. Confira e confirme pra importar.' });
-    } catch (err: any) {
-      toast({ title: 'Falha na sincronização', description: err.message, variant: 'destructive' });
-    } finally {
-      setBusy(null);
-    }
-  }, [jiraDomain, jiraKey, jiraToken, toast]);
-
-  const myEmail = (userProfile?.email || '').toLowerCase().trim();
-  const isMe = (m: ProjectMemberRoleItem) =>
-    (!!userProfile?.id && m.userId === userProfile.id) ||
-    (!!myEmail && (m.email || '').toLowerCase().trim() === myEmail);
-  const myMembership = syncedProject?.members.find(isMe);
-
-  const handleConfirmSynced = useCallback(async () => {
-    if (!syncedProject) return;
-    setBusy('confirm');
-    try {
-      await projectService.syncProjectProfields(syncedProject.id, jiraDomain.trim(), jiraToken.trim());
-      await switchProject(syncedProject.id);
-      if (jiraToken.trim()) {
-        await saveJiraSettings({ domain: jiraDomain.trim(), token: jiraToken.trim() });
-      }
-      const leadsPeople = !!myMembership && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(myMembership.roleName);
-      finish(
-        `${syncedProject.id} importado`,
-        leadsPeople
-          ? `Você entrou como ${myMembership!.roleName}.`
-          : 'O time e os papéis vieram do Jira junto.'
-      );
-    } catch (err: any) {
-      toast({ title: 'Não foi possível importar', description: err.message, variant: 'destructive' });
-    } finally {
-      setBusy(null);
-    }
-  }, [syncedProject, jiraDomain, jiraToken, switchProject, saveJiraSettings, myMembership, finish, toast]);
 
   const handleInvite = useCallback(() => {
     const raw = inviteValue.trim();
@@ -471,9 +417,14 @@ export default function OnboardingPage() {
               )}
 
               {debouncedQuery.trim().length >= 2 && !searching && results.length === 0 && (
-                <p className="text-sm text-muted-foreground px-1">
-                  Nenhum time encontrado com “{debouncedQuery.trim()}”.
-                </p>
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum time encontrado com “{debouncedQuery.trim()}”.
+                  </p>
+                  <Button size="sm" onClick={startCreate} className="shrink-0 rounded-xl text-xs font-bold gap-2">
+                    Criar “{debouncedQuery.trim()}” <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               )}
 
               <div className="flex items-center justify-between gap-4 rounded-2xl border border-dashed border-border/70 px-4 py-3">
@@ -481,7 +432,7 @@ export default function OnboardingPage() {
                   <div className="text-sm font-bold">Meu time ainda não está aqui</div>
                   <div className="text-xs text-muted-foreground">Cria em 15 segundos — só o nome, o resto vem depois.</div>
                 </div>
-                <Button variant="outline" onClick={() => setStep('create')} className="shrink-0 rounded-xl text-xs font-bold gap-2">
+                <Button variant="outline" onClick={startCreate} className="shrink-0 rounded-xl text-xs font-bold gap-2">
                   Criar meu time <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
@@ -678,142 +629,23 @@ export default function OnboardingPage() {
         )}
 
         {/* PASSO 6 — JIRA (avançado) */}
-        {step === 'jira' && !syncedProject && (
+        {step === 'jira' && (
           <>
             <Header
               title="Importar um time do Jira"
               subtitle="Traz projeto, pessoas e papéis do Profields de uma vez. Quem já usa o Espaço Ágil é reconhecido automaticamente."
               badge="Caminho avançado"
             />
-
-            <div className="w-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
-              <form onSubmit={handleJiraPreview} className="bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 flex flex-col gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="jira-dominio" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Domínio</Label>
-                  <Input id="jira-dominio" value={jiraDomain} onChange={e => setJiraDomain(e.target.value)}
-                    placeholder="empresa.atlassian.net" autoComplete="off" className="h-11 rounded-xl" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="jira-chave" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Projeto no Jira</Label>
-                  <Input id="jira-chave" name="jiraProjectKey" value={jiraKey} onChange={e => setJiraKey(e.target.value)}
-                    placeholder="Ex: DDWMISSI" autoComplete="off" data-lpignore="true"
-                    className="h-11 font-code uppercase rounded-xl" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="jira-token" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Seu token do Jira</Label>
-                  <Input id="jira-token" name="jiraPersonalAccessToken" type="password" value={jiraToken}
-                    onChange={e => setJiraToken(e.target.value)} autoComplete="new-password" data-lpignore="true"
-                    placeholder="Token de acesso do Jira" className="h-11 font-code rounded-xl" />
-                </div>
-                <Button type="submit" disabled={busy !== null} className="h-12 rounded-xl font-bold gap-2">
-                  {busy === 'jira' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Ver o que vai ser importado <ArrowRight className="w-4 h-4" /></>}
-                </Button>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  O token fica guardado na sua conta e nada é gravado até você conferir a prévia.
-                </p>
-              </form>
-
-              <aside className="bg-card/50 border border-border/50 rounded-3xl p-5 flex flex-col gap-3">
-                <div className="text-sm font-extrabold font-headline">Não tem um token? Leva 30 segundos.</div>
-                {[
-                  'Abra a página de tokens da Atlassian (o botão abaixo abre em outra aba).',
-                  'Clique em Create API token e dê o nome Espaço Ágil.',
-                  'Copie e cole aqui. A gente guarda pra você não precisar de novo.',
-                ].map((text, i) => (
-                  <div key={i} className="flex gap-2.5">
-                    <div className="w-5 h-5 rounded-full bg-primary/10 border border-primary/25 text-primary flex items-center justify-center text-[10px] font-bold shrink-0">
-                      {i + 1}
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{text}</p>
-                  </div>
-                ))}
-                <Button asChild variant="outline" className="rounded-xl text-xs font-bold gap-2 mt-1">
-                  <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer">
-                    Abrir página de tokens <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </Button>
-                <p className="text-[11px] text-muted-foreground leading-relaxed mt-auto pt-3 border-t border-border/50">
-                  Sem token e sem paciência? Dá pra criar o time na mão agora e importar do Jira depois, sem perder nada.
-                </p>
-                <Button variant="ghost" onClick={() => setStep('create')} className="text-xs font-bold self-start px-0">
-                  Criar o time sem o Jira
-                </Button>
-              </aside>
-            </div>
-          </>
-        )}
-
-        {/* PASSO 6b — CONFERIR O QUE VEIO DO JIRA */}
-        {step === 'jira' && syncedProject && (
-          <>
-            <Header
-              title="Confira o que importamos"
-              subtitle={<>Prévia do Profields de <span className="font-code font-bold">{syncedProject.id}</span>. Nada foi gravado ainda: só ao confirmar o projeto e as pessoas entram no sistema.</>}
+            <JiraProfieldsImport
+              onImported={({ project, myRoleName, leadsPeople }) =>
+                finish(
+                  `${project.id} importado`,
+                  leadsPeople ? `Você entrou como ${myRoleName}.` : 'O time e os papéis vieram do Jira junto.'
+                )
+              }
+              skipHint="Sem token e sem paciência? Dá pra criar o time na mão agora e importar do Jira depois, sem perder nada."
+              skipAction={{ label: 'Criar o time sem o Jira', onClick: () => setStep('create') }}
             />
-
-            <div className="w-full bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 flex flex-col gap-5">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-                {[
-                  { label: 'Projeto', value: syncedProject.name },
-                  { label: 'Segmento', value: syncedProject.segmentName },
-                  { label: 'Tribo', value: syncedProject.tribeName },
-                  { label: 'Localidade', value: syncedProject.locality },
-                  { label: 'VP', value: syncedProject.vicePresident },
-                  { label: 'Área VP', value: syncedProject.vpArea },
-                  { label: 'Status', value: syncedProject.status },
-                  { label: 'Dev Team', value: syncedProject.devTeamSize ? `${syncedProject.devTeamSize} pessoas` : '' },
-                ].map(f => <Fact key={f.label} label={f.label} value={f.value} />)}
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" /> Pessoas encontradas ({syncedProject.members.length})
-                </Label>
-                {syncedProject.members.length === 0 ? (
-                  <div className="text-xs text-muted-foreground bg-muted/40 border border-border/40 rounded-xl p-4 text-center">
-                    O Profields não retornou nenhuma pessoa cadastrada para este projeto.
-                  </div>
-                ) : (
-                  <div className="border border-border/40 rounded-xl overflow-hidden">
-                    <div className="max-h-64 overflow-y-auto divide-y divide-border/40">
-                      {syncedProject.members.map((m, i) => (
-                        <div key={m.id || `${m.roleKey}-${m.email || m.displayName}-${i}`}
-                          className={cn('flex items-center gap-3 px-3 py-2 text-sm', isMe(m) && 'bg-primary/5')}>
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
-                            {initials(m.displayName)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="font-semibold truncate flex items-center gap-2">
-                              {m.displayName}
-                              {isMe(m) && <Badge className="text-[9px] px-1.5 py-0 h-4">Você</Badge>}
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] shrink-0 gap-1">
-                            {m.leadership && <Crown className="w-3 h-3 text-amber-500" />}
-                            {m.roleName}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {!myMembership && (
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
-                    Seu e-mail não apareceu entre as pessoas do Profields. Depois de importar, você se marca na lista
-                    do time — é o mesmo "sou eu" do passo anterior.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                <Button variant="outline" onClick={() => setSyncedProject(null)} disabled={busy !== null} className="h-11 rounded-xl text-xs font-bold">
-                  Corrigir dados
-                </Button>
-                <Button onClick={handleConfirmSynced} disabled={busy !== null} className="h-11 rounded-xl text-xs font-bold gap-2">
-                  {busy === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Confirmar e importar <ArrowRight className="w-4 h-4" /></>}
-                </Button>
-              </div>
-            </div>
           </>
         )}
 
