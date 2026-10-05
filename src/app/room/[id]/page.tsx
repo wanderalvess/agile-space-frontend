@@ -646,18 +646,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator]);
 
+  // Qualquer participante presente pode escrever. Vai por endpoint próprio (merge no servidor),
+  // não por saveOrUpdateRoom: salvar a sala inteira com uma cópia local desatualizada poderia
+  // sobrescrever a fila do facilitador.
   const handleUpdateRefinementNotes = useCallback((notes: { devNotes?: string; qaNotes?: string }) => {
-    if (!roomData?.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
-    const newQueue = roomData.issuesQueue.map(i =>
-      i.id === roomData.activeIssueId
-        ? { ...i, devNotes: notes.devNotes?.trim() || null, qaNotes: notes.qaNotes?.trim() || null }
-        : i
-    );
-    pokerApi.saveOrUpdateRoom({
-      ...roomData,
-      issuesQueue: newQueue
-    }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator]);
+    const issueId = roomData?.activeIssueId;
+    if (!issueId || !currentUser) return;
+    pokerApi.updateIssueNotes(roomId, issueId, notes).catch(err => console.error(err));
+  }, [roomData?.activeIssueId, roomId, currentUser]);
 
   const handleReveal = useCallback(() => {
     if (!participants || !votes || votes.length === 0 || !roomData || !isCurrentUserFacilitator) return;

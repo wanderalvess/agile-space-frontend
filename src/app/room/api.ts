@@ -132,6 +132,16 @@ export const pokerApi = {
     });
   },
 
+  // Notas de refinamento: qualquer participante da sala edita; o backend mescla só os
+  // campos enviados no item (não regrava a fila inteira, então não há "última cópia vence").
+  async updateIssueNotes(roomId: string, issueId: string, notes: { devNotes?: string; qaNotes?: string }): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/issues/${encodeURIComponent(issueId)}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify(notes),
+    });
+    if (!res.ok) throw await httpError(res, 'Falha ao salvar as notas');
+  },
+
   async getChatMessages(roomId: string, channelId: string): Promise<any[]> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat?channelId=${encodeURIComponent(channelId)}`);
     if (!res.ok) throw await httpError(res, 'Falha ao carregar mensagens do chat');
