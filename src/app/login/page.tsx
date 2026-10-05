@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Lock,
   Mail,
@@ -22,6 +22,8 @@ import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import packageInfo from '../../../package.json';
 
+const LAST_EMAIL_KEY = 'agile-space:last-email';
+
 export default function LoginPage() {
   const { toast } = useToast();
   const { login, register } = useAuth();
@@ -34,13 +36,27 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  // Lembra apenas o e-mail (nunca a senha) para não digitar a cada login.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LAST_EMAIL_KEY);
+      if (saved) {
+        setEmail(saved);
+        passwordRef.current?.focus();
+      }
+    } catch {
+      // localStorage indisponível (modo privado etc.): segue sem pré-preencher.
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast({
         title: "Campos obrigatórios",
-        description: "Informe seu e-mail corporativo e senha.",
+        description: "Informe seu e-mail ou usuário e a senha.",
         variant: "destructive"
       });
       return;
@@ -49,6 +65,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const session = await login(email, password);
+      try {
+        localStorage.setItem(LAST_EMAIL_KEY, email.trim());
+      } catch {
+        // ignora: lembrar o e-mail é só conveniência
+      }
       toast({
         title: `Bem-vindo, ${session.name}!`,
         description: `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${session.activeProjectRole || 'Membro'})`,
@@ -310,13 +331,17 @@ export default function LoginPage() {
                               <form onSubmit={handleLogin} className="space-y-3">
                                 <div className="space-y-1">
                                   <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                    <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
+                                    <Mail className="w-3.5 h-3.5" /> E-mail ou Usuário
                                   </label>
                                   <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
                                     <Input
-                                        type="email"
-                                        placeholder="nome@empresa.com.br"
+                                        type="text"
+                                        name="email"
+                                        autoComplete="username"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
+                                        placeholder="usuario ou nome@empresa.com.br"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
@@ -338,6 +363,9 @@ export default function LoginPage() {
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
                                     <Input
                                         type={showPassword ? "text" : "password"}
+                                        name="password"
+                                        autoComplete="current-password"
+                                        ref={passwordRef}
                                         placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
