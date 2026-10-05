@@ -30,7 +30,10 @@ import {
   Settings,
   BarChart3,
   CheckCircle2,
-  Lock
+  Lock,
+  MoreHorizontal,
+  Minimize2,
+  MessagesSquare
 } from 'lucide-react';
 import {
   Tooltip,
@@ -38,7 +41,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { RetroParticipantList } from './RetroParticipantList';
+import { RetroWelcome } from './RetroWelcome';
+import { TeamChat } from '../poker/team-chat/TeamChat';
+import type { ChatMessage, ChatMessageKind } from '../poker/team-chat/chatChannels';
+import { toChatParticipant } from './retro-chat';
 import { cn } from '@/lib/utils';
 import { EliteSidebar } from '../shared/EliteSidebar';
 import { Card, CardContent } from '@/components/ui/card';
@@ -100,6 +114,9 @@ interface RetroBoardProps {
   onExecuteMerge: (targetId: string) => void;
   onOpenFeedback: () => void;
   onOpenStats?: () => void;
+  chatMessagesByChannel: Record<string, ChatMessage[]>;
+  onSendChatMessage: (text: string, kind: ChatMessageKind, channelId: string) => void;
+  onDeleteChatMessage: (messageId: string, channelId: string) => void;
 }
 
 const RetroBoardComponent = ({
@@ -146,6 +163,9 @@ const RetroBoardComponent = ({
   onExecuteMerge,
   onOpenFeedback,
   onOpenStats,
+  chatMessagesByChannel,
+  onSendChatMessage,
+  onDeleteChatMessage,
 }: RetroBoardProps) => {
   const { toast } = useToast();
   const votesUsed = useMemo(
@@ -155,6 +175,11 @@ const RetroBoardComponent = ({
   const [open, setOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatParticipants = useMemo(() => participants.map(toChatParticipant), [participants]);
+  const chatUser = useMemo(() => toChatParticipant(currentParticipant), [currentParticipant]);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [layoutMode, setLayoutMode] = useState<'board' | 'focus'>(() => {
     if (typeof window !== 'undefined') {
@@ -320,7 +345,7 @@ const RetroBoardComponent = ({
                   onResetTimer={onResetTimer}
                   onSetTimerDuration={onSetTimerDuration}
                   isFacilitator={boardData.creatorId === currentUserId}
-                  onExport={() => setIsExportOpen(true)}
+                  onPresent={() => setIsFocusMode(true)}
                   isSoundEnabled={isSoundEnabled}
                   onToggleSound={handleToggleSound}
                   autoRevealOnTimerEnd={boardData.autoRevealOnTimerEnd}
@@ -331,58 +356,47 @@ const RetroBoardComponent = ({
                   votesUsed={votesUsed}
                 />
 
-                {boardData.creatorId === currentUserId && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Configurações da Retrospectiva"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                )}
+                <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5 hidden sm:block" />
 
-                {onOpenStats && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={onOpenStats}
-                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Estatísticas da Sprint & JiraDash"
-                  >
-                    <BarChart3 className="h-4 w-4" />
-                  </Button>
-                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all data-[state=open]:bg-emerald-50 data-[state=open]:text-emerald-600"
+                      title="Mais ações"
+                      aria-label="Mais ações"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5 text-[11px] font-bold">
+                    <DropdownMenuItem onClick={() => setIsExportOpen(true)} className="rounded-xl gap-2.5 py-2 cursor-pointer">
+                      <Download className="h-4 w-4 text-slate-400" /> Exportar retrospectiva
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleCopyLink} className="rounded-xl gap-2.5 py-2 cursor-pointer">
+                      <Copy className="h-4 w-4 text-slate-400" /> Copiar link do quadro
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsGuideOpen(true)} className="rounded-xl gap-2.5 py-2 cursor-pointer">
+                      <HelpCircle className="h-4 w-4 text-slate-400" /> Guia do facilitador
+                    </DropdownMenuItem>
+                    {onOpenStats && (
+                      <DropdownMenuItem onClick={onOpenStats} className="rounded-xl gap-2.5 py-2 cursor-pointer">
+                        <BarChart3 className="h-4 w-4 text-slate-400" /> Estatísticas da sprint & JiraDash
+                      </DropdownMenuItem>
+                    )}
+                    {boardData.creatorId === currentUserId && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => setIsSettingsOpen(true)} className="rounded-xl gap-2.5 py-2 cursor-pointer">
+                          <Settings className="h-4 w-4 text-slate-400" /> Configurações da retro
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-                <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyLink}
-                  className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                  title="Copiar Link"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-
-                <Sheet>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SheetTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all">
-                            <HelpCircle className="h-4 w-4" />
-                          </Button>
-                        </SheetTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
-                        <p>Guia de Retrospectiva</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-
+                <Sheet open={isGuideOpen} onOpenChange={setIsGuideOpen}>
                   <SheetContent className="sm:max-w-xl border-l-2 border-l-emerald-200 bg-white/95 backdrop-blur-xl flex flex-col p-0">
                     <SheetHeader className="shrink-0 border-b p-8 bg-emerald-50/30">
                       <div className="h-12 w-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-xl shadow-emerald-500/20 mb-4">
@@ -492,19 +506,36 @@ const RetroBoardComponent = ({
                   </SheetContent>
                 </Sheet>
                 
-                <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setIsChatOpen(v => !v); setOpen(false); }}
+                  className={cn(
+                    "relative h-8 w-8 rounded-xl transition-all",
+                    isChatOpen ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                  )}
+                  title="Chat do time"
+                  aria-label="Chat do time"
+                >
+                  <MessagesSquare className="h-4 w-4" />
+                  {chatUnread > 0 && !isChatOpen && (
+                    <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-sm">
+                      {chatUnread > 9 ? '9+' : chatUnread}
+                    </span>
+                  )}
+                </Button>
 
                 <Button
                   variant={open ? "secondary" : "ghost"}
-                  size="icon"
-                  onClick={() => setOpen(!open)}
+                  onClick={() => { setOpen(!open); setIsChatOpen(false); }}
                   className={cn(
-                    "h-8 w-8 rounded-xl transition-all",
+                    "h-8 px-2.5 rounded-xl transition-all gap-1.5",
                     open ? "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                   )}
                   title="Participantes"
                 >
                   <Users className="h-4 w-4" />
+                  <span className="text-[10px] font-black tabular-nums">{participants.length}</span>
                 </Button>
               </div>
             }
@@ -549,11 +580,45 @@ const RetroBoardComponent = ({
                 <Lock className="h-4 w-4" />
               </span>
             )}
+            {/* Mantém timer, status e controles do facilitador vivos durante a apresentação */}
+            <RetroControls
+              compact
+              isCardsRevealed={boardData.isCardsRevealed}
+              onToggleCardsRevealed={onToggleCardsRevealed}
+              votingStatus={boardData.votingStatus}
+              onSetVotingStatus={onSetVotingStatus as any}
+              timer={timer}
+              onStartTimer={onStartTimer}
+              onPauseTimer={onPauseTimer}
+              onResumeTimer={onResumeTimer}
+              onResetTimer={onResetTimer}
+              onSetTimerDuration={onSetTimerDuration}
+              isFacilitator={boardData.creatorId === currentUserId}
+              isSoundEnabled={isSoundEnabled}
+              onToggleSound={handleToggleSound}
+              autoRevealOnTimerEnd={boardData.autoRevealOnTimerEnd}
+              maxVotesPerParticipant={boardData.maxVotesPerParticipant}
+              onSetMaxVotesPerParticipant={onSetMaxVotesPerParticipant}
+              votesUsed={votesUsed}
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsFocusMode(false)}
+              className="h-9 px-3.5 shrink-0 rounded-xl text-[10px] font-black uppercase tracking-widest gap-1.5 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 hover:bg-slate-800 dark:hover:!bg-slate-200"
+              title="Sair (ESC)"
+            >
+              <Minimize2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Sair</span>
+            </Button>
           </div>
         )}
 
         <div className="flex flex-col w-full h-full p-3 sm:p-4 lg:p-6 overflow-hidden w-full max-w-[2400px] 2xl:max-w-none mx-auto min-h-0">
           <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {cards.length === 0 && !isFocusMode && (
+              <RetroWelcome isFacilitator={boardData.creatorId === currentUserId} />
+            )}
             <div className={cn(
               "flex-1 flex flex-row min-h-0 pb-3 pt-1 transition-all",
               layoutMode === 'board'
@@ -658,6 +723,20 @@ const RetroBoardComponent = ({
           />
         </EliteSidebar>
         
+        <TeamChat
+          roomId={boardId}
+          title="Chat da Retro"
+          currentUser={chatUser}
+          participants={chatParticipants}
+          canModerate={isCurrentUserCreator}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          onUnreadChange={setChatUnread}
+          messagesByChannel={chatMessagesByChannel}
+          onSendMessage={onSendChatMessage}
+          onDeleteMessage={onDeleteChatMessage}
+        />
+
         <ExportRetroDialog
           isOpen={isExportOpen}
           onClose={() => setIsExportOpen(false)}
@@ -683,7 +762,7 @@ const RetroBoardComponent = ({
           onHealthCheckQuestionChange={onHealthCheckQuestionChange}
         />
 
-        {!isFocusMode && (
+        {!isFocusMode && (layoutMode === 'focus' || boardData.syncStageEnabled) && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 p-1.5 bg-white/80 dark:!bg-slate-900/80 backdrop-blur-3xl border border-white/40 dark:!border-slate-700/50 shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2)] rounded-full ring-1 ring-slate-900/5 dark:ring-white/5 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {columns.map((col, idx) => {
               const themeStyle = THEME_COLORS[col.theme] || THEME_COLORS.neutral;

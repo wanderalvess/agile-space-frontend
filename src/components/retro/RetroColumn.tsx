@@ -9,14 +9,8 @@ import { RetroActionImportDialog } from "./RetroActionImportDialog";
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, Star, History, MonitorPlay, Minimize2, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, Star, History, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock, PenLine, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
 import { retroApi } from '../../app/retro/api';
 
@@ -85,6 +79,18 @@ export const THEME_CONFIG: Record<RetroColumnTheme, {
     shadowPulse: 'animate-shadow-pulse-cyan border-cyan-200 shadow-cyan-500/20',
     hoverBg: 'hover:bg-cyan-50 hover:text-cyan-600',
   },
+};
+
+// Convite do estado vazio por tema: diz o que escrever ali, em vez de um
+// "silêncio" genérico igual em todas as colunas.
+const EMPTY_COPY: Record<RetroColumnTheme, { title: string; hint: string }> = {
+  success: { title: 'Nenhuma vitória ainda', hint: 'O que deu certo e merece ser repetido?' },
+  warning: { title: 'Nada travando por aqui', hint: 'O que atrapalhou ou pode melhorar?' },
+  action: { title: 'Sem ações definidas', hint: 'Transforme os temas votados em ações com responsável.' },
+  neutral: { title: 'Coluna vazia', hint: 'Compartilhe o primeiro ponto desta coluna.' },
+  purple: { title: 'Nenhuma ideia ainda', hint: 'Que novas ideias o time quer experimentar?' },
+  pink: { title: 'Nenhum reconhecimento ainda', hint: 'Quem ou o que merece um agradecimento?' },
+  cyan: { title: 'Nenhuma nota ainda', hint: 'Algum contexto que o time precisa saber?' },
 };
 
 interface RetroColumnProps {
@@ -168,6 +174,8 @@ function RetroColumnComponent({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const focusComposer = () => composerRef.current?.querySelector('textarea')?.focus();
 
   useEffect(() => {
     setEditedTitle(title);
@@ -293,8 +301,8 @@ function RetroColumnComponent({
           )}>
             {!(isFocused && isFocusMode) && (
               <div className="flex items-center gap-2 min-w-0">
-                <div className={cn("p-2 rounded-xl text-white shadow-lg shrink-0", config.color)}>
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className={cn("p-1.5 rounded-lg text-white shadow-md shrink-0", config.color)}>
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col justify-center min-w-0">
                   {/* Inline Title Edit */}
@@ -305,11 +313,11 @@ function RetroColumnComponent({
                       onChange={e => setEditedTitle(e.target.value)}
                       onBlur={handleTitleSave}
                       onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
-                      className="text-sm sm:text-base 2xl:text-lg font-black uppercase tracking-tighter text-slate-800 leading-none italic bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
+                      className="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:!text-slate-100 leading-none bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
                     />
                   ) : (
                     <div className="flex items-center gap-2 group/title min-w-0">
-                      <h2 className="min-w-0 flex-1 text-sm sm:text-base 2xl:text-lg font-black uppercase tracking-tighter text-slate-800 leading-tight italic line-clamp-2 break-words [overflow-wrap:anywhere]" title={title}>{title}</h2>
+                      <h2 className="min-w-0 flex-1 text-[13px] font-black uppercase tracking-tight text-slate-800 dark:!text-slate-100 leading-tight truncate" title={title}>{title}</h2>
                       {isCreator && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
@@ -326,47 +334,16 @@ function RetroColumnComponent({
             )}
 
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); onToggleFocusMode?.(!isFocusMode); }}
-                      className={cn(
-                        "h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all gap-1.5",
-                        isFocusMode ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 hover:bg-slate-800 dark:hover:!bg-slate-200" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
-                      )}
-                    >
-                      {isFocusMode ? (
-                        <>
-                          <Minimize2 className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Sair do Foco</span>
-                        </>
-                      ) : (
-                        <>
-                          <MonitorPlay className="h-3.5 w-3.5" />
-                          <span className={cn(isBoardMode ? "hidden xl:inline" : "hidden sm:inline")}>Apresentar</span>
-                        </>
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
-                    <p>{isFocusMode ? 'Sair (ESC) · ← → Navegar' : 'Modo Apresentação'}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
               {isActionColumn && isCreator && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); setIsImportOpen(true); }}
-                  className="h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  className="h-8 w-8 p-0 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
                   title="Importar ações pendentes de uma retro anterior do mesmo squad"
+                  aria-label="Importar ações pendentes"
                 >
-                  <PackageOpen className="w-3.5 h-3.5 sm:mr-1.5" />
-                  <span className={cn(isBoardMode ? "hidden 2xl:inline" : "hidden sm:inline")}>Importar</span>
+                  <PackageOpen className="w-3.5 h-3.5" />
                 </Button>
               )}
 
@@ -375,15 +352,15 @@ function RetroColumnComponent({
                   variant="outline"
                   size="sm"
                   onClick={handleExportToWorkspace}
-                  className="h-8 px-2.5 sm:px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
-                  title="Sincronizar Resumo"
+                  className="h-8 w-8 p-0 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  title="Sincronizar resumo com o histórico"
+                  aria-label="Sincronizar resumo"
                 >
-                  <History className="w-3.5 h-3.5 sm:mr-1.5" />
-                  <span className={cn(isBoardMode ? "hidden 2xl:inline" : "hidden sm:inline")}>Sincronizar</span>
+                  <History className="w-3.5 h-3.5" />
                 </Button>
               )}
 
-              {isFeedbackColumn && (
+              {isFeedbackColumn && (isCreator || isSortedByVotes) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -392,9 +369,9 @@ function RetroColumnComponent({
                   className={cn(
                     "h-8 w-8 p-0 rounded-xl transition-all",
                     isSortedByVotes ? "bg-emerald-100 text-emerald-600 shadow-sm" : "text-slate-500 hover:bg-slate-50",
-                    !isCreator && "opacity-30"
+                    !isCreator && "pointer-events-none"
                   )}
-                  title="Ordenar por Votos"
+                  title={isCreator ? "Ordenar por votos" : "Ordenado por votos"}
                 >
                   <Star className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
                 </Button>
@@ -407,7 +384,7 @@ function RetroColumnComponent({
           </div>
 
           {!isFocusMode && (
-            <div className="px-5 pb-3 shrink-0">
+            <div ref={composerRef} className="px-5 pb-3 shrink-0">
               <AddRetroCard columnKey={columnKey} theme={theme} onAddCard={onAddCard} participants={participants} />
             </div>
           )}
@@ -417,20 +394,44 @@ function RetroColumnComponent({
               <div className={cn(
                 "grid min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
                 isFocusMode
-                  ? "grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-4"
+                  ? "grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5 [&_p]:text-[19px] [&_p]:leading-snug"
                   : isBoardMode
                     ? "grid-cols-1 2xl:grid-cols-2 gap-3"
                     : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"
               )}>
-                {sortedCards.length === 0 && !isFocusMode && (
-                  <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-70 group/empty">
-                    <div className={cn("p-6 rounded-full", config.accent)}>
-                      <Icon className="h-10 w-10" />
+                {sortedCards.length === 0 && (
+                  <div className={cn(
+                    "col-span-full flex flex-col items-center justify-center text-center gap-4",
+                    isFocusMode ? "py-32" : "py-14"
+                  )}>
+                    <div className={cn("rounded-3xl flex items-center justify-center", config.accent, isFocusMode ? "p-8" : "p-5")}>
+                      <Icon className={isFocusMode ? "h-14 w-14" : "h-8 w-8"} />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Silêncio produtivo...</p>
-                      <p className="text-[10px] font-bold text-slate-500">Seja o primeiro a compartilhar um insight.</p>
+                    <div className="space-y-1 max-w-[240px]">
+                      <p className={cn("font-black uppercase tracking-[0.15em] text-slate-700 dark:!text-slate-200", isFocusMode ? "text-sm" : "text-[11px]")}>
+                        {EMPTY_COPY[theme]?.title ?? EMPTY_COPY.neutral.title}
+                      </p>
+                      <p className={cn("font-medium text-slate-500 dark:!text-slate-400 leading-snug", isFocusMode ? "text-base" : "text-[11px]")}>
+                        {EMPTY_COPY[theme]?.hint ?? EMPTY_COPY.neutral.hint}
+                      </p>
                     </div>
+                    {!isFocusMode && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); focusComposer(); }}
+                        className={cn("h-8 px-3.5 rounded-xl text-[9px] font-black uppercase tracking-widest gap-1.5", config.accent, config.hoverBg)}
+                      >
+                        <PenLine className="h-3.5 w-3.5" />
+                        Escrever
+                      </Button>
+                    )}
+                    {!isFocusMode && !isCardsRevealed && !isActionColumn && (
+                      <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:!text-slate-500">
+                        <EyeOff className="h-3 w-3" />
+                        Seus cards ficam ocultos até a revelação
+                      </p>
+                    )}
                   </div>
                 )}
                 {sortedCards.map(card => (

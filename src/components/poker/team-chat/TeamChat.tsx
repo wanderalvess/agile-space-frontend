@@ -5,13 +5,12 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, MessagesSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import type { Participant } from '@/lib/types';
 import { isParticipantOnline } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
 import { pokerApi } from '@/app/room/api';
 import {
   GENERAL_CHANNEL, categoryLabel, dmChannelId, dmPeerId, participantCategory, roleChannelId,
-  type ChatMessage, type ChatMessageKind,
+  type ChatMessage, type ChatMessageKind, type ChatParticipant,
 } from './chatChannels';
 import { ChatComposer } from './ChatComposer';
 import { ChatDirectList, UnreadBadge, type DirectPeer } from './ChatDirectList';
@@ -22,8 +21,10 @@ type Tab = 'geral' | 'role' | 'dm';
 
 interface TeamChatProps {
   roomId: string;
-  currentUser: Participant;
-  participants: Participant[];
+  // Título do painel, ex.: "Chat da Sala" (Poker) / "Chat da Retro".
+  title?: string;
+  currentUser: ChatParticipant;
+  participants: ChatParticipant[];
   canModerate: boolean;
   isOpen: boolean;
   onClose: () => void;
@@ -35,6 +36,7 @@ interface TeamChatProps {
 
 export function TeamChat({
   roomId,
+  title = 'Chat da Sala',
   currentUser,
   participants,
   canModerate,
@@ -147,7 +149,7 @@ export function TeamChat({
                   </div>
                   <div>
                     <span className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Time</span>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white italic">Chat da Sala</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white italic">{title}</h3>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl text-slate-400" aria-label="Fechar chat">

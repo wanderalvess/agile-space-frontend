@@ -2,12 +2,11 @@
 
 import React from 'react';
 import { UserRound } from 'lucide-react';
-import type { Participant } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { categoryLabel, participantCategory, type ChatMessage } from './chatChannels';
+import { categoryLabel, participantCategory, type ChatMessage, type ChatParticipant } from './chatChannels';
 
 export type DirectPeer = {
-  participant: Participant;
+  participant: ChatParticipant;
   channelId: string;
   lastMessage?: ChatMessage;
   unread: number;

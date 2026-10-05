@@ -11,7 +11,7 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Download,
+  MonitorPlay,
   Volume2,
   VolumeX,
   LayoutGrid,
@@ -45,8 +45,11 @@ interface RetroControlsProps {
   onPauseTimer: () => void;
   onResumeTimer: () => void;
   onResetTimer: () => void;
-  // Sorting Props
-  onExport: () => void;
+  // Modo apresentação: botão no grupo de visão (omitido no modo compact)
+  onPresent?: () => void;
+  // compact: versão enxuta para a barra de apresentação — só status e controles
+  // do facilitador (sem layout/apresentar), mas mantém o timer rodando.
+  compact?: boolean;
   // Audio Props
   isSoundEnabled: boolean;
   onToggleSound: (enabled: boolean) => void;
@@ -76,7 +79,8 @@ export function RetroControls({
   onPauseTimer,
   onResumeTimer,
   onResetTimer,
-  onExport,
+  onPresent,
+  compact = false,
   isSoundEnabled,
   onToggleSound,
   autoRevealOnTimerEnd,
@@ -177,7 +181,7 @@ export function RetroControls({
       </div>
 
       {/* LAYOUT: preferência pessoal de visualização — sempre visível */}
-      {onToggleLayoutMode && (
+      {!compact && onToggleLayoutMode && (
         <div className="flex items-center p-0.5 bg-slate-100/70 dark:bg-slate-800/60 rounded-xl border border-slate-200/40 dark:border-slate-600/40">
           <TooltipProvider>
             <Tooltip>
@@ -227,6 +231,95 @@ export function RetroControls({
         </div>
       )}
 
+      {!compact && onPresent && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onPresent}
+                className="h-8 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/40 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all gap-1.5"
+              >
+                <MonitorPlay className="h-3.5 w-3.5" />
+                <span className="text-[9px] font-black uppercase tracking-widest hidden xl:inline">Apresentar</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+              <p>Modo apresentação · tela cheia por coluna</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* AÇÕES PRINCIPAIS DO FACILITADOR — sempre visíveis no header */}
+      {isFacilitator && (
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleCardsRevealed}
+            title={isCardsRevealed ? "Ocultar os cards do time" : "Revelar os cards do time"}
+            className={cn(
+              "h-8 px-3 rounded-xl border transition-all gap-1.5",
+              isCardsRevealed
+                ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:text-white shadow-md shadow-indigo-600/20"
+                : "text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-600/50 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+            )}
+          >
+            {isCardsRevealed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">
+              {isCardsRevealed ? "Cards visíveis" : "Revelar cards"}
+            </span>
+          </Button>
+
+          {votingStatus === 'disabled' ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="inline-block">
+                    <Button
+                      size="sm"
+                      onClick={() => onSetVotingStatus('active')}
+                      disabled={!isCardsRevealed}
+                      className="h-8 px-3 rounded-xl gap-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 disabled:opacity-40"
+                    >
+                      <Vote className="h-3.5 w-3.5" />
+                      <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Iniciar votação</span>
+                    </Button>
+                  </div>
+                </TooltipTrigger>
+                {!isCardsRevealed && (
+                  <TooltipContent side="bottom" className="bg-slate-900 text-white border-none rounded-xl p-2 text-[9px] font-black uppercase tracking-widest">
+                    Revele os cards primeiro
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          ) : votingStatus === 'active' ? (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => onSetVotingStatus('finished')}
+              className="h-8 px-3 rounded-xl gap-1.5 animate-pulse"
+            >
+              <SquareCheck className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Encerrar votação</span>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onSetVotingStatus('disabled')}
+              className="h-8 px-3 rounded-xl gap-1.5 border-slate-200 text-slate-500 bg-white hover:bg-slate-100"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Resetar votação</span>
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* CONTROLES DO FACILITADOR — agrupados num único menu */}
       {isFacilitator && (
         <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
@@ -246,70 +339,6 @@ export function RetroControls({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-[300px] rounded-2xl border-slate-200 shadow-2xl p-3 space-y-2 bg-white/95 backdrop-blur-xl">
-            {/* Visibilidade */}
-            <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className={cn("p-1.5 rounded-lg", isCardsRevealed ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400")}>
-                  {isCardsRevealed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </div>
-                <div>
-                  <Label className="text-[9px] font-black uppercase tracking-widest text-slate-700 block leading-none">Cards</Label>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">{isCardsRevealed ? "Públicos" : "Ocultos"}</span>
-                </div>
-              </div>
-              <Switch
-                checked={isCardsRevealed}
-                onCheckedChange={onToggleCardsRevealed}
-                className="data-[state=checked]:bg-indigo-600"
-              />
-            </div>
-
-            {/* Votação */}
-            <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-700">Votação</Label>
-              {votingStatus === 'disabled' ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="inline-block">
-                        <Button
-                          onClick={() => onSetVotingStatus('active')}
-                          disabled={!isCardsRevealed}
-                          size="sm"
-                          className="h-7 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg bg-slate-900 hover:bg-slate-800 text-white disabled:opacity-50"
-                        >
-                          <Vote className="mr-1.5 h-3 w-3" /> Iniciar
-                        </Button>
-                      </div>
-                    </TooltipTrigger>
-                    {!isCardsRevealed && (
-                      <TooltipContent side="left" className="bg-slate-900 text-white border-none rounded-xl p-2 text-[9px] font-black uppercase tracking-widest">
-                        Revele os cards primeiro
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                </TooltipProvider>
-              ) : votingStatus === 'active' ? (
-                <Button
-                  variant="destructive"
-                  onClick={() => onSetVotingStatus('finished')}
-                  size="sm"
-                  className="h-7 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg animate-pulse"
-                >
-                  <SquareCheck className="mr-1.5 h-3 w-3" /> Encerrar
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => onSetVotingStatus('disabled')}
-                  size="sm"
-                  className="h-7 px-3 text-[9px] font-black uppercase tracking-widest rounded-lg border-slate-200 text-slate-500 bg-white hover:bg-slate-100"
-                >
-                  <RefreshCw className="mr-1.5 h-3 w-3" /> Resetar
-                </Button>
-              )}
-            </div>
-
             {/* Limite de votos por pessoa */}
             {onSetMaxVotesPerParticipant && (
               <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
@@ -403,25 +432,6 @@ export function RetroControls({
         </Popover>
       )}
 
-      {/* EXPORT — sempre acessível */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onExport}
-              className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all flex"
-              title="Exportar Retrospectiva"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
-            <p>Exportar Retrospectiva (PDF, Markdown, CSV)</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
     </div>
   );
 }
