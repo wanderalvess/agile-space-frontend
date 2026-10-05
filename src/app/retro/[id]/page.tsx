@@ -300,6 +300,12 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       };
 
       retroApi.addOrUpdateParticipant(boardId, newParticipant).then(() => {
+        // Não depende do WS entregar PARTICIPANT_JOINED: logo após criar o quadro
+        // o socket ainda está conectando/reconectando e o evento se perde, deixando
+        // currentUser nulo (tela presa em "Entrando") até um reload manual.
+        setParticipants(prev => prev.some(p => p.id === newParticipant.id)
+          ? prev
+          : [...prev, newParticipant]);
         // Registrar ID no boardData localmente e no servidor se for novo
         const currentParticipantIds = boardData.participantIds || [];
         if (!currentParticipantIds.includes(userProfile.id)) {
