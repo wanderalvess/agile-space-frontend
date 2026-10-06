@@ -29,7 +29,7 @@ export function GovernanceTopic() {
               <ShieldCheck className="h-4 w-4" /> Compliance Ativo
             </h4>
             <p className="text-xs text-emerald-100/90 leading-relaxed font-medium italic">
-              &quot;O Espaço Ágil utiliza isolamento multi-tenant por UID e autenticação OAuth2 padrão Google. Seus dados e registros nunca são cruzados com outros usuários ou squads.&quot;
+              &quot;O Portal Tech V&D utiliza isolamento multi-tenant por UID e autenticação OAuth2 padrão Google. Seus dados e registros nunca são cruzados com outros usuários ou squads.&quot;
             </p>
           </div>
         </div>

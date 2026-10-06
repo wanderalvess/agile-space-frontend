@@ -7,7 +7,7 @@
  * respostas pra mesma pergunta e misturar convida a divergência.
  *
  * Qualquer membro da squad pode editar (mesmo nível de confiança de outras telas
- * colaborativas do Espaço Ágil hoje — ver requireSquadWriteAccess no backend).
+ * colaborativas do Portal Tech V&D hoje — ver requireSquadWriteAccess no backend).
  */
 
 import { useEffect, useRef, useState } from 'react';

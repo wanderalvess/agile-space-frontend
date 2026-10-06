@@ -25,7 +25,7 @@ export default function NotFound() {
 
         <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
           O endereço que você acessou não existe, foi movido ou o recurso ainda não
-          está disponível nesta versão do Espaço Ágil.
+          está disponível nesta versão do Portal Tech V&D.
         </p>
 
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

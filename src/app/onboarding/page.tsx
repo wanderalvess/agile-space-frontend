@@ -473,7 +473,7 @@ export default function OnboardingPage() {
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold truncate">{m.displayName}</div>
                         <div className="text-[11px] text-muted-foreground truncate">
-                          {m.claimed ? (m.claimedByMe ? 'já é você' : 'já está no Espaço Ágil') : (m.emailHint || 'ainda não entrou')}
+                          {m.claimed ? (m.claimedByMe ? 'já é você' : 'já está no Portal Tech V&D') : (m.emailHint || 'ainda não entrou')}
                         </div>
                       </div>
                       <Badge variant="outline" className="shrink-0 text-[10px] gap-1 hidden sm:inline-flex">
@@ -633,7 +633,7 @@ export default function OnboardingPage() {
           <>
             <Header
               title="Importar um time do Jira"
-              subtitle="Traz projeto, pessoas e papéis do Profields de uma vez. Quem já usa o Espaço Ágil é reconhecido automaticamente."
+              subtitle="Traz projeto, pessoas e papéis do Profields de uma vez. Quem já usa o Portal Tech V&D é reconhecido automaticamente."
               badge="Caminho avançado"
             />
             <JiraProfieldsImport

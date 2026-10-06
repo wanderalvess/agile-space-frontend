@@ -1,13 +1,13 @@
-# 🎨 Espaço Ágil — Design System & Especificação de Engenharia (`design.md`)
+# 🎨 Portal Tech V&D — Design System & Especificação de Engenharia (`design.md`)
 
 > **Elimine a fricção da burocracia ágil. Foque em entregar software de valor.**  
-> Este documento é a **Fonte Única da Verdade (Single Source of Truth)** do **Espaço Ágil**. Ele reúne a identidade visual, arquitetura de dados nativa, terminologias reais, mapa de arquivos críticos e padrões de interface para que humanos e IAs desenvolvam novas telas e módulos perfeitamente alinhados ao ecossistema.
+> Este documento é a **Fonte Única da Verdade (Single Source of Truth)** do **Portal Tech V&D**. Ele reúne a identidade visual, arquitetura de dados nativa, terminologias reais, mapa de arquivos críticos e padrões de interface para que humanos e IAs desenvolvam novas telas e módulos perfeitamente alinhados ao ecossistema.
 
 ---
 
 ## 🎯 1. Propósito do Sistema & Objetivos Centrais
 
-O **Espaço Ágil** é o hub de colaboração de **Elite Engineering** projetado para times ágeis e squads de engenharia. A plataforma resolve o problema da fragmentação de cerimônias e sobrecarga burocrática integrando todo o ciclo ágil síncrono e assíncrono em um fluxo contínuo.
+O **Portal Tech V&D** é o hub de colaboração de **Elite Engineering** projetado para times ágeis e squads de engenharia. A plataforma resolve o problema da fragmentação de cerimônias e sobrecarga burocrática integrando todo o ciclo ágil síncrono e assíncrono em um fluxo contínuo.
 
 ### Metas do Produto:
 1. **Unificação do Ciclo de Cerimônias**: Do refinamento técnico à retrospectiva em uma esteira única de dados centralizada em `work_items`.
@@ -19,7 +19,7 @@ O **Espaço Ágil** é o hub de colaboração de **Elite Engineering** projetado
 
 ## 🌊 2. A Forma Nativa do Produto: O Pipeline Contínuo de Cerimônias
 
-A estrutura do Espaço Ágil não é uma coleção de páginas avulsas, mas sim uma **esteira contínua de fluxo de trabalho (Pipeline)** guiada pelo ciclo de vida do item de trabalho (`work_items`):
+A estrutura do Portal Tech V&D não é uma coleção de páginas avulsas, mas sim uma **esteira contínua de fluxo de trabalho (Pipeline)** guiada pelo ciclo de vida do item de trabalho (`work_items`):
 
 ```mermaid
 graph LR

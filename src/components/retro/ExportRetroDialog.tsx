@@ -398,7 +398,7 @@ export function ExportRetroDialog({
       doc.rect(0, 0, PW, 34, 'F');
       
       setFont(18, 'bold', [255, 255, 255]);
-      doc.text('ESPAÇO ÁGIL', M, 15);
+      doc.text('PORTAL TECH V&D', M, 15);
       
       setFont(9, 'normal', [209, 250, 229]);
       doc.text('Relatório Oficial de Retrospectiva', M, 21);
@@ -581,7 +581,7 @@ export function ExportRetroDialog({
         doc.line(M, PH - 12, PW - M, PH - 12);
         
         setFont(7.5, 'normal', [148, 163, 184]);
-        doc.text('Gerado automaticamente por Espaço Ágil', M, PH - 7.5);
+        doc.text('Gerado automaticamente por Portal Tech V&D', M, PH - 7.5);
         doc.text(`Página ${p} de ${pages}`, PW - M, PH - 7.5, { align: 'right' });
       }
 

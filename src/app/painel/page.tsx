@@ -97,7 +97,7 @@ export default function PainelPage() {
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.title = squadId ? `Painel ${squadId} | Espaço Ágil` : 'Painel do Time | Espaço Ágil';
+      document.title = squadId ? `Painel ${squadId} | Portal Tech V&D` : 'Painel do Time | Portal Tech V&D';
     }
   }, [squadId]);
 
@@ -556,7 +556,7 @@ export default function PainelPage() {
                 {/* EXPLORAR */}
                 <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-5 shadow-sm">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-1.5">
-                    <Compass className="h-3.5 w-3.5" /> Explorar o Espaço Ágil
+                    <Compass className="h-3.5 w-3.5" /> Explorar o Portal Tech V&D
                   </h3>
 
                   <div className="grid grid-cols-3 gap-2">
@@ -584,7 +584,7 @@ export default function PainelPage() {
       </main>
 
       <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Espaço Ágil - Painel do Time" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+      <FeedbackWidget toolName="Portal Tech V&D - Painel do Time" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </div>
   );
 }

@@ -210,7 +210,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Radar de Saúde";
     const sessionName = boardData?.sprintName || boardData?.team;
     

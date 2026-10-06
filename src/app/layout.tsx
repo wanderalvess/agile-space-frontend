@@ -44,7 +44,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Espaço Ágil | Acelerando seu fluxo, um card de cada vez',
+  title: 'Portal Tech V&D | Hub de Varejo e Distribuição',
   description: 'A plataforma definitiva para cerimônias ágeis, estimativas de poker, planejamento de sprint, reviews (showcase) e retrospectivas. Design Premium para times ambiciosos.',
   keywords: ['ágil', 'scrum', 'poker', 'sprint review', 'retrospectiva', 'espaço ágil', 'gestão de squads'],
   authors: [{ name: 'Agile Engineering Team' }],
@@ -60,7 +60,7 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Espaço Ágil" />
+        <meta name="apple-mobile-web-app-title" content="Portal Tech V&D" />
         <link rel="apple-touch-icon" href="/icon.png" />
         <Script
           id="theme-init"

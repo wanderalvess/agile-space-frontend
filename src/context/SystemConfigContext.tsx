@@ -19,7 +19,7 @@ interface SystemConfigContextType {
 const SystemConfigContext = createContext<SystemConfigContextType | undefined>(undefined);
 
 const DEFAULT_CONFIG: SystemConfig = {
-  companyName: 'Espaço Ágil',
+  companyName: 'Portal Tech V&D',
   primaryColor: '',
   logoUrl: '',
   allowAnonymous: true,
@@ -79,7 +79,8 @@ export function SystemConfigProvider({ children }: { children: ReactNode }) {
     }
 
     // Atualizar Título da Página Dinamicamente (Opcional)
-    if (data.companyName && data.companyName !== 'Espaço Ágil') {
+    // 'Espaço Ágil' era o default antigo e pode estar salvo no banco: não trata como nome customizado.
+    if (data.companyName && data.companyName !== 'Portal Tech V&D' && data.companyName !== 'Espaço Ágil') {
       document.title = `${data.companyName} | Gestão Ágil`;
     }
   };

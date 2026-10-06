@@ -887,7 +887,7 @@ export function PromptDashboard({
       <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} />
 
       <FeedbackWidget
-        toolName="Espaço Ágil - Biblioteca de IA"
+        toolName="Portal Tech V&D - Biblioteca de IA"
         triggerVariant="none"
         externalTriggerSignal={feedbackSignal}
       />

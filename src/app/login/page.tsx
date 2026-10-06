@@ -286,7 +286,7 @@ export default function LoginPage() {
 
             {/* LADO ESQUERDO: INFORMAÇÕES SINTETIZADAS (SEMPRE ESCURO COM ACENTOS DO TEMA) */}
             <div className="hidden lg:flex lg:w-5/12 bg-slate-950/40 backdrop-blur-xl p-10 flex-col justify-between relative overflow-hidden text-slate-50 border-r border-white/10">
-              {/* Starfield temático (Espaço Ágil) */}
+              {/* Starfield temático (Portal Tech V&D) */}
               <div className="starfield-sm absolute inset-0 opacity-50 animate-twinkle pointer-events-none" />
               <div className="starfield-lg absolute inset-0 opacity-30 animate-twinkle pointer-events-none" style={{ animationDelay: '-2.5s' }} />
 
@@ -301,7 +301,7 @@ export default function LoginPage() {
                     <Rocket className="h-4 w-4" />
                   </div>
                   <span className="text-xl font-black tracking-tighter italic font-headline uppercase text-white">
-                    Espaço <span className="text-primary not-italic transition-colors duration-300">Ágil</span>
+                    Portal Tech <span className="text-primary not-italic transition-colors duration-300">V&D</span>
                   </span>
                 </div>
               </div>
@@ -370,7 +370,7 @@ export default function LoginPage() {
                     <Rocket className="h-4 w-4" />
                   </div>
                   <span className="text-lg font-black tracking-tight italic font-headline uppercase text-foreground">
-                    Espaço <span className="text-primary not-italic">Ágil</span>
+                    Portal Tech <span className="text-primary not-italic">V&D</span>
                   </span>
                 </div>
 

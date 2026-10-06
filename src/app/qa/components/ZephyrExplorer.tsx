@@ -139,7 +139,7 @@ export function ZephyrExplorer() {
 - **Taxa de Execução da Sprint:** ${executionRate}%
 
 ---
-*Gerado via Central de Qualidade (QA Hub - Espaço Ágil)*`;
+*Gerado via Central de Qualidade (QA Hub - Portal Tech V&D)*`;
 
     setReportMarkdown(md);
   };

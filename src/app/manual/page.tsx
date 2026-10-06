@@ -70,7 +70,7 @@ export default function ManualOverviewPage() {
           </h1>
 
           <p className="text-slate-300 font-medium text-sm md:text-base leading-relaxed">
-            Documentação tática completa das cerimônias, motores de transformação e utilitários da plataforma Espaço Ágil. Cada módulo possui sua página dedicada com passo a passo de operação.
+            Documentação tática completa das cerimônias, motores de transformação e utilitários da plataforma Portal Tech V&D. Cada módulo possui sua página dedicada com passo a passo de operação.
           </p>
 
           {/* Quick Search */}

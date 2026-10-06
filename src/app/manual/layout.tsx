@@ -52,7 +52,7 @@ export default function ManualLayout({
       </div>
 
       <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Espaço Ágil - Manual" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+      <FeedbackWidget toolName="Portal Tech V&D - Manual" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </div>
   );
 }

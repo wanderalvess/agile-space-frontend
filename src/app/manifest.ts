@@ -2,8 +2,8 @@ import { MetadataRoute } from 'next';
  
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Espaço Ágil',
-    short_name: 'Espaço Ágil',
+    name: 'Portal Tech V&D',
+    short_name: 'Portal Tech V&D',
     description: 'A plataforma definitiva para cerimônias ágeis e gerenciamento de fluxo.',
     start_url: '/',
     display: 'standalone',

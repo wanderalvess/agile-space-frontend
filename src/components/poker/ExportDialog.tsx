@@ -318,7 +318,7 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
       doc.setFillColor(37, 99, 235);
       doc.rect(0, 0, PW, 34, 'F');
       setFont(18, 'bold', [255, 255, 255]);
-      doc.text('ESPAÇO ÁGIL', M, 15);
+      doc.text('PORTAL TECH V&D', M, 15);
       setFont(9, 'normal', [219, 234, 254]);
       doc.text('Relatório de Refinamento', M, 21);
       setFont(12, 'bold', [255, 255, 255]);
@@ -500,7 +500,7 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
         doc.setLineWidth(0.3);
         doc.line(M, PH - 12, PW - M, PH - 12);
         setFont(7.5, 'normal', [148, 163, 184]);
-        doc.text('Gerado automaticamente por Espaço Ágil', M, PH - 7.5);
+        doc.text('Gerado automaticamente por Portal Tech V&D', M, PH - 7.5);
         doc.text(`Página ${p} de ${pages}`, PW - M, PH - 7.5, { align: 'right' });
       }
 

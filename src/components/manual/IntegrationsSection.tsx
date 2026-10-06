@@ -99,7 +99,7 @@ export function IntegrationsSection() {
           <span className="text-cyan-600 dark:text-cyan-400">& API</span>
         </h2>
         <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-          Como puxar dados do Espaço Ágil de fora da aplicação — de um script, de outro sistema
+          Como puxar dados do Portal Tech V&D de fora da aplicação — de um script, de outro sistema
           ou de um agente de IA — sem sessão de usuário logado.
         </p>
 

@@ -31,7 +31,7 @@ interface SystemConfig {
 }
 
 const DEFAULT_CONFIG: SystemConfig = {
-  companyName: 'Espaço Ágil',
+  companyName: 'Portal Tech V&D',
   primaryColor: '24 93% 53%', // Cor primária padrão (Orange) em HSL
   logoUrl: '',
   allowAnonymous: true,

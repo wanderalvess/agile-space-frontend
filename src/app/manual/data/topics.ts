@@ -172,7 +172,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     id: 'integracoes',
     title: 'Integrações & API',
     subtitle: 'Catálogo de APIs e Endpoints',
-    description: 'Documentação completa de integração do Espaço Ágil via REST, autenticação por Bearer Token e catálogo OpenAPI.',
+    description: 'Documentação completa de integração do Portal Tech V&D via REST, autenticação por Bearer Token e catálogo OpenAPI.',
     category: 'engineering',
     icon: Network,
     color: 'text-cyan-600 dark:text-cyan-400',
@@ -232,7 +232,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
   // Categoria Governança
   {
     id: 'manifesto',
-    title: 'Manifesto Espaço Ágil',
+    title: 'Manifesto Portal Tech V&D',
     subtitle: 'Nossos Princípios & Padrões',
     description: 'Nossas diretrizes de design, fluxo e arquitetura para garantir a melhor experiência de colaboração ágil com privacidade radical.',
     category: 'governance',

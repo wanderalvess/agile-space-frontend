@@ -136,7 +136,7 @@ export function KnowledgeHowToUse({ open, onOpenChange }: KnowledgeHowToUseProps
                   <div className="space-y-1">
                      <p className="text-[11px] font-black uppercase tracking-widest text-cyan-200">Privacidade Radical</p>
                      <p className="text-sm font-medium leading-relaxed opacity-90">
-                        O Espaço Ágil processa todas as interações no cliente (Client-side) quando possível e utiliza Security Rules para garantir que apenas sua squad tenha acesso aos seus ativos técnicos.
+                        O Portal Tech V&D processa todas as interações no cliente (Client-side) quando possível e utiliza Security Rules para garantir que apenas sua squad tenha acesso aos seus ativos técnicos.
                      </p>
                   </div>
                </div>

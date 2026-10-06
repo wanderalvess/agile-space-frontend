@@ -115,7 +115,7 @@ export default function JoltSandboxPage() {
   // Sync data from Visual Mapper if it exists in localStorage
   useEffect(() => {
     setIsHydrated(true);
-    document.title = `Jolt Sandbox | Espaço Ágil`;
+    document.title = `Jolt Sandbox | Portal Tech V&D`;
 
     const specFromVisual = localStorage.getItem('jolt_visual_generated_spec');
     const inputFromVisual = localStorage.getItem('jolt_visual_input_json');

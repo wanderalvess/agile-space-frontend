@@ -915,7 +915,7 @@ export default function VisualJoltMapperPage() {
     }
 
     setIsHydrated(true);
-    document.title = `Mapeador Visual Jolt | Espaço Ágil`;
+    document.title = `Mapeador Visual Jolt | Portal Tech V&D`;
 
     setIsDark(document.documentElement.classList.contains('dark'));
     const observer = new MutationObserver(() => {

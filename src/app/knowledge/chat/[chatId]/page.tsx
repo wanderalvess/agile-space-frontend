@@ -446,7 +446,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">O que vamos descobrir hoje?</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">Motor de Agilidade • Espaço Ágil</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">Motor de Agilidade • Portal Tech V&D</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mt-10">
@@ -625,7 +625,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="Pergunte qualquer coisa sobre a Espaço Ágil..."
+                  placeholder="Pergunte qualquer coisa sobre o Portal Tech V&D..."
                   className="flex-1 border-none focus:outline-none text-[13px] font-bold h-12 bg-transparent px-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
                 <Button

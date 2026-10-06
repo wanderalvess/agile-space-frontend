@@ -6,7 +6,7 @@ import { SprintPlannerContent } from '@/components/planner/SprintPlannerContent'
 
 export default function SprintPlannerPage() {
   useEffect(() => {
-    document.title = `Sprint Planner | Espaço Ágil`;
+    document.title = `Sprint Planner | Portal Tech V&D`;
   }, []);
 
   return (

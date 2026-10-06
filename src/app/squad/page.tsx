@@ -167,7 +167,7 @@ function SquadHubContent() {
   }, [jiraSettings]);
 
   useEffect(() => {
-    document.title = `Squad Hub & Rituais | Espaço Ágil`;
+    document.title = `Squad Hub & Rituais | Portal Tech V&D`;
   }, []);
 
   const prevSquadIdRef = useRef<string | null>(null);

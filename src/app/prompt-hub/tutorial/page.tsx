@@ -127,7 +127,7 @@ export default function SkillTutorialPage() {
   const router = useRouter();
 
   React.useEffect(() => {
-    document.title = 'Como criar uma Skill | Espaço Ágil';
+    document.title = 'Como criar uma Skill | Portal Tech V&D';
   }, []);
 
   return (
@@ -578,7 +578,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
                   individual para cada conta.
                 </li>
                 <li>
-                  <strong>Agile Space Prompt Hub (Biblioteca de IA):</strong> central compartilhada da squad/empresa,
+                  <strong>Portal Tech V&D Prompt Hub (Biblioteca de IA):</strong> central compartilhada da squad/empresa,
                   com busca, tags, versionamento e execução.
                 </li>
               </ul>
@@ -586,7 +586,7 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
               <div className="mt-6 rounded-lg border border-border bg-card p-5 space-y-4">
                 <h4 className="font-semibold text-foreground flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  3 Formas de Subir Skills para o Agile Space Prompt Hub
+                  3 Formas de Subir Skills para o Portal Tech V&D Prompt Hub
                 </h4>
 
                 <div className="space-y-4 pt-1">

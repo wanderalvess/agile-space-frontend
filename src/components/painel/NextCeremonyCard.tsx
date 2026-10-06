@@ -3,7 +3,7 @@
 /**
  * Card "Próxima cerimônia" do /painel. Lê UMA fonte só (SquadConfig.ceremonyMode, ver
  * useNextCeremony) — Google Calendar pessoal (OAuth client-side, sem mexer no login do
- * Espaço Ágil) ou cadastro manual da squad — e mostra a próxima daily/planning/review/
+ * Portal Tech V&D) ou cadastro manual da squad — e mostra a próxima daily/planning/review/
  * retro/refinement/showcase.
  *
  * Sem dado real nunca inventa horário: cobre "sem conexão"/"sem cadastro", "carregando",

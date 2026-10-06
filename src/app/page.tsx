@@ -13,7 +13,7 @@ export default function Home() {
   // Title effect
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.title = `Hub | Espaço Ágil`;
+      document.title = `Hub | Portal Tech V&D`;
     }
   }, []);
 
@@ -44,7 +44,7 @@ export default function Home() {
         <Footer onOpenFeedback={handleOpenFeedback} />
       </div>
 
-      <FeedbackWidget toolName="Espaço Ágil - Hub" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+      <FeedbackWidget toolName="Portal Tech V&D - Hub" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </div>
   );
 }

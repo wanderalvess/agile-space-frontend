@@ -251,7 +251,7 @@ export default function AdminDashboard() {
       </div>
 
       <Footer className="mt-8" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Espaço Ágil - Admin" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+      <FeedbackWidget toolName="Portal Tech V&D - Admin" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </div>
   );
 }

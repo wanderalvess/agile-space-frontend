@@ -230,7 +230,7 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
         <div className="text-sm font-extrabold font-headline">Não tem um token? Leva 30 segundos.</div>
         {[
           'Abra a página de tokens da Atlassian (o botão abaixo abre em outra aba).',
-          'Clique em Create API token e dê o nome Espaço Ágil.',
+          'Clique em Create API token e dê o nome Portal Tech V&D.',
           'Copie e cole aqui. A gente guarda pra você não precisar de novo.',
         ].map((text, i) => (
           <div key={i} className="flex gap-2.5">

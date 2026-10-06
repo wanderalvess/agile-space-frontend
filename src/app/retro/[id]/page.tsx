@@ -427,7 +427,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Retrospectiva";
     const sessionName = boardData?.title || boardData?.team;
     

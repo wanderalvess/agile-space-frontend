@@ -193,7 +193,7 @@ export default function GovernancePage() {
                 <span className="text-primary not-italic">da confiança.</span>
               </h2>
               <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-2xl">
-                Este documento descreve como o Espaço Ágil protege seus dados, gerencia acessos e
+                Este documento descreve como o Portal Tech V&D protege seus dados, gerencia acessos e
                 garante a segurança da sua operação — incluindo o que ainda está em progresso. Preferimos
                 listar uma limitação conhecida a prometer algo que o código não sustenta.
               </p>
@@ -340,7 +340,7 @@ export default function GovernancePage() {
                     <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Limitações de Responsabilidade</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>O Espaço Ágil é uma ferramenta de apoio a cerimônias ágeis e produtividade. <strong>Não substitui</strong> ferramentas de gestão empresarial (Jira, Azure DevOps) nem possui SLA garantido.</p>
+                    <p>O Portal Tech V&D é uma ferramenta de apoio a cerimônias ágeis e produtividade. <strong>Não substitui</strong> ferramentas de gestão empresarial (Jira, Azure DevOps) nem possui SLA garantido.</p>
                     <p>A plataforma não se responsabiliza por perda de dados em caso de falha na infraestrutura de banco de dados ou backend.</p>
                   </div>
                 </Card>
@@ -351,7 +351,7 @@ export default function GovernancePage() {
                     <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Uso Corporativo</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>Login e dados de negócio são geridos inteiramente pelo backend e banco PostgreSQL próprios do Espaço Ágil — consulte o time de plataforma para detalhes de hospedagem.</p>
+                    <p>Login e dados de negócio são geridos inteiramente pelo backend e banco PostgreSQL próprios do Portal Tech V&D — consulte o time de plataforma para detalhes de hospedagem.</p>
                     <p>Para empresas com requisitos LGPD avançados, recomendamos revisão com o time de compliance antes da adoção em larga escala.</p>
                   </div>
                 </Card>
@@ -362,7 +362,7 @@ export default function GovernancePage() {
                     <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Assistente de IA da Base de Conhecimento</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>O módulo de Base de Conhecimento utiliza modelos de IA para chat e busca semântica. Nenhuma conversa com o assistente virtual é utilizada para treinar modelos de terceiros, e o histórico fica isolado por usuário no banco do Espaço Ágil.</p>
+                    <p>O módulo de Base de Conhecimento utiliza modelos de IA para chat e busca semântica. Nenhuma conversa com o assistente virtual é utilizada para treinar modelos de terceiros, e o histórico fica isolado por usuário no banco do Portal Tech V&D.</p>
                   </div>
                 </Card>
 
@@ -372,7 +372,7 @@ export default function GovernancePage() {
                     <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">LGPD & Privacidade</h4>
                   </div>
                   <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
-                    <p>Tecnicamente, o Espaço Ágil não coleta dados sensíveis (biometria, localização, etc.). O enquadramento formal em LGPD — base legal, DPO, retenção — é uma decisão do time jurídico/compliance da empresa, não algo que este documento certifica sozinho.</p>
+                    <p>Tecnicamente, o Portal Tech V&D não coleta dados sensíveis (biometria, localização, etc.). O enquadramento formal em LGPD — base legal, DPO, retenção — é uma decisão do time jurídico/compliance da empresa, não algo que este documento certifica sozinho.</p>
                     <p>O usuário pode solicitar a exclusão de seus dados a qualquer momento via canal de suporte.</p>
                   </div>
                 </Card>
@@ -417,7 +417,7 @@ export default function GovernancePage() {
 
       <Footer className="mt-8 shrink-0" onOpenFeedback={handleOpenFeedback} />
       <FeedbackWidget
-        toolName="Espaço Ágil - Governança"
+        toolName="Portal Tech V&D - Governança"
         externalTriggerSignal={feedbackSignal}
         triggerVariant="none"
       />

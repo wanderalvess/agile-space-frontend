@@ -95,7 +95,7 @@ ${bugLogs || 'Nenhum log retornado'}
 \`\`\`
 
 ---
-*Relatório padronizado via Central de Qualidade (Espaço Ágil)*`;
+*Relatório padronizado via Central de Qualidade (Portal Tech V&D)*`;
   };
 
   return (

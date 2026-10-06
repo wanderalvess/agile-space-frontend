@@ -1,5 +1,5 @@
 /**
- * Catálogo único das superfícies de integração públicas do Espaço Ágil —
+ * Catálogo único das superfícies de integração públicas do Portal Tech V&D —
  * o que dá pra chamar de fora com uma API key, sem sessão de usuário.
  *
  * Fonte de verdade compartilhada entre a referência completa

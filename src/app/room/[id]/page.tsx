@@ -535,7 +535,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Scrum Poker";
     const sessionName = roomData?.title || roomData?.team;
     

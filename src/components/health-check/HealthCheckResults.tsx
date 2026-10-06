@@ -571,7 +571,7 @@ export function HealthCheckResults({
         </div>
 
         <div className="pb-12 text-center opacity-30 mt-8">
-          <p className="text-[9px] font-black uppercase tracking-[0.3em]">Espaço Ágil Health Snapshot v2.5</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em]">Portal Tech V&D Health Snapshot v2.5</p>
         </div>
       </div>
     </div>

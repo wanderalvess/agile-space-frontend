@@ -1,5 +1,5 @@
 /**
- * Google Calendar API Integration for Espaço Ágil
+ * Google Calendar API Integration for Portal Tech V&D
  * Fetches user availability events to sync with Daily Flow Capacity Planner.
  */
 
@@ -43,7 +43,7 @@ export async function fetchCalendarEvents(accessToken: string, timeMin: string, 
 }
 
 /**
- * Converte eventos do Google Calendar em registros de UserAvailability do Espaço Ágil.
+ * Converte eventos do Google Calendar em registros de UserAvailability do Portal Tech V&D.
  */
 export function parseEventsToAvailability(
   events: GoogleCalendarEvent[], 

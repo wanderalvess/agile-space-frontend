@@ -491,7 +491,7 @@ export function InfrastructureDetailsDialog({ open, onOpenChange }: any) {
         <DialogHeader className="p-10 bg-blue-50/50 border-b border-blue-100">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-600 rounded-2xl shadow-xl shadow-blue-600/20"><Activity className="h-6 w-6 text-white" /></div>
-            <div><DialogTitle className="text-2xl font-black uppercase tracking-tighter italic font-headline text-slate-900 dark:text-slate-100">Diagnóstico Real</DialogTitle><p className="text-[10px] font-black uppercase text-blue-400 tracking-widest mt-1">Status Report: Espaço Ágil Hub</p></div>
+            <div><DialogTitle className="text-2xl font-black uppercase tracking-tighter italic font-headline text-slate-900 dark:text-slate-100">Diagnóstico Real</DialogTitle><p className="text-[10px] font-black uppercase text-blue-400 tracking-widest mt-1">Status Report: Portal Tech V&D Hub</p></div>
           </div>
         </DialogHeader>
         <div className="p-10 space-y-8">

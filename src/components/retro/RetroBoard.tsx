@@ -497,7 +497,7 @@ const RetroBoardComponent = ({
                         {/* RODAPÉ DO GUIA */}
                         <div className="pt-8 text-center pb-8 opacity-50">
                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center justify-center gap-2">
-                              <Download className="h-3 w-3" /> Espaço Ágil v2.0
+                              <Download className="h-3 w-3" /> Portal Tech V&D v2.0
                            </p>
                         </div>
 

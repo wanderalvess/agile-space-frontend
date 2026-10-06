@@ -461,7 +461,7 @@ export function SkillImportDialog({
                 Compatibilidade e Inferência Automática
               </div>
               <p className="mt-1 leading-relaxed">
-                O Espaço Ágil lê os blocos <code className="text-foreground">--- YAML ---</code> no topo de cada <code className="text-foreground">SKILL.md</code> para extrair o <strong>nome</strong>, <strong>descrição</strong> e gerar as tags de categorização. Skills com o mesmo nome já existentes serão atualizadas automaticamente (idempotência).
+                O Portal Tech V&D lê os blocos <code className="text-foreground">--- YAML ---</code> no topo de cada <code className="text-foreground">SKILL.md</code> para extrair o <strong>nome</strong>, <strong>descrição</strong> e gerar as tags de categorização. Skills com o mesmo nome já existentes serão atualizadas automaticamente (idempotência).
               </p>
             </div>
           </div>

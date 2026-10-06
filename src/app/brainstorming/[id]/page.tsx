@@ -223,7 +223,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Brainstorming";
     const sessionName = boardData?.title || boardData?.team;
     
