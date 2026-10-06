@@ -7,8 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Kanban, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass, Ban } from 'lucide-react';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
+import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass, Ban } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -55,7 +54,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { sprintPlanningApi } from '@/app/sprint-planner/api';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
 import { JiraIssue } from '@/services/jiraService';
@@ -142,10 +140,6 @@ export function TopicQueue({
   const [itemToCancel, setItemToCancel] = useState<Issue | null>(null);
   const [cancelModalNote, setCancelModalNote] = useState('');
 
-  const [isPlanningImportOpen, setIsPlanningImportOpen] = useState(false);
-  const [plannings, setPlannings] = useState<any[]>([]);
-  const [isLoadingPlannings, setIsLoadingPlannings] = useState(false);
-
   // --- Jira Import State (Managed by Dialog) ---
   const [isJiraImportOpen, setIsJiraImportOpen] = useState(false);
 
@@ -195,37 +189,6 @@ export function TopicQueue({
     onBulkAddIssues(items);
     setIsJiraImportOpen(false);
     toast({ title: 'Importado com sucesso!', description: `${items.length} issues do Jira adicionadas à fila.` });
-  };
-
-  const fetchPlannings = async () => {
-    setIsLoadingPlannings(true);
-    try {
-      const results = await sprintPlanningApi.listReadyForPoker(20);
-      setPlannings(results);
-    } catch (error) {
-      console.error('Erro ao buscar planejamentos do Sprint Planner:', error);
-      toast({ title: 'Erro ao buscar planejamentos', description: 'Não foi possível carregar os planejamentos do Sprint Planner.', variant: 'destructive' });
-    } finally {
-      setIsLoadingPlannings(false);
-    }
-  };
-
-  const handleImportPlanning = (plan: any) => {
-    const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
-    if (tasks.length === 0) {
-      toast({ title: 'Planejamento vazio', description: 'Esse planejamento não tem tarefas para importar.', variant: 'destructive' });
-      return;
-    }
-
-    const items = tasks.map((t: any) => ({
-      title: t.name || 'Sem título',
-      jiraLink: t.link || undefined,
-      description: t.description || undefined,
-    }));
-
-    onBulkAddIssues(items);
-    setIsPlanningImportOpen(false);
-    toast({ title: 'Importado com sucesso!', description: `${items.length} tarefas do Sprint Planner adicionadas à fila.` });
   };
 
   // Detecta o tipo da tarefa por palavras-chave (título/chave), para o preview
@@ -467,15 +430,6 @@ export function TopicQueue({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px] p-2 border-indigo-100 dark:border-border/60 shadow-2xl rounded-2xl bg-white/95 dark:bg-card/95 backdrop-blur-xl">
-                  <DropdownMenuItem
-                    onClick={() => { setIsPlanningImportOpen(true); fetchPlannings(); }}
-                    className="text-[10px] font-black uppercase tracking-widest gap-3 py-3 rounded-xl focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer transition-colors"
-                  >
-                    <div className="p-1.5 bg-emerald-100 rounded-lg">
-                      <Kanban className="h-3.5 w-3.5 text-emerald-600" />
-                    </div>
-                    Sprint Planner
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setIsJiraImportOpen(true)}
                     className="text-[10px] font-black uppercase tracking-widest gap-3 py-3 rounded-xl focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer transition-colors"
@@ -1072,53 +1026,6 @@ export function TopicQueue({
               </>
             )}
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isPlanningImportOpen} onOpenChange={setIsPlanningImportOpen}>
-        <DialogContent className={cn(pokerDialogContent, "sm:max-w-[550px] border-emerald-500/30")}>
-          <DialogHeader>
-            <DialogTitle className={cn(pokerDialogTitleCls, "text-emerald-600")}>
-              <span className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0"><Kanban className="h-4 w-4" /></span> Importar do Sprint Planner
-            </DialogTitle>
-            <DialogDescription className={pokerDialogDescCls}>
-              Selecione um planejamento recente (marcado como pronto para Poker) para importar as tarefas automaticamente.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-            {isLoadingPlannings && (
-              <div className="py-8 text-center text-muted-foreground text-xs uppercase tracking-widest flex flex-col items-center gap-4">
-                <AgileSpinner size="md" variant="emerald" />
-                <span className="mt-2 animate-pulse">Buscando planejamentos...</span>
-              </div>
-            )}
-            {!isLoadingPlannings && plannings.length === 0 && (
-              <div className="py-8 px-4 text-center text-muted-foreground text-xs bg-muted/20 rounded-xl border border-dashed flex flex-col items-center gap-2">
-                <Kanban className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                <span>Nenhum planejamento recente pronto para Poker.</span>
-                <span className="opacity-70">Vá no "Sprint Planner e Capacidade", crie seu escopo e clique em "Salvar" ou "Exportar para Poker".</span>
-              </div>
-            )}
-            {!isLoadingPlannings && plannings.length > 0 && plannings.map((plan: any) => (
-              <div key={plan.id} className="flex flex-col gap-2 p-3 border rounded-xl hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all bg-card shadow-sm cursor-default">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground">{plan.title || 'Sem Título'}</h4>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
-                      {plan.tasks?.length || 0} Tarefas • Criado em {plan.createdAt ? new Date(plan.createdAt).toLocaleDateString() : 'Data desconhecida'}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleImportPlanning(plan)}
-                    className="h-8 text-[10px] bg-emerald-500 text-white hover:bg-emerald-600 font-black uppercase tracking-widest px-4 shadow-md shadow-emerald-500/20"
-                  >
-                    Importar
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
         </DialogContent>
       </Dialog>
 
