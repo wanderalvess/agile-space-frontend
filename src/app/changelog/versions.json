@@ -1,5 +1,20 @@
 [
   {
+    "tag": "v4.4.2",
+    "date": "6 de Outubro, 2026",
+    "title": "Retrospectiva sem JiraDash",
+    "description": "As estatísticas da sprint na Retro ficam só com as métricas das cerimônias.",
+    "changes": [
+      "O resumo analítico da sprint na Retrospectiva não tem mais a aba nem o botão do JiraDash; mostra direto as métricas de cerimônias e Poker.",
+      "O menu da Retro passa a se chamar \"Estatísticas da sprint\"."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.1",
     "date": "6 de Outubro, 2026",
     "title": "Squad sem dados de exemplo",

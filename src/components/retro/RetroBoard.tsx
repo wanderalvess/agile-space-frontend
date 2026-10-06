@@ -382,7 +382,7 @@ const RetroBoardComponent = ({
                     </DropdownMenuItem>
                     {onOpenStats && (
                       <DropdownMenuItem onClick={onOpenStats} className="rounded-xl gap-2.5 py-2 cursor-pointer">
-                        <BarChart3 className="h-4 w-4 text-slate-400" /> Estatísticas da sprint & JiraDash
+                        <BarChart3 className="h-4 w-4 text-slate-400" /> Estatísticas da sprint
                       </DropdownMenuItem>
                     )}
                     {boardData.creatorId === currentUserId && (
