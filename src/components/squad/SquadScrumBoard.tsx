@@ -48,6 +48,7 @@ import { useJiraSettings, getJiraCredentials } from '@/hooks/useJiraSettings';
 import {
   fetchGreenhopperWorkData,
   EMPTY_GREENHOPPER_DATA,
+  fetchScrumBoards,
   type GreenhopperWorkData,
   type GreenhopperIssue,
   type GreenhopperColumn,
@@ -55,6 +56,7 @@ import {
   type GreenhopperQuickFilter,
 } from '@/services/greenhopperService';
 import { BoardConfigModal } from './BoardConfigModal';
+import { squadApi } from '@/app/squad/api';
 
 interface SquadScrumBoardProps {
   squadId?: string;
@@ -70,7 +72,7 @@ interface ColumnWipOverride {
 }
 
 const FALLBACK_REASON_LABELS: Record<string, string> = {
-  'missing-config': 'Falta o domínio, o token do Jira ou o ID do quadro Scrum. Preencha em Configurações da squad para ver o quadro ao vivo.',
+  'missing-config': 'Não encontrei um quadro Scrum para este projeto no Jira. Confira a chave do projeto, o domínio e o token em Configurações da squad, ou informe o ID do quadro.',
   'invalid-rapid-view-id': 'O ID do quadro (rapidViewId) configurado não é válido.',
   'auth-error': 'Sessão do Jira expirada ou sem permissão para este quadro. Reconecte suas credenciais.',
   timeout: 'O Jira demorou demais para responder.',
@@ -170,10 +172,23 @@ export function SquadScrumBoard({
   const loadBoardData = async (showToast = false) => {
     setIsLoading(true);
     try {
+      // Sem ID de quadro configurado: descobre pelo projeto no Jira e guarda na configuração da squad,
+      // assim quem já conectou o Jira não precisa digitar o número do quadro.
+      let boardId: number | string = rapidViewId;
+      if (!boardId && activeDomain && activeToken && jiraProjectKey) {
+        const boards = await fetchScrumBoards({ domain: activeDomain, token: activeToken, projectKey: jiraProjectKey });
+        if (boards.length > 0) {
+          boardId = boards[0].id;
+          setRapidViewId(boardId);
+          if (squadId) {
+            squadApi.saveSquad(squadId, { rapidViewId: String(boardId) } as any).catch(() => {});
+          }
+        }
+      }
       const data = await fetchGreenhopperWorkData({
         domain: activeDomain,
         token: activeToken,
-        rapidViewId: rapidViewId || '',
+        rapidViewId: boardId || '',
         selectedProjectKey: jiraProjectKey,
       });
       // Reaplica os overrides locais por cima do fetch — sem isso, qualquer

@@ -123,6 +123,38 @@ export const EMPTY_GREENHOPPER_DATA: GreenhopperWorkData = {
   quickFiltersData: { quickFilters: [] },
 };
 
+
+export interface ScrumBoardRef {
+  id: number;
+  name: string;
+}
+
+/**
+ * Descobre os quadros Scrum do projeto no Jira (para preencher o rapidViewId sozinho).
+ * Prefere o quadro cujo nome contém a chave do projeto; sem isso, o primeiro. Lista vazia se nada for encontrado.
+ */
+export async function fetchScrumBoards(params: { domain: string; token: string; projectKey: string }): Promise<ScrumBoardRef[]> {
+  const { domain, token, projectKey } = params;
+  if (!domain || !token || !projectKey) return [];
+  try {
+    const res = await authFetch('/api/jira/boards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim(), projectKey: projectKey.trim() }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const values: any[] = Array.isArray(data?.values) ? data.values : [];
+    const boards = values
+      .filter(b => typeof b?.id === 'number')
+      .map(b => ({ id: b.id as number, name: String(b.name || '') }));
+    const key = projectKey.trim().toLowerCase();
+    return boards.sort((a, b) => Number(b.name.toLowerCase().includes(key)) - Number(a.name.toLowerCase().includes(key)));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Consulta o Jira Greenhopper via proxy para obter a estrutura completa do RapidBoard (allData.json)
  */

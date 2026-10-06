@@ -1,5 +1,22 @@
 [
   {
+    "tag": "v4.4.3",
+    "date": "6 de Outubro, 2026",
+    "title": "Squad: métricas da sprint voltam a aparecer e o quadro acha o ID sozinho",
+    "description": "Correções no Squad Hub para quem já sincronizou com o Jira.",
+    "changes": [
+      "As métricas da sprint voltam a aparecer mesmo quando a sprint ativa não estava registrada corretamente: o painel passa a usar a sincronização mais recente em vez de dar erro 404.",
+      "A sincronização agora identifica a sprint atual pelas próprias issues quando o Jira não informa os dados da sprint, evitando gravar a sprint como \"não mapeada\".",
+      "O Quadro Scrum descobre sozinho o ID do quadro do seu projeto no Jira, usando o domínio e o token que você já salvou, e guarda esse ID na squad.",
+      "O ID do quadro Jira informado nas Configurações do Squad agora é realmente salvo (antes era descartado)."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.2",
     "date": "6 de Outubro, 2026",
     "title": "Retrospectiva sem JiraDash",
