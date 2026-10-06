@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, use } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
   CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck, TrendingUp, FileText, MessageSquareText,
-  ChevronDown, AlertTriangle, RefreshCw
+  ChevronDown, AlertTriangle, RefreshCw, MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { JiraIssue } from '@/services/jiraService';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { getAuthToken } from '@/lib/auth-client';
@@ -539,14 +539,14 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             ) as unknown as string
           }
           toolIcon={<ShieldCheck className="h-4 w-4" />}
-          toolColorClass="text-violet-600"
+          toolColorClass="text-violet-600 bg-violet-50"
           badge={
-            <div className="hidden md:flex items-center gap-8 px-2">
+            <div className="hidden md:flex items-center gap-6 px-2">
               <div className="flex flex-col items-start">
-                <span className="text-[8px] font-black text-slate-400 dark:text-slate-400 uppercase leading-none mb-1.5 tracking-tighter">Esforço Total</span>
-                <div className="flex items-center gap-1 text-[11px] font-black text-violet-600 italic whitespace-nowrap">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase leading-none mb-1 tracking-wide">Esforço Total</span>
+                <div className="flex items-center gap-1 text-xs font-bold text-violet-600 whitespace-nowrap">
                   {stats.hoursSpent || '0h'}
-                  <span className="text-slate-300 dark:text-slate-800 mx-0.5 not-italic">/</span>
+                  <span className="text-slate-300 dark:text-slate-800 mx-0.5">/</span>
                   {stats.hoursOriginal || '0h'}
                 </div>
               </div>
@@ -554,16 +554,16 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="flex flex-col items-start outline-none group">
-                    <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase leading-none mb-1.5 tracking-tighter flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase leading-none mb-1 tracking-wide flex items-center gap-1">
                       Prontidão
                       <ChevronDown className="h-2.5 w-2.5 text-slate-300 dark:text-slate-600 transition-transform group-data-[state=open]:rotate-180" />
                     </span>
                     <div className={cn(
-                      "flex items-center gap-1.5 text-[11px] font-black italic whitespace-nowrap",
+                      "flex items-center gap-1.5 text-xs font-bold whitespace-nowrap",
                       readyCount === stats.total && stats.total > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100"
                     )}>
                       {readyCount}
-                      <span className="text-slate-300 dark:text-slate-800 mx-0.5 not-italic">/</span>
+                      <span className="text-slate-300 dark:text-slate-800 mx-0.5">/</span>
                       {stats.total}
                       {mismatchCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title={`${mismatchCount} task(s) com status manual divergente`} />}
                     </div>
@@ -624,73 +624,81 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             </div>
           }
           actions={
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setIsGuideOpen(true)} className="h-8 w-8 rounded-xl text-slate-400 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all">
-                <HelpCircle className="h-4 w-4" />
-              </Button>
-
-              <Button 
-                onClick={handleShare}
-                variant="ghost"
-                className="h-8 px-3 rounded-xl text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all border border-violet-100 dark:border-violet-800"
-              >
-                <Share2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Compartilhar</span>
-              </Button>
-
-              <Button
-                onClick={handleOpenRetro}
-                variant="ghost"
-                className="h-8 px-3 rounded-xl text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all border border-violet-100 dark:border-violet-800"
-              >
-                <MessageSquareText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Retro desta Sprint</span>
-              </Button>
-
-              <Button
-                onClick={() => { setSettingsWarningActive(false); setIsSettingsOpen(true); }}
-                variant="ghost"
-                className="h-8 px-3 rounded-xl text-slate-500 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all"
-              >
-                <Settings className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Config</span>
-              </Button>
-              
-              <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-
-              <div className="flex items-center bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 gap-1 backdrop-blur-sm">
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 shrink-0">
+                <Button
+                  data-tour="jira-import"
+                  variant="ghost"
+                  onClick={() => setIsJiraOpen(true)}
+                  className="h-9 px-3 rounded-xl font-bold text-xs gap-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                  title="Importar issues do Jira"
+                >
+                  <CloudDownload className="h-4 w-4" /> <span className="hidden md:inline">Jira</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleShare}
+                  className="h-9 px-3 rounded-xl font-bold text-xs gap-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                  title="Compartilhar a Review"
+                >
+                  <Share2 className="h-4 w-4" /> <span className="hidden md:inline">Compartilhar</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setSettingsWarningActive(false); setIsSettingsOpen(true); }}
+                  className="h-9 w-9 rounded-xl text-slate-500 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                  title="Configurações da Review"
+                  aria-label="Configurações da Review"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="hidden lg:flex h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
-                      <Plus className="h-3 w-3" /> Manual
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl text-slate-500 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                      title="Mais ações"
+                      aria-label="Mais ações"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="dark:bg-slate-900 dark:border-slate-800">
-                    <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-[11px] font-bold">
-                      <FileText className="h-3.5 w-3.5 text-slate-400" /> Card Padrão
+                  <DropdownMenuContent align="end" className="w-60 rounded-xl dark:bg-slate-900 dark:border-slate-800">
+                    <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-xs font-semibold">
+                      <FileText className="h-3.5 w-3.5 text-slate-400" /> Adicionar card padrão
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-[11px] font-bold">
-                      <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de Métricas
+                    <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-xs font-semibold">
+                      <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Adicionar card de métricas
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleOpenRetro} className="gap-2 text-xs font-semibold">
+                      <MessageSquareText className="h-3.5 w-3.5 text-slate-400" /> Retro desta sprint
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsGuideOpen(true)} className="gap-2 text-xs font-semibold">
+                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" /> Como funciona
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button data-tour="jira-import" variant="ghost" onClick={() => setIsJiraOpen(true)} className="h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
-                  <CloudDownload className="h-3 w-3" /> Jira
-                </Button>
-                <Button
-                  data-tour="start-teatro"
-                  onClick={() => {
-                    const missingSetup = !session?.description?.trim() && !session?.coverImage;
-                    if (missingSetup && !presentWarningShown) {
-                      setPresentWarningShown(true);
-                      setSettingsWarningActive(true);
-                      setIsSettingsOpen(true);
-                      return;
-                    }
-                    setIsPresenting(true); setCurrentIndex(-1);
-                  }}
-                  className="h-7 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[9px] tracking-[0.1em] gap-2 shadow-lg shadow-violet-600/20 transition-all active:scale-95 ml-1"
-                >
-                  <Play className="h-3 w-3 fill-current" /> Iniciar
-                </Button>
               </div>
+
+              <Button
+                data-tour="start-teatro"
+                onClick={() => {
+                  const missingSetup = !session?.description?.trim() && !session?.coverImage;
+                  if (missingSetup && !presentWarningShown) {
+                    setPresentWarningShown(true);
+                    setSettingsWarningActive(true);
+                    setIsSettingsOpen(true);
+                    return;
+                  }
+                  setIsPresenting(true); setCurrentIndex(-1);
+                }}
+                className="h-9 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2 shadow-lg shadow-violet-600/20 transition-all active:scale-95"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" /> Iniciar
+              </Button>
             </div>
           }
         />

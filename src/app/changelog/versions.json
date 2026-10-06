@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.7.0",
+    "date": "6 de Outubro, 2026",
+    "title": "Cabeçalho da Review no padrão do Poker",
+    "description": "A barra da Review ficou mais limpa, com poucas ações fixas e o restante num menu.",
+    "changes": [
+      "O cabeçalho da Review agora mostra só o essencial: Jira, Compartilhar, Configurações, Mais ações e o botão Iniciar. Antes eram sete botões em fila.",
+      "O menu \"Mais ações\" reúne adicionar card (padrão ou de métricas), Retro desta sprint e Como funciona.",
+      "Os indicadores de esforço e prontidão ficaram maiores e mais legíveis, e o ícone da ferramenta ganhou o fundo colorido igual ao do Poker e da Retro."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-violet-500"
+    }
+  },
+  {
     "tag": "v4.6.1",
     "date": "6 de Outubro, 2026",
     "title": "Mensagens diretas do chat do Poker ficam privadas",
