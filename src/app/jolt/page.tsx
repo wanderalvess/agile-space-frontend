@@ -145,7 +145,7 @@ export default function JoltHubPage() {
       </div>
       <RoomHeader title="Jolt" toolIcon={<Terminal className="h-4 w-4" />} />
 
-      <main className="mx-auto w-full max-w-[1200px] space-y-10 px-4 py-6 md:px-8">
+      <main className="w-full max-w-none space-y-10 px-4 py-6 md:px-8 lg:px-10">
         <section className="space-y-2">
           <h1 className="font-headline text-3xl font-black uppercase tracking-tight sm:text-4xl">Transforme JSON sem escrever código</h1>
           <p className="max-w-2xl text-sm font-medium text-muted-foreground">

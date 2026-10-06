@@ -142,7 +142,7 @@ export function DevToolsHub({ collection }: DevToolsHubProps) {
           <p className="text-xs font-medium text-muted-foreground">Tente outro termo ou limpe o filtro de categoria.</p>
         </div>
       ) : (
-        <div className="grid auto-rows-fr grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid auto-rows-fr grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {visible.map(tool => (
             <ToolCard key={tool.id} tool={tool} />
           ))}

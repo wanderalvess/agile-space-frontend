@@ -22,7 +22,7 @@ export function DevToolsHubPage({ title, heading, subtitle, icon, collection }: 
         <div className="absolute bottom-[-10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-blue-500/5 blur-[140px]" />
       </div>
       <RoomHeader title={title} toolIcon={icon} />
-      <main className="mx-auto w-full max-w-[1500px] space-y-6 px-4 py-6 md:px-8">
+      <main className="w-full max-w-none space-y-6 px-4 py-6 md:px-8 lg:px-10">
         <div className="space-y-1">
           <h1 className="font-headline text-3xl font-black uppercase tracking-tight sm:text-4xl">{heading}</h1>
           <p className="max-w-2xl text-sm font-medium text-muted-foreground">{subtitle}</p>

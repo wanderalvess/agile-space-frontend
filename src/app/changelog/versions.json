@@ -1,5 +1,20 @@
 [
   {
+    "tag": "v4.2.1",
+    "date": "6 de Outubro, 2026",
+    "title": "Telas de Jolt e DevTools aproveitam a tela toda",
+    "description": "Ajuste de layout: o Jolt, o DevTools e a Central de Qualidade deixam de ficar num miolo estreito em telas largas.",
+    "changes": [
+      "As telas do Jolt, do DevTools e da Central de Qualidade agora ocupam a largura toda, como a página inicial, sem faixas vazias nas laterais.",
+      "Em telas muito largas, o DevTools mostra mais ferramentas por linha."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.2.0",
     "date": "6 de Outubro, 2026",
     "title": "DevTools renovado, Central de Qualidade unificada e Jolt explicado",
