@@ -7,10 +7,11 @@
     "changes": [
       "Review: o modal de nova Review ficou no formato do Poker (título, time e sprint opcional) e explica em 3 passos como a Review funciona. Antes eram dois campos de nome parecidos e uma dica solta.",
       "Review: a tela de uma Review sem tarefas mostra \"Sua Review está pronta\" com os 3 passos (importar, preparar evidências, apresentar) e os botões de importar do Jira ou criar card.",
-      "Review: as configurações da sessão agora usam nomes diretos (Geral, Capa, Apresentação), textos legíveis e o botão Salvar na cor da ferramenta.",
+      "Review: o modal de configurações foi refeito no formato do Poker. Saiu a barra lateral escura com \"Setup\" e a dica solta; entraram abas no topo (Geral, Capa, Apresentação), chips do que falta antes de apresentar e o botão Salvar na cor da ferramenta.",
       "Review: o cabeçalho mostra só o essencial (Jira, Compartilhar, Configurações, Mais ações e Iniciar), o título não é mais cortado e a barra entre esforço e prontidão aparece no tema escuro.",
       "Retro: as configurações ganharam nomes claros (por exemplo \"Mostrar quem escreveu cada card\") e o Guia do Facilitador foi reescrito como um roteiro de 3 etapas, sem jargão e com texto legível.",
-      "Retro: o nome do quadro deixou de ser cortado no cabeçalho, e botões como Quadro, Foco, Apresentar e Controles viram só ícones em telas até 1536 px."
+      "Retro: o nome do quadro deixou de ser cortado no cabeçalho, e botões como Quadro, Foco, Apresentar e Controles viram só ícones em telas até 1536 px.",
+      "Review e Retro: textos pequenos e em itálico dos resumos, do dashboard, da exportação e dos modais ficaram maiores e mais legíveis, e termos como \"Guia de Elite\" e \"Squad Health\" viraram \"Passo a passo\" e \"Do PO\"."
     ],
     "type": "minor",
     "icon": {

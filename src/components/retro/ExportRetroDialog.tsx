@@ -610,7 +610,7 @@ export function ExportRetroDialog({
           <div className="h-12 w-12 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-600 mb-1 shadow-inner">
             <CheckCircle2 className="h-6 w-6" />
           </div>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic text-foreground">
+          <DialogTitle className="text-2xl font-black uppercase tracking-tighter  text-foreground">
             Exportar Retrospectiva
           </DialogTitle>
           <p className="text-xs text-muted-foreground font-medium px-4 leading-relaxed">
@@ -633,18 +633,18 @@ export function ExportRetroDialog({
             <div className="flex flex-col items-start truncate text-left">
               <span className="font-black uppercase tracking-widest text-[11px] flex items-center gap-1.5">
                 {isExporting ? 'Gerando relatório em PDF...' : 'Documento Executivo (PDF)'}
-                <span className="bg-white/20 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase">
+                <span className="bg-white/20 text-white text-[11px] font-bold px-1.5 py-0.5 rounded-full uppercase">
                   Recomendado
                 </span>
               </span>
-              <span className="text-[10px] text-emerald-100">
+              <span className="text-[11px] text-emerald-100">
                 Diagramação profissional com KPIs, ações e autores (Sem cortes)
               </span>
             </div>
           </Button>
 
           {/* Demais formatos, agrupados sob um rótulo comum */}
-          <p className="mt-5 mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">
+          <p className="mt-5 mb-2 px-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60">
             Outros formatos
           </p>
           <div className="grid gap-2">
@@ -658,10 +658,10 @@ export function ExportRetroDialog({
                 <ClipboardCopy className="h-4 w-4" />
               </div>
               <div className="flex flex-col items-start truncate text-left">
-                <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
+                <span className="font-bold uppercase tracking-wide text-[11px] text-foreground">
                   Jira & Confluence Ready (Markdown)
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground">
                   Tabelas e checklists prontos para copiar e colar
                 </span>
               </div>
@@ -677,10 +677,10 @@ export function ExportRetroDialog({
                 <FileText className="h-4 w-4" />
               </div>
               <div className="flex flex-col items-start truncate text-left">
-                <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
+                <span className="font-bold uppercase tracking-wide text-[11px] text-foreground">
                   Excel / Planilha (CSV)
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-[11px] text-muted-foreground">
                   Linha a linha com votos, responsáveis, prazos e BOM UTF-8
                 </span>
               </div>
@@ -697,10 +697,10 @@ export function ExportRetroDialog({
                   <BookText className="h-4 w-4" />
                 </div>
                 <div className="flex flex-col items-start truncate text-left">
-                  <span className="font-black uppercase tracking-widest text-[10px] text-foreground">
+                  <span className="font-bold uppercase tracking-wide text-[11px] text-foreground">
                     Texto TDN (Wiki)
                   </span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground">
                     Participantes por papel, colunas e ações no padrão da wiki
                   </span>
                 </div>
@@ -722,17 +722,17 @@ export function ExportRetroDialog({
             <button
               type="button"
               onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center justify-between w-full py-2 px-3 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 rounded-xl transition-all"
+              className="flex items-center justify-between w-full py-2 px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground bg-muted/30 hover:bg-muted/60 rounded-xl transition-all"
             >
               <span className="flex items-center gap-1.5">
                 <Sparkles className="h-3 w-3 text-emerald-600" />
-                {showPreview ? 'Ocultar Pré-visualização' : 'Inspecionar Resumo Markdown'}
+                {showPreview ? 'Ocultar Pré-visualização' : 'Ver prévia do texto'}
               </span>
               {showPreview ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
             </button>
 
             {showPreview && (
-              <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-code text-[10px] leading-relaxed select-all">
+              <div className="mt-3 p-3 bg-muted/40 rounded-xl border border-border/50 max-h-48 overflow-y-auto font-code text-[11px] leading-relaxed select-all">
                 <pre className="whitespace-pre-wrap break-words">{markdown}</pre>
               </div>
             )}

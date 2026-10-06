@@ -445,16 +445,16 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
                 <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/30">
                   <Sparkles className="h-4 w-4" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">Resumo da Review</span>
+                <span className="text-[11px] font-bold uppercase tracking-wide text-violet-400">Resumo da Review</span>
               </div>
-              <h2 className="text-3xl font-black uppercase tracking-tighter italic leading-none max-w-[420px]">
+              <h2 className="text-3xl font-black uppercase tracking-tighter  leading-none max-w-[420px]">
                 {sessionName}
               </h2>
 
               {session?.members && session.members.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {session.members.map(m => (
-                    <Badge key={m.id} className="bg-white/5 hover:bg-white/10 text-white/60 border-white/5 rounded-lg px-2.5 py-1 font-black text-[7px] uppercase tracking-widest transition-colors">
+                    <Badge key={m.id} className="bg-white/5 hover:bg-white/10 text-white/60 border-white/5 rounded-lg px-2.5 py-1 font-bold text-[11px] uppercase tracking-wide transition-colors">
                       {m.name}
                     </Badge>
                   ))}
@@ -464,14 +464,14 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
 
             <div className="flex gap-3">
               <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
-                <p className="text-2xl font-black italic text-white leading-none mb-1">{approvalRate === null ? '—' : `${approvalRate}%`}</p>
-                <p className="text-[7px] font-black uppercase tracking-widest text-white/40">Taxa Aprovação</p>
+                <p className="text-2xl font-black  text-white leading-none mb-1">{approvalRate === null ? '—' : `${approvalRate}%`}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-white/40">Taxa Aprovação</p>
               </div>
               <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
-                <p className={cn("text-2xl font-black italic leading-none mb-1", efficiency === null ? "text-white/40" : efficiency > 100 ? "text-rose-400" : "text-emerald-400")}>
+                <p className={cn("text-2xl font-black  leading-none mb-1", efficiency === null ? "text-white/40" : efficiency > 100 ? "text-rose-400" : "text-emerald-400")}>
                   {efficiency === null ? '—' : `${efficiency}%`}
                 </p>
-                <p className="text-[7px] font-black uppercase tracking-widest text-white/40">Eficiência Time</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-white/40">Eficiência Time</p>
               </div>
             </div>
           </div>
@@ -485,8 +485,8 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
                 <div key={s.label} className={cn("p-3.5 rounded-2xl border flex flex-col gap-2", s.wrap)}>
                   <s.icon className={cn("h-4 w-4", s.box)} />
                   <div>
-                    <p className={cn("text-xl font-black italic leading-none", s.text)}>{s.count}</p>
-                    <p className={cn("text-[7px] font-black uppercase tracking-widest mt-1", s.sub)}>{s.label}</p>
+                    <p className={cn("text-xl font-black  leading-none", s.text)}>{s.count}</p>
+                    <p className={cn("text-[11px] font-bold uppercase tracking-wide mt-1", s.sub)}>{s.label}</p>
                   </div>
                 </div>
               ))}
@@ -496,10 +496,10 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               <div className="p-6 bg-slate-900 rounded-[2.5rem] text-white space-y-4">
                 <div className="flex items-center gap-3">
                   <Clock3 className="h-4 w-4 text-violet-400" />
-                  <span className="text-[8px] font-black uppercase tracking-widest">Tempo Total</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wide">Tempo Total</span>
                 </div>
-                <p className="text-3xl font-black italic tracking-tighter leading-none">{formatTime(totalSpent) || '—'}</p>
-                <p className="text-[8px] font-medium text-white/40 uppercase leading-relaxed tracking-tighter">
+                <p className="text-3xl font-black  tracking-tighter leading-none">{formatTime(totalSpent) || '—'}</p>
+                <p className="text-[11px] font-medium text-white/40 uppercase leading-relaxed ">
                   Investimento total da squad no ciclo atual.
                 </p>
               </div>
@@ -513,40 +513,40 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               truncate cortar o texto internamente. */}
           <div className="flex-1 flex flex-col min-h-0 min-w-0">
             <div className="px-10 pt-8 pb-4 flex items-center justify-between">
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Linha do Tempo da Review</h3>
-              <Badge variant="outline" className="rounded-lg font-black text-[8px] uppercase border-slate-200 dark:border-slate-800 dark:text-slate-400">{tasks.length} Entradas</Badge>
+              <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Linha do Tempo da Review</h3>
+              <Badge variant="outline" className="rounded-lg font-bold text-[11px] uppercase border-slate-200 dark:border-slate-800 dark:text-slate-400">{tasks.length} Entradas</Badge>
             </div>
             <ScrollArea className="flex-1 px-10 pb-8">
               <div className="space-y-7">
                 {groups.map(group => (
                   <div key={group.label} className="space-y-3">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{group.label} ({group.items.length})</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{group.label} ({group.items.length})</p>
                     {group.items.map(t => (
                       <div key={t.id} className="group p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800/80 hover:border-violet-200 dark:hover:border-violet-500/40 transition-all shadow-sm hover:shadow-md">
                         <div className="flex justify-between items-start mb-3 gap-3">
                           <div className="flex items-center gap-3 min-w-0">
-                            <span className="w-8 h-8 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-[9px] font-black text-slate-400 dark:text-slate-400 border border-slate-100 dark:border-slate-800 group-hover:text-violet-600 dark:group-hover:text-violet-400 group-hover:border-violet-100 dark:group-hover:border-violet-950 transition-colors">
+                            <span className="w-8 h-8 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-[11px] font-bold text-slate-400 dark:text-slate-400 border border-slate-100 dark:border-slate-800 group-hover:text-violet-600 dark:group-hover:text-violet-400 group-hover:border-violet-100 dark:group-hover:border-violet-950 transition-colors">
                               {t.key.split('-').pop()}
                             </span>
                             <div className="min-w-0">
-                              <p className="text-[10px] font-black uppercase text-slate-800 dark:text-slate-100 leading-none mb-1 truncate">{t.title}</p>
-                              <p className="text-[8px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-tighter truncate">{t.type} • {t.evidence.dev || 'Sem autor'}</p>
+                              <p className="text-[11px] font-bold uppercase text-slate-800 dark:text-slate-100 leading-none mb-1 truncate">{t.title}</p>
+                              <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase  truncate">{t.type} • {t.evidence.dev || 'Sem autor'}</p>
                             </div>
                           </div>
-                          <Badge className={cn("text-[7px] font-black uppercase border-none h-5 rounded-lg shrink-0", DECISION[t.decision].cls)}>
+                          <Badge className={cn("text-[11px] font-bold uppercase border-none h-5 rounded-lg shrink-0", DECISION[t.decision].cls)}>
                             {DECISION[t.decision].label}
                           </Badge>
                         </div>
                         {t.decidedByName && (
-                          <div className="flex items-center gap-1.5 mb-2 text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">
+                          <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">
                             <UserCheck2 className="h-3 w-3" />
                             {t.decidedByName}{decidedWhen(t.decidedAt) && ` · ${decidedWhen(t.decidedAt)}`}
                           </div>
                         )}
                         {t.feedback && (
                           <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <p className="text-[9px] text-slate-500 dark:text-slate-400 italic leading-relaxed">
-                              <span className="font-bold text-slate-700 dark:text-slate-300 not-italic uppercase text-[7px] mr-2">Feedback:</span>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400  leading-relaxed">
+                              <span className="font-bold text-slate-700 dark:text-slate-300 not-italic uppercase text-[11px] mr-2">Feedback:</span>
                               {t.feedback}
                             </p>
                           </div>
@@ -568,7 +568,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           <Button
             onClick={onClose}
             variant="ghost"
-            className="rounded-2xl font-black uppercase tracking-widest text-[9px] text-slate-400 px-6 dark:text-slate-400 dark:hover:text-slate-200"
+            className="rounded-2xl font-bold uppercase tracking-wide text-[11px] text-slate-400 px-6 dark:text-slate-400 dark:hover:text-slate-200"
           >
             Fechar Painel
           </Button>
@@ -579,7 +579,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               variant="outline"
               title="Resumo de Aprovações"
               aria-label="Resumo de Aprovações"
-              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wide text-[11px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
               <Copy className="h-3.5 w-3.5" /> <span className="hidden md:inline">Resumo de Aprovações</span>
             </Button>
@@ -588,7 +588,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               variant="outline"
               title="Log Markdown"
               aria-label="Log Markdown"
-              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-black uppercase tracking-widest text-[9px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wide text-[11px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
             >
               <FileText className="h-3.5 w-3.5" /> <span className="hidden md:inline">Log Markdown</span>
             </Button>
@@ -597,7 +597,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               disabled={isExportingPdf}
               title="Exportar Slides PDF"
               aria-label="Exportar Slides PDF"
-              className="h-11 px-4 md:px-10 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-[9px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
+              className="h-11 px-4 md:px-10 bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase tracking-wide text-[11px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
             >
               {isExportingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               <span className="hidden md:inline">{isExportingPdf ? 'Gerando PDF...' : 'Exportar Slides PDF'}</span>

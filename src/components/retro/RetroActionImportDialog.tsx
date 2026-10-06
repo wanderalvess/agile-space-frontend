@@ -92,7 +92,7 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
               <ListTodo className="h-6 w-6" />
             </div>
             <div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight italic text-slate-800">Ações Pendentes</DialogTitle>
+              <DialogTitle className="text-2xl font-black uppercase tracking-tight  text-slate-800">Ações Pendentes</DialogTitle>
               <DialogDescription className="font-medium text-slate-500">
                 Retros anteriores do squad <strong>{team}</strong> com itens ainda não concluídos.
               </DialogDescription>
@@ -105,7 +105,7 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center space-y-6 opacity-70">
                 <AgileSpinner size="lg" />
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] ml-[0.4em] animate-pulse text-slate-400">Buscando Histórico...</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.4em] ml-[0.4em] animate-pulse text-slate-400">Buscando Histórico...</p>
               </div>
             ) : groups.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-30 py-10 text-center">
@@ -125,12 +125,12 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
                         <h4 className="font-black text-sm text-slate-800 truncate uppercase tracking-tight">
                           {board.title || 'Retrospectiva sem título'}
                         </h4>
-                        <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1.5">
+                        <div className="flex items-center gap-4 text-[11px] text-slate-400 font-bold uppercase tracking-wide mt-1.5">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {formatDate(board.createdAt)}
                           </span>
-                          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[9px] font-black uppercase px-2">
+                          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[11px] font-bold uppercase px-2">
                             {pendingCards.length} pendência{pendingCards.length > 1 ? 's' : ''}
                           </Badge>
                         </div>
@@ -149,7 +149,7 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
         </div>
 
         <DialogFooter className="p-6 bg-slate-50/50 border-t flex sm:justify-center">
-          <Button variant="ghost" onClick={onClose} className="font-bold uppercase tracking-widest text-[10px]">
+          <Button variant="ghost" onClick={onClose} className="font-bold uppercase tracking-wide text-[11px]">
             Fechar
           </Button>
         </DialogFooter>

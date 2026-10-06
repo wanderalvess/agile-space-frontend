@@ -55,7 +55,7 @@ export function RetroHealthCheckGate({ question, onAnswer }: RetroHealthCheckGat
                 <div className="w-12 h-12 rounded-2xl border-2 border-slate-200 bg-slate-50 flex items-center justify-center text-slate-400 transition-all group-hover:border-indigo-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:scale-105">
                   <Icon className="h-6 w-6" />
                 </div>
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 group-hover:text-indigo-600">{label}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400 group-hover:text-indigo-600">{label}</span>
               </button>
             ))}
           </div>

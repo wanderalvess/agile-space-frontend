@@ -36,7 +36,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
       <DialogContent className="sm:max-w-[620px] border-none bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-2xl rounded-[2.5rem] p-8 max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-800/50 font-black text-[9px] uppercase tracking-widest px-2.5 py-0.5 rounded-full">
+            <Badge variant="outline" className="bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-800/50 font-bold text-[11px] uppercase tracking-wide px-2.5 py-0.5 rounded-full">
               <Sparkles className="h-3 w-3 mr-1 inline" /> Métricas Automatizadas
             </Badge>
           </div>
@@ -61,7 +61,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100/50 dark:border-indigo-900/40 flex flex-col justify-between">
                       <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400 mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Velocity Real</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">Velocity Real</span>
                         <TrendingUp className="h-4 w-4" />
                       </div>
                       <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.velocityReal || stats.entregue || 0} <span className="text-xs font-bold text-slate-400">pts</span></p>
@@ -69,7 +69,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
 
                     <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100/50 dark:border-emerald-900/40 flex flex-col justify-between">
                       <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Prev. vs Entr.</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">Prev. vs Entr.</span>
                         <CheckCircle2 className="h-4 w-4" />
                       </div>
                       <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.entregue ?? stats.velocityReal ?? 0} <span className="text-xs font-bold text-slate-400">/ {stats.previsto || 0}</span></p>
@@ -77,7 +77,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
 
                     <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-100/50 dark:border-amber-900/40 flex flex-col justify-between">
                       <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-2">
-                        <span className="text-[10px] font-black uppercase tracking-wider">Carry-overs</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider">Carry-overs</span>
                         <AlertTriangle className="h-4 w-4" />
                       </div>
                       <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.carryOvers || 0} <span className="text-xs font-bold text-slate-400">pts</span></p>

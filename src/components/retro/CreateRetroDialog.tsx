@@ -224,7 +224,7 @@ export function CreateRetroDialog({
         {/* Começar de um template salvo — mesmo padrão do /room */}
         {savedTemplates.length > 0 && (
           <div className="space-y-2 px-1 pt-1">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-primary" />
               Começar de um template
             </Label>
@@ -245,7 +245,7 @@ export function CreateRetroDialog({
         {/* Nome + squad */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
               <ListPlus className="h-3.5 w-3.5 text-primary" /> Título da Retrospectiva
             </Label>
             <Input
@@ -256,7 +256,7 @@ export function CreateRetroDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-primary" /> Squad / Time
             </Label>
             <Input
@@ -270,7 +270,7 @@ export function CreateRetroDialog({
 
         {/* Formatos de Colunas — Cartões Visuais (Estilo Poker) */}
         <div className="space-y-2 pt-1">
-          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
+          <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
             <LayoutTemplate className="h-3.5 w-3.5 text-primary" /> Formato das Colunas
           </Label>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
@@ -295,7 +295,7 @@ export function CreateRetroDialog({
                     <div className="flex items-center justify-between gap-1 mb-1.5">
                       <span className="text-xs font-black uppercase tracking-tight text-foreground truncate">{opt.name}</span>
                       <span className={cn(
-                        "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full shrink-0",
+                        "text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shrink-0",
                         selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                       )}>
                         {opt.tagline}
@@ -306,7 +306,7 @@ export function CreateRetroDialog({
                         <span
                           key={idx}
                           className={cn(
-                            "h-5 px-1.5 flex items-center justify-center rounded-md text-[9px] font-bold border truncate max-w-[120px]",
+                            "h-5 px-1.5 flex items-center justify-center rounded-md text-[11px] font-bold border truncate max-w-[120px]",
                             selected ? "bg-background border-primary/30 text-primary" : "bg-background border-border text-muted-foreground"
                           )}
                         >
@@ -314,13 +314,13 @@ export function CreateRetroDialog({
                         </span>
                       ))}
                       {opt.columns.length > 3 && (
-                        <span className="h-5 px-1 flex items-center justify-center text-[8px] font-bold text-muted-foreground">
+                        <span className="h-5 px-1 flex items-center justify-center text-[11px] font-bold text-muted-foreground">
                           +{opt.columns.length - 3}
                         </span>
                       )}
                     </div>
                   </div>
-                  <p className="text-[9px] font-medium text-muted-foreground leading-snug line-clamp-2">{opt.desc}</p>
+                  <p className="text-[11px] font-medium text-muted-foreground leading-snug line-clamp-2">{opt.desc}</p>
                 </button>
               );
             })}
@@ -328,11 +328,11 @@ export function CreateRetroDialog({
 
           {/* Preview das colunas completas */}
           <div className="flex items-center gap-1.5 flex-wrap px-1 pt-1 min-h-[28px]">
-            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mr-1">Colunas do quadro:</span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mr-1">Colunas do quadro:</span>
             {previewColumns.map((colTitle, i) => (
               <span
                 key={i}
-                className="h-6 px-2 flex items-center justify-center rounded-md text-[10px] font-black bg-muted text-muted-foreground border border-border"
+                className="h-6 px-2 flex items-center justify-center rounded-md text-[11px] font-bold bg-muted text-muted-foreground border border-border"
               >
                 {colTitle}
               </span>
@@ -344,8 +344,8 @@ export function CreateRetroDialog({
         {template === 'custom' && (
           <div className="space-y-3 p-4 rounded-2xl border border-dashed border-border bg-muted/20 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center justify-between">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Definição das Colunas Customizadas</Label>
-              <span className="text-[9px] font-medium text-muted-foreground">Mínimo 2, máximo 6</span>
+              <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Definição das Colunas Customizadas</Label>
+              <span className="text-[11px] font-medium text-muted-foreground">Mínimo 2, máximo 6</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {customColumns.map((col, idx) => (
@@ -378,7 +378,7 @@ export function CreateRetroDialog({
                   type="button"
                   variant="outline"
                   onClick={() => onCustomColumnsChange([...customColumns, { title: '', theme: 'neutral' }])}
-                  className="h-10 rounded-xl border-dashed border-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground"
+                  className="h-10 rounded-xl border-dashed border-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground"
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" /> Coluna
                 </Button>
@@ -390,7 +390,7 @@ export function CreateRetroDialog({
         {/* Configurações do Facilitador — Grid com Switches idêntico ao Poker */}
         <div className="pt-2 space-y-3">
           <div className="flex items-center justify-between gap-3 flex-wrap ml-1">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
               <Zap className="h-3.5 w-3.5 text-primary" /> Configurações do Facilitador
               <span className="text-muted-foreground/70 normal-case tracking-normal font-medium">
                 ({activeSetupCount} de {SETUP_TOGGLES.length} ativados)
@@ -401,7 +401,7 @@ export function CreateRetroDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onSetupSettingsChange(DEFAULT_SETUP_SETTINGS)}
-                className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                className="h-auto text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               >
                 Padrão
               </Button>
@@ -409,7 +409,7 @@ export function CreateRetroDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, false])) as SetupSettings)}
-                className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                className="h-auto text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               >
                 Nenhum
               </Button>
@@ -417,7 +417,7 @@ export function CreateRetroDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, true])) as SetupSettings)}
-                className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                className="h-auto text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
               >
                 Todos
               </Button>
@@ -427,7 +427,7 @@ export function CreateRetroDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
             {SETUP_GROUPS.map(group => (
               <div key={group.label} className="space-y-1.5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">{group.label}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60 ml-1">{group.label}</p>
                 {group.items.map(cfg => {
                   const on = !!setupSettings[cfg.key];
                   const Icon = cfg.icon;
@@ -451,11 +451,11 @@ export function CreateRetroDialog({
                         )}
                       >
                         <span className="min-w-0">
-                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight text-foreground leading-tight">
+                          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-tight text-foreground leading-tight">
                             <Icon className="h-3 w-3 shrink-0 text-primary" />
                             {cfg.title}
                           </span>
-                          <span className="block text-[9px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[220px]">
+                          <span className="block text-[11px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[220px]">
                             {cfg.desc}
                           </span>
                         </span>
@@ -467,14 +467,14 @@ export function CreateRetroDialog({
                           className="px-3 py-2.5 rounded-b-xl border-2 border-t-0 border-primary bg-primary/5 space-y-1.5"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <Label className="text-[9px] font-black uppercase tracking-widest text-primary/80">Pergunta exibida</Label>
+                          <Label className="text-[11px] font-bold uppercase tracking-wide text-primary/80">Pergunta exibida</Label>
                           <Textarea
                             value={healthCheckQuestion}
                             onChange={(e) => onHealthCheckQuestionChange(e.target.value)}
                             placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
                             className="min-h-[54px] text-xs font-bold bg-background rounded-xl focus-visible:ring-primary/20"
                           />
-                          <p className="text-[9px] font-medium text-muted-foreground">vazio = usa a pergunta padrão</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">vazio = usa a pergunta padrão</p>
                         </div>
                       )}
                     </div>
@@ -490,7 +490,7 @@ export function CreateRetroDialog({
             type="button"
             variant="ghost"
             onClick={onCancel}
-            className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-transparent text-center sm:text-left order-2 sm:order-1"
+            className="h-auto px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:bg-transparent text-center sm:text-left order-2 sm:order-1"
           >
             Cancelar
           </Button>

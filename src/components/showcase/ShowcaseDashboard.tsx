@@ -167,13 +167,13 @@ export function ShowcaseDashboard({
               <div className="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-violet-600/20">
                 <Eye className="h-4.5 w-4.5 text-white" />
               </div>
-              <span className="text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-[0.25em] leading-none bg-violet-50 dark:bg-violet-950/45 px-2.5 py-1 rounded-md border border-violet-100 dark:border-violet-900/30">
+              <span className="text-[11px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-[0.25em] leading-none bg-violet-50 dark:bg-violet-950/45 px-2.5 py-1 rounded-md border border-violet-100 dark:border-violet-900/30">
                 Sprint Review
               </span>
             </div>
             
             <div className="space-y-2">
-              <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight italic text-slate-900 dark:text-slate-50 leading-none">
+              <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight  text-slate-900 dark:text-slate-50 leading-none">
                 Sprint <span className="text-violet-600 dark:text-violet-400 not-italic font-black">Review</span>
               </h2>
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
@@ -187,7 +187,7 @@ export function ShowcaseDashboard({
               size="lg"
               onClick={onNewSession}
               disabled={isCreating}
-              className="h-14 px-8 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 shrink-0"
+              className="h-14 px-8 bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase text-[11px] tracking-wide rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 shrink-0"
             >
               <Plus className="h-4 w-4" />
               Nova Review
@@ -223,7 +223,7 @@ export function ShowcaseDashboard({
               <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center border border-violet-500/20">
                 <Trophy className="h-5 w-5 text-violet-600 dark:text-violet-400" />
               </div>
-              <span className="text-[9px] font-black text-slate-400 dark:text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Squad Health</span>
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wide bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Do PO</span>
             </div>
             
             <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-slate-50">Métricas de Aceite</h3>
@@ -253,7 +253,7 @@ export function ShowcaseDashboard({
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-base font-black text-slate-900 dark:text-slate-50 leading-none">{acceptanceRate}%</span>
-                  <span className="text-[7px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Aceite</span>
+                  <span className="text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Aceite</span>
                 </div>
               </div>
 
@@ -269,7 +269,7 @@ export function ShowcaseDashboard({
           </div>
 
           <div className="space-y-1 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+            <div className="flex justify-between items-center text-[11px] font-bold text-slate-400 uppercase tracking-wide">
               <span>Evidências Configuradas</span>
               <span className="text-violet-600 dark:text-violet-400 font-extrabold">{evidenceReadinessRate}%</span>
             </div>
@@ -298,9 +298,9 @@ export function ShowcaseDashboard({
                     <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20 text-emerald-600">
                       <Activity className="h-4 w-4" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Última Review</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Última Review</span>
                   </div>
-                  <Badge variant="outline" className="border-violet-100 dark:border-violet-900 bg-violet-50/50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-md">
+                  <Badge variant="outline" className="border-violet-100 dark:border-violet-900 bg-violet-50/50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 text-[11px] font-bold uppercase tracking-wide px-2.5 py-0.5 rounded-md">
                     {lastSession.status === 'planning' ? 'Em Preparação' : lastSession.status === 'presenting' ? 'Apresentando' : 'Finalizada'}
                   </Badge>
                 </div>
@@ -343,19 +343,19 @@ export function ShowcaseDashboard({
                     <div className="grid grid-cols-4 gap-2 text-center">
                       <div className="bg-emerald-500/5 rounded-xl p-2 border border-emerald-500/10">
                         <div className="text-sm font-black text-emerald-600 dark:text-emerald-400">{lastSessionApproved}</div>
-                        <div className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Aprovados</div>
+                        <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Aprovados</div>
                       </div>
                       <div className="bg-amber-500/5 rounded-xl p-2 border border-amber-500/10">
                         <div className="text-sm font-black text-amber-500">{lastSessionAdjustment}</div>
-                        <div className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Ajustes</div>
+                        <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Ajustes</div>
                       </div>
                       <div className="bg-rose-500/5 rounded-xl p-2 border border-rose-500/10">
                         <div className="text-sm font-black text-rose-500">{lastSessionRejected}</div>
-                        <div className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Rejeitados</div>
+                        <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Rejeitados</div>
                       </div>
                       <div className="bg-slate-500/5 rounded-xl p-2 border border-slate-500/10">
                         <div className="text-sm font-black text-slate-500 dark:text-slate-400">{lastSessionPending}</div>
-                        <div className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Pendentes</div>
+                        <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider">Pendentes</div>
                       </div>
                     </div>
                   </div>
@@ -369,7 +369,7 @@ export function ShowcaseDashboard({
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800/80 flex justify-end">
                 <Button
                   onClick={() => router.push(`/showcase/${lastSession.id}`)}
-                  className="h-10 px-5 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[10px] tracking-wider rounded-xl shadow-md shadow-violet-600/10 gap-2 transition-all active:scale-95"
+                  className="h-10 px-5 bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase text-[11px] tracking-wider rounded-xl shadow-md shadow-violet-600/10 gap-2 transition-all active:scale-95"
                 >
                   Retomar Sessão
                   <ChevronRight className="h-4 w-4" />
@@ -400,7 +400,7 @@ export function ShowcaseDashboard({
               <div className="w-8 h-8 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 text-amber-500">
                 <Sparkles className="h-4 w-4" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Guia de Elite</span>
+              <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Passo a passo</span>
             </div>
 
             <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-slate-50">Review Sem Slides</h3>
@@ -449,9 +449,9 @@ export function ShowcaseDashboard({
             </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-[10px] font-black uppercase tracking-widest text-slate-400/80 flex items-center gap-1.5 justify-center">
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/80 text-[11px] font-bold uppercase tracking-wide text-slate-400/80 flex items-center gap-1.5 justify-center">
             <ClipboardList className="h-4 w-4 text-violet-500" />
-            <span>Processo de Qualidade</span>
+            <span>Marque cada etapa ao concluir</span>
           </div>
         </Card>
       </motion.div>
@@ -470,7 +470,7 @@ export function ShowcaseDashboard({
                 <h3 className="text-lg font-black uppercase tracking-tight text-slate-950 dark:text-slate-50">Histórico de Reviews</h3>
               </div>
               <div className="flex items-center gap-3">
-                <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-none px-2.5 py-1">
+                <Badge variant="secondary" className="text-[11px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-none px-2.5 py-1">
                   {sessions.length} Registros
                 </Badge>
               </div>
@@ -496,18 +496,18 @@ export function ShowcaseDashboard({
                             {session.name}
                           </h5>
                           {sTotal > 0 && (
-                            <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-[8px] uppercase tracking-wider">
+                            <Badge className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-[11px] uppercase tracking-wider">
                               {sRate}% OK
                             </Badge>
                           )}
                         </div>
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
+                        <p className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider truncate">
                           {session.sprintName || 'Sprint Review'}
                         </p>
                       </div>
 
                       <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-auto">
-                        <div className="flex items-center gap-1 text-[10px] text-slate-400">
+                        <div className="flex items-center gap-1 text-[11px] text-slate-400">
                           <CalendarDays className="h-3.5 w-3.5" />
                           <span>
                             {session.createdAt
@@ -516,7 +516,7 @@ export function ShowcaseDashboard({
                             }
                           </span>
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 group-item-hover:text-violet-600 dark:group-item-hover:text-violet-400 transition-colors">
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 group-item-hover:text-violet-600 dark:group-item-hover:text-violet-400 transition-colors">
                           <span>{sTotal} {sTotal === 1 ? 'tarefa' : 'tarefas'}</span>
                           <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-item-hover:text-violet-500 group-item-hover:translate-x-0.5 transition-all" />
                         </div>

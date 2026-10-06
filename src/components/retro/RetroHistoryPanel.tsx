@@ -131,9 +131,9 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <WidgetCard title="Tendência de Check-in" headerIcon={<TrendingUp className="h-4 w-4" />}>
         {isLoading ? (
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest py-8 text-center">Carregando...</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">Carregando...</p>
         ) : moodChartData.length < 2 ? (
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest py-8 text-center">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">
             Precisa de 2+ retros com check-in respondido pra mostrar tendência.
           </p>
         ) : (
@@ -151,9 +151,9 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
 
       <WidgetCard title="Ações: Concluídas vs. Recorrentes" headerIcon={<History className="h-4 w-4" />}>
         {isLoading ? (
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest py-8 text-center">Carregando...</p>
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">Carregando...</p>
         ) : overallActionsTotal === 0 ? (
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest py-8 text-center">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">
             Sem itens de ação nas últimas retros dessa squad.
           </p>
         ) : (
@@ -164,7 +164,7 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
               </div>
               <div>
                 <p className="text-lg font-black text-slate-800 leading-none">{completionRate}%</p>
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
                   {overallActionsDone} de {overallActionsTotal} ações concluídas ({summaries.length} retros)
                 </p>
               </div>
@@ -172,11 +172,11 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
 
             {recurring.length > 0 && (
               <div className="space-y-1.5 pt-3 border-t border-slate-100">
-                <p className="text-[9px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-1">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-amber-600 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" /> Temas recorrentes
                 </p>
                 {recurring.map(r => (
-                  <div key={r.carriedFromBoardId} className="flex items-center justify-between gap-2 text-[10px]">
+                  <div key={r.carriedFromBoardId} className="flex items-center justify-between gap-2 text-[11px]">
                     <span className="truncate font-bold text-slate-600">{r.content}</span>
                     <span className="shrink-0 font-black text-amber-600">{r.carryCount}x</span>
                   </div>

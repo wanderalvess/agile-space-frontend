@@ -45,8 +45,8 @@ export function RetroWelcome({ isFacilitator }: RetroWelcomeProps) {
   return (
     <div className="shrink-0 mb-3 flex items-center gap-3 rounded-2xl border border-emerald-200/60 dark:!border-emerald-800/40 bg-emerald-50/60 dark:!bg-emerald-950/20 backdrop-blur-xl pl-4 pr-2 py-2.5 animate-in fade-in slide-in-from-top-2 duration-500">
       <div className="hidden md:flex flex-col shrink-0 pr-3 mr-1 border-r border-emerald-200/60 dark:!border-emerald-800/40">
-        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700 dark:!text-emerald-400">Como funciona</span>
-        <span className="text-[10px] font-bold text-slate-500 dark:!text-slate-400">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:!text-emerald-400">Como funciona</span>
+        <span className="text-[11px] font-bold text-slate-500 dark:!text-slate-400">
           {isFacilitator ? 'Você conduz as etapas' : 'O facilitador conduz as etapas'}
         </span>
       </div>
@@ -65,7 +65,7 @@ export function RetroWelcome({ isFacilitator }: RetroWelcomeProps) {
               )}
             >
               <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="text-[9px] opacity-60 tabular-nums">{i + 1}</span>
+              <span className="text-[11px] opacity-60 tabular-nums">{i + 1}</span>
               {label}
             </div>
           </li>
