@@ -47,16 +47,16 @@ export function WorkspaceTopic() {
             <CardContent className="p-8 space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                       <Zap className="h-5 w-5" />
                     </div>
                     <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Daily Helper
+                      Apoio à Daily
                     </h4>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                    Prepare seu status da Daily com tranquilidade. O sistema possui auto-save em tempo real e permite copiar em formato markdown pronto para Slack ou Discord com um único clique.
+                    Prepare seu status da Daily com tranquilidade. O sistema possui salvamento automático em tempo real e permite copiar em formato markdown pronto para Slack ou Teams com um único clique.
                   </p>
                 </div>
 
@@ -66,11 +66,11 @@ export function WorkspaceTopic() {
                       <Code2 className="h-5 w-5" />
                     </div>
                     <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Snippet Library
+                      Biblioteca de Trechos de Código
                     </h4>
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                    Seu bloco de notas técnico privado. Guarde queries complexas, scripts Docker, templates cURL e trechos de código com Syntax Highlighting por linguagem.
+                    Seu bloco de notas técnico privado. Guarde consultas SQL complexas, scripts Docker, comandos e trechos de código com destaque de sintaxe por linguagem.
                   </p>
                 </div>
               </div>
@@ -82,7 +82,7 @@ export function WorkspaceTopic() {
                     Isolamento por Identidade (UID)
                   </h5>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Seus dados pessoais de rascunho e snippets não são visíveis para outros membros nem misturados com as salas comunitárias.
+                    Seus dados pessoais de rascunho e anotações não são visíveis para outros membros nem misturados com as salas comunitárias.
                   </p>
                 </div>
               </div>

@@ -147,11 +147,11 @@ export default function ChangelogPage() {
           badge={<Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">{latestTag}</Badge>}
         />
 
-        <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+        <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-[1750px] mx-auto">
           <main className="w-full space-y-8">
             {/* Search and Filters */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-              <div className="relative w-full md:w-96">
+              <div className="relative w-full md:w-[420px]">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="Buscar por versão, recurso ou correção..."
@@ -164,9 +164,9 @@ export default function ChangelogPage() {
               <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto no-scrollbar">
                 {[
                   { id: 'all', label: 'Todas as Versões' },
-                  { id: 'major', label: 'Majors' },
-                  { id: 'minor', label: 'Minors (Features)' },
-                  { id: 'patch', label: 'Patches (Fixes)' },
+                  { id: 'major', label: 'Grandes Versões' },
+                  { id: 'minor', label: 'Novos Recursos' },
+                  { id: 'patch', label: 'Correções' },
                 ].map((f) => (
                   <Button
                     key={f.id}

@@ -26,10 +26,10 @@ export function GovernanceTopic() {
         <div className="lg:col-span-4 space-y-6">
           <div className="p-8 bg-emerald-600 rounded-[2.5rem] text-white shadow-2xl shadow-emerald-500/20 space-y-4">
             <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">
-              <ShieldCheck className="h-4 w-4" /> Compliance Ativo
+              <ShieldCheck className="h-4 w-4" /> Conformidade Ativa
             </h4>
             <p className="text-xs text-emerald-100/90 leading-relaxed font-medium italic">
-              &quot;O Portal Tech V&D utiliza isolamento multi-tenant por UID e autenticação OAuth2 padrão Google. Seus dados e registros nunca são cruzados com outros usuários ou squads.&quot;
+              &quot;O Portal Tech V&D utiliza isolamento seguro por usuário e autenticação padrão Google. Seus dados e registros nunca são cruzados com outros usuários ou squads.&quot;
             </p>
           </div>
         </div>
@@ -54,7 +54,7 @@ export function GovernanceTopic() {
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Não armazenamos senhas diretamente: toda a autenticação é delegada via OAuth2 seguro. Suas anotações, boards e snippets são protegidos por Firestore Security Rules com validação estrita de token.
+                    Não armazenamos senhas diretamente: toda a autenticação é delegada via OAuth2 seguro. Suas anotações, quadros e trechos de código são protegidos com controle rígido de acesso e validação estrita de token.
                   </p>
                 </div>
 
@@ -66,7 +66,7 @@ export function GovernanceTopic() {
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    As chaves de API (Gemini Studio, etc.) configuradas no Knowledge Hub residem apenas no LocalStorage do usuário. Nenhuma requisição transfere suas credenciais privadas para servidores de terceiros.
+                    As chaves de API (Gemini Studio, etc.) configuradas na Base de Conhecimento residem apenas no armazenamento local do navegador. Nenhuma requisição transfere suas credenciais privadas para servidores de terceiros.
                   </p>
                 </div>
               </div>

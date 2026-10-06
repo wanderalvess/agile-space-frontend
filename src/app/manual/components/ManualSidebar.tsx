@@ -57,7 +57,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
           </div>
           <div>
             <h2 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-              Engineering Guide
+              Guia de Operações
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">

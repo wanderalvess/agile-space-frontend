@@ -67,7 +67,7 @@ export function PlannerTopic() {
                     <ListPlus className="h-4 w-4" /> 2. Escopo & Termômetro
                   </h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                    À medida que as tarefas são selecionadas, o <strong>Termômetro de Carga</strong> indica em tempo real se a Sprint está saudável, no limite ou em estado de sobrecarga (Overload).
+                    À medida que as tarefas são selecionadas, o <strong>Termômetro de Carga</strong> indica em tempo real se a Sprint está saudável, no limite ou em estado de sobrecarga.
                   </p>
                 </div>
               </div>

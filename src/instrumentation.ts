@@ -6,8 +6,13 @@ export async function register() {
     return;
   }
 
-  const { registerOTel } = await import('@vercel/otel');
-  registerOTel({
-    serviceName: process.env.OTEL_SERVICE_NAME || 'agile-space-frontend',
-  });
+  try {
+    const pkg = '@vercel/otel';
+    const { registerOTel } = await import(/* webpackIgnore: true */ pkg);
+    registerOTel({
+      serviceName: process.env.OTEL_SERVICE_NAME || 'agile-space-frontend',
+    });
+  } catch (error) {
+    console.warn('[instrumentation] OpenTelemetry não pôde ser inicializado:', error);
+  }
 }

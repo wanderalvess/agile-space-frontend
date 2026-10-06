@@ -38,10 +38,10 @@ export function PokerTopic() {
 
           <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-[2rem] border border-slate-200/80 dark:border-slate-800 space-y-3">
             <h5 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-500" /> Deck Recomendado
+              <Zap className="h-4 w-4 text-amber-500" /> Baralho Recomendado
             </h5>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-              Utilize a sequência de <strong>Fibonacci (1, 2, 3, 5, 8, 13, 21)</strong> para User Stories inteiras. Para desdobramento de sub-tarefas técnicas em refinamento fino, alterne para o deck de <strong>Horas</strong>.
+              Utilize a sequência de <strong>Fibonacci (1, 2, 3, 5, 8, 13, 21)</strong> para Histórias de Usuário inteiras. Para desdobramento de sub-tarefas técnicas em refinamento fino, alterne para o baralho de <strong>Horas</strong>.
             </p>
           </div>
         </div>
@@ -69,7 +69,7 @@ export function PokerTopic() {
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    O facilitador cria a sala e adiciona os itens na aba <strong>Tarefas</strong>. Cada item pode conter o link da issue no Jira e notas com critérios de aceite para consulta rápida do time.
+                    O facilitador cria a sala e adiciona os itens na aba <strong>Tarefas</strong>. Cada item pode conter o link da demanda no Jira e notas com critérios de aceite para consulta rápida do time.
                   </p>
                 </div>
 
@@ -79,7 +79,7 @@ export function PokerTopic() {
                       02
                     </div>
                     <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Escolha do Deck
+                      Escolha do Baralho
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
@@ -124,7 +124,7 @@ export function PokerTopic() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex gap-3 items-start">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Pular tarefas (Skipped) caso o time julgue não prioritário para a rodada.</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Pular tarefas (Ignoradas) caso o time julgue não prioritário para a rodada.</p>
                   </div>
                   <div className="flex gap-3 items-start">
                     <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />

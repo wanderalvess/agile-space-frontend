@@ -10,22 +10,22 @@ export function ManifestoTopic() {
   const principles = [
     { 
       icon: HelpCircle, 
-      title: "Help First", 
-      desc: "Nenhuma funcionalidade é considerada 'done' sem um guia de 'Como Usar' embutido e acessível diretamente no cabeçalho do módulo." 
+      title: "Ajuda em Primeiro Lugar", 
+      desc: "Nenhuma funcionalidade é considerada 'concluída' sem um guia de 'Como Usar' embutido e acessível diretamente no cabeçalho do módulo." 
     },
     { 
       icon: Fingerprint, 
-      title: "Privacy Radical", 
+      title: "Privacidade Radical", 
       desc: "Votações e diagnósticos de saúde são anônimos por design. O sistema não armazena ligações entre o voto individual e a pessoa que votou." 
     },
     { 
       icon: Zap, 
-      title: "Real-Time Sync", 
-      desc: "Sincronização reativa de baixa latência em todas as salas de cerimônia para garantir que todos vejam o mesmo estado sem refresh." 
+      title: "Sincronização em Tempo Real", 
+      desc: "Sincronização reativa de baixa latência em todas as salas de cerimônia para garantir que todos vejam o mesmo estado sem recarregar a página." 
     },
     { 
       icon: Download, 
-      title: "Export Ready", 
+      title: "Pronto para Exportação", 
       desc: "Resultados de cerimônias e utilitários técnicos devem ser exportáveis em PDF estruturado ou CSV para alimentar a governança do time." 
     }
   ];

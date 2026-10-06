@@ -30,7 +30,7 @@ export function JoltTopic() {
               <div className="p-8 md:p-10 space-y-6 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800">
                 <div className="space-y-3">
                   <Badge className="bg-blue-600 uppercase text-[9px] font-black tracking-widest text-white">
-                    Engine Apache Jolt
+                    Motor Apache Jolt
                   </Badge>
                   <h4 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
                     Operadores Nativos
@@ -42,7 +42,7 @@ export function JoltTopic() {
 
                 <div className="space-y-4">
                   {[
-                    { op: "shift", desc: "Mapeamento estrutural chave a chave com suporte a curingas (*) e branching condicional complexo." },
+                    { op: "shift", desc: "Mapeamento estrutural chave a chave com suporte a curingas (*) e ramificações condicionais complexas." },
                     { op: "default", desc: "Injeta valores padrão e campos ausentes em massa de forma segura." },
                     { op: "cardinality", desc: "Normaliza atributos entre Objeto e Array (ONE vs MANY) para estabilizar APIs externas." },
                     { op: "sort", desc: "Ordenação alfabética profunda das propriedades de todo o payload gerado." }
@@ -62,7 +62,7 @@ export function JoltTopic() {
                   <Sparkles className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[10px] font-black uppercase text-blue-700 dark:text-blue-400 tracking-widest mb-1">
-                      Dica Pro: Macros de Caminho
+                      Dica Avançada: Atalhos de Caminho
                     </p>
                     <p className="text-xs text-blue-900/80 dark:text-slate-300 font-medium leading-relaxed">
                       Utilize <code>&1</code> para referenciar o nome do nó um nível acima, ou <code>$</code> para extrair o valor da própria chave de entrada.

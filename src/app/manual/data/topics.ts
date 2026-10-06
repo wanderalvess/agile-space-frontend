@@ -79,7 +79,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
   },
   {
     id: 'brainstorming',
-    title: 'Brainstorming Alpha',
+    title: 'Brainstorming',
     subtitle: 'Da Ideação ao Plano de Ação',
     description: 'A ferramenta de ideação mais completa do ecossistema. Vai do caos criativo ao plano de execução estruturado em 5 passos.',
     category: 'agile',
@@ -155,7 +155,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
   },
   {
     id: 'jolt',
-    title: 'Jolt Hub',
+    title: 'Hub Jolt',
     subtitle: 'Motor de Transformação JSON',
     description: 'A suíte definitiva para manipulações estruturais JSON complexas utilizando a engine Apache Jolt e mapeador visual.',
     category: 'engineering',
@@ -166,7 +166,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     badgeText: 'text-blue-500 dark:text-blue-400',
     heroBg: 'from-blue-600 to-cyan-700',
     actionUrl: '/jolt',
-    actionLabel: 'Abrir Jolt Hub'
+    actionLabel: 'Abrir Hub Jolt'
   },
   {
     id: 'integracoes',
@@ -185,8 +185,8 @@ export const MANUAL_TOPICS: ManualTopic[] = [
   // Categoria Inteligência & Apresentação
   {
     id: 'knowledge',
-    title: 'Knowledge Hub',
-    subtitle: 'Base de Conhecimento & Assistente',
+    title: 'Base de Conhecimento',
+    subtitle: 'Wiki Central & Assistente de IA',
     description: 'A central de conhecimento da sua squad. Repositório organizado para manuais técnicos, guias e assistente inteligente integrado.',
     category: 'intelligence',
     icon: Sparkles,
@@ -196,12 +196,12 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     badgeText: 'text-cyan-600 dark:text-cyan-400',
     heroBg: 'from-cyan-600 to-teal-700',
     actionUrl: '/knowledge/kb',
-    actionLabel: 'Abrir Knowledge Hub'
+    actionLabel: 'Abrir Base de Conhecimento'
   },
   {
     id: 'prompt-hub',
-    title: 'Prompt Hub',
-    subtitle: 'Engenharia de Instruções & Social',
+    title: 'Hub de Prompts',
+    subtitle: 'Engenharia de Instruções & Compartilhamento',
     description: 'A arte de estruturar prompts de alta performance. Gerencie, compartilhe, versione e colabore em instruções reutilizáveis.',
     category: 'intelligence',
     icon: MessageSquare,
@@ -211,11 +211,11 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     badgeText: 'text-violet-600 dark:text-violet-400',
     heroBg: 'from-violet-600 to-purple-800',
     actionUrl: '/prompt-hub',
-    actionLabel: 'Abrir Prompt Hub'
+    actionLabel: 'Abrir Hub de Prompts'
   },
   {
     id: 'showcase',
-    title: 'Sprint Showcase',
+    title: 'Showcase de Sprint',
     subtitle: 'Apresentações & Modo Teatro',
     description: 'O palco das suas entregas. Transforme dados de Sprint em slides executivos profissionais com visual imersivo para stakeholders.',
     category: 'intelligence',

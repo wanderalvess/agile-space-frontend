@@ -37,7 +37,7 @@ export function ManualHero({
       <div className="absolute bottom-0 right-1/4 -mb-12 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
       <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-        <div className="space-y-4 max-w-3xl">
+        <div className="space-y-4 max-w-4xl flex-1">
           {/* Tag & Navigation link */}
           <div className="flex flex-wrap items-center gap-3">
             <Link

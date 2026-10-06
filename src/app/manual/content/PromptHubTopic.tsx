@@ -51,11 +51,11 @@ export function PromptHubTopic() {
                   <div className="flex items-center gap-2">
                     <GitFork className="h-5 w-5 text-violet-500" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      1. Fork & Coleção
+                      1. Clonar & Coleção (Fork)
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Descubra instruções criadas por outras squads, faça um Fork para sua coleção privada e adapte as regras para seu projeto.
+                    Descubra instruções criadas por outras squads, crie uma cópia derivada (Fork) para sua coleção privada e adapte as regras para seu projeto.
                   </p>
                 </div>
 
@@ -67,7 +67,7 @@ export function PromptHubTopic() {
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Use marcações como <code>[CONTEXTO]</code> ou <code>[FRAMEWORK]</code> no corpo do prompt. O sistema solicita os inputs ao executar o template.
+                    Use marcações como <code>[CONTEXTO]</code> ou <code>[FRAMEWORK]</code> no corpo do prompt. O sistema solicita os valores ao executar o modelo.
                   </p>
                 </div>
               </div>

@@ -41,9 +41,9 @@ const SECURITY_PILLARS = [
       "Recuperação de senha própria (/api/auth/forgot-password)",
       "Nenhuma senha em texto puro: hash + verificação no servidor"
     ],
-    color: "text-emerald-600",
-    bg: "bg-emerald-50",
-    border: "border-emerald-100"
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    border: "border-emerald-200/60 dark:border-emerald-800/40"
   },
   {
     icon: Database,
@@ -54,9 +54,9 @@ const SECURITY_PILLARS = [
       "Dados pessoais (ex.: sessões de foco) exigem que o token bata com o dono do recurso",
       "Squads têm um módulo próprio de liderança (SquadLeadership) para checagem de acesso por squad"
     ],
-    color: "text-sky-600",
-    bg: "bg-sky-50",
-    border: "border-sky-100"
+    color: "text-sky-600 dark:text-sky-400",
+    bg: "bg-sky-50 dark:bg-sky-950/40",
+    border: "border-sky-200/60 dark:border-sky-800/40"
   },
   {
     icon: ShieldCheck,
@@ -67,9 +67,9 @@ const SECURITY_PILLARS = [
       "Cofre de Segredos usa criptografia zero-knowledge no navegador: o backend nunca vê o texto puro",
       "Sem migrations manuais: o schema é derivado diretamente das entidades"
     ],
-    color: "text-indigo-600",
-    bg: "bg-indigo-50",
-    border: "border-indigo-100"
+    color: "text-indigo-600 dark:text-indigo-400",
+    bg: "bg-indigo-50 dark:bg-indigo-950/40",
+    border: "border-indigo-200/60 dark:border-indigo-800/40"
   },
   {
     icon: Server,
@@ -80,9 +80,9 @@ const SECURITY_PILLARS = [
       "O payload do WebSocket é só um sinal de atualização — o dado em si sempre vem de uma chamada REST autenticada",
       "Mesma identidade (uid, role) usada nas chamadas REST e no tempo real"
     ],
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-amber-100"
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    border: "border-amber-200/60 dark:border-amber-800/40"
   },
   {
     icon: KeyRound,
@@ -93,9 +93,9 @@ const SECURITY_PILLARS = [
       "Aplicado antes do processamento normal da requisição, cobrindo inclusive respostas 401/403",
       "Reduz a superfície de ataque de sites de terceiros tentando usar a sessão de um usuário logado"
     ],
-    color: "text-rose-600",
-    bg: "bg-rose-50",
-    border: "border-rose-100"
+    color: "text-rose-600 dark:text-rose-400",
+    bg: "bg-rose-50 dark:bg-rose-950/40",
+    border: "border-rose-200/60 dark:border-rose-800/40"
   },
   {
     icon: Sparkles,
@@ -106,9 +106,9 @@ const SECURITY_PILLARS = [
       "Conversas com o assistente de IA não treinam modelos de terceiros — ficam isoladas por usuário",
       "Este documento é mantido junto do código; uma divergência encontrada é bug, não intenção"
     ],
-    color: "text-violet-600",
-    bg: "bg-violet-50",
-    border: "border-violet-100"
+    color: "text-violet-600 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-950/40",
+    border: "border-violet-200/60 dark:border-violet-800/40"
   }
 ];
 
@@ -179,7 +179,7 @@ export default function GovernancePage() {
           }
         />
 
-        <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-7xl mx-auto">
+        <div className="relative z-10 p-4 md:p-6 lg:p-8 flex-1 w-full max-w-[1750px] mx-auto">
           <main className="w-full space-y-10">
 
             {/* HERO SECTION */}
@@ -192,7 +192,7 @@ export default function GovernancePage() {
                 Transparência é a base <br />
                 <span className="text-primary not-italic">da confiança.</span>
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-2xl">
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed max-w-3xl">
                 Este documento descreve como o Portal Tech V&D protege seus dados, gerencia acessos e
                 garante a segurança da sua operação — incluindo o que ainda está em progresso. Preferimos
                 listar uma limitação conhecida a prometer algo que o código não sustenta.
@@ -202,28 +202,28 @@ export default function GovernancePage() {
             {/* INFRASTRUCTURE OVERVIEW */}
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center">
                   <Server className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Infraestrutura Técnica</h3>
+                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Infraestrutura Técnica</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Frontend", value: "Next.js", sub: "React Server Components", icon: Globe, color: "text-slate-900" },
-                  { label: "Backend", value: "Spring Boot 3", sub: "Java · REST + WebSocket", icon: Server, color: "text-indigo-600" },
-                  { label: "Banco de Dados", value: "PostgreSQL", sub: "Spring Data JPA", icon: Database, color: "text-amber-600" },
-                  { label: "Autenticação", value: "JWT Próprio", sub: "Emitido pelo backend", icon: Fingerprint, color: "text-emerald-600" },
+                  { label: "Frontend", value: "Next.js", sub: "React Server Components", icon: Globe, color: "text-slate-900 dark:text-slate-100" },
+                  { label: "Backend", value: "Spring Boot 3", sub: "Java · REST + WebSocket", icon: Server, color: "text-indigo-600 dark:text-indigo-400" },
+                  { label: "Banco de Dados", value: "PostgreSQL", sub: "Spring Data JPA", icon: Database, color: "text-amber-600 dark:text-amber-400" },
+                  { label: "Autenticação", value: "JWT Próprio", sub: "Emitido pelo backend", icon: Fingerprint, color: "text-emerald-600 dark:text-emerald-400" },
                 ].map((item, i) => (
-                  <Card key={i} className="border-2 border-slate-100 rounded-2xl p-5 hover:shadow-lg transition-all group">
+                  <Card key={i} className="border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl p-5 hover:shadow-lg transition-all group">
                     <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                      <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                         <item.icon className={cn("h-5 w-5", item.color)} />
                       </div>
                       <div>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{item.label}</p>
-                        <p className="text-sm font-black text-slate-900">{item.value}</p>
-                        <p className="text-[10px] text-slate-500 font-medium">{item.sub}</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">{item.label}</p>
+                        <p className="text-sm font-black text-slate-900 dark:text-slate-100">{item.value}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{item.sub}</p>
                       </div>
                     </div>
                   </Card>
@@ -234,30 +234,30 @@ export default function GovernancePage() {
             {/* SECURITY PILLARS */}
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center">
                   <Lock className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Pilares de Segurança</h3>
+                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Pilares de Segurança</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {SECURITY_PILLARS.map((pillar, i) => (
-                  <Card key={i} className={cn("border-2 rounded-2xl overflow-hidden hover:shadow-lg transition-all group", pillar.border)}>
+                  <Card key={i} className={cn("border rounded-2xl overflow-hidden hover:shadow-lg transition-all group bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl", pillar.border)}>
                     <CardContent className="p-5 space-y-3">
                       <div className="flex items-start gap-3">
                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", pillar.bg)}>
                           <pillar.icon className={cn("h-5 w-5", pillar.color)} />
                         </div>
                         <div>
-                          <h4 className="text-sm font-black uppercase tracking-tight text-slate-900">{pillar.title}</h4>
-                          <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1">{pillar.description}</p>
+                          <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">{pillar.title}</h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed mt-1">{pillar.description}</p>
                         </div>
                       </div>
                       <div className="space-y-1.5 pl-1">
                         {pillar.details.map((detail, j) => (
                           <div key={j} className="flex items-start gap-2">
                             <CheckCircle2 className={cn("h-3.5 w-3.5 shrink-0 mt-0.5", pillar.color)} />
-                            <span className="text-[11px] text-slate-600 font-medium leading-snug">{detail}</span>
+                            <span className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-snug">{detail}</span>
                           </div>
                         ))}
                       </div>
@@ -270,20 +270,20 @@ export default function GovernancePage() {
             {/* KNOWN LIMITATIONS */}
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="h-4 w-4 text-white" />
+                <div className="w-8 h-8 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
                 </div>
-                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Limitações Conhecidas</h3>
+                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Limitações Conhecidas</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {KNOWN_LIMITATIONS.map((item, i) => (
-                  <Card key={i} className="border-2 border-amber-100 bg-amber-50/40 rounded-2xl p-5 space-y-2">
+                  <Card key={i} className="border border-amber-200/60 dark:border-amber-800/40 bg-amber-50/40 dark:bg-amber-950/20 rounded-2xl p-5 space-y-2">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                      <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">{item.title}</h4>
+                      <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <h4 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">{item.title}</h4>
                     </div>
-                    <p className="text-[11px] text-slate-600 font-medium leading-relaxed">{item.detail}</p>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">{item.detail}</p>
                   </Card>
                 ))}
               </div>
@@ -292,30 +292,30 @@ export default function GovernancePage() {
             {/* DATA INVENTORY TABLE */}
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center">
                   <FileCheck className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Inventário de Dados</h3>
+                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Inventário de Dados</h3>
               </div>
 
-              <Card className="border-2 border-slate-100 rounded-2xl overflow-hidden">
+              <Card className="border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500">Categoria</th>
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500">Dados Coletados</th>
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500">Armazenamento</th>
-                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500">Quem Acessa</th>
+                      <tr className="bg-slate-50/80 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800">
+                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Categoria</th>
+                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Dados Coletados</th>
+                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Armazenamento</th>
+                        <th className="px-5 py-3 text-[9px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Quem Acessa</th>
                       </tr>
                     </thead>
                     <tbody>
                       {DATA_CATEGORIES.map((row, i) => (
-                        <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                          <td className="px-5 py-3 text-xs font-bold text-slate-900">{row.category}</td>
-                          <td className="px-5 py-3 text-[11px] text-slate-600 font-medium">{row.data}</td>
-                          <td className="px-5 py-3 text-[11px] text-slate-600 font-medium">{row.storage}</td>
-                          <td className="px-5 py-3 text-[11px] text-slate-600 font-medium">{row.access}</td>
+                        <tr key={i} className="border-b border-slate-100 dark:border-slate-800/60 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <td className="px-5 py-3 text-xs font-bold text-slate-900 dark:text-slate-100">{row.category}</td>
+                          <td className="px-5 py-3 text-[11px] text-slate-600 dark:text-slate-300 font-medium">{row.data}</td>
+                          <td className="px-5 py-3 text-[11px] text-slate-600 dark:text-slate-300 font-medium">{row.storage}</td>
+                          <td className="px-5 py-3 text-[11px] text-slate-600 dark:text-slate-300 font-medium">{row.access}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -327,51 +327,51 @@ export default function GovernancePage() {
             {/* COMPLIANCE & DISCLAIMERS */}
             <section className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center">
                   <Scale className="h-4 w-4 text-primary" />
                 </div>
-                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900">Conformidade & Avisos Legais</h3>
+                <h3 className="text-lg font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Conformidade & Avisos Legais</h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-2 border-slate-100 rounded-2xl p-5 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-500" />
-                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Limitações de Responsabilidade</h4>
+                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">Limitações de Responsabilidade</h4>
                   </div>
-                  <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
+                  <div className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                     <p>O Portal Tech V&D é uma ferramenta de apoio a cerimônias ágeis e produtividade. <strong>Não substitui</strong> ferramentas de gestão empresarial (Jira, Azure DevOps) nem possui SLA garantido.</p>
                     <p>A plataforma não se responsabiliza por perda de dados em caso de falha na infraestrutura de banco de dados ou backend.</p>
                   </div>
                 </Card>
 
-                <Card className="border-2 border-slate-100 rounded-2xl p-5 space-y-3">
+                <Card className="border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-indigo-500" />
-                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Uso Corporativo</h4>
+                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">Uso Corporativo</h4>
                   </div>
-                  <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
+                  <div className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                     <p>Login e dados de negócio são geridos inteiramente pelo backend e banco PostgreSQL próprios do Portal Tech V&D — consulte o time de plataforma para detalhes de hospedagem.</p>
                     <p>Para empresas com requisitos LGPD avançados, recomendamos revisão com o time de compliance antes da adoção em larga escala.</p>
                   </div>
                 </Card>
 
-                <Card className="border-2 border-slate-100 rounded-2xl p-5 space-y-3">
+                <Card className="border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-cyan-500" />
-                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">Assistente de IA da Base de Conhecimento</h4>
+                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">Assistente de IA da Base de Conhecimento</h4>
                   </div>
-                  <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
+                  <div className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                     <p>O módulo de Base de Conhecimento utiliza modelos de IA para chat e busca semântica. Nenhuma conversa com o assistente virtual é utilizada para treinar modelos de terceiros, e o histórico fica isolado por usuário no banco do Portal Tech V&D.</p>
                   </div>
                 </Card>
 
-                <Card className="border-2 border-slate-100 rounded-2xl p-5 space-y-3">
+                <Card className="border border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
                     <Globe className="h-4 w-4 text-emerald-500" />
-                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900">LGPD & Privacidade</h4>
+                    <h4 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">LGPD & Privacidade</h4>
                   </div>
-                  <div className="space-y-2 text-[11px] text-slate-600 font-medium leading-relaxed">
+                  <div className="space-y-2 text-[11px] text-slate-600 dark:text-slate-300 font-medium leading-relaxed">
                     <p>Tecnicamente, o Portal Tech V&D não coleta dados sensíveis (biometria, localização, etc.). O enquadramento formal em LGPD — base legal, DPO, retenção — é uma decisão do time jurídico/compliance da empresa, não algo que este documento certifica sozinho.</p>
                     <p>O usuário pode solicitar a exclusão de seus dados a qualquer momento via canal de suporte.</p>
                   </div>
@@ -380,7 +380,7 @@ export default function GovernancePage() {
             </section>
 
             {/* CONTACT / CTA */}
-            <section className="p-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-[2rem] text-white shadow-2xl">
+            <section className="p-8 md:p-12 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 rounded-[2.5rem] text-white shadow-2xl border border-slate-800">
               <div className="max-w-2xl">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -398,7 +398,7 @@ export default function GovernancePage() {
                 <div className="flex flex-wrap gap-3">
                   <Button
                     onClick={() => router.push('/support')}
-                    className="h-11 px-8 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-primary hover:text-white transition-all gap-2"
+                    className="h-11 px-8 bg-white dark:bg-primary text-slate-900 dark:text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-100 dark:hover:bg-primary/90 transition-all gap-2 shadow-md"
                   >
                     Abrir Suporte <ExternalLink className="h-3.5 w-3.5" />
                   </Button>

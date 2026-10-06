@@ -30,7 +30,7 @@ export function KnowledgeTopic() {
               <ShieldCheck className="h-4 w-4" /> Sua Chave, Seu Controle
             </h4>
             <p className="text-xs text-cyan-100/90 leading-relaxed font-medium italic">
-              &quot;Privacidade em primeiro lugar: sua API Key do Google AI Studio fica guardada apenas no seu próprio navegador via LocalStorage. O servidor nunca persiste nem compartilha suas credenciais.&quot;
+              &quot;Privacidade em primeiro lugar: sua chave de API do Google AI Studio fica guardada apenas no seu próprio navegador via LocalStorage. O servidor nunca persiste nem compartilha suas credenciais.&quot;
             </p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export function KnowledgeTopic() {
                       01
                     </div>
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      Configuração de Key
+                      Configuração da Chave
                     </h4>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">

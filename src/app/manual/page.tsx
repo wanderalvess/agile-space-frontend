@@ -55,26 +55,26 @@ export default function ManualOverviewPage() {
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
       {/* Hero Central */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-8 md:p-14 text-white shadow-2xl border border-slate-800">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-8 md:p-12 text-white shadow-2xl border border-slate-800">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-3xl space-y-6">
+        <div className="relative z-10 max-w-4xl space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest w-fit">
             <Sparkles className="h-3 w-3" /> Manual de Engenharia & Agilidade
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic leading-[0.9] text-white">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter italic leading-[0.95] text-white">
             O seu guia de <br />
             <span className="text-primary not-italic">Alta Performance</span>
           </h1>
 
-          <p className="text-slate-300 font-medium text-sm md:text-base leading-relaxed">
+          <p className="text-slate-300 font-medium text-sm md:text-base leading-relaxed max-w-3xl">
             Documentação tática completa das cerimônias, motores de transformação e utilitários da plataforma Portal Tech V&D. Cada módulo possui sua página dedicada com passo a passo de operação.
           </p>
 
           {/* Quick Search */}
-          <div className="relative max-w-md pt-2">
+          <div className="relative max-w-lg pt-2">
             <Search className="absolute left-4 top-5 h-4 w-4 text-slate-400 pointer-events-none" />
             <Input
               value={filterQuery}
@@ -106,7 +106,7 @@ export default function ManualOverviewPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {topicsInCategory.map((topic) => {
                   const Icon = topic.icon;
                   return (

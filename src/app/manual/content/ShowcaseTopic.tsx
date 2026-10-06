@@ -8,13 +8,13 @@ export function ShowcaseTopic() {
   const meta = getTopicById('showcase')!;
 
   const fluxo = [
-    { title: '1. Importação', desc: 'O PO ou o Agile importa as issues do Jira pra dentro da sessão. Cada issue vira um card.', icon: CloudDownload },
+    { title: '1. Importação', desc: 'O PO ou o Agile importa as demandas do Jira pra dentro da sessão. Cada item vira um card.', icon: CloudDownload },
     { title: '2. Preparação individual', desc: 'Cada integrante localiza os cards com o seu nome (busca ou filtro Dev/QA) e completa a evidência dos seus.', icon: Users },
     { title: '3. Prontidão', desc: 'Card com Problema, Solução e evidência completos pode ser marcado como "Pronta". O checklist de prontidão avisa o que falta.', icon: ClipboardList },
   ];
 
   const origem = [
-    { title: 'Automático (Jira)', desc: 'Chave, título, tipo, prioridade, pontos, responsável e Critérios de Aceite. Problema e Solução são extraídos da descrição — ou do comentário da subtarefa de codificação quando a issue pai não tem — de forma tolerante a formatação inconsistente do time.', icon: Wand2 },
+    { title: 'Automático (Jira)', desc: 'Chave, título, tipo, prioridade, pontos, responsável e Critérios de Aceite. Problema e Solução são extraídos da descrição — ou do comentário da subtarefa de codificação quando a demanda pai não tem — de forma tolerante a formatação inconsistente do time.', icon: Wand2 },
     { title: 'Manual (squad)', desc: 'Evidência (print ou link de vídeo) e, em cards de Métricas, os valores de impacto que geram o gráfico. Problema/Solução também podem ser corrigidos à mão quando o Jira não tiver o texto certo.', icon: PencilLine },
   ];
 
@@ -40,7 +40,7 @@ export function ShowcaseTopic() {
               <Users className="h-4 w-4" /> Fluxo Colaborativo
             </h4>
             <p className="text-xs text-slate-300/90 leading-relaxed font-medium italic">
-              &quot;Quem importa não é quem prepara. O PO ou Agile traz as issues pra sessão; cada dev/QA cuida só dos cards com o próprio nome.&quot;
+              &quot;Quem importa não é quem prepara. O PO ou Agile traz as demandas pra sessão; cada dev/QA cuida só dos cards com o próprio nome.&quot;
             </p>
           </div>
         </div>
@@ -94,10 +94,10 @@ export function ShowcaseTopic() {
         <div className="lg:col-span-4 space-y-6">
           <div className="p-8 bg-pink-600 rounded-[2.5rem] text-white shadow-2xl shadow-pink-500/20 space-y-4">
             <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-pink-100">
-              <Rocket className="h-4 w-4" /> Go-to-Market Interno
+              <Rocket className="h-4 w-4" /> Alinhamento & Comunicação
             </h4>
             <p className="text-xs text-pink-100/90 leading-relaxed font-medium italic">
-              &quot;Engenharia de valor é saber comunicar com clareza o que foi construído. O Showcase é seu principal aliado na hora da Sprint Review com stakeholders.&quot;
+              &quot;Engenharia de valor é saber comunicar com clareza o que foi construído. O Showcase é seu principal aliado na hora da Review com as partes interessadas.&quot;
             </p>
           </div>
         </div>

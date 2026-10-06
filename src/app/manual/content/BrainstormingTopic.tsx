@@ -32,15 +32,15 @@ export function BrainstormingTopic() {
     { 
       title: "4. Matriz ROI (Impacto vs Esforço)", 
       icon: BarChart3, 
-      desc: "O facilitador projeta os cards mais votados na matriz 2x2. Prioriza-se o quadrante 'Quick Wins' (Alto Impacto, Baixo Esforço) e mapeiam-se apostas estratégicas.",
+      desc: "O facilitador projeta os cards mais votados na matriz 2x2. Prioriza-se o quadrante de Ganhos Rápidos (Alto Impacto, Baixo Esforço) e mapeiam-se apostas estratégicas.",
       label: "Estratégia",
       badgeColor: "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
     },
     { 
-      title: "5. Plano de Ação (Execution Items)", 
+      title: "5. Plano de Ação (Itens de Execução)", 
       icon: ListTodo, 
-      desc: "A sessão não termina em ideias no ar: cada iniciativa aprovada gera um item de ação com responsável direto (Owner), prazo e link de rastreamento.",
-      label: "Accountability",
+      desc: "A sessão não termina em ideias no ar: cada iniciativa aprovada gera um item de ação com responsável direto, prazo e link de rastreamento.",
+      label: "Responsabilidade",
       badgeColor: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300"
     }
   ];
