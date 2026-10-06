@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.3.1",
+    "date": "6 de Outubro, 2026",
+    "title": "Importação do Jira: nome do time e sem pessoas repetidas",
+    "description": "Ajustes na importação do time pelo Jira com base no uso real.",
+    "changes": [
+      "A importação traz o nome do time (ex.: Projeto Missisauga - Winthor) separado da chave do Jira (DDWMISSI), e você pode editar.",
+      "Pessoas que aparecem mais de uma vez (no cadastro do projeto e em issues, ou com e-mail em caixa diferente) agora entram uma só vez, com o cargo de maior prioridade.",
+      "O campo \"Pessoas no time\" saiu: o número passa a ser calculado pelas pessoas que você escolher."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.3.0",
     "date": "6 de Outubro, 2026",
     "title": "Importação do time pelo Jira: escolha as pessoas e ajuste os dados",
