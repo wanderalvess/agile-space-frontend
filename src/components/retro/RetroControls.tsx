@@ -151,7 +151,7 @@ export function RetroControls({
         </div>
         {votingStatus !== 'disabled' && (
           <span className={cn(
-            "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md",
+            "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
             votingStatus === 'active' ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 animate-pulse" : "bg-slate-200 text-slate-500"
           )}>
             {votingStatus === 'active' ? 'Votando' : 'Votos'}
@@ -191,14 +191,14 @@ export function RetroControls({
                   size="sm"
                   onClick={() => onToggleLayoutMode('board')}
                   className={cn(
-                    "h-7 px-2.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all gap-1.5",
+                    "h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide rounded-lg transition-all gap-1.5",
                     layoutMode === 'board'
                       ? "bg-white text-slate-800 dark:!bg-slate-700 dark:!text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50"
                       : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   )}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Quadro</span>
+                  <span className="hidden 2xl:inline">Quadro</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
@@ -213,14 +213,14 @@ export function RetroControls({
                   size="sm"
                   onClick={() => onToggleLayoutMode('focus')}
                   className={cn(
-                    "h-7 px-2.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all gap-1.5",
+                    "h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide rounded-lg transition-all gap-1.5",
                     layoutMode === 'focus'
                       ? "bg-white text-slate-800 dark:!bg-slate-700 dark:!text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50"
                       : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   )}
                 >
                   <Maximize2 className="h-3.5 w-3.5" />
-                  <span className="hidden lg:inline">Foco</span>
+                  <span className="hidden 2xl:inline">Foco</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
@@ -242,7 +242,7 @@ export function RetroControls({
                 className="h-8 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/40 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all gap-1.5"
               >
                 <MonitorPlay className="h-3.5 w-3.5" />
-                <span className="text-[9px] font-black uppercase tracking-widest hidden xl:inline">Apresentar</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide hidden 2xl:inline">Apresentar</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
@@ -268,7 +268,7 @@ export function RetroControls({
             )}
           >
             {isCardsRevealed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-            <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">
+            <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">
               {isCardsRevealed ? "Cards visíveis" : "Revelar cards"}
             </span>
           </Button>
@@ -285,12 +285,12 @@ export function RetroControls({
                       className="h-8 px-3 rounded-xl gap-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 disabled:opacity-40"
                     >
                       <Vote className="h-3.5 w-3.5" />
-                      <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Iniciar votação</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Iniciar votação</span>
                     </Button>
                   </div>
                 </TooltipTrigger>
                 {!isCardsRevealed && (
-                  <TooltipContent side="bottom" className={cn("bg-slate-900 text-white border-none rounded-xl p-2 text-[9px] font-black uppercase tracking-widest", compact && "z-[130]")}>
+                  <TooltipContent side="bottom" className={cn("bg-slate-900 text-white border-none rounded-xl p-2 text-[10px] font-bold uppercase tracking-wide", compact && "z-[130]")}>
                     Revele os cards primeiro
                   </TooltipContent>
                 )}
@@ -304,7 +304,7 @@ export function RetroControls({
               className="h-8 px-3 rounded-xl gap-1.5 animate-pulse"
             >
               <SquareCheck className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Encerrar votação</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Encerrar votação</span>
             </Button>
           ) : (
             <Button
@@ -314,7 +314,7 @@ export function RetroControls({
               className="h-8 px-3 rounded-xl gap-1.5 border-slate-200 text-slate-500 bg-white hover:bg-slate-100"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Resetar votação</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Resetar votação</span>
             </Button>
           )}
         </div>
@@ -327,6 +327,8 @@ export function RetroControls({
             <Button
               variant="ghost"
               size="sm"
+              title="Controles da sessão"
+              aria-label="Controles da sessão"
               className={cn(
                 "h-8 px-3 rounded-xl border transition-all gap-1.5",
                 isMenuOpen
@@ -335,7 +337,7 @@ export function RetroControls({
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Controles</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide hidden 2xl:inline">Controles</span>
             </Button>
           </PopoverTrigger>
           {/* Na barra de apresentação (z-[110]) e com a coluna em tela cheia (z-[100]), o z-50 padrão ficaria por baixo */}
@@ -343,7 +345,7 @@ export function RetroControls({
             {/* Limite de votos por pessoa */}
             {onSetMaxVotesPerParticipant && (
               <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-700 flex items-center gap-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
                   <Star className="h-3 w-3" /> Votos por pessoa
                 </Label>
                 <div className="flex items-center gap-1">
@@ -368,7 +370,7 @@ export function RetroControls({
             {/* Timer */}
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-[9px] font-black uppercase tracking-widest text-slate-700 flex items-center gap-1.5">
+                <Label className="text-[10px] font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
                   <Clock className="h-3 w-3" /> Timer
                 </Label>
                 <div className="flex items-center gap-2">

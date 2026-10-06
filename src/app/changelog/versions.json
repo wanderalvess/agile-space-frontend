@@ -2,12 +2,13 @@
   {
     "tag": "v4.7.0",
     "date": "6 de Outubro, 2026",
-    "title": "Cabeçalho da Review no padrão do Poker",
-    "description": "A barra da Review ficou mais limpa, com poucas ações fixas e o restante num menu.",
+    "title": "Review e Retro com o acabamento do Poker",
+    "description": "Cabeçalhos mais limpos e textos mais legíveis na Review e na Retro.",
     "changes": [
-      "O cabeçalho da Review agora mostra só o essencial: Jira, Compartilhar, Configurações, Mais ações e o botão Iniciar. Antes eram sete botões em fila.",
-      "O menu \"Mais ações\" reúne adicionar card (padrão ou de métricas), Retro desta sprint e Como funciona.",
-      "Os indicadores de esforço e prontidão ficaram maiores e mais legíveis, e o ícone da ferramenta ganhou o fundo colorido igual ao do Poker e da Retro."
+      "Review: o cabeçalho mostra só o essencial (Jira, Compartilhar, Configurações, Mais ações e Iniciar). Adicionar card, Retro desta sprint e Como funciona foram para o menu Mais ações.",
+      "Review: indicadores de esforço e prontidão maiores, com a barra entre os números visível no tema escuro, e rótulos dos cards com tamanho legível e cores mais sóbrias.",
+      "Retro: o nome do quadro deixou de ser cortado no cabeçalho. Quadro, Foco, Apresentar e Controles viram só ícones em telas até 1536 px, mantendo o texto nas ações principais.",
+      "Retro: textos dos botões da barra com tamanho maior e mais fácil de ler."
     ],
     "type": "minor",
     "icon": {

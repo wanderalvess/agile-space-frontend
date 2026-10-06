@@ -616,9 +616,9 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               <div className="space-y-2">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[8px] font-black uppercase text-blue-400 dark:text-blue-400">Dev</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dev</label>
                     {task.evidence.planned?.dev && (
-                      <span className="text-[7px] font-black text-slate-400 dark:text-slate-400 uppercase italic">Plano: {task.evidence.planned.dev}</span>
+                      <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-400 uppercase">Plano: {task.evidence.planned.dev}</span>
                     )}
                   </div>
                   <ControlledInput
@@ -630,9 +630,9 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[8px] font-black uppercase text-amber-500 dark:text-amber-500">QA / Validação</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">QA / Validação</label>
                     {task.evidence.planned?.qa && (
-                      <span className="text-[7px] font-black text-slate-400 dark:text-slate-400 uppercase italic">Plano: {task.evidence.planned.qa}</span>
+                      <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-400 uppercase">Plano: {task.evidence.planned.qa}</span>
                     )}
                   </div>
                   <ControlledInput
@@ -650,7 +650,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               <FieldLabel icon={GitBranch} label="CI/CD & Versões" color="text-slate-500 dark:text-slate-400" />
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black uppercase text-cyan-500 dark:text-cyan-400">Projeto / Repositório</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Projeto / Repositório</label>
                   <ControlledInput
                     value={task.project}
                     onChange={(v: string) => onUpdate({ project: v })}
@@ -659,7 +659,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400">Versões (S / M / R / D)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Versões (S / M / R / D)</label>
                   <div className="grid grid-cols-4 gap-1">
                     <ControlledInput
                       value={task.versionSuporte}
@@ -726,7 +726,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                     abre primeiro: quem apresenta ainda alterna pra outra lá. */}
                 {task.evidence.screenshot && task.evidence.video && (
                   <div className="flex items-center gap-2 pt-0.5">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Abre primeiro:</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Abre primeiro:</span>
                     <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
                       {([
                         { value: 'video' as const, label: 'Vídeo', icon: Video },
@@ -737,7 +737,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                           type="button"
                           onClick={() => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, evidencePreference: opt.value } }))}
                           className={cn(
-                            'h-6 px-2 rounded-md flex items-center gap-1 text-[8px] font-black uppercase tracking-wider transition-all',
+                            'h-6 px-2 rounded-md flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide transition-all',
                             (task.evidence.evidencePreference || 'video') === opt.value
                               ? 'bg-violet-500 text-white shadow-sm'
                               : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
@@ -794,7 +794,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             >
               <div className="w-1 rounded-full bg-amber-400 shrink-0" />
               <div className="flex-1">
-                <p className="text-[8px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400 mb-0.5">Feedback da Review</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-500 dark:text-amber-400 mb-0.5">Feedback da Review</p>
                 <ControlledTextarea
                   value={task.feedback || ''}
                   onChange={(v: string) => onUpdate({ feedback: v })}

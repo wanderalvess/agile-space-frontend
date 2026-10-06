@@ -546,7 +546,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase leading-none mb-1 tracking-wide">Esforço Total</span>
                 <div className="flex items-center gap-1 text-xs font-bold text-violet-600 whitespace-nowrap">
                   {stats.hoursSpent || '0h'}
-                  <span className="text-slate-300 dark:text-slate-800 mx-0.5">/</span>
+                  <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
                   {stats.hoursOriginal || '0h'}
                 </div>
               </div>
@@ -563,7 +563,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                       readyCount === stats.total && stats.total > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100"
                     )}>
                       {readyCount}
-                      <span className="text-slate-300 dark:text-slate-800 mx-0.5">/</span>
+                      <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
                       {stats.total}
                       {mismatchCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title={`${mismatchCount} task(s) com status manual divergente`} />}
                     </div>
