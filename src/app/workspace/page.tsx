@@ -93,7 +93,7 @@ export default function WorkspacePage() {
 
   // Authentication Guard & Page Title
   useEffect(() => {
-    document.title = `Meu Espaço | Espaço Ágil`;
+    document.title = `Meu Espaço | Portal Tech V&D`;
     if (!isInitializing && !userProfile && !session) {
       requestIdentity();
     }
@@ -658,7 +658,7 @@ export default function WorkspacePage() {
 
       {/* RODAPÉ GLOBAL */}
       <Footer className="mt-8 shrink-0" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Espaço Ágil - Meu Espaço" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
+      <FeedbackWidget toolName="Portal Tech V&D - Meu Espaço" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
     </div>
   );
 }

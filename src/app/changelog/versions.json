@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v4.1.0",
+    "date": "6 de Outubro, 2026",
+    "title": "Espaço Ágil agora é Portal Tech V&D",
+    "description": "A plataforma ganhou novo nome e propósito: o hub de tecnologia de Varejo e Distribuição. Nada muda no seu acesso.",
+    "changes": [
+      "O Espaço Ágil agora se chama Portal Tech V&D (V&D = Varejo e Distribuição). É o mesmo hub, com as mesmas funções, agora com foco em Varejo e Distribuição.",
+      "Novo nome aplicado em toda a plataforma: logo, título da aba, instalação como app, manual, governança, PDFs exportados e assistente de IA.",
+      "O endereço (domínio) e o ícone continuam os mesmos por enquanto. Seus dados, contas, salas e acessos não foram alterados.",
+      "Login renovado: erros aparecem junto de cada campo, medidor de força da senha, confirmação de senha e aviso de Caps Lock.",
+      "Scrum Poker: ao criar a sala, QR code para entrar pelo celular, aviso quando alguém entra e atalhos I, N e S para o facilitador."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.0.0",
     "date": "25 de Agosto, 2026",
     "title": "Arquitetura Next.js 16 & Java 21 Spring Boot — Espaço Ágil v4",

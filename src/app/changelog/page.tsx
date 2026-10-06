@@ -90,7 +90,7 @@ export default function ChangelogPage() {
   const [activeFilter, setActiveFilter] = useState('all');
 
   useEffect(() => {
-    document.title = `Changelog & Evolução | Espaço Ágil`;
+    document.title = `Changelog & Evolução | Portal Tech V&D`;
 
     const loadData = async () => {
       try {
@@ -267,7 +267,7 @@ export default function ChangelogPage() {
               </h3>
               
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl mx-auto mb-6">
-                O Espaço Ágil evolui diariamente para ser a fundação síncrona definitiva para times de alta performance.
+                O Portal Tech V&D evolui diariamente para ser a fundação síncrona definitiva para times de alta performance.
               </p>
               
               <Button 
@@ -282,7 +282,7 @@ export default function ChangelogPage() {
       </div>
 
       <Footer className="mt-8 shrink-0" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Espaço Ágil - Changelog" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+      <FeedbackWidget toolName="Portal Tech V&D - Changelog" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </div>
   );
 }

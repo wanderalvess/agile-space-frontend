@@ -2,7 +2,7 @@
 
 /**
  * Conexão com o Google Calendar via Google Identity Services (GIS) token client,
- * client-side, sem tocar no fluxo de login do Espaço Ágil (que continua e-mail/senha).
+ * client-side, sem tocar no fluxo de login do Portal Tech V&D (que continua e-mail/senha).
  *
  * Guarda só o essencial no localStorage — um flag por usuário dizendo que ele já
  * consentiu — pra tentar recuperar o access token em silêncio (`prompt: ''`) na

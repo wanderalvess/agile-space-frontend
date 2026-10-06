@@ -30,7 +30,7 @@ export default function PromptHubPage() {
   const [showPublicOnly, setShowPublicOnly] = React.useState(false);
 
   React.useEffect(() => {
-    document.title = `Biblioteca de Modelos | Espaço Ágil`;
+    document.title = `Biblioteca de Modelos | Portal Tech V&D`;
     // Garantir que começamos sem exploração pública forçada ao entrar na página
     // a menos que o usuário clique explicitamente
     return () => {

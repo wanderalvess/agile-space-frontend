@@ -400,7 +400,7 @@ export function ToolHubLayout({
 
       {/* COMPACT FEEDBACK WIDGET */}
       <FeedbackWidget 
-        toolName={`Espaço Ágil - ${title}`} 
+        toolName={`Portal Tech V&D - ${title}`} 
         externalTriggerSignal={feedbackSignal} 
         triggerVariant="none" 
       />
@@ -408,7 +408,7 @@ export function ToolHubLayout({
       {!onlyChildren && (
         <Footer 
           className="mt-8 shrink-0" 
-          subtitle={`Espaço Ágil Control Hub • ${title}`} 
+          subtitle={`Portal Tech V&D Control Hub • ${title}`} 
           onOpenFeedback={() => setFeedbackSignal(Date.now())} 
         />
       )}

@@ -146,7 +146,9 @@ function SquadHubContent() {
   const roleFocus = role ? ROLE_FOCUS[role] : undefined;
 
   const { settings: jiraSettings, saveSettings: saveJiraSettings } = useJiraSettings();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // ?settings=1 abre direto a configuração (Jira) — usado pelo painel, pra quem
+  // quer conectar sem procurar a engrenagem.
+  const [isSettingsOpen, setIsSettingsOpen] = useState(searchParams.get('settings') === '1');
   const [isPeopleOpen, setIsPeopleOpen] = useState(false);
   const [isPhasesOpen, setIsPhasesOpen] = useState(false);
   const [projectKey, setProjectKey] = useState('');
@@ -165,7 +167,7 @@ function SquadHubContent() {
   }, [jiraSettings]);
 
   useEffect(() => {
-    document.title = `Squad Hub & Rituais | Espaço Ágil`;
+    document.title = `Squad Hub & Rituais | Portal Tech V&D`;
   }, []);
 
   const prevSquadIdRef = useRef<string | null>(null);

@@ -3,6 +3,8 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
+  // Permite subir várias instâncias de dev em portas diferentes (NEXT_DIST_DIR=.next-9003).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   allowedDevOrigins: ['10.62.24.75'],
   images: {
     remotePatterns: [

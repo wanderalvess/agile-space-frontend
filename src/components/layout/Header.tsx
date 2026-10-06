@@ -89,7 +89,7 @@ export function Header() {
                 <Rocket className="h-5 w-5 text-primary drop-shadow-md" />
               </div>
               <span className="text-xl font-black tracking-tighter italic font-headline uppercase bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
-                Espaço <span className="text-primary not-italic">Ágil</span>
+                Portal Tech <span className="text-primary not-italic">V&D</span>
               </span>
             </Link>
           </div>

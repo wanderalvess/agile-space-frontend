@@ -1,5 +1,6 @@
 import { RetroBoard, RetroCard, RetroParticipant } from '@/lib/types';
 import { authFetch } from '@/lib/auth-client';
+import type { ChatMessage } from '@/components/poker/team-chat/chatChannels';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -77,5 +78,28 @@ export const retroApi = {
       method: 'POST',
       body: JSON.stringify(cards),
     });
+  },
+
+  // Chat do time (canais: geral, role-<Categoria>, dm_<uidA>_<uidB>)
+  async getChatMessages(boardId: string, channelId: string): Promise<ChatMessage[]> {
+    const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/chat?channelId=${encodeURIComponent(channelId)}`);
+    if (!res.ok) throw new Error('Falha ao carregar mensagens do chat');
+    return res.json();
+  },
+
+  async sendChatMessage(boardId: string, message: Partial<ChatMessage> & { channelId: string }): Promise<ChatMessage> {
+    const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify(message),
+    });
+    if (!res.ok) throw new Error('Falha ao enviar mensagem');
+    return res.json();
+  },
+
+  async deleteChatMessage(boardId: string, messageId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/chat/${encodeURIComponent(messageId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Falha ao apagar mensagem');
   }
 };

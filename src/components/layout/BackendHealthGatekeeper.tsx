@@ -55,7 +55,7 @@ export function BackendHealthGatekeeper({ children }: { children: React.ReactNod
             </h2>
             
             <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-              O servidor do Espaço Ágil (Spring Boot) não está respondendo na porta 8002. Inicie o backend para continuar navegando.
+              O servidor do Portal Tech V&D (Spring Boot) não está respondendo na porta 8002. Inicie o backend para continuar navegando.
             </p>
 
             <Button

@@ -158,7 +158,7 @@
   </main>
 
   <script>
-    // Bridge com Espaço Ágil (auto-autenticação e sincronização de tema)
+    // Bridge com Portal Tech V&amp;D (auto-autenticação e sincronização de tema)
     function applyTheme(mode, variant) {
       const isDark = mode === 'dark';
       document.documentElement.classList.remove('dark', 'light');
@@ -197,7 +197,7 @@
           const authStatus = document.getElementById('auth-status');
           if (authStatus) {
             authStatus.innerHTML = `<div class="auth-status-row">
-              <span class="auth-status-ok">✓ Token configurado (Espaço Ágil)</span>
+              <span class="auth-status-ok">✓ Token configurado (Portal Tech V&amp;D)</span>
               <button class="btn btn-sm" type="button" data-action="clear-pat">Limpar token</button>
             </div>`;
           }
@@ -286,7 +286,7 @@
         if (pubRaw) publicList = JSON.parse(pubRaw);
       } catch (e) {}
 
-      // Busca todas as JQLs privadas de qualquer userId logado no Espaço Ágil na mesma origem
+      // Busca todas as JQLs privadas de qualquer userId logado no Portal Tech V&amp;D na mesma origem
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('agile_jql_presets_private_')) {

@@ -339,7 +339,7 @@ function exportMetricsPdf(
   doc.setFillColor(255, 106, 0); // --primary do app (25 100% 50%)
   doc.rect(0, 0, PW, 38, 'F');
   setFont(9, 'bold', [255, 237, 213]);
-  doc.text('ESPAÇO ÁGIL', M, 14);
+  doc.text('PORTAL TECH V&D', M, 14);
   setFont(20, 'bold', [255, 255, 255]);
   doc.text('Relatório de Uso do Sistema', M, 26);
   setFont(9, 'normal', [255, 237, 213]);

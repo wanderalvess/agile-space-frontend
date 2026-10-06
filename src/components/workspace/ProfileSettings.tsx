@@ -218,7 +218,7 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
           <div className="space-y-6 relative z-10">
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Identidade & Avatar</h3>
-              <p className="text-xs font-medium text-muted-foreground mt-0.5">Selecione seu avatar para cerimônias e votações no Espaço Ágil</p>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">Selecione seu avatar para cerimônias e votações no Portal Tech V&D</p>
             </div>
 
             <div className="flex flex-wrap gap-2.5">

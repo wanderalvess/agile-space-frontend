@@ -21,7 +21,7 @@ export default function ManualPage() {
   const sections = [
     {
       title: "Base de Conhecimento Compartilhada",
-      desc: "Como alimentar a base de conhecimento do Espaço Ágil.",
+      desc: "Como alimentar a base de conhecimento do Portal Tech V&D.",
       icon: Database,
       items: [
         "Acesse o 'Gestor de Ativos' para inserir novos documentos Markdown.",

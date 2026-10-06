@@ -1,11 +1,11 @@
-# Espaço Ágil - Architecture & Context Map (Repomap)
+# Portal Tech V&D - Architecture & Context Map (Repomap)
 
-Este documento fornece um mapeamento técnico completo do ecossistema **Espaço Ágil**, servindo como fonte da verdade para a estrutura do projeto, domínios de negócio e fluxos de dados.
+Este documento fornece um mapeamento técnico completo do ecossistema **Portal Tech V&D**, servindo como fonte da verdade para a estrutura do projeto, domínios de negócio e fluxos de dados.
 
 ---
 
 ## 1. Visão Geral da Arquitetura
-O **Espaço Ágil** é uma aplicação **Next.js 16 (App Router, Turbopack)** de alta performance, projetada para ser síncrona e colaborativa em tempo real.
+O **Portal Tech V&D** é uma aplicação **Next.js 16 (App Router, Turbopack)** de alta performance, projetada para ser síncrona e colaborativa em tempo real.
 
 - **Frontend**: React 19 com renderização híbrida. Interfaces baseadas em Glassmorphism, Tailwind CSS, Shadcn/UI e animações fluidas com Framer Motion. Executa por padrão na porta `9002`.
 - **Backend (API & Persistência)**: Spring Boot 3.x (Java 17+) executando na porta `8002` (`http://localhost:8002/api`), com banco PostgreSQL gerenciado por migrações versionadas do **Flyway** e integridade validada pelo Hibernate (`ddl-auto: validate`).

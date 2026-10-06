@@ -83,7 +83,7 @@ server.registerTool(
 server.registerTool(
   'create_doc',
   {
-    description: 'Cria e publica um novo documento na Base de Conhecimento do Espaço Ágil.',
+    description: 'Cria e publica um novo documento na Base de Conhecimento do Portal Tech V&D.',
     inputSchema: {
       source: sourceSchema,
       title: z.string().min(1).describe('Título do documento'),
@@ -178,7 +178,7 @@ server.registerTool(
 server.registerTool(
   'import_skill',
   {
-    description: 'Importa ou atualiza uma skill (SKILL.md) no Prompt Hub do Espaço Ágil.',
+    description: 'Importa ou atualiza uma skill (SKILL.md) no Prompt Hub do Portal Tech V&D.',
     inputSchema: {
       name: z.string().optional().describe('Nome/título da skill (se omitido, extrai do frontmatter)'),
       content: z.string().min(1).describe('Conteúdo Markdown da skill com frontmatter YAML'),

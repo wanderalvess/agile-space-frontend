@@ -3,6 +3,27 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+// Mensagem de erro com status HTTP e o corpo devolvido pelo backend — sem isso
+// "Falha ao ..." não diz se foi 401, 403, 404 ou 500.
+async function httpError(res: Response, fallback: string): Promise<Error> {
+  let detail = '';
+  try {
+    const text = (await res.text()).trim();
+    if (text) {
+      try {
+        const body = JSON.parse(text);
+        detail = body.error || body.message || text;
+      } catch {
+        detail = text;
+      }
+    }
+  } catch {
+    // corpo ilegível: segue só com o status
+  }
+  return new Error(`${fallback} (HTTP ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''})`);
+}
+
+
 export const pokerApi = {
   async getRoom(roomId: string): Promise<Room> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}`);
@@ -111,9 +132,19 @@ export const pokerApi = {
     });
   },
 
+  // Notas de refinamento: qualquer participante da sala edita; o backend mescla só os
+  // campos enviados no item (não regrava a fila inteira, então não há "última cópia vence").
+  async updateIssueNotes(roomId: string, issueId: string, notes: { devNotes?: string; qaNotes?: string }): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/issues/${encodeURIComponent(issueId)}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify(notes),
+    });
+    if (!res.ok) throw await httpError(res, 'Falha ao salvar as notas');
+  },
+
   async getChatMessages(roomId: string, channelId: string): Promise<any[]> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat?channelId=${encodeURIComponent(channelId)}`);
-    if (!res.ok) throw new Error('Falha ao carregar mensagens do chat');
+    if (!res.ok) throw await httpError(res, 'Falha ao carregar mensagens do chat');
     return res.json();
   },
 
@@ -122,7 +153,7 @@ export const pokerApi = {
       method: 'POST',
       body: JSON.stringify(message),
     });
-    if (!res.ok) throw new Error('Falha ao enviar mensagem');
+    if (!res.ok) throw await httpError(res, 'Falha ao enviar mensagem');
     return res.json();
   },
 
@@ -130,7 +161,7 @@ export const pokerApi = {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat/${encodeURIComponent(messageId)}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao apagar mensagem');
+    if (!res.ok) throw await httpError(res, 'Falha ao apagar mensagem');
   }
 };
 

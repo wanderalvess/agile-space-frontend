@@ -45,7 +45,7 @@ export function ExportHealthCheckDialog({ roomTitle, dimensions, votes, results,
 
   // Markdown
   const handleMarkdown = () => {
-    let markdown = `# Radar de Saúde: ${roomTitle || 'Radar Espaço Ágil'}\n**Data:** ${formatDate()}\n\n`;
+    let markdown = `# Radar de Saúde: ${roomTitle || 'Radar Portal Tech V&D'}\n**Data:** ${formatDate()}\n\n`;
     
     markdown += `| Dimensão | Tudo Bem (Verde) | Atenção (Amarelo) | Ruim (Vermelho) |\n`;
     markdown += `|---|---|---|---|\n`;
@@ -187,7 +187,7 @@ export function ExportHealthCheckDialog({ roomTitle, dimensions, votes, results,
                 <Logo className="h-8 w-8 text-white" />
               </div>
               <div className="flex flex-col flex-1 min-w-0">
-                <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 leading-none">Espaço Ágil</h1>
+                <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 leading-none">Portal Tech V&D</h1>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Radar de Saúde (Health Check)</span>
               </div>
             </div>
@@ -252,7 +252,7 @@ export function ExportHealthCheckDialog({ roomTitle, dimensions, votes, results,
           
           <div className="mt-16 pt-8 border-t border-slate-200 text-center">
              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-               Gerado automaticamente por Espaço Ágil | Medindo o fluxo de valor de forma saudável.
+               Gerado automaticamente por Portal Tech V&D | Medindo o fluxo de valor de forma saudável.
              </p>
           </div>
         </div>

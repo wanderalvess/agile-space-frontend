@@ -1,8 +1,8 @@
-# 🚀 Espaço Ágil — Frontend
+# 🚀 Portal Tech V&D — Frontend
 
 > **Elimine a fricção da burocracia ágil. Foque em entregar software de valor.**
 
-O **Espaço Ágil** é o hub de colaboração definitivo de **Elite Engineering** para squads e lideranças ágeis. Ele centraliza cerimônias em tempo real (Scrum Poker, Retrospectivas, Sprint Reviews/Showcase, Sprint Planner), murais diários (Daily Flow), ferramentas especializadas de QA, base de conhecimento e utilitários técnicos para desenvolvedores em uma interface síncrona, moderna, auditável e de alta densidade de informação.
+O **Portal Tech V&D** é o hub de colaboração definitivo de **Elite Engineering** para squads e lideranças ágeis. Ele centraliza cerimônias em tempo real (Scrum Poker, Retrospectivas, Sprint Reviews/Showcase, Sprint Planner), murais diários (Daily Flow), ferramentas especializadas de QA, base de conhecimento e utilitários técnicos para desenvolvedores em uma interface síncrona, moderna, auditável e de alta densidade de informação.
 
 Este repositório contém a aplicação frontend construída com **Next.js 16 (App Router & Turbopack)**, **React 19**, **Tailwind CSS** e **Shadcn/UI**, integrando-se via REST e WebSockets ao [`agile-space-backend`](https://github.com/wanderalvess/agile-space-backend) (Spring Boot + PostgreSQL).
 
@@ -10,7 +10,7 @@ Este repositório contém a aplicação frontend construída com **Next.js 16 (A
 
 ## 🌊 Pipeline Contínuo de Cerimônias
 
-O Espaço Ágil não é uma coleção de páginas isoladas, mas uma **esteira contínua de trabalho** que acompanha o ciclo de vida dos itens de desenvolvimento (`work_items`):
+O Portal Tech V&D não é uma coleção de páginas isoladas, mas uma **esteira contínua de trabalho** que acompanha o ciclo de vida dos itens de desenvolvimento (`work_items`):
 
 ```mermaid
 flowchart LR

@@ -489,7 +489,7 @@ export function TopicQueue({
                 <Input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Identificador ou Título"
+                  placeholder="ID ou título"
                   className="h-11 text-[11px] font-bold flex-1 rounded-xl border border-slate-300 dark:border-slate-700/80 focus-visible:ring-indigo-500 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-foreground focus:border-indigo-500 dark:focus:border-indigo-500 transition-all"
                 />
               </div>

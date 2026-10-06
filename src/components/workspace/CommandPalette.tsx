@@ -126,7 +126,7 @@ export function CommandPalette({
 
         <CommandSeparator />
 
-        <CommandGroup heading="Espaço Ágil">
+        <CommandGroup heading="Portal Tech V&D">
           <CommandItem onSelect={() => runCommand(() => onNavigate('prompts'))}>
             <MessageSquare className="mr-2 h-4 w-4 text-slate-400" />
             <span>Meus Prompts Hub</span>

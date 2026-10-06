@@ -13,6 +13,9 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
+import type { ChatMessage, ChatMessageKind } from '@/components/poker/team-chat/chatChannels';
+import { participantCategory } from '@/components/poker/team-chat/chatChannels';
+import { chatChannelsFor, mergeChatHistory, toChatParticipant, upsertChatMessage } from '@/components/retro/retro-chat';
 import { useUserContext } from '@/context/UserContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi } from '../api';
@@ -40,6 +43,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const [activeStage, setActiveStage] = useState<RetroColumnKey>('');
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
+  const [chatByChannel, setChatByChannel] = useState<Record<string, ChatMessage[]>>({});
+  const chatChannelsRef = useRef<Set<string>>(new Set());
+  const loadedChatChannelsRef = useRef<Set<string>>(new Set());
 
   const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile]);
   const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
@@ -155,6 +161,24 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
                   const filtered = prev.filter(c => !importedIds.has(c.id));
                   return [...filtered, ...data.payload];
                 });
+              }
+              break;
+
+            case 'CHAT_MESSAGE_SAVED':
+              // Só canais que este usuário enxerga (geral, o da sua função e as suas DMs)
+              if (data.payload?.channelId && chatChannelsRef.current.has(data.payload.channelId)) {
+                const msg: ChatMessage = data.payload;
+                setChatByChannel(prev => upsertChatMessage(prev, msg));
+              }
+              break;
+
+            case 'CHAT_MESSAGE_DELETED':
+              if (data.payload?.messageId && data.payload?.channelId) {
+                const { messageId, channelId } = data.payload;
+                setChatByChannel(prev => ({
+                  ...prev,
+                  [channelId]: (prev[channelId] || []).filter(m => m.id !== messageId),
+                }));
               }
               break;
 
@@ -286,6 +310,58 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   // re-saves do board (columns incluso) pro mesmo board id.
   const joinAttemptedRef = useRef(false);
 
+  // Carga inicial do chat: canal geral, o da função e uma DM por colega. Chaveia
+  // pelos ids (não pelo array) para não refazer a carga a cada refetch de participantes.
+  const chatChannelsKey = currentUser ? chatChannelsFor(currentUser, participants).join('|') : '';
+  // Trocar de board zera o que foi carregado do anterior.
+  useEffect(() => {
+    loadedChatChannelsRef.current = new Set();
+    setChatByChannel({});
+  }, [boardId]);
+
+  useEffect(() => {
+    if (!chatChannelsKey) return;
+    const channels = chatChannelsKey.split('|');
+    chatChannelsRef.current = new Set(channels);
+    // Quando alguém entra/sai, só o canal novo precisa ser carregado.
+    channels.filter(c => !loadedChatChannelsRef.current.has(c)).forEach(channelId => {
+      loadedChatChannelsRef.current.add(channelId);
+      retroApi.getChatMessages(boardId, channelId)
+        .then(msgs => setChatByChannel(prev => ({ ...prev, [channelId]: mergeChatHistory(prev[channelId], msgs || []) })))
+        .catch(err => {
+          loadedChatChannelsRef.current.delete(channelId); // tenta de novo na próxima mudança
+          console.error(`Erro ao carregar o canal ${channelId}:`, err);
+        });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId, chatChannelsKey]);
+
+
+  const handleSendChatMessage = useCallback((text: string, kind: ChatMessageKind, channelId: string) => {
+    if (!currentUser) return;
+    retroApi.sendChatMessage(boardId, {
+      id: crypto.randomUUID(),
+      channelId,
+      senderId: currentUser.id,
+      senderName: currentUser.nickname,
+      senderCategory: participantCategory(toChatParticipant(currentUser)),
+      text,
+      kind,
+      ts: new Date().toISOString(),
+    })
+      .then(saved => saved?.channelId && setChatByChannel(prev => upsertChatMessage(prev, saved)))
+      .catch(err => {
+        console.error('Erro ao enviar mensagem:', err);
+        toast({ title: 'Não foi possível enviar a mensagem', variant: 'destructive' });
+      });
+  }, [boardId, currentUser, toast]);
+
+  const handleDeleteChatMessage = useCallback((messageId: string, channelId: string) => {
+    retroApi.deleteChatMessage(boardId, messageId)
+      .then(() => setChatByChannel(prev => ({ ...prev, [channelId]: (prev[channelId] || []).filter(m => m.id !== messageId) })))
+      .catch(err => console.error('Erro ao apagar mensagem:', err));
+  }, [boardId]);
+
   useEffect(() => {
     // Sincronização automática com a identidade global
     if (isAuthenticated && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined && !joinAttemptedRef.current) {
@@ -300,6 +376,12 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       };
 
       retroApi.addOrUpdateParticipant(boardId, newParticipant).then(() => {
+        // Não depende do WS entregar PARTICIPANT_JOINED: logo após criar o quadro
+        // o socket ainda está conectando/reconectando e o evento se perde, deixando
+        // currentUser nulo (tela presa em "Entrando") até um reload manual.
+        setParticipants(prev => prev.some(p => p.id === newParticipant.id)
+          ? prev
+          : [...prev, newParticipant]);
         // Registrar ID no boardData localmente e no servidor se for novo
         const currentParticipantIds = boardData.participantIds || [];
         if (!currentParticipantIds.includes(userProfile.id)) {
@@ -345,7 +427,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Retrospectiva";
     const sessionName = boardData?.title || boardData?.team;
     
@@ -1003,6 +1085,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         }}
         onOpenFeedback={handleOpenFeedback}
         onOpenStats={() => setShowStats(true)}
+        chatMessagesByChannel={chatByChannel}
+        onSendChatMessage={handleSendChatMessage}
+        onDeleteChatMessage={handleDeleteChatMessage}
       />
       <FeedbackWidget 
         toolName={`Retrospectiva: ${boardData?.title || 'Agile'}`} 

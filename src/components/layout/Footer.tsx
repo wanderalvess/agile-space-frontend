@@ -29,14 +29,14 @@ export function Footer({ className, onOpenFeedback, subtitle, badge }: FooterPro
         </div>
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200">
-            Espaço Ágil
+            Portal Tech V&D
           </p>
           <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none mt-0.5">
             {subtitle ? (
               <span>{subtitle}</span>
             ) : (
               <>
-                <a href="https://espacoagil.com.br" className="hover:text-primary transition-colors" aria-label="Acesse o site oficial do Espaço Ágil">espacoagil.com.br</a>
+                <a href="https://espacoagil.com.br" className="hover:text-primary transition-colors" aria-label="Acesse o site oficial do Portal Tech V&D">espacoagil.com.br</a>
                 <span className="ml-1 text-[8px] opacity-70">© 2026</span>
               </>
             )}

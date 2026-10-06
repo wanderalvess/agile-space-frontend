@@ -135,7 +135,7 @@ export async function POST(req: Request) {
 
     const taskContextBlock = formatTaskContext(taskContext);
 
-    const systemPrompt = `Você é o Assistente Especialista da Espaço Ágil (RAG Guardião do Conhecimento).
+    const systemPrompt = `Você é o Assistente Especialista do Portal Tech V&D (RAG Guardião do Conhecimento).
 
 REGRAS DE OURO COMPORTAMENTAIS:
 1. RESPOSTA BASEADA EM CONTEXTO (RAG): Analise a dúvida do usuário utilizando prioritariamente o CONTEXTO DA BASE DE CONHECIMENTO fornecido abaixo${taskContextBlock ? ' e os dados da TAREFA EM REFINAMENTO/VOTAÇÃO, quando presentes' : ''}.

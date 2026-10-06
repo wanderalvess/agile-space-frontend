@@ -1,6 +1,6 @@
 # agile-space-mcp
 
-Servidor MCP fino sobre APIs públicas `/api/v1/**` do Espaço Ágil.
+Servidor MCP fino sobre APIs públicas `/api/v1/**` do Portal Tech V&D.
 
 - **Base de Conhecimento** (`/api/v1/knowledge/docs`): exposta tanto pelo legado
   (`Agile-Space`) quanto pelo rewrite (`agile-space-frontend`) com o mesmo contrato

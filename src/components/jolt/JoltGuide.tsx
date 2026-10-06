@@ -119,7 +119,7 @@ export function JoltGuide({ open, onOpenChange }: JoltGuideProps) {
                <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-indigo-200">Ambiente Seguro</p>
                   <p className="text-[10px] font-medium leading-relaxed opacity-90 italic">
-                     "O Jolt utiliza isolamento total. Seus testes não afetam os dados de produção do Espaço Ágil."
+                     "O Jolt utiliza isolamento total. Seus testes não afetam os dados de produção do Portal Tech V&D."
                   </p>
                </div>
             </div>

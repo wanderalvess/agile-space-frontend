@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!item) {
     return {
-      title: 'Tópico Não Encontrado | Manual Espaço Ágil'
+      title: 'Tópico Não Encontrado | Manual Portal Tech V&D'
     };
   }
 

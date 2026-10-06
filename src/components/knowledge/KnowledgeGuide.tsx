@@ -119,7 +119,7 @@ export function KnowledgeGuide({ open, onOpenChange }: KnowledgeGuideProps) {
                <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-blue-200">Privacidade Total</p>
                   <p className="text-[10px] font-medium leading-relaxed opacity-90 italic">
-                     "Seus dados são processados de forma isolada. A Espaço Ágil não utiliza seu conhecimento para treinar modelos globais."
+                     "Seus dados são processados de forma isolada. A Portal Tech V&D não utiliza seu conhecimento para treinar modelos globais."
                   </p>
                </div>
             </div>

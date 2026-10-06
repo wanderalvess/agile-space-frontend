@@ -12,7 +12,7 @@ export default function SquadDashboardsLayout({
 }) {
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
-      {/* Cabeçalho padrão unificado do Espaço Ágil respeitando o tema ativo */}
+      {/* Cabeçalho padrão unificado do Portal Tech V&D respeitando o tema ativo */}
       <RoomHeader
         title="Painel de Gestão da Squad"
         toolIcon={<LayoutDashboard className="h-4 w-4 text-primary" />}

@@ -3,6 +3,11 @@ import { getParticipantCategory } from '@/lib/poker-utils';
 
 export type ChatMessageKind = 'text' | 'code';
 
+// O chat é usado pelo Poker e pela Retro: cada tela adapta o seu participante
+// para este formato mínimo.
+export type ChatParticipant = Pick<Participant, 'id' | 'nickname' | 'role'> &
+  Partial<Pick<Participant, 'globalRole' | 'lastSeen'>>;
+
 export type ChatMessage = {
   id: string;
   senderId: string;
@@ -46,6 +51,6 @@ export function dmPeerId(channelId: string, selfId: string): string | null {
   return a === selfId ? b : a;
 }
 
-export function participantCategory(p: Participant): ChatCategory | null {
+export function participantCategory(p: ChatParticipant): ChatCategory | null {
   return getParticipantCategory(p);
 }

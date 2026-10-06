@@ -61,7 +61,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              Manual Espaço Ágil
+              Manual Portal Tech V&D
             </p>
           </div>
         </Link>

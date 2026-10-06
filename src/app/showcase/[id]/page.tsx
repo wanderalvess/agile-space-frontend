@@ -198,7 +198,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   }, [session?.name]);
 
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Sprint Showcase";
     const sessionName = session?.sprintName || session?.name;
     

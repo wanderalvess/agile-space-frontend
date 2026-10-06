@@ -226,7 +226,7 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                    <div className="flex items-center gap-2.5 text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] italic">
                       <ShieldCheck className="h-4 w-4" /> Conexão Segura
                    </div>
-                   <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Espaço Ágil v3.0 // Unified Search</span>
+                   <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Portal Tech V&D v3.0 // Unified Search</span>
                 </div>
              </div>
           </div>

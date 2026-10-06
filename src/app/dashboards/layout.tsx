@@ -11,7 +11,7 @@ export default function DashboardsLayout({
 }) {
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
-      {/* Cabeçalho padrão unificado do Espaço Ágil */}
+      {/* Cabeçalho padrão unificado do Portal Tech V&D */}
       <RoomHeader
         title="Gestão de Projetos Ágeis"
         toolIcon={<LayoutDashboard className="h-4 w-4 text-orange-500" />}

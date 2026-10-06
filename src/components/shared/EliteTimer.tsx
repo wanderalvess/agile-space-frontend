@@ -98,27 +98,27 @@ export function EliteTimer({
   const initialDuration = timer?.initialDuration ?? 120;
   
   return (
-    <div className="flex items-center gap-2.5 shrink-0 bg-white/60 backdrop-blur-md px-3 py-1 rounded-xl border border-white/80 shadow-sm">
+    <div className="flex items-center gap-2.5 shrink-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md px-3 py-1 rounded-xl border border-white/80 dark:border-slate-700/60 shadow-sm">
         <div className="flex items-center gap-2">
             <div className={cn(
               "p-1.5 rounded-lg transition-all",
-              isRunning ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 animate-pulse" : "bg-slate-100 text-slate-400"
+              isRunning ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 animate-pulse" : "bg-slate-100 dark:bg-slate-800 text-slate-400"
             )}>
               <TimerIcon className="h-3.5 w-3.5" />
             </div>
             <span className={cn(
                 "font-code text-xl font-black tabular-nums tracking-tighter leading-none italic",
-                isRunning && remainingTime <= 10 && remainingTime > 0 ? "text-red-500 animate-bounce" : isRunning ? "text-slate-900" : "text-slate-400"
+                isRunning && remainingTime <= 10 && remainingTime > 0 ? "text-red-500 animate-bounce" : isRunning ? "text-slate-900 dark:text-slate-100" : "text-slate-400"
             )}>
                 {formatTime(remainingTime)}
             </span>
         </div>
 
-        <div className="flex items-center gap-2 border-l border-slate-200 pl-3 h-6">
+        <div className="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-3 h-6">
             {isFacilitator && (
                 <div className="flex items-center gap-2 border-l border-slate-100 ml-1 pl-3">
                     {isStopped && (
-                        <div className={cn("items-center gap-1", compact ? "hidden lg:flex" : "flex")}>
+                        <div className={cn("items-center gap-1", compact ? "hidden 2xl:flex" : "flex")}>
                             {DURATION_OPTIONS.map(duration => (
                                 <Button
                                     key={duration}
@@ -128,7 +128,7 @@ export function EliteTimer({
                                     className={cn(
                                       "h-8 px-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all",
                                       initialDuration === duration 
-                                        ? "bg-white text-emerald-600 shadow-sm border border-slate-100" 
+                                        ? "bg-white dark:bg-slate-800 text-emerald-600 shadow-sm border border-slate-100 dark:border-slate-700" 
                                         : "text-slate-400 hover:text-slate-600"
                                     )}
                                 >
@@ -147,7 +147,7 @@ export function EliteTimer({
                                     variant="ghost"
                                     size="sm"
                                     aria-label="Duração do timer"
-                                    className="lg:hidden h-8 px-2 gap-1 text-[10px] font-black uppercase tracking-widest rounded-lg text-slate-500 hover:text-slate-700"
+                                    className="2xl:hidden h-8 px-2 gap-1 text-[10px] font-black uppercase tracking-widest rounded-lg text-slate-500 hover:text-slate-700"
                                 >
                                     {initialDuration / 60}m
                                     <ChevronDown className="h-3 w-3" />

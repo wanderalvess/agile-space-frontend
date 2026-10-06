@@ -74,7 +74,7 @@ export function GlobalAnnouncementListener() {
               <Megaphone className="h-6 w-6 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-1">Comunicado Oficial Espaço Ágil</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-1">Comunicado Oficial Portal Tech V&D</p>
               <p className="text-sm font-bold leading-tight">{activeAnnouncement.message}</p>
             </div>
             <button

@@ -154,7 +154,7 @@ export default function SupportPage() {
                 Como podemos <span className="text-primary not-italic">Acelerar</span> hoje?
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium max-w-2xl italic border-l-2 border-primary/30 pl-4 py-1">
-                Sua voz molda o futuro do Espaço Ágil. Relate problemas, sugira melhorias ou tire dúvidas diretamente com nosso time de governança.
+                Sua voz molda o futuro do Portal Tech V&D. Relate problemas, sugira melhorias ou tire dúvidas diretamente com nosso time de governança.
               </p>
             </div>
 
@@ -289,7 +289,7 @@ export default function SupportPage() {
                       </div>
                       <div className="space-y-2">
                          <h4 className="text-2xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">Histórico Vazio</h4>
-                         <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm">Você ainda não possui solicitações registradas no seu histórico do Espaço Ágil.</p>
+                         <p className="text-slate-500 dark:text-slate-400 font-medium max-w-sm">Você ainda não possui solicitações registradas no seu histórico do Portal Tech V&D.</p>
                       </div>
                       <Button onClick={() => setActiveTab('new')} variant="outline" className="rounded-xl border-slate-200 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 font-black uppercase tracking-widest text-[10px]">Abrir Primeiro Ticket</Button>
                    </Card>
@@ -310,7 +310,7 @@ export default function SupportPage() {
                  <div className="relative z-10 space-y-6">
                     <Badge className="bg-white/20 text-white border-none uppercase text-[8px] font-black tracking-widest px-3 py-1">Self-Service</Badge>
                     <h3 className="text-3xl font-black uppercase tracking-tighter italic font-headline">Dúvidas Técnicas?</h3>
-                    <p className="text-white/70 text-base font-medium leading-relaxed">Consulte o manual oficial para guias passo-a-passo de cada ferramenta do Espaço Ágil.</p>
+                    <p className="text-white/70 text-base font-medium leading-relaxed">Consulte o manual oficial para guias passo-a-passo de cada ferramenta do Portal Tech V&D.</p>
                     <Button
                       variant="link"
                       onClick={() => router.push('/manual')}
@@ -351,7 +351,7 @@ export default function SupportPage() {
       </div>
 
       <Footer className="mt-8 shrink-0" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Espaço Ágil - Suporte" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
+      <FeedbackWidget toolName="Portal Tech V&D - Suporte" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
     </div>
   );
 }

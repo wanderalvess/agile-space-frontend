@@ -172,6 +172,7 @@ export default function PokerHubPage() {
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [showAdvancedSetup, setShowAdvancedSetup] = useState(false);
   
   const [rooms, setRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
@@ -634,6 +635,15 @@ export default function PokerHubPage() {
                   <Button
                     type="button"
                     variant="outline"
+                    onClick={() => setShowAdvancedSetup(v => !v)}
+                    aria-expanded={showAdvancedSetup}
+                    className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    {showAdvancedSetup ? 'Ocultar' : 'Personalizar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setSetupSettings({ ...DEFAULT_ROOM_SETTINGS, allowManagementToVote: false, autoReveal: false, autoConsensus: false })}
                     className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
                   >
@@ -649,7 +659,12 @@ export default function PokerHubPage() {
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3">
+              {!showAdvancedSetup && (
+                <p className="text-[11px] font-medium text-muted-foreground ml-1">
+                  O essencial já vem ligado (tempo por tópico, voto de confiança, notas de refinamento e mais). Tudo pode ser ajustado depois no painel do facilitador.
+                </p>
+              )}
+              <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3", !showAdvancedSetup && "hidden")}>
                 {SETUP_GROUPS.map(group => (
                   <div key={group.label} className="space-y-1.5">
                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">{group.label}</p>
@@ -662,7 +677,7 @@ export default function PokerHubPage() {
                           title={cfg.desc}
                           className={cn(
                             "w-full text-left px-2.5 py-2 rounded-xl border-2 flex items-center justify-between gap-2 transition-all cursor-pointer",
-                            on ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:border-primary/30"
+                            on ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30 hover:border-primary/30"
                           )}
                         >
                           <span className="min-w-0">

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { BentoGrid } from '@/components/home/BentoGrid';
 import { ModuleGrid } from '@/components/home/ModuleGrid';
+import { NewSquadWelcome } from '@/components/home/NewSquadWelcome';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
 
@@ -12,7 +13,7 @@ export default function Home() {
   // Title effect
   useEffect(() => {
     if (typeof document !== 'undefined') {
-      document.title = `Hub | Espaço Ágil`;
+      document.title = `Hub | Portal Tech V&D`;
     }
   }, []);
 
@@ -31,7 +32,8 @@ export default function Home() {
       <div className="relative z-10 flex flex-col w-full min-h-dvh pt-4">
         {/* MAIN BODY CONTAINER */}
         <main className="flex-1 px-4 pb-8 md:px-8 lg:px-10 space-y-4 max-w-full w-full mx-auto">
-          
+          <NewSquadWelcome />
+
           {/* BENTO GRID DASHBOARD */}
           <BentoGrid />
 
@@ -42,7 +44,7 @@ export default function Home() {
         <Footer onOpenFeedback={handleOpenFeedback} />
       </div>
 
-      <FeedbackWidget toolName="Espaço Ágil - Hub" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
+      <FeedbackWidget toolName="Portal Tech V&D - Hub" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </div>
   );
 }
