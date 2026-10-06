@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.4.4",
+    "date": "6 de Outubro, 2026",
+    "title": "Quadro Scrum, Zephyr e IA funcionando no ambiente publicado",
+    "description": "Correção de chamadas que davam erro 404 fora do ambiente de desenvolvimento.",
+    "changes": [
+      "O Quadro Scrum do Squad Hub passa a carregar o quadro real do Jira (antes a chamada dava erro 404 e a tela ficava sem quadro).",
+      "A ferramenta Zephyr do DevTools passa a funcionar: a busca do caso de teste agora passa pelo servidor com o seu login e usa o domínio do Jira que você já salvou.",
+      "O chat de IA, a base de conhecimento (embeddings e importação de PDF), a busca no TDN e os mocks voltam a responder: essas chamadas não estavam chegando ao lugar certo."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.3",
     "date": "6 de Outubro, 2026",
     "title": "Squad: métricas da sprint voltam a aparecer e o quadro acha o ID sozinho",

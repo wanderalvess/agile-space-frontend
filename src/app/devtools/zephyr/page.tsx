@@ -10,6 +10,7 @@ import { DevToolPage } from '@/components/devtools/DevToolPage';
 import { ToolPane } from '@/components/devtools/ToolPane';
 import { useToast } from '@/hooks/use-toast';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
+import { authFetch } from '@/lib/auth-client';
 
 interface ZephyrStep {
   step?: string;
@@ -72,15 +73,16 @@ export default function ZephyrPage() {
       // Salva o PAT para conveniência do usuário (mesmo comportamento da ferramenta antiga)
       saveJiraSettings({ domain: jiraSettings?.domain || '', token: patToken.trim() });
 
-      const res = await fetch('/api/jira/testcase', {
+      const res = await authFetch('/api/jira/testcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ testCaseKey: testCaseKey.trim(), pat: patToken.trim() }),
+        body: JSON.stringify({ testCaseKey: testCaseKey.trim(), pat: patToken.trim(), domain: jiraSettings?.domain || '' }),
       });
 
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || `Erro (${res.status}) ao buscar no Zephyr.`);
+        // O backend repassa a resposta do Jira: pode vir {error}, {message} ou {errorMessages:[...]}
+        const error = await res.json().catch(() => ({} as any));
+        throw new Error(error.error || error.message || error.errorMessages?.[0] || `Erro (${res.status}) ao buscar no Zephyr.`);
       }
 
       const data = await res.json();

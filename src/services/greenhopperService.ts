@@ -189,7 +189,7 @@ export async function fetchGreenhopperWorkData(params: {
   const timeoutId = setTimeout(() => controller.abort(), 25000);
 
   try {
-    const res = await authFetch('/api/jira/greenhopper/work', {
+    const res = await authFetch('/api/jira/greenhopper/work-data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
