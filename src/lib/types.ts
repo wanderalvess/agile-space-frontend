@@ -943,7 +943,7 @@ export type SquadConfig = {
   // capacidade usa o fallback fixo de SPRINT_WORKDAYS_ASSUMED; com isso, usa
   // os dias úteis reais entre início/fim da sprint ativa.
   sprintFieldId?: string;
-  // ID do RapidBoard / Greenhopper Board (ex: 11360 para SCRUM Mississauga)
+  // ID do RapidBoard / Greenhopper Board (número do quadro Scrum no Jira)
   rapidViewId?: number | string;
   // Mapeamento issuetype -> fase de workflow, usado pelo Jira Plans (aba
   // /squad "Plans") pra classificar subtarefa e montar a cascata de atraso

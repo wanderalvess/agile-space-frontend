@@ -156,7 +156,7 @@ function SquadHubContent() {
   const [jiraDomain, setJiraDomain] = useState('');
   const [jiraToken, setJiraToken] = useState('');
   const [sprintFieldId, setSprintFieldId] = useState('');
-  const [rapidViewId, setRapidViewId] = useState<number | string>('11360');
+  const [rapidViewId, setRapidViewId] = useState<number | string>('');
   const [rankingEnabled, setRankingEnabled] = useState(false);
   const [capacityHours, setCapacityHours] = useState(6);
 
@@ -211,9 +211,9 @@ function SquadHubContent() {
   }, [squadId, fetchDailySnapshots]);
 
   useEffect(() => {
-    const defaultKey = (squadId === 'MISSI' ? 'DDWMISSI' : squadId) || '';
+    const defaultKey = squadId || '';
     if (config) {
-      const activeKey = config.jiraProjectKey && config.jiraProjectKey !== 'MISSI' ? config.jiraProjectKey : defaultKey;
+      const activeKey = config.jiraProjectKey || defaultKey;
       setProjectKey(activeKey);
       const defaultSyncJql = `project = "${activeKey}" AND sprint in openSprints()`;
       setJql(config.syncJql && !config.syncJql.includes('project = "MISSI"') && !config.syncJql.includes('project = MISSI') ? config.syncJql : defaultSyncJql);
@@ -221,12 +221,11 @@ function SquadHubContent() {
       setCapacityHours(config.defaultDailyCapacityHours || 6);
       setJiraDomain(config.jiraDomain || jiraSettings?.domain || '');
       setSprintFieldId(config.sprintFieldId || '');
-      setRapidViewId(config.rapidViewId || (activeKey === 'DDWMISSI' ? '11360' : ''));
+      setRapidViewId(config.rapidViewId || '');
     } else if (squadId) {
       setProjectKey(defaultKey);
       setJql(`project = "${defaultKey}" AND sprint in openSprints()`);
       setJiraDomain(jiraSettings?.domain || '');
-      if (defaultKey === 'DDWMISSI') setRapidViewId('11360');
     }
   }, [config, squadId, jiraSettings?.domain]);
 
@@ -444,16 +443,6 @@ function SquadHubContent() {
             <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsPhasesOpen(true)} title="Fases do workflow (Jira Plans)">
               <Workflow className="h-3.5 w-3.5" />
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push('/jiradash')}
-              title="Acessar o JiraDash (Painel Oficial POC)"
-              className="h-8 px-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1.5"
-            >
-              <Gauge className="h-3.5 w-3.5 text-amber-500" />
-              <span className="hidden sm:inline">JiraDash</span>
-            </Button>
           </div>
         }
       >
@@ -637,8 +626,8 @@ function SquadHubContent() {
             <div className="animate-in fade-in duration-300">
               <SquadScrumBoard
                 squadId={squadId}
-                jiraProjectKey={config?.jiraProjectKey || projectKey || 'DDWMISSI'}
-                rapidViewId={config?.rapidViewId || rapidViewId || 11360}
+                jiraProjectKey={config?.jiraProjectKey || projectKey || squadId}
+                rapidViewId={config?.rapidViewId || rapidViewId || ''}
                 jiraDomain={config?.jiraDomain || jiraDomain}
               />
             </div>
@@ -874,10 +863,10 @@ function SquadHubContent() {
                 <Input
                   value={projectKey}
                   onChange={e => setProjectKey(e.target.value)}
-                  placeholder="Ex: DDWMISSI"
+                  placeholder="Chave do projeto no Jira"
                   className="rounded-xl h-9 text-xs"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Chave exata do projeto no Jira (ex: DDWMISSI).</p>
+                <p className="text-[10px] text-slate-400 mt-1">Chave exata do projeto no Jira (ex.: a sigla que aparece nas issues, como ABC-123 → ABC).</p>
               </div>
 
               <div>
@@ -887,7 +876,7 @@ function SquadHubContent() {
                 <Input
                   value={jql}
                   onChange={e => setJql(e.target.value)}
-                  placeholder='Ex: project = "DDWMISSI" AND sprint in openSprints()'
+                  placeholder='Ex.: project = "CHAVE" AND sprint in openSprints()'
                   className="rounded-xl h-9 text-xs font-code"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">Filtro JQL para buscar os itens da sprint ativa.</p>
@@ -937,7 +926,7 @@ function SquadHubContent() {
                   <Input
                     value={rapidViewId}
                     onChange={e => setRapidViewId(e.target.value)}
-                    placeholder="11360"
+                    placeholder="Ex.: 1234"
                     className="rounded-xl h-9 text-xs font-code"
                   />
                 </div>

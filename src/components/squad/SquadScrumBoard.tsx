@@ -47,7 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useJiraSettings, getJiraCredentials } from '@/hooks/useJiraSettings';
 import {
   fetchGreenhopperWorkData,
-  SAMPLE_GREENHOPPER_DATA,
+  EMPTY_GREENHOPPER_DATA,
   type GreenhopperWorkData,
   type GreenhopperIssue,
   type GreenhopperColumn,
@@ -70,7 +70,7 @@ interface ColumnWipOverride {
 }
 
 const FALLBACK_REASON_LABELS: Record<string, string> = {
-  'missing-config': 'Configure o domínio e o token do Jira nas configurações do squad para ver o quadro ao vivo.',
+  'missing-config': 'Falta o domínio, o token do Jira ou o ID do quadro Scrum. Preencha em Configurações da squad para ver o quadro ao vivo.',
   'invalid-rapid-view-id': 'O ID do quadro (rapidViewId) configurado não é válido.',
   'auth-error': 'Sessão do Jira expirada ou sem permissão para este quadro. Reconecte suas credenciais.',
   timeout: 'O Jira demorou demais para responder.',
@@ -127,8 +127,8 @@ function applyLocalOverrides(data: GreenhopperWorkData, squadId: string): Greenh
 }
 
 export function SquadScrumBoard({
-  squadId = 'MISSI',
-  jiraProjectKey = 'DDWMISSI',
+  squadId = '',
+  jiraProjectKey = '',
   rapidViewId: initialRapidViewId,
   jiraDomain: initialDomain,
 }: SquadScrumBoardProps) {
@@ -136,10 +136,12 @@ export function SquadScrumBoard({
   const { settings: jiraSettings } = useJiraSettings();
 
   const [rapidViewId, setRapidViewId] = useState<number | string>(
-    initialRapidViewId || 11360
+    initialRapidViewId || ''
   );
-  const [boardData, setBoardData] = useState<GreenhopperWorkData>(SAMPLE_GREENHOPPER_DATA);
+  const [boardData, setBoardData] = useState<GreenhopperWorkData>(EMPTY_GREENHOPPER_DATA);
   const [isLoading, setIsLoading] = useState(false);
+  // Só mostra o quadro depois da primeira tentativa de carga: antes disso não há o que exibir.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedSwimlanes, setCollapsedSwimlanes] = useState<Record<string, boolean>>({});
@@ -156,7 +158,7 @@ export function SquadScrumBoard({
     } catch { return 'queries'; }
   });
 
-  const activeDomain = initialDomain || jiraSettings?.domain || 'jiraproducao.totvs.com.br';
+  const activeDomain = initialDomain || jiraSettings?.domain || '';
   const activeToken = jiraSettings?.token || '';
 
   // Aplica overrides salvos localmente (filtros/raias/WIP) assim que monta, antes do primeiro fetch
@@ -171,7 +173,7 @@ export function SquadScrumBoard({
       const data = await fetchGreenhopperWorkData({
         domain: activeDomain,
         token: activeToken,
-        rapidViewId: rapidViewId || 11360,
+        rapidViewId: rapidViewId || '',
         selectedProjectKey: jiraProjectKey,
       });
       // Reaplica os overrides locais por cima do fetch — sem isso, qualquer
@@ -179,11 +181,14 @@ export function SquadScrumBoard({
       setBoardData(applyLocalOverrides(data, squadId));
 
       if (data.isFallback) {
-        toast({
-          title: 'Exibindo dados de exemplo',
-          description: FALLBACK_REASON_LABELS[data.fallbackReason || ''] || 'Não foi possível carregar o quadro ao vivo do Jira.',
-          variant: 'default',
-        });
+        // Sem quadro real: a tela mostra o estado vazio com o motivo (nada de dados de exemplo).
+        if (showToast) {
+          toast({
+            title: 'Quadro indisponível',
+            description: FALLBACK_REASON_LABELS[data.fallbackReason || ''] || 'Não foi possível carregar o quadro ao vivo do Jira.',
+            variant: 'destructive',
+          });
+        }
       } else if (showToast) {
         toast({
           title: 'Quadro Atualizado',
@@ -201,6 +206,7 @@ export function SquadScrumBoard({
       });
     } finally {
       setIsLoading(false);
+      setHasLoadedOnce(true);
     }
   };
 
@@ -544,6 +550,30 @@ export function SquadScrumBoard({
       </TooltipProvider>
     );
   };
+
+  // Primeira carga ainda em andamento
+  if (!hasLoadedOnce) {
+    return (
+      <div className="flex items-center justify-center gap-3 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-10 text-sm font-semibold text-slate-500" role="status">
+        <RefreshCw className="h-4 w-4 animate-spin" aria-hidden /> Carregando o quadro do Jira…
+      </div>
+    );
+  }
+
+  // Sem quadro real: explica o motivo em vez de mostrar dados de exemplo
+  if (boardData.isFallback) {
+    return (
+      <div className="space-y-3 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 p-8 text-center">
+        <h2 className="text-lg font-black tracking-tight">Quadro indisponível</h2>
+        <p className="mx-auto max-w-md text-sm text-slate-500 dark:text-slate-400">
+          {FALLBACK_REASON_LABELS[boardData.fallbackReason || ''] || 'Não foi possível carregar o quadro ao vivo do Jira.'}
+        </p>
+        <Button onClick={() => loadBoardData(true)} disabled={isLoading} variant="outline" className="h-9 gap-2 rounded-xl text-[11px] font-black uppercase tracking-widest">
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Tentar de novo
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">

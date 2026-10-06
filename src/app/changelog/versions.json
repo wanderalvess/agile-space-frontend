@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.4.1",
+    "date": "6 de Outubro, 2026",
+    "title": "Squad sem dados de exemplo",
+    "description": "O Squad Hub deixa de mostrar dados fictícios e passa a mostrar apenas o que vem do seu Jira.",
+    "changes": [
+      "O Quadro Scrum não exibe mais um quadro de exemplo quando o Jira não está configurado: mostra \"Quadro indisponível\" com o motivo e um botão para tentar de novo.",
+      "Removidos valores fixos de outra equipe: ID de quadro, chave de projeto e domínio padrão, além de filtros rápidos com nomes de pessoas e raias de outro time. Agora o quadro nasce com filtros genéricos (Minhas issues, Sprint Goal, Bugs e Abertas).",
+      "Removido o botão JiraDash do cabeçalho do Squad Hub."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.0",
     "date": "6 de Outubro, 2026",
     "title": "Painel do time com boas-vindas e sincronização automática com o Jira",

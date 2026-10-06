@@ -192,104 +192,29 @@ function buildColumnListFromLive(liveColumns: GreenhopperColumn[], issues: Green
 }
 
 export const DEFAULT_QUICK_FILTERS: GreenhopperQuickFilter[] = [
-  {
-    id: 1,
-    name: 'Sprint Goal',
-    query: 'labels = Sprint_goal',
-    description: '',
-  },
-  {
-    id: 2,
-    name: 'Beatriz',
-    query: 'assignee = beatriz.lima or issuetype IN ("Defeito (Sub-tarefa)") and creator = beatriz.lima',
-    description: '',
-  },
-  {
-    id: 3,
-    name: 'Diego',
-    query: 'assignee = diego.rocha or issuetype IN ("Defeito (Sub-tarefa)") and creator = diego.rocha',
-    description: '',
-  },
-  {
-    id: 4,
-    name: 'Felipe',
-    query: 'assignee = felipe.martins or issuetype IN ("Defeito (Sub-tarefa)") and creator = felipe.martins',
-    description: '',
-  },
-  {
-    id: 5,
-    name: 'Gustavo',
-    query: 'assignee = gustavo.pinto or issuetype IN ("Defeito (Sub-tarefa)") and creator = gustavo.pinto',
-    description: '',
-  },
-  {
-    id: 6,
-    name: 'Alice',
-    query: 'assignee = alice.souza OR (Desenvolvedor = alice.souza OR "Responsável (Codificação)" =alice.souza)',
-    description: '',
-  },
-  {
-    id: 7,
-    name: 'Henrique Dias',
-    query: 'assignee = henrique.dias OR (Desenvolvedor = henrique.dias OR "Responsável (Codificação)" =henrique.dias)',
-    description: '',
-  },
-  {
-    id: 8,
-    name: 'Carlos',
-    query: 'assignee = carlos.mendes OR (Desenvolvedor = carlos.mendes OR "Responsável (Codificação)" =carlos.mendes)',
-    description: '',
-  },
-  {
-    id: 9,
-    name: 'Eduardo Nunes',
-    query: 'assignee = eduardo.nunes OR (Desenvolvedor = eduardo.nunes OR "Responsável (Codificação)" =eduardo.nunes )',
-    description: '',
-  },
-  {
-    id: 10,
-    name: 'Data Acordo',
-    query: '( "Data Acordo Entrega" >= startOfWeek() AND "Data Acordo Entrega" <= endOfWeek() ) OR ( "Data Interna Acordada" >= startOfWeek() AND "Data Interna Acordada" <= endOfWeek() ) AND statusCategory != Done',
-    description: '',
-  },
-  {
-    id: 11,
-    name: 'CausaOC',
-    query: 'issuetype in (Manutenção,"Rejeição - Manutenção") and priority = Crítica',
-    description: '',
-  },
-  {
-    id: 12,
-    name: 'Abertas',
-    query: 'status not in (Cancelado, Closed, Concluído, Recusada)',
-    description: '',
-  },
+  { id: 1, name: 'Minhas issues', query: 'assignee = currentUser()', description: 'Itens atribuídos a você' },
+  { id: 2, name: 'Sprint Goal', query: 'labels = Sprint_goal', description: '' },
+  { id: 3, name: 'Bugs', query: 'issuetype in (Bug, Defeito)', description: 'Defeitos no escopo' },
+  { id: 4, name: 'Abertas', query: 'statusCategory != Done', description: 'Tudo que ainda não foi concluído' },
 ];
 
 export const DEFAULT_SWIMLANES: GreenhopperSwimlane[] = [
   {
     id: 101,
-    name: 'Prioridades ( WarRoom)',
-    query: 'priority in ( Crítica, Alta) OR labels in (prioridade)',
-    description: 'Itens com prioridade Crítica/Alta ou label prioridade',
+    name: 'Prioridades',
+    query: 'priority in (Highest, High, Crítica, Alta)',
+    description: 'Itens com prioridade alta',
     isDefault: false,
   },
   {
     id: 102,
-    name: 'Reforma Tributária',
-    query: 'labels in (Entrega_Cadastros, Entrega_HomologSEFAZ, Entrega_ProdSEFAZ)',
-    description: 'Itens vinculados às entregas da Reforma Tributária e SEFAZ',
-    isDefault: false,
-  },
-  {
-    id: 103,
     name: 'Pausada',
     query: 'labels in (Pausada,pausada)',
     description: 'Tarefas e histórias temporariamente pausadas',
     isDefault: false,
   },
   {
-    id: 104,
+    id: 103,
     name: 'Todo o Resto',
     query: '',
     description: 'Demais tarefas e itens ativos da sprint',
@@ -321,7 +246,7 @@ export function BoardConfigModal({
   quickFilters: initialQuickFilters,
   swimlanes: initialSwimlanes,
   swimlaneStrategy: initialSwimlaneStrategy = 'queries',
-  rapidViewId = 11360,
+  rapidViewId,
   boardName = 'SCRUM Demo',
   initialTab = 'filters',
   onSaveQuickFilters,
