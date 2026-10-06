@@ -375,110 +375,67 @@ const RetroBoardComponent = ({
                 </DropdownMenu>
 
                 <Sheet open={isGuideOpen} onOpenChange={setIsGuideOpen}>
-                  <SheetContent className="sm:max-w-xl border-l-2 border-l-emerald-200 bg-white/95 backdrop-blur-xl flex flex-col p-0">
-                    <SheetHeader className="shrink-0 border-b p-8 bg-emerald-50/30">
-                      <div className="h-12 w-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-xl shadow-emerald-500/20 mb-4">
-                        <BrainCircuit className="h-6 w-6" />
+                  <SheetContent className="sm:max-w-xl border-l border-border bg-card text-card-foreground flex flex-col p-0">
+                    <SheetHeader className="shrink-0 border-b border-border p-6 pr-12 text-left">
+                      <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/25 mb-3">
+                        <BrainCircuit className="h-5 w-5" />
                       </div>
-                      <SheetTitle className="text-2xl font-black uppercase tracking-tighter italic">Guia do Facilitador</SheetTitle>
-                      <SheetDescription className="font-bold text-[10px] uppercase tracking-widest text-emerald-600/60">Manual Avançado de Facilitação</SheetDescription>
+                      <SheetTitle className="text-2xl font-black tracking-tight text-foreground">Como conduzir a retro</SheetTitle>
+                      <SheetDescription className="text-sm text-muted-foreground">Um roteiro curto para o facilitador, do primeiro card ao plano de ação.</SheetDescription>
                     </SheetHeader>
 
                     <ScrollArea className="flex-1">
-                      <div className="p-8 space-y-12">
-                        {/* SEÇÃO 01: O FLUXO ÁGIL */}
-                        <section className="space-y-6">
-                          <header className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                            <LayoutDashboard className="h-4 w-4 text-emerald-600" />
-                            <h3 className="font-black text-[11px] uppercase tracking-widest text-slate-800">01. O Ciclo de Debate</h3>
-                          </header>
-                          
-                          <div className="space-y-4">
-                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 space-y-2">
-                              <p className="text-[11px] font-black text-emerald-600 uppercase">Fase I: Divergência Silenciosa</p>
-                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                                No início, mantenha os <strong>Cards Ocultos</strong>. Isso garante um ambiente seguro (Safety) onde cada um expressa seus sentimentos reais sem sofrer influência ou viés de grupo (Groupthink).
-                              </p>
-                            </div>
+                      <div className="p-6 space-y-8">
+                        <section className="space-y-3">
+                          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                            <LayoutDashboard className="h-4 w-4 text-emerald-500" /> Em 3 etapas
+                          </h3>
+                          <ol className="space-y-3">
+                            {[
+                              { n: 1, t: 'Escrever em silêncio', d: 'Deixe os cards escondidos e peça para cada pessoa escrever sem ver o que os outros colocam. Assim ninguém copia a opinião de quem falou primeiro.' },
+                              { n: 2, t: 'Revelar, agrupar e votar', d: 'Clique em Revelar cards. Use Fundir para juntar cards repetidos e abra a votação para o time escolher o que mais importa discutir.' },
+                              { n: 3, t: 'Definir ações', d: 'Transforme os temas mais votados em ações na última coluna, cada uma com um responsável. Retro sem ação vira só desabafo.' },
+                            ].map((step) => (
+                              <li key={step.n} className="flex gap-3 rounded-2xl border border-border bg-muted/30 p-4">
+                                <span className="h-6 w-6 shrink-0 rounded-full bg-emerald-600/15 text-emerald-500 text-xs font-bold flex items-center justify-center">{step.n}</span>
+                                <div className="space-y-1">
+                                  <p className="text-sm font-bold text-foreground">{step.t}</p>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">{step.d}</p>
+                                </div>
+                              </li>
+                            ))}
+                          </ol>
+                        </section>
 
-                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 space-y-2">
-                              <p className="text-[11px] font-black text-amber-600 uppercase">Fase II: Fusão e Priorização</p>
-                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                                Revele os cards e use <strong>Fundir</strong> para combinar temas duplicados em um só card. Use a <strong>Votação</strong> para identificar quais temas o time considera mais críticos para discussão.
-                              </p>
-                            </div>
-
-                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 space-y-2">
-                              <p className="text-[11px] font-black text-indigo-600 uppercase">Fase III: Plano de Ação</p>
-                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                                Uma retrospectiva que não gera mudanças é apenas uma reunião de desabafo. Utilize a coluna <strong>Ações</strong> para registrar comprometimentos práticos com responsáveis definidos.
-                              </p>
-                            </div>
+                        <section className="space-y-3">
+                          <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                            <ShieldCheck className="h-4 w-4 text-emerald-500" /> Ferramentas do facilitador
+                          </h3>
+                          <div className="grid gap-2.5">
+                            {[
+                              { icon: Eye, t: 'Revelar cards', d: 'Mostra o conteúdo dos cards para todos. Antes disso, cada pessoa vê só os próprios.' },
+                              { icon: Unlock, t: 'Mostrar quem escreveu', d: 'Em Configurações. Desligado, os cards ficam anônimos, o que ajuda quando o time ainda não se sente à vontade.' },
+                              { icon: Clock, t: 'Timer', d: 'Dê de 5 a 8 minutos por tema. Conversas sobre o que deu certo costumam se alongar.' },
+                            ].map(({ icon: Icon, t, d }) => (
+                              <div key={t} className="flex gap-3 items-start rounded-2xl border border-border p-4">
+                                <div className="p-2 rounded-xl bg-emerald-600/10 text-emerald-500 shrink-0">
+                                  <Icon className="h-4 w-4" />
+                                </div>
+                                <div className="space-y-0.5">
+                                  <p className="text-sm font-bold text-foreground">{t}</p>
+                                  <p className="text-sm text-muted-foreground leading-snug">{d}</p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </section>
 
-                        {/* SEÇÃO 02: ARSENAL DO FACILITADOR */}
-                        <section className="space-y-6">
-                          <header className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                            <ShieldCheck className="h-4 w-4 text-amber-600" />
-                            <h3 className="font-black text-[11px] uppercase tracking-widest text-slate-800">02. Arsenal do Facilitador</h3>
-                          </header>
-
-                          <div className="grid gap-3">
-                            <div className="flex gap-4 items-start p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                              <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
-                                <Eye className="h-4 w-4" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-slate-700">Visibilidade</p>
-                                <p className="text-[10px] text-slate-500 font-medium leading-tight">Alterna entre exibir o conteúdo dos cards para todos ou mantê-los privados para o autor.</p>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-4 items-start p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                              <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
-                                <Unlock className="h-4 w-4" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-slate-700">Identidade</p>
-                                <p className="text-[10px] text-slate-500 font-medium leading-tight">Controla se nomes e avatares são exibidos. Recomendado para sessões onde a segurança psicológica ainda está sendo construída.</p>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-4 items-start p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                              <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-                                <Clock className="h-4 w-4" />
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase text-slate-700">Timer & Timebox</p>
-                                <p className="text-[10px] text-slate-500 font-medium leading-tight">Discussões sobre o "BOM" tendem a se estender. Use janelas de 5 a 8 minutos por tema para manter a energia da sessão alta.</p>
-                              </div>
-                            </div>
-                          </div>
-                        </section>
-
-                        {/* PRO TIPS SECTION */}
-                        <div className="p-8 bg-zinc-900 rounded-[2.5rem] text-white space-y-4 relative overflow-hidden">
-                          <Trophy className="absolute -bottom-4 -right-4 h-24 w-24 text-white/5 rotate-12" />
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200 mt-1">Status do Grupo</p>
-                            <p className="text-sm font-bold leading-relaxed italic">
-                              "Toda retrospectiva bem-sucedida deve terminar com a exportação do resumo e o compartilhamento dos Planos de Ação no canal de comunicação oficial da squad."
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                             <div className="px-3 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase border border-white/10">Agile Excellence</div>
-                             <div className="px-3 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase border border-white/10">Modo Facilitação</div>
-                          </div>
+                        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                          <p className="text-sm font-bold text-foreground mb-1">Antes de encerrar</p>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            Exporte o resumo pelo menu Mais ações e compartilhe as ações combinadas no canal da squad.
+                          </p>
                         </div>
-
-                        {/* RODAPÉ DO GUIA */}
-                        <div className="pt-8 text-center pb-8 opacity-50">
-                           <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center justify-center gap-2">
-                              <Download className="h-3 w-3" /> Portal Tech V&D v2.0
-                           </p>
-                        </div>
-
                       </div>
                     </ScrollArea>
                   </SheetContent>

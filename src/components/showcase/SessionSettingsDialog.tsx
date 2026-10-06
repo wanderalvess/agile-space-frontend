@@ -164,9 +164,9 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   };
   
   const tabs = [
-    { id: 'geral', label: 'Geral', icon: Layout, description: 'Identificação & squad' },
-    { id: 'identidade', label: 'Capa & Início', icon: Palette, description: 'Visual da Capa' },
-    { id: 'apresentacao', label: 'Modo Teatro', icon: Video, description: 'Fundo & Temas' },
+    { id: 'geral', label: 'Geral', icon: Layout, description: 'Nome, time e objetivos' },
+    { id: 'identidade', label: 'Capa', icon: Palette, description: 'Tela de abertura da Review' },
+    { id: 'apresentacao', label: 'Apresentação', icon: Video, description: 'Cores e fundo do Modo Teatro' },
   ];
 
   // Prontidão da sessão: os 3 campos que fazem diferença real numa
@@ -188,11 +188,11 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
         <div className="md:col-span-6 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
           <div className="flex items-center gap-2 mb-1">
             <Layout className="h-4 w-4 text-violet-500" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Identificação</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Identificação</h3>
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1">Título da Review</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Título da Review</label>
             <Input 
               value={session?.name || ''} 
               onChange={(e) => onUpdate({ name: e.target.value })}
@@ -202,18 +202,18 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1">Squad / Time</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Squad / Time</label>
             <Input
               value={session?.squadName || ''}
               onChange={(e) => onUpdate({ squadName: e.target.value })}
               placeholder="Ex: Squad Phoenix"
               className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
             />
-            <p className="text-[8.5px] text-slate-400 dark:text-slate-500 font-semibold ml-1">Aparece no topo do showcase e nos relatórios.</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium ml-1">Aparece no topo do showcase e nos relatórios.</p>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1">Data / Ciclo</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Data / Ciclo</label>
             <Input
               value={session?.period || ''}
               onChange={(e) => onUpdate({ period: e.target.value })}
@@ -228,11 +228,11 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Globe className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Configurações & Status</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ordem e status</h3>
             </div>
             
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center gap-1">
+              <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1 flex items-center gap-1">
                 <SortAsc className="h-3.5 w-3.5 text-violet-500" /> Ordenação Padrão dos Cards
               </label>
               <Select 
@@ -253,7 +253,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1">Status Global da Sessão</label>
+            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Status da Review</label>
             <div className="h-10 flex items-center px-3.5 rounded-xl bg-violet-500/10 dark:bg-violet-500/5 border border-violet-500/25 text-violet-600 dark:text-violet-400 font-bold text-xs gap-2.5">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -268,7 +268,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
         <div className="md:col-span-12 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
           <div className="flex items-center gap-2">
             <Target className="h-4 w-4 text-violet-500" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Objetivos da Sprint</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Objetivos da sprint</h3>
           </div>
           <Textarea 
             value={session?.description || ''} 
@@ -292,7 +292,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Galeria Premium</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fundos prontos</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {PRESETS.map(p => (
@@ -322,7 +322,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
           <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
             <div className="flex items-center gap-2">
               <LinkIcon className="h-4 w-4 text-violet-500" />
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Link Customizado</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Imagem de fundo por link</h3>
             </div>
             <div className="flex gap-2">
               <Input 
@@ -346,7 +346,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
         <div className="md:col-span-5 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col space-y-3">
           <div className="flex items-center gap-2">
             <Palette className="h-4 w-4 text-violet-500" />
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">Visualização da Capa</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Visualização da Capa</h3>
           </div>
 
           {previewError && coverUrl ? (
@@ -402,7 +402,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-violet-500" />
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Paleta de Cores do Modo Teatro
                   </h3>
                 </div>
@@ -591,7 +591,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Layout className="h-4 w-4 text-violet-500" />
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Estilo de Interface
                   </h3>
                 </div>
@@ -639,7 +639,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Video className="h-4 w-4 text-violet-500" />
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Pré-visualização em Tempo Real
                 </h3>
               </div>
@@ -677,8 +677,8 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                   <Settings className="h-4.5 w-4.5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xs font-black uppercase tracking-tighter italic text-white leading-none">Setup</h3>
-                  <p className="text-[7.5px] font-black text-white/30 uppercase tracking-[0.2em] mt-1">Configurações</p>
+                  <h3 className="text-sm font-bold text-white leading-none">Configurações</h3>
+                  <p className="text-[11px] font-medium text-white/50 mt-1">Sprint Review</p>
                 </div>
               </div>
 
@@ -696,9 +696,9 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                   >
                     <tab.icon className={cn("h-4.5 w-4.5", activeTab === tab.id ? "text-white" : "text-slate-500 group-hover:text-violet-400")} />
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black uppercase tracking-wider leading-none">{tab.label}</span>
+                      <span className="text-sm font-bold leading-none">{tab.label}</span>
                       <span className={cn(
-                        "text-[8.5px] font-bold mt-1 uppercase tracking-tight transition-colors",
+                        "text-[11px] font-medium mt-1 transition-colors",
                         activeTab === tab.id ? "text-white/70" : "text-slate-500 group-hover:text-slate-400"
                       )}>
                         {tab.description}
@@ -717,8 +717,8 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             <div className="pt-6 border-t border-white/5 space-y-4">
                <div>
                   <div className="flex items-center justify-between mb-2">
-                     <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Prontidão</span>
-                     <span className="text-[9px] font-black text-violet-400">{doneCount}/{checklist.length}</span>
+                     <span className="text-[11px] font-bold text-white/60">Antes de apresentar</span>
+                     <span className="text-[11px] font-bold text-violet-400">{doneCount}/{checklist.length}</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mb-3">
                      <div className="h-full bg-violet-500 transition-all duration-300" style={{ width: `${(doneCount / checklist.length) * 100}%` }} />
@@ -729,16 +729,16 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                            {c.done
                              ? <Check className="h-3 w-3 text-emerald-400 shrink-0" />
                              : <div className="h-3 w-3 rounded-full border border-white/20 shrink-0" />}
-                           <span className={cn("text-[9px] font-bold", c.done ? "text-white/50 line-through" : "text-white/70 group-hover:text-white")}>{c.label}</span>
+                           <span className={cn("text-[11px] font-medium", c.done ? "text-white/50 line-through" : "text-white/70 group-hover:text-white")}>{c.label}</span>
                         </button>
                      ))}
                   </div>
                </div>
 
                <div className="bg-white/5 rounded-xl p-3 border border-white/5 shadow-inner">
-                  <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1.5">Dica de Cerimônia</p>
-                  <p className="text-[9.5px] text-slate-300 leading-normal">
-                     Para projetores ou salas com muita luz ambiente, selecione o preset <strong>Branco Puro</strong> na aba Modo Teatro para contraste impecável.
+                  <p className="text-[11px] font-bold text-violet-400 mb-1">Dica</p>
+                  <p className="text-[11px] text-slate-300 leading-snug">
+                     Vai apresentar em projetor ou sala com muita luz? Na aba <strong>Apresentação</strong>, escolha o fundo <strong>Branco Puro</strong> para o texto ficar mais nítido.
                   </p>
                </div>
             </div>
@@ -751,10 +751,10 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                  <div className="mb-5 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 flex items-center gap-3">
                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
                    <div className="flex-1">
-                     <p className="text-[11px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wide">Sessão ainda sem Objetivos ou Capa</p>
-                     <p className="text-[10px] text-amber-600/80 dark:text-amber-400/70 font-medium">Complete agora ou apresente do jeito que está.</p>
+                     <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Esta Review ainda não tem objetivos nem capa</p>
+                     <p className="text-xs text-amber-600/80 dark:text-amber-400/70 font-medium">Complete agora ou apresente do jeito que está.</p>
                    </div>
-                   <Button onClick={onPresentAnyway} variant="outline" className="h-9 px-4 rounded-xl border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-black text-[9px] uppercase tracking-widest shrink-0 hover:bg-amber-100 dark:hover:bg-amber-950/40">
+                   <Button onClick={onPresentAnyway} variant="outline" className="h-9 px-4 rounded-xl border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 font-bold text-xs shrink-0 hover:bg-amber-100 dark:hover:bg-amber-950/40">
                      Apresentar mesmo assim
                    </Button>
                  </div>
@@ -762,7 +762,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
 
                <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
+                    <h2 className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100 leading-none">
                       {tabs.find(t => t.id === activeTab)?.label}
                     </h2>
                     <div className="w-10 h-1 bg-violet-600 rounded-full mt-3" />
@@ -777,11 +777,11 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             </div>
 
             <div className="py-3 px-6 bg-slate-50 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-end gap-3 shrink-0">
-               <Button onClick={onClose} variant="ghost" className="rounded-xl font-black text-[9px] uppercase tracking-widest text-slate-400 hover:text-slate-900 dark:text-slate-500 dark:hover:text-slate-200">
+               <Button onClick={onClose} variant="ghost" className="rounded-xl font-bold text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200">
                  Cancelar
                </Button>
-               <Button onClick={handleSave} className="h-10 px-8 rounded-xl bg-slate-900 hover:bg-black dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200 text-white font-black uppercase tracking-widest text-[9px] shadow-xl shadow-slate-200 dark:shadow-none transition-all active:scale-95">
-                 Salvar Alterações
+               <Button onClick={handleSave} className="h-10 px-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-600/25 transition-all active:scale-95">
+                 Salvar alterações
                </Button>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Eye } from 'lucide-react';
+import { ShieldCheck, Eye, ListPlus, Users, CalendarDays, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { ShowcaseDashboard } from '@/components/showcase/ShowcaseDashboard';
@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -132,81 +133,90 @@ export default function ShowcaseHubPage() {
         />
       </ToolHubLayout>
 
-      {/* CREATE SESSION SETUP DIALOG */}
+      {/* CREATE SESSION SETUP DIALOG — mesmo padrão do "Configurar Sessão" do Poker */}
       <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[520px] rounded-[3rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-[720px] max-h-[94vh] overflow-y-auto gap-2 p-5 sm:p-6 rounded-[2rem] border border-border shadow-2xl bg-card text-card-foreground">
           <DialogHeader>
-            <div className="w-14 h-14 rounded-3xl bg-violet-600 flex items-center justify-center mb-5 shadow-lg shadow-violet-600/20 text-white">
-              <Eye className="h-7 w-7" />
-            </div>
-            <DialogTitle className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-slate-50 leading-none font-headline italic">
-              Nova Sprint Review
-            </DialogTitle>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
-              Configure a sessão e importe as tarefas do Jira
-            </p>
+            <DialogTitle className="text-2xl font-black tracking-tight text-foreground leading-none">Configurar Review</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground mt-1.5">
+              Dê um nome à Review e escolha o time. Você importa as tarefas do Jira logo depois de criar.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-6">
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Nome da Sessão *
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="review-name" className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
+                <ListPlus className="h-3.5 w-3.5 text-violet-500" /> Título da Review
               </Label>
               <Input
-                placeholder="Ex: Review Sprint 42"
+                id="review-name"
+                placeholder="Ex: Review da Sprint 42"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                className="h-14 rounded-2xl border-slate-200 dark:border-slate-800 focus:border-violet-500 font-bold bg-slate-50/50 dark:bg-slate-950/50 text-base"
+                className="h-11 rounded-2xl border-border focus:border-violet-500 font-semibold bg-muted/40 focus-visible:ring-violet-500"
                 autoFocus
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Sprint (Ex: Sprint 42)
+              <Label htmlFor="review-squad" className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-violet-500" /> Squad / Time
               </Label>
               <Input
-                placeholder="Ex: Sprint 42"
-                value={sprintName}
-                onChange={(e) => setSprintName(e.target.value)}
-                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-950/50"
+                id="review-squad"
+                placeholder="Ex: Squad Fênix"
+                value={squadName}
+                onChange={(e) => setSquadName(e.target.value)}
+                className="h-11 rounded-2xl border-border font-semibold bg-muted/40 focus-visible:ring-violet-500"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
-                Squad / Projeto *
+              <Label htmlFor="review-sprint" className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5 text-violet-500" /> Sprint <span className="normal-case font-medium text-muted-foreground/70">(opcional)</span>
               </Label>
               <Input
-                placeholder="Ex: DDWMISSI"
-                value={squadName}
-                onChange={(e) => setSquadName(e.target.value)}
-                className="h-12 rounded-2xl border-slate-200 dark:border-slate-800 font-bold bg-slate-50/50 dark:bg-slate-950/50"
+                id="review-sprint"
+                placeholder="Ex: Sprint 42"
+                value={sprintName}
+                onChange={(e) => setSprintName(e.target.value)}
+                className="h-11 rounded-2xl border-border font-semibold bg-muted/40 focus-visible:ring-violet-500"
               />
-            </div>
-
-            <div className="bg-violet-50 dark:bg-violet-950/20 rounded-2xl p-5 border border-violet-100 dark:border-violet-900/35">
-              <p className="text-[11px] font-bold text-violet-700 dark:text-violet-400 leading-relaxed">
-                💡 Após criar, importe as tarefas do Jira (via XML ou API) e adicione os links de evidência antes de iniciar o Modo Teatro.
-              </p>
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-800 flex-col gap-3">
-            <Button
-              disabled={isCreating || !name.trim()}
-              onClick={handleCreate}
-              className="w-full h-16 bg-violet-600 hover:bg-violet-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-violet-600/20 gap-3"
-            >
-              {isCreating ? 'Criando sessão...' : 'Criar & Configurar'}
-              <Eye className="h-4 w-4" />
-            </Button>
+          <div className="pt-3 space-y-2">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1">Como a Review funciona</p>
+            <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              {[
+                { n: 1, t: 'Importe as tarefas', d: 'Traga as issues da sprint do Jira ou crie cards à mão.' },
+                { n: 2, t: 'Prepare as evidências', d: 'Em cada card, registre o problema, a solução e links de vídeo ou print.' },
+                { n: 3, t: 'Apresente e colete o aceite', d: 'No Modo Teatro, o PO aceita ou pede ajuste em cada entrega.' },
+              ].map((step) => (
+                <li key={step.n} className="rounded-2xl border border-border bg-muted/30 p-3.5 flex flex-col gap-1.5">
+                  <span className="h-6 w-6 rounded-full bg-violet-600/15 text-violet-500 text-xs font-bold flex items-center justify-center">{step.n}</span>
+                  <span className="text-sm font-bold text-foreground leading-tight">{step.t}</span>
+                  <span className="text-xs text-muted-foreground leading-snug">{step.d}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <DialogFooter className="pt-4 flex-row items-center justify-between sm:justify-between gap-3">
             <Button
               type="button"
               variant="ghost"
               onClick={() => setIsSetupOpen(false)}
-              className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 hover:bg-transparent"
+              className="text-xs font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground"
             >
               Cancelar
+            </Button>
+            <Button
+              disabled={isCreating || !name.trim()}
+              onClick={handleCreate}
+              className="h-12 px-8 bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm rounded-2xl shadow-lg shadow-violet-600/25 gap-2"
+            >
+              {isCreating ? 'Criando…' : 'Criar Review'}
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </DialogFooter>
         </DialogContent>

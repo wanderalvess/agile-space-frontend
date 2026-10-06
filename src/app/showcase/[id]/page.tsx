@@ -534,16 +534,16 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                   if (e.target.value.trim()) persist({ name: e.target.value });
                 }}
                 placeholder="Nome da Sprint Review..."
-                className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 italic text-sm md:text-base bg-transparent border-none outline-none min-w-[200px] focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
+                className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 text-xs bg-transparent border-none outline-none w-[11rem] sm:w-[16rem] truncate focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
               />
             ) as unknown as string
           }
           toolIcon={<ShieldCheck className="h-4 w-4" />}
           toolColorClass="text-violet-600 bg-violet-50"
           badge={
-            <div className="hidden md:flex items-center gap-6 px-2">
+            <div className="hidden xl:flex items-center gap-6 px-2">
               <div className="flex flex-col items-start">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase leading-none mb-1 tracking-wide">Esforço Total</span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase leading-none mb-1 tracking-wide whitespace-nowrap">Esforço total</span>
                 <div className="flex items-center gap-1 text-xs font-bold text-violet-600 whitespace-nowrap">
                   {stats.hoursSpent || '0h'}
                   <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
@@ -710,36 +710,70 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         className="flex-1 overflow-y-auto scroll-smooth"
       >
         {tasks.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center min-h-[70%] text-center px-4"
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto w-full max-w-4xl px-4 py-10 md:py-16 flex flex-col items-center text-center"
           >
-             <div className="w-24 h-24 bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-slate-300 dark:text-slate-700 mb-8 shadow-inner">
-                <CloudDownload className="h-12 w-12" />
-             </div>
-             <h3 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 mb-2">Pronto para a Review?</h3>
-             <p className="text-slate-500 dark:text-slate-400 text-sm max-w-xs mb-10 leading-relaxed font-medium">Importe as issues da sprint do Jira para começar a preparar sua apresentação imersiva.</p>
-             <div className="flex gap-4">
-               <Button onClick={() => setIsJiraOpen(true)} className="h-14 px-10 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-black uppercase text-[11px] tracking-widest gap-3 shadow-2xl shadow-black/10 dark:shadow-none hover:scale-105 active:scale-95 transition-all">
-                  <CloudDownload className="h-5 w-5" /> Importar Jira
-               </Button>
-               <DropdownMenu>
-                 <DropdownMenuTrigger asChild>
-                   <Button variant="outline" className="h-14 px-10 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 border-2 border-slate-100 dark:border-slate-800 font-black uppercase text-[11px] tracking-widest gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-200 dark:hover:border-slate-700 transition-all">
-                     <Plus className="h-5 w-5" /> Criar Manual
-                   </Button>
-                 </DropdownMenuTrigger>
-                 <DropdownMenuContent align="center" className="dark:bg-slate-900 dark:border-slate-800">
-                   <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-[11px] font-bold">
-                     <FileText className="h-3.5 w-3.5 text-slate-400" /> Card Padrão
-                   </DropdownMenuItem>
-                   <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-[11px] font-bold">
-                     <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de Métricas
-                   </DropdownMenuItem>
-                 </DropdownMenuContent>
-               </DropdownMenu>
-             </div>
+            <div className="h-16 w-16 rounded-3xl bg-violet-600 text-white flex items-center justify-center shadow-xl shadow-violet-600/30 mb-6">
+              <ShieldCheck className="h-8 w-8" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-slate-50">Sua Review está pronta</h2>
+            <p className="mt-2 max-w-xl text-sm md:text-base text-slate-500 dark:text-slate-400">
+              Falta só trazer as tarefas da sprint. Depois é preparar as evidências e apresentar para o PO.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
+              {session?.squadName && (
+                <span className="rounded-full bg-violet-600/10 text-violet-600 dark:text-violet-300 px-3 py-1">{session.squadName}</span>
+              )}
+              {session?.sprintName && (
+                <span className="rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1">{session.sprintName}</span>
+              )}
+            </div>
+
+            <ol className="mt-10 grid w-full grid-cols-1 md:grid-cols-3 gap-4 text-left">
+              <li className="rounded-3xl border border-violet-500/40 bg-violet-600/5 p-5 flex flex-col gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-7 w-7 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Importe as tarefas</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Traga as issues da sprint direto do Jira ou crie os cards à mão.</p>
+                <div className="mt-auto flex flex-col gap-2">
+                  <Button onClick={() => setIsJiraOpen(true)} className="h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2">
+                    <CloudDownload className="h-4 w-4" /> Importar do Jira
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="h-10 rounded-xl font-bold text-xs gap-2">
+                        <Plus className="h-4 w-4" /> Criar card manual
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="dark:bg-slate-900 dark:border-slate-800">
+                      <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-xs font-semibold">
+                        <FileText className="h-3.5 w-3.5 text-slate-400" /> Card padrão
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-xs font-semibold">
+                        <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de métricas
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </li>
+              <li className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-5 flex flex-col gap-3 opacity-90">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center">2</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Prepare as evidências</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Em cada card, conte o problema e a solução e anexe vídeo ou print. Marque como pronto quando terminar.</p>
+              </li>
+              <li className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-5 flex flex-col gap-3 opacity-90">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center">3</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Apresente e colete o aceite</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Em <strong className="font-semibold">Iniciar</strong>, o Modo Teatro mostra uma entrega por vez e registra a decisão do PO.</p>
+              </li>
+            </ol>
           </motion.div>
         ) : (
         <div className="w-full px-4 md:px-12 lg:px-20 py-6 space-y-8">

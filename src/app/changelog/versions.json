@@ -2,13 +2,15 @@
   {
     "tag": "v4.7.0",
     "date": "6 de Outubro, 2026",
-    "title": "Review e Retro com o acabamento do Poker",
-    "description": "Cabeçalhos mais limpos e textos mais legíveis na Review e na Retro.",
+    "title": "Review e Retro no mesmo padrão do Poker",
+    "description": "Modais, telas de início e textos da Review e da Retro ficaram claros e consistentes com o Poker.",
     "changes": [
-      "Review: o cabeçalho mostra só o essencial (Jira, Compartilhar, Configurações, Mais ações e Iniciar). Adicionar card, Retro desta sprint e Como funciona foram para o menu Mais ações.",
-      "Review: indicadores de esforço e prontidão maiores, com a barra entre os números visível no tema escuro, e rótulos dos cards com tamanho legível e cores mais sóbrias.",
-      "Retro: o nome do quadro deixou de ser cortado no cabeçalho. Quadro, Foco, Apresentar e Controles viram só ícones em telas até 1536 px, mantendo o texto nas ações principais.",
-      "Retro: textos dos botões da barra com tamanho maior e mais fácil de ler."
+      "Review: o modal de nova Review ficou no formato do Poker (título, time e sprint opcional) e explica em 3 passos como a Review funciona. Antes eram dois campos de nome parecidos e uma dica solta.",
+      "Review: a tela de uma Review sem tarefas mostra \"Sua Review está pronta\" com os 3 passos (importar, preparar evidências, apresentar) e os botões de importar do Jira ou criar card.",
+      "Review: as configurações da sessão agora usam nomes diretos (Geral, Capa, Apresentação), textos legíveis e o botão Salvar na cor da ferramenta.",
+      "Review: o cabeçalho mostra só o essencial (Jira, Compartilhar, Configurações, Mais ações e Iniciar), o título não é mais cortado e a barra entre esforço e prontidão aparece no tema escuro.",
+      "Retro: as configurações ganharam nomes claros (por exemplo \"Mostrar quem escreveu cada card\") e o Guia do Facilitador foi reescrito como um roteiro de 3 etapas, sem jargão e com texto legível.",
+      "Retro: o nome do quadro deixou de ser cortado no cabeçalho, e botões como Quadro, Foco, Apresentar e Controles viram só ícones em telas até 1536 px."
     ],
     "type": "minor",
     "icon": {
