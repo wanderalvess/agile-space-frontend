@@ -11,7 +11,10 @@
       "Review: o cabeçalho mostra só o essencial (Jira, Compartilhar, Configurações, Mais ações e Iniciar), o título não é mais cortado e a barra entre esforço e prontidão aparece no tema escuro.",
       "Retro: as configurações ganharam nomes claros (por exemplo \"Mostrar quem escreveu cada card\") e o Guia do Facilitador foi reescrito como um roteiro de 3 etapas, sem jargão e com texto legível.",
       "Retro: o nome do quadro deixou de ser cortado no cabeçalho, e botões como Quadro, Foco, Apresentar e Controles viram só ícones em telas até 1536 px.",
-      "Review e Retro: textos pequenos e em itálico dos resumos, do dashboard, da exportação e dos modais ficaram maiores e mais legíveis, e termos como \"Guia de Elite\" e \"Squad Health\" viraram \"Passo a passo\" e \"Do PO\"."
+      "Review e Retro: textos pequenos e em itálico dos resumos, do dashboard, da exportação e dos modais ficaram maiores e mais legíveis, e termos como \"Guia de Elite\" e \"Squad Health\" viraram \"Passo a passo\" e \"Do PO\".",
+      "Review: o Resumo da Review foi refeito em coluna única, com indicadores de aprovadas, ajustes, rejeitadas e aguardando, explicação de cada métrica e entregas agrupadas por decisão. Os botões de copiar e exportar ganharam nomes claros.",
+      "Review: o indicador \"Estimado ÷ gasto\" aparecia em vermelho quando a squad gastava menos horas do que estimou. Agora fica verde acima de 100% e laranja abaixo, com uma frase dizendo o que significa.",
+      "Review: textos pequenos do Modo Teatro, da capa e do tour ficaram maiores, e o aviso \"Sem evidência vinculada\" deixou de usar caixa-alta espaçada em itálico."
     ],
     "type": "minor",
     "icon": {

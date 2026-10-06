@@ -181,7 +181,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               {/* Progress Badge (Sempre visível em qualquer resolução) */}
               {!isCover && (
                 <div className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold font-code tabular-nums border shrink-0 transition-colors",
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-code tabular-nums border shrink-0 transition-colors",
                   isLight 
                     ? "bg-slate-100 text-slate-700 border-slate-200" 
                     : "bg-white/10 text-white/90 border-white/10"
@@ -196,14 +196,14 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               <div className="hidden xl:flex items-center gap-4 shrink-0">
                 {sortBy && (
                   <div className={cn("hidden lg:flex items-center gap-2 px-3 py-1 rounded-lg border", isLight ? "bg-slate-100 border-slate-200" : "bg-white/5 border-white/5")}>
-                    <span className={cn("text-[8px] font-black uppercase tracking-widest", isLight ? "text-slate-500" : "text-white/60")}>Ordenação</span>
-                    <span className={cn("text-[9px] font-black uppercase", isLight ? "text-violet-600 font-extrabold" : "text-violet-400")}>
+                    <span className={cn("text-[11px] font-bold uppercase tracking-wide", isLight ? "text-slate-500" : "text-white/60")}>Ordenação</span>
+                    <span className={cn("text-[11px] font-bold uppercase", isLight ? "text-violet-600 font-extrabold" : "text-violet-400")}>
                       {sortBy === 'key' ? 'Chave Jira' : sortBy === 'type' ? 'Tipo de Issue' : 'Desenvolvedor'}
                     </span>
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <span className={cn("text-[9px] font-black uppercase tracking-widest", isLight ? "text-slate-400 font-bold" : "text-white/40")}>Tempo de Sessão</span>
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wide", isLight ? "text-slate-400 font-bold" : "text-white/40")}>Tempo de Sessão</span>
                   <span className={cn("text-[11px] font-black font-code", isLight ? "text-slate-900" : "text-white")}>{formatSessionTime(sessionTime)}</span>
                 </div>
               </div>
@@ -222,7 +222,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                   aria-label="Card anterior"
                   title="Card anterior"
                   className={cn(
-                    "h-9 px-2.5 xl:px-4 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 border transition-all",
+                    "h-9 px-2.5 xl:px-4 rounded-lg font-bold uppercase text-[11px] tracking-wide gap-1.5 border transition-all",
                     isLight
                       ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900"
                       : "bg-white/8 text-white/70 border-white/10 hover:bg-white/15 hover:text-white",
@@ -238,7 +238,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                   disabled={!isCover && currentIndex === session.tasks.length - 1}
                   aria-label={isCover ? 'Começar' : 'Próximo card'}
                   title={isCover ? 'Começar' : 'Próximo card'}
-                  className="h-9 px-2.5 xl:px-5 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
+                  className="h-9 px-2.5 xl:px-5 rounded-lg font-bold uppercase text-[11px] tracking-wide gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
                 >
                   <span className="hidden xl:inline">{isCover ? 'Começar' : 'Próxima'}</span> <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
@@ -249,7 +249,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               {!isCover && task && (
                 <div className="flex items-center gap-2" title={canDecide ? undefined : 'Somente PO ou SME pode registrar decisão.'}>
                   {!canDecide && (
-                    <div className={cn("flex items-center gap-1.5 h-10 px-3 rounded-xl text-[8px] font-black uppercase tracking-widest", isLight ? "bg-slate-100 text-slate-400" : "bg-white/5 text-white/40")}>
+                    <div className={cn("flex items-center gap-1.5 h-10 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wide", isLight ? "bg-slate-100 text-slate-400" : "bg-white/5 text-white/40")}>
                       <Lock className="h-3 w-3" /> Somente PO/SME
                     </div>
                   )}
@@ -278,7 +278,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                           }
                         }}
                         className={cn(
-                          "flex items-center gap-2 h-10 px-4 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all border",
+                          "flex items-center gap-2 h-10 px-4 rounded-xl font-bold uppercase text-[11px] tracking-wide transition-all border",
                           !canDecide && "opacity-30 cursor-not-allowed",
                           isSelected ? `${config[d].c} text-white border-transparent` : cn(isLight ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' : 'bg-white/10 text-white border-white/10 hover:bg-white/20')
                         )}
@@ -294,7 +294,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               <div className={cn("h-7 w-px mx-1", isLight ? "bg-slate-200" : "bg-white/20")} aria-hidden="true" />
 
               {currentIndex === session.tasks.length - 1 && (
-                <Button onClick={onFinish} size="sm" className="h-10 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[9px] tracking-widest shadow-lg shadow-violet-600/20">Finalizar</Button>
+                <Button onClick={onFinish} size="sm" className="h-10 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase text-[11px] tracking-wide shadow-lg shadow-violet-600/20">Finalizar</Button>
               )}
 
               <div className="flex items-center gap-2">
@@ -394,7 +394,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 >
                   {pendingDecision === 'rejected' ? <Ban className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
                 </motion.div>
-                <h3 id="feedback-title" className={cn("text-3xl font-black uppercase tracking-tighter italic leading-none", isLight ? "text-slate-900" : "text-white")}>
+                <h3 id="feedback-title" className={cn("text-3xl font-black tracking-tight leading-none", isLight ? "text-slate-900" : "text-white")}>
                   {pendingDecision === 'rejected' ? 'Rejeitar Entrega' : 'Solicitar Ajuste'}
                 </h3>
                 <p className={cn("text-[11px] font-black uppercase tracking-[0.3em]", isLight ? "text-slate-400" : "text-white/60")}>
@@ -546,12 +546,12 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }}>
-                    <Badge className="bg-violet-600/90 text-white border-none font-bold text-[10px] px-2.5 py-1 rounded-full shadow-lg shadow-violet-600/20">{task?.key}</Badge>
+                    <Badge className="bg-violet-600/90 text-white border-none font-bold text-[11px] px-2.5 py-1 rounded-full shadow-lg shadow-violet-600/20">{task?.key}</Badge>
                   </motion.div>
                   <span className={cn("text-[11px]", isLight ? "text-slate-400" : "text-white/40")}>{task?.type}</span>
                 </div>
                 {task && (
-                  <Badge className={cn("border-none font-bold text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0", DECISION[task.decision].cls)}>
+                  <Badge className={cn("border-none font-bold text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0", DECISION[task.decision].cls)}>
                     {DECISION[task.decision].icon}
                     {DECISION[task.decision].label}
                   </Badge>
@@ -572,7 +572,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     <span
                       key={i}
                       className={cn(
-                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border",
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border",
                         isLight ? "bg-violet-50 border-violet-100 text-violet-700" : "bg-violet-500/10 border-violet-500/20 text-violet-300"
                       )}
                     >
@@ -611,14 +611,14 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             {!isMetricsCard && showDetails && (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
                 <section className="space-y-1.5">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400">A Solução</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-400">A Solução</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
                     {stripWikiMarkup(task?.evidence.solution) || "Descrição da solução técnica não disponível."}
                   </p>
                 </section>
 
                 <section className="space-y-1.5">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">Critérios de Aceite</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">Critérios de Aceite</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
                     {stripWikiMarkup(task?.acceptanceCriteria) || "Nenhum critério detalhado para esta issue."}
                   </p>
@@ -626,11 +626,11 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
 
                 {hasVersions && task && (
                   <section className="space-y-1.5">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-400">Deploy / Versões</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-400">Deploy / Versões</p>
                     <div className={cn("rounded-xl p-3 border space-y-2", isLight ? "bg-slate-50 border-slate-100" : "bg-black/20 border-white/[0.03]")}>
                       {task.project && (
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className={cn("text-[9px] uppercase tracking-wider", isLight ? "text-slate-400" : "text-white/40")}>Projeto</span>
+                          <span className={cn("text-[11px] uppercase tracking-wider", isLight ? "text-slate-400" : "text-white/40")}>Projeto</span>
                           <span className={cn("font-medium truncate max-w-[200px]", isLight ? "text-slate-700" : "text-white")}>{task.project}</span>
                         </div>
                       )}
@@ -638,26 +638,26 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                         <div className={cn("grid grid-cols-4 gap-2 border-t border-dashed pt-2", isLight ? "border-slate-200" : "border-white/5")}>
                           {task.versionSuporte && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Suporte</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-rose-400")}>{task.versionSuporte}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Suporte</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-rose-400")}>{task.versionSuporte}</span>
                             </div>
                           )}
                           {task.versionMaster && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
                             </div>
                           )}
                           {task.versionRelease && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
                             </div>
                           )}
                           {task.versionDevelop && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
                             </div>
                           )}
                         </div>
@@ -670,7 +670,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     repetir ele pequeno aqui embaixo seria duplicado. */}
                 {metrics.length > 0 && !isFeaturedChart && (
                   <section className="space-y-1.5">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">{task?.chartTitle || 'Métricas de Impacto'}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">{task?.chartTitle || 'Métricas de Impacto'}</p>
                     <ChartRenderer
                       type={task?.chartType}
                       title=""
@@ -757,7 +757,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     <Camera className="h-16 w-16" />
                   </div>
                   <div className="space-y-3">
-                    <p className={cn("text-lg font-black uppercase tracking-[0.4em] italic", isLight ? "text-slate-400" : "text-white/20")}>Sem Evidência Vinculada</p>
+                    <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/20")}>Sem evidência vinculada</p>
                     <p className={cn("text-xs font-bold max-w-xs mx-auto", isLight ? "text-slate-500" : "text-white/40")}>Vincule um link de vídeo ou screenshot para demonstrar esta entrega.</p>
                   </div>
                 </motion.div>
@@ -785,7 +785,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     {isPdf && !url.includes('drive.google.com') && (
                       <div className="absolute top-6 right-10 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 pointer-events-none">
                         <FileText className="h-3.5 w-3.5 text-white/70" />
-                        <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">PDF Mode</span>
+                        <span className="text-[11px] font-bold text-white/50 uppercase tracking-wide">PDF Mode</span>
                       </div>
                     )}
                     {/* Saída pra nova aba sempre visível — vários hosts (Drive
@@ -805,7 +805,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                       )}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Nova Aba</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wide">Nova Aba</span>
                     </a>
                     <iframe
                       src={embedUrl}
@@ -866,7 +866,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     <div className="absolute inset-0 bg-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <ZoomIn className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Ampliar</span>
+                      <span className="text-[11px] font-bold uppercase tracking-wide">Ampliar</span>
                     </div>
                   </motion.div>
                 );
@@ -888,14 +888,14 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   </div>
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <p className={cn("text-lg font-black uppercase tracking-[0.4em] italic", isLight ? "text-slate-400" : "text-white/60")}>Link Externo</p>
-                      <p className={cn("text-[10px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-code", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
+                      <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/60")}>Abrir link externo</p>
+                      <p className={cn("text-[11px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-code", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
                     </div>
                     <Button
                       asChild
                       variant="outline"
                       className={cn(
-                        "h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest border-2 transition-all active:scale-95",
+                        "h-12 px-8 rounded-2xl font-bold uppercase text-[11px] tracking-wide border-2 transition-all active:scale-95",
                         isLight
                           ? "border-slate-200 bg-[#fff] text-slate-600 hover:bg-slate-50 hover:border-slate-300"
                           : "border-white/10 bg-white/5 text-white hover:bg-white/10 hover:border-white/20"
@@ -927,7 +927,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className={cn("px-2 text-[10px] font-black uppercase tracking-widest tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
+            <span className={cn("px-2 text-[11px] font-bold uppercase tracking-wide tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
               Evidência {safeIndex + 1}/{evidenceUrls.length}
             </span>
             <Button

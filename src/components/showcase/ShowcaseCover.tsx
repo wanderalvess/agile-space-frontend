@@ -189,7 +189,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
                    <div className={cn("p-3.5 rounded-2xl border", isLight ? "bg-slate-50/80 border-slate-200/60" : "bg-white/[0.03] border-white/5")}>
                      <div className="flex items-center gap-1.5 mb-1">
                        <Layers className="h-3 w-3 text-violet-500" />
-                       <span className={cn("text-[8.5px] font-black uppercase tracking-wider", isLight ? "text-slate-500" : "text-white/50")}>
+                       <span className={cn("text-[11px] font-bold uppercase tracking-wider", isLight ? "text-slate-500" : "text-white/50")}>
                          Pauta da Cerimônia
                        </span>
                      </div>
@@ -201,7 +201,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
                    <div className={cn("p-3.5 rounded-2xl border", isLight ? "bg-slate-50/80 border-slate-200/60" : "bg-white/[0.03] border-white/5")}>
                      <div className="flex items-center gap-1.5 mb-1">
                        <TrendingUp className="h-3 w-3 text-emerald-500" />
-                       <span className={cn("text-[8.5px] font-black uppercase tracking-wider", isLight ? "text-slate-500" : "text-white/50")}>
+                       <span className={cn("text-[11px] font-bold uppercase tracking-wider", isLight ? "text-slate-500" : "text-white/50")}>
                          Tipo Dominante
                        </span>
                      </div>

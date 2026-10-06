@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Download, FileText, CheckCircle2, AlertCircle, XCircle, Clock3, Copy, Loader2, UserCheck2, Sparkles
+  Download, FileText, CheckCircle2, AlertCircle, XCircle, Clock3, Copy, Loader2, UserCheck2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
@@ -405,11 +405,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     }
   };
 
-  const statBoxes: Array<{ label: string; count: number; icon: React.ElementType; wrap: string; box: string; text: string; sub: string }> = [
-    { label: 'Aprovados', count: approved.length, icon: CheckCircle2, wrap: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/40', box: 'text-emerald-500 dark:text-emerald-400', text: 'text-emerald-600 dark:text-emerald-400', sub: 'text-emerald-600/60 dark:text-emerald-400/60' },
-    { label: 'Ajustes', count: adjustments.length, icon: AlertCircle, wrap: 'bg-amber-50 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900/40', box: 'text-amber-500 dark:text-amber-400', text: 'text-amber-600 dark:text-amber-400', sub: 'text-amber-600/60 dark:text-amber-400/60' },
-    { label: 'Rejeitados', count: rejected.length, icon: XCircle, wrap: 'bg-rose-50 dark:bg-rose-950/30 border-rose-100 dark:border-rose-900/40', box: 'text-rose-500 dark:text-rose-400', text: 'text-rose-600 dark:text-rose-400', sub: 'text-rose-600/60 dark:text-rose-400/60' },
-    { label: DECISION.open.label, count: pending.length, icon: Clock3, wrap: 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800', box: 'text-slate-400 dark:text-slate-500', text: 'text-slate-600 dark:text-slate-300', sub: 'text-slate-500/60 dark:text-slate-400/60' },
+  const statBoxes: Array<{ label: string; count: number; icon: React.ElementType; wrap: string; text: string }> = [
+    { label: 'Aprovadas', count: approved.length, icon: CheckCircle2, wrap: 'border-emerald-500/30 bg-emerald-500/5', text: 'text-emerald-500' },
+    { label: 'Precisam de ajuste', count: adjustments.length, icon: AlertCircle, wrap: 'border-amber-500/30 bg-amber-500/5', text: 'text-amber-500' },
+    { label: 'Rejeitadas', count: rejected.length, icon: XCircle, wrap: 'border-rose-500/30 bg-rose-500/5', text: 'text-rose-500' },
+    { label: DECISION.open.label, count: pending.length, icon: Clock3, wrap: 'border-border bg-muted/30', text: 'text-muted-foreground' },
   ];
 
   // Agrupado por decisão (não na ordem crua de importação) — antes era uma
@@ -422,185 +422,146 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     { label: 'Aprovadas', items: approved },
   ].filter(g => g.items.length > 0);
 
+  // Eficiência = estimado ÷ gasto: acima de 100% a squad gastou menos do que estimou.
+  const efficiencyTone = efficiency === null ? 'text-muted-foreground' : efficiency >= 100 ? 'text-emerald-500' : 'text-amber-500';
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[960px] max-h-[90vh] rounded-[3.5rem] p-0 border-none shadow-2xl overflow-hidden flex flex-col bg-white dark:bg-slate-900 focus:outline-none">
-        <div className="sr-only">
-          <DialogHeader>
-            <DialogTitle>Resumo da Sprint Review - {sessionName}</DialogTitle>
-            <DialogDescription>Métricas de governança, aprovações e pendências da sessão.</DialogDescription>
+      <DialogContent className="sm:max-w-[920px] max-h-[90vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden flex flex-col gap-0 bg-card text-card-foreground focus:outline-none">
+        <div className="px-6 pt-6 pb-4 shrink-0 border-b border-border">
+          <DialogHeader className="text-left space-y-0">
+            <DialogTitle className="text-2xl font-black tracking-tight leading-none pr-8">Resumo da Review</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground mt-1.5">
+              {sessionName} · {tasks.length} {tasks.length === 1 ? 'entrega' : 'entregas'}
+            </DialogDescription>
           </DialogHeader>
+          {session?.members && session.members.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-3">
+              <span className="text-xs font-semibold text-muted-foreground mr-1">Participantes:</span>
+              {session.members.map(m => (
+                <Badge key={m.id} variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-medium">
+                  {m.name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Header — compacto (p-6, não p-10): em telas de altura menor esse
-            bloco e o footer são shrink-0 e disputam espaço com a lista de
-            itens, que é o flex-1 real; header+footer grandes deixavam
-            quase nada pra lista (chegava a sumir por completo). */}
-        <div className="bg-slate-950 p-6 text-white shrink-0 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-violet-500/15 blur-[90px] rounded-full" />
-
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-600/30">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-wide text-violet-400">Resumo da Review</span>
-              </div>
-              <h2 className="text-3xl font-black uppercase tracking-tighter  leading-none max-w-[420px]">
-                {sessionName}
-              </h2>
-
-              {session?.members && session.members.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {session.members.map(m => (
-                    <Badge key={m.id} className="bg-white/5 hover:bg-white/10 text-white/60 border-white/5 rounded-lg px-2.5 py-1 font-bold text-[11px] uppercase tracking-wide transition-colors">
-                      {m.name}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
-                <p className="text-2xl font-black  text-white leading-none mb-1">{approvalRate === null ? '—' : `${approvalRate}%`}</p>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-white/40">Taxa Aprovação</p>
-              </div>
-              <div className="px-5 py-2.5 bg-white/5 backdrop-blur-md rounded-[2rem] border border-white/5 text-center min-w-[110px]">
-                <p className={cn("text-2xl font-black  leading-none mb-1", efficiency === null ? "text-white/40" : efficiency > 100 ? "text-rose-400" : "text-emerald-400")}>
-                  {efficiency === null ? '—' : `${efficiency}%`}
-                </p>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-white/40">Eficiência Time</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-[#fafafa] dark:bg-slate-950">
-          {/* Stats Sidebar */}
-          <div className="w-full md:w-[300px] p-8 space-y-6 border-r border-slate-200/60 dark:border-slate-800 shrink-0">
-            <div className="grid grid-cols-2 gap-2.5">
-              {statBoxes.map(s => (
-                <div key={s.label} className={cn("p-3.5 rounded-2xl border flex flex-col gap-2", s.wrap)}>
-                  <s.icon className={cn("h-4 w-4", s.box)} />
-                  <div>
-                    <p className={cn("text-xl font-black  leading-none", s.text)}>{s.count}</p>
-                    <p className={cn("text-[11px] font-bold uppercase tracking-wide mt-1", s.sub)}>{s.label}</p>
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-6 space-y-6">
+            {/* Indicadores */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {statBoxes.map(st => (
+                <div key={st.label} className={cn('rounded-2xl border p-4 flex items-center gap-3', st.wrap)}>
+                  <st.icon className={cn('h-5 w-5 shrink-0', st.text)} />
+                  <div className="min-w-0">
+                    <p className={cn('text-2xl font-black leading-none', st.text)}>{st.count}</p>
+                    <p className="text-xs font-medium text-muted-foreground mt-1 truncate">{st.label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="pt-2">
-              <div className="p-6 bg-slate-900 rounded-[2.5rem] text-white space-y-4">
-                <div className="flex items-center gap-3">
-                  <Clock3 className="h-4 w-4 text-violet-400" />
-                  <span className="text-[11px] font-bold uppercase tracking-wide">Tempo Total</span>
-                </div>
-                <p className="text-3xl font-black  tracking-tighter leading-none">{formatTime(totalSpent) || '—'}</p>
-                <p className="text-[11px] font-medium text-white/40 uppercase leading-relaxed ">
-                  Investimento total da squad no ciclo atual.
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <p className="text-xs font-semibold text-muted-foreground">Taxa de aprovação</p>
+                <p className="text-2xl font-black leading-none mt-2">{approvalRate === null ? '—' : `${approvalRate}%`}</p>
+                <p className="text-xs text-muted-foreground mt-1.5">Sobre as entregas que já foram avaliadas pelo PO.</p>
+              </div>
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <p className="text-xs font-semibold text-muted-foreground">Estimado ÷ gasto</p>
+                <p className={cn('text-2xl font-black leading-none mt-2', efficiencyTone)}>{efficiency === null ? '—' : `${efficiency}%`}</p>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {efficiency === null ? 'Sem horas lançadas nas entregas.' : efficiency >= 100 ? 'A squad gastou menos horas do que estimou.' : 'A squad gastou mais horas do que estimou.'}
                 </p>
               </div>
-            </div>
-          </div>
-
-          {/* Log Feed — agrupado por decisão */}
-          {/* min-w-0 é essencial aqui: sem ele, um flex-1 nunca encolhe abaixo
-              da largura intrínseca do conteúdo (título longo do card), e
-              empurra a coluna toda pra fora do modal em vez de deixar o
-              truncate cortar o texto internamente. */}
-          <div className="flex-1 flex flex-col min-h-0 min-w-0">
-            <div className="px-10 pt-8 pb-4 flex items-center justify-between">
-              <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Linha do Tempo da Review</h3>
-              <Badge variant="outline" className="rounded-lg font-bold text-[11px] uppercase border-slate-200 dark:border-slate-800 dark:text-slate-400">{tasks.length} Entradas</Badge>
-            </div>
-            <ScrollArea className="flex-1 px-10 pb-8">
-              <div className="space-y-7">
-                {groups.map(group => (
-                  <div key={group.label} className="space-y-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{group.label} ({group.items.length})</p>
-                    {group.items.map(t => (
-                      <div key={t.id} className="group p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/60 dark:border-slate-800/80 hover:border-violet-200 dark:hover:border-violet-500/40 transition-all shadow-sm hover:shadow-md">
-                        <div className="flex justify-between items-start mb-3 gap-3">
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="w-8 h-8 shrink-0 rounded-lg bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-[11px] font-bold text-slate-400 dark:text-slate-400 border border-slate-100 dark:border-slate-800 group-hover:text-violet-600 dark:group-hover:text-violet-400 group-hover:border-violet-100 dark:group-hover:border-violet-950 transition-colors">
-                              {t.key.split('-').pop()}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-bold uppercase text-slate-800 dark:text-slate-100 leading-none mb-1 truncate">{t.title}</p>
-                              <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase  truncate">{t.type} • {t.evidence.dev || 'Sem autor'}</p>
-                            </div>
-                          </div>
-                          <Badge className={cn("text-[11px] font-bold uppercase border-none h-5 rounded-lg shrink-0", DECISION[t.decision].cls)}>
-                            {DECISION[t.decision].label}
-                          </Badge>
-                        </div>
-                        {t.decidedByName && (
-                          <div className="flex items-center gap-1.5 mb-2 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight">
-                            <UserCheck2 className="h-3 w-3" />
-                            {t.decidedByName}{decidedWhen(t.decidedAt) && ` · ${decidedWhen(t.decidedAt)}`}
-                          </div>
-                        )}
-                        {t.feedback && (
-                          <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400  leading-relaxed">
-                              <span className="font-bold text-slate-700 dark:text-slate-300 not-italic uppercase text-[11px] mr-2">Feedback:</span>
-                              {t.feedback}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))}
+              <div className="rounded-2xl border border-border bg-muted/30 p-4">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5 text-violet-500" /> Tempo total gasto</p>
+                <p className="text-2xl font-black leading-none mt-2">{formatTime(totalSpent) || '—'}</p>
+                <p className="text-xs text-muted-foreground mt-1.5">Soma das horas lançadas em todas as entregas.</p>
               </div>
-            </ScrollArea>
+            </div>
+
+            {/* Entregas por decisão */}
+            <div className="space-y-5 min-w-0">
+              <h3 className="text-sm font-bold text-foreground">Entregas por decisão</h3>
+              {groups.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhuma entrega nesta Review.</p>
+              )}
+              {groups.map(group => (
+                <div key={group.label} className="space-y-2.5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{group.label} ({group.items.length})</p>
+                  {group.items.map(t => (
+                    <div key={t.id} className="rounded-2xl border border-border bg-muted/20 p-4 hover:border-violet-500/40 transition-colors">
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="h-8 min-w-8 px-1.5 shrink-0 rounded-lg bg-violet-600/10 text-violet-500 flex items-center justify-center text-xs font-bold">
+                            {t.key.split('-').pop()}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-foreground truncate">{t.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{t.type} · {t.evidence.dev || 'Sem autor'}</p>
+                          </div>
+                        </div>
+                        <Badge className={cn('text-xs font-semibold border-none rounded-lg shrink-0', DECISION[t.decision].cls)}>
+                          {DECISION[t.decision].label}
+                        </Badge>
+                      </div>
+                      {t.decidedByName && (
+                        <p className="flex items-center gap-1.5 mt-2.5 text-xs text-muted-foreground">
+                          <UserCheck2 className="h-3.5 w-3.5" />
+                          Decidido por {t.decidedByName}{decidedWhen(t.decidedAt) && ` · ${decidedWhen(t.decidedAt)}`}
+                        </p>
+                      )}
+                      {t.feedback && (
+                        <div className="mt-2.5 rounded-xl border border-border bg-background/60 p-3">
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            <span className="font-bold text-foreground mr-1.5">Feedback:</span>
+                            {t.feedback}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
 
-        {/* Footer Actions — texto só a partir de md; abaixo disso os 3
-            botões de exportação viram icon-only (com title/aria-label) pra
-            não transbordar da tela em janelas menores que ~960px, e
-            flex-wrap como rede de segurança se ainda assim não couber. */}
-        <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4 shrink-0">
-          <Button
-            onClick={onClose}
-            variant="ghost"
-            className="rounded-2xl font-bold uppercase tracking-wide text-[11px] text-slate-400 px-6 dark:text-slate-400 dark:hover:text-slate-200"
-          >
-            Fechar Painel
+        {/* Rodapé — o texto dos botões some abaixo de md e ficam só ícones (com title/aria-label) */}
+        <div className="px-6 py-4 border-t border-border flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <Button onClick={onClose} variant="ghost" className="rounded-xl font-bold text-sm text-muted-foreground hover:text-foreground">
+            Fechar
           </Button>
-
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2.5">
             <Button
               onClick={generateApprovalsSummary}
               variant="outline"
-              title="Resumo de Aprovações"
-              aria-label="Resumo de Aprovações"
-              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wide text-[11px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              title="Copiar resumo das aprovações"
+              aria-label="Copiar resumo das aprovações"
+              className="h-10 px-4 rounded-xl font-bold text-sm gap-2"
             >
-              <Copy className="h-3.5 w-3.5" /> <span className="hidden md:inline">Resumo de Aprovações</span>
+              <Copy className="h-4 w-4" /> <span className="hidden md:inline">Copiar aprovações</span>
             </Button>
             <Button
               onClick={generateLog}
               variant="outline"
-              title="Log Markdown"
-              aria-label="Log Markdown"
-              className="h-11 px-4 md:px-6 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wide text-[11px] rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 gap-2 transition-all"
+              title="Copiar o log em Markdown"
+              aria-label="Copiar o log em Markdown"
+              className="h-10 px-4 rounded-xl font-bold text-sm gap-2"
             >
-              <FileText className="h-3.5 w-3.5" /> <span className="hidden md:inline">Log Markdown</span>
+              <FileText className="h-4 w-4" /> <span className="hidden md:inline">Copiar log (Markdown)</span>
             </Button>
             <Button
               onClick={handlePDF}
               disabled={isExportingPdf}
-              title="Exportar Slides PDF"
-              aria-label="Exportar Slides PDF"
-              className="h-11 px-4 md:px-10 bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase tracking-wide text-[11px] rounded-2xl shadow-xl shadow-violet-600/20 gap-2 transition-all active:scale-95 disabled:opacity-60"
+              title="Exportar slides em PDF"
+              aria-label="Exportar slides em PDF"
+              className="h-10 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-600/25 gap-2 transition-all active:scale-95 disabled:opacity-60"
             >
-              {isExportingPdf ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              <span className="hidden md:inline">{isExportingPdf ? 'Gerando PDF...' : 'Exportar Slides PDF'}</span>
+              {isExportingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span className="hidden md:inline">{isExportingPdf ? 'Gerando PDF…' : 'Exportar slides (PDF)'}</span>
             </Button>
           </div>
         </div>

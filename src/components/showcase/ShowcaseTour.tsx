@@ -156,7 +156,7 @@ export function ShowcaseTour({ open, onClose }: ShowcaseTourProps) {
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
               <Sparkles className="h-4 w-4" />
-              <span className="text-[9px] font-black uppercase tracking-widest">{stepIndex + 1} / {STEPS.length}</span>
+              <span className="text-[11px] font-bold uppercase tracking-wide">{stepIndex + 1} / {STEPS.length}</span>
             </div>
             <button onClick={finish} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" title="Pular tour">
               <X className="h-4 w-4" />
@@ -165,16 +165,16 @@ export function ShowcaseTour({ open, onClose }: ShowcaseTourProps) {
           <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">{step.title}</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{step.desc}</p>
           <div className="flex items-center justify-between pt-2">
-            <button onClick={finish} className="text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            <button onClick={finish} className="text-[11px] font-bold uppercase text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
               Pular tour
             </button>
             <div className="flex items-center gap-2">
               {stepIndex > 0 && (
-                <Button variant="ghost" size="sm" onClick={prev} className="h-8 px-3 text-[10px] font-black uppercase gap-1.5">
+                <Button variant="ghost" size="sm" onClick={prev} className="h-8 px-3 text-[11px] font-bold uppercase gap-1.5">
                   <ArrowLeft className="h-3 w-3" /> Voltar
                 </Button>
               )}
-              <Button size="sm" onClick={next} className="h-8 px-4 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-black uppercase gap-1.5">
+              <Button size="sm" onClick={next} className="h-8 px-4 bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold uppercase gap-1.5">
                 {stepIndex < STEPS.length - 1 ? <>Próximo <ArrowRight className="h-3 w-3" /></> : 'Concluir'}
               </Button>
             </div>
