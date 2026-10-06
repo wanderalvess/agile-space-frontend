@@ -1,5 +1,20 @@
 [
   {
+    "tag": "v4.5.1",
+    "date": "6 de Outubro, 2026",
+    "title": "Importar do Jira a qualquer momento pelo Painel",
+    "description": "Quem já tem time agora consegue importar ou atualizar as pessoas do Jira sem recomeçar o cadastro.",
+    "changes": [
+      "O Painel do Time ganhou o botão \"Importar do Jira\" no cabeçalho, sempre visível. Com ele você refaz a prévia, escolhe as pessoas, ajusta cargos e traz as fotos.",
+      "Antes, depois de criar o time, não havia como abrir a importação de novo: o botão só aparecia enquanto o painel estava vazio."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.5.0",
     "date": "6 de Outubro, 2026",
     "title": "Fotos das pessoas do Jira no time",

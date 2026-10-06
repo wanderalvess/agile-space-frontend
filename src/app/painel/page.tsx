@@ -262,6 +262,18 @@ export default function PainelPage() {
           </Badge>
         }
         actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setJiraImportOpen(true)}
+              disabled={!hasSquad}
+              className="h-9 rounded-xl text-[11px] font-black uppercase tracking-widest gap-2"
+              title="Importar ou atualizar pessoas, cargos e fotos a partir do Jira"
+            >
+              <Users className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Importar do Jira</span>
+            </Button>
           <Button
             variant="outline"
             size="sm"
@@ -272,6 +284,7 @@ export default function PainelPage() {
             <RefreshCw className={cn('h-3.5 w-3.5', isRefreshing && 'animate-spin')} />
             Atualizar
           </Button>
+          </div>
         }
       />
 
@@ -293,24 +306,6 @@ export default function PainelPage() {
               onRetry={runJiraSync}
               onConnectJira={() => setJiraImportOpen(true)}
             />
-            <Dialog open={jiraImportOpen} onOpenChange={setJiraImportOpen}>
-              <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Importar a {squadId} do Jira</DialogTitle>
-                  <DialogDescription>
-                    Traz projeto, pessoas e papéis do Profields. Nada é gravado até você conferir a prévia.
-                  </DialogDescription>
-                </DialogHeader>
-                <JiraProfieldsImport
-                  initialProjectKey={squadId}
-                  onImported={({ project }) => {
-                    setJiraImportOpen(false);
-                    toast({ title: `${project.id} importado`, description: 'Pessoas e papéis vieram do Jira.' });
-                    void runJiraSync();
-                  }}
-                />
-              </DialogContent>
-            </Dialog>
           </>
         ) : (
           <>
@@ -577,6 +572,27 @@ export default function PainelPage() {
           </>
         )}
       </main>
+
+      {/* Importação do Jira: disponível sempre, para refazer a prévia (nova foto, pessoas, cargos). */}
+      <Dialog open={jiraImportOpen} onOpenChange={setJiraImportOpen}>
+              <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Importar a {squadId} do Jira</DialogTitle>
+                  <DialogDescription>
+                    Traz projeto, pessoas e papéis do Profields. Nada é gravado até você conferir a prévia.
+                  </DialogDescription>
+                </DialogHeader>
+                <JiraProfieldsImport
+                  initialProjectKey={squadId}
+                  onImported={({ project }) => {
+                    setJiraImportOpen(false);
+                    toast({ title: `${project.id} importado`, description: 'Pessoas e papéis vieram do Jira.' });
+                    void runJiraSync();
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+
 
       <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} />
       <FeedbackWidget toolName="Portal Tech V&D - Painel do Time" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
