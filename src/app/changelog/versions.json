@@ -1,5 +1,20 @@
 [
   {
+    "tag": "v4.4.7",
+    "date": "6 de Outubro, 2026",
+    "title": "Versões: histórico completo na página de novidades",
+    "description": "A página de Versões passou a mostrar todas as atualizações recentes, com a descrição e a lista de mudanças de cada uma.",
+    "changes": [
+      "A página de Versões (/changelog) agora exibe todas as atualizações do portal, da mais nova para a mais antiga. Antes, as versões mais recentes não apareciam.",
+      "Cada versão mostra o título, a descrição e a lista do que mudou, em linguagem simples."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.6",
     "date": "6 de Outubro, 2026",
     "title": "Ícones da Retrospectiva e do Poker deixam de confundir",

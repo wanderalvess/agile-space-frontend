@@ -68,6 +68,7 @@ const renderVersionIcon = (iconData: { name: string; className: string } | any) 
 };
 
 import rawVersions from './versions.json';
+import { mergeReleases } from './merge';
 
 const DEFAULT_VERSIONS: AppReleaseItem[] = (rawVersions as any[]).map((v) => ({
   tag: v.tag,
@@ -96,7 +97,9 @@ export default function ChangelogPage() {
       try {
         const remoteReleases = await changelogApi.getPublishedReleases();
         if (remoteReleases && remoteReleases.length > 0) {
-          setVersions(remoteReleases);
+          // O backend guarda só o que foi cadastrado no admin; as versões geradas a cada entrega
+          // ficam em versions.json. Mostra as duas, sem repetir tag.
+          setVersions(mergeReleases(remoteReleases, DEFAULT_VERSIONS));
         } else {
           setVersions(DEFAULT_VERSIONS);
         }
