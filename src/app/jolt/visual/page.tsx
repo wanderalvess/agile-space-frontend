@@ -38,8 +38,13 @@ import {
   Clock,
   SlidersHorizontal,
   Settings2,
+  Network,
+  ChevronRight,
+  Lightbulb,
+  ArrowUpRight,
 } from 'lucide-react';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { RoomHeader } from '@/components/layout/RoomHeader';
+import { QuickStart, QUICKSTART_STORAGE_KEY } from './QuickStart';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { VisualJoltGuide } from '@/components/jolt/VisualJoltGuide';
@@ -139,8 +144,8 @@ const SourceNode = ({ data }: NodeProps<SourceNodeType>) => {
 
   return (
     <div className="relative group transition-all duration-150 hover:scale-[1.02]">
-      <div className="border border-slate-200/90 dark:border-slate-800 hover:border-sky-400 dark:hover:border-sky-500/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md min-w-[210px] flex items-center justify-between gap-3 transition-all">
-        <span className="text-xs font-code font-medium text-slate-800 dark:text-slate-200 truncate">
+      <div className="border border-border hover:border-sky-400 dark:hover:border-sky-500/80 bg-card rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md min-w-[210px] flex items-center justify-between gap-3 transition-all">
+        <span className="text-xs font-code font-medium text-foreground truncate">
           {data.label}
         </span>
         <Badge className={cn('text-[10px] h-4 px-1.5 font-code font-bold shrink-0 border shadow-none', badgeStyle)}>
@@ -150,7 +155,7 @@ const SourceNode = ({ data }: NodeProps<SourceNodeType>) => {
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-3 !h-3 !bg-sky-500 !border-2 !border-white dark:!border-slate-900 !rounded-full shadow-sm !right-[-6px]"
+        className="!w-3 !h-3 !bg-sky-500 !border-2 !border-card !rounded-full shadow-sm !right-[-6px]"
       />
     </div>
   );
@@ -164,10 +169,10 @@ const TargetNode = ({ data }: NodeProps<TargetNodeType>) => {
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-white dark:!border-slate-900 !rounded-full shadow-sm !left-[-6px]"
+        className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-card !rounded-full shadow-sm !left-[-6px]"
       />
-      <div className="border border-slate-200/90 dark:border-slate-800 hover:border-emerald-400 dark:hover:border-emerald-500/80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md min-w-[210px] flex items-center justify-between gap-3 transition-all">
-        <span className="text-xs font-code font-medium text-slate-800 dark:text-slate-200 truncate">
+      <div className="border border-border hover:border-emerald-400 dark:hover:border-emerald-500/80 bg-card rounded-xl px-3.5 py-2 shadow-sm hover:shadow-md min-w-[210px] flex items-center justify-between gap-3 transition-all">
+        <span className="text-xs font-code font-medium text-foreground truncate">
           {data.label}
         </span>
         <Badge className={cn('text-[10px] h-4 px-1.5 font-code font-bold shrink-0 border shadow-none', badgeStyle)}>
@@ -546,6 +551,7 @@ const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => 
   return directSpec;
 };
 
+
 // ─── Collapsible Editor Panel ─────────────────────────────────────────────────
 interface EditorPanelProps {
   label: string;
@@ -572,63 +578,51 @@ function EditorPanel({
   isExpanded,
   onToggle,
 }: EditorPanelProps) {
+  const iconBtn = cn('h-7 w-7 rounded-lg text-muted-foreground', accentHover);
   return (
-    <div
+    <section
       className={cn(
-        'flex flex-col border-b border-slate-200/60 dark:border-slate-800/60 transition-all duration-300',
-        isExpanded ? 'flex-1 min-h-0' : 'shrink-0',
+        'flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-all duration-300',
+        isExpanded ? 'flex-1' : 'shrink-0',
       )}
     >
-      {/* Header — clickable to toggle */}
-      <button
-        onClick={onToggle}
-        className="group w-full flex items-center justify-between px-4 py-3 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-all duration-200 shrink-0"
-      >
-        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300 flex items-center gap-2">
-          <span className={cn('w-2 h-2 rounded-full', dotColor, !isExpanded && 'opacity-50')} />
-          {label}
-        </span>
-        <div className="flex items-center gap-1">
-          {/* Action buttons — stop propagation so they don't toggle */}
+      {/* Cabeçalho no padrão do ToolPane: título à esquerda, ações à direita */}
+      <header className={cn('flex shrink-0 items-center justify-between gap-2 px-3 py-1.5', isExpanded && 'border-b border-border/60')}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isExpanded}
+          className="group flex min-w-0 flex-1 items-center gap-2 rounded-lg py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className={cn('h-2 w-2 shrink-0 rounded-full', dotColor, !isExpanded && 'opacity-50')} aria-hidden />
+          <h2 className="truncate text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</h2>
+          <span className="ml-1 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden>
+            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span
-                onClick={(e) => { e.stopPropagation(); onPaste(); }}
-                className={cn(
-                  'h-6 w-6 flex items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer',
-                  accentHover,
-                  'hover:bg-slate-200/60 dark:hover:bg-slate-700/60',
-                )}
-              >
-                <ClipboardPaste className="h-3 w-3" />
-              </span>
+              <Button type="button" variant="ghost" size="icon" className={iconBtn} onClick={onPaste} aria-label={`Colar JSON em ${label}`}>
+                <ClipboardPaste className="h-3.5 w-3.5" />
+              </Button>
             </TooltipTrigger>
             <TooltipContent className="text-[10px] font-bold">Colar JSON</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span
-                onClick={(e) => { e.stopPropagation(); onFormat(); }}
-                className={cn(
-                  'h-6 w-6 flex items-center justify-center rounded-lg text-slate-400 dark:text-slate-500 transition-all duration-200 cursor-pointer',
-                  accentHover,
-                  'hover:bg-slate-200/60 dark:hover:bg-slate-700/60',
-                )}
-              >
-                <Wand2 className="h-3 w-3" />
-              </span>
+              <Button type="button" variant="ghost" size="icon" className={iconBtn} onClick={onFormat} aria-label={`Formatar JSON de ${label}`}>
+                <Wand2 className="h-3.5 w-3.5" />
+              </Button>
             </TooltipTrigger>
             <TooltipContent className="text-[10px] font-bold">Formatar JSON</TooltipContent>
           </Tooltip>
-          <span className="ml-1 text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors">
-            {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-          </span>
         </div>
-      </button>
+      </header>
 
       {/* Editor area */}
       {isExpanded && (
-        <div className="flex-1 min-h-0 relative">
+        <div className="relative min-h-0 flex-1">
           <Editor
             height="100%"
             language="json"
@@ -654,13 +648,13 @@ function EditorPanel({
 
       {/* Collapsed preview */}
       {!isExpanded && value.trim() && (
-        <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-950/50">
-          <code className="text-[9px] text-slate-400 dark:text-slate-500 font-code truncate block">
+        <div className="border-t border-border/60 px-3 py-1.5">
+          <code className="block truncate font-code text-[10px] text-muted-foreground">
             {value.trim().slice(0, 80)}…
           </code>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -882,6 +876,28 @@ export default function VisualJoltMapperPage() {
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
   const [versionCommitMessage, setVersionCommitMessage] = useState('');
   const [saveToCloud, setSaveToCloud] = useState(true);
+
+  // Passo-a-passo de primeira visita (dispensável, persistido em localStorage)
+  const [showQuickStart, setShowQuickStart] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(QUICKSTART_STORAGE_KEY) !== 'true') setShowQuickStart(true);
+    } catch {
+      setShowQuickStart(true);
+    }
+    // Em telas estreitas o painel de ações do canvas começa recolhido para não cobrir o mapa.
+    try {
+      if (window.matchMedia('(max-width: 639px)').matches) setIsCanvasPanelOpen(false);
+    } catch {}
+  }, []);
+  const dismissQuickStart = useCallback(() => {
+    setShowQuickStart(false);
+    try { localStorage.setItem(QUICKSTART_STORAGE_KEY, 'true'); } catch {}
+  }, []);
+  const reopenQuickStart = useCallback(() => {
+    setShowQuickStart(true);
+    try { localStorage.removeItem(QUICKSTART_STORAGE_KEY); } catch {}
+  }, []);
 
   // ── Single restore on mount — runs BEFORE any auto-save can fire ────────────
   useEffect(() => {
@@ -1540,273 +1556,281 @@ export default function VisualJoltMapperPage() {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
+      <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
 
-        {/* ── Header Bento ────────────────────────────────────────────────── */}
-        <header className="flex items-center justify-between px-5 py-2.5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 shadow-sm shrink-0 relative z-20">
-          {/* Left */}
-          <div className="flex items-center gap-3">
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shrink-0"
-            >
-              <Link href="/jolt">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-700 rounded-lg flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
-              <Workflow className="h-4 w-4 text-white" />
-            </div>
-
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">
-                  Mapeador Visual Jolt
-                </h1>
-                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-bold uppercase tracking-wider">
-                  Visual
-                </Badge>
-                {currentProjectName && (
-                  <span className="hidden sm:inline-block text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[140px]" title={currentProjectName}>
-                    • {currentProjectName}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-                Design de transformações por fluxo
-              </p>
-            </div>
-          </div>
-
-          {/* Center: Mapping counter status pill */}
-          {mappingsCount > 0 ? (
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 dark:bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                {mappingsCount} {mappingsCount === 1 ? 'conexão mapeada' : 'conexões mapeadas'}
-              </span>
-            </div>
-          ) : (
-            <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
-              <span>Arraste da esquerda para a direita para mapear</span>
-            </div>
-          )}
-
-          {/* Right actions */}
-          <div className="flex items-center gap-2">
-            {/* Theme toggle */}
-            <ThemeToggle className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-800" />
-
-            {/* Menu Projetos Salvos (Nuvem + Local) */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-8 px-2.5 font-bold text-xs gap-1.5 border rounded-lg transition-all",
-                    currentCloudProjectId
-                      ? "text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20"
-                      : "text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
-                  )}
-                  title="Gerenciar Projetos Salvos (Nuvem e Local)"
-                >
-                  {currentCloudProjectId ? (
-                    <Cloud className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                  ) : (
-                    <FolderKanban className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                  )}
-                  <span className="hidden sm:inline truncate max-w-[120px]">
-                    {currentProjectName || 'Projetos'}
-                  </span>
-                  {currentCloudProjectId && (
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-code">
-                      NUVEM
+        {/* ── Cabeçalho unificado ───────────────────────────────────────────── */}
+        <RoomHeader
+          title="Mapeador Visual"
+          toolIcon={<Network className="h-4 w-4" />}
+          actions={
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Grupo: projetos salvos */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'h-8 gap-1.5 rounded-xl px-2.5 text-[10px] font-black uppercase tracking-wider',
+                      currentCloudProjectId && 'border-primary/40 bg-primary/5 text-primary',
+                    )}
+                    aria-label="Projetos salvos (nuvem e local)"
+                    title="Projetos salvos (nuvem e local)"
+                  >
+                    {currentCloudProjectId ? <Cloud className="h-3.5 w-3.5" aria-hidden /> : <FolderKanban className="h-3.5 w-3.5" aria-hidden />}
+                    <span className="hidden max-w-[120px] truncate md:inline">{currentProjectName || 'Projetos'}</span>
+                    {currentCloudProjectId && (
+                      <span className="hidden rounded bg-primary/10 px-1.5 font-code text-[9px] text-primary lg:inline">NUVEM</span>
+                    )}
+                    <ChevronDown className="h-3 w-3 opacity-60" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 max-w-[calc(100vw-1.5rem)] rounded-2xl border-border bg-popover p-2 text-popover-foreground shadow-xl">
+                  {/* Seção 1: Projetos na Nuvem (PostgreSQL) */}
+                  <div className="flex items-center justify-between px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Cloud className="h-3 w-3" aria-hidden />
+                      Projetos na nuvem ({cloudProjects.length})
                     </span>
-                  )}
-                  <ChevronDown className="h-3 w-3 opacity-60" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-72 p-2 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 shadow-2xl">
-                {/* Seção 1: Projetos na Nuvem (PostgreSQL) */}
-                <div className="flex items-center justify-between px-2 py-1 text-[9px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
-                  <span className="flex items-center gap-1.5">
-                    <Cloud className="h-3 w-3" />
-                    Projetos na Nuvem ({cloudProjects.length})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={fetchCloudProjects}
-                    className="hover:text-purple-800 dark:hover:text-purple-200 p-0.5"
-                    title="Atualizar lista da nuvem"
-                  >
-                    <RefreshCw className={cn("h-2.5 w-2.5", isLoadingCloud && "animate-spin")} />
-                  </button>
-                </div>
-                {cloudProjects.length === 0 ? (
-                  <div className="px-2 py-1.5 text-[11px] text-slate-400 italic">
-                    Nenhum projeto salvo na nuvem
+                    <button
+                      type="button"
+                      onClick={fetchCloudProjects}
+                      className="rounded-md p-1 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      title="Atualizar lista da nuvem"
+                      aria-label="Atualizar lista da nuvem"
+                    >
+                      <RefreshCw className={cn('h-3 w-3', isLoadingCloud && 'animate-spin')} aria-hidden />
+                    </button>
                   </div>
-                ) : (
-                  <div className="max-h-40 overflow-y-auto space-y-0.5">
-                    {cloudProjects.map((proj) => (
-                      <div
-                        key={proj.id}
-                        className={cn(
-                          "flex items-center justify-between text-xs rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group cursor-pointer",
-                          currentCloudProjectId === proj.id && "bg-purple-50 dark:bg-purple-950/40 font-bold text-purple-700 dark:text-purple-300"
-                        )}
-                        onClick={() => handleLoadCloudProject(proj)}
-                      >
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="truncate">{proj.name}</span>
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-code">
-                            v{proj.versionCount || 1}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenVersionHistory(proj.id);
-                            }}
-                            className="p-1 hover:text-purple-600 dark:hover:text-purple-400"
-                            title="Histórico de Versões"
-                          >
-                            <History className="h-3 w-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteCloudProject(proj.id, e)}
-                            className="p-1 hover:text-red-500"
-                            title="Excluir da Nuvem"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <DropdownMenuSeparator className="my-1.5 bg-slate-100 dark:bg-slate-800" />
-
-                {/* Seção 2: Rascunhos Locais */}
-                <div className="px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  Rascunhos Locais ({savedProjects.length})
-                </div>
-                {savedProjects.length === 0 ? (
-                  <div className="px-2 py-1 text-[11px] text-slate-400 italic">Nenhum rascunho local</div>
-                ) : (
-                  <div className="max-h-28 overflow-y-auto space-y-0.5">
-                    {savedProjects.map((proj) => (
-                      <div
-                        key={proj.id}
-                        className={cn(
-                          "flex items-center justify-between text-xs rounded-lg px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group cursor-pointer",
-                          !currentCloudProjectId && currentProjectId === proj.id && "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 font-bold"
-                        )}
-                        onClick={() => handleLoadProject(proj.id)}
-                      >
-                        <span className="truncate">{proj.name}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteProject(proj.id, e)}
-                          className="text-slate-400 hover:text-red-500 p-0.5 opacity-60 group-hover:opacity-100 transition-opacity"
-                          title="Excluir local"
+                  {cloudProjects.length === 0 ? (
+                    <div className="px-2 py-1.5 text-[11px] italic text-muted-foreground">Nenhum projeto salvo na nuvem</div>
+                  ) : (
+                    <div className="max-h-40 space-y-0.5 overflow-y-auto">
+                      {cloudProjects.map((proj) => (
+                        <div
+                          key={proj.id}
+                          className={cn(
+                            'group flex items-center justify-between rounded-lg px-1 text-xs transition-colors hover:bg-muted',
+                            currentCloudProjectId === proj.id && 'bg-primary/10 font-bold text-primary',
+                          )}
                         >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
+                          <button
+                            type="button"
+                            onClick={() => handleLoadCloudProject(proj)}
+                            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg px-1 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            <span className="truncate">{proj.name}</span>
+                            <span className="rounded bg-muted px-1 font-code text-[9px] text-muted-foreground">v{proj.versionCount || 1}</span>
+                          </button>
+                          <div className="flex items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenVersionHistory(proj.id);
+                              }}
+                              className="rounded-md p-1.5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              title="Histórico de versões"
+                              aria-label={`Histórico de versões de ${proj.name}`}
+                            >
+                              <History className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteCloudProject(proj.id, e)}
+                              className="rounded-md p-1.5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              title="Excluir da nuvem"
+                              aria-label={`Excluir ${proj.name} da nuvem`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <DropdownMenuSeparator className="my-1.5 bg-border" />
+
+                  {/* Seção 2: Rascunhos Locais */}
+                  <div className="px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Rascunhos locais ({savedProjects.length})
                   </div>
-                )}
+                  {savedProjects.length === 0 ? (
+                    <div className="px-2 py-1 text-[11px] italic text-muted-foreground">Nenhum rascunho local</div>
+                  ) : (
+                    <div className="max-h-28 space-y-0.5 overflow-y-auto">
+                      {savedProjects.map((proj) => (
+                        <div
+                          key={proj.id}
+                          className={cn(
+                            'group flex items-center justify-between rounded-lg px-1 text-xs transition-colors hover:bg-muted',
+                            !currentCloudProjectId && currentProjectId === proj.id && 'bg-primary/10 font-bold text-primary',
+                          )}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleLoadProject(proj.id)}
+                            className="min-w-0 flex-1 truncate rounded-lg px-1 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          >
+                            {proj.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteProject(proj.id, e)}
+                            className="rounded-md p-1.5 text-muted-foreground opacity-70 transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            title="Excluir rascunho local"
+                            aria-label={`Excluir rascunho local ${proj.name}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                <DropdownMenuSeparator className="my-1.5 bg-slate-100 dark:bg-slate-800" />
+                  <DropdownMenuSeparator className="my-1.5 bg-border" />
 
-                {currentCloudProjectId && (
+                  {currentCloudProjectId && (
+                    <DropdownMenuItem
+                      onClick={() => handleOpenVersionHistory(currentCloudProjectId)}
+                      className="cursor-pointer gap-2 rounded-xl text-xs font-semibold"
+                    >
+                      <History className="h-3.5 w-3.5 text-primary" aria-hidden />
+                      Histórico de versões
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuItem
-                    onClick={() => handleOpenVersionHistory(currentCloudProjectId)}
-                    className="text-xs font-semibold cursor-pointer gap-2 rounded-lg text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+                    onClick={() => {
+                      setProjectNameInput(currentProjectName !== 'Novo Mapeamento' ? currentProjectName : '');
+                      setIsSaveDialogOpen(true);
+                    }}
+                    className="cursor-pointer gap-2 rounded-xl text-xs font-semibold"
                   >
-                    <History className="h-3.5 w-3.5" />
-                    Histórico de Versões
+                    <Save className="h-3.5 w-3.5 text-primary" aria-hidden />
+                    Salvar projeto...
                   </DropdownMenuItem>
-                )}
+                  <DropdownMenuItem onClick={handleNewProject} className="cursor-pointer gap-2 rounded-xl text-xs font-semibold">
+                    <Plus className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    Novo mapeamento
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                <DropdownMenuItem
-                  onClick={() => {
-                    setProjectNameInput(currentProjectName !== 'Novo Mapeamento' ? currentProjectName : '');
-                    setIsSaveDialogOpen(true);
-                  }}
-                  className="text-xs font-semibold cursor-pointer gap-2 rounded-lg text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  Salvar Projeto...
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleNewProject}
-                  className="text-xs font-semibold cursor-pointer gap-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Novo Mapeamento
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsGuideOpen(true)}
+                className="hidden h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider md:inline-flex"
+                aria-label="Abrir o guia visual"
+              >
+                <HelpCircle className="h-3.5 w-3.5" aria-hidden /> Guia
+              </Button>
+              <VisualJoltGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsGuideOpen(true)}
-              className="h-8 px-3 font-semibold text-xs gap-1.5 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border border-slate-200 dark:border-slate-800 rounded-lg"
+              <div className="mx-0.5 hidden h-5 w-px bg-border sm:block" aria-hidden />
+
+              {/* Grupo: gerar spec */}
+              <Button
+                onClick={handlePreviewSpec}
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+                aria-label="Ver a spec Jolt gerada e executar a prévia"
+                title="Ver a spec Jolt gerada e executar a prévia"
+              >
+                <Eye className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden lg:inline">Ver spec</span>
+              </Button>
+
+              <Button
+                onClick={generateSpecFromEdges}
+                size="sm"
+                className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+                aria-label="Gerar a spec e abrir na Sandbox"
+                title="Gerar a spec e abrir na Sandbox"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden sm:inline">Abrir na Sandbox</span>
+              </Button>
+
+              <Button asChild variant="ghost" size="sm" className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                <Link href="/jolt" aria-label="Voltar ao hub do Jolt">
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> <span className="hidden sm:inline">Jolt</span>
+                </Link>
+              </Button>
+            </div>
+          }
+        />
+
+        {/* ── Faixa de contexto: trilha, descrição e estado ─────────────────── */}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border/60 px-4 py-2 md:px-6">
+          <nav aria-label="Trilha" className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <Link href="/jolt" className="hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Jolt</Link>
+            <ChevronRight className="h-3 w-3" aria-hidden />
+            <span>Mapeador Visual</span>
+            {currentProjectName && (
+              <span className="hidden max-w-[160px] truncate font-semibold normal-case tracking-normal sm:inline" title={currentProjectName}>
+                • {currentProjectName}
+              </span>
+            )}
+          </nav>
+          <p className="hidden min-w-0 flex-1 truncate text-xs font-medium text-muted-foreground md:block">
+            Desenhe o mapa de campos e a spec Jolt é gerada para você.
+          </p>
+          <div className="ml-auto flex items-center gap-2">
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold',
+                mappingsCount > 0 ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-muted text-muted-foreground',
+              )}
+              aria-live="polite"
             >
-              <HelpCircle className="h-3.5 w-3.5" />
-              Guia Visual
-            </Button>
-            <VisualJoltGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
-
-            <div className="w-px h-5 bg-slate-200 dark:bg-slate-800 mx-1" />
-
+              {mappingsCount > 0 && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden />}
+              {mappingsCount} {mappingsCount === 1 ? 'conexão' : 'conexões'}
+            </span>
+            {!showQuickStart && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={reopenQuickStart}
+                className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+                aria-label="Rever o passo-a-passo"
+                title="Rever o passo-a-passo"
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+              </Button>
+            )}
             <Button
-              onClick={handlePreviewSpec}
+              type="button"
               variant="outline"
               size="sm"
-              className="h-8 px-3 font-semibold text-xs gap-1.5 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg shadow-sm"
-              title="Visualizar a Spec Jolt gerada em uma janela modal"
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-pressed={sidebarOpen}
+              aria-label={sidebarOpen ? 'Ocultar painéis de JSON' : 'Mostrar painéis de JSON'}
+              className="h-7 gap-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider"
             >
-              <Eye className="h-3.5 w-3.5" />
-              Ver Spec
-            </Button>
-
-            <Button
-              onClick={generateSpecFromEdges}
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 h-8 rounded-lg shadow-sm gap-1.5 transition-all active:scale-95"
-            >
-              <Sparkles className="h-3.5 w-3.5" /> Abrir no Sandbox
+              {sidebarOpen ? <PanelLeftClose className="h-3.5 w-3.5" aria-hidden /> : <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden />}
+              <span className="hidden sm:inline">JSONs</span>
             </Button>
           </div>
-        </header>
+        </div>
 
-        {/* ── Main workspace ───────────────────────────────────────────────── */}
-        <div className="flex-1 flex overflow-hidden relative">
+        {/* ── Corpo zero-scroll ─────────────────────────────────────────────── */}
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:p-4">
+          {showQuickStart && <QuickStart onDismiss={dismissQuickStart} />}
 
-          {/* Sidebar — collapsible */}
-          <div
-            className={cn(
-              'flex flex-col border-r border-slate-200/60 dark:border-slate-800/60 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl shrink-0 transition-[width] duration-300 overflow-hidden',
-              sidebarOpen ? 'w-[460px]' : 'w-0',
-            )}
-          >
+          <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+            {/* Painéis de JSON (empilham acima do canvas em telas estreitas) */}
             {sidebarOpen && (
-              <>
-                {/* Source editor */}
+              <aside
+                aria-label="JSONs de origem e destino"
+                className="flex min-h-0 w-full shrink-0 flex-col gap-3 max-lg:h-[42%] lg:w-[420px] xl:w-[460px]"
+              >
                 <EditorPanel
-                  label="Origem (JSON de Entrada)"
+                  label="Origem (JSON de entrada)"
                   dotColor="bg-blue-500 animate-pulse"
                   accentHover="hover:text-blue-500 dark:hover:text-blue-400"
                   value={inputJson}
@@ -1818,9 +1842,8 @@ export default function VisualJoltMapperPage() {
                   onToggle={() => setSourceExpanded((v) => !v)}
                 />
 
-                {/* Target editor */}
                 <EditorPanel
-                  label="Destino (JSON de Saída Mock)"
+                  label="Destino (JSON de saída de exemplo)"
                   dotColor="bg-emerald-500"
                   accentHover="hover:text-emerald-500 dark:hover:text-emerald-400"
                   value={targetJson}
@@ -1831,363 +1854,330 @@ export default function VisualJoltMapperPage() {
                   isExpanded={targetExpanded}
                   onToggle={() => setTargetExpanded((v) => !v)}
                 />
-              </>
+              </aside>
             )}
-          </div>
 
-          {/* Sidebar toggle button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setSidebarOpen((v) => !v)}
-                className="absolute top-1/2 -translate-y-1/2 z-30 h-12 w-5 flex items-center justify-center bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-r-xl shadow-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300"
-                style={{ left: sidebarOpen ? '460px' : '0px' }}
-              >
-                {sidebarOpen ? (
-                  <PanelLeftClose className="h-3.5 w-3.5" />
-                ) : (
-                  <PanelLeftOpen className="h-3.5 w-3.5" />
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="text-xs font-medium">
-              {sidebarOpen ? 'Ocultar painel' : 'Mostrar painel'}
-            </TooltipContent>
-          </Tooltip>
+            {/* ── ReactFlow Canvas ───────────────────────────────────────────── */}
+            <section aria-label="Canvas de mapeamento" className="relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-2xl border border-border bg-muted/30 shadow-sm">
+              {nodes.length > 0 ? (
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onEdgeDoubleClick={onEdgeDoubleClick}
+                  onEdgeClick={onEdgeClick}
+                  onEdgesDelete={onEdgesDelete}
+                  deleteKeyCode={['Backspace', 'Delete']}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  fitViewOptions={{ padding: 0.25 }}
+                  proOptions={{ hideAttribution: true }}
+                  className="h-full w-full bg-transparent"
+                >
+                  <Background
+                    color={isDark ? '#334155' : '#cbd5e1'}
+                    variant={BackgroundVariant.Dots}
+                    gap={20}
+                    size={1.5}
+                  />
+                  <Controls
+                    className="!overflow-hidden !rounded-xl !border !border-border !bg-card !shadow-md [&>button]:!border-b [&>button]:!border-border [&>button]:!bg-card [&>button]:!fill-foreground [&>button:hover]:!bg-muted [&>button:last-child]:!border-b-0"
+                  />
 
-          {/* ── ReactFlow Canvas ───────────────────────────────────────────── */}
-          <div className="flex-1 relative bg-slate-100/50 dark:bg-slate-950 h-full">
-            {nodes.length > 0 ? (
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                onEdgeDoubleClick={onEdgeDoubleClick}
-                onEdgeClick={onEdgeClick}
-                onEdgesDelete={onEdgesDelete}
-                deleteKeyCode={['Backspace', 'Delete']}
-                nodeTypes={nodeTypes}
-                fitView
-                fitViewOptions={{ padding: 0.25 }}
-                proOptions={{ hideAttribution: true }}
-                className="bg-transparent h-full w-full"
-              >
-                <Background
-                  color={isDark ? '#334155' : '#cbd5e1'}
-                  variant={BackgroundVariant.Dots}
-                  gap={20}
-                  size={1.5}
-                />
-                <Controls
-                  className="!bg-white dark:!bg-slate-900 !border !border-slate-200 dark:!border-slate-800 !rounded-xl !overflow-hidden !shadow-xl [&>button]:!bg-white dark:[&>button]:!bg-slate-900 [&>button]:!border-b [&>button]:!border-slate-200 dark:[&>button]:!border-slate-800 [&>button]:!fill-slate-600 dark:[&>button]:!fill-slate-300 [&>button:hover]:!bg-slate-100 dark:[&>button:hover]:!bg-slate-800 [&>button:last-child]:!border-b-0"
-                />
-
-                {/* Canvas action panel */}
-                <Panel position="top-right" className="!mt-4 !mr-4 z-50">
-                  {isCanvasPanelOpen ? (
-                    <div className="flex flex-col gap-2.5 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 rounded-2xl shadow-xl w-64 transition-all">
-                      {/* Header do painel com contador */}
-                      <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 dark:border-slate-800">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">
-                            Painel de Ações
-                          </span>
-                          <span className={cn(
-                            "text-[10px] font-bold px-2 py-0.5 rounded-full transition-all",
-                            edges.length > 0
-                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                              : "bg-slate-100 dark:bg-slate-800 text-slate-400"
-                          )}>
-                            {edges.length} {edges.length === 1 ? 'conexão' : 'conexões'}
-                          </span>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsCanvasPanelOpen(false)}
-                          className="h-6 w-6 p-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg shrink-0"
-                          title="Recolher painel"
-                        >
-                          <ChevronUp className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {/* Botão Primário em Destaque: Gerar / Ver Spec */}
-                      <div className="flex flex-col gap-1.5 pt-0.5">
-                        <Button
-                          onClick={handlePreviewSpec}
-                          size="sm"
-                          className={cn(
-                            "w-full h-9 text-xs font-bold justify-center gap-2 rounded-xl transition-all shadow-md",
-                            edges.length > 0
-                              ? "bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-500/25 ring-2 ring-emerald-500/40"
-                              : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                          )}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          <span>{edges.length > 0 ? `Gerar Spec Jolt (${edges.length})` : 'Gerar / Ver Spec'}</span>
-                        </Button>
-
-                        <Button
-                          onClick={generateSpecFromEdges}
-                          variant="outline"
-                          size="sm"
-                          className="w-full h-8 text-xs font-semibold justify-center gap-2 border-slate-200 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 rounded-xl transition-all"
-                        >
-                          <Sparkles className="h-3.5 w-3.5 text-emerald-500" /> Abrir no Sandbox
-                        </Button>
-                      </div>
-
-                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                      {/* Modo de Saída Jolt */}
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                          Modo de Saída
-                        </label>
-                        <Select value={mappingMode} onValueChange={(val: any) => setMappingMode(val)}>
-                          <SelectTrigger className="h-8 px-2.5 text-xs font-medium border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-xl focus:ring-0">
-                            <div className="flex items-center gap-2">
-                              {mappingMode === 'smarthub' ? (
-                                <Layers className="h-3.5 w-3.5 text-sky-500" />
-                              ) : (
-                                <Boxes className="h-3.5 w-3.5 text-emerald-500" />
-                              )}
-                              <SelectValue />
-                            </div>
-                          </SelectTrigger>
-                          <SelectContent className="text-xs">
-                            <SelectItem value="smarthub" className="text-xs font-medium">
-                              <div className="flex items-center gap-2">
-                                <Layers className="h-3.5 w-3.5 text-sky-500" />
-                                <span>SmartHub (Envelope)</span>
-                              </div>
-                            </SelectItem>
-                            <SelectItem value="direct" className="text-xs font-medium">
-                              <div className="flex items-center gap-2">
-                                <Boxes className="h-3.5 w-3.5 text-emerald-500" />
-                                <span>Direto (Array Puro)</span>
-                              </div>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-
-                        {mappingMode === 'smarthub' && (
-                          <div className="space-y-1 pt-1">
-                            <label className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                              Entidade (Opcional)
-                            </label>
-                            <Input
-                              value={entityName}
-                              onChange={(e) => setEntityName(e.target.value)}
-                              placeholder="Ex: PRECOPROMOCIONAL"
-                              className="h-8 text-xs font-code uppercase bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 rounded-xl placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                              title="Nome da Entidade para idExterno e tipoIdInterno"
-                            />
-                          </div>
-                        )}
-
-                        {/* Configuração de Template de Integração (Winthor/Tabela) */}
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/60 space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                              Envelope Integração
+                  {/* Painel de ações do canvas */}
+                  <Panel position="top-right" className="!m-2 z-50 sm:!m-3">
+                    {isCanvasPanelOpen ? (
+                      <section
+                        aria-label="Painel de ações"
+                        className="flex max-h-[calc(100dvh-14rem)] w-[min(16.5rem,calc(100vw-5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg"
+                      >
+                        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-border/60 px-3 py-2">
+                          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            Painel de ações
+                          </h2>
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn(
+                              'rounded-full border px-2 py-0.5 text-[10px] font-bold',
+                              edges.length > 0 ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-muted text-muted-foreground',
+                            )}>
+                              {edges.length} {edges.length === 1 ? 'conexão' : 'conexões'}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = !useEnvelopeTemplate;
-                                setUseEnvelopeTemplate(next);
-                                localStorage.setItem(STORAGE_KEYS.useEnvelope, String(next));
-                              }}
-                              className={cn(
-                                "text-[9px] font-bold px-2 py-0.5 rounded-full border transition-all select-none",
-                                useEnvelopeTemplate
-                                  ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700"
-                              )}
-                            >
-                              {useEnvelopeTemplate ? "ATIVADO" : "DESATIVADO"}
-                            </button>
-                          </div>
-
-                          {useEnvelopeTemplate && (
                             <Button
-                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setIsCanvasPanelOpen(false)}
+                              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+                              title="Recolher painel"
+                              aria-label="Recolher painel de ações"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </header>
+
+                        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                          {/* Gerar */}
+                          <div className="space-y-1.5">
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Gerar</h3>
+                            <Button
+                              onClick={handlePreviewSpec}
+                              size="sm"
+                              className="h-9 w-full justify-center gap-2 rounded-xl text-xs font-bold"
+                            >
+                              <Sparkles className="h-4 w-4" aria-hidden />
+                              <span>{edges.length > 0 ? `Gerar spec Jolt (${edges.length})` : 'Gerar / ver spec'}</span>
+                            </Button>
+                            <Button
+                              onClick={generateSpecFromEdges}
                               variant="outline"
                               size="sm"
-                              onClick={() => {
-                                setTemplateDraft(envelopeTemplate);
-                                setIsTemplateDialogOpen(true);
-                              }}
-                              className="w-full h-7 text-[11px] font-semibold justify-center gap-1.5 border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-950/40 rounded-xl transition-all"
+                              className="h-8 w-full justify-center gap-2 rounded-xl text-xs font-semibold"
                             >
-                              <Settings2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                              Configurar Envelope
+                              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden /> Abrir na Sandbox
                             </Button>
-                          )}
+                          </div>
+
+                          {/* Modo de saída */}
+                          <div className="space-y-1.5 border-t border-border/60 pt-3">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                              Modo de saída
+                            </label>
+                            <Select value={mappingMode} onValueChange={(val: any) => setMappingMode(val)}>
+                              <SelectTrigger className="h-8 rounded-xl border-border bg-background px-2.5 text-xs font-medium">
+                                <div className="flex items-center gap-2">
+                                  {mappingMode === 'smarthub' ? (
+                                    <Layers className="h-3.5 w-3.5 text-sky-500" />
+                                  ) : (
+                                    <Boxes className="h-3.5 w-3.5 text-emerald-500" />
+                                  )}
+                                  <SelectValue />
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent className="text-xs">
+                                <SelectItem value="smarthub" className="text-xs font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <Layers className="h-3.5 w-3.5 text-sky-500" />
+                                    <span>SmartHub (Envelope)</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="direct" className="text-xs font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <Boxes className="h-3.5 w-3.5 text-emerald-500" />
+                                    <span>Direto (Array Puro)</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+
+                            {mappingMode === 'smarthub' && (
+                              <div className="space-y-1 pt-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                  Entidade (opcional)
+                                </label>
+                                <Input
+                                  value={entityName}
+                                  onChange={(e) => setEntityName(e.target.value)}
+                                  placeholder="Ex: PRECOPROMOCIONAL"
+                                  className="h-8 rounded-xl border-border bg-background font-code text-xs uppercase placeholder:text-muted-foreground"
+                                  title="Nome da Entidade para idExterno e tipoIdInterno"
+                                />
+                              </div>
+                            )}
+
+                            {/* Template de Integração (Winthor/Tabela) */}
+                            <div className="space-y-1.5 pt-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                  Envelope de integração
+                                </span>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={useEnvelopeTemplate}
+                                  aria-label="Usar envelope de integração"
+                                  onClick={() => {
+                                    const next = !useEnvelopeTemplate;
+                                    setUseEnvelopeTemplate(next);
+                                    localStorage.setItem(STORAGE_KEYS.useEnvelope, String(next));
+                                  }}
+                                  className={cn(
+                                    'select-none rounded-full border px-2 py-0.5 text-[9px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                    useEnvelopeTemplate
+                                      ? 'border-primary/30 bg-primary/10 text-primary'
+                                      : 'border-border bg-muted text-muted-foreground',
+                                  )}
+                                >
+                                  {useEnvelopeTemplate ? 'ATIVADO' : 'DESATIVADO'}
+                                </button>
+                              </div>
+
+                              {useEnvelopeTemplate && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setTemplateDraft(envelopeTemplate);
+                                    setIsTemplateDialogOpen(true);
+                                  }}
+                                  className="h-7 w-full justify-center gap-1.5 rounded-xl text-[11px] font-semibold"
+                                >
+                                  <Settings2 className="h-3.5 w-3.5 text-primary" aria-hidden />
+                                  Configurar envelope
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Mapear */}
+                          <div className="space-y-1.5 border-t border-border/60 pt-3">
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Mapear</h3>
+                            <Button
+                              onClick={autoMapNodes}
+                              size="sm"
+                              variant="secondary"
+                              className="h-8 w-full justify-start gap-2 rounded-xl text-xs font-semibold shadow-none"
+                            >
+                              <Wand2 className="h-3.5 w-3.5 text-primary" aria-hidden /> Auto-mapear campos
+                            </Button>
+                            <Button
+                              onClick={() => analyzeStructures()}
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-full justify-start gap-2 rounded-xl text-xs font-semibold"
+                              title="Recarrega os campos a partir dos JSONs dos painéis (mantém conexões compatíveis)"
+                            >
+                              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" aria-hidden /> Recarregar campos JSON
+                            </Button>
+                          </div>
+
+                          {/* Limpar */}
+                          <div className="space-y-1.5 border-t border-border/60 pt-3">
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Limpar</h3>
+                            <div className="flex gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setEdges([])}
+                                disabled={edges.length === 0}
+                                className="h-7 flex-1 rounded-lg text-[11px] font-semibold hover:border-destructive/40 hover:text-destructive"
+                                title="Apagar apenas as conexões desenhadas"
+                              >
+                                <Trash2 className="mr-1 h-3 w-3" aria-hidden /> Conexões
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleClearSession}
+                                className="h-7 flex-1 rounded-lg text-[11px] font-semibold hover:border-destructive/40 hover:text-destructive"
+                                title="Resetar tudo: JSONs, nós e conexões"
+                              >
+                                <RotateCcw className="mr-1 h-3 w-3" aria-hidden /> Tudo
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-
-                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                      {/* Ferramentas de Mapeamento */}
-                      <div className="flex flex-col gap-1.5">
-                        <Button
-                          onClick={autoMapNodes}
-                          size="sm"
-                          variant="secondary"
-                          className="h-8 text-xs font-semibold justify-start gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-xl shadow-none transition-all"
-                        >
-                          <Wand2 className="h-3.5 w-3.5 text-emerald-500" /> Auto-Mapear Campos
-                        </Button>
-
-                        <Button
-                          onClick={() => analyzeStructures()}
-                          variant="outline"
-                          size="sm"
-                          className="h-8 text-xs font-semibold justify-start gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
-                          title="Recarrega os campos a partir dos JSONs das abas laterais (mantém conexões compatíveis)"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5 text-slate-500" /> Recarregar Campos JSON
-                        </Button>
-                      </div>
-
-                      <div className="h-px bg-slate-100 dark:bg-slate-800 my-0.5" />
-
-                      {/* Ações de limpeza */}
-                      <div className="flex gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEdges([])}
-                          disabled={edges.length === 0}
-                          className="flex-1 h-7 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200/60 dark:border-slate-800 rounded-lg transition-all disabled:opacity-30"
-                          title="Apagar apenas as conexões desenhadas"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" /> Limpar
-                        </Button>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleClearSession}
-                          className="flex-1 h-7 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200/60 dark:border-slate-800 rounded-lg transition-all"
-                          title="Resetar tudo — JSONs, nós e conexões"
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" /> Resetar
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      onClick={() => setIsCanvasPanelOpen(true)}
-                      size="sm"
-                      className="h-9 px-3 text-xs font-bold bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 text-slate-700 dark:text-slate-200 rounded-xl shadow-lg gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                      title="Expandir Painel de Ações"
-                    >
-                      <SlidersHorizontal className="h-4 w-4 text-emerald-500" />
-                      <span>Painel de Ações</span>
-                      {edges.length > 0 && (
-                        <span className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] px-1.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
-                          {edges.length}
-                        </span>
-                      )}
-                    </Button>
-                  )}
-                </Panel>
-
-                {/* Barra Flutuante de Ação Rápida no Canvas */}
-                {edges.length > 0 && (
-                  <Panel position="bottom-center" className="!mb-4">
-                    <div className="flex items-center gap-3 px-4 py-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-emerald-500/40 rounded-2xl shadow-2xl">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                          {edges.length} {edges.length === 1 ? 'campo conectado' : 'campos conectados'}
-                        </span>
-                      </div>
-                      <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+                      </section>
+                    ) : (
                       <Button
-                        onClick={handlePreviewSpec}
-                        size="sm"
-                        className="h-7 px-3 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-sm gap-1.5"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Gerar Spec Jolt
-                      </Button>
-                      <Button
-                        onClick={generateSpecFromEdges}
+                        onClick={() => setIsCanvasPanelOpen(true)}
                         variant="outline"
                         size="sm"
-                        className="h-7 px-3 text-xs font-semibold border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl"
+                        className="h-9 gap-2 rounded-xl bg-card px-3 text-xs font-bold shadow-md"
+                        title="Expandir painel de ações"
+                        aria-label="Expandir painel de ações"
                       >
-                        Abrir no Sandbox
-                      </Button>
-                    </div>
-                  </Panel>
-                )}
-              </ReactFlow>
-            ) : (
-              /* Empty state */
-              <div className="h-full flex flex-col items-center justify-center gap-6 select-none p-8">
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex items-center justify-center border border-slate-200/80 dark:border-slate-800/80 shadow-lg">
-                    <Workflow className="h-12 w-12 text-slate-400 dark:text-slate-600" />
-                  </div>
-                  <div className="absolute inset-0 rounded-3xl bg-emerald-500/5 dark:bg-emerald-500/10 pointer-events-none" />
-                </div>
-
-                <div className="text-center space-y-2 max-w-sm">
-                  <h3 className="text-xl font-bold tracking-tight text-slate-800 dark:text-slate-200">
-                    Canvas de Mapeamento
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {sidebarOpen
-                      ? 'Cole os seus JSONs de Origem e Destino no painel lateral e clique em Analisar JSON.'
-                      : 'Abra o painel lateral para colar os seus JSONs e carregar os campos no canvas.'}
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
-                    {!sidebarOpen && (
-                      <Button
-                        onClick={() => setSidebarOpen(true)}
-                        variant="outline"
-                        size="sm"
-                        className="h-9 px-4 border-slate-200 dark:border-slate-800 font-semibold text-xs rounded-xl gap-2"
-                      >
-                        <PanelLeftOpen className="h-3.5 w-3.5" /> Abrir Painel
+                        <SlidersHorizontal className="h-4 w-4 text-primary" aria-hidden />
+                        <span className="hidden sm:inline">Painel de ações</span>
+                        {edges.length > 0 && (
+                          <span className="rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                            {edges.length}
+                          </span>
+                        )}
                       </Button>
                     )}
-                    <Button
-                      onClick={() => analyzeStructures()}
-                      size="sm"
-                      className="h-9 px-5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-semibold text-xs rounded-xl shadow-md gap-2"
-                    >
-                      <ArrowRightLeft className="h-3.5 w-3.5" /> Analisar JSON
-                    </Button>
+                  </Panel>
+
+                  {/* Barra flutuante de ação rápida */}
+                  {edges.length > 0 && (
+                    <Panel position="bottom-center" className="!mb-3 hidden sm:block">
+                      <div className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-card px-4 py-2 shadow-lg">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" aria-hidden />
+                          <span className="text-xs font-bold text-foreground">
+                            {edges.length} {edges.length === 1 ? 'campo conectado' : 'campos conectados'}
+                          </span>
+                        </div>
+                        <div className="h-4 w-px bg-border" aria-hidden />
+                        <Button onClick={handlePreviewSpec} size="sm" className="h-7 gap-1.5 rounded-xl px-3 text-xs font-bold">
+                          <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                          Gerar spec Jolt
+                        </Button>
+                        <Button onClick={generateSpecFromEdges} variant="outline" size="sm" className="h-7 rounded-xl px-3 text-xs font-semibold">
+                          Abrir na Sandbox
+                        </Button>
+                      </div>
+                    </Panel>
+                  )}
+                </ReactFlow>
+              ) : (
+                /* Estado vazio */
+                <div className="flex h-full select-none flex-col items-center justify-center gap-5 overflow-y-auto p-6">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border bg-card shadow-sm">
+                    <Workflow className="h-10 w-10 text-muted-foreground" aria-hidden />
+                  </div>
+
+                  <div className="max-w-sm space-y-2 text-center">
+                    <h2 className="font-headline text-xl font-black uppercase tracking-tight text-foreground">
+                      Canvas de mapeamento
+                    </h2>
+                    <p className="text-xs font-medium leading-relaxed text-muted-foreground">
+                      {sidebarOpen
+                        ? 'Cole os seus JSONs de origem e destino nos painéis e clique em Analisar JSON para carregar os campos aqui.'
+                        : 'Abra os painéis de JSON para colar origem e destino e carregar os campos no canvas.'}
+                    </p>
+                    <div className="flex flex-col justify-center gap-2 pt-2 sm:flex-row">
+                      {!sidebarOpen && (
+                        <Button
+                          onClick={() => setSidebarOpen(true)}
+                          variant="outline"
+                          size="sm"
+                          className="h-9 gap-2 rounded-xl px-4 text-xs font-semibold"
+                        >
+                          <PanelLeftOpen className="h-3.5 w-3.5" aria-hidden /> Abrir painéis
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => analyzeStructures()}
+                        size="sm"
+                        className="h-9 gap-2 rounded-xl px-5 text-xs font-semibold"
+                      >
+                        <ArrowRightLeft className="h-3.5 w-3.5" aria-hidden /> Analisar JSON
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </section>
           </div>
-        </div>
+        </main>
 
         {/* ── Modal de Pré-visualização da Spec Jolt com Execução Instantânea ─── */}
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-          <DialogContent className="max-w-3xl h-[85vh] max-h-[88vh] flex flex-col p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogContent className="flex h-[85dvh] max-h-[88dvh] max-w-3xl flex-col rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-6">
             <DialogHeader className="shrink-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-6">
+              <div className="flex flex-col justify-between gap-3 pr-6 sm:flex-row sm:items-center">
                 <div>
-                  <DialogTitle className="text-base font-bold tracking-tight flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                  <DialogTitle className="flex items-center gap-2 font-headline text-base font-black uppercase tracking-tight">
+                    <Sparkles className="h-4 w-4 text-primary" aria-hidden />
                     Transformação Jolt
                   </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
                     Modo ativo:{' '}
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="font-semibold text-primary">
                       {mappingMode === 'smarthub'
                         ? 'SmartHub (Envelope _attr_access)'
                         : 'Direto (Array Puro)'}
@@ -2195,19 +2185,20 @@ export default function VisualJoltMapperPage() {
                   </DialogDescription>
                 </div>
 
-                {/* Seletor de Abas: Spec vs Output */}
-                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80 shrink-0">
+                {/* Seletor de abas (spec vs resultado) e de motor */}
+                <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-xl border border-border bg-muted p-1">
                   <button
                     type="button"
                     onClick={() => setPreviewTab('spec')}
+                    aria-pressed={previewTab === 'spec'}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                      'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       previewTab === 'spec'
-                        ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm"
-                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                        ? 'bg-card text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    <FileJson className="h-3.5 w-3.5" />
+                    <FileJson className="h-3.5 w-3.5" aria-hidden />
                     Spec Jolt
                   </button>
                   <button
@@ -2219,30 +2210,32 @@ export default function VisualJoltMapperPage() {
                         setPreviewTab('output');
                       }
                     }}
+                    aria-pressed={previewTab === 'output'}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                      'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       previewTab === 'output'
-                        ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm"
-                        : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+                        ? 'bg-card text-primary shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    <Play className="h-3.5 w-3.5 fill-current" />
+                    <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
                     Resultado
                     {previewOutput && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse ml-0.5" />
+                      <span className="ml-0.5 h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden />
                     )}
                   </button>
 
                   {/* Seletor de Motor no Modal */}
-                  <div className="flex items-center rounded-lg p-0.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 ml-2">
+                  <div className="ml-1 flex items-center rounded-lg border border-border bg-background p-0.5 sm:ml-2">
                     <button
                       type="button"
                       onClick={() => setPreviewEngine('local')}
+                      aria-pressed={previewEngine === 'local'}
                       className={cn(
-                        "px-2 py-1 rounded text-[10px] font-bold uppercase transition-all",
+                        'rounded px-2 py-1 text-[10px] font-bold uppercase transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         previewEngine === 'local'
-                          ? "bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm"
-                          : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
                       )}
                       title="Executar no navegador (JavaScript)"
                     >
@@ -2251,15 +2244,16 @@ export default function VisualJoltMapperPage() {
                     <button
                       type="button"
                       onClick={() => setPreviewEngine('java')}
+                      aria-pressed={previewEngine === 'java'}
                       className={cn(
-                        "px-2 py-1 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-1",
+                        'flex items-center gap-1 rounded px-2 py-1 text-[10px] font-bold uppercase transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                         previewEngine === 'java'
-                          ? "bg-purple-600 text-white shadow-sm"
-                          : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground',
                       )}
                       title="Executar no servidor (Java Bazaarvoice oficial)"
                     >
-                      <Cpu className="h-3 w-3" />
+                      <Cpu className="h-3 w-3" aria-hidden />
                       Java Oficial
                     </button>
                   </div>
@@ -2268,7 +2262,7 @@ export default function VisualJoltMapperPage() {
             </DialogHeader>
 
             {/* Corpo do Modal */}
-            <div className="flex-1 min-h-[380px] h-[52vh] w-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 my-2 relative">
+            <div className="relative my-2 min-h-[240px] w-full flex-1 overflow-hidden rounded-xl border border-border">
               {previewTab === 'spec' ? (
                 <Editor
                   height="100%"
@@ -2276,8 +2270,8 @@ export default function VisualJoltMapperPage() {
                   theme={isDark ? 'vs-dark' : 'vs'}
                   value={previewSpec || '// Nenhuma especificação gerada ainda.'}
                   loading={
-                    <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-400">
-                      <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
+                    <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
                       <span className="text-xs">Carregando editor...</span>
                     </div>
                   }
@@ -2299,43 +2293,44 @@ export default function VisualJoltMapperPage() {
                   }}
                 />
               ) : previewError ? (
-                <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-red-50/50 dark:bg-red-950/20">
-                  <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/40 text-red-600 flex items-center justify-center mb-3">
-                    <AlertTriangle className="h-6 w-6" />
+                <div className="flex h-full flex-col items-center justify-center overflow-y-auto bg-destructive/5 p-6 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+                    <AlertTriangle className="h-6 w-6" aria-hidden />
                   </div>
-                  <h3 className="text-sm font-bold text-red-700 dark:text-red-400 mb-1">
-                    Falha na Execução do Motor
+                  <h3 className="mb-1 text-sm font-bold text-destructive">
+                    Falha na execução do motor
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md font-code mb-4 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-red-200 dark:border-red-900/60">
+                  <p className="mb-4 max-w-md rounded-xl border border-destructive/30 bg-card p-3 font-code text-xs text-muted-foreground">
                     {previewError}
                   </p>
                   <Button
                     size="sm"
+                    variant="destructive"
                     onClick={handleRunPreview}
                     disabled={isPreviewRunning}
-                    className="gap-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl"
+                    className="gap-2 rounded-xl text-xs font-semibold"
                   >
                     {isPreviewRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                    Tentar Novamente
+                    Tentar novamente
                   </Button>
                 </div>
               ) : previewOutput ? (
-                <div className="h-full flex flex-col">
+                <div className="flex h-full flex-col">
                   {previewExecutionTime !== null && (
-                    <div className="px-4 py-1.5 bg-slate-50 dark:bg-slate-950/80 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
+                    <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-muted/50 px-4 py-1.5 text-[11px] text-muted-foreground">
                       <span className="flex items-center gap-1.5 font-medium">
                         <span className={cn(
-                          "w-2 h-2 rounded-full",
-                          previewEngineUsed === 'java' ? "bg-purple-500" : "bg-emerald-500"
+                          'h-2 w-2 rounded-full',
+                          previewEngineUsed === 'java' ? 'bg-sky-500' : 'bg-emerald-500',
                         )} />
                         Saída gerada via {previewEngineUsed === 'java' ? 'Java Bazaarvoice (Oficial)' : 'motor local JS'}
                       </span>
-                      <span className="font-code text-emerald-600 dark:text-emerald-400 font-bold">
+                      <span className="font-code font-bold text-primary">
                         {previewExecutionTime}ms
                       </span>
                     </div>
                   )}
-                  <div className="flex-1">
+                  <div className="min-h-0 flex-1">
                     <Editor
                       height="100%"
                       language="json"
@@ -2356,40 +2351,40 @@ export default function VisualJoltMapperPage() {
                   </div>
                 </div>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-slate-50/50 dark:bg-slate-950/50">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 flex items-center justify-center mb-3">
-                    <Play className="h-6 w-6 fill-current" />
+                <div className="flex h-full flex-col items-center justify-center overflow-y-auto bg-muted/30 p-6 text-center">
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <Play className="h-6 w-6 fill-current" aria-hidden />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    Prévia Pronta para Executar
+                  <h3 className="mb-1 text-sm font-bold text-foreground">
+                    Prévia pronta para executar
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
+                  <p className="mb-4 max-w-sm text-xs text-muted-foreground">
                     O motor local processará a especificação gerada contra o JSON de origem imediatamente.
                   </p>
                   <Button
                     size="sm"
                     onClick={handleRunPreview}
                     disabled={isPreviewRunning}
-                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl shadow-sm"
+                    className="gap-2 rounded-xl text-xs font-semibold"
                   >
                     {isPreviewRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-                    Executar Transformação Agora
+                    Executar transformação agora
                   </Button>
                 </div>
               )}
             </div>
 
-            <DialogFooter className="shrink-0 flex items-center justify-between sm:justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
+            <DialogFooter className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-2 sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
                 {previewTab === 'spec' ? (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleCopySpec}
-                    className="gap-2 font-semibold text-xs rounded-xl"
+                    className="gap-2 rounded-xl text-xs font-semibold"
                   >
                     {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                    {isCopied ? 'Copiado!' : 'Copiar Spec'}
+                    {isCopied ? 'Copiado!' : 'Copiar spec'}
                   </Button>
                 ) : (
                   <Button
@@ -2397,10 +2392,10 @@ export default function VisualJoltMapperPage() {
                     size="sm"
                     onClick={handleCopyOutput}
                     disabled={!previewOutput}
-                    className="gap-2 font-semibold text-xs rounded-xl"
+                    className="gap-2 rounded-xl text-xs font-semibold"
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    Copiar Resultado
+                    Copiar resultado
                   </Button>
                 )}
 
@@ -2409,10 +2404,10 @@ export default function VisualJoltMapperPage() {
                   size="sm"
                   onClick={handleRunPreview}
                   disabled={isPreviewRunning}
-                  className="gap-1.5 font-semibold text-xs rounded-xl text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                  className="gap-1.5 rounded-xl border-primary/30 text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary"
                 >
                   {isPreviewRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-                  {previewOutput ? 'Reexecutar' : 'Executar Prévia'}
+                  {previewOutput ? 'Reexecutar' : 'Executar prévia'}
                 </Button>
               </div>
 
@@ -2421,16 +2416,16 @@ export default function VisualJoltMapperPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsPreviewOpen(false)}
-                  className="font-semibold text-xs rounded-xl"
+                  className="rounded-xl text-xs font-semibold"
                 >
                   Fechar
                 </Button>
                 <Button
                   size="sm"
                   onClick={generateSpecFromEdges}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs gap-2 rounded-xl shadow-sm"
+                  className="gap-2 rounded-xl text-xs font-semibold"
                 >
-                  <Sparkles className="h-3.5 w-3.5" /> Abrir no Sandbox
+                  <Sparkles className="h-3.5 w-3.5" /> Abrir na Sandbox
                 </Button>
               </div>
             </DialogFooter>
@@ -2439,26 +2434,27 @@ export default function VisualJoltMapperPage() {
 
         {/* ── Dialog Salvar Projeto Visual ─────────────────────────────────── */}
         <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-          <DialogContent className="max-w-md p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl">
+          <DialogContent className="max-w-md rounded-2xl border border-border bg-card p-5 shadow-xl">
             <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Save className="h-4 w-4 text-emerald-500" />
-                Salvar Mapeamento Visual
+              <DialogTitle className="flex items-center gap-2 font-headline text-base font-black uppercase tracking-tight">
+                <Save className="h-4 w-4 text-primary" aria-hidden />
+                Salvar mapeamento visual
               </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500">
+              <DialogDescription className="text-xs text-muted-foreground">
                 Guarde este diagrama, nós e regras para editar ou exportar a qualquer momento.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-3 space-y-3">
+            <div className="space-y-3 py-3">
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 block">
-                  Nome do Projeto
+                <label htmlFor="visual-project-name" className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Nome do projeto
                 </label>
                 <Input
+                  id="visual-project-name"
                   placeholder="Ex: Campanhas PDVSync"
                   value={projectNameInput}
                   onChange={(e) => setProjectNameInput(e.target.value)}
-                  className="h-9 text-xs rounded-xl"
+                  className="h-9 rounded-xl text-xs"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleSaveProject();
                   }}
@@ -2466,30 +2462,31 @@ export default function VisualJoltMapperPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
-                  <span>Mensagem da Versão (Changelog)</span>
-                  <span className="text-[10px] text-slate-400 font-normal">Opcional</span>
+                <label htmlFor="visual-project-commit" className="mb-1.5 flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  <span>Mensagem da versão (changelog)</span>
+                  <span className="font-medium normal-case tracking-normal">Opcional</span>
                 </label>
                 <Input
+                  id="visual-project-commit"
                   placeholder="Ex: v2: Adiciona mapeamento de itens e descontos"
                   value={versionCommitMessage}
                   onChange={(e) => setVersionCommitMessage(e.target.value)}
-                  className="h-9 text-xs rounded-xl font-code text-[11px]"
+                  className="h-9 rounded-xl font-code text-[11px]"
                 />
               </div>
 
               {/* Opção de Nuvem */}
               <div className="pt-1">
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-foreground">
                   <input
                     type="checkbox"
                     checked={saveToCloud}
                     onChange={(e) => setSaveToCloud(e.target.checked)}
-                    className="rounded border-slate-300 dark:border-slate-700 text-purple-600 focus:ring-purple-500 h-4 w-4"
+                    className="h-4 w-4 rounded border-border accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                   <span className="flex items-center gap-1.5">
-                    <Cloud className="h-3.5 w-3.5 text-purple-500" />
-                    Sincronizar na Nuvem (PostgreSQL) com Versionamento
+                    <Cloud className="h-3.5 w-3.5 text-primary" aria-hidden />
+                    Sincronizar na nuvem (PostgreSQL) com versionamento
                   </span>
                 </label>
               </div>
@@ -2506,7 +2503,7 @@ export default function VisualJoltMapperPage() {
               <Button
                 size="sm"
                 onClick={() => handleSaveProject()}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold gap-1.5"
+                className="gap-1.5 rounded-xl text-xs font-semibold"
               >
                 <Save className="h-3.5 w-3.5" />
                 Salvar
@@ -2517,54 +2514,54 @@ export default function VisualJoltMapperPage() {
 
         {/* ── Dialog Histórico de Versões ───────────────────────────────────── */}
         <Dialog open={isVersionModalOpen} onOpenChange={setIsVersionModalOpen}>
-          <DialogContent className="max-w-lg p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogContent className="max-w-lg rounded-2xl border border-border bg-card p-5 shadow-2xl">
             <DialogHeader>
-              <div className="flex items-center justify-between">
-                <DialogTitle className="text-base font-bold flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                  <History className="h-4 w-4" />
-                  Histórico de Versões
+              <div className="flex items-center justify-between pr-6">
+                <DialogTitle className="flex items-center gap-2 font-headline text-base font-black uppercase tracking-tight">
+                  <History className="h-4 w-4 text-primary" aria-hidden />
+                  Histórico de versões
                 </DialogTitle>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 font-code">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-code text-[10px] font-bold text-primary">
                   {projectVersions.length} {projectVersions.length === 1 ? 'versão' : 'versões'}
                 </span>
               </div>
-              <DialogDescription className="text-xs text-slate-500">
+              <DialogDescription className="text-xs text-muted-foreground">
                 Ponto de restauração e histórico de modificações salvas no banco de dados.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-3 max-h-[360px] overflow-y-auto space-y-2.5">
+            <div className="max-h-[360px] space-y-2.5 overflow-y-auto py-3">
               {isLoadingVersions ? (
-                <div className="flex flex-col items-center justify-center py-8 text-slate-400 gap-2">
+                <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span className="text-xs">Carregando histórico...</span>
                 </div>
               ) : projectVersions.length === 0 ? (
-                <div className="text-center py-8 text-xs text-slate-400 italic">
+                <div className="py-8 text-center text-xs italic text-muted-foreground">
                   Nenhuma versão registrada para este projeto.
                 </div>
               ) : (
                 projectVersions.map((v) => (
                   <div
                     key={v.id}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-slate-50 dark:hover:bg-slate-950 transition-colors flex items-start justify-between gap-3"
+                    className="flex items-start justify-between gap-3 rounded-xl border border-border bg-background p-3 transition-colors hover:bg-muted/50"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-black px-2 py-0.5 rounded bg-purple-600 text-white font-code">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-2">
+                        <span className="rounded bg-primary px-2 py-0.5 font-code text-xs font-black text-primary-foreground">
                           v{v.versionNumber}
                         </span>
-                        <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                        <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                          <Clock className="h-3 w-3" aria-hidden />
                           {new Date(v.createdAt).toLocaleString('pt-BR')}
                         </span>
                         {v.authorName && (
-                          <span className="text-[10px] text-slate-400 truncate">
+                          <span className="truncate text-[10px] text-muted-foreground">
                             • por {v.authorName}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mt-1">
+                      <p className="mt-1 text-xs font-medium text-foreground">
                         {v.commitMessage || 'Snapshot da versão'}
                       </p>
                     </div>
@@ -2573,10 +2570,10 @@ export default function VisualJoltMapperPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => handleRollbackVersion(v.id)}
-                      className="shrink-0 h-7 px-2.5 text-[10px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200 dark:border-purple-800 rounded-lg gap-1"
+                      className="h-7 shrink-0 gap-1 rounded-lg border-primary/30 px-2.5 text-[10px] font-bold uppercase tracking-wider text-primary hover:bg-primary/10 hover:text-primary"
                       title="Restaurar o projeto para esta versão"
                     >
-                      <RotateCcw className="h-3 w-3" />
+                      <RotateCcw className="h-3 w-3" aria-hidden />
                       Restaurar
                     </Button>
                   </div>
@@ -2599,23 +2596,19 @@ export default function VisualJoltMapperPage() {
 
         {/* ── Modal de Configuração do Template de Integração (Winthor/PCINTEGRACAOROTASERVICO) ─── */}
         <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-          <DialogContent className="max-w-3xl h-[85vh] max-h-[88vh] flex flex-col p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
+          <DialogContent className="flex h-[85dvh] max-h-[88dvh] max-w-3xl flex-col rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-6">
             <DialogHeader className="shrink-0">
-              <div className="flex items-center justify-between pr-6">
-                <div>
-                  <DialogTitle className="text-base font-bold tracking-tight flex items-center gap-2">
-                    <Settings2 className="h-4 w-4 text-emerald-500" />
-                    Template do Envelope de Integração
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Defina o payload completo da tabela de integração (ex: Winthor / PCINTEGRACAOROTASERVICO).
-                    Use <code className="text-emerald-600 dark:text-emerald-400 font-code font-bold bg-emerald-50 dark:bg-emerald-950/50 px-1 py-0.5 rounded border border-emerald-500/20">"_JOLT_SPEC_"</code> no valor do campo onde o array Jolt deve ser injetado.
-                  </DialogDescription>
-                </div>
-              </div>
+              <DialogTitle className="flex items-center gap-2 font-headline text-base font-black uppercase tracking-tight">
+                <Settings2 className="h-4 w-4 text-primary" aria-hidden />
+                Template do envelope de integração
+              </DialogTitle>
+              <DialogDescription className="mt-0.5 text-xs text-muted-foreground">
+                Defina o payload completo da tabela de integração (ex: Winthor / PCINTEGRACAOROTASERVICO).
+                Use <code className="rounded border border-primary/20 bg-primary/10 px-1 py-0.5 font-code font-bold text-primary">"_JOLT_SPEC_"</code> no valor do campo onde o array Jolt deve ser injetado.
+              </DialogDescription>
             </DialogHeader>
 
-            <div className="flex-1 min-h-0 relative border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-950">
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-border">
               <Editor
                 height="100%"
                 language="json"
@@ -2633,15 +2626,15 @@ export default function VisualJoltMapperPage() {
               />
             </div>
 
-            <DialogFooter className="gap-2 shrink-0 pt-2 flex items-center justify-between sm:justify-between">
+            <DialogFooter className="flex shrink-0 flex-wrap items-center justify-between gap-2 pt-2 sm:justify-between">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setTemplateDraft(DEFAULT_ENVELOPE_TEMPLATE)}
-                className="rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300"
+                className="rounded-xl text-xs font-semibold"
               >
-                Restaurar Padrão Winthor
+                Restaurar padrão Winthor
               </Button>
 
               <div className="flex items-center gap-2">
@@ -2666,10 +2659,10 @@ export default function VisualJoltMapperPage() {
                       description: "O envelope de integração foi atualizado e será usado na geração da Spec."
                     });
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold gap-1.5 shadow-md shadow-emerald-500/20"
+                  className="gap-1.5 rounded-xl text-xs font-semibold"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  Salvar Template
+                  Salvar template
                 </Button>
               </div>
             </DialogFooter>

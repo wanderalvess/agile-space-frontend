@@ -1,5 +1,26 @@
 [
   {
+    "tag": "v4.2.0",
+    "date": "6 de Outubro, 2026",
+    "title": "DevTools renovado, Central de Qualidade unificada e Jolt explicado",
+    "description": "Novo DevTools com mais de 30 ferramentas, Central de Qualidade como visão dele, Jolt com guia dos dois modos e home mais organizada.",
+    "changes": [
+      "DevTools renovado: um hub único com busca e categorias, com ferramentas de JSON, XML, YAML, SQL, Base64, URL, JWT, certificados, Regex, Diff, Cron, datas, UUID, CPF/CNPJ, cliente HTTP e mais. Tudo roda no seu navegador, sem enviar seus dados.",
+      "Central de Qualidade agora é uma visão do DevTools: as ferramentas de teste (massa de dados, Zephyr, BDD, automação, mocks, fuzz, diff de API) ficam num lugar só, sem duplicidade.",
+      "Jolt ganhou uma tela inicial que explica o Sandbox (você escreve a spec) e o Mapeador Visual (você desenha o mapa), quando usar cada um e o fluxo recomendado.",
+      "Página inicial reorganizada: todos os cards com o mesmo tamanho e alinhados em grupos de três.",
+      "O Planejador de Entregas está em redesenho e aparece como \"Em breve\". Ele acontece depois do Scrum Poker, que não depende mais dele.",
+      "Sandbox e Mapeador Visual do Jolt refeitos no padrão visual do sistema, com explicação dos motores (JavaScript, Java e Comparar) e passo a passo dentro da tela.",
+      "O Cofre de Segredos agora é local, com senha mestra e criptografia no navegador. O inspetor de certificados passou a ler o certificado de verdade.",
+      "Correção no Scrum Poker: o facilitador voltou a aparecer como online e o aviso falso \"Não foi possível entrar na sala\" não aparece mais."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.1.0",
     "date": "6 de Outubro, 2026",
     "title": "Espaço Ágil agora é Portal Tech V&D",

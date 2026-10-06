@@ -120,7 +120,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     badgeText: 'text-indigo-600 dark:text-indigo-400',
     heroBg: 'from-indigo-600 to-purple-700',
     actionUrl: '/sprint-planner',
-    actionLabel: 'Abrir Sprint Planner'
+    actionLabel: 'Ver status (em breve)'
   },
   {
     id: 'health',

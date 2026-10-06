@@ -534,7 +534,7 @@ function SquadHubContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
                     { step: '1', name: 'Scrum Poker', desc: 'Refinamento técnico e estimativas de Story Points em tempo real.', href: '/room', icon: Trophy, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-                    { step: '2', name: 'Sprint Planner', desc: 'Planejamento de capacidade do time e alocação do escopo.', href: '/sprint-planner', icon: CalendarRange, color: 'text-violet-500 bg-violet-500/10 border-violet-500/20' },
+                    { step: '2', name: 'Sprint Planner', desc: 'Em breve: planejamento de capacidade do time e alocação do escopo.', href: '/sprint-planner', icon: CalendarRange, color: 'text-violet-500 bg-violet-500/10 border-violet-500/20' },
                     { step: '3', name: 'Sprint Showcase', desc: 'Demonstração de entregas e veredito final com PO e stakeholders.', href: '/showcase', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
                     { step: '4', name: 'Retrospectiva', desc: 'Lições aprendidas com painel analítico da sprint automático.', href: '/retro', icon: History, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
                     { step: '5', name: 'Plano de Ação 5W2H', desc: 'Ações corretivas estruturadas e cobradas na sprint seguinte.', href: '/action-plan', icon: ListTodo, color: 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20' },

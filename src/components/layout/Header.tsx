@@ -65,8 +65,8 @@ export function Header() {
     pathname.startsWith('/admin') ||
     pathname.startsWith('/showcase') ||
     pathname.startsWith('/squad') ||
-    pathname.startsWith('/jiradash') ||
     pathname.startsWith('/qa') ||
+    pathname.startsWith('/devtools') ||
     pathname.startsWith('/knowledge') ||
     pathname.startsWith('/governance') ||
     pathname.startsWith('/changelog') ||

@@ -9,7 +9,6 @@ import {
   WalletCards,
   LayoutDashboard,
   Eye,
-  Terminal,
   ChevronRight,
   GitBranch,
   Sparkles,
@@ -254,58 +253,6 @@ export function BentoGrid() {
             className="w-full h-10 bg-violet-600 hover:bg-violet-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
           >
             Acessar Vitrine
-          </Button>
-        </Card>
-      </motion.div>
-
-      {/* 6. JOLT SANDBOX (col-span-4) - Interactive JSON transformations mockup */}
-      <motion.div
-        variants={itemVariants}
-        className="lg:col-span-4 md:col-span-1 col-span-1"
-        whileHover="hover"
-      >
-        <Card 
-          onClick={() => router.push('/jolt')}
-          className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[300px] overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-          
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
-                <Terminal className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Jolt Parser</span>
-            </div>
-            
-            <h3 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
-              Sandbox Jolt <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-blue-600 dark:text-blue-400" />
-            </h3>
-            <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed">
-              Motor local de mapeamento. Transforme a estrutura de payloads JSON de forma declarativa e síncrona.
-            </p>
-          </div>
-
-          {/* Code Sandbox Mockup */}
-          <div className="my-3 rounded-xl bg-slate-950 p-2.5 border border-slate-800 font-code text-[8px] text-emerald-400 flex flex-col justify-between h-20 shadow-inner relative">
-            <span className="absolute top-1 right-2 text-[6.5px] font-black uppercase text-slate-600 tracking-wider">JSON Input</span>
-            <div className="space-y-0.5 leading-none">
-              <div><span className="text-purple-400">1</span> <span className="text-slate-500">&#123;</span></div>
-              <div><span className="text-purple-400">2</span>   <span className="text-cyan-400">"status"</span>: <span className="text-orange-400">"SUCCESS"</span>,</div>
-              <div><span className="text-purple-400">3</span>   <span className="text-cyan-400">"tasks"</span>: <span className="text-slate-500">[</span> <span className="text-slate-400">...</span> <span className="text-slate-500">]</span></div>
-              <div><span className="text-purple-400">4</span> <span className="text-slate-500">&#125;</span></div>
-            </div>
-            <div className="flex items-center justify-between border-t border-slate-800 pt-1.5 mt-1 text-[7.5px] text-slate-500 font-bold uppercase">
-              <span className="text-blue-500">Transform &gt;</span>
-              <span className="text-slate-500 font-code">100% Client-Side</span>
-            </div>
-          </div>
-
-          <Button
-            size="sm"
-            className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none"
-          >
-            Abrir Sandbox
           </Button>
         </Card>
       </motion.div>

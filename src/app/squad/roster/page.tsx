@@ -722,21 +722,12 @@ function RosterContent() {
             </Badge>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-            Defina o tempo real de cada integrante da equipe. As horas configuradas nesta tela refletem automaticamente no **Sprint Planner**, nos gráficos de liderança e em todo o sistema.
+            Defina o tempo real de cada integrante da equipe. As horas configuradas nesta tela refletem automaticamente nos gráficos de liderança e em todo o sistema.
           </p>
         </div>
 
         {/* Action Buttons Header */}
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/sprint-planner`)}
-            className="h-9 text-xs font-bold gap-1.5 rounded-xl border-slate-300 dark:border-slate-700"
-          >
-            <Calculator className="h-4 w-4 text-violet-500" /> Abrir Sprint Planner
-          </Button>
-
           <Button
             variant="outline"
             size="sm"
