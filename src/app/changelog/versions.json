@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.5.0",
+    "date": "6 de Outubro, 2026",
+    "title": "Fotos das pessoas do Jira no time",
+    "description": "A importação do time pelo Jira agora traz a foto de cada pessoa, e ela aparece nas telas do time.",
+    "changes": [
+      "Ao importar o time pelo Jira, a foto de cada pessoa é trazida junto e guardada no portal, então todo o time vê as fotos sem precisar conectar o Jira.",
+      "As fotos aparecem na tela de escolha de pessoas da importação e no Painel do Time. Quem não tem foto continua com as iniciais.",
+      "As fotos vêm na próxima importação ou sincronização do time. Times já importados passam a mostrar as fotos quando forem importados de novo."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.4.7",
     "date": "6 de Outubro, 2026",
     "title": "Versões: histórico completo na página de novidades",

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { projectService, type ProjectDetail } from '@/services/projectService';
 import { pokerApi } from '@/app/room/api';
 import { cn } from '@/lib/utils';
@@ -62,13 +63,6 @@ const SYNC_STEPS = [
   'Buscando a sprint atual do projeto',
   'Calculando as métricas do time',
 ];
-
-function initials(name?: string) {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '??';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function Metric({ label, value, hint, loading }: { label: string; value: string; hint: string; loading?: boolean }) {
   return (
@@ -132,10 +126,7 @@ export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, 
           <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
             <div className="flex -space-x-2.5" aria-label={`${members.length} pessoas no time`}>
               {members.slice(0, 6).map((m, i) => (
-                <span key={`${m.email || m.displayName}-${i}`} title={m.displayName}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-bold text-muted-foreground">
-                  {initials(m.displayName)}
-                </span>
+                <MemberAvatar key={`${m.email || m.displayName}-${i}`} name={m.displayName} src={m.avatarUrl} className="h-9 w-9 border-2 border-background" />
               ))}
               {members.length > 6 && (
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-background bg-primary/10 text-[10px] font-black text-primary">

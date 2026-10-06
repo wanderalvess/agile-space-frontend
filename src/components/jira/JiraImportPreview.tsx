@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { ProjectDetail, ProjectImportConfirmBody, ProjectMemberRoleItem } from '@/services/projectService';
 import { cn } from '@/lib/utils';
@@ -37,13 +38,6 @@ interface RowState {
 }
 
 const keyOf = (m: ProjectMemberRoleItem, i: number) => m.jiraAccountId || m.email || `${m.displayName}-${i}`;
-
-function initials(name?: string) {
-  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '??';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function Field({ id, label, value, onChange, placeholder, inputMode }: {
   id: string; label: string; value: string; onChange: (v: string) => void; placeholder?: string; inputMode?: 'numeric';
@@ -200,7 +194,7 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
                       onCheckedChange={v => patch(key, { selected: v === true })}
                       aria-label={`Importar ${m.displayName}`}
                     />
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground">{initials(m.displayName)}</div>
+                    <MemberAvatar name={m.displayName} src={m.avatarUrl} className="shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 truncate text-sm font-semibold">
                         <span className="truncate">{m.displayName}</span>
