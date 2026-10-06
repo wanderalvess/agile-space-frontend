@@ -1416,6 +1416,7 @@ const PokerRoomComponent = ({
                       roomTeam={roomTeam}
                       participants={participants}
                       onlineIds={onlineIds}
+                      roomUrl={typeof window !== 'undefined' ? `${window.location.origin}/room/${roomId}` : ''}
                       onShare={handleCopyLink}
                       onImportJira={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
                       onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}

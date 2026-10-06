@@ -13,7 +13,11 @@ import {
   Loader2,
   ArrowRight,
   Activity,
+  AlertCircle,
+  TriangleAlert,
 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +27,91 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import packageInfo from '../../../package.json';
 
 const LAST_EMAIL_KEY = 'agile-space:last-email';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LABEL = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5';
+const INPUT = 'h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all';
+
+function passwordScore(pw: string): number {
+  let n = 0;
+  if (pw.length >= 8) n++;
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) n++;
+  if (/\d/.test(pw)) n++;
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 12) n++;
+  return n;
+}
+const STRENGTH = [
+  { label: 'Muito fraca', bar: 'bg-red-500' },
+  { label: 'Fraca', bar: 'bg-red-500' },
+  { label: 'Razoável', bar: 'bg-amber-500' },
+  { label: 'Boa', bar: 'bg-emerald-500' },
+  { label: 'Forte', bar: 'bg-emerald-500' },
+];
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" className="flex items-center gap-1 text-[11px] font-semibold text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+      <AlertCircle className="w-3 h-3 shrink-0" /> {message}
+    </p>
+  );
+}
+
+// Mini-mesa de poker animada: cartas viram em ciclo e mostram o consenso.
+const PREVIEW_ROUNDS = [
+  { votes: ['5', '5', '8'], result: '5' },
+  { votes: ['3', '5', '5'], result: '5' },
+  { votes: ['8', '8', '8'], result: '8' },
+];
+
+function PokerPreview() {
+  const [i, setI] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    const reveal = setTimeout(() => setRevealed(true), 1400);
+    const next = setTimeout(() => {
+      setRevealed(false);
+      setI(v => (v + 1) % PREVIEW_ROUNDS.length);
+    }, 3800);
+    return () => {
+      clearTimeout(reveal);
+      clearTimeout(next);
+    };
+  }, [i]);
+  const r = PREVIEW_ROUNDS[i];
+  return (
+    <div className="rounded-2xl bg-white/5 border border-white/10 p-4 backdrop-blur-sm" aria-hidden>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Scrum Poker ao vivo</span>
+        <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          </span>
+          3 online
+        </span>
+      </div>
+      <div className="flex items-center justify-center gap-3" style={{ perspective: 600 }}>
+        {r.votes.map((v, idx) => (
+          <motion.div
+            key={`${i}-${idx}`}
+            initial={{ rotateY: 0, y: 12, opacity: 0 }}
+            animate={{ rotateY: revealed ? 180 : 0, y: 0, opacity: 1 }}
+            transition={{ rotateY: { duration: 0.5, delay: revealed ? idx * 0.12 : 0 }, y: { delay: idx * 0.1 }, opacity: { delay: idx * 0.1 } }}
+            style={{ transformStyle: 'preserve-3d' }}
+            className="relative h-16 w-11"
+          >
+            <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary to-violet-600 border border-white/20 shadow-lg" style={{ backfaceVisibility: 'hidden' }} />
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white text-slate-900 text-xl font-black italic shadow-lg" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>{v}</div>
+          </motion.div>
+        ))}
+      </div>
+      <p className={cn('mt-3 text-center text-[11px] font-bold transition-all duration-300', revealed ? 'text-emerald-400' : 'text-slate-400 opacity-60')}>
+        {revealed ? `Consenso: ${r.result} pontos` : 'Votando em segredo…'}
+      </p>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const { toast } = useToast();
@@ -36,6 +125,11 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [capsOn, setCapsOn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [shakeKey, setShakeKey] = useState(0);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const passwordRef = useRef<HTMLInputElement>(null);
 
   // Lembra apenas o e-mail (nunca a senha) para não digitar a cada login.
@@ -51,16 +145,40 @@ export default function LoginPage() {
     }
   }, []);
 
+  const touch = (f: string) => setTouched(t => ({ ...t, [f]: true }));
+  const failAuth = (msg: string) => {
+    setAuthError(msg);
+    setShakeKey(k => k + 1);
+  };
+  const switchTab = (t: 'login' | 'register' | 'forgot') => {
+    setActiveTab(t);
+    setAuthError(null);
+    setTouched({});
+  };
+  const onCaps = (e: React.KeyboardEvent) => setCapsOn(e.getModifierState?.('CapsLock') ?? false);
+
+  const errors = {
+    name: !name.trim() ? 'Informe seu nome.' : undefined,
+    email: !email.trim()
+      ? 'Informe seu e-mail.'
+      : activeTab !== 'login' && !EMAIL_RE.test(email.trim())
+        ? 'E-mail inválido. Ex.: nome@empresa.com.br'
+        : undefined,
+    password: !password
+      ? 'Informe a senha.'
+      : activeTab === 'register' && password.length < 8
+        ? 'Mínimo de 8 caracteres.'
+        : undefined,
+    confirm: confirm !== password ? 'As senhas não conferem.' : undefined,
+  };
+  const show = (f: keyof typeof errors) => (touched[f] ? errors[f] : undefined);
+  const score = passwordScore(password);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Informe seu e-mail ou usuário e a senha.",
-        variant: "destructive"
-      });
-      return;
-    }
+    setTouched(t => ({ ...t, email: true, password: true }));
+    if (errors.email || errors.password) return;
+    setAuthError(null);
 
     setLoading(true);
     try {
@@ -75,11 +193,9 @@ export default function LoginPage() {
         description: `Projeto ativo: ${session.activeProjectName || session.activeProjectId || 'a definir'} (${session.activeProjectRole || 'Membro'})`,
       });
     } catch (err: any) {
-      toast({
-        title: "Falha na autenticação",
-        description: err.message || "E-mail ou senha inválidos.",
-        variant: "destructive"
-      });
+      failAuth(err.message || 'E-mail ou senha inválidos.');
+      setPassword('');
+      passwordRef.current?.focus();
     } finally {
       setLoading(false);
     }
@@ -87,14 +203,9 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name) {
-      toast({
-        title: "Campos incompletos",
-        description: "Preencha nome, e-mail e senha para criar sua conta.",
-        variant: "destructive"
-      });
-      return;
-    }
+    setTouched({ name: true, email: true, password: true, confirm: true });
+    if (errors.name || errors.email || errors.password || errors.confirm) return;
+    setAuthError(null);
 
     setLoading(true);
     try {
@@ -109,11 +220,7 @@ export default function LoginPage() {
         description: "Identidade corporativa vinculada aos seus projetos.",
       });
     } catch (err: any) {
-      toast({
-        title: "Erro no cadastro",
-        description: err.message || "Não foi possível registrar o usuário.",
-        variant: "destructive"
-      });
+      failAuth(err.message || 'Não foi possível registrar o usuário.');
     } finally {
       setLoading(false);
     }
@@ -121,14 +228,9 @@ export default function LoginPage() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      toast({
-        title: "E-mail obrigatório",
-        description: "Informe seu e-mail para recuperar a senha.",
-        variant: "destructive"
-      });
-      return;
-    }
+    setTouched(t => ({ ...t, email: true }));
+    if (errors.email) return;
+    setAuthError(null);
 
     setLoading(true);
     try {
@@ -150,21 +252,10 @@ export default function LoginPage() {
         description: "Um evento foi gravado na Auditoria. Solicite a aprovação ao seu Admin, Agile Master ou Tribe Lead.",
       });
     } catch (err: any) {
-      toast({
-        title: "Erro na solicitação",
-        description: err.message || "Não foi possível registrar o pedido de reset.",
-        variant: "destructive"
-      });
+      failAuth(err.message || 'Não foi possível registrar o pedido de reset.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleLogin = () => {
-    toast({
-      title: "Em breve",
-      description: "Login com Google Workspace ainda não está disponível.",
-    });
   };
 
   return (
@@ -224,6 +315,8 @@ export default function LoginPage() {
                   Sincronize projetos, assuma seu papel e conduza cerimônias ágeis em tempo real sem burocracia.
                 </p>
 
+                <PokerPreview />
+
                 <div className="space-y-2.5 pt-2">
                   <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/10 hover:-translate-y-0.5">
                     <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
@@ -271,277 +364,352 @@ export default function LoginPage() {
               </div>
 
               <div className="w-full max-w-sm mx-auto space-y-4 flex flex-col justify-center min-h-[420px]">
-                {loading ? (
-                    <div className="flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500 py-8">
-                      <div className="relative group mb-8">
-                        <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full animate-pulse transition-colors duration-500" />
-                        <div className="relative z-10 flex items-center justify-center h-24 w-24 rounded-[2rem] bg-primary text-primary-foreground shadow-2xl shadow-primary/30 transition-colors duration-300">
-                          <Rocket className="h-12 w-12 animate-[bounce_2s_infinite_ease-in-out]" />
-                        </div>
-                      </div>
-                      <h3 className="text-xl font-black font-headline tracking-tighter uppercase text-foreground mb-3 flex items-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                        Autenticando
-                      </h3>
-                      <p className="text-[11px] text-slate-600 font-bold text-center uppercase tracking-widest px-4 leading-relaxed">
-                        Sincronizando identidade corporativa<br/>e projetos vinculados...
-                      </p>
+                {/* Cabecalho Mobile */}
+                <div className="flex lg:hidden items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground">
+                    <Rocket className="h-4 w-4" />
+                  </div>
+                  <span className="text-lg font-black tracking-tight italic font-headline uppercase text-foreground">
+                    Espaço <span className="text-primary not-italic">Ágil</span>
+                  </span>
+                </div>
 
-                      <div className="w-48 h-1 bg-muted rounded-full overflow-hidden mt-8">
-                        <div className="h-full bg-primary rounded-full animate-pulse w-full transition-colors duration-300" />
-                      </div>
+                <div className="space-y-1 text-left">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-headline text-foreground">
+                    {activeTab === 'login' ? 'Bem-vindo de volta' : activeTab === 'register' ? 'Crie sua conta' : 'Recuperar senha'}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+                    {activeTab === 'forgot'
+                      ? (forgotSent ? 'Solicitação registrada. Aguarde a aprovação do seu Admin, Agile Master ou Tribe Lead.' : 'Registraremos o pedido para aprovação do seu Admin, Agile Master ou Tribe Lead.')
+                      : activeTab === 'register'
+                        ? 'Use seu e-mail corporativo para vincular seus projetos.'
+                        : 'Insira suas credenciais corporativas para continuar.'}
+                  </p>
+                </div>
+
+                <Tabs value={activeTab} onValueChange={(v) => switchTab(v as 'login' | 'register' | 'forgot')} className="w-full">
+                  {activeTab !== 'forgot' && (
+                    <TabsList className="grid grid-cols-2 bg-muted/60 p-1 rounded-xl mb-3 border border-border/50">
+                      <TabsTrigger value="login" disabled={loading} className="text-xs font-bold uppercase tracking-wider text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg py-1.5 transition-all">
+                        Entrar
+                      </TabsTrigger>
+                      <TabsTrigger value="register" disabled={loading} className="text-xs font-bold uppercase tracking-wider text-muted-foreground data-[state=active]:text-foreground data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg py-1.5 transition-all">
+                        Cadastrar
+                      </TabsTrigger>
+                    </TabsList>
+                  )}
+
+                  {/* ERRO DE AUTENTICAÇÃO: fica no card até o usuário editar; shake a cada nova falha */}
+                  {authError && (
+                    <div
+                      key={shakeKey}
+                      role="alert"
+                      className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-xs font-semibold text-destructive animate-shake"
+                    >
+                      <TriangleAlert className="w-4 h-4 shrink-0 mt-px" />
+                      <span>
+                        <strong className="block font-black">
+                          {activeTab === 'login' ? 'Falha na autenticação' : activeTab === 'register' ? 'Erro no cadastro' : 'Erro na solicitação'}
+                        </strong>
+                        {authError}
+                      </span>
                     </div>
-                ) : (
-                    <>
-                      {/* Cabecalho Mobile */}
-                      <div className="flex lg:hidden items-center gap-2 mb-2">
-                        <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground">
-                          <Rocket className="h-4 w-4" />
+                  )}
+
+                  <div>
+                    {activeTab === 'login' ? (
+                      <form onSubmit={handleLogin} className="space-y-3" noValidate>
+                        <div className="space-y-1">
+                          <label htmlFor="login-email" className={LABEL}>
+                            <Mail className="w-3.5 h-3.5" /> E-mail ou Usuário
+                          </label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="login-email"
+                              type="text"
+                              name="email"
+                              autoComplete="username"
+                              autoCapitalize="none"
+                              spellCheck={false}
+                              placeholder="usuario ou nome@empresa.com.br"
+                              value={email}
+                              disabled={loading}
+                              onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
+                              onBlur={() => touch('email')}
+                              aria-invalid={!!show('email')}
+                              aria-describedby={show('email') ? 'login-email-err' : undefined}
+                              className={cn(INPUT, show('email') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                          </div>
+                          <FieldError id="login-email-err" message={show('email')} />
                         </div>
-                        <span className="text-lg font-black tracking-tight italic font-headline uppercase text-foreground">
-                          Espaço <span className="text-primary not-italic">Ágil</span>
-                        </span>
-                      </div>
 
-                      <div className="space-y-1 text-left">
-                        <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-headline text-foreground">
-                          {activeTab === 'login' ? 'Bem-vindo de volta' : activeTab === 'register' ? 'Crie sua conta' : 'Recuperar senha'}
-                        </h1>
-                        <p className="text-xs sm:text-sm text-slate-600 font-medium">
-                          {activeTab === 'forgot'
-                            ? (forgotSent ? 'Verifique seu e-mail corporativo.' : 'Enviaremos um link de recuperação para o seu e-mail.')
-                            : 'Insira suas credenciais corporativas para continuar.'}
-                        </p>
-                      </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label htmlFor="login-password" className={LABEL}>
+                              <Lock className="w-3.5 h-3.5" /> Senha
+                            </label>
+                            <button type="button" onClick={() => switchTab('forgot')} className="text-[11px] font-bold text-primary hover:opacity-80 transition-opacity">
+                              Esqueceu a senha?
+                            </button>
+                          </div>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="login-password"
+                              type={showPassword ? 'text' : 'password'}
+                              name="password"
+                              autoComplete="current-password"
+                              ref={passwordRef}
+                              placeholder="••••••••"
+                              value={password}
+                              disabled={loading}
+                              onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
+                              onBlur={() => touch('password')}
+                              onKeyDown={onCaps}
+                              onKeyUp={onCaps}
+                              aria-invalid={!!show('password')}
+                              aria-describedby={show('password') ? 'login-password-err' : undefined}
+                              className={cn(INPUT, 'pr-10', show('password') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                              aria-pressed={showPassword}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          {capsOn && (
+                            <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                              <TriangleAlert className="w-3 h-3 shrink-0" /> Caps Lock está ativado.
+                            </p>
+                          )}
+                          <FieldError id="login-password-err" message={show('password')} />
+                        </div>
 
-                      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-                        {activeTab !== 'forgot' && (
-                          <TabsList className="grid grid-cols-2 bg-muted/60 p-1 rounded-xl mb-3 border border-border/50">
-                            <TabsTrigger value="login" className="text-xs font-bold uppercase tracking-wider text-slate-600 data-[state=active]:text-foreground data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg py-1.5 transition-all">
-                              Entrar
-                            </TabsTrigger>
-                            <TabsTrigger value="register" className="text-xs font-bold uppercase tracking-wider text-slate-600 data-[state=active]:text-foreground data-[state=active]:bg-card data-[state=active]:shadow-sm rounded-lg py-1.5 transition-all">
-                              Cadastrar
-                            </TabsTrigger>
-                          </TabsList>
-                        )}
-
-                        <div>
-                          {activeTab === 'login' ? (
-                              <form onSubmit={handleLogin} className="space-y-3">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                    <Mail className="w-3.5 h-3.5" /> E-mail ou Usuário
-                                  </label>
-                                  <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                                    <Input
-                                        type="text"
-                                        name="email"
-                                        autoComplete="username"
-                                        autoCapitalize="none"
-                                        spellCheck={false}
-                                        placeholder="usuario ou nome@empresa.com.br"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                      <Lock className="w-3.5 h-3.5" /> Senha
-                                    </label>
-                                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('forgot'); }} className="text-[11px] font-bold text-primary hover:opacity-80 transition-opacity">
-                                      Esqueceu a senha?
-                                    </a>
-                                  </div>
-                                  <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                                    <Input
-                                        type={showPassword ? "text" : "password"}
-                                        name="password"
-                                        autoComplete="current-password"
-                                        ref={passwordRef}
-                                        placeholder="••••••••"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 pr-10 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 hover:text-foreground transition-colors"
-                                    >
-                                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
-                                >
-                                  Acessar Plataforma
-                                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                                </Button>
-                              </form>
-                          ) : activeTab === 'register' ? (
-                              <form onSubmit={handleRegister} className="space-y-3">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                    <UserIcon className="w-3.5 h-3.5" /> Nome Completo
-                                  </label>
-                                  <div className="relative">
-                                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                                    <Input
-                                        type="text"
-                                        placeholder="João da Silva"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        required
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                    <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
-                                  </label>
-                                  <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                                    <Input
-                                        type="email"
-                                        placeholder="nome@empresa.com.br"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                    <Lock className="w-3.5 h-3.5" /> Definir Senha
-                                  </label>
-                                  <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                                    <Input
-                                        type="password"
-                                        placeholder="Mínimo 8 caracteres"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        minLength={8}
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                    />
-                                  </div>
-                                </div>
-
-                                <Button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
-                                >
-                                  Criar Conta
-                                  <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                                </Button>
-                              </form>
+                        <Button
+                          type="submit"
+                          disabled={loading}
+                          className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
+                        >
+                          {loading ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Autenticando…</>
                           ) : (
-                              <form onSubmit={handleForgotPassword} className="space-y-3">
-                                <div className="space-y-1">
-                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1.5">
-                                    <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
-                                  </label>
-                                  <div className="relative">
-                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
-                                    <Input
-                                        type="email"
-                                        placeholder="nome@empresa.com.br"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                        className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/50 pl-9 focus-visible:ring-primary focus-visible:border-primary transition-all"
-                                    />
-                                  </div>
-                                </div>
+                            <>Acessar Plataforma <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" /></>
+                          )}
+                        </Button>
+                        {loading && (
+                          <p className="text-center text-[11px] font-medium text-muted-foreground" role="status">
+                            Sincronizando identidade corporativa e projetos vinculados…
+                          </p>
+                        )}
+                      </form>
+                    ) : activeTab === 'register' ? (
+                      <form onSubmit={handleRegister} className="space-y-3" noValidate>
+                        <div className="space-y-1">
+                          <label htmlFor="reg-name" className={LABEL}>
+                            <UserIcon className="w-3.5 h-3.5" /> Nome Completo
+                          </label>
+                          <div className="relative">
+                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="reg-name"
+                              type="text"
+                              autoComplete="name"
+                              placeholder="João da Silva"
+                              value={name}
+                              disabled={loading}
+                              onChange={(e) => { setName(e.target.value); setAuthError(null); }}
+                              onBlur={() => touch('name')}
+                              aria-invalid={!!show('name')}
+                              aria-describedby={show('name') ? 'reg-name-err' : undefined}
+                              className={cn(INPUT, show('name') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                          </div>
+                          <FieldError id="reg-name-err" message={show('name')} />
+                        </div>
 
-                                <div className="pt-2">
-                                  {forgotSent ? (
-                                      <Button
-                                          type="button"
-                                          onClick={() => setActiveTab('login')}
-                                          className="w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
-                                      >
-                                        Voltar para Login
-                                      </Button>
-                                  ) : (
-                                      <div className="flex flex-col gap-2">
-                                        <Button
-                                            type="submit"
-                                            disabled={loading}
-                                            className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all"
-                                        >
-                                          Enviar Link
-                                          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={() => setActiveTab('login')}
-                                            className="w-full h-10 rounded-xl text-slate-600 hover:text-foreground font-bold text-[11px] uppercase tracking-widest transition-all"
-                                        >
-                                          Cancelar
-                                        </Button>
-                                      </div>
-                                  )}
-                                </div>
-                              </form>
+                        <div className="space-y-1">
+                          <label htmlFor="reg-email" className={LABEL}>
+                            <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
+                          </label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="reg-email"
+                              type="email"
+                              autoComplete="email"
+                              autoCapitalize="none"
+                              spellCheck={false}
+                              placeholder="nome@empresa.com.br"
+                              value={email}
+                              disabled={loading}
+                              onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
+                              onBlur={() => touch('email')}
+                              aria-invalid={!!show('email')}
+                              aria-describedby={show('email') ? 'reg-email-err' : undefined}
+                              className={cn(INPUT, show('email') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                          </div>
+                          <FieldError id="reg-email-err" message={show('email')} />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor="reg-password" className={LABEL}>
+                            <Lock className="w-3.5 h-3.5" /> Definir Senha
+                          </label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="reg-password"
+                              type={showPassword ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              placeholder="Mínimo 8 caracteres"
+                              value={password}
+                              disabled={loading}
+                              onChange={(e) => { setPassword(e.target.value); setAuthError(null); }}
+                              onBlur={() => touch('password')}
+                              onKeyDown={onCaps}
+                              onKeyUp={onCaps}
+                              aria-invalid={!!show('password')}
+                              aria-describedby="reg-password-hint"
+                              className={cn(INPUT, 'pr-10', show('password') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                              aria-pressed={showPassword}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                          {capsOn && (
+                            <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                              <TriangleAlert className="w-3 h-3 shrink-0" /> Caps Lock está ativado.
+                            </p>
+                          )}
+                          {password && (
+                            <div id="reg-password-hint" className="space-y-1" aria-live="polite">
+                              <div className="flex gap-1">
+                                {[1, 2, 3, 4].map(n => (
+                                  <span key={n} className={cn('h-1 flex-1 rounded-full transition-colors', n <= score ? STRENGTH[score].bar : 'bg-muted')} />
+                                ))}
+                              </div>
+                              <p className="text-[11px] font-medium text-muted-foreground">
+                                Força: <span className="font-bold text-foreground">{STRENGTH[score].label}</span>
+                                {score < 3 && ' — misture maiúsculas, números e símbolos.'}
+                              </p>
+                            </div>
+                          )}
+                          <FieldError id="reg-password-err" message={show('password')} />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor="reg-confirm" className={LABEL}>
+                            <Lock className="w-3.5 h-3.5" /> Confirmar Senha
+                          </label>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="reg-confirm"
+                              type={showPassword ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              placeholder="Repita a senha"
+                              value={confirm}
+                              disabled={loading}
+                              onChange={(e) => setConfirm(e.target.value)}
+                              onBlur={() => touch('confirm')}
+                              aria-invalid={!!show('confirm')}
+                              aria-describedby={show('confirm') ? 'reg-confirm-err' : undefined}
+                              className={cn(INPUT, show('confirm') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                          </div>
+                          <FieldError id="reg-confirm-err" message={show('confirm')} />
+                        </div>
+
+                        <Button
+                          type="submit"
+                          disabled={loading}
+                          className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
+                        >
+                          {loading ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Criando conta…</>
+                          ) : (
+                            <>Criar Conta <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" /></>
+                          )}
+                        </Button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleForgotPassword} className="space-y-3" noValidate>
+                        <div className="space-y-1">
+                          <label htmlFor="forgot-email" className={LABEL}>
+                            <Mail className="w-3.5 h-3.5" /> E-mail Corporativo
+                          </label>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50 pointer-events-none" />
+                            <Input
+                              id="forgot-email"
+                              type="email"
+                              autoComplete="email"
+                              autoCapitalize="none"
+                              spellCheck={false}
+                              placeholder="nome@empresa.com.br"
+                              value={email}
+                              disabled={loading || forgotSent}
+                              onChange={(e) => { setEmail(e.target.value); setAuthError(null); }}
+                              onBlur={() => touch('email')}
+                              aria-invalid={!!show('email')}
+                              aria-describedby={show('email') ? 'forgot-email-err' : undefined}
+                              className={cn(INPUT, show('email') && 'border-destructive focus-visible:ring-destructive')}
+                            />
+                          </div>
+                          <FieldError id="forgot-email-err" message={show('email')} />
+                        </div>
+
+                        <div className="pt-2">
+                          {forgotSent ? (
+                            <Button
+                              type="button"
+                              onClick={() => { setForgotSent(false); switchTab('login'); }}
+                              className="w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all mt-4"
+                            >
+                              Voltar para Login
+                            </Button>
+                          ) : (
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                type="submit"
+                                disabled={loading}
+                                className="group w-full h-10 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-black uppercase tracking-widest text-[11px] shadow-lg shadow-primary/25 transition-all"
+                              >
+                                {loading ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enviando…</>
+                                ) : (
+                                  <>Solicitar Reset <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" /></>
+                                )}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                disabled={loading}
+                                onClick={() => switchTab('login')}
+                                className="w-full h-10 rounded-xl text-muted-foreground hover:text-foreground font-bold text-[11px] uppercase tracking-widest transition-all"
+                              >
+                                Cancelar
+                              </Button>
+                            </div>
                           )}
                         </div>
-                      </Tabs>
-
-                      {/* DIVISOR SOCIAL LOGIN */}
-                      {activeTab !== 'forgot' && (
-                        <>
-                          <div className="relative my-4 text-center text-xs">
-                            <div className="absolute inset-0 flex items-center">
-                              <span className="w-full border-t border-border/70" />
-                            </div>
-                            <span className="relative bg-card/95 dark:bg-card/50 backdrop-blur-xl px-3 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                              Ou continue com
-                            </span>
-                          </div>
-
-                          {/* BOTÃO GOOGLE SSO (desativado - em breve) */}
-                          <Button
-                              type="button"
-                              variant="outline"
-                              onClick={handleGoogleLogin}
-                              className="w-full h-10 rounded-xl border border-border/80 bg-background/60 hover:bg-accent hover:text-accent-foreground text-foreground font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-sm opacity-60 cursor-not-allowed"
-                          >
-                            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                            </svg>
-                            <span>Entrar com Google</span>
-                            <span className="text-[9px] font-black uppercase tracking-wider bg-muted text-slate-600 rounded-full px-2 py-0.5 ml-1">
-                              Em breve
-                            </span>
-                          </Button>
-                        </>
-                      )}
-                    </>
-                )}
+                      </form>
+                    )}
+                  </div>
+                </Tabs>
               </div>
             </div>
           </div>
