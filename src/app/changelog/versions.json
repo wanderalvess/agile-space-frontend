@@ -1,5 +1,20 @@
 [
   {
+    "tag": "v4.4.6",
+    "date": "6 de Outubro, 2026",
+    "title": "Ícones da Retrospectiva e do Poker deixam de confundir",
+    "description": "O ícone de quatro quadrados no topo dessas telas parecia um botão de painel e foi trocado por ícones próprios.",
+    "changes": [
+      "Na Retrospectiva, o ícone de quatro quadrados ao lado do nome da sala foi trocado por uma chama, o mesmo símbolo usado nos cartões da Retro, e não parece mais um atalho para o painel.",
+      "No Scrum Poker, o ícone de grade foi trocado por um ícone de cartas."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.5",
     "date": "6 de Outubro, 2026",
     "title": "Telas padronizadas: Governança, Manual, Suporte e Versões",

@@ -12,58 +12,7 @@ import { Controls } from '@/components/poker/Controls';
 import { VotingArea } from '@/components/poker/VotingArea';
 import { Results } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import {
-  Copy,
-  Eye,
-  EyeOff,
-  RotateCcw,
-  Volume2,
-  Sparkles,
-  HelpCircle,
-  Info,
-  WalletCards,
-  BrainCircuit,
-  Trophy,
-  Users,
-  ArrowLeft,
-  LayoutGrid,
-  CheckCircle2,
-  PanelLeftClose,
-  PanelRightClose,
-  Clock,
-  ListChecks,
-  Target,
-  AlertTriangle,
-  TrendingUp,
-  Award,
-  Plus,
-  ChevronDown,
-  Code,
-  Bug,
-  SkipForward,
-  FileText,
-  ListPlus,
-  Hourglass,
-  Download,
-  ClipboardCopy,
-  Kanban,
-  MessageSquare,
-  RefreshCcw,
-  RotateCw,
-  ExternalLink,
-  Pin,
-  Layers,
-  X,
-  Settings,
-  Flag,
-  Play,
-  MoreHorizontal,
-  CloudDownload,
-  Bot,
-  Ban,
-  MessageSquareText,
-  MessagesSquare
-} from 'lucide-react';
+import { Copy, Eye, EyeOff, RotateCcw, Volume2, Sparkles, HelpCircle, Info, WalletCards, BrainCircuit, Trophy, Users, ArrowLeft, LayoutGrid, CheckCircle2, PanelLeftClose, PanelRightClose, Clock, ListChecks, Target, AlertTriangle, TrendingUp, Award, Plus, ChevronDown, Code, Bug, SkipForward, FileText, ListPlus, Hourglass, Download, ClipboardCopy, Kanban, MessageSquare, RefreshCcw, RotateCw, ExternalLink, Pin, Layers, X, Settings, Flag, Play, MoreHorizontal, CloudDownload, Bot, Ban, MessageSquareText, MessagesSquare } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -854,7 +803,7 @@ const PokerRoomComponent = ({
         ) : (
         <RoomHeader
           title={roomTitle || "Scrum Poker"}
-          toolIcon={<LayoutGrid className="h-4 w-4" />}
+          toolIcon={<WalletCards className="h-4 w-4" />}
           toolColorClass="text-blue-600 bg-blue-50"
           onOpenFeedback={onOpenFeedback}
           actions={

@@ -12,29 +12,7 @@ import { Button } from '@/components/ui/button';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Users, 
-  ArrowLeft, 
-  PanelRightClose, 
-  LayoutDashboard, 
-  HelpCircle, 
-  BrainCircuit, 
-  Trophy,
-  Copy,
-  CalendarDays,
-  ShieldCheck,
-  Eye,
-  Unlock,
-  Clock,
-  Download,
-  Settings,
-  BarChart3,
-  CheckCircle2,
-  Lock,
-  MoreHorizontal,
-  Minimize2,
-  MessagesSquare
-} from 'lucide-react';
+import { Users, ArrowLeft, PanelRightClose, LayoutDashboard, HelpCircle, BrainCircuit, Trophy, Copy, CalendarDays, ShieldCheck, Eye, Unlock, Clock, Download, Settings, BarChart3, CheckCircle2, Lock, MoreHorizontal, Minimize2, MessagesSquare, Flame } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -320,7 +298,7 @@ const RetroBoardComponent = ({
           {!isFocusMode && (
             <RoomHeader 
             title={boardData.title || "Quadro Retrospectivo"} 
-            toolIcon={<LayoutDashboard className="h-4 w-4" />}
+            toolIcon={<Flame className="h-4 w-4" />}
             toolColorClass="text-emerald-600 bg-emerald-50"
             onOpenFeedback={onOpenFeedback}
             badge={
