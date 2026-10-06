@@ -48,6 +48,10 @@ interface ChatMessage {
   tdnResults?: TdnSearchResult[];
 }
 
+// O backend só aceita UUID em /conversations/{id}. A landing gera um slug curto local (e "new" também
+// chega aqui), que ainda não existe no backend: buscar só geraria um 400 inútil.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function buildTitle(prompt: string): string {
   return prompt.slice(0, 30) + (prompt.length > 30 ? '...' : '');
 }
@@ -127,6 +131,11 @@ function ChatContent({ chatId }: { chatId: string }) {
       if (!session) return;
       if (skipNextLoadRef.current) {
         skipNextLoadRef.current = false;
+        return;
+      }
+      if (!UUID_RE.test(chatId)) {
+        setConversationId(null);
+        setMessages([]);
         return;
       }
       try {
