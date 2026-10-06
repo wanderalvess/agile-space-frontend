@@ -285,7 +285,42 @@ export default function OnboardingPage() {
         <div className="absolute -bottom-32 -right-32 w-[400px] h-[400px] rounded-full bg-blue-600/10 blur-[120px]" />
       </div>
 
-      <div className="z-10 w-full max-w-3xl flex flex-col items-center gap-6 flex-1">
+      <div className="z-10 w-full max-w-6xl flex-1 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-12 lg:pt-8">
+
+        {/* TRILHA — só em telas largas: mostra o caminho inteiro, o formulário fica ao lado */}
+        <aside className="hidden lg:flex flex-col gap-8 sticky top-8" aria-label="Seu caminho até a primeira cerimônia">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+              <Rocket className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <span className="text-xl font-black tracking-tighter italic font-headline uppercase">
+              Portal Tech <span className="text-primary not-italic">V&amp;D</span>
+            </span>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black tracking-tight font-headline leading-tight">Seu time conectado em poucos passos</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Depois disso, Scrum Poker, Review e Retro já abrem com a sua squad, os papéis e o Jira no lugar.
+            </p>
+          </div>
+          <ol className="space-y-3">
+            {[
+              { t: 'Encontre ou crie seu time', d: 'Busque pelo nome do time, do projeto ou de um colega.' },
+              { t: 'Conecte o Jira', d: 'Traz projeto, pessoas e papéis de uma vez. Dá para fazer depois.' },
+              { t: 'Comece as cerimônias', d: 'Poker, Review e Retro com o time já dentro.' },
+            ].map((item, i) => (
+              <li key={item.t} className="flex gap-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{i + 1}</span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold">{item.t}</span>
+                  <span className="block text-xs leading-relaxed text-muted-foreground">{item.d}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </aside>
+
+        <div className="flex min-w-0 flex-col items-center gap-6 lg:min-h-[calc(100dvh-8rem)]">
 
         {/* PASSO 1 — É VOCÊ? */}
         {step === 'suggestion' && firstSuggestion && firstCandidate && (
@@ -295,7 +330,7 @@ export default function OnboardingPage() {
               subtitle={<>Achamos você no time <strong className="text-foreground font-bold">{firstSuggestion.projectId}</strong>. Confirma que é você e a gente já te coloca lá dentro.</>}
             />
 
-            <div className="w-full max-w-xl bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 shadow-lg flex flex-col gap-5">
+            <div className="w-full max-w-2xl bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 shadow-lg flex flex-col gap-5">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 text-primary flex items-center justify-center font-black text-lg shrink-0">
                   {initials(firstCandidate.displayName)}
@@ -338,7 +373,7 @@ export default function OnboardingPage() {
             </div>
 
             {suggestions.length > 1 && (
-              <div className="w-full max-w-xl flex flex-col gap-2">
+              <div className="w-full max-w-2xl flex flex-col gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Também achamos você em</span>
                 {suggestions.slice(1).map(s => (
                   <button
@@ -368,7 +403,7 @@ export default function OnboardingPage() {
               subtitle="Busque pelo nome do time, do projeto ou de alguém que trabalha com você."
             />
 
-            <div className="w-full max-w-xl flex flex-col gap-3">
+            <div className="w-full max-w-2xl flex flex-col gap-3">
               <div className="space-y-1">
                 <Label htmlFor="busca" className="sr-only">Buscar time, projeto ou pessoa</Label>
                 <div className="relative">
@@ -454,7 +489,7 @@ export default function OnboardingPage() {
               subtitle={`${roster.projectName}${roster.tribeName ? ` · Tribo ${roster.tribeName}` : ''} · ${roster.memberCount} pessoas`}
             />
 
-            <div className="w-full max-w-xl flex flex-col gap-3">
+            <div className="w-full max-w-2xl flex flex-col gap-3">
               <div className="flex items-start gap-2.5 rounded-2xl border border-sky-500/25 bg-sky-500/5 px-4 py-3">
                 <Sparkles className="w-4 h-4 text-sky-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -546,7 +581,7 @@ export default function OnboardingPage() {
               })}
             </div>
 
-            <div className="w-full max-w-xl flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
+            <div className="w-full max-w-2xl flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3">
               <Crown className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground leading-relaxed">
                 É PO, Tech Lead ou Agile Master da squad? Esses papéis mexem na governança do time e vêm do Jira
@@ -568,7 +603,7 @@ export default function OnboardingPage() {
               subtitle="Uma pergunta só. O resto a gente monta pra você."
             />
 
-            <form onSubmit={handleCreate} className="w-full max-w-xl bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 shadow-lg flex flex-col gap-4">
+            <form onSubmit={handleCreate} className="w-full max-w-2xl bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 shadow-lg flex flex-col gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="nome-time" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   Nome do time
@@ -612,7 +647,7 @@ export default function OnboardingPage() {
               </p>
             </form>
 
-            <div className="w-full max-w-xl flex items-center justify-between gap-4 rounded-2xl border border-dashed border-border/70 px-4 py-3">
+            <div className="w-full max-w-2xl flex items-center justify-between gap-4 rounded-2xl border border-dashed border-border/70 px-4 py-3">
               <div className="min-w-0">
                 <div className="text-sm font-bold">Seu time já existe no Jira?</div>
                 <div className="text-xs text-muted-foreground">Importe e traga as pessoas e os papéis prontos.</div>
@@ -650,7 +685,7 @@ export default function OnboardingPage() {
         )}
 
         {/* RODAPÉ — saídas sempre disponíveis */}
-        <div className="mt-auto pt-6 w-full max-w-xl flex flex-col items-center gap-3">
+        <div className="mt-auto pt-6 w-full max-w-2xl flex flex-col items-center gap-3">
           {inviteOpen ? (
             <div className="w-full flex items-center gap-2">
               <Input
@@ -678,6 +713,7 @@ export default function OnboardingPage() {
             </div>
           )}
         </div>
+        </div>
       </div>
     </div>
   );
@@ -685,7 +721,7 @@ export default function OnboardingPage() {
 
 function Header({ title, subtitle, badge }: { title: string; subtitle?: React.ReactNode; badge?: string }) {
   return (
-    <div className="text-center space-y-2 max-w-2xl">
+    <div className="text-center space-y-2 max-w-3xl">
       {!!badge && (
         <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest">{badge}</Badge>
       )}

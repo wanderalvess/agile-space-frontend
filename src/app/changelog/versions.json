@@ -1,5 +1,20 @@
 [
   {
+    "tag": "v4.2.2",
+    "date": "6 de Outubro, 2026",
+    "title": "Onboarding com mais espaço e importação do Jira mais tolerante",
+    "description": "A tela de onboarding usa melhor a tela e a importação de time pelo Jira passa a reconhecer mais variações dos campos.",
+    "changes": [
+      "Onboarding reorganizado em duas colunas: a trilha dos passos fica ao lado do formulário, que ficou maior, em vez de um bloco estreito no meio da tela.",
+      "Importação do time pelo Jira (Profields) reconhece nomes de campo com acento, maiúsculas ou pequenas variações, e mais formatos de valor, para preencher Segmento, Tribo, Localidade e VP quando existirem."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.2.1",
     "date": "6 de Outubro, 2026",
     "title": "Telas de Jolt e DevTools aproveitam a tela toda",
