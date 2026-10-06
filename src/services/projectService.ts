@@ -78,6 +78,25 @@ export interface ProjectDetail {
   updatedAt?: string;
 }
 
+/** Corpo da confirmação da importação: campos editados e pessoas escolhidas na prévia. */
+export interface ProjectImportConfirmBody {
+  segmentName: string;
+  tribeName: string;
+  locality: string;
+  vicePresident: string;
+  vpArea: string;
+  status: string;
+  creationDate: string;
+  devTeamSize?: number;
+  members: {
+    jiraAccountId?: string;
+    email?: string;
+    displayName: string;
+    roleName: string;
+    linkToMe: boolean;
+  }[];
+}
+
 export interface TribeGroup {
   tribeName: string;
   projects: {
@@ -162,6 +181,26 @@ export const projectService = {
   /** Dry-run do sync: devolve o que seria importado do Profields sem gravar nada. */
   async previewProjectProfields(projectKey: string, domain?: string, jiraToken?: string): Promise<ProjectDetail> {
     return callProfieldsSync(`/projects/sync/${encodeURIComponent(projectKey)}/preview`, domain, jiraToken);
+  },
+
+  /** Confirma a importação com o que o usuário editou e selecionou na prévia. */
+  async confirmProjectProfields(projectKey: string, body: ProjectImportConfirmBody, domain?: string, jiraToken?: string): Promise<ProjectDetail> {
+    const params = new URLSearchParams();
+    if (domain) params.append('domain', domain);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (jiraToken) headers['X-Jira-Token'] = jiraToken;
+    const res = await authFetch(`${API_BASE_URL}/projects/sync/${encodeURIComponent(projectKey)}/confirm?${params.toString()}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      let msg = errorText;
+      try { const j = JSON.parse(errorText); msg = j.message || j.error || errorText; } catch {}
+      throw new Error(msg || `Erro ao confirmar a importação (${res.status})`);
+    }
+    return res.json();
   },
 
   /**

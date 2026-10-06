@@ -1,5 +1,24 @@
 [
   {
+    "tag": "v4.3.0",
+    "date": "6 de Outubro, 2026",
+    "title": "Importação do time pelo Jira: escolha as pessoas e ajuste os dados",
+    "description": "A importação do Jira no onboarding agora traz as pessoas e os dados do projeto, e você confere e ajusta tudo antes de importar.",
+    "changes": [
+      "A importação pelo Jira passou a trazer as pessoas do projeto com seus cargos, além de Segmento, Tribo, Localidade e VP.",
+      "Você escolhe quem entra no time: selecione ou desmarque cada pessoa, busque por nome e filtre só a liderança.",
+      "Cargo ajustável: se alguém veio como QA e é Developer, troque na própria lista. Cargos de liderança vêm do Jira e ficam travados.",
+      "O que o Jira não trouxe fica em branco para você preencher, com destaque amarelo.",
+      "Use \"Sou eu\" para vincular a sua conta quando o seu e-mail não aparece na lista.",
+      "A tela de importação agora usa a largura toda e o nome do portal não aparece mais duplicado."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.2.2",
     "date": "6 de Outubro, 2026",
     "title": "Onboarding com mais espaço e importação do Jira mais tolerante",

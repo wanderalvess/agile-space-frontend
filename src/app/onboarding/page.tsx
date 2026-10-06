@@ -105,6 +105,8 @@ export default function OnboardingPage() {
   const { createProject, joinProject, claimRosterMember } = useAuth();
   const { mustOnboard, isInitializing, userProfile, updateProfile, setIsPublicExploration } = useUserContext();
 
+  // Durante a prévia da importação do Jira a tela precisa de largura: some a trilha e o conteúdo ocupa tudo.
+  const [wideImport, setWideImport] = useState(false);
   const [step, setStep] = useState<Step>('suggestion');
   const [busy, setBusy] = useState<string | null>(null);
   const doneRef = useRef(false);
@@ -285,18 +287,11 @@ export default function OnboardingPage() {
         <div className="absolute -bottom-32 -right-32 w-[400px] h-[400px] rounded-full bg-blue-600/10 blur-[120px]" />
       </div>
 
-      <div className="z-10 w-full max-w-6xl flex-1 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-12 lg:pt-8">
+      <div className={cn('z-10 w-full flex-1', wideImport ? 'max-w-[1400px]' : 'max-w-6xl lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:items-start lg:gap-12 lg:pt-8')}>
 
         {/* TRILHA — só em telas largas: mostra o caminho inteiro, o formulário fica ao lado */}
+        {!wideImport && (
         <aside className="hidden lg:flex flex-col gap-8 sticky top-8" aria-label="Seu caminho até a primeira cerimônia">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-              <Rocket className="h-4 w-4" aria-hidden="true" />
-            </div>
-            <span className="text-xl font-black tracking-tighter italic font-headline uppercase">
-              Portal Tech <span className="text-primary not-italic">V&amp;D</span>
-            </span>
-          </div>
           <div className="space-y-2">
             <h2 className="text-2xl font-black tracking-tight font-headline leading-tight">Seu time conectado em poucos passos</h2>
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -319,8 +314,9 @@ export default function OnboardingPage() {
             ))}
           </ol>
         </aside>
+        )}
 
-        <div className="flex min-w-0 flex-col items-center gap-6 lg:min-h-[calc(100dvh-8rem)]">
+        <div className={cn('flex min-w-0 flex-col items-center gap-6', !wideImport && 'lg:min-h-[calc(100dvh-8rem)]')}>
 
         {/* PASSO 1 — É VOCÊ? */}
         {step === 'suggestion' && firstSuggestion && firstCandidate && (
@@ -672,6 +668,7 @@ export default function OnboardingPage() {
               badge="Caminho avançado"
             />
             <JiraProfieldsImport
+              onPreviewChange={setWideImport}
               onImported={({ project, myRoleName, leadsPeople }) =>
                 finish(
                   `${project.id} importado`,

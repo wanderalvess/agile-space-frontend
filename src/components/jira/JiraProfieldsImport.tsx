@@ -10,18 +10,17 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowRight, Crown, ExternalLink, Loader2, Users } from 'lucide-react';
+import { ArrowRight, ExternalLink, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
-import { projectService, type ProjectDetail, type ProjectMemberRoleItem } from '@/services/projectService';
+import { projectService, type ProjectDetail, type ProjectImportConfirmBody, type ProjectMemberRoleItem } from '@/services/projectService';
+import { JiraImportPreview } from '@/components/jira/JiraImportPreview';
 import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
-import { cn } from '@/lib/utils';
 
 export interface JiraImportResult {
   project: ProjectDetail;
@@ -39,28 +38,11 @@ interface JiraProfieldsImportProps {
   skipAction?: { label: string; onClick: () => void };
   /** Texto de ajuda da lateral, quando o contexto pede algo diferente do padrão. */
   skipHint?: string;
+  /** Avisa quando a prévia (tela larga) abre ou fecha, para o contexto liberar espaço. */
+  onPreviewChange?: (active: boolean) => void;
 }
 
-function initials(name?: string) {
-  const clean = (name || '').trim();
-  if (!clean) return '??';
-  const parts = clean.split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function Fact({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="bg-muted/40 border border-border/40 rounded-xl px-3 py-2 min-w-0">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn('text-sm font-semibold truncate', !value && 'text-muted-foreground/60 italic')} title={value || undefined}>
-        {value || 'não informado'}
-      </div>
-    </div>
-  );
-}
-
-export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAction, skipHint }: JiraProfieldsImportProps) {
+export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAction, skipHint, onPreviewChange }: JiraProfieldsImportProps) {
   const { toast } = useToast();
   const { switchProject } = useAuth();
   const { userProfile } = useUserContext();
@@ -85,6 +67,11 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
     (!!myEmail && (m.email || '').toLowerCase().trim() === myEmail);
   const myMembership = syncedProject?.members.find(isMe);
 
+  useEffect(() => {
+    onPreviewChange?.(!!syncedProject);
+    return () => onPreviewChange?.(false);
+  }, [syncedProject, onPreviewChange]);
+
   const handlePreview = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!jiraKey.trim() || !jiraToken.trim()) {
@@ -105,95 +92,35 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
     }
   }, [jiraDomain, jiraKey, jiraToken, toast]);
 
-  const handleConfirm = useCallback(async () => {
+  const handleConfirm = useCallback(async (body: ProjectImportConfirmBody) => {
     if (!syncedProject) return;
     setBusy('confirm');
     try {
-      await projectService.syncProjectProfields(syncedProject.id, jiraDomain.trim(), jiraToken.trim());
+      const saved = await projectService.confirmProjectProfields(syncedProject.id, body, jiraDomain.trim(), jiraToken.trim());
       await switchProject(syncedProject.id);
       if (jiraToken.trim()) {
         await saveJiraSettings({ domain: jiraDomain.trim(), token: jiraToken.trim() });
       }
-      const leadsPeople = !!myMembership && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(myMembership.roleName);
-      onImported({ project: syncedProject, myRoleName: myMembership?.roleName, leadsPeople });
+      const mine = saved.members.find(isMe);
+      const leadsPeople = !!mine && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(mine.roleName);
+      onImported({ project: saved, myRoleName: mine?.roleName, leadsPeople });
     } catch (err: any) {
       toast({ title: 'Não foi possível importar', description: err.message, variant: 'destructive' });
     } finally {
       setBusy(null);
     }
-  }, [syncedProject, jiraDomain, jiraToken, switchProject, saveJiraSettings, myMembership, onImported, toast]);
+  }, [syncedProject, jiraDomain, jiraToken, switchProject, saveJiraSettings, isMe, onImported, toast]);
 
-  // Prévia: conferir antes de gravar
+  // Prévia: conferir, editar e escolher antes de gravar
   if (syncedProject) {
     return (
-      <div className="w-full bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 flex flex-col gap-5">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Prévia do Profields de <span className="font-code font-bold">{syncedProject.id}</span>. Nada foi gravado ainda:
-          só ao confirmar o projeto e as pessoas entram no sistema.
-        </p>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-          {[
-            { label: 'Projeto', value: syncedProject.name },
-            { label: 'Segmento', value: syncedProject.segmentName },
-            { label: 'Tribo', value: syncedProject.tribeName },
-            { label: 'Localidade', value: syncedProject.locality },
-            { label: 'VP', value: syncedProject.vicePresident },
-            { label: 'Área VP', value: syncedProject.vpArea },
-            { label: 'Status', value: syncedProject.status },
-            { label: 'Dev Team', value: syncedProject.devTeamSize ? `${syncedProject.devTeamSize} pessoas` : '' },
-          ].map(f => <Fact key={f.label} label={f.label} value={f.value} />)}
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" /> Pessoas encontradas ({syncedProject.members.length})
-          </Label>
-          {syncedProject.members.length === 0 ? (
-            <div className="text-xs text-muted-foreground bg-muted/40 border border-border/40 rounded-xl p-4 text-center">
-              O Profields não retornou nenhuma pessoa cadastrada para este projeto.
-            </div>
-          ) : (
-            <div className="border border-border/40 rounded-xl overflow-hidden">
-              <div className="max-h-64 overflow-y-auto divide-y divide-border/40">
-                {syncedProject.members.map((m, i) => (
-                  <div key={m.id || `${m.roleKey}-${m.email || m.displayName}-${i}`}
-                    className={cn('flex items-center gap-3 px-3 py-2 text-sm', isMe(m) && 'bg-primary/5')}>
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
-                      {initials(m.displayName)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold truncate flex items-center gap-2">
-                        {m.displayName}
-                        {isMe(m) && <Badge className="text-[9px] px-1.5 py-0 h-4">Você</Badge>}
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] shrink-0 gap-1">
-                      {m.leadership && <Crown className="w-3 h-3 text-amber-500" />}
-                      {m.roleName}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {!myMembership && (
-            <p className="text-[11px] text-amber-600 dark:text-amber-400 leading-relaxed">
-              Seu e-mail não apareceu entre as pessoas do Profields. Depois de importar, você se marca na lista
-              do time — é o mesmo "sou eu" do passo anterior.
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-          <Button variant="outline" onClick={() => setSyncedProject(null)} disabled={busy !== null} className="h-11 rounded-xl text-xs font-bold">
-            Corrigir dados
-          </Button>
-          <Button onClick={handleConfirm} disabled={busy !== null} className="h-11 rounded-xl text-xs font-bold gap-2">
-            {busy === 'confirm' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Confirmar e importar <ArrowRight className="w-4 h-4" /></>}
-          </Button>
-        </div>
-      </div>
+      <JiraImportPreview
+        project={syncedProject}
+        isMe={isMe}
+        busy={busy === 'confirm'}
+        onBack={() => setSyncedProject(null)}
+        onConfirm={handleConfirm}
+      />
     );
   }
 
