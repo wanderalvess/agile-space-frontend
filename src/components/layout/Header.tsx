@@ -32,7 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserProfileModal } from './UserProfileModal';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { ProfileAvatar } from '@/components/common/ProfileAvatar';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalProjectSelector } from '@/components/admin/GlobalProjectSelector';
 
@@ -140,7 +140,7 @@ export function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2.5 px-3 py-1.5 rounded-full hover:bg-muted/50 transition-all outline-none group border border-transparent hover:border-border/40">
-                      <NiceAvatar className="w-8 h-8 rounded-full border border-primary/20 shadow-md shadow-primary/20 shrink-0 group-hover:scale-105 transition-transform bg-primary" {...(PREDEFINED_AVATARS[userProfile.avatarSeed || ''] || genConfig(userProfile.avatarSeed || userProfile.email || userProfile.name))} />
+                      <ProfileAvatar className="w-8 h-8 rounded-full border border-primary/20 shadow-md shadow-primary/20 shrink-0 group-hover:scale-105 transition-transform bg-primary" />
                       <div className="flex flex-col items-start hidden md:flex">
                         <span className="text-[11px] font-black text-foreground uppercase tracking-tight leading-none mb-1">
                           {userProfile.name}

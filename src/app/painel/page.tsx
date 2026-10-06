@@ -34,6 +34,8 @@ import { Footer } from '@/components/layout/Footer';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { NextCeremonyCard } from '@/components/painel/NextCeremonyCard';
 import { PainelWelcome, type JiraSyncState } from '@/components/painel/PainelWelcome';
+import { MemberAvatar } from '@/components/common/MemberAvatar';
+import { useTeamAvatars, invalidateTeamAvatars } from '@/hooks/useTeamAvatars';
 import { squadApi } from '@/app/squad/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,14 +56,6 @@ const EXPLORE_SHORTCUTS = [
   { label: 'Health Check', href: '/health-check' },
   { label: 'Brainstorming', href: '/brainstorming' },
 ];
-
-function initials(name?: string) {
-  const clean = (name || '').trim();
-  if (!clean) return '??';
-  const parts = clean.split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function timeAgo(iso?: string) {
   if (!iso) return '';
@@ -96,6 +90,7 @@ export default function PainelPage() {
     sprintName,
     refresh,
   } = useSquadDashboardData();
+  const { avatarFor } = useTeamAvatars(squadId);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -484,13 +479,12 @@ export default function PainelPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex items-center">
                         {members.slice(0, 4).map(m => (
-                          <div
+                          <MemberAvatar
                             key={m.dbId || m.jiraAccountId}
-                            title={m.displayName}
-                            className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 border-2 border-white dark:border-slate-900 -ml-2 first:ml-0 flex items-center justify-center text-[10px] font-black text-slate-600 dark:text-slate-300"
-                          >
-                            {initials(m.displayName)}
-                          </div>
+                            name={m.displayName}
+                            src={avatarFor({ email: m.email, name: m.displayName, accountId: m.jiraAccountId })}
+                            className="-ml-2 first:ml-0 border-2 border-white dark:border-slate-900"
+                          />
                         ))}
                         {members.length > 4 && (
                           <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-900 border-2 border-white dark:border-slate-900 -ml-2 flex items-center justify-center text-[10px] font-black text-slate-500">
@@ -526,9 +520,11 @@ export default function PainelPage() {
                   <div className="space-y-3">
                     {movements.map(item => (
                       <div key={item.key} className="flex gap-2.5 min-w-0">
-                        <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[9px] font-black text-slate-600 dark:text-slate-300 shrink-0">
-                          {initials(item.assigneeName)}
-                        </div>
+                        <MemberAvatar
+                          name={item.assigneeName}
+                          src={avatarFor({ name: item.assigneeName, accountId: item.assigneeId })}
+                          className="h-7 w-7 shrink-0"
+                        />
                         <p className="text-[12px] text-slate-600 dark:text-slate-300 leading-snug min-w-0">
                           <strong className="font-black text-slate-900 dark:text-slate-100">
                             {item.assigneeName || 'Sem responsável'}
@@ -587,6 +583,7 @@ export default function PainelPage() {
                   onImported={({ project }) => {
                     setJiraImportOpen(false);
                     toast({ title: `${project.id} importado`, description: 'Pessoas e papéis vieram do Jira.' });
+                    invalidateTeamAvatars(project.id);
                     void runJiraSync();
                   }}
                 />

@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.5.2",
+    "date": "6 de Outubro, 2026",
+    "title": "Fotos do Jira também no Painel e no cabeçalho",
+    "description": "As fotos das pessoas do time agora aparecem além da tela de importação.",
+    "changes": [
+      "No Painel do Time, o card \"Seu time\" e os \"Últimos movimentos\" mostram a foto de cada pessoa, quando ela foi trazida do Jira.",
+      "No cabeçalho, o seu avatar passa a ser a sua foto do Jira, quando existe. Sem foto, continua o avatar de sempre.",
+      "Depois de importar o time de novo pelo Painel, as fotos novas aparecem na hora, sem recarregar a página."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.5.1",
     "date": "6 de Outubro, 2026",
     "title": "Importar do Jira a qualquer momento pelo Painel",

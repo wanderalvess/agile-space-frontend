@@ -22,7 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { ProfileAvatar } from '@/components/common/ProfileAvatar';
 import { PREDEFINED_AVATARS } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
@@ -171,7 +171,7 @@ export function RoomHeader({
                     <span className="text-[9px] font-black uppercase text-slate-800 dark:text-slate-200 leading-none">{userProfile.name.split(' ')[0]}</span>
                     <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{userProfile.role ? userProfile.role.split(' ')[0] : 'Convidado'}</span>
                   </div>
-                  <NiceAvatar className="w-8 h-8 rounded-xl bg-slate-900 border-2 border-white shadow-md shadow-slate-200 group-hover:scale-105 transition-transform" {...(PREDEFINED_AVATARS[userProfile.avatarSeed || ''] || genConfig(userProfile.avatarSeed || userProfile.email || userProfile.name))} />
+                  <ProfileAvatar className="w-8 h-8 rounded-xl bg-slate-900 border-2 border-white shadow-md shadow-slate-200 group-hover:scale-105 transition-transform" />
                   <ChevronDown className="h-3 w-3 text-slate-300 group-hover:text-slate-900 transition-colors" aria-hidden="true" />
                 </button>
               </DropdownMenuTrigger>
