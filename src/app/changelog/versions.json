@@ -1,5 +1,22 @@
 [
   {
+    "tag": "v4.4.0",
+    "date": "6 de Outubro, 2026",
+    "title": "Painel do time com boas-vindas e sincronização automática com o Jira",
+    "description": "A primeira tela do Painel do Time foi redesenhada e passou a sincronizar com o Jira sozinha.",
+    "changes": [
+      "Nova primeira tela do Painel: mostra o nome do seu time, quem está nele e o que o painel vai exibir conforme o uso (pessoas, sessões de Poker, sprint atual e retrospectivas).",
+      "Quem já conectou o Jira (por exemplo, ao importar o time) não precisa conectar de novo: o painel sincroniza sozinho e mostra o andamento da busca pela sprint atual.",
+      "Se o Jira falhar, o painel explica o motivo e permite tentar de novo; se não houver sprint aberta, avisa; e o convite para conectar o Jira só aparece para quem ainda não conectou.",
+      "As cerimônias (Scrum Poker, Retrospectiva, Review, Radar de Clima e Ideias) aparecem como cartões com uma explicação curta para você começar."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.3.1",
     "date": "6 de Outubro, 2026",
     "title": "Importação do Jira: nome do time e sem pessoas repetidas",

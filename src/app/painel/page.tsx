@@ -11,7 +11,7 @@
  * members). Sem mock: quando a squad não sincronizou ainda, a tela diz isso.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -33,6 +33,8 @@ import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { NextCeremonyCard } from '@/components/painel/NextCeremonyCard';
+import { PainelWelcome, type JiraSyncState } from '@/components/painel/PainelWelcome';
+import { squadApi } from '@/app/squad/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
@@ -110,6 +112,32 @@ export default function PainelPage() {
     }
   }, [refresh]);
 
+  // Sincronização automática com o Jira: quem já conectou o Jira (ex.: ao importar o time) não deve precisar
+  // "conectar de novo". Tenta uma vez por visita enquanto a squad ainda não tem dado. Sem token salvo o backend
+  // responde pedindo a configuração: isso vira o convite para conectar, não um erro.
+  const [syncState, setSyncState] = useState<JiraSyncState>('idle');
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const autoSyncTried = useRef('');
+
+  const runJiraSync = useCallback(async () => {
+    if (!squadId) return;
+    setSyncState('syncing');
+    setSyncError(null);
+    try {
+      await squadApi.sync(squadId, true);
+      await refresh();
+      setSyncState('done');
+    } catch (err: any) {
+      const message: string = err?.message || 'Erro ao sincronizar com o Jira.';
+      if (/token|configure|conex[aã]o jira/i.test(message)) {
+        setSyncState('no-jira');
+      } else {
+        setSyncError(message);
+        setSyncState('error');
+      }
+    }
+  }, [squadId, refresh]);
+
   // Progresso da sprint: contagem de issues (o rollup é por issue/hora, não por
   // story point — ver SquadMetricsRollup).
   const stats = useMemo(() => {
@@ -168,6 +196,12 @@ export default function PainelPage() {
 
   const hasSquad = !!squadId;
   const hasData = issues.length > 0 || !!rollup;
+
+  useEffect(() => {
+    if (loading || !hasSquad || hasData || autoSyncTried.current === squadId) return;
+    autoSyncTried.current = squadId;
+    void runJiraSync();
+  }, [loading, hasSquad, hasData, squadId, runJiraSync]);
 
   // Capacidade: ninguém do time tem hora/dia definida (nem manual, nem calculada
   // pelo sistema) — a sprint até aparece, mas a capacidade sai torta. É um aviso
@@ -250,54 +284,15 @@ export default function PainelPage() {
             onAction={() => router.push('/onboarding')}
           />
         ) : !hasData ? (
-          <div className="max-w-3xl mx-auto flex flex-col gap-4">
-            <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl p-8 text-center flex flex-col items-center gap-3 shadow-sm">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Compass className="h-5 w-5 text-primary" />
-              </div>
-              <h2 className="text-2xl font-black tracking-tight">A squad {squadId} está pronta.</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
-                Comece por uma cerimônia com o time. Sprint, board e movimentos aparecem aqui quando você conectar o Jira — se quiser.
-              </p>
-              {error && (
-                <p className="text-[11px] text-amber-600 dark:text-amber-400">Não consegui ler as métricas: {error}</p>
-              )}
-
-              <div className="w-full grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
-                {EXPLORE_SHORTCUTS.map(s => (
-                  <Link
-                    key={s.href}
-                    href={s.href}
-                    className="text-center text-sm font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 py-3 px-2 text-slate-700 dark:text-slate-200 hover:border-primary/40 hover:text-primary transition-colors"
-                  >
-                    {s.label}
-                  </Link>
-                ))}
-              </div>
-
-              <Button asChild className="mt-3 h-11 rounded-xl text-[11px] font-black uppercase tracking-widest gap-2">
-                <Link href="/">
-                  Ver todas as ferramentas <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-            </section>
-
-            <div className="flex items-center justify-between gap-4 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 px-5 py-3">
-              <div className="min-w-0">
-                <div className="text-sm font-bold">Usa Jira?</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">
-                  Conecte quando quiser pra ver sprint e board da {squadId} aqui. Não é obrigatório.
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setJiraImportOpen(true)}
-                className="shrink-0 h-9 rounded-xl text-[11px] font-black uppercase tracking-widest"
-              >
-                Conectar Jira
-              </Button>
-            </div>
-
+          <>
+            <PainelWelcome
+              squadId={squadId}
+              syncState={syncState}
+              syncError={syncError ?? error}
+              myRole={myRole}
+              onRetry={runJiraSync}
+              onConnectJira={() => setJiraImportOpen(true)}
+            />
             <Dialog open={jiraImportOpen} onOpenChange={setJiraImportOpen}>
               <DialogContent className="max-w-4xl max-h-[90dvh] overflow-y-auto">
                 <DialogHeader>
@@ -311,12 +306,12 @@ export default function PainelPage() {
                   onImported={({ project }) => {
                     setJiraImportOpen(false);
                     toast({ title: `${project.id} importado`, description: 'Pessoas e papéis vieram do Jira.' });
-                    refresh();
+                    void runJiraSync();
                   }}
                 />
               </DialogContent>
             </Dialog>
-          </div>
+          </>
         ) : (
           <>
             {error && (
