@@ -18,6 +18,7 @@ import { fetchCalendarEvents } from '@/lib/google-calendar';
 import { computeNextOccurrence } from '@/lib/ceremony-schedule';
 import { squadApi } from '@/app/squad/api';
 import type { GoogleCalendarEvent, SquadCeremony, SquadConfig } from '@/lib/types';
+import { invalidateSquadConfig } from './useSquadConfig';
 import { useGoogleCalendarConnection } from './useGoogleCalendarConnection';
 
 // Termos de cerimônia ágil — cobre pt-BR e en, com e sem o nome da squad no título.
@@ -79,6 +80,7 @@ export interface NextCeremonyState {
   isLoadingConfig: boolean;
   configError: string | null;
   manualCeremonies: SquadCeremony[];
+  estimationUnit: SquadConfig['estimationUnit'];
 
   isConnected: boolean;
   isConnecting: boolean;
@@ -94,7 +96,7 @@ export interface NextCeremonyState {
   disconnect: () => void;
   refresh: () => void;
   /** Salva ceremonyMode e/ou ceremonies da squad (merge parcial, ver squadApi.saveSquad). */
-  saveConfig: (patch: Partial<Pick<SquadConfig, 'ceremonyMode' | 'ceremonies'>>) => Promise<void>;
+  saveConfig: (patch: Partial<Pick<SquadConfig, 'ceremonyMode' | 'ceremonies' | 'estimationUnit'>>) => Promise<void>;
 }
 
 export function useNextCeremony(squadId: string, userKey: string): NextCeremonyState {
@@ -246,6 +248,7 @@ export function useNextCeremony(squadId: string, userKey: string): NextCeremonyS
     isLoadingConfig,
     configError,
     manualCeremonies,
+    estimationUnit: config?.estimationUnit,
 
     isConnected: connection.isConnected,
     isConnecting: connection.isConnecting,
@@ -260,8 +263,9 @@ export function useNextCeremony(squadId: string, userKey: string): NextCeremonyS
     disconnect: connection.disconnect,
     refresh: () => setEventsRefreshSignal((n) => n + 1),
     saveConfig: async (patch) => {
-      const saved = await squadApi.saveSquad(squadId, patch);
+      const saved = await squadApi.saveSquad(squadId, { name: config?.name, ...patch });
       setConfig(saved);
+      invalidateSquadConfig(squadId);
     },
   };
 }

@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
+import Link from "next/link";
+import { useUserContext } from "@/context/UserContext";
+import { useSquadConfig } from "@/hooks/useSquadConfig";
 import {
   Select,
   SelectContent,
@@ -30,45 +33,52 @@ interface DashboardFiltersProps {
   filters: FilterProps[];
 }
 
-export function useProjectEstimationUnit(): { unit: EstimationUnit; unitLabel: string } {
-  const [unit, setUnit] = useState<EstimationUnit>("SP");
+/**
+ * Unidade de estimativa da squad, definida na configuração dela (Painel > Configurar squad).
+ * Sem configuração, os cálculos seguem em SP, mas o rótulo diz "Não definida" em vez de fingir
+ * que a squad escolheu Story Points.
+ */
+export function useProjectEstimationUnit(): { unit: EstimationUnit; unitLabel: string; isConfigured: boolean } {
+  const { userProfile } = useUserContext();
+  const { config } = useSquadConfig(userProfile?.squadId);
+  const configured = config?.estimationUnit && ["SP", "HOURS", "TSHIRT", "COUNT"].includes(config.estimationUnit)
+    ? (config.estimationUnit as EstimationUnit)
+    : null;
+  const unit: EstimationUnit = configured ?? "SP";
+  return { unit, unitLabel: configured ? estimationUnitLabel(configured) : "Não definida", isConfigured: !!configured };
+}
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("agileSpace_projectEstimationUnit");
-      if (saved && ["SP", "HOURS", "TSHIRT", "COUNT"].includes(saved)) {
-        setUnit(saved as EstimationUnit);
-      }
-    } catch {}
-  }, []);
-
-  const getUnitLabel = (u: EstimationUnit) => {
-    switch (u) {
-      case "HOURS": return "Horas (h)";
-      case "TSHIRT": return "T-Shirt (P/M/G)";
-      case "COUNT": return "Contagem (Throughput)";
-      default: return "Story Points (SP)";
-    }
-  };
-
-  return { unit, unitLabel: getUnitLabel(unit) };
+export function estimationUnitLabel(u: EstimationUnit) {
+  switch (u) {
+    case "HOURS": return "Horas (h)";
+    case "TSHIRT": return "T-Shirt (P/M/G)";
+    case "COUNT": return "Contagem (Throughput)";
+    default: return "Story Points (SP)";
+  }
 }
 
 export function DashboardFilters({ filters }: DashboardFiltersProps) {
-  const { unit, unitLabel } = useProjectEstimationUnit();
+  const { unitLabel, isConfigured } = useProjectEstimationUnit();
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      {/* Indicador Fixo da Configuração Oficial do Projeto (Definido no Admin) */}
+      {/* Indicador Fixo da Configuração Oficial do Projeto (definida na configuração da squad) */}
       <div className="flex flex-col gap-1">
         <label className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
           <ShieldCheck className="h-3 w-3 text-primary" />
           Métrica do Projeto
         </label>
-        <div className="h-9 px-3.5 bg-primary/10 border border-primary/25 text-primary text-xs font-bold rounded-xl flex items-center gap-2 shadow-inner">
-          <Layers className="h-3.5 w-3.5 text-primary" />
-          <span>{unitLabel}</span>
-        </div>
+        {isConfigured ? (
+          <div className="h-9 px-3.5 bg-primary/10 border border-primary/25 text-primary text-xs font-bold rounded-xl flex items-center gap-2 shadow-inner">
+            <Layers className="h-3.5 w-3.5 text-primary" />
+            <span>{unitLabel}</span>
+          </div>
+        ) : (
+          <Link href="/painel" className="h-9 px-3.5 border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 text-xs font-bold rounded-xl flex items-center gap-2">
+            <Layers className="h-3.5 w-3.5" />
+            <span>Não definida · Configurar</span>
+          </Link>
+        )}
       </div>
 
       {/* Outros Filtros Dinâmicos (Sprint, Projeto, Período) */}

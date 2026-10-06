@@ -986,6 +986,8 @@ export type SquadConfig = {
   // 'manual' = a squad cadastra `ceremonies` uma vez. Nunca as duas juntas — são duas
   // respostas pra mesma pergunta ("quando é a próxima cerimônia"), não fontes que se somam.
   ceremonyMode?: 'google_calendar' | 'manual';
+  // Unidade de estimativa definida pela squad; ausente = ainda não configurada.
+  estimationUnit?: 'SP' | 'HOURS' | 'TSHIRT' | 'COUNT';
   ceremonies?: SquadCeremony[];
 };
 

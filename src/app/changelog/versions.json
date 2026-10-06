@@ -1,5 +1,36 @@
 [
   {
+    "tag": "v4.6.1",
+    "date": "6 de Outubro, 2026",
+    "title": "Mensagens diretas do chat do Poker ficam privadas",
+    "description": "Correção de privacidade: conversa direta agora só chega para quem envia e para quem recebe.",
+    "changes": [
+      "No chat da sala de Poker, mensagens diretas apareciam para outras pessoas da sala. Agora o servidor entrega e devolve o histórico de uma conversa direta apenas aos dois participantes.",
+      "Tentar ler ou enviar mensagem em uma conversa direta de outras pessoas é bloqueado. O chat da Retro já funcionava assim."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "ShieldCheck",
+      "className": "h-5 w-5 text-rose-500"
+    }
+  },
+  {
+    "tag": "v4.6.0",
+    "date": "6 de Outubro, 2026",
+    "title": "Métrica e rituais da squad vêm da configuração",
+    "description": "A unidade de estimativa e os rituais dos dashboards deixaram de ser fixos: agora são definidos pela própria squad.",
+    "changes": [
+      "A \"Métrica do Projeto\" dos dashboards mostra a unidade escolhida pela squad (SP, horas, T-Shirt ou contagem). Sem escolha, aparece \"Não definida\" com atalho para configurar, em vez de assumir Story Points.",
+      "O bloco \"Rituais da squad\" lista os rituais cadastrados pela squad (dia, horário e duração). Os horários de exemplo foram removidos; sem cadastro, o bloco leva para a configuração.",
+      "No Painel, o botão de configuração do card de cerimônias agora também define a unidade de estimativa da squad."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.5.2",
     "date": "6 de Outubro, 2026",
     "title": "Fotos do Jira também no Painel e no cabeçalho",

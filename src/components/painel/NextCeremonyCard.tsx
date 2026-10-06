@@ -78,6 +78,7 @@ export function NextCeremonyCard({ squadId, userKey }: { squadId: string; userKe
     isLoadingConfig,
     configError,
     manualCeremonies,
+    estimationUnit,
     isConnected,
     isConnecting,
     isLoadingEvents,
@@ -98,6 +99,7 @@ export function NextCeremonyCard({ squadId, userKey }: { squadId: string; userKe
       onOpenChange={setSettingsOpen}
       mode={mode || 'google_calendar'}
       ceremonies={manualCeremonies}
+      estimationUnit={estimationUnit}
       onSave={saveConfig}
     />
   );

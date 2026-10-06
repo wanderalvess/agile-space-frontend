@@ -8,6 +8,7 @@ import {
   getDashboardRouteForRole,
   isUserLeadershipOrAdmin,
 } from "@/lib/dashboard-roles";
+import { SquadRituals } from "@/components/squad/SquadRituals";
 import { DashboardFilters, useProjectEstimationUnit } from "@/components/ui/DashboardFilters";
 import { GaugeChart } from "@/components/ui/GaugeChart";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
@@ -274,22 +275,7 @@ export function SquadDashboardView() {
             </div>
           </WidgetCard>
           <WidgetCard title="RITUAIS DA SQUAD">
-            <div className="flex flex-col gap-3">
-              <div className="bg-slate-50/80 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Daily Stand-up</span>
-                  <span className="text-[10px] text-slate-400">Diariamente às 09:30</span>
-                </div>
-                <span className="text-[9px] font-black uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg">Ativo</span>
-              </div>
-              <div className="bg-slate-50/80 dark:bg-slate-950/40 p-3 rounded-2xl border border-slate-200/50 dark:border-slate-800/40 flex items-center justify-between">
-                <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Scrum Poker - Refinamento</span>
-                  <span className="text-[10px] text-slate-400">Quarta às 14:00</span>
-                </div>
-                <span className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-lg">Pendente</span>
-              </div>
-            </div>
+            <SquadRituals />
           </WidgetCard>
         </div>
       )}

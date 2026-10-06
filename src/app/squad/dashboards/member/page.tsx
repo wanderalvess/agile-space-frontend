@@ -6,6 +6,7 @@ import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs
 import { GaugeChart } from "@/components/ui/GaugeChart";
 import { SimpleBarChart } from "@/components/ui/SimpleBarChart";
 import { KPICard } from "@/components/ui/KPICard";
+import { SquadRituals } from "@/components/squad/SquadRituals";
 import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
@@ -150,31 +151,7 @@ export default function TeamMemberDashboard() {
 
         {/* Próximos Rituais e Cerimônias */}
         <WidgetCard title="RITUAIS DA SQUAD">
-          <div className="flex flex-col gap-3">
-            <div className="bg-muted/40 p-3 rounded-xl border border-border flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-foreground">Daily Stand-up</span>
-                <span className="text-[10px] text-muted-foreground">Diariamente às 09:30</span>
-              </div>
-              <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md">Ativo</span>
-            </div>
-
-            <div className="bg-muted/40 p-3 rounded-xl border border-border flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-foreground">Scrum Poker - Refinamento</span>
-                <span className="text-[10px] text-muted-foreground">Quarta às 14:00</span>
-              </div>
-              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">Pendente</span>
-            </div>
-
-            <div className="bg-muted/40 p-3 rounded-xl border border-border flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-foreground">Sprint Retro & Showcase</span>
-                <span className="text-[10px] text-muted-foreground">Fim da Sprint</span>
-              </div>
-              <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-1 rounded-md">Agendado</span>
-            </div>
-          </div>
+          <SquadRituals />
         </WidgetCard>
       </div>
 

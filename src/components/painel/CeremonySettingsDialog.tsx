@@ -49,23 +49,26 @@ export function CeremonySettingsDialog({
   onOpenChange,
   mode,
   ceremonies,
+  estimationUnit,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: 'google_calendar' | 'manual';
   ceremonies: SquadCeremony[];
-  onSave: (patch: Partial<Pick<SquadConfig, 'ceremonyMode' | 'ceremonies'>>) => Promise<void>;
+  estimationUnit?: SquadConfig['estimationUnit'];
+  onSave: (patch: Partial<Pick<SquadConfig, 'ceremonyMode' | 'ceremonies' | 'estimationUnit'>>) => Promise<void>;
 }) {
   const { toast } = useToast();
   const [draftMode, setDraftMode] = useState<'google_calendar' | 'manual'>(mode);
   const [draftCeremonies, setDraftCeremonies] = useState<SquadCeremony[]>(ceremonies);
+  const [draftUnit, setDraftUnit] = useState<string>(estimationUnit ?? '');
   const [isSaving, setIsSaving] = useState(false);
 
   // Sempre lê o valor salvo mais recente, sem precisar re-sincronizar o rascunho toda vez
   // que ele muda (ver useRef abaixo) — só na transição fechado -> aberto.
-  const latestSavedRef = useRef({ mode, ceremonies });
-  latestSavedRef.current = { mode, ceremonies };
+  const latestSavedRef = useRef({ mode, ceremonies, estimationUnit });
+  latestSavedRef.current = { mode, ceremonies, estimationUnit };
 
   // Reabre sempre a partir do estado salvo — evita levar rascunho não salvo de uma
   // abertura anterior pra próxima. Depende só de `open`: com mode/ceremonies também nas
@@ -75,6 +78,7 @@ export function CeremonySettingsDialog({
   useEffect(() => {
     if (open) {
       setDraftMode(latestSavedRef.current.mode);
+      setDraftUnit(latestSavedRef.current.estimationUnit ?? '');
       setDraftCeremonies(latestSavedRef.current.ceremonies.length ? latestSavedRef.current.ceremonies : []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,8 +112,9 @@ export function CeremonySettingsDialog({
       await onSave({
         ceremonyMode: draftMode,
         ceremonies: draftMode === 'manual' ? draftCeremonies : ceremonies,
+        ...(draftUnit ? { estimationUnit: draftUnit as NonNullable<SquadConfig['estimationUnit']> } : {}),
       });
-      toast({ title: 'Configuração salva', description: 'A fonte da próxima cerimônia foi atualizada pra squad toda.' });
+      toast({ title: 'Configuração salva', description: 'A configuração foi atualizada pra squad toda.' });
       onOpenChange(false);
     } catch (err: any) {
       toast({
@@ -126,15 +131,30 @@ export function CeremonySettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Próxima cerimônia da squad</DialogTitle>
+          <DialogTitle>Configuração da squad</DialogTitle>
           <DialogDescription>
-            Escolha de onde o card do painel lê a próxima cerimônia. Vale pra squad inteira.
+            Unidade de estimativa e rituais (de onde o painel lê a próxima cerimônia). Vale pra squad inteira.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Fonte</Label>
+            <Label>Unidade de estimativa</Label>
+            <Select value={draftUnit} onValueChange={setDraftUnit}>
+              <SelectTrigger>
+                <SelectValue placeholder="Escolha como a squad estima" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SP">Story Points (SP)</SelectItem>
+                <SelectItem value="HOURS">Horas (h)</SelectItem>
+                <SelectItem value="TSHIRT">T-Shirt (P/M/G)</SelectItem>
+                <SelectItem value="COUNT">Contagem (Throughput)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Fonte dos rituais</Label>
             <Select value={draftMode} onValueChange={(v) => setDraftMode(v as 'google_calendar' | 'manual')}>
               <SelectTrigger>
                 <SelectValue />
