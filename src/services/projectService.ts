@@ -80,6 +80,8 @@ export interface ProjectDetail {
 
 /** Corpo da confirmação da importação: campos editados e pessoas escolhidas na prévia. */
 export interface ProjectImportConfirmBody {
+  /** Nome do time (a chave do Jira, ex.: DDWMISSI, é só a referência). */
+  name: string;
   segmentName: string;
   tribeName: string;
   locality: string;
@@ -87,7 +89,6 @@ export interface ProjectImportConfirmBody {
   vpArea: string;
   status: string;
   creationDate: string;
-  devTeamSize?: number;
   members: {
     jiraAccountId?: string;
     email?: string;

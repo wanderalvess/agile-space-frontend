@@ -69,13 +69,14 @@ function Field({ id, label, value, onChange, placeholder, inputMode }: {
 
 export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Props) {
   const [fields, setFields] = useState({
+    // O Jira devolve a chave (DDWMISSI) quando não há nome melhor; nesse caso o campo começa vazio para o usuário preencher.
+    name: project.name && project.name.toUpperCase() !== project.id.toUpperCase() ? project.name : '',
     segmentName: project.segmentName || '',
     tribeName: project.tribeName || '',
     locality: project.locality || '',
     vicePresident: project.vicePresident || '',
     vpArea: project.vpArea || '',
     status: project.status || '',
-    devTeamSize: project.devTeamSize ? String(project.devTeamSize) : '',
   });
   const set = (k: keyof typeof fields) => (v: string) => setFields(f => ({ ...f, [k]: v }));
 
@@ -115,10 +116,10 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
       }];
     });
     onConfirm({
+      name: fields.name.trim() || project.name || project.id,
       segmentName: fields.segmentName.trim(), tribeName: fields.tribeName.trim(), locality: fields.locality.trim(),
       vicePresident: fields.vicePresident.trim(), vpArea: fields.vpArea.trim(), status: fields.status.trim(),
       creationDate: project.creationDate || '',
-      devTeamSize: fields.devTeamSize ? Number(fields.devTeamSize.replace(/\D/g, '')) || undefined : undefined,
       members,
     });
   };
@@ -128,7 +129,7 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="font-headline text-xl font-black tracking-tight">{project.name || project.id}</h2>
+            <h2 className="font-headline text-xl font-black tracking-tight">{fields.name.trim() || project.name || project.id}</h2>
             <Badge variant="outline" className="font-code text-[10px]">{project.id}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">Confira, ajuste o que precisar e escolha quem entra. Nada é gravado antes de confirmar.</p>
@@ -141,7 +142,9 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* DADOS DO PROJETO */}
         <section className="space-y-4 rounded-3xl border border-border/60 bg-card/80 p-5 backdrop-blur-xl" aria-label="Dados do projeto">
-          <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Dados do projeto</h3>
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Dados do time</h3>
+          <Field id="imp-nome" label="Nome do time" value={fields.name} onChange={set('name')} placeholder="Ex.: Projeto Missisauga - Winthor" />
+          <p className="-mt-2 text-[11px] text-muted-foreground">Referência no Jira: <span className="font-code font-bold">{project.id}</span></p>
           <Field id="imp-seg" label="Segmento" value={fields.segmentName} onChange={set('segmentName')} />
           <Field id="imp-tribo" label="Tribo" value={fields.tribeName} onChange={set('tribeName')} />
           <Field id="imp-local" label="Localidade" value={fields.locality} onChange={set('locality')} />
@@ -149,10 +152,7 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
             <Field id="imp-vp" label="VP" value={fields.vicePresident} onChange={set('vicePresident')} />
             <Field id="imp-areavp" label="Área VP" value={fields.vpArea} onChange={set('vpArea')} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field id="imp-status" label="Status" value={fields.status} onChange={set('status')} />
-            <Field id="imp-dev" label="Pessoas no time" value={fields.devTeamSize} onChange={set('devTeamSize')} inputMode="numeric" placeholder="Ex.: 8" />
-          </div>
+          <Field id="imp-status" label="Status" value={fields.status} onChange={set('status')} />
         </section>
 
         {/* PESSOAS */}
