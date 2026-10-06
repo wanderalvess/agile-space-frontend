@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.4.5",
+    "date": "6 de Outubro, 2026",
+    "title": "Telas padronizadas: Governança, Manual, Suporte e Versões",
+    "description": "Ajustes visuais para as telas de apoio seguirem o mesmo padrão do restante do portal.",
+    "changes": [
+      "Governança, Manual do Usuário, Suporte e Versões foram padronizados: mesmos espaçamentos, larguras e rodapé das demais telas, aproveitando melhor telas largas.",
+      "Nas Versões, os filtros agora se chamam \"Grandes Versões\", \"Novos Recursos\" e \"Correções\".",
+      "A inicialização da telemetria ficou mais resistente: se ela não puder ser iniciada, o portal continua funcionando normalmente."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.4.4",
     "date": "6 de Outubro, 2026",
     "title": "Quadro Scrum, Zephyr e IA funcionando no ambiente publicado",
