@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   GitBranch,
+  Loader2,
   Rocket,
   Zap,
   Sparkles,
@@ -54,6 +55,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
+import rawVersions from '@/app/changelog/versions.json';
 
 const AVAILABLE_ICONS = [
   { name: 'Zap', label: 'Raio (Patch / Fix)', className: 'h-5 w-5 text-indigo-500', defaultFor: 'patch' },
@@ -177,6 +179,24 @@ export function ChangelogManager() {
   }, [releases]);
 
   // Open Dialog for Create
+  const handleImportLegacy = async () => {
+    if (!confirm(`Deseja importar ${rawVersions.length} versões do histórico de engenharia para o banco de dados?`)) return;
+    try {
+      const res = await changelogApi.importLegacyReleases(rawVersions);
+      toast({
+        title: 'Importação concluída',
+        description: `${res.imported} novas versões foram salvas no banco de dados (${res.skipped} existentes mantidas).`
+      });
+      await loadReleases();
+    } catch (err: any) {
+      toast({
+        title: 'Erro na importação',
+        description: err.message || 'Falha ao importar histórico.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleOpenCreate = () => {
     setEditingItem(null);
     const calculatedTag = computeNextTag(latestTag, 'patch');
@@ -327,6 +347,8 @@ export function ChangelogManager() {
         variant: 'destructive'
       });
     }
+  };
+
   // Filtered List
   const filteredReleases = useMemo(() => {
     return releases.filter((r) => {
@@ -365,6 +387,16 @@ export function ChangelogManager() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="h-10 px-4 rounded-xl text-xs font-bold gap-2 border-slate-200 dark:border-slate-800"
+            onClick={handleImportLegacy}
+            title="Sincronizar todas as versões do arquivo de histórico com o banco de dados"
+          >
+            <UploadCloud className="h-4 w-4 text-primary" />
+            <span>Importar Histórico</span>
+          </Button>
+
           <Button
             className="h-10 px-5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider gap-2 shadow-lg shadow-primary/20"
             onClick={handleOpenCreate}
@@ -441,7 +473,7 @@ export function ChangelogManager() {
             className="h-8 px-2 text-slate-400 hover:text-slate-900 dark:hover:text-white"
             title="Recarregar"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           </Button>
         </div>
       </div>
@@ -450,7 +482,7 @@ export function ChangelogManager() {
       <div className="space-y-4">
         {loading ? (
           <div className="p-12 text-center text-slate-400 text-sm font-medium">
-            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
             Carregando versões do banco de dados...
           </div>
         ) : filteredReleases.length === 0 ? (
@@ -607,7 +639,7 @@ export function ChangelogManager() {
                   value={formTag}
                   onChange={(e) => setFormTag(e.target.value)}
                   placeholder="v3.118.0"
-                  className="h-10 rounded-xl font-mono text-sm"
+                  className="h-10 rounded-xl font-code text-sm"
                 />
               </div>
 

@@ -31,12 +31,10 @@ import { ExportHealthCheckDialog } from './ExportHealthCheckDialog';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { cn } from '@/lib/utils';
-import { ToastAction } from "@/components/ui/toast";
 import { Logo } from '../Logo';
-import { useFirebase } from '@/firebase';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection } from 'firebase/firestore';
-import { EliteSpinner } from '../ui/EliteSpinner';
+import { useAuth } from '@/context/AuthContext';
+import { workspaceApi } from '@/app/workspace/api';
+import { AgileSpinner } from '../ui/AgileSpinner';
 import Link from 'next/link';
 import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { RoomHeader } from '@/components/layout/RoomHeader';
@@ -73,7 +71,7 @@ export function HealthCheckResults({
 }: HealthCheckResultsProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const [isExporting, setIsExporting] = useState(false);
   const [hasExported, setHasExported] = useState(false);
 
@@ -88,7 +86,7 @@ export function HealthCheckResults({
   };
 
   const handleExportActionsToWorkspace = async () => {
-    if (!results || !firestore || !user) return;
+    if (!results || !session) return;
     setIsExporting(true);
 
     const dimensionsMap = new Map(dimensions.map(d => [d.key, d.title]));
@@ -118,31 +116,29 @@ export function HealthCheckResults({
         else if (scaleType === 'emojis') isCritical = (vals['sad'] || 0) > 0;
         else if (scaleType === 'numbers_5') isCritical = (vals['1'] || 0) > 0 || (vals['2'] || 0) > 0;
 
-        const severity = isCritical ? 'critica' : 'media';
+        const severity: 'critica' | 'media' = isCritical ? 'critica' : 'media';
         const statusLabel = isCritical ? 'Crítico' : 'Alerta';
-        
+
         const cardData = {
           title: `Melhorar: ${dimTitle}`,
           description: `Ação gerada pelo ${statusLabel} no Radar de Saúde.`,
-          status: 'todo',
+          status: 'todo' as const,
           priority: severity,
           tag: 'Saúde da Squad',
           originLink: `/health-check/${boardId}`,
-          updatedAt: new Date().toISOString(),
           exportedAt: new Date().toISOString(),
         };
 
-        addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'kanban'), cardData);
+        await workspaceApi.saveKanbanCard(session.id, cardData);
       }
 
-      toast({ 
-        title: "Plano de Ação Gerado!", 
+      toast({
+        title: "Plano de Ação Gerado!",
         description: `${attentionResults.length} tarefas foram criadas no seu Kanban pessoal.`,
-        action: (
-          <ToastAction altText="Ir para Kanban" onClick={() => router.push('/workspace')}>
-            Acessar Kanban
-          </ToastAction>
-        ),
+        action: {
+          label: "Acessar Kanban",
+          onClick: () => router.push('/workspace'),
+        },
       });
       setHasExported(true);
     } catch (e) {
@@ -209,7 +205,7 @@ export function HealthCheckResults({
   }, [results, scaleType]);
 
   return (
-    <div className="flex flex-col flex-1 bg-[#fafafa] relative overflow-hidden font-sans h-screen">
+    <div className="flex flex-col flex-1 bg-[#fafafa] relative overflow-hidden h-screen">
       {/* Mesh Gradient Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-200/30 blur-[120px] animate-pulse" />
@@ -480,7 +476,7 @@ export function HealthCheckResults({
                   disabled={isExporting}
                   className="h-12 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20 bg-emerald-600 hover:bg-emerald-700 flex-1 sm:flex-initial rounded-2xl transition-all active:scale-95"
                 >
-                  {isExporting ? <EliteSpinner size="sm" variant="white" className="mr-2" /> : <TrendingUp className="mr-2 h-4 w-4" />}
+                  {isExporting ? <AgileSpinner size="sm" variant="white" className="mr-2" /> : <TrendingUp className="mr-2 h-4 w-4" />}
                   Gerar Plano de Ação
                 </Button>
               ) : (
@@ -575,7 +571,7 @@ export function HealthCheckResults({
         </div>
 
         <div className="pb-12 text-center opacity-30 mt-8">
-          <p className="text-[9px] font-black uppercase tracking-[0.3em]">Espaço Ágil Health Snapshot v2.5</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.3em]">Portal Tech V&D Health Snapshot v2.5</p>
         </div>
       </div>
     </div>

@@ -2,13 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '../api';
 import { ActionPlanBoard, ActionPlanTask } from '@/lib/types';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { useToast } from '@/hooks/use-toast';
 import { ActionPlanBoard as ActionPlanBoardComponent } from '@/components/action-plan/ActionPlanBoard';
 import { Loader2, Share2, HelpCircle, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
 import { ActionPlanGuide } from '@/components/action-plan/ActionPlanGuide';
 import { ExportActionPlanDialog } from '@/components/action-plan/ExportActionPlanDialog';
@@ -17,8 +18,8 @@ export default function ActionPlanSessionPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user, isUserLoading } = useFirebase();
-  const { userProfile, requestIdentity } = useUserContext();
+  const { isAuthenticated, isLoading } = useAuth();
+  const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   const id = params.id as string;
 
@@ -30,10 +31,13 @@ export default function ActionPlanSessionPage() {
 
   // --- Auth & Identity Logic ---
   useEffect(() => {
-    if (!isUserLoading && !userProfile) {
+    // isInitializing precisa estar false também, senão requestIdentity() dispara
+    // à toa numa janela em que userProfile ainda não terminou de carregar do
+    // UserContext (mesma causa do modal de perfil abrindo sozinho no retro).
+    if (!isLoading && !isInitializing && !userProfile) {
       requestIdentity();
     }
-  }, [isUserLoading, userProfile, requestIdentity]);
+  }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   const fetchBoardAndTasks = React.useCallback(async () => {
     try {
@@ -57,9 +61,9 @@ export default function ActionPlanSessionPage() {
 
   // --- Board & Tasks Data Logic ---
   useEffect(() => {
-    if (!user || !userProfile) return;
+    if (!isAuthenticated || !userProfile) return;
     fetchBoardAndTasks();
-  }, [user, userProfile, fetchBoardAndTasks]);
+  }, [isAuthenticated, userProfile, fetchBoardAndTasks]);
 
   if (loading) {
     return (
@@ -106,14 +110,14 @@ export default function ActionPlanSessionPage() {
             >
               <Share2 className="h-4 w-4" />
             </button>
-            <button
+            <Button
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center justify-center h-8 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-fuchsia-500 hover:bg-fuchsia-600 rounded-xl shadow-sm transition-all ml-1"
+              className="h-8 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-fuchsia-500 hover:bg-fuchsia-600 rounded-xl shadow-sm ml-1"
               title="Exportar"
             >
               <Download className="h-3 w-3 mr-1.5" />
               <span className="hidden sm:inline">Exportar</span>
-            </button>
+            </Button>
           </div>
         }
       />

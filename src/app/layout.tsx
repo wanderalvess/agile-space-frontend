@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from 'next';
-import './globals.css';
 import Script from 'next/script';
-import { Toaster } from "@/components/ui/toaster"
-// Boa parte do app (Prompt Hub, Knowledge, devtools) usa o toast do sonner, que
-// precisa do próprio provider — o Toaster acima é o do Radix e só renderiza os
-// toasts criados por useToast().
-import { Toaster as SonnerToaster } from 'sonner'
-import { FirebaseClientProvider } from '@/firebase/client-provider';
+import './globals.css';
+import { Toaster } from 'sonner'
 import { Header } from '@/components/layout/Header';
 import { Calmaria } from '@/components/workspace/Calmaria';
 import { UserProvider } from '@/context/UserContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { IdentityGatekeeper } from '@/components/auth/IdentityGatekeeper';
+import { BackendHealthGatekeeper } from '@/components/layout/BackendHealthGatekeeper';
 import { GlobalAnnouncementListener } from '@/components/admin/GlobalAnnouncementListener';
 import { MonacoConfig } from '../components/layout/MonacoConfig';
 import { SystemConfigProvider } from '@/context/SystemConfigContext';
@@ -46,7 +44,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Espaço Ágil | Acelerando seu fluxo, um card de cada vez',
+  title: 'Portal Tech V&D | Hub de Varejo e Distribuição',
   description: 'A plataforma definitiva para cerimônias ágeis, estimativas de poker, planejamento de sprint, reviews (showcase) e retrospectivas. Design Premium para times ambiciosos.',
   keywords: ['ágil', 'scrum', 'poker', 'sprint review', 'retrospectiva', 'espaço ágil', 'gestão de squads'],
   authors: [{ name: 'Agile Engineering Team' }],
@@ -60,53 +58,65 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`h-full ${outfit.variable} ${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Portal Tech V&D" />
+        <link rel="apple-touch-icon" href="/icon.png" />
         <Script
-          id="theme-initializer"
+          id="theme-init"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
                   var savedTheme = localStorage.getItem('theme');
-                  var theme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  var isDark = savedTheme === 'dark' || (savedTheme !== 'light' && prefersDark);
                   var variant = localStorage.getItem('theme-variant') || 'default';
-                  if (theme === 'dark') {
-                    document.documentElement.classList.add('dark');
+                  var root = document.documentElement;
+                  if (isDark) {
+                    root.classList.add('dark');
                   } else {
-                    document.documentElement.classList.remove('dark');
+                    root.classList.remove('dark');
                   }
-                  document.documentElement.classList.add('theme-' + variant);
+                  ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic'].forEach(function(v) {
+                    root.classList.remove('theme-' + v);
+                  });
+                  root.classList.add('theme-' + variant);
+                  if (variant !== 'default') {
+                    root.style.removeProperty('--primary');
+                    root.style.removeProperty('--ring');
+                  }
                 } catch (e) {}
               })();
             `
           }}
         />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Espaço Ágil" />
-        <link rel="apple-touch-icon" href="/icon.png" />
       </head>
       <body className="font-body antialiased bg-background text-foreground transition-colors duration-150" suppressHydrationWarning>
-        <FirebaseClientProvider>
-          <ThemeProvider>
-            <SystemConfigProvider>
-              <UserProvider>
-                <IdentityGatekeeper>
-                  <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
-                    <Header />
-                    <main className="flex flex-1 w-full overflow-x-hidden">{children}</main>
-                    <GlobalAnnouncementListener />
-                    <Calmaria />
-                  </div>
-                </IdentityGatekeeper>
-              </UserProvider>
-            </SystemConfigProvider>
-            <MonacoConfig />
-          </ThemeProvider>
-        </FirebaseClientProvider>
+        <ThemeProvider>
+          <SystemConfigProvider>
+            <AuthProvider>
+              <AuthGuard>
+                <UserProvider>
+                  <BackendHealthGatekeeper>
+                    <IdentityGatekeeper>
+                      <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
+                        <Header />
+                        <main className="flex flex-col flex-1 w-full overflow-x-hidden">{children}</main>
+                        <GlobalAnnouncementListener />
+                        <Calmaria />
+                      </div>
+                    </IdentityGatekeeper>
+                  </BackendHealthGatekeeper>
+                </UserProvider>
+              </AuthGuard>
+            </AuthProvider>
+          </SystemConfigProvider>
+          <MonacoConfig />
+        </ThemeProvider>
 
-        <Toaster />
-        <SonnerToaster position="bottom-right" richColors closeButton theme="system" />
+        <Toaster position="bottom-right" richColors closeButton theme="system" />
       </body>
     </html>
   );

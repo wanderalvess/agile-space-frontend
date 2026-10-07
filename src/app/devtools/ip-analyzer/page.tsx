@@ -1,299 +1,179 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Globe, Copy, Check, RefreshCw, MapPin, Building2, Flag, Navigation, ShieldAlert, HelpCircle, Info, ShieldCheck, Lock } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Globe, Loader2, MapPin, RefreshCw, Search, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { DevToolPage } from '@/components/devtools/DevToolPage';
+import { ToolPane } from '@/components/devtools/ToolPane';
+import { analyzeIpv4, parseIpv4 } from '@/lib/devtools/ip';
 
-interface IPData {
-  ip: string;
-  city: string;
-  region: string;
-  country_name: string;
-  org: string;
-  postal: string;
-  latitude: number;
-  longitude: number;
+interface GeoData {
+  ip: string; city?: string; region?: string; country_name?: string; org?: string; postal?: string;
+  latitude?: number; longitude?: number; timezone?: string;
 }
 
-export default function IPAnalyzerPage() {
-  const [data, setData] = useState<IPData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+// ipapi.co/json/ devolve o IP de quem chama; ipapi.co/{ip}/json/ consulta outro IP.
+// Quando estoura o limite gratuito responde 200 com { error: true, reason }.
+async function fetchGeo(ip?: string): Promise<GeoData> {
+  const res = await fetch(`https://ipapi.co/${ip ? `${ip}/` : ''}json/`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.reason || 'consulta recusada');
+  return data;
+}
 
-  const fetchIPData = async () => {
-    setLoading(true);
-    setError(null);
+const geoLines = (g: GeoData) =>
+  [
+    `IP: ${g.ip}`,
+    g.org && `Provedor (ISP): ${g.org}`,
+    (g.city || g.region) && `Localização: ${[g.city, g.region].filter(Boolean).join(', ')}`,
+    g.country_name && `País: ${g.country_name}`,
+    g.postal && `CEP/Postal: ${g.postal}`,
+    g.timezone && `Fuso horário: ${g.timezone}`,
+    g.latitude !== undefined && `Coordenadas: ${g.latitude}, ${g.longitude}`,
+  ].filter(Boolean) as string[];
+
+export default function IpAnalyzerPage() {
+  const [input, setInput] = useState('');
+  const [mine, setMine] = useState<GeoData | null>(null);
+  const [mineLoading, setMineLoading] = useState(true);
+  const [mineError, setMineError] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<GeoData | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  const loadMine = useCallback(async () => {
+    setMineLoading(true);
+    setMineError(null);
     try {
-      const response = await fetch('https://ipapi.co/json/');
-      if (!response.ok) throw new Error('Falha ao buscar dados do IP');
-      const jsonData = await response.json();
-      setData(jsonData);
-    } catch (err) {
-      setError('Não foi possível carregar os dados de rede. Verifique sua conexão.');
-      toast.error('Erro ao buscar dados do IP');
+      setMine(await fetchGeo());
+    } catch (e) {
+      setMine(null);
+      setMineError(`Não foi possível obter seu IP público (${(e as Error).message}). Verifique a conexão ou bloqueadores de rede.`);
     } finally {
-      setLoading(false);
+      setMineLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchIPData();
   }, []);
 
-  const copyToClipboard = () => {
-    if (data?.ip) {
-      navigator.clipboard.writeText(data.ip);
-      setCopied(true);
-      toast.success('IP copiado para a área de transferência!');
-      setTimeout(() => setCopied(false), 2000);
+  useEffect(() => { loadMine(); }, [loadMine]);
+
+  // Análise local (instantânea) do que foi digitado
+  const analysis = useMemo(() => (input.trim() ? analyzeIpv4(input) : null), [input]);
+
+  const doLookup = async () => {
+    if (!analysis?.ok) return;
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookup(null);
+    try {
+      setLookup(await fetchGeo(analysis.data.ip));
+    } catch (e) {
+      setLookupError(`Falha na geolocalização (${(e as Error).message}).`);
+    } finally {
+      setLookupLoading(false);
     }
   };
 
-  return (
-    <div className="flex-1 flex flex-col bg-background h-dvh overflow-hidden">
-      {/* Standard Header */}
-      <header className="px-6 py-4 border-b bg-card flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary rounded-lg shadow-lg shadow-primary/20 translate-y-[-1px]">
-            <Globe className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-lg font-bold leading-none">Analisador de Conexão e IP</h1>
-            <p className="text-[10px] text-muted-foreground font-medium mt-1 uppercase tracking-widest">DIAGNÓSTICO DE REDE E LOCALIZAÇÃO DE MÁQUINA</p>
-          </div>
-        </div>
+  const output = useMemo(() => {
+    if (!analysis?.ok) return '';
+    const d = analysis.data;
+    const lines = [
+      `IP: ${d.ip}/${d.prefix}`,
+      `Tipo: ${d.kind}`,
+      `Classe: ${d.ipClass}`,
+      `Máscara: ${d.mask}`,
+      `Wildcard: ${d.wildcard}`,
+      `Rede: ${d.network}`,
+      `Broadcast: ${d.broadcast}`,
+      `Primeiro host: ${d.firstHost}`,
+      `Último host: ${d.lastHost}`,
+      `Endereços totais: ${d.totalAddresses.toLocaleString('pt-BR')}`,
+      `Hosts utilizáveis: ${d.usableHosts.toLocaleString('pt-BR')}`,
+      `Binário: ${d.binary}`,
+    ];
+    if (lookup) lines.push('', '— Geolocalização (ipapi.co) —', ...geoLines(lookup));
+    return lines.join('\n');
+  }, [analysis, lookup]);
 
-        <div className="flex items-center">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-10 px-4 font-black text-[9px] uppercase tracking-widest gap-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all rounded-xl">
-                <HelpCircle className="h-4 w-4" />
-                GUIA
+  // Texto de erro: IPv6 é reconhecido mas não calculado
+  const inputError = analysis && !analysis.ok
+    ? (input.includes(':') ? 'IPv6 ainda não é analisado aqui: use IPv4 ou CIDR IPv4.' : analysis.error)
+    : null;
+
+  const canLookup = !!analysis?.ok && analysis.data.isPublic && parseIpv4(analysis.data.ip) !== null;
+
+  return (
+    <DevToolPage
+      toolId="ip-analyzer"
+      actions={
+        <Button variant="outline" size="sm" onClick={() => { setInput('192.168.1.130/24'); setLookup(null); setLookupError(null); }} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+          <Wand2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Exemplo</span>
+        </Button>
+      }
+    >
+      <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-4">
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">IP ou bloco CIDR</h2>
+            <div className="flex gap-2">
+              <Input
+                value={input}
+                onChange={e => { setInput(e.target.value); setLookup(null); setLookupError(null); }}
+                placeholder="10.0.0.5/24"
+                spellCheck={false}
+                aria-label="IP ou CIDR"
+                className="h-9 rounded-xl font-code"
+              />
+              <Button onClick={doLookup} disabled={!canLookup || lookupLoading} title={canLookup ? 'Consultar localização e provedor' : 'Disponível para IPs públicos'} className="h-9 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                {lookupLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />} Localizar
               </Button>
-            </SheetTrigger>
-            <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col p-0 border-none shadow-2xl">
-              <SheetHeader className="shrink-0 border-b p-8 bg-white">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-4">
-                  <Globe className="h-6 w-6 text-white" />
-                </div>
-                <SheetTitle className="text-3xl font-black uppercase tracking-tighter italic text-slate-800">
-                  Analisador de IP
-                </SheetTitle>
-                <SheetDescription className="text-slate-500 font-bold text-xs uppercase tracking-widest mt-2 leading-relaxed">
-                  Identificação e geolocalização de rede pública
-                </SheetDescription>
-              </SheetHeader>
-              <ScrollArea className="flex-1 text-slate-600">
-                <div className="p-8 space-y-10">
-                  <div className="space-y-4">
-                    <h3 className="font-black text-xs uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2 italic">
-                      01. O que é o IP Público?
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                      É o endereço exclusivo que identifica sua conexão na internet global. Diferente do IP local da sua rede Wi-Fi, este é o endereço que os servidores (como AWS, Google ou Azure) veem quando você solicita um recurso.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="font-black text-xs uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2 italic">
-                      02. VPNs e Mascaramento
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                      Se você utiliza ferramentas como <strong>Netskope, Zscaler ou Cloudflare</strong>, a geolocalização mostrada aqui será a do data center da ferramenta, e não a da sua casa. Isso garante que sua navegação esteja protegida e centralizada.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="font-black text-xs uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2 italic">
-                      03. Privacidade Total
-                    </h3>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed">
-                      O Espaço Ágil funciona como um pass-through. Nós não registramos, armazenamos ou rastreamos seu endereço IP. A consulta é feita em tempo real e os dados morrem ao fechar esta aba.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 p-6 bg-blue-50/50 rounded-[2rem] border border-blue-100">
-                    <h3 className="font-black text-xs uppercase tracking-[0.2em] text-blue-600 flex items-center gap-2 italic">
-                      Uso Profissional
-                    </h3>
-                    <p className="text-[11px] text-blue-800/80 font-bold leading-relaxed">
-                      Utilize esta ferramenta para validar se o seu tráfego está saindo pelo túnel correto antes de tentar acessar bancos de dados ou APIs restritas por firewall de IP.
-                    </p>
-                  </div>
-                </div>
-              </ScrollArea>
-            </SheetContent>
-          </Sheet>
-
-          <Button 
-            onClick={fetchIPData} 
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest gap-2 bg-card border-2 shadow-sm hover:bg-muted/50 transition-all"
-          >
-            <RefreshCw className={loading ? "w-3 h-3 animate-spin" : "w-3 h-3"} />
-            Atualizar
-          </Button>
-        </div>
-      </header>
-
-      <main className="flex-1 overflow-y-auto p-6 md:p-10 scrollbar-thin scrollbar-thumb-muted">
-        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-700">
-          {/* Main IP Display */}
-          <Card className="border-2 shadow-2xl shadow-primary/5 bg-card/10 backdrop-blur-xl overflow-hidden mb-10">
-            <div className="p-1 h-2 bg-gradient-to-r from-primary/20 via-primary to-primary/20" />
-            <CardContent className="pt-16 pb-16 px-6 md:px-12 flex flex-col items-center">
-              <span className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-6 animate-pulse">
-                Seu Endereço de IP Público
-              </span>
-              
-              <div className="flex flex-col md:flex-row items-center justify-center gap-6 w-full group">
-                <div className="relative min-h-[220px] flex items-center justify-center">
-                  {loading ? (
-                    <div className="space-y-4 flex flex-col items-center">
-                      <div className="h-16 w-64 bg-primary/10 animate-pulse rounded-2xl" />
-                      <div className="h-4 w-32 bg-primary/5 animate-pulse rounded-full" />
-                    </div>
-                  ) : error ? (
-                    <div className="text-rose-500 font-bold bg-rose-500/10 px-8 py-4 rounded-2xl border border-rose-500/20 text-center">
-                      {error}
-                    </div>
-                  ) : (
-                    <h2 className="text-5xl md:text-8xl font-black text-foreground tracking-tighter leading-normal drop-shadow-sm transition-all duration-500 group-hover:scale-[1.02]">
-                      {data?.ip || '0.0.0.0'}
-                    </h2>
-                  )}
-                </div>
-
-                {!loading && !error && (
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="h-16 w-16 rounded-2xl border-2 border-primary/20 bg-background hover:bg-primary shadow-xl shadow-primary/10 hover:shadow-primary/30 transition-all group/btn"
-                    onClick={copyToClipboard}
-                  >
-                    {copied ? (
-                      <Check className="w-6 h-6 text-emerald-500" />
-                    ) : (
-                      <Copy className="w-6 h-6 text-primary group-hover/btn:text-white transition-colors" />
-                    )}
-                  </Button>
-                )}
-              </div>
-
-              {data?.org && !loading && !error && (
-                <div className="mt-8 px-6 py-2 bg-primary/5 border border-primary/10 rounded-full animate-in zoom-in duration-300">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest leading-none">
-                    Provedor: {data.org}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Connection Details Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <DetailCard 
-              label="Provedor (ISP)" 
-              value={data?.org} 
-              icon={Building2} 
-              loading={loading} 
-            />
-            <DetailCard 
-              label="Localização" 
-              value={data ? `${data.city}, ${data.region}` : undefined} 
-              icon={MapPin} 
-              loading={loading} 
-            />
-            <DetailCard 
-              label="País" 
-              value={data?.country_name} 
-              icon={Flag} 
-              loading={loading} 
-            />
-            <DetailCard 
-              label="Coordenadas" 
-              value={data ? `${data.latitude}, ${data.longitude}` : undefined} 
-              icon={Navigation} 
-              loading={loading} 
-            />
-          </div>
-
-          {/* Corporate VPN / Proxy Alert */}
-          {!loading && !error && data && (
-            <Card className="border-2 bg-blue-500/5 border-blue-500/10 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
-              <CardContent className="p-4 flex gap-4 items-start">
-                <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 shrink-0">
-                  <ShieldAlert className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="font-semibold text-sm text-foreground">
-                    Por que meu IP pode parecer diferente?
-                  </h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Se o IP exibido acima pertence a serviços como <strong>Netskope, Zscaler, Cloudflare WARP</strong> ou uma VPN corporativa, significa que o tráfego do seu navegador está sendo roteado com segurança por esses provedores. Para integrações e liberações de firewall na nuvem, este IP mascarado é o que deve ser utilizado, pois é através dele que suas requisições saem para a internet.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {!loading && !error && data && (
-            <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-between animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  Sua conexão está ativa e segura
-                </span>
-              </div>
-              <span className="text-[10px] font-medium text-muted-foreground italic">
-                Dados fornecidos por ipapi.co
-              </span>
             </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
-}
+            {(inputError || lookupError) && <p className="text-xs font-semibold text-destructive">{inputError ?? lookupError}</p>}
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Máscara, faixa e tipo são calculados no navegador. &quot;Localizar&quot; envia o IP ao serviço público ipapi.co e só vale para IPs públicos.
+            </p>
+          </section>
 
-function DetailCard({ label, value, icon: Icon, loading }: { label: string, value?: string, icon: any, loading: boolean }) {
-  return (
-    <Card className="border-2 bg-card/30 backdrop-blur-sm group hover:border-primary/30 transition-all duration-300">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="p-2 rounded-lg bg-muted group-hover:bg-primary/10 transition-colors">
-            <Icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
-            {label}
-          </span>
+          <section className="space-y-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Seu IP público</h2>
+              <Button variant="ghost" size="icon" onClick={loadMine} disabled={mineLoading} className="h-7 w-7 rounded-lg" aria-label="Atualizar" title="Atualizar">
+                <RefreshCw className={mineLoading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
+              </Button>
+            </div>
+            {mineLoading ? (
+              <div className="h-12 animate-pulse rounded-xl bg-muted" />
+            ) : mineError ? (
+              <p className="text-xs font-semibold text-destructive">{mineError}</p>
+            ) : mine ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-primary" />
+                  <button
+                    type="button"
+                    onClick={() => setInput(mine.ip)}
+                    title="Analisar este IP"
+                    className="font-code text-2xl font-black tracking-tight hover:text-primary"
+                  >
+                    {mine.ip}
+                  </button>
+                </div>
+                <ul className="space-y-1 text-xs font-medium text-muted-foreground">
+                  {geoLines(mine).slice(1).map(l => (
+                    <li key={l} className="flex items-start gap-1.5"><MapPin className="mt-0.5 h-3 w-3 shrink-0" />{l}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Com VPN ou proxy corporativo (Netskope, Zscaler, Cloudflare WARP), o IP e a localização mostrados são os do túnel, não os da sua máquina. É esse IP que deve entrar em liberações de firewall na nuvem. Dados: ipapi.co.
+            </p>
+          </section>
         </div>
-        
-        {loading ? (
-          <Skeleton className="h-6 w-3/4 bg-muted/50" />
-        ) : (
-          <p className="text-lg font-bold text-foreground truncate">
-            {value || 'N/A'}
-          </p>
-        )}
-      </CardContent>
-    </Card>
+
+        <ToolPane title="Análise" value={output} readOnly placeholder="Digite um IPv4 ou CIDR (ex.: 10.0.0.5/24) para ver máscara, faixa e tipo." downloadName="ip.txt" />
+      </div>
+    </DevToolPage>
   );
 }

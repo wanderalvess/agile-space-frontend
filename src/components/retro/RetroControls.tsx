@@ -1,38 +1,36 @@
 'use client';
 
-import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Eye, 
-  EyeOff, 
-  Vote, 
-  SquareCheck, 
-  RefreshCw, 
-  Timer as TimerIcon, 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  ThumbsUp, 
-  FileText, 
-  Users,
-  Clock,
-  Download,
+import {
+  Eye,
+  EyeOff,
+  Vote,
+  SquareCheck,
+  RefreshCw,
+  Play,
+  Pause,
+  RotateCcw,
+  MonitorPlay,
   Volume2,
-  VolumeX
+  VolumeX,
+  LayoutGrid,
+  Maximize2,
+  Clock,
+  SlidersHorizontal,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { TimerState } from "@/lib/types";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 interface RetroControlsProps {
   isCardsRevealed: boolean;
@@ -47,21 +45,30 @@ interface RetroControlsProps {
   onPauseTimer: () => void;
   onResumeTimer: () => void;
   onResetTimer: () => void;
-  // Sorting Props
-  onExport: () => void;
-  activeStage: string;
-  onStageChange: (stage: any) => void;
+  // Modo apresentação: botão no grupo de visão (omitido no modo compact)
+  onPresent?: () => void;
+  // compact: versão enxuta para a barra de apresentação — só status e controles
+  // do facilitador (sem layout/apresentar), mas mantém o timer rodando.
+  compact?: boolean;
   // Audio Props
   isSoundEnabled: boolean;
   onToggleSound: (enabled: boolean) => void;
   // Auto-revelar ao fim do timer (config. em RetroSettingsDialog)
   autoRevealOnTimerEnd?: boolean;
+  // Layout Mode Props (Quadro completo vs Foco na coluna)
+  layoutMode?: 'board' | 'focus';
+  onToggleLayoutMode?: (mode: 'board' | 'focus') => void;
+  // Limite de votos por pessoa (dot-voting) — 0/undefined = sem limite
+  maxVotesPerParticipant?: number;
+  onSetMaxVotesPerParticipant?: (max: number) => void;
+  votesUsed?: number;
 }
 
 const DURATION_OPTIONS = [120, 180, 240, 300]; // 2, 3, 4, 5 mins
+const VOTE_LIMIT_OPTIONS = [0, 3, 5, 10]; // 0 = sem limite
 
-export function RetroControls({ 
-  isCardsRevealed, 
+export function RetroControls({
+  isCardsRevealed,
   onToggleCardsRevealed,
   votingStatus,
   onSetVotingStatus,
@@ -72,15 +79,20 @@ export function RetroControls({
   onPauseTimer,
   onResumeTimer,
   onResetTimer,
-  onExport,
-  activeStage,
-  onStageChange,
+  onPresent,
+  compact = false,
   isSoundEnabled,
   onToggleSound,
-  autoRevealOnTimerEnd
+  autoRevealOnTimerEnd,
+  layoutMode = 'board',
+  onToggleLayoutMode,
+  maxVotesPerParticipant = 0,
+  onSetMaxVotesPerParticipant,
+  votesUsed = 0,
 }: RetroControlsProps) {
   const [remainingTime, setRemainingTime] = useState(timer?.initialDuration ?? 300);
   const prevStatusRef = useRef(timer?.status);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (timer?.status !== 'running' || !timer.endTime) {
@@ -92,12 +104,12 @@ export function RetroControls({
       prevStatusRef.current = timer?.status;
       return;
     }
-    
+
     const interval = setInterval(() => {
       const now = Date.now();
       const end = timer.endTime!;
       const remaining = Math.round((end - now) / 1000);
-      
+
       if (remaining <= 0 && prevStatusRef.current === 'running') {
         if (isSoundEnabled) {
           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -125,175 +137,305 @@ export function RetroControls({
   const isRunning = timer?.status === 'running';
   const isPaused = timer?.status === 'paused';
   const isStopped = !timer || timer.status === 'stopped';
+  const hasActiveTimer = isRunning || isPaused;
 
   return (
-    <>
-      {/* 🛠️ CONTROLES GLOBAIS DE TOPO (Para injeção no RoomHeader) */}
-      <div className="flex items-center gap-3 shrink-0 pr-2">
-        {/* VISIBILIDADE */}
-        <div className="flex items-center gap-2.5 px-3 py-1 bg-slate-50/50 rounded-xl border border-slate-200/30">
-          <div className={cn(
-            "p-1.5 rounded-lg transition-all",
-            isCardsRevealed ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"
-          )}>
-            {isCardsRevealed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-          </div>
-          <div className="flex flex-col min-w-[70px]">
-            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 leading-none mb-0.5">Cards</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-black uppercase text-slate-600">{isCardsRevealed ? "Públicos" : "Ocultos"}</span>
-              {isFacilitator && (
-                <Switch
-                  checked={isCardsRevealed}
-                  onCheckedChange={onToggleCardsRevealed}
-                  className="scale-[0.6] data-[state=checked]:bg-indigo-600 h-4 w-8"
-                />
-              )}
-            </div>
-          </div>
+    <div className="flex items-center gap-2 shrink-0 pr-2">
+      {/* STATUS COMPACTO — visível pra todo mundo, sem controles */}
+      <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-slate-50/50 rounded-xl border border-slate-200/30">
+        <div className={cn(
+          "p-1 rounded-lg transition-all",
+          isCardsRevealed ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-400"
+        )}>
+          {isCardsRevealed ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
         </div>
+        {votingStatus !== 'disabled' && (
+          <span className={cn(
+            "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
+            votingStatus === 'active' ? "bg-emerald-600 text-white animate-pulse" : "bg-slate-200 text-slate-500"
+          )}>
+            {votingStatus === 'active' ? 'Votando' : 'Votos'}
+          </span>
+        )}
+        {hasActiveTimer && (
+          <span className={cn(
+            "flex items-center gap-1 font-code text-xs font-black tabular-nums",
+            isRunning && remainingTime <= 30 ? "text-red-500" : "text-slate-600"
+          )}>
+            <Clock className="h-3 w-3" />
+            {formatTime(remainingTime)}
+          </span>
+        )}
+        {!!maxVotesPerParticipant && (
+          <span
+            className={cn(
+              "flex items-center gap-1 font-code text-xs font-black tabular-nums",
+              votesUsed >= maxVotesPerParticipant ? "text-amber-600" : "text-slate-600"
+            )}
+            title="Seus votos usados / limite por pessoa"
+          >
+            <Star className="h-3 w-3" />
+            {votesUsed}/{maxVotesPerParticipant}
+          </span>
+        )}
+      </div>
 
-        <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
+      {/* LAYOUT: preferência pessoal de visualização — sempre visível */}
+      {!compact && onToggleLayoutMode && (
+        <div className="flex items-center p-0.5 bg-slate-100/70 dark:bg-slate-800/60 rounded-xl border border-slate-200/40 dark:border-slate-600/40">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleLayoutMode('board')}
+                  className={cn(
+                    "h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide rounded-lg transition-all gap-1.5",
+                    layoutMode === 'board'
+                      ? "bg-white text-slate-800 dark:!bg-slate-700 dark:!text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  )}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden 2xl:inline">Quadro</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+                <p>Visão Quadro: todas as colunas lado a lado</p>
+              </TooltipContent>
+            </Tooltip>
 
-        {/* VOTAÇÃO */}
-        <div className="flex items-center gap-1 hidden sm:flex">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onToggleLayoutMode('focus')}
+                  className={cn(
+                    "h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide rounded-lg transition-all gap-1.5",
+                    layoutMode === 'focus'
+                      ? "bg-white text-slate-800 dark:!bg-slate-700 dark:!text-white shadow-sm border border-slate-200/50 dark:border-slate-600/50"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  )}
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                  <span className="hidden 2xl:inline">Foco</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+                <p>Visão Foco: foco na coluna ativa</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
+
+      {!compact && onPresent && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onPresent}
+                className="h-8 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/40 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all gap-1.5"
+              >
+                <MonitorPlay className="h-3.5 w-3.5" />
+                <span className="text-[10px] font-bold uppercase tracking-wide hidden 2xl:inline">Apresentar</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
+              <p>Modo apresentação · tela cheia por coluna</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* AÇÕES PRINCIPAIS DO FACILITADOR — sempre visíveis no header */}
+      {isFacilitator && (
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleCardsRevealed}
+            title={isCardsRevealed ? "Ocultar os cards do time" : "Revelar os cards do time"}
+            className={cn(
+              "h-8 px-3 rounded-xl border transition-all gap-1.5",
+              isCardsRevealed
+                ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 hover:text-white shadow-md shadow-emerald-600/20"
+                : "text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-600/50 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 hover:border-emerald-200"
+            )}
+          >
+            {isCardsRevealed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">
+              {isCardsRevealed ? "Cards visíveis" : "Revelar cards"}
+            </span>
+          </Button>
+
           {votingStatus === 'disabled' ? (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="inline-block">
-                    <Button 
-                      onClick={() => onSetVotingStatus('active')} 
-                      disabled={!isCardsRevealed || !isFacilitator} 
-                      size="sm" 
-                      className="h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-lg disabled:opacity-50"
+                    <Button
+                      size="sm"
+                      onClick={() => onSetVotingStatus('active')}
+                      disabled={!isCardsRevealed}
+                      className="h-8 px-3 rounded-xl gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-40 disabled:shadow-none"
                     >
-                      <Vote className="sm:mr-1.5 h-3.5 w-3.5" /> <span className="hidden xl:inline">Iniciar Votos</span>
+                      <Vote className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Iniciar votação</span>
                     </Button>
                   </div>
                 </TooltipTrigger>
-                {(!isCardsRevealed || !isFacilitator) && (
-                   <TooltipContent side="bottom" className="bg-slate-900 text-white border-none rounded-xl p-3 shadow-2xl z-[9999]">
-                     <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed max-w-[200px]">
-                       {!isCardsRevealed 
-                         ? "⚠️ Revele os cards para iniciar" 
-                         : "🔒 Apenas facilitador"}
-                     </p>
-                   </TooltipContent>
+                {!isCardsRevealed && (
+                  <TooltipContent side="bottom" className={cn("bg-slate-900 text-white border-none rounded-xl p-2 text-xs font-medium", compact && "z-[130]")}>
+                    Revele os cards primeiro
+                  </TooltipContent>
                 )}
               </Tooltip>
             </TooltipProvider>
           ) : votingStatus === 'active' ? (
-            <Button 
-              variant="destructive" 
-              onClick={() => onSetVotingStatus('finished')} 
-              disabled={!isFacilitator}
-              size="sm" 
-              className="h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-lg animate-pulse"
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => onSetVotingStatus('finished')}
+              className="h-8 px-3 rounded-xl gap-1.5 animate-pulse"
             >
-              <SquareCheck className="sm:mr-1.5 h-3.5 w-3.5" /> <span className="hidden xl:inline">Encerrar</span>
+              <SquareCheck className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Encerrar votação</span>
             </Button>
           ) : (
-            <Button 
-              variant="outline" 
-              onClick={() => onSetVotingStatus('disabled')} 
-              disabled={!isFacilitator}
-              size="sm" 
-              className="h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl border-slate-200 text-slate-500 bg-slate-50 hover:bg-slate-100"
-              title="Resetar Votação"
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onSetVotingStatus('disabled')}
+              className="h-8 px-3 rounded-xl gap-1.5 border-border text-muted-foreground bg-transparent hover:bg-muted hover:text-foreground"
             >
               <RefreshCw className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Resetar votação</span>
             </Button>
           )}
         </div>
+      )}
 
-        <div className="w-px h-5 bg-slate-200 mx-1 hidden lg:block" />
+      {/* CONTROLES DO FACILITADOR — agrupados num único menu */}
+      {isFacilitator && (
+        <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Controles da sessão"
+              aria-label="Controles da sessão"
+              className={cn(
+                "h-8 px-3 rounded-xl border transition-all gap-1.5",
+                isMenuOpen
+                  ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border-emerald-200"
+                  : "text-slate-500 border-slate-200/60 bg-slate-50/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600"
+              )}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span className="text-[10px] font-bold uppercase tracking-wide hidden 2xl:inline">Controles</span>
+            </Button>
+          </PopoverTrigger>
+          {/* Na barra de apresentação (z-[110]) e com a coluna em tela cheia (z-[100]), o z-50 padrão ficaria por baixo */}
+          <PopoverContent align="end" className={cn("w-[300px] rounded-2xl border-border shadow-2xl p-3 space-y-2 bg-card text-card-foreground", compact && "z-[130]")}>
+            {/* Limite de votos por pessoa */}
+            {onSetMaxVotesPerParticipant && (
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-muted/40 border border-border">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Star className="h-3 w-3" /> Votos por pessoa
+                </Label>
+                <div className="flex items-center gap-1">
+                  {VOTE_LIMIT_OPTIONS.map(n => (
+                    <Button
+                      key={n}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onSetMaxVotesPerParticipant(n)}
+                      title={n === 0 ? 'Sem limite de votos' : `${n} votos por pessoa`}
+                      className={cn(
+                        "h-7 min-w-7 px-1.5 text-xs font-bold rounded-md transition-all",
+                        maxVotesPerParticipant === n ? "bg-emerald-600 text-white shadow-sm border border-emerald-600" : "text-slate-400 hover:text-slate-600"
+                      )}
+                    >
+                      {n === 0 ? '∞' : n}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* TIMER */}
-        <div className="flex items-center gap-2 px-2.5 py-1 bg-slate-100/40 rounded-xl border border-slate-200/30 backdrop-blur-sm transition-all hover:bg-slate-100/60">
-          <div className={cn(
-            "p-1.5 rounded-lg transition-all",
-            isRunning ? "bg-indigo-600 text-white shadow-[0_0_12px_rgba(79,70,229,0.3)] animate-pulse" : "text-slate-400"
-          )}>
-            <Clock className="h-3.5 w-3.5" />
-          </div>
-          <span className={cn(
-            "font-mono text-sm sm:text-lg font-black tabular-nums tracking-tighter w-[54px] text-center",
-            isRunning && remainingTime <= 30 ? "text-red-500" : "text-slate-700"
-          )}>
-            {formatTime(remainingTime)}
-          </span>
-
-          {isFacilitator && (
-            <div className="flex items-center gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onToggleSound(!isSoundEnabled)}
-                className={cn(
-                  "h-7 w-7 rounded-lg transition-all mr-1",
-                  isSoundEnabled ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-300 hover:bg-slate-50"
-                )}
-                title={isSoundEnabled ? "Desativar Som" : "Ativar Som"}
-              >
-                {isSoundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-              </Button>
+            {/* Timer */}
+            <div className="p-2.5 rounded-xl bg-muted/40 border border-border space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" /> Timer
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "font-code text-sm font-black tabular-nums",
+                    isRunning && remainingTime <= 30 ? "text-red-500" : "text-slate-700"
+                  )}>
+                    {formatTime(remainingTime)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onToggleSound(!isSoundEnabled)}
+                    className={cn("h-6 w-6 rounded-lg", isSoundEnabled ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-300 hover:bg-slate-100")}
+                    title={isSoundEnabled ? "Desativar Som" : "Ativar Som"}
+                  >
+                    {isSoundEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              </div>
 
               {isStopped ? (
-                <>
-                  <div className="flex items-center pr-1 gap-0.5">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1">
                     {DURATION_OPTIONS.map(d => (
-                       <Button
-                         key={d}
-                         variant="ghost"
-                         size="icon"
-                         onClick={() => onSetTimerDuration(d)}
-                         className={cn(
-                           "h-6 w-6 text-[8px] font-black rounded-md transition-all",
-                           timer?.initialDuration === d ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
-                         )}
-                       >
-                         {d/60}m
-                       </Button>
+                      <Button
+                        key={d}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onSetTimerDuration(d)}
+                        className={cn(
+                          "h-7 min-w-7 px-1.5 text-xs font-bold rounded-md transition-all",
+                          timer?.initialDuration === d ? "bg-emerald-600 text-white shadow-sm border border-emerald-600" : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        {d / 60}m
+                      </Button>
                     ))}
                   </div>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={() => onStartTimer(timer?.initialDuration ?? 300)}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-100 rounded-lg" onClick={() => onStartTimer(timer?.initialDuration ?? 300)}>
                     <Play className="h-4 w-4 fill-current" />
                   </Button>
-                </>
+                </div>
               ) : (
-                <>
+                <div className="flex items-center justify-end gap-1">
                   {isRunning ? (
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-500 hover:bg-amber-50 rounded-lg" onClick={onPauseTimer}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-500 hover:bg-amber-100 rounded-lg" onClick={onPauseTimer}>
                       <Pause className="h-4 w-4 fill-current" />
                     </Button>
                   ) : (
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-50 rounded-lg" onClick={onResumeTimer}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-100 rounded-lg" onClick={onResumeTimer}>
                       <Play className="h-4 w-4 fill-current" />
                     </Button>
                   )}
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg" onClick={onResetTimer}>
                     <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
-                </>
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </PopoverContent>
+        </Popover>
+      )}
 
-        <div className="w-px h-5 bg-slate-200 mx-1 hidden xl:block" />
-
-        {/* EXPORT */}
-        <Button 
-          variant="ghost"
-          size="icon"
-          onClick={onExport}
-          className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all hidden lg:flex"
-          title="Exportar Resumo"
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-      </div>
-    </>
+    </div>
   );
 }

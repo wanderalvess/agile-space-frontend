@@ -1,49 +1,69 @@
 import { Room, Participant, Vote, VotingRound } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+// Mensagem de erro com status HTTP e o corpo devolvido pelo backend — sem isso
+// "Falha ao ..." não diz se foi 401, 403, 404 ou 500.
+async function httpError(res: Response, fallback: string): Promise<Error> {
+  let detail = '';
+  try {
+    const text = (await res.text()).trim();
+    if (text) {
+      try {
+        const body = JSON.parse(text);
+        detail = body.error || body.message || text;
+      } catch {
+        detail = text;
+      }
+    }
+  } catch {
+    // corpo ilegível: segue só com o status
+  }
+  return new Error(`${fallback} (HTTP ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ''})`);
+}
+
+
 export const pokerApi = {
   async getRoom(roomId: string): Promise<Room> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}`);
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}`);
     if (!res.ok) throw new Error('Falha ao carregar a sala de Poker');
     return res.json();
   },
 
   async saveOrUpdateRoom(room: Partial<Room>): Promise<Room> {
-    const res = await fetch(`${API_BASE_URL}/poker`, {
+    const res = await authFetch(`${API_BASE_URL}/poker`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(room),
     });
-    if (!res.ok) throw new Error('Falha ao salvar configurações da sala');
+    if (!res.ok) throw new Error('Falha ao salvar a sala');
     return res.json();
   },
 
-  async listRooms(): Promise<Room[]> {
-    const res = await fetch(`${API_BASE_URL}/poker`);
+  async listRooms(squadId: string): Promise<Room[]> {
+    const res = await authFetch(`${API_BASE_URL}/poker?squadId=${encodeURIComponent(squadId)}`);
     if (!res.ok) throw new Error('Falha ao listar salas de Poker');
     return res.json();
   },
 
   async getParticipants(roomId: string): Promise<Participant[]> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/participants`);
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants`);
     if (!res.ok) throw new Error('Falha ao obter participantes');
     return res.json();
   },
 
   async joinRoom(roomId: string, participant: Partial<Participant>): Promise<Participant> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/participants`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(participant),
     });
-    if (!res.ok) throw new Error('Falha ao entrar na sala de Poker');
+    if (!res.ok) throw new Error('Falha ao entrar na sala');
     return res.json();
   },
 
   async sendHeartbeat(roomId: string, userId: string): Promise<void> {
     try {
-      await fetch(`${API_BASE_URL}/poker/${roomId}/heartbeat/${userId}`, {
+      await authFetch(`${API_BASE_URL}/poker/${roomId}/heartbeat/${userId}`, {
         method: 'POST',
       });
     } catch (e) {
@@ -52,71 +72,96 @@ export const pokerApi = {
   },
 
   async leaveRoom(roomId: string, userId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/participants/${userId}`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/participants/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao sair da sala');
   },
 
   async getVotes(roomId: string): Promise<Vote[]> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/votes`);
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes`);
     if (!res.ok) throw new Error('Falha ao carregar votos da sala');
     return res.json();
   },
 
   async saveVote(roomId: string, vote: Partial<Vote>): Promise<Vote> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vote),
     });
-    if (!res.ok) throw new Error('Falha ao votar');
+    if (!res.ok) throw new Error('Falha ao salvar voto');
     return res.json();
   },
 
   async removeVote(roomId: string, userId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/votes/${userId}`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao remover voto');
   },
 
   async clearVotes(roomId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/votes`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao limpar votos da rodada');
   },
 
   async getRounds(roomId: string, limit = 100): Promise<VotingRound[]> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/rounds?limit=${limit}`);
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds?limit=${limit}`);
     if (!res.ok) throw new Error('Falha ao carregar histórico de rodadas');
     return res.json();
   },
 
   async saveRound(roomId: string, round: Partial<VotingRound>): Promise<VotingRound> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(round),
     });
-    if (!res.ok) throw new Error('Falha ao arquivar rodada no histórico');
+    if (!res.ok) throw new Error('Falha ao salvar rodada');
     return res.json();
   },
 
   async clearRounds(roomId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao limpar histórico de rodadas');
   },
 
   async sendReaction(roomId: string, reaction: { uid: string; emoji: string; ts: string; nickname?: string }): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/poker/${roomId}/reactions`, {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/reactions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'REACTION', ...reaction }),
     });
-    if (!res.ok) throw new Error('Falha ao enviar reação');
+  },
+
+  // Notas de refinamento: qualquer participante da sala edita; o backend mescla só os
+  // campos enviados no item (não regrava a fila inteira, então não há "última cópia vence").
+  async updateIssueNotes(roomId: string, issueId: string, notes: { devNotes?: string; qaNotes?: string }): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/issues/${encodeURIComponent(issueId)}/notes`, {
+      method: 'PATCH',
+      body: JSON.stringify(notes),
+    });
+    if (!res.ok) throw await httpError(res, 'Falha ao salvar as notas');
+  },
+
+  async getChatMessages(roomId: string, channelId: string): Promise<any[]> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat?channelId=${encodeURIComponent(channelId)}`);
+    if (!res.ok) throw await httpError(res, 'Falha ao carregar mensagens do chat');
+    return res.json();
+  },
+
+  async sendChatMessage(roomId: string, message: any): Promise<any> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat`, {
+      method: 'POST',
+      body: JSON.stringify(message),
+    });
+    if (!res.ok) throw await httpError(res, 'Falha ao enviar mensagem');
+    return res.json();
+  },
+
+  async deleteChatMessage(roomId: string, messageId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/chat/${encodeURIComponent(messageId)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw await httpError(res, 'Falha ao apagar mensagem');
   }
 };
+

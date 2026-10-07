@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { listTemplates, type PokerTemplate } from '@/lib/poker-templates';
-import { DECKS, TSHIRT_UNIT_LABELS, type TshirtUnit } from '@/lib/types';
+import { DECKS, TSHIRT_UNIT_LABELS, type TshirtUnit, type DeckType, type Issue } from '@/lib/types';
 import { DEFAULT_ROOM_SETTINGS } from '@/lib/poker-utils';
 
 // Metadados dos baralhos para os cartões visuais do modal de configuração.
@@ -30,6 +30,7 @@ const SETUP_GROUPS = [
   {
     label: 'Opções do facilitador',
     items: [
+      { key: 'cancelTask', title: 'Cancelar tarefa', desc: 'Permite cancelar itens no refinamento' },
       { key: 'parkTask', title: 'Adiar tarefa', desc: 'Volta o item pro fim da fila' },
       { key: 'referenceStory', title: 'História de referência', desc: 'Régua visível na votação' },
       { key: 'roundNudge', title: 'Aviso de rodadas', desc: 'Sugere quebrar ou adiar' },
@@ -57,23 +58,26 @@ const MODE_OPTIONS = [
   { key: 'sync', emoji: '🚀', name: 'Síncrono', tagline: 'Ao vivo', desc: 'Todos votam juntos, em tempo real, com revelação simultânea. Ideal para o time reunido.' },
   { key: 'async', emoji: '🕰️', name: 'Assíncrono', tagline: 'No seu tempo', desc: 'Cada um vota por tarefa quando puder. Ideal para times distribuídos ou fusos diferentes.' },
 ] as const;
-import { 
-  WalletCards, 
-  Zap, 
-  Target, 
-  Users, 
+import {
+  WalletCards,
+  Zap,
+  Target,
+  Users,
   Lock,
   ArrowRight as ArrowRightIcon,
   MessageSquare,
   Trophy,
   ListPlus,
-  Shield
+  Shield,
+  ChevronRight,
+  UserCheck
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
+import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import {
   Dialog,
   DialogContent,
@@ -87,19 +91,92 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+
+/** Card de lista de sessões do histórico do Poker — mesmo padrão visual do card
+ * "Sessões Recentes" do ToolHubLayout (rounded-[2.5rem], backdrop-blur, hover/chevron,
+ * skeleton e empty state reais) em vez do bloco de divs cru que existia aqui antes. */
+function SessionListCard({
+  icon,
+  title,
+  loading,
+  rooms,
+  emptyLabel,
+  onOpen,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  loading: boolean;
+  rooms: any[];
+  emptyLabel: string;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <Card className="relative border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col overflow-hidden min-h-[320px]">
+      <div className="flex items-center gap-2 mb-4 shrink-0">
+        <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+          {icon}
+        </div>
+        <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">{title}</h3>
+      </div>
+
+      <div className="space-y-2.5 flex-1 overflow-y-auto custom-scrollbar pr-1">
+        {loading ? (
+          <div className="space-y-2 py-2 animate-pulse">
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+            <div className="h-14 bg-slate-100 dark:bg-slate-800 rounded-xl" />
+          </div>
+        ) : rooms.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-10 gap-2">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-700">
+              {icon}
+            </div>
+            <p className="text-sm text-slate-400 dark:text-slate-500">{emptyLabel}</p>
+          </div>
+        ) : (
+          rooms.map((r) => (
+            <div
+              key={r.id}
+              onClick={() => onOpen(r.id)}
+              className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
+            >
+              <div className="space-y-0.5 truncate flex-1 min-w-0 pr-2">
+                <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
+                  {r.title || 'Sem título'}
+                </h5>
+                <p className="text-xs text-slate-400 truncate">
+                  {r.team || 'Squad Geral'}
+                  {r.createdAt ? ` · ${formatDistanceToNow(new Date(r.createdAt), { addSuffix: true, locale: ptBR })}` : ''}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-slate-300 group-item-hover:text-slate-600 dark:group-item-hover:text-slate-400 group-item-hover:translate-x-0.5 transition-all shrink-0" />
+            </div>
+          ))
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export default function PokerHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user } = useFirebase();
+  const { session } = useAuth();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [showAdvancedSetup, setShowAdvancedSetup] = useState(false);
   
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+
   // Setup State
   const [title, setTitle] = useState('');
   const [team, setTeam] = useState('');
@@ -127,16 +204,36 @@ export default function PokerHubPage() {
     if (isSetupOpen) setTemplates(listTemplates());
   }, [isSetupOpen]);
 
-  // Preenche o squad com o time do usuário assim que o perfil carregar do
-  // Firestore (chega async) — só se o campo ainda não foi editado à mão.
+  // Preenche o squad com o time do usuário assim que o perfil carregar
+  // (chega async) — só se o campo ainda não foi editado à mão.
   useEffect(() => {
     if (teamTouched) return;
-    const userTeam = userProfile?.squadId || userProfile?.team;
+    const userTeam = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
     if (userTeam) setTeam(userTeam);
-  }, [userProfile, teamTouched]);
+  }, [session, userProfile, teamTouched]);
+
+  const currentSquadId = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
+
+  useEffect(() => {
+    if (!currentSquadId) return;
+    const fetchRooms = async () => {
+      try {
+        const data = await pokerApi.listRooms(currentSquadId);
+        setRooms(data);
+      } catch (err) {
+        console.error("Erro ao listar salas", err);
+      } finally {
+        setLoadingRooms(false);
+      }
+    };
+    fetchRooms();
+  }, [currentSquadId]);
 
   const SETUP_TOTAL = SETUP_GROUPS.reduce((n, g) => n + g.items.length, 0);
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
+
+  // Backend já devolve só as salas da squad atual — rooms É a lista "da minha squad".
+  const myParticipatedRooms = rooms.filter(r => session?.id && (r.participantIds?.includes(session.id) || r.creatorId === session.id));
 
   const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
@@ -149,7 +246,7 @@ export default function PokerHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: session?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -159,7 +256,17 @@ export default function PokerHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!auth.currentUser || isCreating) return;
+    if (isCreating) return;
+
+    if (!session || !session.id) {
+      console.error("[poker] Tentativa de criação de sala abortada: usuário nulo ou sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade. Por favor, defina seu perfil e tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({
@@ -198,16 +305,16 @@ export default function PokerHubPage() {
     const newRoom = {
       id: roomId,
       votesRevealed: false,
-      creatorId: auth.currentUser.uid,
-      timer: { status: 'stopped', endTime: null, initialDuration: 120, remainingOnPause: 120 },
+      creatorId: session.id,
+      timer: { status: 'stopped' as const, endTime: null, initialDuration: 120, remainingOnPause: 120 },
       title: title.trim(),
-      team: team.trim() || 'Squad Geral',
+      team: team.trim() || session?.activeProjectId || userProfile?.squadId || 'Squad Geral',
       createdAt: new Date().toISOString(),
       issuesQueue: backlogIssues,
       activeIssueId: backlogIssues[0]?.id || null,
-      participantIds: [auth.currentUser.uid],
+      participantIds: [session.id],
       mode,
-      deckType,
+      deckType: deckType as DeckType,
       revealedIssues: [],
       settings: {
         ...DEFAULT_ROOM_SETTINGS,
@@ -218,20 +325,26 @@ export default function PokerHubPage() {
     };
 
     try {
-      const docRef = await pokerApi.saveOrUpdateRoom(newRoom);
+      const docRef = await pokerApi.saveOrUpdateRoom(newRoom as any);
       if (docRef && docRef.id) {
         saveRoomMeta(docRef.id, 'poker', title.trim(), team.trim() || 'Squad');
         setIsSetupOpen(false);
         router.push(`/room/${docRef.id}`);
       } else {
+        console.error("[poker] Resposta da API ao criar sala não veio com ID válido:", docRef);
         setIsCreating(false);
+        toast({
+          title: "Erro na Criação",
+          description: "O servidor não retornou um ID para a nova sala.",
+          variant: "destructive"
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating poker room: ", error);
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar a sala no momento.",
+        description: error?.message || "Não foi possível iniciar a sala no momento.",
         variant: "destructive"
       });
     }
@@ -239,45 +352,45 @@ export default function PokerHubPage() {
 
   const tips = [
     {
-      title: "Evite Ancoragem",
-      description: "A votação deve ser silenciada até que todos tenham votado. Isso evita que o chute do sênior domine os restantes.",
+      title: "Vote sem ver os outros votos",
+      description: "Enquanto todos não votarem, os votos ficam escondidos. Assim o palpite de quem fala primeiro não influencia o resto do time.",
       icon: <Lock className="text-violet-600" />
     },
     {
-      title: "Explique Desvios",
-      description: "Quando os votos divergem muito, peça para quem votou mais alto e mais baixo explicarem suas visões técnicos.",
+      title: "Converse quando os votos divergirem",
+      description: "Se os votos ficarem muito distantes, peça para quem votou mais alto e mais baixo explicarem o raciocínio.",
       icon: <MessageSquare className="text-violet-600" />
     },
     {
-      title: "Consenso é o Alvo",
-      description: "O objetivo não é a média, mas o consenso. Continue refinando até que o time entenda a complexidade real.",
+      title: "O objetivo é o entendimento",
+      description: "Não é fazer média: continue conversando até o time concordar sobre o tamanho real da tarefa.",
       icon: <Trophy className="text-violet-600" />
     }
   ];
 
   const referenceSections = [
     {
-      title: "Criação & Pauta",
+      title: "1. Monte a pauta",
       label: "Preparação",
-      description: "Adicione as tarefas, links do Jira e notas técnicas. Uma pauta bem definida é o primeiro passo para um refinamento ágil.",
+      description: "Adicione as tarefas, links do Jira e notas técnicas. Uma pauta bem definida deixa o refinamento mais rápido.",
       icon: <ListPlus className="text-violet-500" />
     },
     {
-      title: "Escolha do Deck",
-      label: "Calibração",
-      description: "Selecione entre Horas (ideal para sub-tarefas) ou Fibonacci (ideal para User Stories). O deck certo muda o foco da squad.",
+      title: "2. Escolha o baralho",
+      label: "Baralho",
+      description: "Horas funcionam bem para subtarefas; Fibonacci, para histórias de usuário. Dá para ajustar depois no painel do facilitador.",
       icon: <Zap className="text-violet-500" />
     },
     {
-      title: "Votação Silenciosa",
-      label: "Sem Ancoragem",
-      description: "Os votos permanecem ocultos até a revelação. Isso força o pensamento independente e evita que as opiniões dominantes silenciem o time.",
+      title: "3. Votem em silêncio",
+      label: "Votação",
+      description: "Os votos ficam ocultos até a revelação, para cada pessoa decidir sem ser influenciada.",
       icon: <Shield className="text-violet-500" />
     },
     {
-      title: "Consenso de Elite",
-      label: "Alinhamento",
-      description: "Revele os votos, debata as divergências e salve o consenso. O objetivo não é o número, mas o entendimento real da complexidade.",
+      title: "4. Revele e decida",
+      label: "Revelação",
+      description: "Revele os votos, converse sobre as diferenças e registre o valor combinado.",
       icon: <Trophy className="text-violet-500" />
     }
   ];
@@ -290,10 +403,11 @@ export default function PokerHubPage() {
         icon={<WalletCards />}
         themeColor="violet"
         toolType="poker"
+        actions={<ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />}
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!session) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);
@@ -301,7 +415,26 @@ export default function PokerHubPage() {
         }}
         onJoinSession={(id) => router.push(`/room/${id}`)}
         isCreating={isCreating}
-      />
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <SessionListCard
+            icon={<Users className="h-4 w-4" />}
+            title="Sessões da minha squad"
+            loading={loadingRooms}
+            rooms={rooms}
+            emptyLabel="Nenhuma sessão da squad ainda"
+            onOpen={(id) => router.push(`/room/${id}`)}
+          />
+          <SessionListCard
+            icon={<UserCheck className="h-4 w-4" />}
+            title="Sessões em que participei"
+            loading={loadingRooms}
+            rooms={myParticipatedRooms}
+            emptyLabel="Você ainda não participou de nenhuma sessão"
+            onOpen={(id) => router.push(`/room/${id}`)}
+          />
+        </div>
+      </ToolHubLayout>
 
       <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
         <DialogContent className="sm:max-w-[1100px] max-h-[94vh] overflow-y-auto gap-2 p-5 sm:p-6 rounded-[2rem] border border-border shadow-2xl bg-card text-card-foreground">
@@ -348,7 +481,7 @@ export default function PokerHubPage() {
           )}
 
           {/* Nome + squad */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 font-sans">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
                 <ListPlus className="h-3.5 w-3.5 text-primary" /> Título da Sala
@@ -366,7 +499,7 @@ export default function PokerHubPage() {
           </div>
 
           {/* Baralho — cartões visuais */}
-          <div className="space-y-2 pt-3 font-sans">
+          <div className="space-y-2 pt-3">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
               <WalletCards className="h-3.5 w-3.5 text-primary" /> Tipo de Baralho
             </Label>
@@ -410,7 +543,7 @@ export default function PokerHubPage() {
           </div>
 
           {deckType === 'tshirt' && (
-            <div className="space-y-2 pt-3 font-sans">
+            <div className="space-y-2 pt-3">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
                 <WalletCards className="h-3.5 w-3.5 text-primary" /> Equivalência de referência
                 <span className="text-muted-foreground/70 normal-case tracking-normal font-medium">(opcional — preenchendo, o resultado passa a calcular de verdade)</span>
@@ -455,7 +588,7 @@ export default function PokerHubPage() {
             scroll interno de 13rem — dava pra ver 3 de cada vez e o facilitador
             não tinha noção do conjunto, que é justamente o ponto de mostrá-los.
           */}
-          <div className="pt-3 font-sans space-y-4">
+          <div className="pt-3 space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-1.5">
                 <Zap className="h-3.5 w-3.5 text-primary" /> Modo de Jogo
@@ -499,23 +632,39 @@ export default function PokerHubPage() {
                   </span>
                 </Label>
                 <div className="flex items-center gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    onClick={() => setShowAdvancedSetup(v => !v)}
+                    aria-expanded={showAdvancedSetup}
+                    className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-primary/40 text-primary hover:bg-primary/10"
+                  >
+                    {showAdvancedSetup ? 'Ocultar' : 'Personalizar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setSetupSettings({ ...DEFAULT_ROOM_SETTINGS, allowManagementToVote: false, autoReveal: false, autoConsensus: false })}
-                    className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                    className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
                   >
                     Padrão
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => setSetupSettings(s => Object.fromEntries(Object.keys(s).map(k => [k, false])))}
-                    className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                    className="h-auto text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
                   >
                     Nenhum
-                  </button>
+                  </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3">
+              {!showAdvancedSetup && (
+                <p className="text-[11px] font-medium text-muted-foreground ml-1">
+                  O essencial já vem ligado (tempo por tópico, voto de confiança, notas de refinamento e mais). Tudo pode ser ajustado depois no painel do facilitador.
+                </p>
+              )}
+              <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-3", !showAdvancedSetup && "hidden")}>
                 {SETUP_GROUPS.map(group => (
                   <div key={group.label} className="space-y-1.5">
                     <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">{group.label}</p>
@@ -528,7 +677,7 @@ export default function PokerHubPage() {
                           title={cfg.desc}
                           className={cn(
                             "w-full text-left px-2.5 py-2 rounded-xl border-2 flex items-center justify-between gap-2 transition-all cursor-pointer",
-                            on ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:border-primary/30"
+                            on ? "border-primary/40 bg-primary/5" : "border-border bg-muted/30 hover:border-primary/30"
                           )}
                         >
                           <span className="min-w-0">
@@ -546,12 +695,14 @@ export default function PokerHubPage() {
           </div>
 
           <DialogFooter className="pt-4 mt-1 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-             <button
+             <Button
+               type="button"
+               variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-muted-foreground transition-colors text-center sm:text-left order-2 sm:order-1"
+               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-transparent text-center sm:text-left order-2 sm:order-1"
              >
                 Cancelar
-             </button>
+             </Button>
              <Button
                disabled={isCreating}
                onClick={handleCreate}

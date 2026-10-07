@@ -114,7 +114,7 @@ export function EliteExportDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6 bg-muted/5 font-mono text-[11px] leading-relaxed select-all">
+        <div className="flex-1 overflow-y-auto p-6 bg-muted/5 font-code text-[11px] leading-relaxed select-all">
           <pre className="whitespace-pre-wrap break-words bg-background/50 p-4 rounded-xl border border-border/50 shadow-inner">
             {markdownContent}
           </pre>

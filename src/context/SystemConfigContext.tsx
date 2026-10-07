@@ -1,8 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
+import { publicApi } from '@/app/admin/api';
 
 interface SystemConfig {
   companyName: string;
@@ -20,48 +19,68 @@ interface SystemConfigContextType {
 const SystemConfigContext = createContext<SystemConfigContextType | undefined>(undefined);
 
 const DEFAULT_CONFIG: SystemConfig = {
-  companyName: 'Espaço Ágil',
-  primaryColor: '24 93% 53%',
+  companyName: 'Portal Tech V&D',
+  primaryColor: '',
   logoUrl: '',
   allowAnonymous: true,
   maintenanceMode: false
 };
 
 export function SystemConfigProvider({ children }: { children: ReactNode }) {
-  const { firestore } = useFirebase();
   const [config, setConfig] = useState<SystemConfig>(DEFAULT_CONFIG);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore) return;
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(doc(firestore, 'system_configs', 'global'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data() as SystemConfig;
+    (async () => {
+      try {
+        const configs = await publicApi.getSystemConfig();
+
+        if (cancelled) return;
+
+        const data: SystemConfig = {
+          companyName: configs.companyName || DEFAULT_CONFIG.companyName,
+          primaryColor: configs.primaryColor || '',
+          logoUrl: configs.logoUrl || DEFAULT_CONFIG.logoUrl,
+          allowAnonymous: configs.allowAnonymous ? configs.allowAnonymous === 'true' : DEFAULT_CONFIG.allowAnonymous,
+          maintenanceMode: configs.maintenanceMode ? configs.maintenanceMode === 'true' : DEFAULT_CONFIG.maintenanceMode,
+        };
+
         setConfig(data);
         applyTheme(data);
+      } catch (error) {
+        console.warn("SystemConfigProvider: Could not fetch remote configs, using defaults:", error);
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      setIsLoading(false);
-    }, (error) => {
-      console.error("SystemConfigProvider: Error fetching configs:", error);
-      setIsLoading(false);
-    });
+    })();
 
-    return () => unsubscribe();
-  }, [firestore]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const applyTheme = (data: SystemConfig) => {
     if (typeof window === 'undefined') return;
-    
+
     const root = document.documentElement;
-    
-    // Aplicar Cor Primária (HSL)
-    if (data.primaryColor) {
+    const currentVariant = localStorage.getItem('theme-variant') || 'default';
+
+    // Se o usuário estiver usando um tema com variante (Nebula, Cyberpunk, Midnight, Nordic),
+    // NUNCA sobrescrever com estilo inline a cor primária para não anular a classe do tema!
+    if (currentVariant !== 'default') {
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--ring');
+    } else if (data.primaryColor && data.primaryColor.trim() !== '') {
       root.style.setProperty('--primary', data.primaryColor);
+    } else {
+      root.style.removeProperty('--primary');
     }
-    
+
     // Atualizar Título da Página Dinamicamente (Opcional)
-    if (data.companyName) {
+    // 'Espaço Ágil' era o default antigo e pode estar salvo no banco: não trata como nome customizado.
+    if (data.companyName && data.companyName !== 'Portal Tech V&D' && data.companyName !== 'Espaço Ágil') {
       document.title = `${data.companyName} | Gestão Ágil`;
     }
   };

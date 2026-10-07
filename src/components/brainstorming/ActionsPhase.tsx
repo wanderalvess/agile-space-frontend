@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, TrendingUp, Zap, Target, ArrowRight, ListChecks, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '../../app/action-plan/api';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +20,7 @@ interface ActionsPhaseProps {
 }
 
 export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIdea }: ActionsPhaseProps) {
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
@@ -37,20 +37,20 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
   const topIdeas = sortedIdeas.slice(0, 5);
 
   const handleExportTo5W2H = async () => {
-    if (!user || isExporting) return;
+    if (!session || isExporting) return;
 
     setIsExporting(true);
 
     try {
       const planTitle = `Plano de Ação: ${boardData.title}`;
-      
+
       const newPlan = await actionPlanApi.createBoard({
-        creatorId: user.uid,
+        creatorId: session.id,
         title: planTitle,
         team: boardData.team || 'Squad Geral',
         createdAt: new Date().toISOString(),
         settings: { isPublic: true },
-        participantIds: [user.uid]
+        participantIds: [session.id]
       });
 
       if (!newPlan || !newPlan.id) {
@@ -73,7 +73,7 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
           status: 'todo',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          authorId: user.uid,
+          authorId: session.id,
           order: i
         });
       }

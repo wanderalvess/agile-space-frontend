@@ -1,22 +1,19 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
-import { SprintPlannerContent } from '@/components/planner/SprintPlannerContent';
+import { useEffect } from 'react';
+import { Target } from 'lucide-react';
+import { ComingSoon } from '@/components/shared/ComingSoon';
 
 export default function SprintPlannerPage() {
   useEffect(() => {
-    document.title = `Sprint Planner | Espaço Ágil`;
+    document.title = 'Planejador de Entregas | Portal Tech V&D';
   }, []);
 
   return (
-    <Suspense fallback={
-      <div className="h-screen w-full flex flex-col items-center justify-center bg-[#fafafa] gap-6">
-        <EliteSpinner size="lg" />
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] ml-[0.4em] text-slate-400 animate-pulse">Iniciando Planejamento...</p>
-      </div>
-    }>
-      <SprintPlannerContent />
-    </Suspense>
+    <ComingSoon
+      title="Planejador de Entregas"
+      icon={<Target />}
+      description="Capacidade do time e planejamento de sprint, depois do Scrum Poker. Estamos redesenhando este módulo para o novo padrão do Portal Tech V&D."
+    />
   );
 }

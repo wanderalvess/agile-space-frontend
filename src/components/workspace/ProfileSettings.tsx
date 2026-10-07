@@ -9,7 +9,8 @@ import {
   Users, 
   Save, 
   Sparkles,
-  Camera
+  Camera,
+  Check
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ import {
 import { cn } from '@/lib/utils';
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { ROLES, SQUADS, AVATAR_SEEDS, PREDEFINED_AVATARS, GlobalRole } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
+import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
 interface ProfileSettingsProps {
   profile: any;
@@ -38,6 +41,46 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   const [email, setEmail] = React.useState(profile?.email || '');
   const [avatarSeed, setAvatarSeed] = React.useState(profile?.avatarSeed || AVATAR_SEEDS[0]);
 
+  interface SquadOption {
+    id: string;
+    name: string;
+  }
+  const [dynamicSquads, setDynamicSquads] = React.useState<SquadOption[]>([]);
+  const [isSquadsLoaded, setIsSquadsLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+    
+    Promise.all([
+      authFetch(`${apiUrl}/projects`).then(r => r.ok ? r.json() : []),
+      authFetch(`${apiUrl}/squads`).then(r => r.ok ? r.json() : [])
+    ])
+    .then(([projectsData, squadsData]) => {
+      const optionsMap = new Map<string, string>();
+      
+      if (Array.isArray(projectsData)) {
+        projectsData.forEach((p: any) => {
+          const id = String(p.id || p.jiraProjectKey || '').trim();
+          const name = String(p.name || p.id || '').trim();
+          if (id) optionsMap.set(id, name);
+        });
+      }
+
+      if (Array.isArray(squadsData)) {
+        squadsData.forEach((s: any) => {
+          const id = String(s.id || s.jiraProjectKey || '').trim();
+          const name = String(s.name || s.jiraProjectKey || s.id || '').trim();
+          if (id && !optionsMap.has(id)) optionsMap.set(id, name);
+        });
+      }
+
+      const mapped: SquadOption[] = Array.from(optionsMap.entries()).map(([id, name]) => ({ id, name }));
+      setDynamicSquads(mapped);
+    })
+    .catch(err => console.warn('Erro ao carregar tabela projects/squads:', err))
+    .finally(() => setIsSquadsLoaded(true));
+  }, []);
+
   const handleSave = () => {
     onUpdate({
       name: name.trim(),
@@ -49,176 +92,159 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col min-h-0">
-      <Card className="border border-slate-200/60 bg-white/60 backdrop-blur-xl shadow-2xl shadow-slate-200/10 rounded-[2.5rem] overflow-hidden flex flex-col h-full">
-        {/* Header - Compact Full Width */}
-        <div className="bg-slate-900 p-6 md:p-8 border-b border-slate-800 relative overflow-hidden shrink-0">
-           <div className="absolute top-0 right-0 w-[50%] h-full bg-primary/10 blur-[120px] rounded-full translate-x-1/2" />
-           <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 blur-[80px] rounded-full -translate-x-1/4" />
-           
-           <div className="relative z-10 flex items-center justify-between">
-             <div className="flex items-center gap-6">
-               <div className="relative group shrink-0">
-                  <div className="absolute inset-0 bg-white/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <NiceAvatar 
-                    className="h-16 w-16 md:h-20 md:w-20 rounded-[1.5rem] border-4 border-white shadow-2xl" 
-                    {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))} 
-                  />
-                  <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 bg-primary rounded-xl flex items-center justify-center text-white border-[3px] border-slate-900 shadow-xl">
-                     <Camera className="h-3.5 w-3.5" />
-                  </div>
-               </div>
-               <div className="space-y-1">
-                 <h2 className="text-2xl md:text-3xl font-black font-headline uppercase tracking-tighter italic text-white leading-none">
-                   Configuração do <span className="text-primary not-italic">Perfil</span>
-                 </h2>
-                 <div className="flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.3em] text-white/40">
-                   <ShieldCheck className="h-3 w-3 text-emerald-500" />
-                   Sincronização Ativa
-                 </div>
-               </div>
-             </div>
-             
-             <Button 
-               onClick={handleSave} 
-               disabled={!name.trim() || !role}
-               className="hidden md:flex h-12 px-10 font-black uppercase tracking-[0.2em] text-[9px] rounded-xl bg-primary hover:bg-primary/90 text-white shadow-xl shadow-primary/20 gap-3 border-none transition-all active:scale-95"
-             >
-               <Save className="h-4 w-4" />
-               Salvar Perfil
-             </Button>
-           </div>
-        </div>
-
-        {/* Content - Split View */}
-        <div className="flex-1 flex flex-col md:flex-row min-h-0">
-          {/* Left Side: Information */}
-          <div className="flex-[1.2] p-6 md:p-8 border-r border-slate-100 overflow-y-auto">
-             <div className="max-w-2xl space-y-8">
-               <div className="space-y-0.5">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Dados da Conta</h3>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Informações básicas visíveis na squad</p>
-               </div>
-               
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                 <div className="space-y-2">
-                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                     <UserIcon className="h-3 w-3" /> Nome Completo
-                   </Label>
-                   <Input 
-                     value={name} 
-                     onChange={(e) => setName(e.target.value)} 
-                     className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm focus:bg-white focus:ring-primary/20" 
-                     placeholder="Ex: Francisco Alves"
-                   />
-                 </div>
-                 
-                 <div className="space-y-2">
-                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                     <Mail className="h-3 w-3" /> E-mail Profissional
-                   </Label>
-                   <Input 
-                     value={email} 
-                     onChange={(e) => setEmail(e.target.value)} 
-                     className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm focus:bg-white focus:ring-primary/20" 
-                     placeholder="email@suaempresa.com"
-                   />
-                 </div>
-
-                 <div className="space-y-2">
-                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                     <Briefcase className="h-3 w-3" /> Cargo / Papel
-                   </Label>
-                   <Select value={role} onValueChange={(v: GlobalRole) => setRole(v)}>
-                     <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm">
-                       <SelectValue placeholder="Selecione..." />
-                     </SelectTrigger>
-                     <SelectContent className="rounded-xl border-none shadow-2xl p-2">
-                       {ROLES.map(r => (
-                         <SelectItem key={r} value={r} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{r}</SelectItem>
-                       ))}
-                     </SelectContent>
-                   </Select>
-                 </div>
-
-                 <div className="space-y-2">
-                   <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 flex items-center gap-2">
-                     <Users className="h-3 w-3" /> Squad Principal
-                   </Label>
-                   <div className="flex flex-col gap-2">
-                     <Select 
-                       value={SQUADS.includes(team) ? team : (team ? 'other' : '')} 
-                       onValueChange={(v) => { if (v !== 'other') setTeam(v); }}
-                     >
-                       <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-slate-50/50 font-bold text-sm">
-                         <SelectValue placeholder="Selecione..." />
-                       </SelectTrigger>
-                       <SelectContent className="rounded-xl border-none shadow-2xl p-2">
-                         {SQUADS.map(s => (
-                           <SelectItem key={s} value={s} className="font-bold text-xs py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase tracking-tight">{s}</SelectItem>
-                         ))}
-                         <SelectItem value="other" className="text-[9px] font-black text-primary py-3 pl-8 rounded-lg focus:bg-primary/5 uppercase">+ Digitar Novo</SelectItem>
-                       </SelectContent>
-                     </Select>
-                     
-                     {(!SQUADS.includes(team) || team === 'other') && (
-                       <Input 
-                         value={team === 'other' ? '' : team} 
-                         onChange={(e) => setTeam(e.target.value)} 
-                         className="h-10 rounded-lg border-primary/20 bg-primary/5 font-black uppercase text-[10px] tracking-widest text-primary" 
-                       />
-                     )}
-                   </div>
-                 </div>
-               </div>
-             </div>
-          </div>
-
-          {/* Right Side: Avatar Selection */}
-          <div className="flex-1 p-6 md:p-8 bg-slate-50/30 overflow-y-auto">
-             <div className="space-y-8">
-               <div className="space-y-1">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Personalização</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Escolha seu avatar de alta performance</p>
-               </div>
-               
-               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-4">
-                 {AVATAR_SEEDS.map((seed) => (
-                    <button
-                      key={seed}
-                      onClick={() => setAvatarSeed(seed)}
-                      className={cn(
-                        "relative aspect-square transition-all outline-none rounded-3xl border-4",
-                        avatarSeed === seed 
-                          ? "border-primary bg-white shadow-2xl scale-110 z-10 shadow-primary/20" 
-                          : "border-transparent opacity-40 hover:opacity-100 hover:scale-105 bg-white/50"
-                      )}
-                    >
-                      <NiceAvatar className="w-full h-full rounded-2xl" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
-                      {avatarSeed === seed && (
-                        <div className="absolute -top-2 -right-2 bg-primary text-white p-1 rounded-full shadow-lg">
-                           <Sparkles className="h-3 w-3" />
-                        </div>
-                      )}
-                    </button>
-                 ))}
-               </div>
-
-             </div>
-          </div>
-        </div>
-
-        <div className="md:hidden p-6 bg-slate-50 border-t border-slate-100 shrink-0">
-          <Button 
-            onClick={handleSave} 
+    <div className="w-full space-y-6 animate-in fade-in duration-700">
+      <WorkspaceSectionHeader
+        kicker="Perfil"
+        accent="orange"
+        title="Configuração do"
+        titleAccent="Perfil"
+        subtitle="Informações básicas e identidade visíveis na sua squad"
+        action={
+          <Button
+            onClick={handleSave}
             disabled={!name.trim() || !role}
-            className="w-full h-14 font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl bg-slate-900 text-white gap-3"
+            className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/20 gap-2 active:scale-95 transition-all"
           >
-            <Save className="h-4 w-4 text-primary" />
-            Salvar Alterações
+            <Save className="h-4 w-4" />
+            Salvar Perfil
           </Button>
-        </div>
-      </Card>
+        }
+      />
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Dados da Conta */}
+        <Card className="col-span-1 xl:col-span-7 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+          <div className="space-y-6 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                <NiceAvatar
+                  className="h-14 w-14 rounded-2xl shadow-sm border border-border/80"
+                  {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))}
+                />
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-md flex items-center justify-center text-primary-foreground border-2 border-background shadow-xs">
+                  <Check className="h-3 w-3" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-foreground uppercase tracking-tight">{name || 'Seu Nome'}</h3>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">{role || 'Função'}</p>
+                <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{email || 'email@exemplo.com'}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/60">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome Completo</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="h-11 rounded-xl font-medium border-border/80 bg-background text-foreground"
+                  placeholder="Como você quer ser chamado?"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">E-mail Profissional</Label>
+                <Input
+                  value={email}
+                  disabled
+                  className="h-11 rounded-xl font-medium border-border/80 bg-muted text-muted-foreground cursor-not-allowed opacity-75"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Papel na Squad</Label>
+                <Select value={role} onValueChange={(v: GlobalRole) => setRole(v)}>
+                  <SelectTrigger className="h-11 rounded-xl font-medium border-border/80 bg-background text-foreground">
+                    <SelectValue placeholder="Selecione seu papel" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border border-border bg-popover shadow-xl p-1.5">
+                    {ROLES.map(r => (
+                      <SelectItem key={r} value={r} className="font-semibold text-xs py-2 rounded-lg">{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 md:col-span-2">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1 flex items-center gap-2">
+                  <Users className="h-3.5 w-3.5" /> Squad Principal
+                </Label>
+                <div className="flex flex-col gap-2">
+                  <Select
+                    value={dynamicSquads.some(s => s.id === team) ? team : (team ? 'other' : '')}
+                    onValueChange={(v) => { if (v !== 'other') setTeam(v); else setTeam(''); }}
+                  >
+                    <SelectTrigger className="h-11 rounded-xl font-medium border-border/80 bg-background text-foreground">
+                      <SelectValue placeholder="Selecione sua Squad" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border border-border bg-popover shadow-xl p-1.5 max-h-56">
+                      {!isSquadsLoaded && (
+                        <SelectItem value="loading" disabled className="text-xs text-muted-foreground">
+                          Carregando projetos...
+                        </SelectItem>
+                      )}
+                      {isSquadsLoaded && dynamicSquads.map((sq) => (
+                        <SelectItem key={sq.id} value={sq.id} className="font-semibold text-xs py-2 rounded-lg">
+                          {sq.name}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="other" className="font-semibold text-xs py-2 rounded-lg text-primary">
+                        + Outra Squad (Digitar)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {(team === 'other' || (!dynamicSquads.some(s => s.id === team) && team !== '')) && (
+                    <Input
+                      value={team === 'other' ? '' : team}
+                      onChange={(e) => setTeam(e.target.value)}
+                      className="h-10 rounded-xl border-primary/30 bg-primary/5 font-bold uppercase text-xs tracking-wider text-primary"
+                      placeholder="Nome da Squad"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Personalização de Avatar */}
+        <Card className="col-span-1 xl:col-span-5 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+          <div className="space-y-6 relative z-10">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Identidade & Avatar</h3>
+              <p className="text-xs font-medium text-muted-foreground mt-0.5">Selecione seu avatar para cerimônias e votações no Portal Tech V&D</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2.5">
+              {AVATAR_SEEDS.map((seed) => (
+                <button
+                  key={seed}
+                  onClick={() => setAvatarSeed(seed)}
+                  className={cn(
+                    "relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 transition-all outline-none rounded-2xl border-2 p-1",
+                    avatarSeed === seed
+                      ? "border-primary bg-background shadow-md scale-105 z-10 ring-2 ring-primary/20"
+                      : "border-transparent opacity-50 hover:opacity-100 hover:scale-105 bg-muted/30"
+                  )}
+                >
+                  <NiceAvatar className="w-full h-full rounded-xl" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
+                  {avatarSeed === seed && (
+                    <div className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground p-1 rounded-full shadow-xs">
+                      <Sparkles className="h-3 w-3" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

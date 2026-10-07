@@ -7,6 +7,7 @@ import {
   CloudRain, Zap, Waves, Leaf, Coffee, Flame, Activity, Music
 } from 'lucide-react';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
+import { Button } from '@/components/ui/button';
 
 interface Soundscape {
   id: string;
@@ -137,7 +138,7 @@ export function Calmaria() {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed bottom-6 right-6 z-[9999] w-[350px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl text-slate-900 dark:text-white shadow-2xl rounded-[2.5rem] border border-primary/20 dark:border-primary/30 shadow-[0_20px_50px_rgba(249,115,22,0.1)] dark:shadow-[0_20px_50px_rgba(249,115,22,0.05)] p-5 font-sans overflow-hidden flex flex-col justify-between select-none cursor-default"
+        className="fixed bottom-6 right-6 z-[9999] w-[350px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl text-slate-900 dark:text-white shadow-2xl rounded-[2.5rem] border border-primary/20 dark:border-primary/30 shadow-[0_20px_50px_rgba(249,115,22,0.1)] dark:shadow-[0_20px_50px_rgba(249,115,22,0.05)] p-5 overflow-hidden flex flex-col justify-between select-none cursor-default"
         style={{ touchAction: 'none' }}
       >
         {/* Header */}
@@ -149,15 +150,16 @@ export function Calmaria() {
              <span className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">Calmaria</span>
           </div>
           <div className="flex items-center gap-2">
-            <button 
+            <Button
+              variant="ghost"
               onClick={handleStopAll}
-              className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider transition-all"
+              className="h-auto bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider"
             >
               Parar
-            </button>
+            </Button>
             <button 
               onClick={() => setMinimized(true)}
-              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-slate-450 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
             >
               <X className="h-4 w-4" />
             </button>
@@ -176,7 +178,7 @@ export function Calmaria() {
                   <button
                     key={sound.id}
                     onClick={() => toggleSound(sound.id)}
-                    className={`rounded-2xl flex flex-col items-center justify-center p-2.5 h-16 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-lg' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-450 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
+                    className={`rounded-2xl flex flex-col items-center justify-center p-2.5 h-16 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-lg' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
                   >
                     <Icon className="h-5 w-5 mb-1" />
                     <span className="text-[8px] font-black uppercase tracking-wider">{sound.name}</span>
@@ -216,7 +218,7 @@ export function Calmaria() {
             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-3">
               <button 
                 onClick={toggleMute}
-                className="text-slate-405 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
               >
                 {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
               </button>
@@ -228,7 +230,7 @@ export function Calmaria() {
                 onChange={(e) => setMasterVolume(Number(e.target.value))}
                 className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none outline-none cursor-pointer accent-orange-500 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:appearance-none"
               />
-              <span className="text-[10px] font-black font-mono w-6 text-right text-slate-500 dark:text-slate-400">{masterVolume}</span>
+              <span className="text-[10px] font-black font-code w-6 text-right text-slate-500 dark:text-slate-400">{masterVolume}</span>
             </div>
           </div>
         </div>

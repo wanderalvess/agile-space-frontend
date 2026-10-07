@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   ListChecks,
@@ -12,7 +12,6 @@ import {
   Sparkles,
   ArrowRightIcon
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { actionPlanApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -34,13 +33,40 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function ActionPlanHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState('');
-  const [team, setTeam] = useState(userProfile?.squadId || userProfile?.team || '');
+  const [team, setTeam] = useState('');
+  const [sprintId, setSprintId] = useState('');
+
+  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
+  // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma
+  // edição manual nem um valor já preenchido pela querystring (?squad=).
+  useEffect(() => {
+    if (team) return;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const squadParam = urlParams.get('squad');
+      if (squadParam) {
+        setTeam(squadParam);
+        return;
+      }
+    }
+    const userTeam = userProfile?.squadId || userProfile?.team;
+    if (userTeam) setTeam(userTeam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile]);
+
+  // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
+  // pra ligar o plano novo à sprint já em andamento no restante do ciclo.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sprintIdParam = urlParams.get('sprintId');
+    if (sprintIdParam) setSprintId(sprintIdParam);
+  }, []);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -51,7 +77,7 @@ export default function ActionPlanHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -61,7 +87,17 @@ export default function ActionPlanHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!user || isCreating) return;
+    if (isCreating) return;
+
+    if (!userProfile || !userProfile.id) {
+      console.error("[action-plan] Criar plano abortado: usuário sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível identificar seu perfil.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({
@@ -75,11 +111,12 @@ export default function ActionPlanHubPage() {
     setIsCreating(true);
 
     const newPlan = {
-      creatorId: user.uid,
+      creatorId: userProfile.id,
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
+      sprintId: sprintId || undefined,
       settings: { isPublic: true },
-      participantIds: [user.uid]
+      participantIds: [userProfile.id]
     };
 
     try {
@@ -180,7 +217,7 @@ export default function ActionPlanHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);
@@ -200,7 +237,7 @@ export default function ActionPlanHubPage() {
             <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configure o título da sua Matriz 5W2H</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-6 font-sans">
+          <div className="space-y-6 py-6">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Título do Plano</Label>
               <Input 
@@ -230,12 +267,14 @@ export default function ActionPlanHubPage() {
                {isCreating ? 'Preparando...' : 'Iniciar Matriz'}
                <ArrowRightIcon className="h-4 w-4" />
              </Button>
-             <button 
+             <Button
+               type="button"
+               variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
              >
                 Talvez depois
-             </button>
+             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

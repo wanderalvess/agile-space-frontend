@@ -4,351 +4,297 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Rocket,
-  LayoutGrid,
-  Target,
-  LayoutDashboard,
+  ArrowUpRight,
+  BookOpen,
+  ChevronRight,
+  Hourglass,
   HeartPulse,
+  LayoutDashboard,
+  LayoutGrid,
+  Library,
   Lightbulb,
   ListChecks,
-  TestTube,
-  LifeBuoy,
-  Sparkles,
-  BookOpen,
-  FileText,
-  Library,
+  Rocket,
   ShieldCheck,
-  ChevronRight,
-  ArrowUpRight
+  Target,
+  Terminal,
+  TestTube,
+  Users,
+  Wrench,
+  type LucideIcon,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export function ModuleGrid() {
+type Accent = 'primary' | 'blue' | 'rose' | 'amber' | 'fuchsia' | 'cyan' | 'slate';
+
+// Um único conjunto de classes por cor de destaque: todos os cards da home têm o mesmo tamanho e a mesma anatomia.
+const ACCENTS: Record<Accent, { glow: string; icon: string; hoverText: string; cta: string }> = {
+  primary: { glow: 'bg-primary/5 dark:bg-primary/10', icon: 'bg-primary/10 border-primary/20 text-primary', hoverText: 'group-hover:text-primary', cta: 'bg-primary hover:bg-orange-600 text-white' },
+  blue: { glow: 'bg-blue-500/5 dark:bg-blue-500/10', icon: 'bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400', hoverText: 'group-hover:text-blue-600 dark:group-hover:text-blue-400', cta: 'bg-blue-600 hover:bg-blue-700 text-white' },
+  rose: { glow: 'bg-rose-500/5 dark:bg-rose-500/10', icon: 'bg-rose-500/10 border-rose-500/20 text-rose-500', hoverText: 'group-hover:text-rose-500', cta: 'bg-rose-500 hover:bg-rose-600 text-white' },
+  amber: { glow: 'bg-amber-500/5 dark:bg-amber-500/10', icon: 'bg-amber-500/10 border-amber-500/20 text-amber-500', hoverText: 'group-hover:text-amber-500', cta: 'bg-amber-500 hover:bg-amber-600 text-white' },
+  fuchsia: { glow: 'bg-fuchsia-500/5 dark:bg-fuchsia-500/10', icon: 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-500', hoverText: 'group-hover:text-fuchsia-500', cta: 'bg-fuchsia-600 hover:bg-fuchsia-700 text-white' },
+  cyan: { glow: 'bg-cyan-500/5 dark:bg-cyan-500/10', icon: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-600 dark:text-cyan-400', hoverText: 'group-hover:text-cyan-600 dark:group-hover:text-cyan-400', cta: 'bg-cyan-600 hover:bg-cyan-700 text-white' },
+  slate: { glow: 'bg-slate-500/5 dark:bg-slate-500/10', icon: 'bg-slate-900 dark:bg-slate-800 border-slate-700 text-white', hoverText: 'group-hover:text-primary', cta: 'bg-slate-900 hover:bg-slate-800 text-white' },
+};
+
+interface ModuleItem {
+  title: string;
+  tag: string;
+  description: string;
+  icon: LucideIcon;
+  accent: Accent;
+  route?: string;
+  cta?: string;
+  /** Módulo ainda não liberado: o card leva à página "Em breve" e o botão fica neutro. */
+  soon?: boolean;
+  /** Variante de atalhos: em vez de um botão, lista links. */
+  links?: { label: string; route: string }[];
+}
+
+interface ModuleGroup {
+  title: string;
+  icon: LucideIcon;
+  items: ModuleItem[];
+}
+
+const GROUPS: ModuleGroup[] = [
+  {
+    title: 'Ferramentas de Engenharia',
+    icon: Wrench,
+    items: [
+      {
+        title: 'Jolt',
+        tag: 'JSON',
+        description: 'Transforme payloads JSON: escreva a spec na Sandbox ou desenhe o mapeamento no Mapeador Visual.',
+        icon: Terminal,
+        accent: 'blue',
+        route: '/jolt',
+        cta: 'Escolher modo',
+      },
+      {
+        title: 'DevTools',
+        tag: 'Utilitários',
+        description: 'JSON, Base64, JWT, Regex, Diff, Cron e mais: utilitários que rodam no navegador, sem enviar seus dados.',
+        icon: Wrench,
+        accent: 'primary',
+        route: '/devtools',
+        cta: 'Abrir DevTools',
+      },
+      {
+        title: 'Central de Qualidade',
+        tag: 'Qualidade & Testes',
+        description: 'As ferramentas de teste do DevTools num só lugar: Zephyr, massa de dados, BDD, automação e mocks.',
+        icon: TestTube,
+        accent: 'primary',
+        route: '/qa',
+        cta: 'Acessar Qualidade',
+      },
+    ],
+  },
+  {
+    title: 'Gestão de Fluxo e Entregas',
+    icon: Rocket,
+    items: [
+      {
+        title: 'Painel do Time',
+        tag: 'Squad',
+        description: 'Sprint, board e movimentos da sua squad numa leitura só: o que está em jogo agora.',
+        icon: LayoutDashboard,
+        accent: 'primary',
+        route: '/painel',
+        cta: 'Abrir painel',
+      },
+      {
+        title: 'Meu Quadro',
+        tag: 'Kanban',
+        description: 'Sua área de trabalho com Kanban pessoal, tarefas e agendas integradas de forma simples.',
+        icon: LayoutGrid,
+        accent: 'primary',
+        route: '/workspace',
+        cta: 'Acessar Quadro',
+      },
+      {
+        title: 'Planejador',
+        tag: 'Em breve',
+        description: 'Capacidade do time e planejamento da sprint, depois do Scrum Poker. Em redesenho para o novo padrão.',
+        icon: Target,
+        accent: 'blue',
+        route: '/sprint-planner',
+        cta: 'Em breve',
+        soon: true,
+      },
+    ],
+  },
+  {
+    title: 'Colaboração & Clima do Time',
+    icon: Users,
+    items: [
+      {
+        title: 'Radar de Clima',
+        tag: 'Clima',
+        description: 'Participe de pesquisas rápidas e anônimas sobre a satisfação e a saúde do time.',
+        icon: HeartPulse,
+        accent: 'rose',
+        route: '/health-check',
+        cta: 'Ver Radar',
+      },
+      {
+        title: 'Painel de Ideias',
+        tag: 'Ideias',
+        description: 'Crie quadros de ideias e faça sessões criativas de brainstorming com o grupo.',
+        icon: Lightbulb,
+        accent: 'amber',
+        route: '/brainstorming',
+        cta: 'Abrir módulo',
+      },
+      {
+        title: 'Plano de Ação',
+        tag: 'Ações',
+        description: 'Organize tarefas e responsabilidades utilizando matrizes de planejamento 5W2H.',
+        icon: ListChecks,
+        accent: 'fuchsia',
+        route: '/action-plan',
+        cta: 'Criar matriz',
+      },
+    ],
+  },
+  {
+    title: 'Utilidades & Suporte',
+    icon: BookOpen,
+    items: [
+      {
+        title: 'Conhecimento',
+        tag: 'Wiki',
+        description: 'Wiki interna com manuais, documentação técnica de sistemas e guias práticos da squad.',
+        icon: BookOpen,
+        accent: 'cyan',
+        route: '/knowledge/kb',
+        cta: 'Acessar Wiki',
+      },
+      {
+        title: 'Biblioteca de IA',
+        tag: 'Biblioteca',
+        description: 'Prompts, skills, agentes, Gems e iniciativas de IA da empresa em um lugar só.',
+        icon: Library,
+        accent: 'blue',
+        route: '/prompt-hub',
+        cta: 'Abrir biblioteca',
+      },
+      {
+        title: 'Políticas & Ajuda',
+        tag: 'Suporte',
+        description: 'Segurança, novidades da plataforma, manual e abertura de chamados.',
+        icon: ShieldCheck,
+        accent: 'slate',
+        links: [
+          { label: 'Diretrizes de Segurança', route: '/governance' },
+          { label: 'Evolução da Plataforma', route: '/changelog' },
+          { label: 'Manual do Usuário', route: '/manual' },
+          { label: 'Suporte & Chamados', route: '/support' },
+        ],
+      },
+    ],
+  },
+];
+
+function ModuleCard({ item }: { item: ModuleItem }) {
   const router = useRouter();
+  const a = ACCENTS[item.accent];
+  const Icon = item.icon;
+  const clickable = !!item.route;
 
   return (
-    <section className="space-y-8 pt-8 border-t border-slate-200/60 dark:border-slate-800/60 mt-10 animate-in fade-in slide-in-from-bottom-8 duration-1000" style={{ animationDelay: '0.2s' }}>
+    <Card
+      onClick={clickable ? () => router.push(item.route!) : undefined}
+      className={cn(
+        'group relative flex h-full min-h-[276px] flex-col justify-between overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white/60 p-7 shadow-lg backdrop-blur-xl transition-all duration-500 dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none',
+        clickable && 'cursor-pointer hover:border-primary/40 hover:shadow-2xl dark:hover:border-primary/40',
+        item.soon && 'opacity-80',
+      )}
+    >
+      <div className={cn('pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full blur-2xl transition-transform duration-700 group-hover:scale-125', a.glow)} />
 
-      {/* GROUP 1: Gestão de Fluxo e Entregas */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
-            <Rocket className="h-4 w-4 text-primary" />
+      <div className="relative z-10">
+        <div className="mb-4 flex items-center justify-between">
+          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-110', a.icon)}>
+            <Icon className="h-5 w-5" />
           </div>
-          <h3 className="text-lg font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100">Gestão de Fluxo e Entregas</h3>
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-widest',
+              item.soon
+                ? 'border-primary/20 bg-primary/10 text-primary'
+                : 'border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800/80 dark:bg-slate-950',
+            )}
+          >
+            {item.soon && <Hourglass className="h-3 w-3" />} {item.tag}
+          </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-          {/* CARD 1: Workspace */}
-          <Card
-            onClick={() => router.push('/workspace')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-primary/40 dark:hover:border-primary/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 dark:bg-orange-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 border border-primary/20 group-hover:scale-110 transition-transform duration-300">
-                  <LayoutGrid className="h-5 w-5 text-primary" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Kanban</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-primary transition-colors flex items-center gap-1.5 relative z-10">
-                Meu Quadro <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-primary" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed relative z-10">
-                Sua área de trabalho com Kanban pessoal, tarefas e agendas integradas de forma simples.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-primary hover:bg-orange-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Acessar Quadro
-            </Button>
-          </Card>
-
-          {/* CARD 2: Planejador de Entregas */}
-          <Card
-            onClick={() => router.push('/sprint-planner')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/30 rounded-xl flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <Target className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Sprint</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-450 transition-colors flex items-center gap-1.5 relative z-10">
-                Planejador <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-blue-600 dark:text-blue-450" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed relative z-10">
-                Calcule a capacidade do time e planeje a carga de trabalho de forma realista.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-blue-600 hover:bg-blue-700 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Explorar Planner
-            </Button>
-          </Card>
-
-          {/* CARD 3: Zephyr QA Bridge */}
-          <Card
-            onClick={() => router.push('/devtools/xlsx-to-csv')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-cyan-500/40 dark:hover:border-cyan-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-cyan-50 dark:bg-cyan-950/30 rounded-xl flex items-center justify-center shrink-0 border border-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <TestTube className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Qualidade</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex items-center gap-1.5 relative z-10">
-                Zephyr Bridge <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-cyan-600 dark:text-cyan-400" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed relative z-10">
-                Converta e integre planilhas de testes (Test Cases) diretamente com a API do Zephyr.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-cyan-500 hover:bg-cyan-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Abrir Bridge
-            </Button>
-          </Card>
-        </div>
+        <h4 className={cn('mb-2 flex items-center gap-1.5 font-headline text-xl font-black uppercase tracking-tight text-slate-950 transition-colors dark:text-slate-50', a.hoverText)}>
+          {item.title}
+          {clickable && !item.soon && (
+            <ArrowUpRight className="h-4 w-4 text-primary opacity-0 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" />
+          )}
+        </h4>
+        {!item.links && <p className="text-[13px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">{item.description}</p>}
       </div>
 
-      {/* GROUP 2: Colaboração & Clima do Time */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
-            <LayoutDashboard className="h-4 w-4 text-emerald-600" />
+      {item.links ? (
+        <ul className="relative z-10 space-y-0.5">
+          {item.links.map(link => (
+            <li key={link.route}>
+              <button
+                type="button"
+                onClick={() => router.push(link.route)}
+                className="flex w-full items-center justify-between border-b border-slate-100 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors last:border-0 hover:text-primary dark:border-slate-800 dark:text-slate-300"
+              >
+                <span>{link.label}</span>
+                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Button
+          size="sm"
+          className={cn(
+            'relative z-10 mt-5 h-10 w-full rounded-xl border-none text-[10px] font-extrabold uppercase tracking-wider transition-all',
+            item.soon ? 'bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700' : a.cta,
+          )}
+        >
+          {item.cta}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
+export function ModuleGrid() {
+  return (
+    <section
+      className="mt-10 space-y-8 border-t border-slate-200/60 pt-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 dark:border-slate-800/60"
+      style={{ animationFillMode: 'both', animationDelay: '300ms' }}
+    >
+      {GROUPS.map(group => {
+        const GroupIcon = group.icon;
+        return (
+          <div key={group.title} className="space-y-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                <GroupIcon className="h-4 w-4 text-primary" />
+              </div>
+              <h3 className="text-lg font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100">{group.title}</h3>
+            </div>
+            {/* Mesma grade em todos os grupos: 3 colunas iguais e linhas de mesma altura. */}
+            <div className="grid auto-rows-fr grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {group.items.map(item => (
+                <ModuleCard key={item.title} item={item} />
+              ))}
+            </div>
           </div>
-          <h3 className="text-lg font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100">Colaboração & Clima do Time</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-          {/* CARD 4: Radar de Clima */}
-          <Card
-            onClick={() => router.push('/health-check')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-rose-500/40 dark:hover:border-rose-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 dark:bg-rose-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-rose-50 dark:bg-rose-950/30 rounded-xl flex items-center justify-center shrink-0 border border-rose-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <HeartPulse className="h-5 w-5 text-rose-500 dark:text-rose-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Clima</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-rose-500 dark:group-hover:text-rose-400 transition-colors flex items-center gap-1.5 relative z-10">
-                Radar de Clima <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-rose-500 dark:text-rose-400" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed relative z-10">
-                Participe de pesquisas rápidas e anônimas sobre a satisfação e saúde do time.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-rose-500 hover:bg-rose-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Ver Radar
-            </Button>
-          </Card>
-
-          {/* CARD 5: Painel de Ideias */}
-          <Card
-            onClick={() => router.push('/brainstorming')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-amber-500/40 dark:hover:border-amber-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 dark:bg-amber-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/30 rounded-xl flex items-center justify-center shrink-0 border border-amber-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <Lightbulb className="h-5 w-5 text-amber-500 dark:text-amber-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Ideias</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors flex items-center gap-1.5 relative z-10">
-                Painel de Ideias <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-amber-500 dark:text-amber-400" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 leading-relaxed relative z-10">
-                Crie quadros de ideias e faça sessões criativas de brainstorming com o grupo.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-amber-500 hover:bg-amber-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Abrir Módulo
-            </Button>
-          </Card>
-
-          {/* CARD 6: Plano de Ação */}
-          <Card
-            onClick={() => router.push('/action-plan')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-fuchsia-500/40 dark:hover:border-fuchsia-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-fuchsia-500/5 dark:bg-fuchsia-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-fuchsia-50 dark:bg-fuchsia-950/30 rounded-xl flex items-center justify-center shrink-0 border border-fuchsia-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <ListChecks className="h-5 w-5 text-fuchsia-500 dark:text-fuchsia-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Ações</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-fuchsia-500 dark:group-hover:text-fuchsia-400 transition-colors flex items-center gap-1.5 relative z-10">
-                Plano de Ação <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-fuchsia-500 dark:text-fuchsia-400" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed relative z-10">
-                Organize tarefas e responsabilidades utilizando matrizes de planejamento.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Criar Matriz
-            </Button>
-          </Card>
-        </div>
-      </div>
-
-      {/* GROUP 3: Utilidades & Suporte */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
-            <LifeBuoy className="h-4 w-4 text-blue-500" />
-          </div>
-          <h3 className="text-lg font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100">Utilidades & Suporte</h3>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-
-          {/* CARD 7: Guia de Conhecimento */}
-          <Card
-            onClick={() => router.push('/knowledge/kb')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-cyan-500/40 dark:hover:border-cyan-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 dark:bg-cyan-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-cyan-50 dark:bg-cyan-950/30 rounded-xl flex items-center justify-center shrink-0 border border-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <BookOpen className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Wiki</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors flex items-center gap-1.5 relative z-10">
-                Conhecimento <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-cyan-600 dark:text-cyan-400" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed relative z-10">
-                Wiki interna com manuais, documentação técnica de sistemas e guias práticos da squad.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-cyan-500 hover:bg-cyan-600 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Acessar Wiki
-            </Button>
-          </Card>
-
-          {/* CARD 8: Modelos de Texto */}
-          <Card
-            onClick={() => router.push('/prompt-hub')}
-            className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none hover:border-blue-500/40 dark:hover:border-blue-500/40 transition-all duration-500 cursor-pointer flex flex-col justify-between h-full min-h-[260px] overflow-hidden"
-          >
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-950/30 rounded-xl flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:scale-110 transition-transform duration-300">
-                  <Library className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Biblioteca</span>
-              </div>
-              <h4 className="text-xl font-black uppercase tracking-tight text-slate-950 dark:text-slate-50 mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors flex items-center gap-1.5 relative z-10">
-                Biblioteca de IA <ArrowUpRight className="h-4 w-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-300 text-blue-600 dark:text-blue-400" />
-              </h4>
-              <p className="text-[13px] font-medium text-slate-600 dark:text-slate-400 leading-relaxed relative z-10">
-                Prompts, skills, agentes, Gems e iniciativas de IA da empresa — em um lugar só.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              className="w-full h-10 bg-blue-600 hover:bg-blue-750 text-white font-extrabold uppercase text-[10px] tracking-wider rounded-xl transition-all border-none mt-5 relative z-10"
-            >
-              Abrir biblioteca
-            </Button>
-          </Card>
-
-          {/* CARD 9: Políticas & Ajuda */}
-          <Card className="group relative border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg hover:shadow-2xl dark:shadow-none transition-all duration-500 flex flex-col justify-between h-full min-h-[260px] overflow-hidden">
-            {/* Card Glow */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-slate-500/5 dark:bg-slate-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform duration-700 pointer-events-none" />
-
-            <div>
-              <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="w-10 h-10 bg-slate-900 dark:bg-slate-850 rounded-xl flex items-center justify-center shrink-0 border border-slate-700">
-                  <ShieldCheck className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-[9px] font-black text-slate-500 dark:text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800/80">Suporte</span>
-              </div>
-
-              <div className="space-y-2.5 relative z-10">
-                <button
-                  onClick={() => router.push('/governance')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
-                >
-                  <span>Diretrizes de Segurança</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-                <button
-                  onClick={() => router.push('/changelog')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
-                >
-                  <span>Evolução da Plataforma</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-                <button
-                  onClick={() => router.push('/manual')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5 border-b border-slate-100 dark:border-slate-800/80"
-                >
-                  <span>Manual do Usuário</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-                <button
-                  onClick={() => router.push('/support')}
-                  className="w-full flex items-center justify-between text-[12px] font-semibold text-slate-700 dark:text-slate-350 hover:text-primary transition-colors py-1.5"
-                >
-                  <span>Suporte & Chamados</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
+        );
+      })}
     </section>
   );
 }

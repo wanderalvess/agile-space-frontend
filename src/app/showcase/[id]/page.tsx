@@ -1,34 +1,39 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import {
-  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck
+  CloudDownload, Play, ShieldCheck, Loader2, Plus, Settings, HelpCircle, Share2, Search, Filter, SortAsc, Users, Tag, UserCheck, TrendingUp, FileText, MessageSquareText,
+  ChevronDown, AlertTriangle, RefreshCw, MoreHorizontal
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { JiraIssue } from '@/services/jiraService';
 import { RoomHeader } from '@/components/layout/RoomHeader';
+import { getAuthToken } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 
 // New Refactored Components & Utils
-import { ShowcaseSession, ShowcaseTask, Decision } from '@/components/showcase/types';
-import { formatTime, makeTask } from '@/components/showcase/utils';
+import { ShowcaseSession, ShowcaseTask, Decision, CardKind, PREPARATION_STATUS } from '@/components/showcase/types';
+import { formatTime, makeTask, isTaskContentComplete } from '@/components/showcase/utils';
 import { TaskCard } from '@/components/showcase/TaskCard';
 import { TeatroMode } from '@/components/showcase/TeatroMode';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
 import { SessionSettingsDialog } from '@/components/showcase/SessionSettingsDialog';
 import { SummaryDialog } from '@/components/showcase/SummaryDialog';
 import { PrintSlidesView } from '@/components/showcase/PrintSlidesView';
-import { HelpSheet } from '@/components/showcase/HelpSheet';
+import { ShowcaseTour, TOUR_STORAGE_KEY } from '@/components/showcase/ShowcaseTour';
 import { decryptSecret } from '@/lib/vault-crypto';
 import { showcaseApi } from '../api';
+import { squadApi } from '@/app/squad/api';
+import { openOrCreateRetro } from '@/lib/sprintCycleNav';
 
 // ─────────────────────────────────────────────
 // Main Room Component
@@ -36,11 +41,16 @@ import { showcaseApi } from '../api';
 export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { user } = useFirebase();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { session: authSession } = useAuth();
   const { userProfile } = useUserContext();
   const { toast } = useToast();
 
   const [session, setSession] = useState<ShowcaseSession | null>(null);
+  // Buffer local do título: permite selecionar-tudo-e-apagar antes de retitular sem
+  // disparar persist({ name: '' }) a cada tecla (backend rejeita name em branco).
+  const [nameDraft, setNameDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [isPresenting, setIsPresenting] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(-1);
@@ -48,7 +58,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
+  // Evita reabrir o aviso a cada clique em "Iniciar" nesta visita — a
+  // primeira vez avisa, se a pessoa ignorar e clicar de novo, apresenta.
+  const [presentWarningShown, setPresentWarningShown] = useState(false);
+  const [settingsWarningActive, setSettingsWarningActive] = useState(false);
+
   const [search, setSearch] = useState('');
   const [filterDev, setFilterDev] = useState('all');
   const [filterQa, setFilterQa] = useState('all');
@@ -83,6 +97,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             qa: t.evidence?.qa || '',
             screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
             video: t.evidence?.video || t.evidence?.videoLink || '',
+            // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
+            // existe no backend mas nunca chega na UI.
+            evidencePreference: t.evidence?.evidencePreference,
             timeSpent: t.evidence?.timeSpent || 0,
             timeEstimate: t.evidence?.timeEstimate || 0,
             planned: t.evidence?.planned || null
@@ -92,7 +109,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           feedback: t.feedback || '',
         }));
         setSession({ 
-          id: data.id, ...data, tasks, 
+          ...data, tasks, 
           coverImage: data.coverImage || '', 
           squadName: data.squadName || '', 
           period: data.period || '',
@@ -113,7 +130,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
     // WebSocket Nativo para tempo real
     const wsUrl = showcaseApi.getWebSocketUrl(id);
-    console.log("Conectando ao WebSocket do Showcase:", wsUrl);
+    console.log("Conectando ao WebSocket do Showcase:", id);
     let socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
@@ -130,6 +147,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               qa: t.evidence?.qa || '',
               screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
               video: t.evidence?.video || t.evidence?.videoLink || '',
+              // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
+              // existe no backend mas nunca chega na UI.
+              evidencePreference: t.evidence?.evidencePreference,
               timeSpent: t.evidence?.timeSpent || 0,
               timeEstimate: t.evidence?.timeEstimate || 0,
               planned: t.evidence?.planned || null
@@ -174,7 +194,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   }, [session?.defaultSort]);
 
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    setNameDraft(session?.name || '');
+  }, [session?.name]);
+
+  useEffect(() => {
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Sprint Showcase";
     const sessionName = session?.sprintName || session?.name;
     
@@ -218,26 +242,31 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const addManualTask = async () => {
+  const addManualTask = async (cardKind: CardKind = 'story') => {
     if (!id || !session) return;
     const currentTasks = session.tasks || [];
     const manualCount = currentTasks.filter((t: any) => t.key.startsWith('MANUAL-')).length + 1;
+    const isMetrics = cardKind === 'metrics';
     const newTask: ShowcaseTask = {
       id: `manual_${Date.now()}`,
       key: `MANUAL-${String(manualCount).padStart(3, '0')}`,
-      title: 'Nova Tarefa Manual',
+      title: isMetrics ? 'Nova Métrica de Impacto' : 'Nova Tarefa Manual',
       description: '',
       acceptanceCriteria: '',
       type: 'Evolução',
       status: 'In Progress',
       priority: 'Medium',
       points: 0,
-      assignee: user?.displayName || userProfile?.name || '',
+      cardKind,
+      // Card de métricas nasce com uma linha campo/valor aberta — é o
+      // conteúdo principal desse tipo, não uma seção opcional pra descobrir.
+      metrics: isMetrics ? [{ field: '', value: 0 }] : undefined,
+      assignee: authSession?.name || userProfile?.name || '',
       url: '',
       evidence: {
         problem: '',
         solution: '',
-        dev: user?.displayName || userProfile?.name || '',
+        dev: authSession?.name || userProfile?.name || '',
         qa: '',
         screenshot: '',
         video: '',
@@ -249,9 +278,10 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       preparationStatus: 'todo',
       feedback: '',
       project: '',
+      versionSuporte: '',
       versionMaster: '',
-      versionDevelop: '',
       versionRelease: '',
+      versionDevelop: '',
     };
 
     try {
@@ -284,9 +314,12 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const updateTask = useCallback(async (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => {
     if (!id || !session) return;
     const currentTasks = session.tasks || [];
+    let updatedTaskContent: any = null;
     const newTasks = currentTasks.map((t: any) => {
       if (t.id === taskId) {
-        return typeof updates === 'function' ? updates(t) : { ...t, ...updates };
+        const result = typeof updates === 'function' ? updates(t) : { ...t, ...updates };
+        updatedTaskContent = result;
+        return result;
       }
       return t;
     });
@@ -296,12 +329,54 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         ...session,
         tasks: newTasks
       });
+
+      // Phase 3: Backend decision push
+      if (updatedTaskContent && updatedTaskContent.key && updatedTaskContent.key.includes('-')) {
+        const hasDecisionChanged = typeof updates === 'object' && ('decision' in updates || 'feedback' in updates);
+        if (hasDecisionChanged) {
+          let backendStatus = 'committed';
+          if (updatedTaskContent.decision === 'approved') backendStatus = 'delivered';
+          else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
+          else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
+
+          const issueProjectKey = updatedTaskContent.key?.includes('-') ? updatedTaskContent.key.split('-')[0].toUpperCase() : '';
+          const activeSquad = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+          if (activeSquad) {
+            const { workItemsApi } = await import('@/app/work-items-api');
+            workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '')
+              .catch(err => console.error('[Showcase] Falha ao registrar veredito em work_items:', err));
+          }
+        }
+      }
+
     } catch (err) {
       console.error(err);
     }
   }, [id, session]);
 
 
+
+  const handleOpenRetro = async () => {
+    const firstTaskKey = session?.tasks?.[0]?.key;
+    const issueProjectKey = firstTaskKey?.includes('-') ? firstTaskKey.split('-')[0].toUpperCase() : '';
+    const squadId = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+    if (!squadId) {
+      toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta review.", variant: "destructive" });
+      return;
+    }
+    try {
+      const squad = await squadApi.getSquad(squadId);
+      const sprintId = squad?.activeSprintId;
+      if (!sprintId) {
+        toast({ title: "Sem sprint ativa", description: "Essa squad não tem sprint ativa configurada.", variant: "destructive" });
+        return;
+      }
+      openOrCreateRetro(router, sprintId, squadId);
+    } catch (err) {
+      console.error('[Showcase] Falha ao resolver sprint ativa da squad:', err);
+      toast({ title: "Erro", description: "Não foi possível abrir a retrospectiva.", variant: "destructive" });
+    }
+  };
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -312,6 +387,30 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   };
 
   const tasks = session?.tasks || [];
+
+  // Primeira vez do usuário nesta sessão: dispara o tour guiado sozinho,
+  // sem exigir que alguém vá procurar um botão de ajuda.
+  useEffect(() => {
+    if (loading || tasks.length === 0) return;
+    try {
+      if (localStorage.getItem(TOUR_STORAGE_KEY)) return;
+    } catch { return; }
+    const t = setTimeout(() => setIsGuideOpen(true), 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, tasks.length]);
+
+  // Sessão recém-criada (?setup=1, posto pela tela de criação): abre a
+  // config de cara em vez de deixar enterrada atrás do ícone de engrenagem
+  // — sem isso ninguém preenchia Objetivos/Capa/Squad antes de apresentar.
+  useEffect(() => {
+    if (searchParams.get('setup') === '1') {
+      setIsSettingsOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const totalSecondsSpent = tasks.reduce((acc, t) => acc + (t.evidence.timeSpent || 0), 0);
   const totalSecondsOriginal = tasks.reduce((acc, t) => acc + (t.evidence.timeEstimate || 0), 0);
 
@@ -323,6 +422,17 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     hoursSpent: formatTime(totalSecondsSpent),
     hoursOriginal: formatTime(totalSecondsOriginal)
   };
+
+  // Prontidão real (conteúdo preenchido) vs. status manual (dropdown por
+  // card) — os dois podem discordar sem aviso nenhum hoje. `readyCount` vira
+  // a verdade do conteúdo; `mismatch` sinaliza quando o manual não bate.
+  const readinessTasks = tasks.map(t => {
+    const contentComplete = isTaskContentComplete(t);
+    const mismatch = (t.preparationStatus === 'done') !== contentComplete;
+    return { task: t, contentComplete, mismatch };
+  });
+  const readyCount = readinessTasks.filter(r => r.contentComplete).length;
+  const mismatchCount = readinessTasks.filter(r => r.mismatch).length;
 
   // ── Filtering Logic ──────────────────────────────────────────────────────────
   const developers = Array.from(new Set(tasks.map(t => t.evidence.dev).filter(Boolean))).sort();
@@ -386,8 +496,8 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       feedback,
       approvedAt: decision === 'approved' ? now : undefined,
       decidedAt: now,
-      decidedBy: user?.uid || '',
-      decidedByName: userProfile?.name || user?.displayName || user?.email || '',
+      decidedBy: authSession?.id || '',
+      decidedByName: userProfile?.name || authSession?.name || authSession?.email || '',
     });
     if (currentIndex < filteredTasks.length - 1) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -418,74 +528,177 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             // RoomHeader.title como React.ReactNode, ou migrar para isEditable/onTitleChange.
             (
               <input
-                value={session?.name || ''}
-                onChange={(e) => persist({ name: e.target.value })}
+                value={nameDraft}
+                onChange={(e) => {
+                  setNameDraft(e.target.value);
+                  if (e.target.value.trim()) persist({ name: e.target.value });
+                }}
                 placeholder="Nome da Sprint Review..."
-                className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 italic text-sm md:text-base bg-transparent border-none outline-none min-w-[200px] focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
+                className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 text-xs bg-transparent border-none outline-none w-[11rem] sm:w-[16rem] truncate focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
               />
             ) as unknown as string
           }
           toolIcon={<ShieldCheck className="h-4 w-4" />}
-          toolColorClass="text-violet-600"
+          toolColorClass="text-violet-600 bg-violet-50"
           badge={
-            <div className="hidden md:flex items-center gap-8 px-2">
+            <div className="hidden xl:flex items-center gap-6 px-2">
               <div className="flex flex-col items-start">
-                <span className="text-[8px] font-black text-slate-400 dark:text-slate-400 uppercase leading-none mb-1.5 tracking-tighter">Esforço Total</span>
-                <div className="flex items-center gap-1 text-[11px] font-black text-violet-600 italic whitespace-nowrap">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase leading-none mb-1 tracking-wide whitespace-nowrap">Esforço total</span>
+                <div className="flex items-center gap-1 text-xs font-bold text-violet-600 whitespace-nowrap">
                   {stats.hoursSpent || '0h'}
-                  <span className="text-slate-300 dark:text-slate-800 mx-0.5 not-italic">/</span>
+                  <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
                   {stats.hoursOriginal || '0h'}
                 </div>
               </div>
               
-              <div className="flex flex-col items-start">
-                <span className="text-[8px] font-black text-slate-400 dark:text-slate-550 uppercase leading-none mb-1.5 tracking-tighter">Tasks Prontas</span>
-                <div className="flex items-center gap-1 text-[11px] font-black text-emerald-600 dark:text-emerald-400 italic whitespace-nowrap">
-                  {stats.ready}
-                  <span className="text-slate-300 dark:text-slate-800 mx-0.5 not-italic">/</span>
-                  {stats.total}
-                </div>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="flex flex-col items-start outline-none group">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase leading-none mb-1 tracking-wide flex items-center gap-1">
+                      Prontidão
+                      <ChevronDown className="h-2.5 w-2.5 text-slate-300 dark:text-slate-600 transition-transform group-data-[state=open]:rotate-180" />
+                    </span>
+                    <div className={cn(
+                      "flex items-center gap-1.5 text-xs font-bold whitespace-nowrap",
+                      readyCount === stats.total && stats.total > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100"
+                    )}>
+                      {readyCount}
+                      <span className="text-slate-300 dark:text-slate-600 mx-0.5">/</span>
+                      {stats.total}
+                      {mismatchCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title={`${mismatchCount} task(s) com status manual divergente`} />}
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[420px] rounded-2xl p-0 border-slate-200 dark:bg-slate-900 dark:border-slate-800 overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[11px] font-black uppercase italic tracking-tight text-slate-900 dark:text-slate-100">Prontidão da Sessão</h3>
+                      <span className={cn("text-[10px] font-black", readyCount === stats.total && stats.total > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-900 dark:text-slate-100")}>
+                        {readyCount}/{stats.total} prontas
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all"
+                        style={{ width: `${stats.total ? Math.round((readyCount / stats.total) * 100) : 0}%` }}
+                      />
+                    </div>
+                    {mismatchCount > 0 && (
+                      <p className="text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        Status manual e conteúdo real divergem em {mismatchCount} {mismatchCount > 1 ? 'tasks' : 'task'} — veja abaixo.
+                      </p>
+                    )}
+                  </div>
+                  <div className="max-h-[360px] overflow-y-auto">
+                    {readinessTasks.length === 0 && (
+                      <p className="px-4 py-6 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Nenhuma task ainda</p>
+                    )}
+                    {readinessTasks.map(({ task: t, contentComplete, mismatch }) => {
+                      const meta = PREPARATION_STATUS[t.preparationStatus || 'todo'];
+                      return (
+                        <div key={t.id} className="flex items-center gap-2.5 px-4 py-2.5 border-b border-slate-50 dark:border-slate-800/60 last:border-0">
+                          <span
+                            className={cn("w-2 h-2 rounded-full shrink-0", contentComplete ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-700")}
+                            title={contentComplete ? 'Conteúdo completo' : 'Conteúdo incompleto'}
+                          />
+                          <span className="bg-violet-600 text-white text-[8.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0">{t.key}</span>
+                          <span className="flex-1 min-w-0 text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">{t.title || 'Sem título'}</span>
+                          <span className={cn("text-[8.5px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shrink-0", meta.cls)}>{meta.label}</span>
+                          {mismatch && (
+                            <button
+                              type="button"
+                              title={t.preparationStatus === 'done' ? 'Marcada como pronta, mas falta conteúdo — clique pra corrigir o status' : 'Conteúdo completo — clique pra marcar como pronta'}
+                              onClick={() => updateTask(t.id, { preparationStatus: contentComplete ? 'done' : 'todo' })}
+                              className="w-5 h-5 rounded-md border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                            >
+                              <RefreshCw className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           }
           actions={
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setIsGuideOpen(true)} className="h-8 w-8 rounded-xl text-slate-400 dark:text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-all">
-                <HelpCircle className="h-4 w-4" />
-              </Button>
-
-              <Button 
-                onClick={handleShare}
-                variant="ghost"
-                className="h-8 px-3 rounded-xl text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all border border-violet-100 dark:border-violet-800"
-              >
-                <Share2 className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Compartilhar</span>
-              </Button>
-              
-              <Button 
-                onClick={() => setIsSettingsOpen(true)} 
-                variant="ghost"
-                className="h-8 px-3 rounded-xl text-slate-500 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 font-black text-[9px] uppercase tracking-widest gap-2 transition-all"
-              >
-                <Settings className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Config</span>
-              </Button>
-              
-              <div className="hidden sm:block w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1" />
-
-              <div className="flex items-center bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 gap-1 backdrop-blur-sm">
-                <Button variant="ghost" onClick={addManualTask} className="hidden lg:flex h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
-                  <Plus className="h-3 w-3" /> Manual
-                </Button>
-                <Button variant="ghost" onClick={() => setIsJiraOpen(true)} className="h-7 px-3 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm text-slate-600 dark:text-slate-300 dark:hover:text-white transition-all">
-                  <CloudDownload className="h-3 w-3" /> Jira
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 shrink-0">
+                <Button
+                  data-tour="jira-import"
+                  variant="ghost"
+                  onClick={() => setIsJiraOpen(true)}
+                  className="h-9 px-3 rounded-xl font-bold text-xs gap-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                  title="Importar issues do Jira"
+                >
+                  <CloudDownload className="h-4 w-4" /> <span className="hidden md:inline">Jira</span>
                 </Button>
                 <Button
-                  onClick={() => { setIsPresenting(true); setCurrentIndex(-1); }}
-                  className="h-7 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[9px] tracking-[0.1em] gap-2 shadow-lg shadow-violet-600/20 transition-all active:scale-95 ml-1"
+                  variant="ghost"
+                  onClick={handleShare}
+                  className="h-9 px-3 rounded-xl font-bold text-xs gap-2 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                  title="Compartilhar a Review"
                 >
-                  <Play className="h-3 w-3 fill-current" /> Iniciar
+                  <Share2 className="h-4 w-4" /> <span className="hidden md:inline">Compartilhar</span>
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setSettingsWarningActive(false); setIsSettingsOpen(true); }}
+                  className="h-9 w-9 rounded-xl text-slate-500 dark:text-slate-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                  title="Configurações da Review"
+                  aria-label="Configurações da Review"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl text-slate-500 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:shadow-sm transition-all"
+                      title="Mais ações"
+                      aria-label="Mais ações"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-60 rounded-xl dark:bg-slate-900 dark:border-slate-800">
+                    <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-xs font-semibold">
+                      <FileText className="h-3.5 w-3.5 text-slate-400" /> Adicionar card padrão
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-xs font-semibold">
+                      <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Adicionar card de métricas
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleOpenRetro} className="gap-2 text-xs font-semibold">
+                      <MessageSquareText className="h-3.5 w-3.5 text-slate-400" /> Retro desta sprint
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setIsGuideOpen(true)} className="gap-2 text-xs font-semibold">
+                      <HelpCircle className="h-3.5 w-3.5 text-slate-400" /> Como funciona
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
+
+              <Button
+                data-tour="start-teatro"
+                onClick={() => {
+                  const missingSetup = !session?.description?.trim() && !session?.coverImage;
+                  if (missingSetup && !presentWarningShown) {
+                    setPresentWarningShown(true);
+                    setSettingsWarningActive(true);
+                    setIsSettingsOpen(true);
+                    return;
+                  }
+                  setIsPresenting(true); setCurrentIndex(-1);
+                }}
+                className="h-9 px-5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2 shadow-lg shadow-violet-600/20 transition-all active:scale-95"
+              >
+                <Play className="h-3.5 w-3.5 fill-current" /> Iniciar
+              </Button>
             </div>
           }
         />
@@ -497,24 +710,70 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         className="flex-1 overflow-y-auto scroll-smooth"
       >
         {tasks.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center min-h-[70%] text-center px-4"
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto w-full max-w-4xl px-4 py-10 md:py-16 flex flex-col items-center text-center"
           >
-             <div className="w-24 h-24 bg-slate-100 dark:bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-slate-300 dark:text-slate-700 mb-8 shadow-inner">
-                <CloudDownload className="h-12 w-12" />
-             </div>
-             <h3 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 mb-2">Pronto para a Show?</h3>
-             <p className="text-slate-500 dark:text-slate-400 text-sm max-w-xs mb-10 leading-relaxed font-medium">Importe as issues da sprint do Jira para começar a preparar sua apresentação imersiva.</p>
-             <div className="flex gap-4">
-               <Button onClick={() => setIsJiraOpen(true)} className="h-14 px-10 rounded-2xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-black uppercase text-[11px] tracking-widest gap-3 shadow-2xl shadow-black/10 dark:shadow-none hover:scale-105 active:scale-95 transition-all">
-                  <CloudDownload className="h-5 w-5" /> Importar Jira
-               </Button>
-               <Button onClick={addManualTask} variant="outline" className="h-14 px-10 rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 border-2 border-slate-100 dark:border-slate-800 font-black uppercase text-[11px] tracking-widest gap-3 hover:bg-slate-50 dark:hover:bg-slate-850 hover:border-slate-200 dark:hover:border-slate-750 transition-all">
-                  <Plus className="h-5 w-5" /> Criar Manual
-               </Button>
-             </div>
+            <div className="h-16 w-16 rounded-3xl bg-violet-600 text-white flex items-center justify-center shadow-xl shadow-violet-600/30 mb-6">
+              <ShieldCheck className="h-8 w-8" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-slate-50">Sua Review está pronta</h2>
+            <p className="mt-2 max-w-xl text-sm md:text-base text-slate-500 dark:text-slate-400">
+              Falta só trazer as tarefas da sprint. Depois é preparar as evidências e apresentar para o PO.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
+              {session?.squadName && (
+                <span className="rounded-full bg-violet-600/10 text-violet-600 dark:text-violet-300 px-3 py-1">{session.squadName}</span>
+              )}
+              {session?.sprintName && (
+                <span className="rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-3 py-1">{session.sprintName}</span>
+              )}
+            </div>
+
+            <ol className="mt-10 grid w-full grid-cols-1 md:grid-cols-3 gap-4 text-left">
+              <li className="rounded-3xl border border-violet-500/40 bg-violet-600/5 p-5 flex flex-col gap-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-7 w-7 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Importe as tarefas</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Traga as issues da sprint direto do Jira ou crie os cards à mão.</p>
+                <div className="mt-auto flex flex-col gap-2">
+                  <Button onClick={() => setIsJiraOpen(true)} className="h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs gap-2">
+                    <CloudDownload className="h-4 w-4" /> Importar do Jira
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="h-10 rounded-xl font-bold text-xs gap-2">
+                        <Plus className="h-4 w-4" /> Criar card manual
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="dark:bg-slate-900 dark:border-slate-800">
+                      <DropdownMenuItem onClick={() => addManualTask('story')} className="gap-2 text-xs font-semibold">
+                        <FileText className="h-3.5 w-3.5 text-slate-400" /> Card padrão
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => addManualTask('metrics')} className="gap-2 text-xs font-semibold">
+                        <TrendingUp className="h-3.5 w-3.5 text-violet-500" /> Card de métricas
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </li>
+              <li className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-5 flex flex-col gap-3 opacity-90">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center">2</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Prepare as evidências</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Em cada card, conte o problema e a solução e anexe vídeo ou print. Marque como pronto quando terminar.</p>
+              </li>
+              <li className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 p-5 flex flex-col gap-3 opacity-90">
+                <div className="flex items-center gap-2.5">
+                  <span className="h-7 w-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center">3</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-slate-50">Apresente e colete o aceite</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Em <strong className="font-semibold">Iniciar</strong>, o Modo Teatro mostra uma entrega por vez e registra a decisão do PO.</p>
+              </li>
+            </ol>
           </motion.div>
         ) : (
         <div className="w-full px-4 md:px-12 lg:px-20 py-6 space-y-8">
@@ -522,8 +781,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           <div className="flex flex-col md:flex-row items-center gap-4 bg-white dark:bg-slate-900 p-3 rounded-[2rem] border border-slate-200 dark:border-slate-800/80 shadow-sm">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input 
-                placeholder="Buscar por chave, título ou dev..." 
+              <Input
+                data-tour="search"
+                placeholder="Buscar por chave, título ou dev..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-11 h-11 bg-slate-50 dark:bg-slate-950 border-none rounded-xl text-sm font-medium text-slate-900 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:ring-2 focus:ring-violet-200/50 transition-all"
@@ -700,11 +960,18 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         onImport={addTasks} 
       />
 
-      <SessionSettingsDialog 
-        open={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-        session={session} 
-        onUpdate={persist} 
+      <SessionSettingsDialog
+        open={isSettingsOpen}
+        onClose={() => { setSettingsWarningActive(false); setIsSettingsOpen(false); }}
+        session={session}
+        onUpdate={persist}
+        presentWarning={settingsWarningActive}
+        onPresentAnyway={() => {
+          setSettingsWarningActive(false);
+          setIsSettingsOpen(false);
+          setIsPresenting(true);
+          setCurrentIndex(-1);
+        }}
       />
 
       <SummaryDialog 
@@ -715,9 +982,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         session={session} 
       />
 
-      <HelpSheet 
-        open={isGuideOpen} 
-        onClose={() => setIsGuideOpen(false)} 
+      <ShowcaseTour
+        open={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
       />
     </div>
   );

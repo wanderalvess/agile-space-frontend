@@ -1,249 +1,250 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import {
-  ShieldCheck, Trash2, Copy, Zap, Clock,
-  CheckCircle2, AlertTriangle, Terminal, Lock
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { useCallback, useEffect, useState } from 'react';
+import { Check, Copy, Eye, EyeOff, KeyRound, Lock, LockOpen, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { encryptSecret } from '@/lib/vault-crypto';
-import { useUserContext } from '@/context/UserContext';
-import { vaultApi } from '@/app/vault/api';
+import { DevToolPage } from '@/components/devtools/DevToolPage';
+
+/*
+ * Cofre LOCAL, zero-knowledge:
+ *  - A senha mestra nunca é armazenada. Dela deriva-se (PBKDF2-SHA256, 310k iterações, salt aleatório)
+ *    uma chave AES-GCM 256 NÃO extraível, que só vive na memória da aba.
+ *  - Cada segredo (rótulo + valor) é cifrado com AES-GCM e IV próprio; em localStorage só há texto cifrado.
+ *  - Um "verificador" cifrado permite saber se a senha está correta sem guardá-la.
+ *  - Nada é enviado a servidor nem registrado em console.
+ * Mudança vs. legado: o legado gerava um link de uso único guardando o cifrado no Firestore;
+ * isso exige backend e login, então aqui o cofre é pessoal e fica no navegador.
+ */
+const STORE_KEY = 'devtools.secret-vault.v1';
+const ITERATIONS = 310_000;
+const VERIFIER_TEXT = 'agile-space-vault-ok';
+
+interface EncItem { id: string; iv: string; ct: string; createdAt: number }
+interface Store { salt: string; verifierIv: string; verifier: string; items: EncItem[] }
+interface PlainItem { id: string; label: string; secret: string; createdAt: number }
+
+const toB64 = (buf: ArrayBuffer | Uint8Array): string => {
+  const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  let s = '';
+  bytes.forEach(b => { s += String.fromCharCode(b); });
+  return btoa(s);
+};
+const fromB64 = (b64: string): Uint8Array<ArrayBuffer> => Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+
+function loadStore(): Store | null {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? (JSON.parse(raw) as Store) : null;
+  } catch { return null; }
+}
+
+function saveStore(store: Store): boolean {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); return true; } catch { return false; }
+}
+
+async function deriveKey(password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
+  );
+}
+
+async function encrypt(key: CryptoKey, text: string): Promise<{ iv: string; ct: string }> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
+  return { iv: toB64(iv), ct: toB64(ct) };
+}
+
+async function decrypt(key: CryptoKey, iv: string, ct: string): Promise<string> {
+  const buf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(iv) }, key, fromB64(ct));
+  return new TextDecoder().decode(buf);
+}
 
 export default function SecretVaultPage() {
-  const [secret, setSecret] = useState('');
-  const [isEncrypting, setIsEncrypting] = useState(false);
-  const [generatedLink, setGeneratedLink] = useState('');
-  const [expiration, setExpiration] = useState<'once' | '1h' | '24h'>('once');
   const { toast } = useToast();
-  const { userProfile, requestIdentity } = useUserContext();
+  const [store, setStore] = useState<Store | null>(null);
+  const [ready, setReady] = useState(false);
+  const [key, setKey] = useState<CryptoKey | null>(null);
+  const [items, setItems] = useState<PlainItem[]>([]);
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [label, setLabel] = useState('');
+  const [secret, setSecret] = useState('');
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => { document.title = `Secret Vault | DevTools Hub`; }, []);
+  useEffect(() => { setStore(loadStore()); setReady(true); }, []);
 
-  const handleGenerate = async () => {
-    if (!secret.trim()) {
-      toast({ title: "Conteúdo Vazio", description: "Insira o dado que deseja proteger.", variant: "destructive" });
-      return;
+  // Descriptografa todos os itens com a chave em memória.
+  const decryptAll = useCallback(async (k: CryptoKey, s: Store): Promise<PlainItem[]> => {
+    const out: PlainItem[] = [];
+    for (const it of s.items) {
+      try {
+        const { label: l, secret: v } = JSON.parse(await decrypt(k, it.iv, it.ct)) as { label: string; secret: string };
+        out.push({ id: it.id, label: l, secret: v, createdAt: it.createdAt });
+      } catch { /* item corrompido: ignora */ }
     }
-    if (!userProfile) {
-      toast({ title: "Autenticação Necessária", description: "Você precisa estar logado para gerar um cofre." });
-      requestIdentity();
-      return;
-    }
-    setIsEncrypting(true);
+    return out;
+  }, []);
+
+  const lock = useCallback(() => {
+    setKey(null); setItems([]); setRevealed({}); setPassword(''); setConfirm(''); setAuthError(null);
+  }, []);
+
+  const create = async () => {
+    setAuthError(null);
+    if (password.length < 8) return setAuthError('Use uma senha mestra com pelo menos 8 caracteres.');
+    if (password !== confirm) return setAuthError('As senhas não conferem.');
+    setBusy(true);
     try {
-      const { ciphertext, key, iv } = await encryptSecret(secret);
-      const savedSecret = await vaultApi.createSecret({
-        payload: ciphertext,
-        iv,
-        expirationType: expiration,
-      });
-      setGeneratedLink(`${window.location.origin}/vault/${savedSecret.id}#${key}`);
-      toast({ title: "Cofre Criado!", description: "Segredo criptografado e pronto para envio." });
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Erro", description: "Não foi possível gerar o cofre.", variant: "destructive" });
-    } finally {
-      setIsEncrypting(false);
-    }
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const k = await deriveKey(password, salt);
+      const v = await encrypt(k, VERIFIER_TEXT);
+      const s: Store = { salt: toB64(salt), verifierIv: v.iv, verifier: v.ct, items: [] };
+      if (!saveStore(s)) return setAuthError('O navegador bloqueou o armazenamento local; o cofre não pode ser criado.');
+      setStore(s); setKey(k); setItems([]); setPassword(''); setConfirm('');
+    } catch { setAuthError('Falha ao criar o cofre neste navegador.'); } finally { setBusy(false); }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(generatedLink);
-    toast({ title: "Copiado!", description: "Link copiado para a área de transferência." });
+  const unlock = async () => {
+    if (!store) return;
+    setAuthError(null); setBusy(true);
+    try {
+      const k = await deriveKey(password, fromB64(store.salt));
+      // AES-GCM autentica: senha errada faz decrypt lançar erro
+      if ((await decrypt(k, store.verifierIv, store.verifier)) !== VERIFIER_TEXT) throw new Error('bad');
+      setItems(await decryptAll(k, store));
+      setKey(k); setPassword('');
+    } catch { setAuthError('Senha mestra incorreta.'); } finally { setBusy(false); }
   };
+
+  const addItem = async () => {
+    if (!key || !store || !secret.trim()) return;
+    setBusy(true);
+    try {
+      const id = crypto.randomUUID();
+      const createdAt = Date.now();
+      const label_ = label.trim() || 'Sem rótulo';
+      const { iv, ct } = await encrypt(key, JSON.stringify({ label: label_, secret }));
+      const next: Store = { ...store, items: [{ id, iv, ct, createdAt }, ...store.items] };
+      if (!saveStore(next)) throw new Error('storage');
+      setStore(next);
+      setItems(prev => [{ id, label: label_, secret, createdAt }, ...prev]);
+      setLabel(''); setSecret('');
+    } catch { toast({ title: 'Não foi possível salvar', description: 'O armazenamento local do navegador falhou.', variant: 'destructive' }); }
+    finally { setBusy(false); }
+  };
+
+  const removeItem = (id: string) => {
+    if (!store) return;
+    const next: Store = { ...store, items: store.items.filter(i => i.id !== id) };
+    if (saveStore(next)) { setStore(next); setItems(prev => prev.filter(i => i.id !== id)); }
+  };
+
+  const copy = async (it: PlainItem) => {
+    try { await navigator.clipboard.writeText(it.secret); setCopiedId(it.id); setTimeout(() => setCopiedId(null), 1400); }
+    catch { toast({ title: 'Não foi possível copiar', variant: 'destructive' }); }
+  };
+
+  const destroy = () => {
+    if (!window.confirm('Apagar o cofre e todos os segredos deste navegador? Não há como recuperar.')) return;
+    try { localStorage.removeItem(STORE_KEY); } catch { /* ignora */ }
+    setStore(null); lock();
+  };
+
+  const unlocked = key !== null;
+  const card = 'rounded-2xl border border-border bg-card shadow-sm';
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 font-sans overflow-hidden selection:bg-emerald-500/30">
-      {/* Background glows */}
-      <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
-        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] bg-emerald-100/30 blur-[120px] rounded-full" />
-        <div className="absolute -bottom-32 -left-32 w-[400px] h-[400px] bg-blue-100/20 blur-[100px] rounded-full" />
-      </div>
-
-      {/* Header */}
-      <header className="shrink-0 px-8 py-4 border-b border-slate-200 bg-white/80 backdrop-blur-sm flex items-center justify-between z-30 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 shadow-sm">
-            <ShieldCheck className="h-6 w-6 text-emerald-600" />
+    <DevToolPage
+      toolId="secret-vault"
+      scrollBody
+      actions={unlocked ? (
+        <Button variant="outline" size="sm" onClick={lock} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+          <Lock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Bloquear</span>
+        </Button>
+      ) : undefined}
+    >
+      {!ready ? null : !unlocked ? (
+        /* ── Criar / desbloquear ── */
+        <div className={`${card} mx-auto mt-6 max-w-md space-y-4 p-5`}>
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-primary" />
+            <h2 className="font-headline text-lg font-black uppercase tracking-tight">{store ? 'Desbloquear cofre' : 'Criar cofre'}</h2>
           </div>
-          <div>
-            <h1 className="text-base font-black italic tracking-tighter text-slate-800 uppercase leading-none">
-              Secret <span className="text-emerald-600">Vault</span>
-            </h1>
-            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] mt-1">Protocolo de Segurança Corporativa E2EE</p>
-          </div>
+          <p className="text-xs font-medium text-muted-foreground">
+            {store
+              ? 'Digite a senha mestra para ler seus segredos.'
+              : 'Defina uma senha mestra. Ela não é guardada em lugar nenhum: se for esquecida, os segredos não podem ser recuperados.'}
+          </p>
+          <form className="space-y-3" onSubmit={e => { e.preventDefault(); void (store ? unlock() : create()); }}>
+            <Input type="password" autoComplete="off" placeholder="Senha mestra" value={password} onChange={e => setPassword(e.target.value)} aria-label="Senha mestra" />
+            {!store && <Input type="password" autoComplete="off" placeholder="Confirme a senha" value={confirm} onChange={e => setConfirm(e.target.value)} aria-label="Confirmar senha" />}
+            {authError && <p className="text-xs font-semibold text-destructive">{authError}</p>}
+            <Button type="submit" disabled={busy || !password} className="w-full gap-2 rounded-xl text-[11px] font-black uppercase tracking-wider">
+              <LockOpen className="h-4 w-4" /> {busy ? 'Derivando chave…' : store ? 'Desbloquear' : 'Criar cofre'}
+            </Button>
+          </form>
+          {store && (
+            <button type="button" onClick={destroy} className="text-[11px] font-semibold text-muted-foreground underline-offset-2 hover:text-destructive hover:underline">
+              Esqueci a senha: apagar cofre
+            </button>
+          )}
         </div>
-        <Link href="/" className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors">
-          Espaço Ágil
-        </Link>
-      </header>
+      ) : (
+        /* ── Cofre aberto ── */
+        <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:gap-4">
+          <section className={`${card} space-y-3 p-4 md:self-start`}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Novo segredo</h2>
+              <Badge variant="secondary" className="gap-1 text-[10px] font-black uppercase"><ShieldCheck className="h-3 w-3" /> AES-GCM 256</Badge>
+            </div>
+            <Input placeholder="Rótulo (ex.: Token do Jira)" value={label} onChange={e => setLabel(e.target.value)} aria-label="Rótulo" />
+            <Textarea placeholder="Valor secreto…" value={secret} onChange={e => setSecret(e.target.value)} spellCheck={false} aria-label="Segredo" className="min-h-32 resize-none font-code text-[13px]" />
+            <Button onClick={() => void addItem()} disabled={busy || !secret.trim()} className="w-full gap-2 rounded-xl text-[11px] font-black uppercase tracking-wider">
+              <Plus className="h-4 w-4" /> Cifrar e guardar
+            </Button>
+            <p className="text-[11px] font-medium text-muted-foreground">Cifrado no navegador; o servidor nunca vê o conteúdo. Os dados ficam só neste navegador.</p>
+          </section>
 
-      {/* Main — Optimized centered column */}
-      <main className="flex-1 min-h-0 flex flex-col items-center justify-start px-8 pt-10 pb-10">
-        <div className="w-full max-w-4xl">
-          <AnimatePresence mode="wait">
-
-            {/* ── CREATOR ── */}
-            {!generatedLink ? (
-              <motion.div key="form"
-                initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="space-y-10"
-              >
-                {/* Título + "Como usar" inline */}
-                <div className="space-y-4 text-center">
-                  <h2 className="text-5xl md:text-6xl font-black italic tracking-tighter text-slate-800 uppercase leading-none">
-                    Cofre de <span className="text-emerald-600">Segredos</span>
-                  </h2>
-                  <p className="text-[12px] font-semibold text-slate-600 leading-relaxed max-w-2xl mx-auto uppercase tracking-wide">
-                    Precisa compartilhar uma senha, token ou dado sensível com um colega?
-                    Cole abaixo e gere o link. O conteúdo é criptografado localmente
-                    e <span className="text-rose-600 font-black">apagado permanentemente</span> assim que for lido.
-                  </p>
-                </div>
-
-                {/* Card do Formulário */}
-                <Card className="bg-white/70 backdrop-blur-md border-slate-200 p-10 rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.08)] relative overflow-hidden group">
-                  <div className="space-y-8">
-                    {/* Campo */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between px-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 italic flex items-center gap-2">
-                          <Terminal className="h-4 w-4" /> Conteúdo Confidencial
-                        </label>
-                        <Badge variant="outline" className="bg-emerald-50/50 border-emerald-100 text-emerald-600 text-[8px] font-black tracking-widest uppercase">
-                          AES-256-GCM Ativo
-                        </Badge>
-                      </div>
-                      <Textarea
-                        value={secret}
-                        onChange={(e) => setSecret(e.target.value)}
-                        placeholder="Insira aqui senhas, chaves de API ou qualquer dado sensível que precise de proteção total..."
-                        className="bg-white border-slate-200 rounded-[2rem] min-h-[180px] text-base font-mono text-slate-800 p-8 resize-none focus:border-emerald-300 focus:ring-4 focus:ring-emerald-500/5 shadow-inner transition-all leading-relaxed"
-                      />
-                    </div>
-
-                    {/* Controles */}
-                    <div className="flex flex-col md:flex-row gap-8 items-stretch">
-                      <div className="flex-1 space-y-3">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 ml-2">Validade do Link</label>
-                        <div className="grid grid-cols-3 gap-3">
-                          {[
-                            { id: 'once', label: 'Uso Único', icon: Trash2 },
-                            { id: '1h',   label: '1 Hora',    icon: Clock  },
-                            { id: '24h',  label: '24 Horas',  icon: Zap    },
-                          ].map(opt => (
-                            <button key={opt.id} onClick={() => setExpiration(opt.id as any)}
-                              className={cn(
-                                "flex flex-col items-center justify-center gap-2 py-4 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all duration-300",
-                                expiration === opt.id
-                                  ? "bg-emerald-600 border-emerald-600 text-white shadow-xl shadow-emerald-600/20 scale-105"
-                                  : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100"
-                              )}>
-                              <opt.icon className="h-5 w-5" />
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex-1 flex flex-col justify-end">
-                        <Button onClick={handleGenerate} disabled={isEncrypting || !secret}
-                          className="h-full min-h-[80px] bg-slate-900 hover:bg-emerald-600 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs gap-4 transition-all duration-500 shadow-2xl active:scale-95">
-                          {isEncrypting
-                            ? <><Zap className="h-6 w-6 animate-spin" /><span>Criptografando...</span></>
-                            : <><ShieldCheck className="h-6 w-6" /><span>Gerar Link Seguro</span></>}
+          <section className={`${card} p-4`}>
+            <h2 className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Segredos guardados ({items.length})</h2>
+            {items.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum segredo ainda.</p>
+            ) : (
+              <ul className="space-y-2">
+                {items.map(it => (
+                  <li key={it.id} className="rounded-xl border border-border bg-background p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-bold text-foreground">{it.label}</span>
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={revealed[it.id] ? 'Ocultar' : 'Revelar'} onClick={() => setRevealed(r => ({ ...r, [it.id]: !r[it.id] }))}>
+                          {revealed[it.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label="Copiar" onClick={() => void copy(it)}>
+                          {copiedId === it.id ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive" aria-label="Excluir" onClick={() => removeItem(it.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
-                  </div>
-                </Card>
-
-                {/* Indicadores de Segurança */}
-                <div className="flex items-center justify-center gap-12 pt-4">
-                  {[
-                    { label: "Criptografia Local", icon: ShieldCheck },
-                    { label: "Zero-Knowledge", icon: Lock },
-                    { label: "Autodestruição", icon: Trash2 }
-                  ].map(item => (
-                    <div key={item.label} className="flex items-center gap-3 group opacity-60 hover:opacity-100 transition-opacity">
-                      <item.icon className="h-4 w-4 text-emerald-500" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ) : (
-
-              /* ── RESULTADO ── */
-              <motion.div key="result"
-                initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="space-y-10 max-w-3xl mx-auto"
-              >
-                <div className="text-center space-y-4">
-                  <div className="mx-auto w-20 h-20 rounded-[2.5rem] bg-emerald-600 text-white flex items-center justify-center mb-6 shadow-2xl shadow-emerald-600/30">
-                    <CheckCircle2 className="h-10 w-10 animate-pulse" />
-                  </div>
-                  <h2 className="text-5xl font-black italic tracking-tighter text-slate-800 uppercase leading-none">
-                    Link <span className="text-emerald-600">Gerado</span>
-                  </h2>
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
-                    Segredo protegido com sucesso. Envie o link abaixo para o destinatário.
-                  </p>
-                </div>
-
-                <Card className="bg-slate-900 border-slate-800 p-10 rounded-[3.5rem] shadow-2xl relative overflow-hidden">
-                  <div className="absolute top-6 right-8">
-                    <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[8px] font-black uppercase tracking-widest bg-emerald-500/5">
-                      Segurança E2EE Ativa
-                    </Badge>
-                  </div>
-                  <div className="bg-black/30 p-8 rounded-3xl border border-white/5 break-all font-mono text-sm text-emerald-400 leading-relaxed text-left mb-10 shadow-inner">
-                    {generatedLink}
-                  </div>
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <Button onClick={copyLink}
-                      className="flex-[2] h-16 bg-white text-slate-900 hover:bg-emerald-500 hover:text-white rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] gap-3 transition-all duration-300 shadow-xl">
-                      <Copy className="h-5 w-5" /> Copiar Link Seguro
-                    </Button>
-                    <Button variant="outline" onClick={() => { setGeneratedLink(''); setSecret(''); }}
-                      className="flex-1 h-16 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 rounded-2xl font-black uppercase text-[11px] tracking-widest transition-all">
-                      Novo Segredo
-                    </Button>
-                  </div>
-                </Card>
-
-                <div className="flex flex-col items-center gap-4">
-                  <div className="px-6 py-3 bg-rose-50 rounded-full border border-rose-100">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 flex items-center gap-3">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      Aviso: O conteúdo será destruído permanentemente após o acesso.
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
+                    <p className="mt-1 break-all font-code text-xs text-muted-foreground">{revealed[it.id] ? it.secret : '•'.repeat(Math.min(it.secret.length, 24))}</p>
+                    <p className="mt-1 text-[10px] font-semibold text-muted-foreground/70">{new Date(it.createdAt).toLocaleString('pt-BR')}</p>
+                  </li>
+                ))}
+              </ul>
             )}
-
-          </AnimatePresence>
+          </section>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="shrink-0 py-4 px-10 border-t border-slate-100 bg-white/80 backdrop-blur-sm flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-400">Vault Protocol v1.0 · Espaço Ágil Compliance</p>
-        <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 px-4 py-1.5 rounded-full border border-emerald-100">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Proteção Ativa</span>
-        </div>
-      </footer>
-    </div>
+      )}
+    </DevToolPage>
   );
 }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ActionPlanTask, ActionPlanTaskStatus } from '@/lib/types';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '@/app/action-plan/api';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -28,7 +28,7 @@ interface ActionTaskDialogProps {
 }
 
 export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, onSaveSuccess }: ActionTaskDialogProps) {
-  const { user } = useFirebase();
+  const { session } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -64,7 +64,7 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
   }, [task, isOpen]);
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!session) return;
     
     if (!formData.what.trim() || !formData.who.trim()) {
       toast({
@@ -85,7 +85,7 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
         // Create
         await actionPlanApi.createTask(boardId, {
           ...formData,
-          authorId: user.uid,
+          authorId: session.id,
           order: totalTasks
         });
       }

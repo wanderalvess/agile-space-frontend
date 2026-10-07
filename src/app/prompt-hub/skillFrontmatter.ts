@@ -30,11 +30,34 @@ const FRONTMATTER_RE = /^\s*---\r?\n([\s\S]*?)\r?\n---(?:\r?\n([\s\S]*))?$/;
 
 const XML_TAG_RE = /<[^>]+>/;
 
-/** Lê `chave: valor` de uma linha de topo do frontmatter (sem YAML aninhado). */
+/** Lê `chave: valor` do frontmatter, incluindo suporte a escalares multilinha (ex: `>-`, `|`). */
 const readField = (block: string, field: string): string | undefined => {
-  const match = block.match(new RegExp(`^${field}\\s*:\\s*(.*)$`, 'mi'));
-  if (!match) return undefined;
-  return match[1].trim().replace(/^["']|["']$/g, '');
+  const lines = block.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const match = line.match(new RegExp(`^${field}\\s*:\\s*(.*)$`, 'i'));
+    if (match) {
+      const val = match[1].trim().replace(/^["']|["']$/g, '');
+      if (val === '>-' || val === '>' || val === '|' || val === '|-' || val === '') {
+        const multiline: string[] = [];
+        for (let j = i + 1; j < lines.length; j++) {
+          const nextLine = lines[j];
+          if (/^\s{2,}/.test(nextLine)) {
+            multiline.push(nextLine.trim());
+          } else if (nextLine.trim() === '') {
+            // linha em branco dentro do bloco
+          } else {
+            break;
+          }
+        }
+        if (multiline.length > 0) {
+          return multiline.join(' ').trim();
+        }
+      }
+      return val;
+    }
+  }
+  return undefined;
 };
 
 export function validateSkillFrontmatter(content?: string): SkillValidation {

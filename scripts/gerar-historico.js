@@ -5,9 +5,9 @@ const path = require('path');
 console.log('Iniciando recuperação do histórico do Git...');
 
 try {
-  // 1. Puxa os commits desde 24 de Junho de 2026
+  // 1. Puxa os commits desde 24 de Junho de 2025
   // Formato: Hash|Data(YYYY-MM-DD)|Mensagem
-  const gitLogCommand = 'git log --since="2026-06-24" --format="%H|%ad|%s" --date=short';
+  const gitLogCommand = 'git log --since="2025-06-24" --format="%H|%ad|%s" --date=short';
   const stdout = execSync(gitLogCommand, { encoding: 'utf-8' });
   
   const commits = stdout.split('\n').filter(line => line.trim().length > 0);

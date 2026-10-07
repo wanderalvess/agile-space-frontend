@@ -1,3 +1,46 @@
+import { Evidence, ShowcaseTask, PRESENTATION_PRESETS } from './types';
+
+/**
+ * Determina com precisão se o fundo escolhido para a apresentação é claro.
+ * Usado para ajustar tipografia, contraste de bordas, badges e controles no Modo Teatro.
+ */
+export const isLightBackground = (bg?: string): boolean => {
+  if (!bg) return false;
+  const val = bg.trim().toLowerCase();
+  if (['#ffffff', '#fff', 'white', '#fafafa', '#f8fafc', '#f1f5f9', '#f0f9ff', '#fafaf9', '#f5f5f4', '#f3f4f6'].includes(val)) {
+    return true;
+  }
+  const preset = PRESENTATION_PRESETS.find(p => p.value.toLowerCase() === val);
+  if (preset && 'isLight' in preset) {
+    return !!preset.isLight;
+  }
+  if (val.includes('#f8fafc') || val.includes('#f0f9ff') || val.includes('#fafaf9') || val.includes('#ffffff') || val.includes('#e2e8f0') || val.includes('#e0f2fe')) {
+    return true;
+  }
+  const hexMatch = val.match(/^#([0-9a-f]{6})$/i);
+  if (hexMatch) {
+    const r = parseInt(hexMatch[1].slice(0, 2), 16);
+    const g = parseInt(hexMatch[1].slice(2, 4), 16);
+    const b = parseInt(hexMatch[1].slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+    return luminance > 175;
+  }
+  return false;
+};
+
+/**
+ * Prontidão real de uma task, derivada do conteúdo preenchido — a mesma
+ * conta que colore a borda do TaskCard. Fonte única: antes disso o header da
+ * sala contava `preparationStatus` (dropdown manual, esquecível) e o card
+ * calculava isReady por conta própria, podendo discordar sem aviso nenhum.
+ */
+export const isTaskContentComplete = (task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics'>): boolean => {
+  if (task.cardKind === 'metrics') {
+    return (task.metrics || []).some(m => m.field.trim() && m.value);
+  }
+  return !!(task.evidence.problem && task.evidence.solution && (task.evidence.screenshot || task.evidence.video));
+};
+
 export const formatTime = (seconds?: number) => {
   if (!seconds || seconds <= 0) return '';
   const h = Math.floor(seconds / 3600);
@@ -57,6 +100,48 @@ export const getDirectImageUrl = (url: string) => {
   }
 
   return url;
+};
+
+/**
+ * Remove marcação wiki do Jira que ainda sobrou no texto salvo (problema/
+ * solução/critérios) — mesma regra do stripWikiMarkup em jiraService.ts, mas
+ * aplicada aqui na exibição/exportação porque nem todo texto que chega no
+ * showcase passou pela extração daquele serviço (ex.: sessão antiga, edição
+ * manual, ou campo colado direto do Jira). Sem isso "h2. *Solução:*" aparece
+ * literal em vez de virar "Solução:".
+ */
+export const stripWikiMarkup = (text?: string): string => {
+  if (!text) return text || '';
+  return text
+    .replace(/^h[1-6]\.[ \t]*/gm, '')
+    .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
+    .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    .replace(/^-{3,}[ \t]*$/gm, '');
+};
+
+/**
+ * As fontes padrão do jsPDF (Helvetica/WinAnsi) não têm glifo pra emoji —
+ * qualquer codepoint fora do Latin-1 vira lixo visual no PDF (ex.: "📝" virou
+ * "Ø=ÜÝ" na exportação). No app normal o emoji renderiza certo (fonte do
+ * navegador cobre), então isso só se aplica ao texto que vai pro jsPDF.
+ */
+export const stripNonLatin1ForPdf = (text?: string): string => {
+  if (!text) return text || '';
+  return Array.from(text).filter(ch => ch.codePointAt(0)! <= 0xFF).join('');
+};
+
+/**
+ * Screenshot e vídeo podem coexistir — cada um pode ser imagem ou vídeo, o
+ * tipo é sempre detectado pelo conteúdo da URL (ver getEmbedUrl/isPdfUrl),
+ * nunca pelo campo de origem. `evidencePreference` só decide qual delas abre
+ * primeiro no Modo Teatro quando as duas estão preenchidas — quem apresenta
+ * ainda alterna pra outra por lá, nenhuma fica inacessível.
+ */
+export const getEvidenceUrls = (evidence: Pick<Evidence, 'screenshot' | 'video' | 'evidencePreference'>): string[] => {
+  const preferScreenshot = evidence.evidencePreference === 'screenshot';
+  const ordered = preferScreenshot ? [evidence.screenshot, evidence.video] : [evidence.video, evidence.screenshot];
+  return ordered.filter((u): u is string => !!u);
 };
 
 export const extractMediaUrl = (text: string) => {
@@ -121,8 +206,9 @@ export const makeTask = (issue: any): any => {
     preparationStatus: 'todo',
     feedback: '',
     project: issue.project || '',
+    versionSuporte: issue.versionSuporte || '',
     versionMaster: issue.versionMaster || '',
-    versionDevelop: issue.versionDevelop || '',
     versionRelease: issue.versionRelease || '',
+    versionDevelop: issue.versionDevelop || '',
   };
 };

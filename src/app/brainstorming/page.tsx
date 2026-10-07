@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Lightbulb, 
@@ -15,7 +15,6 @@ import {
   BarChart3,
   ListTodo
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { brainstormingApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -37,13 +36,21 @@ const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 export default function BrainstormingHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [title, setTitle] = useState('');
-  const [team, setTeam] = useState(userProfile?.squadId || userProfile?.team || '');
+  const [team, setTeam] = useState('');
+
+  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
+  // async) — só enquanto o campo estiver vazio, para não sobrescrever uma edição manual.
+  useEffect(() => {
+    if (team) return;
+    const userTeam = userProfile?.squadId || userProfile?.team;
+    if (userTeam) setTeam(userTeam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile]);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -54,7 +61,7 @@ export default function BrainstormingHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -64,7 +71,17 @@ export default function BrainstormingHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!user || isCreating) return;
+    if (isCreating) return;
+
+    if (!userProfile || !userProfile.id) {
+      console.error("[brainstorming] Criar sala abortado: usuário sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({
@@ -78,14 +95,14 @@ export default function BrainstormingHubPage() {
     setIsCreating(true);
 
     const newBoard = {
-      creatorId: user.uid,
+      creatorId: userProfile.id,
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       createdAt: new Date().toISOString(),
       phase: 'ideation' as const,
       settings: { isAnonymous: false },
-      timer: { status: 'stopped', endTime: null, initialDuration: 600, remainingOnPause: 600 },
-      participantIds: [user.uid]
+      timer: { status: 'stopped' as const, endTime: null, initialDuration: 600, remainingOnPause: 600 },
+      participantIds: [userProfile.id]
     };
 
     try {
@@ -117,12 +134,12 @@ export default function BrainstormingHubPage() {
     },
     {
       title: "Construa sobre Outros",
-      description: "Use as ideias dos colegas como trampolim. 'Sim, e...' é muio mais poderoso do que 'Não, mas...'.",
+      description: "Use as ideias dos colegas como trampolim. 'Sim, e...' é muito mais poderoso do que 'Não, mas...'.",
       icon: <Target className="text-amber-500" />
     },
     {
       title: "Foco em Quantidade",
-      description: "Quanto mais ideias gerarmos, maior a chance de encontrarmos uma solução disruptiva e inovadora.",
+      description: "Quanto mais ideias gerarmos, maior a chance de encontrarmos uma boa solução.",
       icon: <Zap className="text-amber-500" />
     }
   ];
@@ -135,25 +152,25 @@ export default function BrainstormingHubPage() {
       icon: <BrainCircuit />
     },
     {
-      title: "2. Clusterização (Agrupamento)",
+      title: "2. Agrupamento",
       label: "Organização",
-      description: "Arraste uma ideia sobre a outra para criar 'Clusters'. O objetivo é reduzir a repetição e encontrar grandes temas estratégicos.",
+      description: "Arraste uma ideia sobre a outra para agrupá-las. O objetivo é reduzir a repetição e encontrar grandes temas estratégicos.",
       icon: <Network />
     },
     {
-      title: "3. Votação (Voz do Time)",
+      title: "3. Votação",
       label: "Decisão",
       description: "Cada participante possui 5 votos para distribuir livremente entre ideias ou agrupamentos. A democracia aplicada à estratégia.",
       icon: <Target />
     },
     {
-      title: "4. Matriz ROI (Prioridade)",
+      title: "4. Priorização",
       label: "Estratégia",
       description: "O facilitador posiciona as ideias mais votadas no gráfico de Impacto vs Esforço. Priorizamos o que dá 'Rápido Retorno'.",
       icon: <BarChart3 />
     },
     {
-      title: "5. Ações (Execution)",
+      title: "5. Ações",
       label: "Comprometimento",
       description: "Selecionamos as ideias vencedoras e definimos quem fará o quê. O fim do brainstorming é o começo da execução real.",
       icon: <ListTodo />
@@ -171,7 +188,7 @@ export default function BrainstormingHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);
@@ -191,7 +208,7 @@ export default function BrainstormingHubPage() {
             <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configure os detalhes da sua sessão criativa</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-6 font-sans">
+          <div className="space-y-6 py-6">
             <div className="space-y-2">
               <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Título da Sessão</Label>
               <Input 
@@ -221,12 +238,14 @@ export default function BrainstormingHubPage() {
                {isCreating ? 'Sincronizando...' : 'Iniciar Jornada'}
                <ArrowRightIcon className="h-4 w-4" />
              </Button>
-             <button 
+             <Button
+               type="button"
+               variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
              >
                 Talvez depois
-             </button>
+             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

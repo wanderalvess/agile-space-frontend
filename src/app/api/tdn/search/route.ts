@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
     if (space) cql += ` AND space = "${escapeCql(space)}"`;
 
     if (label) {
-      const labels: string[] = label.split(',').map((l: string) => l.trim()).filter(Boolean).map(escapeCql);
+      // Confluence normaliza labels ao salvar (lowercase, espaço -> hífen);
+      // sem normalizar aqui, um valor digitado com case/espaço diferente do
+      // gravado nunca bate no filtro `label = "..."` e zera a busca.
+      const normalizeLabel = (l: string) => l.trim().toLowerCase().replace(/\s+/g, '-');
+      const labels: string[] = label.split(',').map((l: string) => normalizeLabel(l)).filter(Boolean).map(escapeCql);
       if (labels.length > 1) {
         cql += ` AND label IN (${labels.map((l: string) => `"${l}"`).join(',')})`;
       } else if (labels.length === 1) {

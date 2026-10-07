@@ -3,11 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import type { RetroCard as RetroCardType, RetroParticipant, RetroColumnTheme } from '@/lib/types';
+import type { RetroCard as RetroCardType, RetroParticipant, RetroColumnTheme, RetroReactionType } from '@/lib/types';
+import { RETRO_REACTIONS } from '@/lib/types';
 import {
   Pencil,
   Trash2,
+  Star,
   ThumbsUp,
+  ThumbsDown,
+  Heart,
+  Sparkles,
   UserPlus,
   Calendar,
   GitMerge,
@@ -17,7 +22,8 @@ import {
   Lock,
   ExternalLink,
   CheckCircle2,
-  CornerUpLeft
+  CornerUpLeft,
+  AlertTriangle
 } from 'lucide-react';
 import { AgileCard } from '@/components/shared/EliteCard';
 import { AgileBaseCard } from '@/components/shared/EliteBaseCard';
@@ -32,9 +38,88 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
-import { User } from 'firebase/auth';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+const REACTION_ICONS: Record<RetroReactionType, typeof ThumbsUp> = {
+  up: ThumbsUp,
+  love: Heart,
+  wow: Sparkles,
+  concern: ThumbsDown,
+};
+
+// Cores por reação: positivas ficam neutras até alguém marcar; "preocupa" é a
+// única com leitura sempre em vermelho quando ativa — sinal de atenção do time.
+const REACTION_ACTIVE_CLASSES: Record<RetroReactionType, string> = {
+  up: 'bg-emerald-50 border-emerald-200 text-emerald-600',
+  love: 'bg-pink-50 border-pink-200 text-pink-600',
+  wow: 'bg-slate-100 border-slate-300 text-slate-600',
+  concern: 'bg-red-50 border-red-200 text-red-600',
+};
+
+function RetroCardReactions({
+  card,
+  currentUserId,
+  onToggleReaction,
+}: {
+  card: RetroCardType;
+  currentUserId: string;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+      {RETRO_REACTIONS.map(({ key, label }) => {
+        const userIds = card.reactions?.[key] || [];
+        const isActive = userIds.includes(currentUserId);
+        const Icon = REACTION_ICONS[key];
+        return (
+          <button
+            key={key}
+            type="button"
+            title={label}
+            onClick={() => onToggleReaction(card.id, key, userIds)}
+            className={cn(
+              "flex items-center gap-1 h-6 px-2 rounded-full border text-[10px] font-black transition-all",
+              isActive ? REACTION_ACTIVE_CLASSES[key] : "bg-slate-50 border-slate-200 text-slate-400 hover:border-slate-300"
+            )}
+          >
+            <Icon className="h-3 w-3" />
+            {userIds.length > 0 && userIds.length}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Ideias fundidas viram uma linha do tempo conectada abaixo do texto
+// principal, em vez de um "- texto" concatenado dentro do content.
+// Acima de 3 no total, colapsa em "+N mais" pra não estourar o card.
+function RetroMergedTimeline({ items }: { items: string[] }) {
+  if (!items.length) return null;
+
+  const MAX_VISIBLE = 2;
+  const overflow = items.length > 3;
+  const visible = overflow ? items.slice(0, MAX_VISIBLE) : items;
+  const hiddenCount = overflow ? items.length - MAX_VISIBLE : 0;
+
+  return (
+    <div className="flex flex-col border-l-2 border-slate-200 dark:border-slate-700 ml-1 pl-3 mt-2.5" onClick={(e) => e.stopPropagation()}>
+      {visible.map((text, i) => (
+        <div key={i} className="relative py-1.5">
+          <span className="absolute -left-[18px] top-3 h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+          <p className="text-[12.5px] font-medium leading-relaxed text-slate-500 dark:text-slate-400 break-words whitespace-pre-wrap">{text}</p>
+        </div>
+      ))}
+      {hiddenCount > 0 && (
+        <div className="relative py-1.5">
+          <span className="absolute -left-[18px] top-3 h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">+{hiddenCount} mais</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface RetroCardProps {
   card: RetroCardType;
@@ -44,8 +129,11 @@ interface RetroCardProps {
   onDelete: (cardId: string) => void;
   onUpdate: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
-  currentUser: User;
+  // Antes vinha tipado como `User` do firebase/auth; só o `uid` é lido aqui,
+  // então um shape mínimo evita a dependência de um SDK que não existe mais.
+  currentUser: { uid: string };
   votingStatus: 'disabled' | 'active' | 'finished';
   participants: RetroParticipant[];
   isAuthorsRevealed: boolean;
@@ -63,6 +151,7 @@ export function RetroCard({
   onDelete, 
   onUpdate,
   onToggleVote,
+  onToggleReaction,
   onToggleDone,
   currentUser,
   votingStatus,
@@ -201,6 +290,8 @@ export function RetroCard({
           votes={card.votes}
           onVote={() => onToggleVote(card.id, card.votes)}
           canVote={canVote && showVotes}
+          voteIcon={Star}
+          contentExtra={!isActionPlan ? <RetroMergedTimeline items={card.originalTexts || []} /> : undefined}
           isDragging={isDragging}
           isOver={isOver}
           isMergingSource={mergingSourceId === card.id}
@@ -252,6 +343,16 @@ export function RetroCard({
                  </span>
                )}
 
+               {(card.carryCount || 0) > 1 && (
+                 <span
+                   className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-600 truncate min-w-0"
+                   title={`Reimportada ${card.carryCount}x sem ser concluída — tema recorrente`}
+                 >
+                   <AlertTriangle className="h-3 w-3 shrink-0" />
+                   <span className="truncate">Recorrente ({card.carryCount}x)</span>
+                 </span>
+               )}
+
                {(isAuthor || isCreator) && (
                  <button
                    type="button"
@@ -269,6 +370,10 @@ export function RetroCard({
                  </button>
                )}
              </div>
+           )}
+
+           {showRealContent && !isActionPlan && (
+             <RetroCardReactions card={card} currentUserId={currentUser.uid} onToggleReaction={onToggleReaction} />
            )}
         </AgileCard>
       )}

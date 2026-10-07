@@ -1,4 +1,4 @@
-import { collection, query, getDocs, where, Firestore } from 'firebase/firestore';
+import { knowledgeApi } from '@/app/knowledge/api';
 import { KnowledgeDocument } from '@/lib/knowledge-types';
 import { useKnowledgeStore } from '@/lib/knowledge-store';
 
@@ -35,33 +35,37 @@ function fieldMatchesToken(field: string, token: string): boolean {
   return false;
 }
 
-export const searchKnowledgeBase = async (db: Firestore, searchTerm: string): Promise<KnowledgeDocument[]> => {
+/**
+ * Busca local (client-side) na base de conhecimento, com cache em memória via
+ * Zustand para não bater na API a cada tecla.
+ *
+ * O primeiro parâmetro é um resquício da era Firestore (antes recebia a
+ * instância do `firestore`) e não é mais utilizado — mantido apenas para não
+ * quebrar chamadores que ainda não migraram nesta leva de mudanças. Pode ser
+ * removido quando todos os call sites pararem de passá-lo.
+ */
+export const searchKnowledgeBase = async (_legacyFirestoreArg: unknown, searchTerm: string): Promise<KnowledgeDocument[]> => {
   if (!searchTerm || searchTerm.length < 3) return [];
 
   const state = useKnowledgeStore.getState();
   const CACHE_TTL = 1000 * 60 * 10; // 10 minutos
-  
+
   let allDocs = state.documents;
   const isCacheExpired = !state.lastDocsFetch || (Date.now() - state.lastDocsFetch > CACHE_TTL);
 
   try {
-    // Se o cache estiver vazio ou expirado, busca do Firestore
+    // Se o cache estiver vazio ou expirado, busca da API REST (Spring Boot / PostgreSQL)
     if (allDocs.length === 0 || isCacheExpired) {
-      console.log('🔄 Cache KB vazio ou expirado. Buscando do Firestore...');
-      const kbRef = collection(db, 'knowledge_kb');
-      const querySnapshot = await getDocs(kbRef);
-      const fetchedDocs: KnowledgeDocument[] = [];
-      
-      querySnapshot.forEach((doc) => {
-        fetchedDocs.push({ ...(doc.data() as KnowledgeDocument), id: doc.id });
-      });
-      
+      console.log('🔄 Cache KB vazio ou expirado. Buscando via API...');
+      const response = await knowledgeApi.listDocuments(undefined, undefined, 0, 500);
+      const fetchedDocs = response.content;
+
       state.setDocuments(fetchedDocs);
       allDocs = fetchedDocs;
     } else {
       console.log('⚡ Usando cache local para busca na KB');
     }
-    
+
     const searchLower = normalize(searchTerm);
     const tokens = tokenize(searchTerm);
     // Pergunta só com stopwords/palavras curtas (ex: "e agora?") — cai de
@@ -97,10 +101,10 @@ export const searchKnowledgeBase = async (db: Firestore, searchTerm: string): Pr
       .sort((a, b) => b.score - a.score)
       .slice(0, 5) // Limit to top 5 results
       .map(s => s.doc);
-    
+
   } catch (error) {
     // Propaga o erro em vez de mascará-lo como "sem resultados" — permite que
-    // o chamador distinga falha real (ex: permissão do Firestore) de busca vazia.
+    // o chamador distinga falha real (ex: API fora do ar) de busca vazia.
     console.error('Error searching knowledge base:', error);
     throw error;
   }

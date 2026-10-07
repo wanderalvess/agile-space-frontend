@@ -4,18 +4,23 @@ export const dynamic = 'force-dynamic';
 
 import { useMemo, useEffect, useCallback, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
-import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, TimerState, RetroParticipant, TeamRole, GlobalRole } from '@/lib/types';
+import { useAuth } from '@/context/AuthContext';
+import type { RetroBoard as RetroBoardType, RetroCard as RetroCardType, RetroColumnKey, TimerState, RetroParticipant, TeamRole, GlobalRole, RetroReactionType, HealthCheckAnswer } from '@/lib/types';
 import { RETRO_TEMPLATES } from '@/lib/types';
 import { RetroBoard } from '@/components/retro/RetroBoard';
+import { RetroHealthCheckGate } from '@/components/retro/RetroHealthCheckGate';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
+import type { ChatMessage, ChatMessageKind } from '@/components/poker/team-chat/chatChannels';
+import { participantCategory } from '@/components/poker/team-chat/chatChannels';
+import { chatChannelsFor, mergeChatHistory, toChatParticipant, upsertChatMessage } from '@/components/retro/retro-chat';
 import { useUserContext } from '@/context/UserContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi } from '../api';
+import { getAuthToken } from '@/lib/auth-client';
+import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
 
 export default function RetroRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -23,7 +28,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   
   const router = useRouter();
   const { toast } = useToast();
-  const { auth, user, isUserLoading } = useFirebase();
+  const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   const [boardData, setBoardData] = useState<RetroBoardType | null>(null);
@@ -38,9 +43,14 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const [activeStage, setActiveStage] = useState<RetroColumnKey>('');
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
+  const [chatByChannel, setChatByChannel] = useState<Record<string, ChatMessage[]>>({});
+  const chatChannelsRef = useRef<Set<string>>(new Set());
+  const loadedChatChannelsRef = useRef<Set<string>>(new Set());
 
-  const currentUser = useMemo(() => participants?.find(p => p.id === user?.uid) || null, [participants, user]);
-  const isCurrentUserCreator = useMemo(() => !!(user && boardData && user.uid === boardData.creatorId), [user, boardData]);
+  const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile]);
+  const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
+
+  const [showStats, setShowStats] = useState(false);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
@@ -48,7 +58,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   // Centralized data loading
   const reloadBoardData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated) return;
     try {
       const [board, cardsList, participantsList] = await Promise.all([
         retroApi.getBoard(boardId),
@@ -65,104 +75,140 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       setAreCardsLoading(false);
       setAreParticipantsLoading(false);
     }
-  }, [boardId, user]);
+  }, [boardId, isAuthenticated]);
 
   // Initial load and WebSocket connection
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated) return;
 
     reloadBoardData();
 
     // WebSocket Nativo para refresh em tempo real
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/retro/') + boardId;
-    
-    console.log("Conectando ao WebSocket do Board Retro:", wsUrl);
-    let socket = new WebSocket(wsUrl);
+    const wsBase = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/retro/') + boardId;
+    // Recalcula o token a cada tentativa (não só uma vez no mount): numa sessão
+    // longa o suficiente pra ele expirar, reconexões subsequentes reusariam um
+    // token vencido pra sempre e o WS nunca voltaria sem reload manual.
+    const buildWsUrl = () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || '');
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        switch (data.type) {
-          case 'BOARD_UPDATED':
-            if (data.payload) {
-              setBoardData(data.payload);
-            }
-            break;
+    // `stopped` distingue um close deliberado (cleanup/unmount, inclusive o
+    // duplo-mount do Strict Mode em dev) de um close real do servidor — só
+    // reagenda reconexão no segundo caso, senão cada cleanup viraria um
+    // reconnect fantasma brigando com o efeito que já tomou o lugar dele.
+    let stopped = false;
+    let socket: WebSocket;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 
-          case 'PARTICIPANT_JOINED':
-            if (data.payload) {
-              setParticipants(prev => {
-                const idx = prev.findIndex(p => p.id === data.payload.id);
-                if (idx >= 0) {
-                  const copy = [...prev];
-                  copy[idx] = data.payload;
-                  return copy;
-                }
-                return [...prev, data.payload];
-              });
-            }
-            break;
+    const connect = () => {
+      const wsUrl = buildWsUrl();
+      console.log("Conectando ao WebSocket do Board Retro:", boardId);
+      socket = new WebSocket(wsUrl);
 
-          case 'PARTICIPANT_LEFT':
-            if (data.payload?.userId) {
-              setParticipants(prev => prev.filter(p => p.id !== data.payload.userId));
-            }
-            break;
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          switch (data.type) {
+            case 'BOARD_UPDATED':
+              if (data.payload) {
+                setBoardData(data.payload);
+              }
+              break;
 
-          case 'CARD_SAVED':
-            if (data.payload) {
-              setCards(prev => {
-                const idx = prev.findIndex(c => c.id === data.payload.id);
-                if (idx >= 0) {
-                  const copy = [...prev];
-                  copy[idx] = data.payload;
-                  return copy;
-                }
-                return [...prev, data.payload];
-              });
-            }
-            break;
+            case 'PARTICIPANT_JOINED':
+              if (data.payload) {
+                setParticipants(prev => {
+                  const idx = prev.findIndex(p => p.id === data.payload.id);
+                  if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = data.payload;
+                    return copy;
+                  }
+                  return [...prev, data.payload];
+                });
+              }
+              break;
 
-          case 'CARD_DELETED':
-            if (data.payload?.cardId) {
-              setCards(prev => prev.filter(c => c.id !== data.payload.cardId));
-            }
-            break;
+            case 'PARTICIPANT_LEFT':
+              if (data.payload?.userId) {
+                setParticipants(prev => prev.filter(p => p.id !== data.payload.userId));
+              }
+              break;
 
-          case 'CARDS_IMPORTED':
-            if (Array.isArray(data.payload)) {
-              setCards(prev => {
-                const importedIds = new Set(data.payload.map((c: any) => c.id));
-                const filtered = prev.filter(c => !importedIds.has(c.id));
-                return [...filtered, ...data.payload];
-              });
-            }
-            break;
+            case 'CARD_SAVED':
+              if (data.payload) {
+                setCards(prev => {
+                  const idx = prev.findIndex(c => c.id === data.payload.id);
+                  if (idx >= 0) {
+                    const copy = [...prev];
+                    copy[idx] = data.payload;
+                    return copy;
+                  }
+                  return [...prev, data.payload];
+                });
+              }
+              break;
 
-          case 'REFRESH_BOARD':
-          default:
-            reloadBoardData();
-            break;
+            case 'CARD_DELETED':
+              if (data.payload?.cardId) {
+                setCards(prev => prev.filter(c => c.id !== data.payload.cardId));
+              }
+              break;
+
+            case 'CARDS_IMPORTED':
+              if (Array.isArray(data.payload)) {
+                setCards(prev => {
+                  const importedIds = new Set(data.payload.map((c: any) => c.id));
+                  const filtered = prev.filter(c => !importedIds.has(c.id));
+                  return [...filtered, ...data.payload];
+                });
+              }
+              break;
+
+            case 'CHAT_MESSAGE_SAVED':
+              // Só canais que este usuário enxerga (geral, o da sua função e as suas DMs)
+              if (data.payload?.channelId && chatChannelsRef.current.has(data.payload.channelId)) {
+                const msg: ChatMessage = data.payload;
+                setChatByChannel(prev => upsertChatMessage(prev, msg));
+              }
+              break;
+
+            case 'CHAT_MESSAGE_DELETED':
+              if (data.payload?.messageId && data.payload?.channelId) {
+                const { messageId, channelId } = data.payload;
+                setChatByChannel(prev => ({
+                  ...prev,
+                  [channelId]: (prev[channelId] || []).filter(m => m.id !== messageId),
+                }));
+              }
+              break;
+
+            case 'REFRESH_BOARD':
+            default:
+              reloadBoardData();
+              break;
+          }
+        } catch (err) {
+          console.error("Erro ao processar mensagem do WebSocket do Retro:", err);
+          reloadBoardData();
         }
-      } catch (err) {
-        console.error("Erro ao processar mensagem do WebSocket do Retro:", err);
+      };
+
+      socket.onclose = () => {
+        if (stopped) return;
+        console.warn("Conexão WebSocket fechada. Tentando reconectar...");
         reloadBoardData();
-      }
+        reconnectTimeout = setTimeout(connect, 5000);
+      };
     };
 
-    socket.onclose = () => {
-      console.warn("Conexão WebSocket fechada. Tentando reconectar...");
-      // Reconnect logic
-      setTimeout(() => {
-        reloadBoardData();
-      }, 5000);
-    };
+    connect();
 
     return () => {
+      stopped = true;
+      clearTimeout(reconnectTimeout);
       socket.close();
     };
-  }, [boardId, user, reloadBoardData]);
+  }, [boardId, isAuthenticated, reloadBoardData]);
 
   // Listener para cancelar merge com ESC
   useEffect(() => {
@@ -209,19 +255,19 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     setHasJoined(false);
+    joinAttemptedRef.current = false;
   }, [boardId]);
 
   useEffect(() => {
-    if (!isUserLoading && !userProfile) {
+    // isInitializing (do UserContext) precisa estar false também: isLoading
+    // (useAuth, só sessão/token) resolve antes do UserContext terminar de
+    // montar o userProfile, e nesse intervalo userProfile ainda é null —
+    // sem esperar isInitializing, requestIdentity() dispara à toa e o modal
+    // de perfil fica aberto mesmo com o usuário já logado.
+    if (!isLoading && !isInitializing && !userProfile) {
       requestIdentity();
     }
-  }, [isUserLoading, userProfile, requestIdentity]);
-
-  useEffect(() => {
-    if (!isUserLoading && !user && !userProfile) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [isUserLoading, user, auth, userProfile]);
+  }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   // Mapeamento de Papel Global para Papel de Retro/Health
   const mapGlobalToTeamRole = (role: GlobalRole): TeamRole => {
@@ -229,6 +275,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       case 'Agile Master':
       case 'Scrum Master':
       case 'Scrum Master / Agile Coach':
+      case 'Agile Coach':
         return 'AM';
       case 'Product Owner':
       case 'Product Owner (PO)':
@@ -236,6 +283,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       case 'Tech Lead':
       case 'Arquiteto(a) / Tech Lead':
       case 'People Lead':
+      case 'Tribe Lead':
         return 'PL';
       case 'QA':
       case 'Analista de QA':
@@ -247,43 +295,112 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       case 'Developer':
       case 'Desenvolvedor(a)':
         return 'DEV';
+      case 'SME':
+        return 'SME';
       case 'Stakeholder / Observador':
       default:
         return 'OUTRO';
     }
   };
 
+  // Trava a tentativa de entrada assim que ela dispara — sem isso, o
+  // Strict Mode do React (ligado por padrão no app router) roda este efeito
+  // duas vezes de forma síncrona antes de `currentUser`/`hasJoined`
+  // refletirem a entrada, disparando dois POSTs de participante e dois
+  // re-saves do board (columns incluso) pro mesmo board id.
+  const joinAttemptedRef = useRef(false);
+
+  // Carga inicial do chat: canal geral, o da função e uma DM por colega. Chaveia
+  // pelos ids (não pelo array) para não refazer a carga a cada refetch de participantes.
+  const chatChannelsKey = currentUser ? chatChannelsFor(currentUser, participants).join('|') : '';
+  // Trocar de board zera o que foi carregado do anterior.
+  useEffect(() => {
+    loadedChatChannelsRef.current = new Set();
+    setChatByChannel({});
+  }, [boardId]);
+
+  useEffect(() => {
+    if (!chatChannelsKey) return;
+    const channels = chatChannelsKey.split('|');
+    chatChannelsRef.current = new Set(channels);
+    // Quando alguém entra/sai, só o canal novo precisa ser carregado.
+    channels.filter(c => !loadedChatChannelsRef.current.has(c)).forEach(channelId => {
+      loadedChatChannelsRef.current.add(channelId);
+      retroApi.getChatMessages(boardId, channelId)
+        .then(msgs => setChatByChannel(prev => ({ ...prev, [channelId]: mergeChatHistory(prev[channelId], msgs || []) })))
+        .catch(err => {
+          loadedChatChannelsRef.current.delete(channelId); // tenta de novo na próxima mudança
+          console.error(`Erro ao carregar o canal ${channelId}:`, err);
+        });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId, chatChannelsKey]);
+
+
+  const handleSendChatMessage = useCallback((text: string, kind: ChatMessageKind, channelId: string) => {
+    if (!currentUser) return;
+    retroApi.sendChatMessage(boardId, {
+      id: crypto.randomUUID(),
+      channelId,
+      senderId: currentUser.id,
+      senderName: currentUser.nickname,
+      senderCategory: participantCategory(toChatParticipant(currentUser)),
+      text,
+      kind,
+      ts: new Date().toISOString(),
+    })
+      .then(saved => saved?.channelId && setChatByChannel(prev => upsertChatMessage(prev, saved)))
+      .catch(err => {
+        console.error('Erro ao enviar mensagem:', err);
+        toast({ title: 'Não foi possível enviar a mensagem', variant: 'destructive' });
+      });
+  }, [boardId, currentUser, toast]);
+
+  const handleDeleteChatMessage = useCallback((messageId: string, channelId: string) => {
+    retroApi.deleteChatMessage(boardId, messageId)
+      .then(() => setChatByChannel(prev => ({ ...prev, [channelId]: (prev[channelId] || []).filter(m => m.id !== messageId) })))
+      .catch(err => console.error('Erro ao apagar mensagem:', err));
+  }, [boardId]);
+
   useEffect(() => {
     // Sincronização automática com a identidade global
-    if (user && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined) {
+    if (isAuthenticated && boardData && userProfile && !currentUser && !areParticipantsLoading && !hasJoined && !joinAttemptedRef.current) {
+      joinAttemptedRef.current = true;
       const newParticipant: RetroParticipant = {
-        id: user.uid,
+        id: userProfile.id,
         boardId: boardId,
         nickname: userProfile.name,
         role: mapGlobalToTeamRole(userProfile.role),
         globalRole: userProfile.role,
-        isCreator: user.uid === boardData.creatorId,
+        isCreator: userProfile.id === boardData.creatorId,
       };
 
       retroApi.addOrUpdateParticipant(boardId, newParticipant).then(() => {
+        // Não depende do WS entregar PARTICIPANT_JOINED: logo após criar o quadro
+        // o socket ainda está conectando/reconectando e o evento se perde, deixando
+        // currentUser nulo (tela presa em "Entrando") até um reload manual.
+        setParticipants(prev => prev.some(p => p.id === newParticipant.id)
+          ? prev
+          : [...prev, newParticipant]);
         // Registrar ID no boardData localmente e no servidor se for novo
         const currentParticipantIds = boardData.participantIds || [];
-        if (!currentParticipantIds.includes(user.uid)) {
+        if (!currentParticipantIds.includes(userProfile.id)) {
           retroApi.saveOrUpdateBoard({
             ...boardData,
-            participantIds: [...currentParticipantIds, user.uid]
+            participantIds: [...currentParticipantIds, userProfile.id]
           });
         }
       }).catch(err => {
         console.error("Erro ao registrar participante:", err);
+        joinAttemptedRef.current = false;
       });
     }
-  }, [user, boardData, userProfile, currentUser, areParticipantsLoading, boardId, hasJoined]);
+  }, [isAuthenticated, boardData, userProfile, currentUser, areParticipantsLoading, boardId, hasJoined]);
 
   // 3.1 SINCRONIZAÇÃO DE PERFIL
   const lastSyncedProfileRef = useRef<{ name: string; role: string } | null>(null);
   useEffect(() => {
-    if (!user || !userProfile || !boardId || !currentUser) return;
+    if (!isAuthenticated || !userProfile || !boardId || !currentUser) return;
 
     if (lastSyncedProfileRef.current && lastSyncedProfileRef.current.name === userProfile.name && lastSyncedProfileRef.current.role === userProfile.role) return;
 
@@ -302,7 +419,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     } else {
       lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role };
     }
-  }, [user, userProfile, boardId, currentUser]);
+  }, [isAuthenticated, userProfile, boardId, currentUser]);
 
   useEffect(() => {
     setHasJoined(!!currentUser);
@@ -310,7 +427,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Retrospectiva";
     const sessionName = boardData?.title || boardData?.team;
     
@@ -336,7 +453,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   };
 
   const handleAddCard = useCallback((content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => {
-    if (!user || !boardId) return;
+    if (!isAuthenticated || !userProfile || !boardId) return;
 
     const tempId = `temp-${Date.now()}`;
     const newCard: RetroCardType = {
@@ -344,7 +461,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       boardId,
       columnKey,
       content,
-      authorId: user.uid,
+      authorId: userProfile.id,
       votes: [],
       order: Date.now(),
       assignee,
@@ -358,7 +475,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       boardId,
       columnKey,
       content,
-      authorId: user.uid,
+      authorId: userProfile.id,
       votes: [],
       order: newCard.order,
       assignee: assignee || undefined,
@@ -367,7 +484,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       console.error(err);
       if (cards) setOptimisticCards(cards);
     });
-  }, [user, boardId, cards]);
+  }, [isAuthenticated, userProfile, boardId, cards]);
   
   const handleDeleteCard = useCallback((cardId: string) => {
     if (!boardId) return;
@@ -413,21 +530,76 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }
     retroApi.saveOrUpdateBoard(updates).catch(err => console.error(err));
   }, [boardData]);
-  
+
+  const handleSetMaxVotesPerParticipant = useCallback((max: number) => {
+    if (!boardData) return;
+    retroApi.saveOrUpdateBoard({ ...boardData, maxVotesPerParticipant: max }).catch(err => console.error(err));
+  }, [boardData]);
+
   const handleToggleVote = useCallback((cardId: string, currentVotes: string[]) => {
-    if (!boardId || !user || !cards) return;
+    if (!boardId || !isAuthenticated || !userProfile || !cards) return;
     const current = cards.find(c => c.id === cardId);
     if (!current) return;
 
-    const newVotes = currentVotes.includes(user.uid)
-      ? currentVotes.filter(uid => uid !== user.uid)
-      : [...currentVotes, user.uid];
-      
+    const existingIndex = currentVotes.indexOf(userProfile.id);
+    const isRemoving = existingIndex !== -1;
+
+    if (!isRemoving && boardData?.maxVotesPerParticipant) {
+      const votesUsed = optimisticCards.filter(c => c.votes.includes(userProfile.id)).length;
+      if (votesUsed >= boardData.maxVotesPerParticipant) {
+        toast({
+          title: "Limite de votos atingido",
+          description: `Você já usou seus ${boardData.maxVotesPerParticipant} votos. Remova um voto antes de votar em outro card.`,
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
+    const newVotes = isRemoving
+      ? currentVotes.filter((_, i) => i !== existingIndex)
+      : [...currentVotes, userProfile.id];
+
+    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, votes: newVotes } : c));
     retroApi.saveOrUpdateCard(boardId, {
       ...current,
       votes: newVotes
-    }).catch(err => console.error(err));
-  }, [boardId, user, cards]);
+    }).catch(err => {
+      console.error(err);
+      setOptimisticCards(cards);
+    });
+  }, [boardId, isAuthenticated, userProfile, cards, optimisticCards, boardData, toast]);
+
+  const handleToggleReaction = useCallback((cardId: string, type: RetroReactionType, currentUserIds: string[]) => {
+    if (!boardId || !isAuthenticated || !userProfile || !cards) return;
+    // Base em optimisticCards, não em cards: cards só chega atualizado após o
+    // round-trip do servidor, então duas reações clicadas em sequência rápida
+    // no mesmo card (antes do primeiro POST responder) perderiam uma delas.
+    const current = optimisticCards.find(c => c.id === cardId) || cards.find(c => c.id === cardId);
+    if (!current) return;
+
+    // Reações são mutuamente exclusivas por pessoa: tirar o usuário de todos
+    // os tipos antes de (re)aplicar no clicado, senão dá pra marcar os 4 ao
+    // mesmo tempo no mesmo card.
+    const wasActiveOnThisType = currentUserIds.includes(userProfile.id);
+    const allReactions = current.reactions || {};
+    const newReactions: typeof allReactions = {};
+    for (const key of Object.keys(allReactions) as RetroReactionType[]) {
+      newReactions[key] = (allReactions[key] || []).filter(uid => uid !== userProfile.id);
+    }
+    if (!wasActiveOnThisType) {
+      newReactions[type] = [...(newReactions[type] || []), userProfile.id];
+    }
+
+    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, reactions: newReactions } : c));
+    retroApi.saveOrUpdateCard(boardId, {
+      ...current,
+      reactions: newReactions
+    }).catch(err => {
+      console.error(err);
+      setOptimisticCards(cards);
+    });
+  }, [boardId, isAuthenticated, userProfile, cards, optimisticCards]);
 
   const handleToggleActionDone = useCallback((cardId: string, isDone: boolean) => {
     if (!boardId || !cards) return;
@@ -445,7 +617,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId, cards]);
 
   const handleImportActions = useCallback(async (sourceBoard: RetroBoardType, pendingCards: RetroCardType[]) => {
-    if (!boardId || !user || !boardData || pendingCards.length === 0) return;
+    if (!boardId || !isAuthenticated || !userProfile || !boardData || pendingCards.length === 0) return;
 
     const destColumns = boardData.columns && boardData.columns.length > 0 ? boardData.columns : RETRO_TEMPLATES.classic;
     const destActionColumn = destColumns.find(c => c.theme === 'action');
@@ -467,14 +639,18 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           boardId,
           columnKey: destActionColumn.id,
           content: sourceCard.content,
-          authorId: user.uid,
+          authorId: userProfile.id,
           votes: [],
           order,
           assignee: sourceCard.assignee || undefined,
           dueDate: sourceCard.dueDate || undefined,
           isDone: false,
-          carriedFromBoardId: sourceBoard.id,
-          carriedFromBoardTitle: sourceBoard.title || 'Retro anterior',
+          // Preserva a raiz da cadeia: se o card já veio carregado de uma
+          // retro anterior, não sobrescreve com o board imediato — senão
+          // uma reimportação em série perde a proveniência original a cada hop.
+          carriedFromBoardId: sourceCard.carriedFromBoardId || sourceBoard.id,
+          carriedFromBoardTitle: sourceCard.carriedFromBoardTitle || sourceBoard.title || 'Retro anterior',
+          carryCount: (sourceCard.carryCount || 0) + 1,
         } as RetroCardType;
       });
 
@@ -494,7 +670,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         variant: "destructive"
       });
     }
-  }, [boardId, user, boardData, cards, toast]);
+  }, [boardId, isAuthenticated, userProfile, boardData, cards, toast]);
 
   const handleMergeCards = useCallback(async (sourceId: string, targetId: string) => {
     if (!boardId || !cards || !boardData) return;
@@ -513,8 +689,15 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     
     if (!sourceCard || !targetCard) return;
 
-    const combinedVotes = Array.from(new Set([...targetCard.votes, ...sourceCard.votes]));
-    const newContent = `${targetCard.content}\n\n- ${sourceCard.content}`;
+    const combinedVotes = [...targetCard.votes, ...sourceCard.votes];
+    // Conteúdo do alvo nunca muda — as ideias fundidas entram como histórico
+    // separado (originalTexts) pra renderizar como linha do tempo, em vez de
+    // virar um texto único cheio de "- " concatenado.
+    const combinedOriginalTexts = [
+      ...(targetCard.originalTexts || []),
+      sourceCard.content,
+      ...(sourceCard.originalTexts || []),
+    ];
 
     try {
       setOptimisticCards(prev => {
@@ -522,7 +705,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         return withoutSource.map(c => c.id === targetId ? {
           ...c,
           votes: combinedVotes,
-          content: newContent,
+          originalTexts: combinedOriginalTexts,
           children: []
         } : c);
       });
@@ -531,7 +714,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       await retroApi.saveOrUpdateCard(boardId, {
         ...targetCard,
         votes: combinedVotes,
-        content: newContent
+        originalTexts: combinedOriginalTexts
       });
 
       // Exclui a origem
@@ -659,13 +842,13 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId, boardData, toast]);
 
   const handleClaimCreator = useCallback(() => {
-    if (!boardData || !user || !participants) return;
-    
+    if (!boardData || !isAuthenticated || !userProfile || !participants) return;
+
     retroApi.saveOrUpdateBoard({
       ...boardData,
-      creatorId: user.uid
+      creatorId: userProfile.id
     }).then(async () => {
-      const p = participants.find(part => part.id === user.uid);
+      const p = participants.find(part => part.id === userProfile.id);
       if (p) {
         await retroApi.addOrUpdateParticipant(boardId, { ...p, isCreator: true });
       }
@@ -682,7 +865,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         variant: "destructive"
       });
     });
-  }, [boardData, user, participants, userProfile, toast, boardId]);
+  }, [boardData, isAuthenticated, userProfile, participants, toast, boardId]);
 
   const handleLeaveRoom = () => {
     if (!currentUser) return;
@@ -709,7 +892,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       ...boardData,
       timer: {
         status: 'running',
-        endTime: String(Date.now() + duration * 1000),
+        endTime: Date.now() + duration * 1000,
         initialDuration: duration,
         remainingOnPause: duration,
       }
@@ -738,7 +921,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       timer: {
         ...timer,
         status: 'running',
-        endTime: String(Date.now() + timer.remainingOnPause * 1000),
+        endTime: Date.now() + timer.remainingOnPause * 1000,
       }
     }).catch(err => console.error(err));
   }, [boardData]);
@@ -790,6 +973,29 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }).catch(err => console.error(err));
   }, [boardData]);
 
+  const handleToggleHealthCheck = useCallback((enabled: boolean) => {
+    if (!boardData) return;
+    retroApi.saveOrUpdateBoard({
+      ...boardData,
+      healthCheckEnabled: enabled
+    }).catch(err => console.error(err));
+  }, [boardData]);
+
+  const handleHealthCheckQuestionChange = useCallback((question: string) => {
+    if (!boardData) return;
+    retroApi.saveOrUpdateBoard({
+      ...boardData,
+      healthCheckQuestion: question
+    }).catch(err => console.error(err));
+  }, [boardData]);
+
+  const handleSubmitHealthCheckAnswer = useCallback((answer: HealthCheckAnswer) => {
+    if (!boardId || !currentUser) return;
+    retroApi.addOrUpdateParticipant(boardId, { ...currentUser, healthCheckAnswer: answer }).catch(err => {
+      console.error("Erro ao registrar check-in inicial:", err);
+    });
+  }, [boardId, currentUser]);
+
   const handleToggleColumnSort = useCallback((columnKey: string, isSorted: boolean) => {
     if (!boardData) return;
     const currentSorts = boardData?.columnSorts || {};
@@ -802,7 +1008,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }).catch(err => console.error(err));
   }, [boardData]);
 
-  if (isUserLoading || isInitializing || isBoardLoading || areCardsLoading || areParticipantsLoading || !user || !userProfile) {
+  if (isLoading || isInitializing || isBoardLoading || areCardsLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
     if (!userProfile) {
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar no quadro" />;
     }
@@ -820,15 +1026,23 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     endTime: boardData.timer?.endTime ? Number(boardData.timer.endTime) : null
   };
 
+  const needsHealthCheck = !!boardData.healthCheckEnabled && !currentUser.healthCheckAnswer;
+
   return (
     <>
+      {needsHealthCheck && (
+        <RetroHealthCheckGate
+          question={boardData.healthCheckQuestion}
+          onAnswer={handleSubmitHealthCheckAnswer}
+        />
+      )}
       <RetroBoard
         boardId={boardId}
         boardData={boardData}
         cards={optimisticCards}
         participants={participants || []}
-        currentUserId={user.uid}
-        currentUser={user}
+        currentUserId={userProfile.id}
+        currentUser={{ uid: userProfile.id }}
         currentParticipant={currentUser}
         isCurrentUserCreator={isCurrentUserCreator}
         isAuthorsRevealed={boardData.isAuthorsRevealed === true}
@@ -836,13 +1050,17 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onToggleSyncStage={handleToggleSyncStage}
         onToggleAutoRevealOnTimerEnd={handleToggleAutoRevealOnTimerEnd}
         onToggleAutoSortOnVoteEnd={handleToggleAutoSortOnVoteEnd}
+        onToggleHealthCheck={handleToggleHealthCheck}
+        onHealthCheckQuestionChange={handleHealthCheckQuestionChange}
         onToggleColumnSort={handleToggleColumnSort}
         onAddCard={handleAddCard}
         onDeleteCard={handleDeleteCard}
         onUpdateCard={handleUpdateCard}
         onToggleCardsRevealed={handleToggleCardsRevealed}
         onSetVotingStatus={handleSetVotingStatus}
+        onSetMaxVotesPerParticipant={handleSetMaxVotesPerParticipant}
         onToggleVote={handleToggleVote}
+        onToggleReaction={handleToggleReaction}
         onToggleDone={handleToggleActionDone}
         onImportActions={handleImportActions}
         onDragEnd={handleDragEnd}
@@ -866,12 +1084,22 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           setMergingSourceId(null);
         }}
         onOpenFeedback={handleOpenFeedback}
+        onOpenStats={() => setShowStats(true)}
+        chatMessagesByChannel={chatByChannel}
+        onSendChatMessage={handleSendChatMessage}
+        onDeleteChatMessage={handleDeleteChatMessage}
       />
       <FeedbackWidget 
         toolName={`Retrospectiva: ${boardData?.title || 'Agile'}`} 
         triggerVariant="icon"
         showFloatingButton={true} 
         externalTriggerSignal={feedbackSignal} 
+      />
+      <SprintStatsDialog
+        open={showStats && !needsHealthCheck}
+        onClose={() => setShowStats(false)}
+        squadId={boardData?.team || userProfile?.squadId || ''}
+        sprintId={boardData?.sprintId || undefined}
       />
     </>
   );

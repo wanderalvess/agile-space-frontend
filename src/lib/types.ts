@@ -19,11 +19,13 @@ export type GlobalRole =
   | 'Scrum Master'
   | 'Product Owner'
   | 'Tech Lead'
+  | 'People Lead'
+  | 'Tribe Lead'
+  | 'Agile Coach'
   | 'Developer'
   | 'QA'
   | 'Designer'
   | 'UX'
-  | 'People Lead'
   | 'SME'
   | 'Stakeholder / Observador'
   // Variantes/rótulos em PT usados nos modais de perfil e nos switches de
@@ -42,15 +44,64 @@ export const ROLES: GlobalRole[] = [
   'Scrum Master',
   'Product Owner',
   'Tech Lead',
+  'People Lead',
+  'Tribe Lead',
+  'Agile Coach',
   'Developer',
+  'Desenvolvedor(a)',
   'QA',
+  'Analista de QA',
   'Designer',
   'UX',
-  'People Lead',
-  'SME'
+  'SME',
+  'Stakeholder / Observador'
 ];
 
-export const SQUADS = ['Varejo', 'MISSI', 'Sem Time'];
+/**
+ * Subset de ROLES autodeclarável via join self-service num projeto existente (onboarding)
+ * ou editável livremente como "Cargo" no painel admin. Espelha
+ * JiraProfieldsService.SELF_SERVICE_JOIN_ROLE_NAMES no backend — papel de liderança
+ * (Agile Master, Tech Lead, Tribe Lead, Product Owner, etc) dá governança da squad e só
+ * entra por sync real do Jira ou vínculo manual de admin, nunca autodeclarado.
+ */
+export const CONTRIBUTOR_ROLES: GlobalRole[] = [
+  'Developer', 'Desenvolvedor(a)',
+  'QA', 'Analista de QA',
+  'Designer',
+  'UX',
+  'SME',
+  'Stakeholder / Observador'
+];
+
+/**
+ * Tier de autorização do sistema (User.role no backend) — controla acesso a /api/admin.
+ * Nunca confundir com GlobalRole (cargo de negócio, ex "Tech Lead"): campos e propósitos
+ * diferentes. Ver UserProfile.jobTitle para o cargo de negócio autodeclarado.
+ */
+export type AuthRole = 'ADMIN' | 'LEAD' | 'MEMBER';
+export const AUTH_ROLES: AuthRole[] = ['ADMIN', 'LEAD', 'MEMBER'];
+
+export function normalizeRole(roleInput?: string): GlobalRole {
+  if (!roleInput) return 'Developer';
+  const r = roleInput.trim();
+  
+  const exact = ROLES.find(item => item.toLowerCase() === r.toLowerCase());
+  if (exact) return exact;
+
+  const lower = r.toLowerCase();
+  if (lower === 'admin') return 'Agile Master';
+  if (lower === 'lead' || lower === 'tech lead' || lower.includes('tech lead')) return 'Tech Lead';
+  if (lower === 'user' || lower === 'member' || lower === 'developer' || lower === 'dev') return 'Developer';
+  if (lower.includes('scrum master')) return 'Scrum Master';
+  if (lower.includes('scrum') || lower.includes('agile master')) return 'Agile Master';
+  if (lower.includes('po') || lower.includes('product owner')) return 'Product Owner';
+  if (lower.includes('qa')) return 'QA';
+  if (lower.includes('design')) return 'Designer';
+
+  return 'Developer';
+}
+
+export const SQUADS: string[] = [];
 
 export const PREDEFINED_AVATARS: Record<string, any> = {
   Felix: {
@@ -231,6 +282,9 @@ export interface UserProfile {
   id: string;
   name: string;
   role: GlobalRole;
+  /** Cargo de negócio autodeclarado (ex: "Tech Lead"). Só existe na listagem admin
+   *  (GET /api/users, entidade crua) — auto-serviço, sem efeito de autorização. */
+  jobTitle?: GlobalRole;
   squadId: string;
   team?: string; // Mantido temporariamente para compatibilidade
   isGuest: boolean;
@@ -238,6 +292,7 @@ export interface UserProfile {
   avatarSeed?: string;
   dailyHours?: number; // Carga horária individual
   googleAccessToken?: string; // Cache de sincronização
+  jiraAccountId?: string; // vem de users.jira_account_id (Postgres) — vincula ao assignee/worklog do Jira
 }
 
 export type IssueStatus = 'pending' | 'active' | 'completed';
@@ -255,6 +310,7 @@ export interface Issue {
   rolePoints?: Record<string, string> | null;
   type?: IssueType;
   skipped?: boolean;
+  cancelled?: boolean;
   note?: string | null;
   // Adiado ("park"): devolvido ao fim da fila como pendente para revisitar
   // ainda nesta sessão. Distinto de `skipped` (que finaliza como pulado). É só
@@ -393,6 +449,8 @@ export type Room = {
     // Default off = mantém só o botão "Pular / Adiar" original (skip), sem
     // mudar o comportamento atual dos clientes.
     parkTask?: boolean;
+    // Habilita "Cancelar tarefa" no refinamento (marca a tarefa como descartada/cancelada).
+    cancelTask?: boolean;
   };
 }
 
@@ -446,6 +504,7 @@ export type VotingRound = {
   rolePoints?: Record<string, string> | null;
   timestamp: string;
   skipped?: boolean;
+  cancelled?: boolean;
   note?: string | null;
 }
 
@@ -569,6 +628,8 @@ export type RetroBoard = {
   timer?: TimerState;
   title?: string;
   team?: string;
+  squadId?: string; // Squad.id de verdade — team acima continua só o nome de exibição
+  sprintId?: string;
   createdAt: string;
   participantIds?: string[];
   summary?: any;
@@ -580,7 +641,20 @@ export type RetroBoard = {
   activeColumnKey?: RetroColumnKey; // só relevante quando syncStageEnabled=true
   autoRevealOnTimerEnd?: boolean;
   autoSortOnVoteEnd?: boolean;
+  maxVotesPerParticipant?: number; // 0/undefined = sem limite
+  healthCheckEnabled?: boolean;
+  healthCheckQuestion?: string;
 }
+
+// Reações rápidas no card — independentes do voto de priorização (votes).
+export type RetroReactionType = 'up' | 'love' | 'wow' | 'concern';
+
+export const RETRO_REACTIONS: { key: RetroReactionType; label: string }[] = [
+  { key: 'up', label: 'Concordo' },
+  { key: 'love', label: 'Amei' },
+  { key: 'wow', label: 'Uau' },
+  { key: 'concern', label: 'Preocupa' },
+];
 
 export type RetroCard = {
   id: string;
@@ -589,15 +663,21 @@ export type RetroCard = {
   content: string;
   authorId: string;
   votes: string[]; // Array of user UIDs
+  reactions?: Partial<Record<RetroReactionType, string[]>>; // Array de UIDs por tipo de reação
   order: number;
   assignee?: string;
   dueDate?: string;
   originalTexts?: string[]; // Para histórico de agrupamento
   children?: RetroCard[];
   isDone?: boolean; // status do item de ação (rastreio entre sprints)
-  carriedFromBoardId?: string; // preenchido quando importado de uma retro anterior
-  carriedFromBoardTitle?: string; // denormalizado para exibir badge sem leitura extra
+  carriedFromBoardId?: string; // board raiz da cadeia — preservado a cada reimportação, nunca sobrescrito
+  carriedFromBoardTitle?: string; // título do board raiz, denormalizado para exibir badge sem leitura extra
+  carryCount?: number; // quantas vezes esta ação foi reimportada sem ser concluída (1 = 1ª importação)
 }
+
+// Escala do check-in inicial (mesma "voz" das 5 opções, sem emoji — ícones lucide na UI)
+export const HEALTH_CHECK_ANSWERS = ['exhausted', 'tired', 'neutral', 'good', 'great'] as const;
+export type HealthCheckAnswer = typeof HEALTH_CHECK_ANSWERS[number];
 
 export type RetroParticipant = {
   id: string; // user UID
@@ -606,6 +686,7 @@ export type RetroParticipant = {
   role?: TeamRole;
   isCreator: boolean;
   globalRole?: GlobalRole;
+  healthCheckAnswer?: HealthCheckAnswer;
 };
 
 // --- Team Health Check ---
@@ -772,6 +853,10 @@ export interface GoogleCalendarEvent {
   start: { date?: string; dateTime?: string };
   end: { date?: string; dateTime?: string };
   status: string;
+  htmlLink?: string;
+  hangoutLink?: string;
+  location?: string;
+  attendees?: { email?: string; responseStatus?: string; self?: boolean }[];
 }
 
 // --- Action Plan (5W2H) ---
@@ -781,6 +866,7 @@ export type ActionPlanBoard = {
   creatorId: string;
   title: string;
   team: string;
+  sprintId?: string;
   createdAt: string;
   participantIds?: string[];
   settings?: {
@@ -812,23 +898,26 @@ export type ActionPlanTask = {
 // Quem edita config e dispara sync (manual, v1 e v2) — nunca muda com o
 // papel de leitura, só Tech Lead/Scrum Master do PRÓPRIO squad (ver
 // firestore.rules isSquadLeadership).
-export const SQUAD_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Master'];
+export const SQUAD_ADMIN_ROLES: GlobalRole[] = [
+  'Tech Lead', 'Scrum Master', 'Agile Master', 'Product Owner', 'People Lead', 'Tribe Lead', 'Agile Coach', 'admin'
+];
 
 // v2: quem pode ver dado nominal — backlog por responsável, ranking,
 // capacidade/alocação por pessoa. Mais amplo que SQUAD_ADMIN_ROLES (PO e
 // liderança leem, mas não editam config nem disparam sync). Dev/QA nunca
 // entram aqui — o objetivo explícito é não virar leaderboard visível ao time.
 export const SQUAD_LEADERSHIP_VIEW_ROLES: GlobalRole[] = [
-  'Product Owner', 'Tech Lead', 'Scrum Master', 'People Lead', 'Agile Master'
+  'Product Owner', 'Tech Lead', 'Scrum Master', 'People Lead', 'Agile Master', 'Tribe Lead', 'Agile Coach', 'admin'
 ];
 
 // Gestão de pessoas (roster + capacidade individual) — People Lead é quem
 // pediu essa responsabilidade explicitamente, TL/SM entram também porque já
 // tocam config/sync do squad e não faz sentido travar capacidade sem eles.
-export const SQUAD_PEOPLE_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Master', 'People Lead'];
+export const SQUAD_PEOPLE_ADMIN_ROLES: GlobalRole[] = ['Tech Lead', 'Scrum Master', 'People Lead', 'Agile Master', 'Product Owner', 'Tribe Lead', 'admin'];
 
 export type SquadConfig = {
   squadId: string; // mesmo valor de userProfile.squadId (ex: 'MISSI', 'Varejo')
+  name: string; // nome de exibição do squad (coluna 'name' da entity Squad, obrigatória)
   jiraProjectKey: string;
   syncJql: string; // ex: 'project = MISSI AND sprint in openSprints()'
   // Só usado pelo sync AGENDADO (functions/src/squadSync.ts), que não tem um
@@ -845,12 +934,24 @@ export type SquadConfig = {
   // dono (ver firestore.rules), então o sync não consegue ler o dailyHours
   // pessoal de cada membro pra comparar contra a hora lançada dele.
   defaultDailyCapacityHours?: number;
+  capacityCalculationMethod?: 'STANDARD' | 'JIRA_WORKLOG_AVERAGE' | 'CUSTOM_FORMULA' | string;
+  capacityJql?: string;
+  capacityFormula?: string;
   // Customfield do campo "Sprint" (Greenhopper/Jira Software) — ao contrário
   // dos campos de tempo (nativos, universais), o ID do campo Sprint varia por
   // instância Jira (ex: customfield_10005 no DDWMISSI). Sem isso configurado,
   // capacidade usa o fallback fixo de SPRINT_WORKDAYS_ASSUMED; com isso, usa
   // os dias úteis reais entre início/fim da sprint ativa.
   sprintFieldId?: string;
+  // ID do RapidBoard / Greenhopper Board (número do quadro Scrum no Jira)
+  rapidViewId?: number | string;
+  // Mapeamento issuetype -> fase de workflow, usado pelo Jira Plans (aba
+  // /squad "Plans") pra classificar subtarefa e montar a cascata de atraso
+  // sem depender de heurística de texto. Ordem do array = ordem da fase no
+  // workflow (ex: Codificação -> Code Review -> Teste QA -> Execução TI).
+  // undefined/[] = cai no fallback de heurística por tipo (ver
+  // getDisciplineColorAndLabel em SquadPlansTimeline.tsx).
+  phases?: SquadWorkflowPhase[];
   lastSyncAt?: string;
   lastSyncBy?: string; // uid de quem disparou
   lastSyncStatus?: 'success' | 'error';
@@ -879,6 +980,32 @@ export type SquadConfig = {
   // Denormalizado pra alimentar o seletor de sprint sem query extra —
   // upsertado a cada sync FULL.
   sprintHistory?: SquadSprintHistoryEntry[];
+
+  // --- Card "Próxima cerimônia" (/painel) ---
+  // 'google_calendar' (default/ausente) = cada membro conecta a própria agenda pessoal;
+  // 'manual' = a squad cadastra `ceremonies` uma vez. Nunca as duas juntas — são duas
+  // respostas pra mesma pergunta ("quando é a próxima cerimônia"), não fontes que se somam.
+  ceremonyMode?: 'google_calendar' | 'manual';
+  // Unidade de estimativa definida pela squad; ausente = ainda não configurada.
+  estimationUnit?: 'SP' | 'HOURS' | 'TSHIRT' | 'COUNT';
+  ceremonies?: SquadCeremony[];
+};
+
+// Um dia da semana no formato ISO abreviado em inglês, pra bater 1:1 com
+// Date#getDay() via CEREMONY_DAY_INDEX (ver src/lib/ceremony-schedule.ts) sem
+// depender de locale.
+export type CeremonyDayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+// Uma cerimônia recorrente cadastrada à mão pela squad (SquadConfig.ceremonies,
+// só usado quando ceremonyMode === 'manual'). Recorrência semanal simples —
+// sem exceções/feriados; quem cadastrou reedita se mudar.
+export type SquadCeremony = {
+  id: string;
+  title: string; // ex: "Daily", "Planning"
+  daysOfWeek: CeremonyDayOfWeek[];
+  startTime: string; // "HH:mm", 24h
+  durationMinutes: number;
+  meetLink?: string;
 };
 
 export type SquadSprintHistoryEntry = {
@@ -892,6 +1019,18 @@ export type SquadSprintHistoryEntry = {
   closedAt?: string; // setado quando a troca pra outra sprint foi detectada
 };
 
+// Uma fase do workflow de execução configurada pelo squad (ex: Codificação,
+// Code Review, Teste QA, Execução TI). `issueTypes` guarda o nome EXATO do
+// issuetype no Jira (fields.issuetype.name), normalizado (minúsculo, sem
+// acento) — nunca um trecho de título, que é texto livre e gera falso-
+// positivo. Ordem no array `SquadConfig.phases` = ordem de execução da fase.
+export type SquadWorkflowPhase = {
+  kind: string; // identificador curto e estável (ex: 'DEV', 'REVIEW', 'QA', 'TI')
+  label: string; // rótulo de exibição (ex: 'Code Review')
+  color: string; // classes Tailwind de fundo (ex: 'bg-purple-600 dark:bg-purple-500')
+  issueTypes: string[]; // nomes normalizados de issuetype que caem nesta fase
+};
+
 // Espelho leve de uma issue do Jira dentro do squad. `assigneeId`/`assigneeName`
 // só existem a partir do v2 — por isso a leitura desta collection é restrita a
 // SQUAD_LEADERSHIP_VIEW_ROLES nas rules (Firestore não redige campo por regra;
@@ -902,6 +1041,8 @@ export type SquadSprintHistoryEntry = {
 // (história é só o pai; codificação/code review/teste é que carregam hora).
 export type SquadIssueSnapshot = {
   key: string;
+  jiraKey?: string; // mesmo valor de `key` — nome espelhando a coluna jira_key da entity Postgres
+  title?: string;
   type: string;
   isBug: boolean;
   status: string;
@@ -910,8 +1051,23 @@ export type SquadIssueSnapshot = {
   remainingSec: number; // timeestimate — tempo restante
   loggedSec: number; // timespent — tempo já lançado
   updatedAtJira: string; // campo `updated` do Jira, usado pra calcular staleSinceDays
+  // campo `resolutiondate` do Jira — só muda 1x, quando a issue resolve/
+  // fecha (diferente de updatedAtJira, que muda a qualquer edição). Usado
+  // pelo sinal "concluiu atrasado" do Jira Plans (ver inferSlip).
+  resolutionDate?: string;
   staleSinceDays: number;
   dueDate: string; // campo `duedate` do Jira (YYYY-MM-DD), ou '' se não tem prazo
+  targetStart?: string; // data de início estimada/target (YYYY-MM-DD)
+  targetEnd?: string;   // data de término estimada/target (YYYY-MM-DD)
+  // true = targetStart/targetEnd vieram de campo de data real do Jira; false/
+  // undefined = caiu no fallback (dueDate, ou created/updated) — ver
+  // squadIssueToPlansTask. Sem isso, a cascata de atraso do Plans não sabe
+  // distinguir "prazo real estourado" de "chute em cima de data inventada".
+  datesAreInferred?: boolean;
+  // Posição no array fields.subtasks da issue pai (ordem de rank do Jira) —
+  // desempate de ordem de fase no workflow do Plans quando duas fases têm a
+  // mesma data planejada.
+  orderIndex?: number;
   assigneeId: string; // accountId/key do Jira, ou '' se não atribuída
   assigneeName: string;
   parentKey: string; // campo nativo `parent` do Jira — issue pai (história), ou '' se não tem
@@ -935,6 +1091,7 @@ export type SquadIssueSnapshot = {
 // mais logou hora nela; aqui não tem essa exceção, é sempre leadership-only.
 export type SquadIssueWorklogCache = {
   key: string;
+  jiraKey?: string; // mesmo valor de `key` — nome espelhando a coluna jira_key da entity Postgres
   sprintId: string;
   worklogByAuthor: Record<string, number>; // assigneeId -> horas
   worklogAuthorNames: Record<string, string>; // assigneeId -> displayName
@@ -945,62 +1102,58 @@ export type SquadIssueWorklogCache = {
 // Rollup agregado — sem nome/hora por pessoa, visível a QUALQUER membro do
 // squad (mesma regra desde o v1). Nunca adicionar campo nominal aqui; dado
 // nominal vai em SquadMemberMetric, que tem regra de leitura mais restrita.
+// Espelha 1:1 a entity Postgres SquadMetricsRollup (squad_metrics_rollup) —
+// PK é squadId, tempos em segundos (não horas). Métricas sem coluna fixa
+// (byType/byStatus/datas da sprint) vão dentro de `extraMetrics` (jsonb).
 export type SquadMetricsRollup = {
-  computedAt: string;
-  sourceIssueCount: number;
+  squadId: string;
+  sprintId?: string;
+  sprintName?: string;
   totalIssues: number;
   doneIssues: number;
-  estimatedHours: number; // soma de estimateSec do escopo, em horas
-  loggedHours: number; // soma de loggedSec do escopo, em horas
-  remainingHours: number; // soma de remainingSec do escopo, em horas
-  bugCount: number;
-  bugRatio: number; // bugCount / totalIssues
-  staleCount: number; // statusCategory != done && staleSinceDays > staleThresholdDays
-  staleThresholdDays: number;
+  inProgressIssues: number;
+  bugIssues: number;
+  // statusCategory != done && staleSinceDays > staleThresholdDays (threshold é constante client-side)
+  staleIssues: number;
   // Prazos — dueDate setado e no passado / perto de vencer, só entre issues
   // não concluídas. "Itens parados" (acima) é sobre falta de movimento;
   // isto é sobre vencimento, são coisas diferentes.
-  overdueCount: number;
-  dueSoonCount: number;
-  dueSoonThresholdDays: number;
-  byType: Record<string, number>;
-  // Quadro da sprint sem nome — contagem por status (tipo CFD simplificado).
-  // Único jeito de dar a Dev/QA uma visão de "onde as issues estão" sem
-  // reusar issuesSnapshot (que carrega assigneeName e é leadership-only nas
-  // rules — Firestore não redige campo por regra, então não dá pra expor só
-  // parte do doc pra quem não é liderança).
-  byStatus: Record<string, number>;
-  // Só populado quando SquadConfig.sprintFieldId está configurado — extraído
-  // da sprint ACTIVE encontrada nas issues sincronizadas.
-  activeSprintName?: string;
-  activeSprintStart?: string;
-  activeSprintEnd?: string;
-  sprintWorkdays?: number; // dias úteis reais entre start/end — usado na capacidade em vez do fallback fixo
-  // Doc id desta collection deixou de ser sempre 'current' — agora também
-  // grava um doc por sprintId (squads/{squadId}/metricsRollup/{sprintId}),
-  // que é o que o seletor de sprint lê. 'current' continua sendo escrito
-  // como espelho do que está ativo agora, sem mudança pros leitores antigos.
-  sprintId?: string;
-  state?: 'active' | 'closed'; // marcador AUTORITATIVO — nunca inferido de campo por-issue
-  closedAt?: string;
+  dueSoonIssues: number;
+  overdueIssues: number;
+  estimateTotalSec: number; // soma de estimateSec do escopo
+  remainingTotalSec: number; // soma de remainingSec do escopo
+  loggedTotalSec: number; // soma de loggedSec do escopo
+  workdaysTotal?: number; // dias úteis reais entre start/end da sprint ativa
+  workdaysRemaining?: number;
+  computedAt: string;
+  // Campo de overflow (jsonb) pra métricas extras sem coluna fixa — quadro
+  // por status (CFD simplificado), composição por tipo, datas da sprint.
+  extraMetrics?: {
+    byType?: Record<string, number>;
+    byStatus?: Record<string, number>;
+    activeSprintStart?: string;
+    activeSprintEnd?: string;
+    [key: string]: unknown;
+  };
 };
 
-// Um doc por dia (id = 'YYYY-MM-DD'), gravado/atualizado a cada sync daquele
-// dia — várias syncs no mesmo dia atualizam o MESMO doc (merge), não criam
-// duplicata. `loggedHours`/`doneIssues` aqui são CUMULATIVOS (mesma
-// semântica do rollup principal, é a mesma soma no momento da sync) — pra
-// ver "produtividade DAQUELE dia" a tela calcula o delta entre um dia e o
-// anterior (hoje.loggedHours - ontem.loggedHours), não lê o valor direto.
+// Um doc por dia (id = {squadId}_{date}), gravado/atualizado a cada sync
+// daquele dia — várias syncs no mesmo dia atualizam o MESMO doc (upsert por
+// dbId), não criam duplicata. `loggedSec`/`doneIssues` aqui são CUMULATIVOS
+// (mesma semântica do rollup principal, é a mesma soma no momento da sync) —
+// pra ver "produtividade DAQUELE dia" a tela calcula o delta entre um dia e o
+// anterior (hoje.loggedSec - ontem.loggedSec), não lê o valor direto.
+// Espelha a entity Postgres SquadDailySnapshot (squad_daily_snapshots).
 export type SquadDailySnapshot = {
-  date: string; // YYYY-MM-DD
-  totalIssues: number;
+  squadId: string;
+  snapshotDate: string; // YYYY-MM-DD
   doneIssues: number;
-  loggedHours: number;
-  estimatedHours: number;
-  remainingHours: number;
-  bugCount: number;
-  staleCount: number;
-  computedAt: string;
+  inProgressIssues: number;
+  totalIssues: number;
+  bugIssues: number;
+  staleIssues: number;
+  loggedSec: number;
+  syncedAt?: string;
 };
 
 // v2 — agregado POR PESSOA. Só existe/é populado quando SquadConfig.rankingEnabled
@@ -1015,24 +1168,6 @@ export type SquadMemberMetric = {
   capacityHours: number; // defaultDailyCapacityHours × dias úteis do período sincronizado
   utilizationPct: number; // hoursLogged / capacityHours, 0 se capacidade == 0
   computedAt: string;
-};
-
-// Roster do squad — id do doc é o jiraAccountId (accountId/key do Jira, o
-// mesmo valor de SquadIssueSnapshot.assigneeId). Auto-semeado no sync (toda
-// pessoa vista como assignee ganha uma linha com a capacidade padrão do
-// squad); SQUAD_PEOPLE_ADMIN_ROLES ajusta capacidade individual depois —
-// resolve "cada pessoa tem uma quantidade de horas diferente".
-// `claimedByUid`: auto-claim — o próprio usuário reivindica qual linha do
-// roster é ele (só pode setar pro PRÓPRIO uid, e só se ainda não tiver
-// dono — ver firestore.rules), isso é o que permite a view "minhas issues"
-// (issuesSnapshot lido via isMyClaimedAssignee) sem precisar de mais nenhum
-// dado além do que o sync já traz.
-export type SquadMember = {
-  jiraAccountId: string;
-  displayName: string;
-  capacityHoursPerDay: number;
-  claimedByUid?: string;
-  updatedAt: string;
 };
 
 // --- Painéis customizados (v3) ---
@@ -1077,3 +1212,32 @@ export type SquadPanel = {
   resultRows?: SquadPanelResultRow[];
   resultIssues?: SquadPanelIssueRow[]; // só pra chartType 'table', capado (ver PANEL_TABLE_LIMIT no service)
 };
+
+export interface SquadMember {
+  dbId: string;
+  squadId: string;
+  jiraAccountId: string;
+  displayName: string;
+  email?: string;
+  role?: string;
+  capacityHoursPerDay?: number;
+  systemCalculatedCapacityHoursPerDay?: number;
+  calibrationNotes?: string;
+  overrideType?: 'SYSTEM' | 'MANUAL_OVERRIDE' | 'IMPORTED_EXCEL' | string;
+  claimedByUid?: string;
+  updatedAt?: string;
+}
+
+export interface JiraPlansItem {
+  id: string;
+  jiraKey: string;
+  title: string;
+  status: string;
+  type?: string;
+  assigneeName?: string;
+  assigneeAvatar?: string;
+  targetStart?: string;
+  targetEnd?: string;
+  parentKey?: string;
+  parentTitle?: string;
+}

@@ -107,7 +107,7 @@ export function ExportActionPlanDialog({
       isOpen={isOpen}
       onClose={onClose}
       title="Exportar Plano de Ação"
-      description="Leve seu 5W2H para fora do Espaço Ágil. Escolha o formato ideal para seu time."
+      description="Leve seu 5W2H para fora do Portal Tech V&D. Escolha o formato ideal para seu time."
       markdownContent={markdown}
       onDownloadCSV={handleDownloadCSV}
       theme="primary"

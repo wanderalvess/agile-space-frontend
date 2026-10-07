@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 
 interface TdnImportDialogProps {
@@ -25,7 +25,7 @@ interface TdnImportDialogProps {
 }
 
 export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = [] }: TdnImportDialogProps) {
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
   const { settings, loading: loadingSettings, saveSettings } = useTdnSettings();
 
   const [showConfig, setShowConfig] = useState(false);
@@ -36,7 +36,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
   const [results, setResults] = useState<TdnSearchResult[]>([]);
 
   // Config State
-  const [baseUrl, setBaseUrl] = useState('tdn.totvs.com.br');
+  const [baseUrl, setBaseUrl] = useState('');
   const [token, setToken] = useState('');
   const [space, setSpace] = useState('');
   const [label, setLabel] = useState('');
@@ -45,7 +45,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
   // Load saved settings
   useEffect(() => {
     if (settings && open) {
-      setBaseUrl(settings.baseUrl || 'tdn.totvs.com.br');
+      setBaseUrl(settings.baseUrl || '');
       setToken(settings.token || '');
       setSpace(settings.space || '');
       setLabel(settings.label || '');
@@ -101,18 +101,18 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
   };
 
   const handleImport = async (item: TdnSearchResult) => {
-    if (!firestore || !user) {
+    if (!session) {
       toast.error('Usuário não autenticado.');
       return;
     }
     setImportingId(item.id);
     try {
       const fullContent = await getTdnPageContent(baseUrl, token, item.id);
-      await importTdnToKnowledgeBase(firestore, user.uid, {
+      await importTdnToKnowledgeBase(session.id, {
         id: item.id,
         title: item.title,
         content: fullContent.content || '',
-        space: item.space || space || 'TOTVS',
+        space: item.space || space || 'Wiki',
         link: item.link || `https://${baseUrl}/pages/viewpage.action?pageId=${item.id}`,
         labels: fullContent.labels || item.labels || []
       });
@@ -173,7 +173,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
               </div>
               <div>
                 <DialogTitle className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 leading-none">
-                  Buscar no TDN TOTVS
+                  Buscar na Base de Conhecimento TDN
                 </DialogTitle>
                 <DialogDescription className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed max-w-sm">
                   Importe ou atualize manuais e documentações técnicas do Confluence TDN.
@@ -215,7 +215,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                       <Input
                         value={baseUrl}
                         onChange={(e) => setBaseUrl(e.target.value)}
-                        placeholder="tdn.totvs.com.br"
+                        placeholder="wiki.suaempresa.com.br"
                         className="h-10 rounded-xl text-[11px] font-bold bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
                       />
                     </div>
@@ -226,7 +226,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                         placeholder="Insira o Token do Confluence..."
-                        className="h-10 rounded-xl text-[11px] font-mono bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                        className="h-10 rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
                       />
                     </div>
                   </div>

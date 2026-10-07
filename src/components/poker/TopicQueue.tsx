@@ -7,8 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Kanban, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass } from 'lucide-react';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { Plus, ExternalLink, CheckCircle2, Play, Circle, Import, Trash2, Code, Bug, Palette, Layers, Search, Shield, AlertTriangle, CloudDownload, FileUp, Lightbulb, Info, ChevronDown, RotateCcw, MessageSquare, Copy, ClipboardCopy, Sparkles, ArrowUpDown, Pin, Hourglass, Ban } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -55,8 +54,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
 import { JiraIssue } from '@/services/jiraService';
@@ -71,6 +68,8 @@ interface TopicQueueProps {
   onSelectIssue: (issueId: string, autoSavePoints?: { points: string; devPoints?: string; qaPoints?: string }) => void;
   onDeleteIssue: (id: string) => void;
   onUnskipIssue?: (id: string) => void;
+  onCancelIssue?: (id: string, note?: string) => void;
+  onUncancelIssue?: (id: string) => void;
   onRevoteIssue?: (id: string) => void;
   // História de referência (baseline). Só habilitado quando o facilitador liga
   // o toggle; permite fixar um item já estimado como régua (toggle no próprio
@@ -107,6 +106,8 @@ export function TopicQueue({
   onSelectIssue,
   onDeleteIssue,
   onUnskipIssue,
+  onCancelIssue,
+  onUncancelIssue,
   onRevoteIssue,
   onSetReference,
   referenceIssueId,
@@ -135,11 +136,9 @@ export function TopicQueue({
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
   const [isBulkPreview, setIsBulkPreview] = useState(false);
   const [idToDelete, setIdToDelete] = useState<string | null>(null);
-
-  const [isPlanningImportOpen, setIsPlanningImportOpen] = useState(false);
-  const [plannings, setPlannings] = useState<any[]>([]);
-  const [isLoadingPlannings, setIsLoadingPlannings] = useState(false);
-  const { firestore } = useFirebase();
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [itemToCancel, setItemToCancel] = useState<Issue | null>(null);
+  const [cancelModalNote, setCancelModalNote] = useState('');
 
   // --- Jira Import State (Managed by Dialog) ---
   const [isJiraImportOpen, setIsJiraImportOpen] = useState(false);
@@ -190,44 +189,6 @@ export function TopicQueue({
     onBulkAddIssues(items);
     setIsJiraImportOpen(false);
     toast({ title: 'Importado com sucesso!', description: `${items.length} issues do Jira adicionadas à fila.` });
-  };
-
-  const fetchPlannings = async () => {
-    if (!firestore) return;
-    setIsLoadingPlannings(true);
-    try {
-      const planningsQuery = query(
-        collection(firestore, 'sprint_plannings'),
-        where('isReadyForPoker', '==', true),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      );
-      const snapshot = await getDocs(planningsQuery);
-      setPlannings(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (error) {
-      console.error('Erro ao buscar planejamentos do Sprint Planner:', error);
-      toast({ title: 'Erro ao buscar planejamentos', description: 'Não foi possível carregar os planejamentos do Sprint Planner.', variant: 'destructive' });
-    } finally {
-      setIsLoadingPlannings(false);
-    }
-  };
-
-  const handleImportPlanning = (plan: any) => {
-    const tasks = Array.isArray(plan.tasks) ? plan.tasks : [];
-    if (tasks.length === 0) {
-      toast({ title: 'Planejamento vazio', description: 'Esse planejamento não tem tarefas para importar.', variant: 'destructive' });
-      return;
-    }
-
-    const items = tasks.map((t: any) => ({
-      title: t.name || 'Sem título',
-      jiraLink: t.link || undefined,
-      description: t.description || undefined,
-    }));
-
-    onBulkAddIssues(items);
-    setIsPlanningImportOpen(false);
-    toast({ title: 'Importado com sucesso!', description: `${items.length} tarefas do Sprint Planner adicionadas à fila.` });
   };
 
   // Detecta o tipo da tarefa por palavras-chave (título/chave), para o preview
@@ -470,15 +431,6 @@ export function TopicQueue({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px] p-2 border-indigo-100 dark:border-border/60 shadow-2xl rounded-2xl bg-white/95 dark:bg-card/95 backdrop-blur-xl">
                   <DropdownMenuItem
-                    onClick={() => { setIsPlanningImportOpen(true); fetchPlannings(); }}
-                    className="text-[10px] font-black uppercase tracking-widest gap-3 py-3 rounded-xl focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer transition-colors"
-                  >
-                    <div className="p-1.5 bg-emerald-100 rounded-lg">
-                      <Kanban className="h-3.5 w-3.5 text-emerald-600" />
-                    </div>
-                    Sprint Planner
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
                     onClick={() => setIsJiraImportOpen(true)}
                     className="text-[10px] font-black uppercase tracking-widest gap-3 py-3 rounded-xl focus:bg-indigo-50 focus:text-indigo-600 cursor-pointer transition-colors"
                   >
@@ -537,7 +489,7 @@ export function TopicQueue({
                 <Input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Identificador ou Título"
+                  placeholder="ID ou título"
                   className="h-11 text-[11px] font-bold flex-1 rounded-xl border border-slate-300 dark:border-slate-700/80 focus-visible:ring-indigo-500 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-foreground focus:border-indigo-500 dark:focus:border-indigo-500 transition-all"
                 />
               </div>
@@ -696,7 +648,8 @@ export function TopicQueue({
                     </div>
                     <h3 className={cn(
                       "text-[11px] leading-snug line-clamp-2 break-all font-semibold",
-                      isActive ? "text-slate-900 dark:text-foreground font-bold" : "text-slate-600 dark:text-muted-foreground"
+                      isActive ? "text-slate-900 dark:text-foreground font-bold" : "text-slate-600 dark:text-muted-foreground",
+                      issue.cancelled && "line-through opacity-70"
                     )}>
                       {issue.title}
                     </h3>
@@ -705,7 +658,39 @@ export function TopicQueue({
                   <div className="flex items-center justify-between mt-1">
                     <div className="flex items-center gap-2">
                       {isCompleted ? (
-                        issue.skipped ? (
+                        issue.cancelled ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest bg-rose-50 dark:bg-rose-950/40 px-3 py-1 rounded-full border border-rose-200/50 dark:border-rose-900/30">
+                              <Ban className="h-3 w-3" />
+                              CANCELADA
+                            </div>
+                            {issue.note && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center justify-center h-5 w-5 rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 cursor-help">
+                                      <MessageSquare className="h-3 w-3" />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-xs font-medium bg-slate-900 text-white rounded-xl p-3 border-none shadow-xl">
+                                    <p className="leading-relaxed">{issue.note}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+                            {isFacilitator && onUncancelIssue && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => { e.stopPropagation(); onUncancelIssue(issue.id); }}
+                                className="h-6 w-6 bg-rose-100 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50 rounded-full transition-colors"
+                                title="Reativar Tarefa"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        ) : issue.skipped ? (
                           <div className="flex items-center gap-1.5">
                             <div className="flex items-center gap-1.5 text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest bg-amber-50 dark:bg-amber-950/40 px-3 py-1 rounded-full border border-amber-200/50 dark:border-indigo-900/30">
                               <AlertTriangle className="h-3 w-3" />
@@ -832,6 +817,22 @@ export function TopicQueue({
                           <RotateCcw className="h-3 w-3" />
                         </Button>
                       )}
+                      {!isCompleted && isFacilitator && onCancelIssue && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setItemToCancel(issue);
+                            setCancelModalNote('');
+                            setIsCancelModalOpen(true);
+                          }}
+                          className="h-6 w-6 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-md transition-all"
+                          title="Cancelar no Refinamento"
+                        >
+                          <Ban className="h-3 w-3" />
+                        </Button>
+                      )}
                       {isFacilitator && (
                         <Button
                           variant="ghost"
@@ -893,15 +894,15 @@ export function TopicQueue({
                   value={bulkText}
                   onChange={(e) => setBulkText(e.target.value)}
                   placeholder="EX-101 | Ajustar botões | https://jira.com/101&#10;EX-102 | Refatorar API&#10;Apenas um título sem chave..."
-                  className="min-h-[190px] text-xs font-bold font-mono bg-muted/20 border-primary/10 focus:border-primary/30 rounded-xl transition-all"
+                  className="min-h-[190px] text-xs font-bold font-code bg-muted/20 border-primary/10 focus:border-primary/30 rounded-xl transition-all"
                 />
                 <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-bold px-0.5">
                   <span className="uppercase tracking-widest text-muted-foreground/60">Por linha:</span>
-                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">CHAVE</code>
+                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-code">CHAVE</code>
                   <span className="text-muted-foreground/40">|</span>
-                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono">Título</code>
+                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-code">Título</code>
                   <span className="text-muted-foreground/40">|</span>
-                  <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">Link</code>
+                  <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-code">Link</code>
                   <span className="text-muted-foreground/50 italic normal-case tracking-normal">— chave e link são opcionais</span>
                 </div>
               </div>
@@ -1028,53 +1029,6 @@ export function TopicQueue({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isPlanningImportOpen} onOpenChange={setIsPlanningImportOpen}>
-        <DialogContent className={cn(pokerDialogContent, "sm:max-w-[550px] border-emerald-500/30")}>
-          <DialogHeader>
-            <DialogTitle className={cn(pokerDialogTitleCls, "text-emerald-600")}>
-              <span className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 shrink-0"><Kanban className="h-4 w-4" /></span> Importar do Sprint Planner
-            </DialogTitle>
-            <DialogDescription className={pokerDialogDescCls}>
-              Selecione um planejamento recente (marcado como pronto para Poker) para importar as tarefas automaticamente.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-            {isLoadingPlannings && (
-              <div className="py-8 text-center text-muted-foreground text-xs uppercase tracking-widest flex flex-col items-center gap-4">
-                <EliteSpinner size="md" variant="emerald" />
-                <span className="mt-2 animate-pulse">Buscando planejamentos...</span>
-              </div>
-            )}
-            {!isLoadingPlannings && plannings.length === 0 && (
-              <div className="py-8 px-4 text-center text-muted-foreground text-xs bg-muted/20 rounded-xl border border-dashed flex flex-col items-center gap-2">
-                <Kanban className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                <span>Nenhum planejamento recente pronto para Poker.</span>
-                <span className="opacity-70">Vá no "Sprint Planner e Capacidade", crie seu escopo e clique em "Salvar" ou "Exportar para Poker".</span>
-              </div>
-            )}
-            {!isLoadingPlannings && plannings.length > 0 && plannings.map((plan: any) => (
-              <div key={plan.id} className="flex flex-col gap-2 p-3 border rounded-xl hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all bg-card shadow-sm cursor-default">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm text-foreground">{plan.title || 'Sem Título'}</h4>
-                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-0.5">
-                      {plan.tasks?.length || 0} Tarefas • Criado em {plan.createdAt?.toDate?.() ? new Date(plan.createdAt.toDate()).toLocaleDateString() : 'Data desconhecida'}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleImportPlanning(plan)}
-                    className="h-8 text-[10px] bg-emerald-500 text-white hover:bg-emerald-600 font-black uppercase tracking-widest px-4 shadow-md shadow-emerald-500/20"
-                  >
-                    Importar
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <JiraImportDialog
         open={isJiraImportOpen}
         onClose={() => setIsJiraImportOpen(false)}
@@ -1103,6 +1057,61 @@ export function TopicQueue({
               className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-[10px] uppercase tracking-widest px-6"
             >
               Excluir Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={isCancelModalOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsCancelModalOpen(false);
+          setItemToCancel(null);
+          setCancelModalNote('');
+        }
+      }}>
+        <AlertDialogContent className="rounded-3xl border-rose-500/20 bg-card/95 backdrop-blur-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
+                <Ban className="h-5 w-5" />
+              </div>
+              <div>
+                <AlertDialogTitle className="text-lg font-black uppercase tracking-tight">
+                  Cancelar Tarefa no Refinamento?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-xs text-muted-foreground font-medium mt-0.5">
+                  Esta tarefa será marcada como cancelada na sessão e não será estimada.
+                </AlertDialogDescription>
+              </div>
+            </div>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Motivo do cancelamento (opcional)
+            </Label>
+            <Textarea
+              value={cancelModalNote}
+              onChange={(e) => setCancelModalNote(e.target.value)}
+              placeholder="Ex: Escopo descartado pelo PO, duplicado, impedimento técnico..."
+              className="min-h-[90px] text-xs resize-none"
+            />
+          </div>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold text-[10px] uppercase">
+              Voltar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (itemToCancel && onCancelIssue) {
+                  onCancelIssue(itemToCancel.id, cancelModalNote.trim() || undefined);
+                  setIsCancelModalOpen(false);
+                  setItemToCancel(null);
+                  setCancelModalNote('');
+                }
+              }}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-6"
+            >
+              Confirmar Cancelamento
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1177,18 +1186,18 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
 
   return (
     <Dialog open={!!round} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] border-none shadow-2xl rounded-[2.5rem] overflow-hidden p-0 bg-white/95 backdrop-blur-2xl">
-        <DialogHeader className="p-8 pb-4 bg-slate-50/50">
+      <DialogContent className="sm:max-w-[500px] border-none shadow-2xl rounded-[2.5rem] overflow-hidden p-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl">
+        <DialogHeader className="p-8 pb-4 bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-indigo-100 rounded-xl text-indigo-600">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
               <CheckCircle2 className="h-5 w-5" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400">Tarefa Concluída</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 dark:text-indigo-500">Tarefa Concluída</span>
           </div>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tight italic text-slate-800 leading-tight">
+          <DialogTitle className="text-2xl font-black uppercase tracking-tight italic text-slate-800 dark:text-slate-100 leading-tight">
             {round.topic}
           </DialogTitle>
-          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             Relatório de Estimativa Consolidada
           </DialogDescription>
         </DialogHeader>
@@ -1208,9 +1217,9 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
                   if (!value || value === '0') return null;
 
                   return (
-                    <div key={category} className="bg-slate-100 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-200/50">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">{category}</span>
-                      <span className="text-2xl font-black italic text-slate-700">{value}h</span>
+                    <div key={category} className="bg-slate-100 dark:bg-slate-800 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-200/50 dark:border-slate-700/50">
+                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{category}</span>
+                      <span className="text-2xl font-black italic text-slate-700 dark:text-slate-200">{value}h</span>
                     </div>
                   );
                 })}
@@ -1218,13 +1227,13 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
             )}
             {round.deckType !== 'hours' && (
               <>
-                <div className="bg-slate-50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Menor</span>
-                  <span className="text-xl font-black text-slate-700">{round.stats.min}</span>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Menor</span>
+                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{round.stats.min}</span>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Maior</span>
-                  <span className="text-xl font-black text-slate-700">{round.stats.max}</span>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800">
+                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Maior</span>
+                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{round.stats.max}</span>
                 </div>
               </>
             )}
@@ -1233,21 +1242,21 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
           {/* Votos Individuais */}
           <div className="space-y-4">
             <div className="flex items-center gap-4">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Participação da Squad</span>
-              <div className="h-px flex-1 bg-slate-100"></div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Participação da Squad</span>
+              <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {(round.votes || []).map((vote: any) => {
                 const p = participantMap.get(vote.participantId);
                 return (
-                  <div key={vote.participantId} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all">
+                  <div key={vote.participantId} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all">
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-slate-600 truncate">{p?.nickname || '...'}</span>
-                      <span className="text-[7px] font-black uppercase tracking-tighter text-slate-400">
+                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">{p?.nickname || '...'}</span>
+                      <span className="text-[7px] font-black uppercase tracking-tighter text-slate-400 dark:text-slate-500">
                         {p ? (getParticipantCategory(p) || p.globalRole || p.role) : '...'}
                       </span>
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-black bg-white border-slate-200 text-indigo-600 px-2 py-0.5 rounded-lg shadow-sm">
+                    <Badge variant="outline" className="text-[10px] font-black bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg shadow-sm">
                       {vote.value}
                     </Badge>
                   </div>
@@ -1262,7 +1271,7 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
             <Button
               variant="outline"
               onClick={handleCopyHoursOnly}
-              className="w-full h-12 border-indigo-100 text-indigo-600 hover:bg-indigo-50 font-bold text-[10px] uppercase tracking-widest rounded-2xl transition-all flex items-center gap-2"
+              className="w-full h-12 border-indigo-100 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-bold text-[10px] uppercase tracking-widest rounded-2xl transition-all flex items-center gap-2"
             >
               <ClipboardCopy className="h-4 w-4" />
               Copiar Horas Resumidas

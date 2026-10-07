@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, ChevronRight, ChevronDown, X, Camera, Ban, AlertTriangle, Maximize2, Minimize2, Check, FileText, ExternalLink, Lock, User, UserCheck, Clock3
+  ChevronLeft, ChevronRight, ChevronDown, X, Camera, Ban, AlertTriangle, Maximize2, Minimize2, Check, FileText, ExternalLink, Lock, User, UserCheck, Clock3, TrendingUp, PanelLeftClose, PanelLeftOpen, ZoomIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,16 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
-import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl } from './utils';
+import { ChartRenderer } from './ChartRenderer';
+import { getCategoryColor } from './chartPresets';
+import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls } from './utils';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
+import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
+import { fetchJiraAttachmentBlobUrl } from '@/services/jiraService';
 import type { GlobalRole } from '@/lib/types';
+
+const cleanJiraDomain = (d: string) => d.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
 // Quem pode registrar aceite/ajuste/rejeição — cargo global do perfil
 // (mesmo campo que o Squad Pulse já usa em isSquadLeadershipViewer), não um
@@ -33,6 +39,10 @@ interface TeatroModeProps {
 
 export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish }: TeatroModeProps) {
   const { userProfile } = useUserContext();
+  // Levantado aqui (não dentro de TaskSlide) porque TaskSlide remonta a cada
+  // troca de card (key={task.id}) — buscar de novo a cada slide seria uma
+  // chamada extra por card, sem necessidade.
+  const { settings: jiraSettings } = useJiraSettings();
   const canDecide = !!userProfile && CAN_DECIDE_ROLES.includes(userProfile.role);
   const isCover = currentIndex === -1;
   const task = !isCover ? session.tasks[currentIndex] : null;
@@ -41,7 +51,11 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   const [pendingDecision, setPendingDecision] = useState<Decision>('needs_adjustment');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionTime, setSessionTime] = useState(0);
-  const isLight = session.presentationBackground === '#ffffff';
+  // Colapsar a sidebar dá mais espaço pra evidência (foto/vídeo) na tela —
+  // pedido de quem apresenta, mantém o estado entre slides (não é por card).
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const isLight = isLightBackground(session.presentationBackground);
+
 
   // Timer da Sessão
   useEffect(() => {
@@ -108,9 +122,9 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col font-sans selection:bg-violet-500/30",
+        "fixed inset-0 z-[100] flex flex-col selection:bg-violet-500/30",
         !session.presentationBackground && "bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-slate-900 via-[#050510] to-[#020205]",
-        isLight && "text-slate-900"
+        isLight ? "text-slate-900 bg-white" : "text-white"
       )}
       style={session.presentationBackground ? {
         background: session.presentationBackground.startsWith('http')
@@ -130,8 +144,8 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
             animate={{ y: 0 }}
             exit={{ y: -100 }}
             className={cn(
-              "h-16 flex items-center justify-between px-8 border-b backdrop-blur-xl shrink-0 z-50",
-              isLight ? "bg-white/80 border-slate-200" : "bg-[#0a0a18]/90 border-white/10"
+              "h-16 flex items-center justify-between px-8 border-b backdrop-blur-xl shrink-0 z-50 transition-colors",
+              isLight ? "bg-white/95 border-slate-200 shadow-sm" : "bg-[#0a0a18]/90 border-white/10"
             )}
           >
             <div className="flex items-center gap-5 xl:gap-8 min-w-0">
@@ -141,7 +155,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               <div className="flex items-center gap-2 overflow-x-auto max-w-[220px] xl:max-w-[340px] shrink py-1 scrollbar-hide" role="navigation" aria-label="Progresso da Apresentação">
                 <button
                   onClick={() => onIndexChange(-1)}
-                  className={cn("rounded-full transition-all duration-500 shrink-0", isCover ? 'w-10 h-2 bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.6)]' : cn('w-2 h-2', isLight ? 'bg-slate-200 hover:bg-slate-400' : 'bg-white/10 hover:bg-white/30'))}
+                  className={cn("rounded-full transition-all duration-500 shrink-0", isCover ? 'w-10 h-2 bg-violet-600 shadow-[0_0_15px_rgba(139,92,246,0.6)]' : cn('w-2 h-2', isLight ? 'bg-slate-300 hover:bg-slate-400' : 'bg-white/20 hover:bg-white/40'))}
                 />
                 {session.tasks.map((t, i) => {
                   const isReady = t.preparationStatus === 'done';
@@ -152,7 +166,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                       onClick={() => onIndexChange(i)}
                       className={cn(
                         "relative rounded-full transition-all duration-500 shrink-0",
-                        isActive ? 'w-10 h-2 bg-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.6)]' : cn('w-2 h-2', isLight ? 'bg-slate-200 hover:bg-slate-400' : 'bg-white/10 hover:bg-white/30')
+                        isActive ? 'w-10 h-2 bg-violet-600 shadow-[0_0_15px_rgba(139,92,246,0.6)]' : cn('w-2 h-2', isLight ? 'bg-slate-300 hover:bg-slate-400' : 'bg-white/20 hover:bg-white/40')
                       )}
                       title={`${t.key}: ${t.title} (${isReady ? 'Pronta' : 'Pendente'})`}
                     >
@@ -164,53 +178,69 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 })}
               </div>
 
+              {/* Progress Badge (Sempre visível em qualquer resolução) */}
+              {!isCover && (
+                <div className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-code tabular-nums border shrink-0 transition-colors",
+                  isLight 
+                    ? "bg-slate-100 text-slate-700 border-slate-200" 
+                    : "bg-white/10 text-white/90 border-white/10"
+                )}>
+                  <span>{currentIndex + 1}</span>
+                  <span className="opacity-40">/</span>
+                  <span>{session.tasks.length}</span>
+                </div>
+              )}
+
               {/* Sorting & Session Info */}
-              <div className="hidden md:flex items-center gap-4 shrink-0">
-                {!isCover && (
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Progresso</span>
-                    <span className="text-[11px] font-black text-white font-mono tabular-nums">{currentIndex + 1} de {session.tasks.length}</span>
-                  </div>
-                )}
+              <div className="hidden xl:flex items-center gap-4 shrink-0">
                 {sortBy && (
-                  <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-white/5 border border-white/5 rounded-lg">
-                    <span className="text-[8px] font-black uppercase tracking-widest text-white/60">Ordenação</span>
-                    <span className="text-[9px] font-black uppercase text-violet-400">
+                  <div className={cn("hidden lg:flex items-center gap-2 px-3 py-1 rounded-lg border", isLight ? "bg-slate-100 border-slate-200" : "bg-white/5 border-white/5")}>
+                    <span className={cn("text-[11px] font-bold uppercase tracking-wide", isLight ? "text-slate-500" : "text-white/60")}>Ordenação</span>
+                    <span className={cn("text-[11px] font-bold uppercase", isLight ? "text-violet-600 font-extrabold" : "text-violet-400")}>
                       {sortBy === 'key' ? 'Chave Jira' : sortBy === 'type' ? 'Tipo de Issue' : 'Desenvolvedor'}
                     </span>
                   </div>
                 )}
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">Tempo de Sessão</span>
-                  <span className="text-[11px] font-black text-white font-mono">{formatSessionTime(sessionTime)}</span>
+                  <span className={cn("text-[11px] font-bold uppercase tracking-wide", isLight ? "text-slate-400 font-bold" : "text-white/40")}>Tempo de Sessão</span>
+                  <span className={cn("text-[11px] font-black font-code", isLight ? "text-slate-900" : "text-white")}>{formatSessionTime(sessionTime)}</span>
                 </div>
               </div>
 
-              {/* Navigation Controls */}
+
+              {/* Navigation Controls — texto só a partir de xl; abaixo disso
+                  fica só o ícone pra não sobrepor os botões de decisão à
+                  direita (ambos os grupos têm shrink-0 e não cabem juntos
+                  em telas menores). */}
               <div className="flex items-center gap-2 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => onIndexChange(isCover ? -1 : currentIndex - 1)}
                   disabled={isCover}
+                  aria-label="Card anterior"
+                  title="Card anterior"
                   className={cn(
-                    "h-9 px-4 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 border transition-all",
+                    "h-9 px-2.5 xl:px-4 rounded-lg font-bold uppercase text-[11px] tracking-wide gap-1.5 border transition-all",
                     isLight
                       ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900"
                       : "bg-white/8 text-white/70 border-white/10 hover:bg-white/15 hover:text-white",
                     "disabled:opacity-30 disabled:cursor-not-allowed"
                   )}
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  <ChevronLeft className="h-3.5 w-3.5" /> <span className="hidden xl:inline">Anterior</span>
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => onIndexChange(isCover ? 0 : Math.min(session.tasks.length - 1, currentIndex + 1))}
                   disabled={!isCover && currentIndex === session.tasks.length - 1}
-                  className="h-9 px-5 rounded-lg font-bold uppercase text-[9px] tracking-widest gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
+                  aria-label={isCover ? 'Começar' : 'Próximo card'}
+                  title={isCover ? 'Começar' : 'Próximo card'}
+                  className="h-9 px-2.5 xl:px-5 rounded-lg font-bold uppercase text-[11px] tracking-wide gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
                 >
-                  {isCover ? 'Começar' : 'Próxima'} <ChevronRight className="h-3.5 w-3.5" />
+                  <span className="hidden xl:inline">{isCover ? 'Começar' : 'Próxima'}</span> <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
@@ -219,7 +249,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               {!isCover && task && (
                 <div className="flex items-center gap-2" title={canDecide ? undefined : 'Somente PO ou SME pode registrar decisão.'}>
                   {!canDecide && (
-                    <div className={cn("flex items-center gap-1.5 h-10 px-3 rounded-xl text-[8px] font-black uppercase tracking-widest", isLight ? "bg-slate-100 text-slate-400" : "bg-white/5 text-white/40")}>
+                    <div className={cn("flex items-center gap-1.5 h-10 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wide", isLight ? "bg-slate-100 text-slate-400" : "bg-white/5 text-white/40")}>
                       <Lock className="h-3 w-3" /> Somente PO/SME
                     </div>
                   )}
@@ -248,7 +278,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                           }
                         }}
                         className={cn(
-                          "flex items-center gap-2 h-10 px-4 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all border",
+                          "flex items-center gap-2 h-10 px-4 rounded-xl font-bold uppercase text-[11px] tracking-wide transition-all border",
                           !canDecide && "opacity-30 cursor-not-allowed",
                           isSelected ? `${config[d].c} text-white border-transparent` : cn(isLight ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' : 'bg-white/10 text-white border-white/10 hover:bg-white/20')
                         )}
@@ -261,17 +291,45 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 </div>
               )}
 
-              <div className="h-7 w-px bg-white/25 mx-1" aria-hidden="true" />
+              <div className={cn("h-7 w-px mx-1", isLight ? "bg-slate-200" : "bg-white/20")} aria-hidden="true" />
 
               {currentIndex === session.tasks.length - 1 && (
-                <Button onClick={onFinish} size="sm" className="h-10 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-black uppercase text-[9px] tracking-widest shadow-lg shadow-violet-600/20">Finalizar</Button>
+                <Button onClick={onFinish} size="sm" className="h-10 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase text-[11px] tracking-wide shadow-lg shadow-violet-600/20">Finalizar</Button>
               )}
 
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="h-10 w-10 rounded-xl bg-white/5 text-white hover:bg-white/10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarCollapsed(v => !v)}
+                  title={sidebarCollapsed ? 'Mostrar painel lateral' : 'Recolher painel lateral'}
+                  className={cn(
+                    "h-10 w-10 rounded-xl transition-colors",
+                    isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80" : "bg-white/5 text-white hover:bg-white/10"
+                  )}
+                >
+                  {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleFullscreen}
+                  className={cn(
+                    "h-10 w-10 rounded-xl transition-colors",
+                    isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80" : "bg-white/5 text-white hover:bg-white/10"
+                  )}
+                >
                   {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
-                <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onClose}
+                  className={cn(
+                    "h-10 w-10 rounded-xl transition-colors",
+                    isLight ? "bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-100" : "bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white"
+                  )}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -294,7 +352,15 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               <ShowcaseCover session={session} onStart={() => onIndexChange(0)} onClose={onClose} isLight={isLight} />
             </motion.div>
           ) : task ? (
-            <TaskSlide key={task.id} task={task} session={session} isLight={isLight} />
+            <TaskSlide
+              key={task.id}
+              task={task}
+              nextTask={session.tasks[currentIndex + 1]}
+              session={session}
+              isLight={isLight}
+              jiraSettings={jiraSettings}
+              sidebarCollapsed={sidebarCollapsed}
+            />
           ) : null}
         </AnimatePresence>
       </div>
@@ -328,7 +394,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 >
                   {pendingDecision === 'rejected' ? <Ban className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
                 </motion.div>
-                <h3 id="feedback-title" className={cn("text-3xl font-black uppercase tracking-tighter italic leading-none", isLight ? "text-slate-900" : "text-white")}>
+                <h3 id="feedback-title" className={cn("text-3xl font-black tracking-tight leading-none", isLight ? "text-slate-900" : "text-white")}>
                   {pendingDecision === 'rejected' ? 'Rejeitar Entrega' : 'Solicitar Ajuste'}
                 </h3>
                 <p className={cn("text-[11px] font-black uppercase tracking-[0.3em]", isLight ? "text-slate-400" : "text-white/60")}>
@@ -348,7 +414,18 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 />
               </div>
               <div className="flex gap-6 pt-4">
-                <Button variant="ghost" onClick={() => setShowFeedback(false)} className="flex-1 h-14 rounded-2xl font-black uppercase text-[11px] tracking-widest text-white/70 hover:text-white hover:bg-white/10 border border-white/10">Descartar</Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowFeedback(false)}
+                  className={cn(
+                    "flex-1 h-14 rounded-2xl font-black uppercase text-[11px] tracking-widest border transition-colors",
+                    isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
+                      : "text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                  )}
+                >
+                  Descartar
+                </Button>
                 <Button onClick={() => { onDecision(task!.id, pendingDecision, feedbackText); setShowFeedback(false); }} className={cn("flex-1 h-14 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-2xl", pendingDecision === 'rejected' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700')}>Confirmar Decisão</Button>
               </div>
             </motion.div>
@@ -359,24 +436,90 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   );
 }
 
-function TaskSlide({ task, session, isLight }: { task: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean }) {
+function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarCollapsed }: { task: import('./types').ShowcaseTask, nextTask?: import('./types').ShowcaseTask, session: ShowcaseSession, isLight?: boolean, jiraSettings: JiraSettings | null, sidebarCollapsed?: boolean }) {
   const [imgError, setImgError] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const url = task?.evidence.video || task?.evidence.screenshot;
+  const [imageExpanded, setImageExpanded] = useState(false);
+  // Screenshot e vídeo podem coexistir — cada um pode ser imagem ou vídeo, o
+  // tipo é sempre detectado pelo conteúdo da URL logo abaixo, nunca pelo
+  // campo de origem. evidencePreference só decide qual abre primeiro (padrão
+  // 'video', igual ao comportamento de antes dessa flag existir) — quem
+  // apresenta alterna pra outra logo abaixo, nenhuma fica escondida.
+  const [evidenceIndex, setEvidenceIndex] = useState(0);
+  const evidenceUrls = getEvidenceUrls(task?.evidence || { screenshot: '', video: '' });
+  const safeIndex = Math.min(evidenceIndex, Math.max(evidenceUrls.length - 1, 0));
+  const url = evidenceUrls[safeIndex];
+  const goToEvidence = (i: number) => {
+    if (i < 0 || i >= evidenceUrls.length) return;
+    setEvidenceIndex(i);
+  };
 
-  // Reset error when URL changes
+  // Anexo/thumbnail do próprio Jira (ex.: /secure/attachment/..., /secure/
+  // thumbnail/...) exige sessão — como <img> cross-origin não manda o cookie
+  // do Jira (bloqueado por padrão em requisição de terceiro), a imagem nunca
+  // carrega direto. Detectando que a URL é do mesmo domínio configurado,
+  // busca via proxy autenticado (PAT) abaixo em vez de tentar direto.
+  const isJiraAttachment = !!(jiraSettings?.domain && url && (() => {
+    try { return new URL(url).hostname === cleanJiraDomain(jiraSettings.domain); } catch { return false; }
+  })());
+  const [jiraBlobUrl, setJiraBlobUrl] = useState<string | null>(null);
+  const [jiraBlobFailed, setJiraBlobFailed] = useState(false);
+
+  // Reset error when URL changes (jiraSettings?.domain na dependência cobre
+  // o caso em que a config do Jira ainda não tinha carregado na primeira
+  // tentativa — sem isso, o <img> falhava antes de saber que era pra usar
+  // o proxy, e imgError ficava travado em true mesmo depois de isJiraAttachment
+  // virar true).
   useEffect(() => {
     setImgError(false);
-  }, [url]);
+  }, [url, jiraSettings?.domain]);
+
+  useEffect(() => {
+    setJiraBlobUrl(null);
+    setJiraBlobFailed(false);
+    if (!isJiraAttachment || !jiraSettings || !url) return;
+    let cancelled = false;
+    fetchJiraAttachmentBlobUrl(jiraSettings.domain, jiraSettings.token, url).then(blobUrl => {
+      if (cancelled) return;
+      if (blobUrl) setJiraBlobUrl(blobUrl);
+      else setJiraBlobFailed(true);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, isJiraAttachment, jiraSettings?.domain, jiraSettings?.token]);
+
+  // Revoga o object URL só depois de trocado/desmontado — revogar no mesmo
+  // effect que cria (cleanup roda antes do próximo set) invalidaria a src
+  // que acabou de ser aplicada na tag <img>.
+  useEffect(() => {
+    return () => { if (jiraBlobUrl) URL.revokeObjectURL(jiraBlobUrl); };
+  }, [jiraBlobUrl]);
 
   // Cada task entra com os detalhes recolhidos — reabrir a cada slide seria
   // voltar pra densidade que a gente tava tentando tirar.
   useEffect(() => {
     setShowDetails(false);
+    setImageExpanded(false);
+    setEvidenceIndex(0);
   }, [task?.id]);
 
+  // Pré-carrega o vídeo/embed do próximo card num iframe invisível — é a
+  // maior demora sentida ao apresentar (Loom/Drive/YouTube levam segundos
+  // pra montar o player). Quando o apresentador avança, o iframe real troca
+  // pra essa mesma URL e o navegador já tem boa parte em cache/conexão aberta.
+  const nextUrl = nextTask ? getEvidenceUrls(nextTask.evidence)[0] : undefined;
+  const nextEmbedUrl = nextUrl ? getEmbedUrl(nextUrl) : undefined;
+  const nextIsPreloadableEmbed = !!nextUrl && !!nextEmbedUrl && (nextEmbedUrl !== nextUrl || isPdfUrl(nextUrl) || nextUrl.includes('loom.com'));
+
   const hasEffort = (task?.evidence.timeSpent || 0) > 0 || (task?.evidence.timeEstimate || 0) > 0;
-  const hasVersions = !!(task?.project || task?.versionMaster || task?.versionDevelop || task?.versionRelease);
+  const hasVersions = !!(task?.project || task?.versionSuporte || task?.versionMaster || task?.versionRelease || task?.versionDevelop);
+  const metrics = task?.metrics?.filter(m => m.field.trim()) || [];
+  const isMetricsCard = task?.cardKind === 'metrics';
+  // Card padrão pode pedir pra métrica virar o destaque da tela principal
+  // (mesmo tratamento visual do card 'metrics' puro) em vez do resumo pequeno
+  // de sempre — troca só a tela principal, sidebar (dev/qa/detalhes) continua.
+  const isFeaturedChart = !isMetricsCard && task?.chartDisplay === 'featured' && metrics.length > 0;
+  const showBigMetricsStage = isMetricsCard || isFeaturedChart;
 
   return (
     <motion.main
@@ -387,7 +530,8 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
       className="flex-1 flex overflow-hidden"
     >
       <div className={cn(
-        "w-full md:w-[30%] lg:w-[26%] min-w-[380px] max-w-[560px] border-r flex flex-col shrink-0 z-20 transition-all duration-700",
+        "border-r flex flex-col shrink-0 z-20 transition-all duration-300 overflow-hidden",
+        sidebarCollapsed ? "w-0 min-w-0 border-r-0" : "w-full md:w-[30%] lg:w-[26%] min-w-[380px] max-w-[560px]",
         isLight
           ? "bg-[#fff] border-slate-200 shadow-[40px_0_100px_rgba(0,0,0,0.05)]"
           : cn(
@@ -402,12 +546,12 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }}>
-                    <Badge className="bg-violet-600/90 text-white border-none font-bold text-[10px] px-2.5 py-1 rounded-full shadow-lg shadow-violet-600/20">{task?.key}</Badge>
+                    <Badge className="bg-violet-600/90 text-white border-none font-bold text-[11px] px-2.5 py-1 rounded-full shadow-lg shadow-violet-600/20">{task?.key}</Badge>
                   </motion.div>
                   <span className={cn("text-[11px]", isLight ? "text-slate-400" : "text-white/40")}>{task?.type}</span>
                 </div>
                 {task && (
-                  <Badge className={cn("border-none font-bold text-[10px] px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0", DECISION[task.decision].cls)}>
+                  <Badge className={cn("border-none font-bold text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0", DECISION[task.decision].cls)}>
                     {DECISION[task.decision].icon}
                     {DECISION[task.decision].label}
                   </Badge>
@@ -415,10 +559,32 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               </div>
               <h2 className={cn("text-2xl font-semibold leading-tight tracking-tight", isLight ? "text-slate-900" : "text-white")}>{task?.title}</h2>
               <p className={cn("text-[13px] leading-relaxed", isLight ? "text-slate-500" : "text-white/60")}>
-                {task?.evidence.problem || "Sem problema/motivação descrita."}
+                {isMetricsCard
+                  ? (stripWikiMarkup(task?.description) || "Sem contexto descrito.")
+                  : (stripWikiMarkup(task?.evidence.problem) || "Sem problema/motivação descrita.")}
               </p>
+
+              {/* Resumo de impacto sempre visível — é o número que a squad quer
+                  destacar na hora de apresentar, não deveria ficar atrás de um clique. */}
+              {metrics.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {metrics.map((m, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border",
+                        isLight ? "bg-violet-50 border-violet-100 text-violet-700" : "bg-violet-500/10 border-violet-500/20 text-violet-300"
+                      )}
+                    >
+                      <TrendingUp className="h-3 w-3 opacity-70" />
+                      {m.field}: {m.value.toLocaleString('pt-BR')}
+                    </span>
+                  ))}
+                </div>
+              )}
             </header>
 
+            {!isMetricsCard && (
             <div className={cn("flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[12px] pb-5 border-b", isLight ? "border-slate-100 text-slate-500" : "border-white/5 text-white/50")}>
               <span className="flex items-center gap-1.5"><User className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />{task?.evidence.dev || '—'}</span>
               <span className="flex items-center gap-1.5"><UserCheck className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />{task?.evidence.qa || '—'}</span>
@@ -430,7 +596,9 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                 </span>
               )}
             </div>
+            )}
 
+            {!isMetricsCard && (
             <button
               onClick={() => setShowDetails(v => !v)}
               className={cn("flex items-center gap-1.5 text-[11px] font-semibold transition-colors", isLight ? "text-slate-500 hover:text-slate-900" : "text-white/50 hover:text-white")}
@@ -438,56 +606,79 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
               {showDetails ? 'Ocultar detalhes' : 'Ver detalhes'}
             </button>
+            )}
 
-            {showDetails && (
+            {!isMetricsCard && showDetails && (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
                 <section className="space-y-1.5">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400">A Solução</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-400">A Solução</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
-                    {task?.evidence.solution || "Descrição da solução técnica não disponível."}
+                    {stripWikiMarkup(task?.evidence.solution) || "Descrição da solução técnica não disponível."}
                   </p>
                 </section>
 
                 <section className="space-y-1.5">
-                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-violet-400">Critérios de Aceite</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">Critérios de Aceite</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
-                    {task?.acceptanceCriteria || "Nenhum critério detalhado para esta issue."}
+                    {stripWikiMarkup(task?.acceptanceCriteria) || "Nenhum critério detalhado para esta issue."}
                   </p>
                 </section>
 
                 {hasVersions && task && (
                   <section className="space-y-1.5">
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-cyan-400">Deploy / Versões</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-400">Deploy / Versões</p>
                     <div className={cn("rounded-xl p-3 border space-y-2", isLight ? "bg-slate-50 border-slate-100" : "bg-black/20 border-white/[0.03]")}>
                       {task.project && (
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className={cn("text-[9px] uppercase tracking-wider", isLight ? "text-slate-400" : "text-white/40")}>Projeto</span>
+                          <span className={cn("text-[11px] uppercase tracking-wider", isLight ? "text-slate-400" : "text-white/40")}>Projeto</span>
                           <span className={cn("font-medium truncate max-w-[200px]", isLight ? "text-slate-700" : "text-white")}>{task.project}</span>
                         </div>
                       )}
-                      {(task.versionMaster || task.versionDevelop || task.versionRelease) && (
-                        <div className={cn("grid grid-cols-3 gap-2 border-t border-dashed pt-2", isLight ? "border-slate-200" : "border-white/5")}>
-                          {task.versionMaster && (
+                      {(task.versionSuporte || task.versionMaster || task.versionRelease || task.versionDevelop) && (
+                        <div className={cn("grid grid-cols-4 gap-2 border-t border-dashed pt-2", isLight ? "border-slate-200" : "border-white/5")}>
+                          {task.versionSuporte && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Suporte</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-rose-400")}>{task.versionSuporte}</span>
                             </div>
                           )}
-                          {task.versionDevelop && (
+                          {task.versionMaster && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
                             </div>
                           )}
                           {task.versionRelease && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[7px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
-                              <span className={cn("text-[10px] font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
+                            </div>
+                          )}
+                          {task.versionDevelop && (
+                            <div className="flex flex-col">
+                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
+                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
                             </div>
                           )}
                         </div>
                       )}
                     </div>
+                  </section>
+                )}
+
+                {/* Em destaque o gráfico já vai grande na tela principal —
+                    repetir ele pequeno aqui embaixo seria duplicado. */}
+                {metrics.length > 0 && !isFeaturedChart && (
+                  <section className="space-y-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">{task?.chartTitle || 'Métricas de Impacto'}</p>
+                    <ChartRenderer
+                      type={task?.chartType}
+                      title=""
+                      data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))}
+                      height={140}
+                      defaultColor="hsl(262, 83%, 65%)"
+                      isLight={isLight}
+                    />
                   </section>
                 )}
               </div>
@@ -497,11 +688,16 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
         </ScrollArea>
       </div>
 
-      <div className={cn("flex-1 relative flex flex-col overflow-hidden", isLight ? "bg-slate-50" : "bg-[#050510]")}>
+      <div className={cn(
+        "flex-1 relative flex flex-col overflow-hidden transition-colors",
+        isLight
+          ? (session.presentationBackground ? "bg-white/40" : "bg-slate-50/90")
+          : (session.presentationBackground ? "bg-transparent" : "bg-[#050510]")
+      )}>
         <div className={cn(
           "absolute inset-0 pointer-events-none",
           isLight
-            ? "bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.05),transparent_70%)]"
+            ? "bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.04),transparent_70%)]"
             : "bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.15),transparent_70%)]"
         )} aria-hidden="true" />
 
@@ -509,7 +705,43 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
           <AnimatePresence mode="wait">
             {(() => {
               if (!task) return null;
-              const url = task.evidence.video || task.evidence.screenshot;
+
+              // Card de métricas (sempre) ou card padrão com gráfico em
+              // destaque (opt-in): o gráfico É a evidência principal — mostra
+              // ele grande aqui em vez de procurar screenshot/vídeo.
+              if (showBigMetricsStage) return (
+                <motion.div
+                  key="metrics-chart"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.05 }}
+                  transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+                  className={cn(
+                    "w-full h-full max-w-4xl rounded-[3.5rem] overflow-hidden border p-12 flex flex-col justify-center gap-8",
+                    isLight ? "bg-white border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.06)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+                  )}
+                >
+                  {metrics.length > 0 ? (
+                    <>
+                      {task.chartTitle && (
+                        <p className={cn("text-center text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-violet-600" : "text-violet-400")}>{task.chartTitle}</p>
+                      )}
+                      <div className="flex flex-wrap justify-center gap-4">
+                        {metrics.map((m, i) => (
+                          <div key={i} className="text-center px-6">
+                            <p className={cn("text-4xl font-black tracking-tight", isLight ? "text-violet-700" : "text-violet-300")}>{m.value.toLocaleString('pt-BR')}</p>
+                            <p className={cn("text-[11px] font-bold uppercase tracking-widest mt-1", isLight ? "text-slate-500" : "text-white/40")}>{m.field}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <ChartRenderer type={task.chartType} title="" data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))} height={280} defaultColor="hsl(262, 83%, 65%)" isLight={isLight} bare />
+                    </>
+                  ) : (
+                    <p className={cn("text-center text-sm font-bold uppercase tracking-widest", isLight ? "text-slate-400" : "text-white/20")}>Sem métricas preenchidas ainda</p>
+                  )}
+                </motion.div>
+              );
+
               if (!url) return (
                 <motion.div
                   key="no-evidence"
@@ -520,13 +752,13 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                 >
                   <div className={cn(
                     "w-40 h-40 rounded-[4rem] border flex items-center justify-center mx-auto shadow-2xl animate-pulse",
-                    isLight ? "bg-slate-100 border-slate-200 text-slate-200" : "bg-white/5 border-white/10 text-white/5"
+                    isLight ? "bg-white border-slate-200 text-slate-300 shadow-slate-200/50" : "bg-white/5 border-white/10 text-white/5"
                   )}>
                     <Camera className="h-16 w-16" />
                   </div>
                   <div className="space-y-3">
-                    <p className={cn("text-lg font-black uppercase tracking-[0.4em] italic", isLight ? "text-slate-200" : "text-white/20")}>No Evidence Detected</p>
-                    <p className={cn("text-xs font-bold max-w-xs mx-auto", isLight ? "text-slate-300" : "text-white/10")}>Vincule um link de vídeo ou screenshot para demonstrar esta entrega.</p>
+                    <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/20")}>Sem evidência vinculada</p>
+                    <p className={cn("text-xs font-bold max-w-xs mx-auto", isLight ? "text-slate-500" : "text-white/40")}>Vincule um link de vídeo ou screenshot para demonstrar esta entrega.</p>
                   </div>
                 </motion.div>
               );
@@ -546,16 +778,35 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                     transition={{ duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
                     className={cn(
                       "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border shadow-[0_50px_150px_rgba(0,0,0,0.8)] relative group",
-                      isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-black border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+                      isLight ? "bg-white border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.08)]" : "bg-black border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
                     )}
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     {isPdf && !url.includes('drive.google.com') && (
                       <div className="absolute top-6 right-10 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 pointer-events-none">
                         <FileText className="h-3.5 w-3.5 text-white/70" />
-                        <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">PDF Mode</span>
+                        <span className="text-[11px] font-bold text-white/50 uppercase tracking-wide">PDF Mode</span>
                       </div>
                     )}
+                    {/* Saída pra nova aba sempre visível — vários hosts (Drive
+                        privado, sites com X-Frame-Options) recusam ser
+                        embutidos e o iframe fica em branco sem dar nenhuma
+                        saída pro apresentador. */}
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Abrir evidência em nova aba"
+                      className={cn(
+                        "absolute top-6 left-10 z-20 flex items-center gap-2 px-3 py-1.5 backdrop-blur-md rounded-full border transition-colors",
+                        isLight
+                          ? "bg-slate-900/80 hover:bg-slate-900 text-white border-slate-700 shadow-md"
+                          : "bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full border border-white/10 text-white/70 hover:text-white"
+                      )}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-bold uppercase tracking-wide">Nova Aba</span>
+                    </a>
                     <iframe
                       src={embedUrl}
                       title={`Evidência da Tarefa: ${task.title}`}
@@ -567,7 +818,31 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                 );
               }
 
-              if (isImage && !imgError) {
+
+              // Anexo do próprio Jira que ainda não terminou (ou falhou) de
+              // buscar via proxy autenticado: `jiraBlobFailed` deixa cair pro
+              // fallback final (Link Externo) em vez de tentar a URL crua,
+              // que já se sabe que não carrega sem o proxy.
+              if (isImage && !imgError && !(isJiraAttachment && jiraBlobFailed)) {
+                if (isJiraAttachment && !jiraBlobUrl) {
+                  return (
+                    <motion.div
+                      key={`jira-loading-${url}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center space-y-6"
+                    >
+                      <div className={cn(
+                        "w-40 h-40 rounded-[4rem] border flex items-center justify-center mx-auto animate-pulse",
+                        isLight ? "bg-slate-100 border-slate-200 text-slate-300" : "bg-white/5 border-white/10 text-white/20"
+                      )}>
+                        <Camera className="h-16 w-16" />
+                      </div>
+                      <p className={cn("text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-slate-300" : "text-white/20")}>Carregando evidência do Jira...</p>
+                    </motion.div>
+                  );
+                }
                 return (
                   <motion.div
                     key={`image-${url}`}
@@ -576,17 +851,23 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                     exit={{ opacity: 0, scale: 1.1 }}
                     transition={{ duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
                     className={cn(
-                      "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border flex items-center justify-center group",
+                      "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border flex items-center justify-center group cursor-zoom-in",
                       isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
                     )}
+                    onClick={() => setImageExpanded(true)}
+                    title="Clique para ampliar"
                   >
                     <img
-                      src={getDirectImageUrl(url)}
+                      src={isJiraAttachment ? jiraBlobUrl! : getDirectImageUrl(url)}
                       onError={() => setImgError(true)}
                       alt={`Evidência visual: ${task.title}`}
                       className="max-w-full max-h-full object-contain transition-all duration-1000 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <ZoomIn className="h-3.5 w-3.5" />
+                      <span className="text-[11px] font-bold uppercase tracking-wide">Ampliar</span>
+                    </div>
                   </motion.div>
                 );
               }
@@ -607,14 +888,14 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
                   </div>
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <p className={cn("text-lg font-black uppercase tracking-[0.4em] italic", isLight ? "text-slate-400" : "text-white/60")}>Link Externo</p>
-                      <p className={cn("text-[10px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-mono", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
+                      <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/60")}>Abrir link externo</p>
+                      <p className={cn("text-[11px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-code", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
                     </div>
                     <Button
                       asChild
                       variant="outline"
                       className={cn(
-                        "h-12 px-8 rounded-2xl font-black uppercase text-[10px] tracking-widest border-2 transition-all active:scale-95",
+                        "h-12 px-8 rounded-2xl font-bold uppercase text-[11px] tracking-wide border-2 transition-all active:scale-95",
                         isLight
                           ? "border-slate-200 bg-[#fff] text-slate-600 hover:bg-slate-50 hover:border-slate-300"
                           : "border-white/10 bg-white/5 text-white hover:bg-white/10 hover:border-white/20"
@@ -630,7 +911,78 @@ function TaskSlide({ task, session, isLight }: { task: import('./types').Showcas
             })()}
           </AnimatePresence>
         </div>
+
+        {evidenceUrls.length > 1 && (
+          <div className={cn(
+            "absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1.5 rounded-2xl border backdrop-blur-xl shadow-xl",
+            isLight ? "bg-white/90 border-slate-200" : "bg-white/5 border-white/10"
+          )}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => goToEvidence(safeIndex - 1)}
+              disabled={safeIndex === 0}
+              title="Evidência anterior"
+              className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-slate-500 hover:bg-slate-100" : "text-white/70 hover:bg-white/10")}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className={cn("px-2 text-[11px] font-bold uppercase tracking-wide tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
+              Evidência {safeIndex + 1}/{evidenceUrls.length}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => goToEvidence(safeIndex + 1)}
+              disabled={safeIndex === evidenceUrls.length - 1}
+              title="Próxima evidência"
+              className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-slate-500 hover:bg-slate-100" : "text-white/70 hover:bg-white/10")}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Preload silencioso do próximo vídeo/embed — 1x1, fora da tela, sem
+          som/foco. Só existe pra esquentar a conexão/cache antes do avançar. */}
+      {nextIsPreloadableEmbed && (
+        <iframe
+          key={`preload-${nextEmbedUrl}`}
+          src={nextEmbedUrl}
+          title="Preload da próxima evidência"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="w-px h-px absolute -left-[9999px] -top-[9999px] opacity-0 pointer-events-none border-none"
+        />
+      )}
+
+      <AnimatePresence>
+        {imageExpanded && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-8 cursor-zoom-out"
+            onClick={() => setImageExpanded(false)}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setImageExpanded(false)}
+              className="absolute top-6 right-8 h-10 w-10 rounded-xl bg-white/10 text-white hover:bg-white/20"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            <img
+              src={isJiraAttachment ? jiraBlobUrl! : getDirectImageUrl(url || '')}
+              alt={`Evidência visual ampliada: ${task.title}`}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.main>
   );
 }

@@ -30,23 +30,24 @@ interface PokerSessionPickerProps {
   onClose: () => void;
   onSelect: (room: Room) => void;
   importedIds: string[];
+  squadId: string;
 }
 
-export function PokerSessionPicker({ isOpen, onClose, onSelect, importedIds }: PokerSessionPickerProps) {
+export function PokerSessionPicker({ isOpen, onClose, onSelect, importedIds, squadId }: PokerSessionPickerProps) {
   const [sessions, setSessions] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && squadId) {
       fetchSessions();
     }
-  }, [isOpen]);
+  }, [isOpen, squadId]);
 
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      const allRooms = await pokerApi.listRooms();
+      const allRooms = await pokerApi.listRooms(squadId);
       const finishedRooms = allRooms
         .filter(r => r.sessionEndedAt)
         .sort((a, b) => (b.sessionEndedAt || '').localeCompare(a.sessionEndedAt || ''));

@@ -1,4 +1,5 @@
 import { KanbanCardData, StickyNote } from '@/components/workspace/types';
+import { authFetch } from '@/lib/auth-client';
 
 export interface QuickLink {
   id?: string;
@@ -8,10 +9,21 @@ export interface QuickLink {
   createdAt?: string;
 }
 
+export interface Snippet {
+  id?: string;
+  userId?: string;
+  title: string;
+  content: string;
+  language: string;
+  createdAt?: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+import { req as resilientReq } from '@/lib/http-client';
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -79,5 +91,21 @@ export const workspaceApi = {
 
   async deleteQuickLink(id: string): Promise<void> {
     return req<void>(`/workspace/links/${id}`, { method: 'DELETE' });
+  },
+
+  // --- Snippets ---
+  async getSnippets(userId: string): Promise<Snippet[]> {
+    return req<Snippet[]>(`/workspace/${userId}/snippets`);
+  },
+
+  async saveSnippet(userId: string, snippet: Partial<Snippet>): Promise<Snippet> {
+    return req<Snippet>(`/workspace/${userId}/snippets`, {
+      method: 'POST',
+      body: JSON.stringify(snippet)
+    });
+  },
+
+  async deleteSnippet(id: string): Promise<void> {
+    return req<void>(`/workspace/snippets/${id}`, { method: 'DELETE' });
   }
 };

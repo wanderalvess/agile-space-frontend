@@ -4,8 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useMemo, useEffect, useCallback, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase';
-import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
+import { useAuth } from '@/context/AuthContext';
 import { brainstormingApi } from '../api';
 import type { 
   BrainstormingBoard, 
@@ -18,6 +17,7 @@ import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { MuralPhase } from '@/components/brainstorming/MuralPhase';
 import { DiagramPhase } from '@/components/brainstorming/DiagramPhase';
@@ -35,7 +35,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   
   const router = useRouter();
   const { toast } = useToast();
-  const { auth, user, isUserLoading } = useFirebase();
+  const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, isInitializing } = useUserContext();
 
   const [boardData, setBoardData] = useState<BrainstormingBoard | null>(null);
@@ -52,6 +52,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const [isExporting, setIsExporting] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
   useEffect(() => {
     const storedSoundPref = localStorage.getItem('brainstorming-sound-enabled');
@@ -65,15 +66,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     setIsSoundEnabled(enabled);
   }, []);
 
-  // Initialize Anonymous Auth if needed
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [isUserLoading, user, auth]);
-
   const reloadBoardData = useCallback(async () => {
-    if (!user) return;
+    if (!isAuthenticated) return;
     try {
       const [board, ideasList, groupsList, partsList] = await Promise.all([
         brainstormingApi.getBoard(boardId),
@@ -93,16 +87,17 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
       setAreGroupsLoading(false);
       setAreParticipantsLoading(false);
     }
-  }, [boardId, user]);
+  }, [boardId, isAuthenticated]);
 
   // Conexão WebSocket Nativa e Carga Inicial
   useEffect(() => {
-    if (!user) return;
+    if (!isAuthenticated) return;
 
     reloadBoardData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/brainstorming/') + boardId;
+    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/brainstorming/') + boardId
+      + '?token=' + encodeURIComponent(getAuthToken() || '');
 
     let socket: WebSocket | null = null;
     let isSubscribed = true;
@@ -205,30 +200,30 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
         socket.close();
       }
     };
-  }, [boardId, reloadBoardData, user]);
+  }, [boardId, reloadBoardData, isAuthenticated]);
 
   // Sincroniza informações do participante
   useEffect(() => {
-    if (!user || !boardData || !userProfile || !participants) return;
-    
-    const isAlreadyPart = participants.some(p => p.id === user.uid);
+    if (!isAuthenticated || !boardData || !userProfile || !participants) return;
+
+    const isAlreadyPart = participants.some(p => p.id === userProfile.id);
     if (isAlreadyPart) return;
 
     const newParticipant = {
-      id: user.uid,
+      id: userProfile.id,
       boardId,
       nickname: userProfile.name,
       role: userProfile.role || 'DEV',
-      isCreator: boardData.creatorId === user.uid,
+      isCreator: boardData.creatorId === userProfile.id,
       lastActive: new Date().toISOString()
     };
 
-    brainstormingApi.joinBoard(boardId, newParticipant).catch(e => console.error("Erro ao entrar no mural:", e));
-  }, [user, boardData, userProfile, participants, boardId]);
+    brainstormingApi.joinBoard(boardId, newParticipant as any).catch(e => console.error("Erro ao entrar no mural:", e));
+  }, [isAuthenticated, boardData, userProfile, participants, boardId]);
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Brainstorming";
     const sessionName = boardData?.title || boardData?.team;
     
@@ -241,18 +236,18 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
   // Handlers
   const handleAddIdea = useCallback((content: string) => {
-    if (!user || !boardId) return;
+    if (!isAuthenticated || !userProfile || !boardId) return;
     const newIdea: Partial<BrainstormingIdea> = {
       boardId,
       content,
-      authorId: user.uid,
+      authorId: userProfile.id,
       votes: JSON.parse("[]"),
       position: JSON.parse(JSON.stringify({ x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 })),
       parentId: undefined,
       createdAt: new Date().toISOString()
     };
     brainstormingApi.saveOrUpdateIdea(boardId, newIdea).catch(e => console.error(e));
-  }, [user, boardId]);
+  }, [isAuthenticated, userProfile, boardId]);
 
   const handleDeleteIdea = useCallback((ideaId: string) => {
     if (!boardId) return;
@@ -260,20 +255,21 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   }, [boardId]);
 
   const handleToggleVote = useCallback((ideaId: string) => {
-    if (!boardId || !user || !ideas) return;
+    if (!boardId || !isAuthenticated || !userProfile || !ideas) return;
     const idea = ideas.find(i => i.id === ideaId);
     if (!idea) return;
 
     const currentVotes = Array.isArray(idea.votes) ? (idea.votes as unknown as string[]) : [];
-    const newVotes = currentVotes.includes(user.uid)
-      ? currentVotes.filter(uid => uid !== user.uid)
-      : [...currentVotes, user.uid];
-      
+    const existingIndex = currentVotes.indexOf(userProfile.id);
+    const newVotes = existingIndex !== -1
+      ? currentVotes.filter((_, i) => i !== existingIndex)
+      : [...currentVotes, userProfile.id];
+
     brainstormingApi.saveOrUpdateIdea(boardId, {
       ...idea,
       votes: JSON.parse(JSON.stringify(newVotes))
     }).catch(e => console.error(e));
-  }, [boardId, user, ideas]);
+  }, [boardId, isAuthenticated, userProfile, ideas]);
 
   const handleMergeIdeas = useCallback(async (sourceId: string, targetId: string) => {
     if (!boardId || !ideas) return;
@@ -287,7 +283,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     const currentSourceVotes = Array.isArray(sourceIdea.votes) ? (sourceIdea.votes as unknown as string[]) : [];
 
     const newContent = `${targetIdea.content}\n- ${sourceIdea.content}`;
-    const combinedVotes = Array.from(new Set([...currentTargetVotes, ...currentSourceVotes]));
+    const combinedVotes = [...currentTargetVotes, ...currentSourceVotes];
 
     try {
       await brainstormingApi.saveOrUpdateIdea(boardId, {
@@ -479,7 +475,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     }).catch(e => console.error(e));
   }, [boardData]);
 
-  if (isUserLoading || isInitializing || isBoardLoading || areIdeasLoading || areGroupsLoading || areParticipantsLoading || !user || !userProfile) {
+  if (isLoading || isInitializing || isBoardLoading || areIdeasLoading || areGroupsLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
      if (!userProfile) {
        return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sessão" />;
      }
@@ -494,7 +490,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
         boardData={boardData}
         ideas={ideas || []}
         groups={groups || []}
-        isCreator={boardData.creatorId === user?.uid}
+        isCreator={boardData.creatorId === userProfile?.id}
         onPhaseChange={handlePhaseChange}
         onToggleAnonymous={handleToggleAnonymous}
         onExportImage={() => setIsExporting(true)}
@@ -517,7 +513,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
           {boardData.phase === 'ideation' ? (
             <MuralPhase
               ideas={ideas || []}
-              currentUserId={user?.uid}
+              currentUserId={userProfile?.id}
               onAddIdea={handleAddIdea}
               onDeleteIdea={handleDeleteIdea}
               onUpdateIdea={handleUpdateIdea}
@@ -537,11 +533,11 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
               boardId={boardId}
               isAnonymous={boardData.settings.isAnonymous}
               isRevealed={boardData.settings.isRevealed}
-              isPresentationMode={boardData.settings.isPresentationMode}
-              onConnect={handleConnectIdeas}
-              onDisconnect={handleDisconnectIdea}
-              onMove={handleUpdateIdeaPosition}
-              currentUserId={user?.uid}
+              onVoteIdea={handleToggleVote}
+              onUpdateIdea={handleUpdateIdea}
+              onUpdatePosition={handleUpdateIdeaPosition}
+              onConnectIdeas={handleConnectIdeas}
+              onDisconnectIdea={handleDisconnectIdea}
               isExporting={isExporting}
               onExportComplete={() => setIsExporting(false)}
             />
@@ -552,28 +548,40 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
               onAddGroup={handleAddGroup}
               onDeleteGroup={handleDeleteGroup}
               onMoveIdeaToGroup={handleMoveIdeaToGroup}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
+              isAnonymous={boardData.settings.isAnonymous}
+              onVoteIdea={handleToggleVote}
             />
           ) : boardData.phase === 'prioritization' ? (
             <PrioritizationPhase
               ideas={ideas || []}
+              groups={groups || []}
               onUpdateQualifiers={handleUpdateIdeaQualifiers}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
+              isAnonymous={boardData.settings.isAnonymous}
             />
           ) : (
             <ActionsPhase
               ideas={ideas || []}
-              boardId={boardId}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
+              groups={groups || []}
+              boardData={boardData}
+              onUpdateIdea={handleUpdateIdea}
+              onMoveIdea={handleMoveIdeaToGroup}
             />
           )}
         </main>
 
-        <EliteSidebar isOpen={isParticipantsOpen} onClose={() => setIsParticipantsOpen(false)} title="PARTICIPANTES">
-          <EliteParticipantList participants={participants || []} />
+        <EliteSidebar
+          isOpen={isParticipantsOpen}
+          onClose={() => setIsParticipantsOpen(false)}
+          title="PARTICIPANTES"
+          participantsCount={participants?.length || 0}
+          onCopyLink={() => {}}
+        >
+          <EliteParticipantList
+            participants={participants || []}
+            currentUserId={userProfile?.id || ''}
+            isFacilitator={boardData.creatorId === userProfile?.id}
+            onRemoveParticipant={() => {}}
+          />
         </EliteSidebar>
       </div>
 

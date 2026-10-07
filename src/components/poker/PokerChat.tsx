@@ -3,46 +3,49 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  MessageSquare,
   Sparkles,
   Send,
-  BrainCircuit,
   BookOpen,
-  AlertCircle,
   X,
-  Search,
   Loader2,
   ChevronRight,
   Database,
-  Target,
   Globe,
   Download,
-  CheckCircle,
-  FileText
+  FileText,
+  Copy,
+  Check
 } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import { collection, query, limit, getDocs, orderBy, where, doc, getDoc } from 'firebase/firestore';
-import { useTdnSettings } from '@/hooks/useTdnSettings';
-import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
-import { useToast } from '@/hooks/use-toast';
-import { searchKnowledgeBase } from '@/services/oracleService';
-import { KnowledgeDocument } from '@/lib/knowledge-types';
-import { useFirebase } from '@/firebase';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { useTdnSettings } from '@/hooks/useTdnSettings';
+import { searchTdn, TdnSearchResult, getTdnPageContent, importTdnToKnowledgeBase } from '@/services/tdnService';
+import { knowledgeApi } from '@/app/knowledge/api';
+import { analyzeDocument, TechnicalExtraction } from '@/lib/tech-extractor';
+import { KnowledgeDocument } from '@/lib/knowledge-types';
+
+interface ExtractedDoc extends KnowledgeDocument {
+  tech?: TechnicalExtraction;
+}
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  docs?: KnowledgeDocument[];
+  docs?: ExtractedDoc[];
   tdnResults?: TdnSearchResult[];
+  extractedEndpoints?: string[];
+  extractedTables?: string[];
 }
 
 interface PokerChatProps {
@@ -53,32 +56,15 @@ interface PokerChatProps {
   activeIssue?: any;
 }
 
-export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }: PokerChatProps) {
-  const { firestore, user } = useFirebase();
+export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerChatProps) {
+  const { session } = useAuth();
   const { settings: tdnSettings } = useTdnSettings();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isImporting, setIsImporting] = useState<string | null>(null);
   const [useContext, setUseContext] = useState(true);
-  const [userApiKey, setUserApiKey] = useState<string | null>(null);
+  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const { toast } = useToast();
-
-  // Carregar chave do motor
-  useEffect(() => {
-    async function loadKey() {
-      if (!firestore || !user) return;
-      try {
-        const configDoc = await getDoc(doc(firestore, 'knowledge_user_configs', user.uid, 'ai', 'settings'));
-        if (configDoc.exists()) {
-          const data = configDoc.data();
-          setUserApiKey(data.geminiKey || data.apiKey || null);
-        }
-      } catch (e) {
-        console.warn("Failed to load Key in PokerChat:", e);
-      }
-    }
-    loadKey();
-  }, [firestore, user]);
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -87,8 +73,8 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
           id: 'welcome',
           role: 'assistant',
           content: activeIssue
-            ? `Olá! Estou lendo os detalhes da tarefa **${activeIssue.title}**. Como posso ajudar na estimativa técnica deste item?`
-            : 'Olá! Sou a Base de Conhecimento. Posso buscar informações na sua documentação técnica para ajudar na estimativa. O que você gostaria de saber?',
+            ? `Olá! Estou analisando a documentação para a tarefa **${activeIssue.title}**. O que você deseja consultar (ex: API de pedido, tabela, serviço)?`
+            : 'Olá! Sou o Assistente Técnico da Base de Conhecimento. Digite sua dúvida (ex: "api de pedido", "winthor-faturamento", "tabela PCPEDC") para buscar instantaneamente.',
           timestamp: Date.now()
         }
       ]);
@@ -97,7 +83,6 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [availableDocs, setAvailableDocs] = useState<KnowledgeDocument[]>([]);
 
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
@@ -111,26 +96,15 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
     scrollToBottom();
   }, [messages, isLoading, isOpen]);
 
-  // Fetch some available docs for suggestions or fallback
-  useEffect(() => {
-    const fetchDocs = async () => {
-      if (!firestore) return;
-      try {
-        const q = query(
-          collection(firestore, 'knowledge_kb'),
-          where('status', '==', 'published'),
-          orderBy('updatedAt', 'desc'),
-          limit(5)
-        );
-        const snapshot = await getDocs(q);
-        const docs = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as KnowledgeDocument));
-        setAvailableDocs(docs);
-      } catch (e) {
-        console.error('Error fetching available docs:', e);
-      }
-    };
-    fetchDocs();
-  }, [firestore]);
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedEndpoint(text);
+    toast({
+      title: 'Copiado!',
+      description: `${label} copiado para a área de transferência.`,
+    });
+    setTimeout(() => setCopiedEndpoint(null), 2000);
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -144,82 +118,97 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
 
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
+    const userQuery = input.trim();
     setInput('');
     setIsLoading(true);
 
-    // Com "Analisar Issue em Votação" ligado, soma título/descrição da issue
-    // à pergunta digitada — sem isso, a busca (local e TDN) só via o texto
-    // literal do chat e ignorava de qual tarefa o usuário estava falando.
-    const searchQuery = (useContext && activeIssue)
-      ? [input, activeIssue.title, activeIssue.description].filter(Boolean).join(' ')
-      : input;
+    // Extrai palavras-chave significativas removendo stopwords em português
+    const STOP_WORDS = new Set([
+      'qual', 'quais', 'como', 'onde', 'quando', 'porque', 'por', 'que', 'de', 'do', 'da', 'dos', 'das',
+      'um', 'uma', 'uns', 'umas', 'em', 'no', 'na', 'nos', 'nas', 'para', 'pra', 'com', 'sem', 'este',
+      'esta', 'esse', 'essa', 'aquele', 'aquela', 'tem', 'temos', 'e', 'ou', 'a', 'o', 'as', 'os'
+    ]);
+    const cleanKeywords = userQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .map(w => w.replace(/[^a-zA-Z0-9\-_]/g, ''))
+      .filter(w => w.length > 1 && !STOP_WORDS.has(w))
+      .join(' ');
+
+    const searchQuery = cleanKeywords || userQuery;
 
     try {
-      // 1. Search Local Knowledge Base
-      const localResults = await searchKnowledgeBase(firestore!, searchQuery);
+      // 1. Busca semântica local (embedding via transformers.js, sem LLM) na Base de Conhecimento.
+      // Usa userQuery bruto, não searchQuery sem stopwords — stopword-stripping ajuda
+      // LIKE/CQL, atrapalha um modelo de embedding, que quer frase natural completa.
+      const loadRecentDocsFallback = async (): Promise<ExtractedDoc[]> => {
+        const allKbResponse = await knowledgeApi.listDocuments('', [], 0, 20);
+        return (allKbResponse?.content || []).map(doc => ({
+          ...doc,
+          tech: analyzeDocument(doc.content, doc.title, userQuery)
+        }));
+      };
 
-      // 2. Search TDN (External)
+      let localResults: ExtractedDoc[] = [];
+      try {
+        const kbResponse = await knowledgeApi.semanticSearch(userQuery, 10);
+        if (kbResponse?.content && kbResponse.content.length > 0) {
+          localResults = kbResponse.content.map(doc => ({
+            ...doc,
+            tech: analyzeDocument(doc.content, doc.title, userQuery)
+          }));
+        } else {
+          // Nada acima do threshold de similaridade: carrega a base recente para o RAG analisar
+          localResults = await loadRecentDocsFallback();
+        }
+      } catch (e) {
+        // Busca semântica fora do ar (rota fria, backend indisponível etc.) — cai pro
+        // mesmo fallback de "docs recentes" do caminho vazio, não deixa localResults vazio à toa.
+        console.error('Erro ao consultar Base de Conhecimento (busca semântica):', e);
+        try {
+          localResults = await loadRecentDocsFallback();
+        } catch (fallbackError) {
+          console.error('Erro ao consultar Base de Conhecimento (fallback):', fallbackError);
+        }
+      }
+
+      // 2. Busca no TDN se configurado
       let tdnResults: TdnSearchResult[] = [];
       if (tdnSettings?.baseUrl && tdnSettings?.token) {
         try {
           tdnResults = await searchTdn(tdnSettings.baseUrl, tdnSettings.token, searchQuery, tdnSettings.space, tdnSettings.label);
         } catch (e) {
-          console.error('Error searching TDN:', e);
+          console.error('Erro ao buscar no TDN:', e);
         }
       }
 
-      // 3. AI Generation (if API Key is available)
-      let assistantContent = '';
-      if (userApiKey) {
-        // Build System Prompt with Context
-        let systemPrompt = "Você é um assistente técnico do Espaço Ágil, ajudando na estimativa de tarefas.";
-        if (useContext && activeIssue) {
-          systemPrompt += `\n\nCONTEXTO DA TAREFA ATUAL:\nTítulo: ${activeIssue.title}\nDescrição: ${activeIssue.description || 'Sem descrição'}\n\nPor favor, considere estas informações ao responder.`;
-        }
+      // 3. Compilação de Resultados Técnicos Extrativos
+      const allEndpoints = Array.from(new Set(localResults.flatMap(d => d.tech?.endpoints || [])));
+      const allTables = Array.from(new Set(localResults.flatMap(d => d.tech?.tables || [])));
 
-        if (localResults.length > 0) {
-          systemPrompt += `\n\nDOCUMENTAÇÃO ENCONTRADA NA WIKI:\n${localResults.map(d => `- ${d.title}: ${d.content}`).join('\n')}`;
+      // 4. Resposta determinística (sem IA) a partir dos resultados da Base de Conhecimento/TDN.
+      let responseText = '';
+      if (localResults.length > 0) {
+        const topDoc = localResults[0];
+        responseText = `Encontrei **${localResults.length} documento(s)** relevante(s) na Base de Conhecimento interna.`;
+        if (topDoc.tech?.bestSnippet) {
+          responseText += `\n\n📌 **Trecho em Destaque (${topDoc.title}):**\n> "${topDoc.tech.bestSnippet}"`;
         }
-
-        try {
-          const response = await fetch('/api/ai/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              messages: [
-                { role: 'assistant', content: systemPrompt },
-                ...newMessages.map(m => ({ role: m.role, content: m.content }))
-              ],
-              apiKey: userApiKey,
-              userId: user?.uid
-            })
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            assistantContent = String(data.content || data.text || '');
-          }
-        } catch (aiErr) {
-          console.error('AI Chat error in Poker:', aiErr);
-        }
-      }
-
-      // Fallback or Addition if AI failed or not available
-      if (!assistantContent) {
-        if (localResults.length > 0 || tdnResults.length > 0) {
-          assistantContent = `Encontrei resultados para sua dúvida na Base local e no TDN:`;
-        } else {
-          assistantContent = 'Não encontrei nenhum documento específico. Aqui estão alguns tópicos da Base de Conhecimento que podem ajudar:';
-        }
+      } else if (tdnResults.length > 0) {
+        responseText = `Encontrei **${tdnResults.length} página(s)** correspondente(s) no TDN (Confluence):`;
+      } else {
+        responseText = `Não encontrei nenhum documento exato para **"${userQuery}"** na base de conhecimento. Tente buscar por termos como nome da API, serviço ou tabela (ex: PCPEDC).`;
       }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: assistantContent,
+        content: responseText,
         timestamp: Date.now(),
-        docs: localResults.length > 0 ? localResults : (localResults.length === 0 && tdnResults.length === 0 ? availableDocs.slice(0, 3) : []),
-        tdnResults: tdnResults
+        docs: localResults,
+        tdnResults: tdnResults,
+        extractedEndpoints: allEndpoints,
+        extractedTables: allTables,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -227,7 +216,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Ocorreu um erro ao consultar as bases. Por favor, tente novamente.',
+        content: 'Ocorreu um erro ao consultar a Base de Conhecimento. Verifique sua conexão e tente novamente.',
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -237,7 +226,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
   };
 
   const handleImport = async (tdnResult: TdnSearchResult) => {
-    if (!tdnSettings || !user || !firestore) return;
+    if (!tdnSettings || !session) return;
 
     setIsImporting(tdnResult.id);
     try {
@@ -245,7 +234,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
       const fullContent = await getTdnPageContent(tdnSettings.baseUrl, tdnSettings.token, tdnResult.id);
 
       // Import to KB
-      await importTdnToKnowledgeBase(firestore, user.uid, {
+      await importTdnToKnowledgeBase(session.id, {
         id: fullContent.id,
         title: fullContent.title,
         content: fullContent.content,
@@ -276,33 +265,33 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
           initial={{ x: 400, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 400, opacity: 0 }}
-          className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] z-[100] flex flex-col"
+          className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] sm:max-w-[calc(100vw-2rem)] z-[100] flex flex-col overflow-x-hidden"
         >
-          <div className="flex-1 bg-white/90 backdrop-blur-2xl border border-slate-200 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden relative">
+          <div className="flex-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden relative">
 
             {/* BACKGROUND GLOWS */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-cyan-500/5 blur-3xl pointer-events-none" />
 
             {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-indigo-600 shadow-sm">
-                  <BrainCircuit className="h-6 w-6" />
+                <div className="h-10 w-10 rounded-2xl bg-indigo-500 border border-indigo-600 flex items-center justify-center text-white shadow-sm overflow-hidden group">
+                  <Sparkles className="h-5 w-5 group-hover:scale-110 transition-all duration-300" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 opacity-60">Base de Conhecimento</span>
-                    {userApiKey && (
-                      <Badge variant="secondary" className="text-[8px] bg-emerald-50 text-emerald-600 border-emerald-100 uppercase font-black tracking-tighter h-4 px-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 opacity-60">Assistente Local</span>
+                    {tdnSettings?.token && (
+                      <Badge variant="secondary" className="text-[8px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900 uppercase font-black tracking-tighter h-4 px-1.5">
                         Motor Ativo
                       </Badge>
                     )}
                   </div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 italic">Base de Conhecimento</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 italic">Base de Conhecimento</h3>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-100 text-slate-400">
+              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -310,16 +299,16 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
               <div className="p-4 space-y-6 overflow-x-hidden">
                 {/* Issue Context (Opcional) */}
                 {activeIssue && (
-                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className="p-1.5 bg-white rounded-lg border border-slate-200">
-                        <FileText className="h-3 w-3 text-indigo-600" />
+                      <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contexto da Tarefa</span>
                     </div>
                     <h4 className="text-[11px] font-black text-slate-900 dark:text-white uppercase mb-1 truncate">{activeIssue.title}</h4>
                     {activeIssue.description && (
-                      <p className="text-[9px] text-slate-500 line-clamp-2 leading-relaxed">
+                      <p className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                         {activeIssue.description}
                       </p>
                     )}
@@ -339,10 +328,47 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                         "p-3 rounded-[1.25rem] text-[12px] font-medium leading-relaxed shadow-sm whitespace-pre-wrap break-words max-w-full min-w-0",
                         msg.role === 'user'
                           ? "bg-indigo-600 text-white rounded-tr-none"
-                          : "bg-slate-100 text-slate-900 border border-slate-200 rounded-tl-none"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-none"
                       )}>
                         {msg.content}
                       </div>
+
+                      {/* Badges de Endpoints e Tabelas extraídos */}
+                      {((msg.extractedEndpoints && msg.extractedEndpoints.length > 0) || (msg.extractedTables && msg.extractedTables.length > 0)) && (
+                        <div className="flex flex-col gap-1.5 w-full mt-1 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 p-2.5 rounded-xl">
+                          {msg.extractedEndpoints && msg.extractedEndpoints.length > 0 && (
+                            <div>
+                              <span className="text-[8px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block mb-1">Endpoints Identificados:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {msg.extractedEndpoints.map((ep, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => copyToClipboard(ep, 'Endpoint')}
+                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-code font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group max-w-full break-all"
+                                    title="Clique para copiar"
+                                  >
+                                    <span>{ep}</span>
+                                    {copiedEndpoint === ep ? <Check className="h-2.5 w-2.5 text-emerald-500" /> : <Copy className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {msg.extractedTables && msg.extractedTables.length > 0 && (
+                            <div className="mt-1">
+                              <span className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider block mb-1">Tabelas Relacionadas:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {msg.extractedTables.map((tbl, idx) => (
+                                  <span key={idx} className="bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-code text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
+                                    {tbl}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {msg.docs && msg.docs.length > 0 && (
                         <div className="flex flex-col gap-2 w-full mt-1 min-w-0">
@@ -350,16 +376,18 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                             <div
                               key={doc.id}
                               onClick={() => window.open(`/knowledge/kb?id=${doc.id}`, '_blank')}
-                              className="bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/60 dark:border-white/5 p-2.5 rounded-xl hover:bg-white/60 transition-all cursor-pointer group overflow-hidden w-full min-w-0"
+                              className="bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer group overflow-hidden w-full min-w-0 shadow-xs"
                             >
                               <div className="flex items-center justify-between mb-0.5">
-                                <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1">
-                                  <BookOpen className="h-2 w-2" /> Wiki Local
+                                <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                                  <BookOpen className="h-2 w-2" /> Wiki Local • {doc.category || 'Geral'}
                                 </span>
                                 <ChevronRight className="h-2.5 w-2.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
                               </div>
                               <h4 className="text-[10px] font-bold text-slate-900 dark:text-white block truncate max-w-full" title={doc.title}>{doc.title}</h4>
-                              <p className="text-[8px] text-slate-500 truncate mt-0.5">{doc.content.replace(/<[^>]*>?/gm, '')}</p>
+                              <p className="text-[8.5px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-tight">
+                                {doc.tech?.bestSnippet || doc.content.replace(/<[^>]*>?/gm, '')}
+                              </p>
                             </div>
                           ))}
                         </div>
@@ -368,28 +396,28 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                       {msg.tdnResults && msg.tdnResults.length > 0 && (
                         <div className="flex flex-col gap-2 w-full mt-1">
                           <div className="flex items-center gap-2 px-1">
-                            <Globe className="h-2 w-2 text-cyan-600" />
-                            <span className="text-[8px] font-black uppercase text-cyan-600 tracking-[0.2em]">TDN</span>
+                            <Globe className="h-2 w-2 text-cyan-600 dark:text-cyan-400" />
+                            <span className="text-[8px] font-black uppercase text-cyan-600 dark:text-cyan-400 tracking-[0.2em]">TDN (Confluence)</span>
                           </div>
                           {msg.tdnResults.map((tdn) => (
                             <div
                               key={tdn.id}
-                              className="bg-cyan-50/50 border border-cyan-100 p-2.5 rounded-xl hover:bg-cyan-50 transition-all group overflow-hidden w-full"
+                              className="bg-cyan-50/50 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900 p-2.5 rounded-xl hover:bg-cyan-50 dark:hover:bg-cyan-950/50 transition-all group overflow-hidden w-full"
                             >
                               <div className="flex items-center justify-between">
                                 <div
                                   className="flex-1 cursor-pointer min-w-0"
                                   onClick={() => window.open(tdn.link, '_blank')}
                                 >
-                                  <h4 className="text-[10px] font-bold text-slate-900 block truncate max-w-full group-hover:text-cyan-600 transition-colors" title={tdn.title}>{tdn.title}</h4>
+                                  <h4 className="text-[10px] font-bold text-slate-900 dark:text-slate-100 block truncate max-w-full group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors" title={tdn.title}>{tdn.title}</h4>
                                   <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">{tdn.space || 'TOTVS'}</span>
+                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">{tdn.space || 'Wiki'}</span>
                                   </div>
                                 </div>
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="h-6 w-6 rounded-lg hover:bg-cyan-100/50 text-cyan-600 shrink-0 ml-2"
+                                  className="h-6 w-6 rounded-lg hover:bg-cyan-100/50 dark:hover:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 shrink-0 ml-2"
                                   onClick={(e) => { e.stopPropagation(); handleImport(tdn); }}
                                   disabled={isImporting === tdn.id}
                                 >
@@ -413,7 +441,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                       <button
                         key={i}
                         onClick={() => { setInput(q); }}
-                        className="px-3 py-1.5 rounded-full bg-white/50 border border-indigo-100 text-[9px] font-bold text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                        className="px-3 py-1.5 rounded-full bg-white/50 dark:bg-slate-900/50 border border-indigo-100 dark:border-indigo-900 text-[9px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                       >
                         {q}
                       </button>
@@ -421,7 +449,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                   </div>
                 )}
                 {isLoading && (
-                  <div className="flex items-center gap-2 text-indigo-600 animate-pulse mt-4">
+                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 animate-pulse mt-4">
                     <Loader2 className="h-3 w-3 animate-spin" />
                     <span className="text-[9px] font-black uppercase tracking-widest">Consultando...</span>
                   </div>
@@ -435,7 +463,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
               <div className="px-6 pb-2">
                 <Button
                   variant="outline"
-                  className="w-full h-10 rounded-xl border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-[10px] font-black uppercase tracking-widest gap-2"
+                  className="w-full h-10 rounded-xl border-dashed border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-[10px] font-black uppercase tracking-widest gap-2"
                   onClick={() => window.open('/knowledge', '_blank')}
                 >
                   <Database className="h-3.5 w-3.5" /> Acessar Wiki Completa do Projeto
@@ -444,15 +472,15 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
             )}
 
             {/* Input Area */}
-            <div className="p-6 bg-slate-50 border-t border-slate-100">
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
               {activeIssue && (
                 <div className="flex items-center justify-between mb-4 px-1">
                   <div className="flex items-center gap-2">
                     <div className={cn(
                       "h-2 w-2 rounded-full",
-                      useContext ? "bg-emerald-500 animate-pulse" : "bg-slate-300"
+                      useContext ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"
                     )} />
-                    <Label htmlFor="use-context" className="text-[10px] font-black uppercase tracking-widest text-slate-500 cursor-pointer">
+                    <Label htmlFor="use-context" className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 cursor-pointer">
                       Analisar Issue em Votação
                     </Label>
                   </div>
@@ -471,7 +499,7 @@ export function PokerChat({ roomId, isOpen, onClose, activeTopic, activeIssue }:
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  className="pr-12 h-14 rounded-2xl border-slate-200 bg-white shadow-inner focus-visible:ring-indigo-500/20 text-sm font-medium text-slate-900 placeholder:text-slate-400"
+                  className="pr-12 h-14 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-inner focus-visible:ring-indigo-500/20 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
                 <Button
                   size="icon"

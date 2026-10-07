@@ -7,16 +7,21 @@ import { useRouter } from 'next/navigation';
 import type { DeckType, Participant, Role, Room, Vote, VotingRound, Issue, GlobalRole, ConfidenceLevel } from '@/lib/types';
 import { PokerRoom } from '@/components/poker/PokerRoom';
 import { AsyncPokerRoom } from '@/components/poker/AsyncPokerRoom';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { NotFound } from '@/components/NotFound';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { pokerApi } from '../api';
+import { authFetch } from '@/lib/auth-client';
+import { workItemsApi } from '@/app/work-items-api';
+import { squadApi } from '@/app/squad/api';
+import { openOrCreateRetro } from '@/lib/sprintCycleNav';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -30,14 +35,17 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const roomId = resolvedParams.id;
   const router = useRouter();
   const { toast } = useToast();
-  const { auth, user, isUserLoading } = useFirebase();
+  const { session, isLoading } = useAuth();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
 
   useEffect(() => {
-    if (!isUserLoading && !userProfile) {
+    // isInitializing precisa estar false também, senão requestIdentity() dispara
+    // à toa numa janela em que userProfile ainda não terminou de carregar do
+    // UserContext (mesma causa do modal de perfil abrindo sozinho no retro).
+    if (!isLoading && !isInitializing && !userProfile) {
       requestIdentity();
     }
-  }, [isUserLoading, userProfile, requestIdentity]);
+  }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   // Fallback seguro de offset de relógio local/servidor
   const clockOffset = 0;
@@ -52,23 +60,86 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [votes, setVotes] = useState<Vote[]>([]);
   const [votingRounds, setVotingRounds] = useState<VotingRound[]>([]);
   const [reactions, setReactions] = useState<{ id: string; uid: string; emoji: string; ts: string; nickname?: string }[]>([]);
+  const [messagesByChannel, setMessagesByChannel] = useState<Record<string, any[]>>({});
 
   const [isRoomLoading, setIsRoomLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
 
+  const onlineParticipants = useMemo(() => {
+    const now = Date.now();
+    return (participants || []).filter(p => isParticipantOnline(p, now));
+  }, [participants]);
+
+  const hasActiveHost = useMemo(() => {
+    if (!roomData) return false;
+    return onlineParticipants.some(p => p.id === roomData.creatorId || p.role === 'organizador');
+  }, [roomData, onlineParticipants]);
+
+  const currentUser = useMemo(() => participants?.find(p => p.id === session?.id && p.roomId === roomId) || null, [participants, session, roomId]);
+  const isCurrentUserFacilitator = useMemo(() => {
+    if (!session || !roomData) return false;
+    if (session.id === roomData.creatorId || currentUser?.role === 'organizador') return true;
+    // Fallback: se o criador/organizador cair ou sair, o primeiro integrante técnico online assume a facilitação temporária
+    if (!hasActiveHost && currentUser && currentUser.role !== 'spectator') {
+      const firstEligible = onlineParticipants.find(p => p.role !== 'spectator');
+      return firstEligible?.id === session.id;
+    }
+    return false;
+  }, [session, roomData, currentUser, hasActiveHost, onlineParticipants]);
+
   const reactionsEnabled = !!roomData?.settings?.reactions;
-  const currentUser = useMemo(() => participants?.find(p => p.id === user?.uid && p.roomId === roomId) || null, [participants, user, roomId]);
-  const isCurrentUserFacilitator = useMemo(() => !!(user && roomData && (user.uid === roomData.creatorId || currentUser?.role === 'organizador')), [user, roomData, currentUser]);
-  
+
+
   const currentUserVote = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.value || null, [votes, currentUser]);
   const currentUserConfidence = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.confidence || null, [votes, currentUser]);
+
+  // Desconexão instantânea ao fechar a aba/janela (beforeunload)
+  useEffect(() => {
+    if (!currentUser || !roomId) return;
+    const handleBeforeUnload = () => {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+      try {
+        navigator.sendBeacon(`${apiBase}/poker/${roomId}/participants/${currentUser.id}`);
+      } catch (e) {
+        // Fallback se sendBeacon não for suportado
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentUser, roomId]);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
   }, []);
 
+  const handleOpenRetro = useCallback(async () => {
+    const activeIssue = roomData?.issuesQueue?.find(i => i.id === roomData.activeIssueId) || roomData?.issuesQueue?.[0];
+    const issueProjectKey = activeIssue?.key?.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
+    const squadId = (roomData?.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
+      ? roomData.team
+      : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+    if (!squadId) {
+      toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta sala.", variant: "destructive" });
+      return;
+    }
+    try {
+      const squad = await squadApi.getSquad(squadId);
+      const sprintId = squad?.activeSprintId;
+      if (!sprintId) {
+        toast({ title: "Sem sprint ativa", description: "Essa squad não tem sprint ativa configurada.", variant: "destructive" });
+        return;
+      }
+      openOrCreateRetro(router, sprintId, squadId);
+    } catch (err) {
+      console.error('[Poker] Falha ao resolver sprint ativa da squad:', err);
+      toast({ title: "Erro", description: "Não foi possível abrir a retrospectiva.", variant: "destructive" });
+    }
+  }, [roomData?.team, roomData?.issuesQueue, roomData?.activeIssueId, userProfile?.squadId, session?.activeProjectId, router, toast]);
+
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
+
   const reloadRoomData = useCallback(async () => {
-    if (!user) return;
+    if (!session) return;
     try {
       const [room, partsList, votesList, roundsList] = await Promise.all([
         pokerApi.getRoom(roomId),
@@ -86,19 +157,21 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       setIsRoomLoading(false);
       setAreParticipantsLoading(false);
     }
-  }, [roomId, user]);
+  }, [roomId, session]);
 
-  // Conexão WebSocket e Carga Inicial
+  // Conexão WebSocket com Reconexão Automática e Carga Inicial
   useEffect(() => {
-    if (!user) return;
+    if (!session) return;
 
     reloadRoomData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId;
-    
-    console.log("Conectando ao WebSocket do Poker Room:", wsUrl);
-    let socket = new WebSocket(wsUrl);
+    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId
+      + '?token=' + encodeURIComponent(getAuthToken() || '');
+
+    console.log("Conectando ao WebSocket do Poker Room:", roomId);
+    let socket: WebSocket | null = new WebSocket(wsUrl);
+    let reconnectTimer: NodeJS.Timeout;
 
     socket.onmessage = (event) => {
       try {
@@ -183,6 +256,39 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
             });
             break;
 
+          case 'CHAT_MESSAGE_SAVED':
+            if (data.payload) {
+              const msg = data.payload;
+              const channel = msg.channelId;
+              if (channel) {
+                setMessagesByChannel(prev => {
+                  const currentList = prev[channel] || [];
+                  const exists = currentList.some(m => m.id === msg.id);
+                  if (exists) {
+                    return {
+                      ...prev,
+                      [channel]: currentList.map(m => m.id === msg.id ? msg : m)
+                    };
+                  }
+                  return {
+                    ...prev,
+                    [channel]: [...currentList, msg]
+                  };
+                });
+              }
+            }
+            break;
+
+          case 'CHAT_MESSAGE_DELETED':
+            if (data.payload?.messageId && data.payload?.channelId) {
+              const { messageId, channelId } = data.payload;
+              setMessagesByChannel(prev => ({
+                ...prev,
+                [channelId]: (prev[channelId] || []).filter(m => m.id !== messageId)
+              }));
+            }
+            break;
+
           case 'REFRESH_ROOM':
           default:
             reloadRoomData();
@@ -195,16 +301,17 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     };
 
     socket.onclose = () => {
-      console.warn("Conexão WebSocket fechada. Tentando reconectar...");
-      setTimeout(() => {
-        reloadRoomData();
-      }, 5000);
+      console.warn("Conexão WebSocket fechada. Tentando reconectar em 3s...");
+      reloadRoomData();
+      reconnectTimer = setTimeout(() => {
+        setReconnectTrigger(prev => prev + 1);
+      }, 3000);
     };
 
     return () => {
       socket.close();
     };
-  }, [roomId, user, reloadRoomData]);
+  }, [roomId, session, reloadRoomData]);
 
   useEffect(() => {
     setHasJoined(false);
@@ -239,33 +346,33 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   };
 
   useEffect(() => {
-    if (isUserLoading || !user || !userProfile || !roomData || hasJoined) {
+    if (isLoading || !session || !userProfile || !roomData || hasJoined) {
       return;
     }
 
     const runJoin = async () => {
       try {
         const existingParts = await pokerApi.getParticipants(roomId);
-        const alreadyInThisRoom = existingParts.some(p => p.id === user.uid);
+        const alreadyInThisRoom = existingParts.some(p => p.id === session.id);
 
         if (!alreadyInThisRoom) {
           const newParticipant: Participant = {
-            id: user.uid,
+            id: session.id,
             roomId: roomId,
             nickname: userProfile.name,
             email: userProfile.email || '',
             role: mapGlobalToPokerRole(userProfile.role),
             globalRole: userProfile.role,
-            isFacilitator: user.uid === roomData.creatorId,
+            isFacilitator: session.id === roomData.creatorId,
           };
           await pokerApi.joinRoom(roomId, newParticipant);
         }
 
         const currentParticipantIds = roomData.participantIds || [];
-        if (!currentParticipantIds.includes(user.uid)) {
+        if (!currentParticipantIds.includes(session.id)) {
           await pokerApi.saveOrUpdateRoom({
             ...roomData,
-            participantIds: [...currentParticipantIds, user.uid]
+            participantIds: [...currentParticipantIds, session.id]
           });
         }
         reloadRoomData();
@@ -280,12 +387,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     };
 
     runJoin();
-  }, [user, userProfile, roomData, isUserLoading, roomId, hasJoined, toast, reloadRoomData]);
+  }, [session, userProfile, roomData, isLoading, roomId, hasJoined, toast, reloadRoomData]);
 
   // 3.1 SINCRONIZAÇÃO DE PERFIL
   const lastSyncedProfileRef = useRef<{ name: string; role: string; email?: string } | null>(null);
   useEffect(() => {
-    if (!user || !userProfile || !currentUser) return;
+    if (!session || !userProfile || !currentUser) return;
 
     if (
       lastSyncedProfileRef.current && 
@@ -319,11 +426,36 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         email: userProfile.email || ''
       };
     }
-  }, [user, userProfile, currentUser, roomId]);
+  }, [session, userProfile, currentUser, roomId]);
 
   useEffect(() => {
     setHasJoined(!!currentUser);
   }, [currentUser]);
+
+  // Carga inicial das mensagens do chat da sala (canal geral e canais relevantes)
+  useEffect(() => {
+    if (!currentUser || !roomId) return;
+    const channelsToLoad = ['geral'];
+    const myCat = getParticipantCategory(currentUser);
+    if (myCat) channelsToLoad.push(`role-${myCat}`);
+
+    (participants || []).forEach(p => {
+      if (p.id !== currentUser.id) {
+        channelsToLoad.push(`dm_${[currentUser.id, p.id].sort().join('_')}`);
+      }
+    });
+
+    channelsToLoad.forEach(channelId => {
+      pokerApi.getChatMessages(roomId, channelId)
+        .then(msgs => {
+          setMessagesByChannel(prev => ({
+            ...prev,
+            [channelId]: msgs || []
+          }));
+        })
+        .catch(err => console.error(`Erro ao carregar mensagens do canal ${channelId}:`, err));
+    });
+  }, [currentUser?.id, participants, roomId]);
 
   // Heartbeat de presença: envia lastSeen silenciosamente via REST a cada 25s
   useEffect(() => {
@@ -353,6 +485,38 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, toast]);
 
+  // Auto-início por quórum: o efeito abaixo já carimba o startedAt sozinho a
+  // partir do 2º item (quando o facilitador troca de tarefa ativa), mas o 1º
+  // item nasce ativo sem nenhuma troca para disparar isso — por isso hoje
+  // depende 100% de alguém clicar em "Iniciar Refinamento". Assim que houver
+  // 1 dev + 1 QA online na sala (offline = aba fechada, não conta — mesmo
+  // critério de `isParticipantOnline` usado no quórum de votação), inicia
+  // sozinho, sem esperar o clique.
+  useEffect(() => {
+    if (!isCurrentUserFacilitator || !roomData) return;
+    if (roomData.sessionStartedAt || roomData.sessionEndedAt || !roomData.activeIssueId) return;
+
+    const nowMs = Date.now();
+    const hasDev = participants.some(p => p.role === 'dev' && isParticipantOnline(p, nowMs));
+    const hasQa = participants.some(p => p.role === 'qa' && isParticipantOnline(p, nowMs));
+    if (!hasDev || !hasQa) return;
+
+    const now = new Date(nowMs).toISOString();
+    pokerApi.saveOrUpdateRoom({
+      ...roomData,
+      sessionStartedAt: now,
+      sessionEndedAt: undefined,
+      issuesQueue: (roomData.issuesQueue || []).map(i =>
+        i.id === roomData.activeIssueId ? { ...i, startedAt: now } : i
+      ),
+    }).then(() => {
+      toast({
+        title: 'Refinamento iniciado automaticamente',
+        description: 'Quórum atingido (1 dev + 1 QA online) — o cronômetro começou.',
+      });
+    }).catch(err => console.error(err));
+  }, [isCurrentUserFacilitator, roomData, participants, toast]);
+
   // Carimba startedAt da tarefa ativa de forma automática
   useEffect(() => {
     if (!isCurrentUserFacilitator || !roomData) return;
@@ -371,7 +535,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   // Título Dinâmico da Aba
   useEffect(() => {
-    const baseTitle = "Espaço Ágil";
+    const baseTitle = "Portal Tech V&D";
     const moduleName = "Scrum Poker";
     const sessionName = roomData?.title || roomData?.team;
     
@@ -482,18 +646,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator]);
 
+  // Qualquer participante presente pode escrever. Vai por endpoint próprio (merge no servidor),
+  // não por saveOrUpdateRoom: salvar a sala inteira com uma cópia local desatualizada poderia
+  // sobrescrever a fila do facilitador.
   const handleUpdateRefinementNotes = useCallback((notes: { devNotes?: string; qaNotes?: string }) => {
-    if (!roomData?.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
-    const newQueue = roomData.issuesQueue.map(i =>
-      i.id === roomData.activeIssueId
-        ? { ...i, devNotes: notes.devNotes?.trim() || null, qaNotes: notes.qaNotes?.trim() || null }
-        : i
-    );
-    pokerApi.saveOrUpdateRoom({
-      ...roomData,
-      issuesQueue: newQueue
-    }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator]);
+    const issueId = roomData?.activeIssueId;
+    if (!issueId || !currentUser) return;
+    pokerApi.updateIssueNotes(roomId, issueId, notes).catch(err => console.error(err));
+  }, [roomData?.activeIssueId, roomId, currentUser]);
 
   const handleReveal = useCallback(() => {
     if (!participants || !votes || votes.length === 0 || !roomData || !isCurrentUserFacilitator) return;
@@ -711,11 +871,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       currentTopic: targetIssue?.title || roomData.currentTopic,
       issuesQueue: newQueue,
       votesRevealed: false,
+      selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear]);
+  }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const handleRevoteIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -748,12 +909,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: issueId,
       currentTopic: targetIssue?.title || roomData.currentTopic,
       votesRevealed: false,
+      selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Tarefa reaberta para votação" });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleDeleteIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -771,7 +933,6 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       } else {
         nextActiveId = null;
       }
-      handleClear();
     }
 
     const nextActive = newQueue.find(i => i.id === nextActiveId);
@@ -781,9 +942,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
       activeIssueId: nextActiveId,
       currentTopic: nextActive?.title || roomData.currentTopic,
-      votesRevealed: isDeletingActive ? false : roomData.votesRevealed
+      votesRevealed: isDeletingActive ? false : roomData.votesRevealed,
+      selectiveRevotingRole: isDeletingActive ? null : roomData.selectiveRevotingRole
+    }).then(() => {
+      // Votos saem depois da fila salvar: handleClear() aqui mandaria a sala
+      // inteira do roomData da closure e ressuscitaria a tarefa apagada.
+      if (isDeletingActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear]);
+  }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const buildSessionClosure = useCallback((newQueue: Issue[]): Partial<Room> => {
     const rounds = votingRounds || [];
@@ -808,10 +974,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     );
     const durationMins = activeMins > 0 ? activeMins : rawMins;
 
-    const estimatedIssues = newQueue.filter(i => !i.skipped && i.status === 'completed');
-    const skippedIssues = newQueue.filter(i => i.skipped);
+    const estimatedIssues = newQueue.filter(i => !i.skipped && !i.cancelled && i.status === 'completed');
+    const skippedIssues = newQueue.filter(i => i.skipped && !i.cancelled);
+    const cancelledIssues = newQueue.filter(i => i.cancelled);
     const parkedIssues = newQueue.filter(i => (i.parkCount || 0) > 0);
-    const untouchedIssues = newQueue.filter(i => !i.skipped && i.status !== 'completed');
+    const untouchedIssues = newQueue.filter(i => !i.skipped && !i.cancelled && i.status !== 'completed');
 
     const totalPoints = estimatedIssues.reduce((acc, issue) => {
       const p = parseFloat(issue.estimatedPoints || '0');
@@ -824,11 +991,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       summary: {
         estimatedTasks: estimatedIssues.map(i => ({ title: i.title, points: i.estimatedPoints })),
         skippedTasks: skippedIssues.map(i => ({ title: i.title, note: i.note || null })),
+        cancelledTasks: cancelledIssues.map(i => ({ title: i.title, note: i.note || null })),
         parkedTasks: parkedIssues.map(i => ({
           title: i.title,
           note: i.parkedNote || null,
           times: i.parkCount || 0,
-          resolved: i.status === 'completed' && !i.skipped,
+          resolved: i.status === 'completed' && !i.skipped && !i.cancelled,
         })),
         untouchedTasks: untouchedIssues.map(i => ({ title: i.title })),
         breakdown,
@@ -836,6 +1004,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           totalTopics: breakdown.estimated,
           discussedTopics: breakdown.discussed,
           skippedTopics: breakdown.skipped,
+          cancelledTopics: breakdown.cancelled,
           parkedTopics: breakdown.parked,
           untouchedTopics: breakdown.untouched,
           totalPoints,
@@ -885,7 +1054,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
       activeIssueId: nextIssueId,
       currentTopic: nextIssue?.title || roomData.currentTopic,
-      votesRevealed: false
+      votesRevealed: false,
+      selectiveRevotingRole: null,
     };
 
     if (!nextIssueId) {
@@ -893,6 +1063,23 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
 
     pokerApi.saveOrUpdateRoom(updates).then(() => {
+      const activeIssue = roomData.issuesQueue![currentIndex];
+      if (activeIssue && activeIssue.key) {
+        const issueProjectKey = activeIssue.key.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
+        const targetSquad = (roomData.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
+          ? roomData.team
+          : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+
+        if (targetSquad) {
+          const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(targetSquad)}/${encodeURIComponent(activeIssue.key)}/estimate`;
+          authFetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ points_estimated: Number(points) })
+          }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+        }
+      }
+
       const lastRound = votingRounds.find(r => r.issueId === roomData.activeIssueId);
       if (lastRound) {
         pokerApi.saveRound(roomId, {
@@ -906,10 +1093,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           rolePoints: rolePoints as any
         }).catch(console.error);
       }
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Estimativa Salva!" });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, votingRounds, roomId, handleClear, buildSessionClosure, toast]);
+  }, [roomData, isCurrentUserFacilitator, votingRounds, roomId, buildSessionClosure, toast]);
 
   const handleFinishSession = useCallback(() => {
     if (!roomData || !isCurrentUserFacilitator) return;
@@ -922,9 +1109,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: null,
       currentTopic: '',
       votesRevealed: false,
+      selectiveRevotingRole: null,
       ...buildSessionClosure(newQueue),
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       const pendentes = newQueue.filter(i => !i.skipped && i.status !== 'completed').length;
       toast({
         title: 'Refinamento encerrado',
@@ -933,7 +1121,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           : 'Relatório da sessão disponível.',
       });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, buildSessionClosure, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, buildSessionClosure, toast]);
 
   const handleParkIssue = useCallback((note: string) => {
     if (!roomData || !roomData.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
@@ -975,6 +1163,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       activeIssueId: nextActiveId,
       currentTopic: nextTopic,
       votesRevealed: false,
+      selectiveRevotingRole: null,
     };
 
     if (!nextActiveId) {
@@ -982,10 +1171,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
 
     pokerApi.saveOrUpdateRoom(updates).then(() => {
-      handleClear();
+      // Limpa os votos pela API de votos, nao por handleClear(): ele reenviaria
+      // a sala inteira a partir do roomData da closure (estado pre-adiamento) e
+      // desfaria o update que acabou de ser salvo.
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: 'Tarefa adiada', description: 'Volta pro fim da fila para revisitar.' });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast, buildSessionClosure]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleSkipIssue = useCallback((note: string) => {
     if (!roomData || !roomData.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
@@ -1034,7 +1226,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         issuesQueue: newQueue,
         activeIssueId: nextIssueId,
         currentTopic: nextIssue?.title || roomData.currentTopic,
-        votesRevealed: false
+        votesRevealed: false,
+        selectiveRevotingRole: null,
       };
 
       if (!nextIssueId) {
@@ -1042,11 +1235,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
 
       pokerApi.saveOrUpdateRoom(updates).then(() => {
-        handleClear();
+        // Ver comentario em handleParkIssue: handleClear() aqui reverteria o
+        // update com o roomData velho da closure.
+        pokerApi.clearVotes(roomId).catch(err => console.error(err));
         toast({ title: "Tópico Pulado", description: "O tópico foi removido da estimativa." });
       });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, roomId, handleClear, toast, buildSessionClosure]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleUnskipIssue = useCallback((issueId: string) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -1073,12 +1268,125 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
       activeIssueId: issueId,
       votesRevealed: false,
+      selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
       toast({ title: "Tópico Retornado", description: "O tópico voltou para a mesa de votação." });
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear, toast]);
+  }, [roomData, isCurrentUserFacilitator, roomId, toast]);
+
+  const handleCancelIssue = useCallback((issueId: string, note?: string) => {
+    if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
+
+    const targetIssueId: string | null = issueId;
+    const noteText = note || '';
+
+    if (!targetIssueId) return;
+
+    const issueIdToCancel = targetIssueId;
+    const currentIndex = roomData.issuesQueue.findIndex(i => i.id === issueIdToCancel);
+    if (currentIndex === -1) return;
+
+    const cancelledIssue = roomData.issuesQueue[currentIndex];
+    const isTargetActive = issueIdToCancel === roomData.activeIssueId;
+    const newQueue = [...roomData.issuesQueue];
+    newQueue[currentIndex] = {
+      ...newQueue[currentIndex],
+      status: 'completed',
+      estimatedPoints: null,
+      cancelled: true,
+      skipped: false,
+      note: noteText.trim() || null,
+    };
+
+    let nextIssueId: string | null = roomData.activeIssueId;
+
+    if (isTargetActive) {
+      nextIssueId = null;
+      let nextIndex = newQueue.findIndex((i, idx) => idx > currentIndex && i.status === 'pending');
+      if (nextIndex === -1) {
+        nextIndex = newQueue.findIndex(i => i.status === 'pending');
+      }
+      if (nextIndex !== -1) {
+        newQueue[nextIndex] = { ...newQueue[nextIndex], status: 'active' };
+        nextIssueId = newQueue[nextIndex].id;
+      }
+    }
+
+    const nextIssue = newQueue.find(i => i.id === nextIssueId);
+
+    const cancelledRound: Partial<VotingRound> = {
+      roomId,
+      topic: cancelledIssue.title,
+      issueId: issueIdToCancel,
+      deckType: roomData.deckType,
+      votes: [],
+      stats: { avg: 'N/A', min: 'N/A', max: 'N/A', consensus: false },
+      timestamp: new Date().toISOString(),
+      cancelled: true,
+      note: noteText.trim() || null,
+    };
+
+    pokerApi.saveRound(roomId, cancelledRound).then(() => {
+      let updates: Partial<Room> = {
+        ...roomData,
+        issuesQueue: newQueue,
+        activeIssueId: nextIssueId,
+        currentTopic: nextIssue?.title || (isTargetActive ? '' : roomData.currentTopic),
+        votesRevealed: isTargetActive ? false : roomData.votesRevealed,
+        selectiveRevotingRole: isTargetActive ? null : roomData.selectiveRevotingRole,
+      };
+
+      if (!nextIssueId) {
+        updates = { ...updates, ...buildSessionClosure(newQueue) };
+      }
+
+      pokerApi.saveOrUpdateRoom(updates).then(() => {
+        // Ver comentario em handleParkIssue: handleClear() aqui reverteria o
+        // cancelamento com o roomData velho da closure.
+        if (isTargetActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
+        toast({ title: "Tarefa Cancelada", description: "A tarefa foi marcada como cancelada no refinamento." });
+      });
+    }).catch(err => console.error(err));
+  }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
+
+  const handleUncancelIssue = useCallback((issueId: string) => {
+    if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
+
+    const hasActive = !!roomData.activeIssueId && roomData.issuesQueue.some(i => i.id === roomData.activeIssueId && i.status === 'active');
+
+    const newQueue = roomData.issuesQueue.map((i) => {
+      if (i.id === issueId) {
+        return {
+          ...i,
+          status: hasActive ? 'pending' : 'active',
+          cancelled: false,
+          skipped: false,
+          note: null,
+          estimatedPoints: null,
+          startedAt: null,
+        } as Issue;
+      }
+      return i;
+    });
+
+    const nextActiveId = hasActive ? roomData.activeIssueId : issueId;
+    const activeIssue = newQueue.find(i => i.id === nextActiveId);
+
+    pokerApi.saveOrUpdateRoom({
+      ...roomData,
+      issuesQueue: newQueue,
+      activeIssueId: nextActiveId,
+      currentTopic: activeIssue?.title || roomData.currentTopic,
+      votesRevealed: hasActive ? roomData.votesRevealed : false,
+      selectiveRevotingRole: hasActive ? roomData.selectiveRevotingRole : null,
+      sessionEndedAt: undefined,
+    }).then(() => {
+      if (!hasActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      toast({ title: "Tarefa Reativada", description: "A tarefa voltou para o refinamento." });
+    }).catch(err => console.error(err));
+  }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleAsyncVote = useCallback((issueId: string, voteValue: string) => {
     if (!currentUser || !roomData) return;
@@ -1156,6 +1464,16 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       ...roomData,
       issuesQueue: newQueue
     }).then(() => {
+      const activeIssue = roomData.issuesQueue![currentIndex];
+      if (activeIssue && activeIssue.key && roomData.team) {
+        const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
+        authFetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points_estimated: Number(points) })
+        }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+      }
+
       handleAsyncClear(issueId);
       toast({ title: "Estimativa Consolidada!" });
     }).catch(err => console.error(err));
@@ -1197,11 +1515,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       deckType: newDeck,
-      referenceBaseline: null
+      referenceBaseline: null,
+      votesRevealed: false,
+      selectiveRevotingRole: null
     }).then(() => {
-      handleClear();
+      pokerApi.clearVotes(roomId).catch(err => console.error(err));
     }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleClear]);
+  }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const handleSetReference = useCallback((issueId: string | null) => {
     if (!roomData || !isCurrentUserFacilitator) return;
@@ -1236,15 +1556,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   }, [isCurrentUserFacilitator, roomId, roomData]);
 
   const handleClaimFacilitator = useCallback(async () => {
-    if (!roomData || !user || !participants) return;
+    if (!roomData || !session || !participants) return;
 
     try {
       await pokerApi.saveOrUpdateRoom({
         ...roomData,
-        creatorId: user.uid
+        creatorId: session.id
       });
 
-      const p = participants.find(part => part.id === user.uid);
+      const p = participants.find(part => part.id === session.id);
       if (p) {
         await pokerApi.joinRoom(roomId, {
           ...p,
@@ -1258,7 +1578,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         description: `${userProfile?.name} agora é o organizador da sala.`,
       });
 
-      const staleFacilitators = participants.filter(p => p.id !== user.uid && (p.isFacilitator || p.role === 'organizador'));
+      const staleFacilitators = participants.filter(p => p.id !== session.id && (p.isFacilitator || p.role === 'organizador'));
       staleFacilitators.forEach(p => {
         pokerApi.joinRoom(roomId, { ...p, isFacilitator: false, role: 'dev' }).catch(console.error);
       });
@@ -1271,7 +1591,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         variant: "destructive"
       });
     }
-  }, [roomData, user, participants, userProfile, toast, reloadRoomData, roomId]);
+  }, [roomData, session, participants, userProfile, toast, reloadRoomData, roomId]);
 
   const handleLeaveRoom = useCallback(() => {
     if (!currentUser) return;
@@ -1297,7 +1617,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const serverNow = Date.now() + clockOffset;
     pokerApi.saveOrUpdateRoom({
       ...roomData,
-      timer: { status: 'running', endTime: String(serverNow + duration * 1000), initialDuration: duration, remainingOnPause: duration }
+      timer: { status: 'running', endTime: serverNow + duration * 1000, initialDuration: duration, remainingOnPause: duration }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 
@@ -1316,7 +1636,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const serverNow = Date.now() + clockOffset;
     pokerApi.saveOrUpdateRoom({
       ...roomData,
-      timer: { ...roomData.timer, status: 'running', endTime: String(serverNow + roomData.timer.remainingOnPause * 1000) }
+      timer: { ...roomData.timer, status: 'running', endTime: serverNow + roomData.timer.remainingOnPause * 1000 }
     }).catch(err => console.error(err));
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 
@@ -1339,6 +1659,29 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     autoTimerRef.current = roomData.activeIssueId;
     handleStartTimer(roomData.timer?.initialDuration || 120);
   }, [roomData?.settings?.autoTimer, roomData?.activeIssueId, isCurrentUserFacilitator, handleStartTimer, roomData?.timer?.initialDuration]);
+
+  const handleSendMessage = useCallback((text: string, kind: string, channelId: string) => {
+    if (!currentUser) return;
+    const newMsg = {
+      id: generateId(),
+      roomId,
+      channelId,
+      senderId: currentUser.id,
+      senderName: currentUser.nickname,
+      senderCategory: currentUser.globalRole,
+      text,
+      kind,
+      ts: new Date().toISOString(),
+    };
+    pokerApi.sendChatMessage(roomId, newMsg).catch(err => console.error("Erro ao enviar mensagem:", err));
+  }, [currentUser, roomId]);
+
+  const handleDeleteMessage = useCallback((messageId: string, channelId: string) => {
+    pokerApi.deleteChatMessage(roomId, messageId).catch(err => console.error("Erro ao apagar mensagem:", err));
+  }, [roomId]);
+
+  const stableSendMessage = useStableCallback(handleSendMessage);
+  const stableDeleteMessage = useStableCallback(handleDeleteMessage);
 
   const stableVote = useStableCallback(handleVote);
   const stableSetConfidence = useStableCallback(handleSetConfidence);
@@ -1367,20 +1710,28 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const stableCompleteIssue = useStableCallback(handleCompleteIssue);
   const stableSkipIssue = useStableCallback(handleSkipIssue);
   const stableParkIssue = useStableCallback(handleParkIssue);
+  const stableCancelIssue = useStableCallback(handleCancelIssue);
   const stableStartSession = useStableCallback(handleStartSession);
   const stableFinishSession = useStableCallback(handleFinishSession);
   const stableUnskipIssue = useStableCallback(handleUnskipIssue);
+  const stableUncancelIssue = useStableCallback(handleUncancelIssue);
   const stableRevoteIssue = useStableCallback(handleRevoteIssue);
   const stableUpdateSettings = useStableCallback(handleUpdateSettings);
   const stableClaimFacilitator = useStableCallback(handleClaimFacilitator);
   const stableOpenFeedback = useStableCallback(handleOpenFeedback);
+  const stableOpenRetro = useStableCallback(handleOpenRetro);
   const stableAsyncVote = useStableCallback(handleAsyncVote);
   const stableAsyncReveal = useStableCallback(handleAsyncReveal);
   const stableAsyncClear = useStableCallback(handleAsyncClear);
   const stableAsyncCompleteIssue = useStableCallback(handleAsyncCompleteIssue);
 
-  if (isUserLoading || isInitializing || isRoomLoading || areParticipantsLoading || !user || !userProfile) {
+  if (isLoading || isInitializing || isRoomLoading || areParticipantsLoading || !session || !userProfile) {
     if (!userProfile) {
+      // Só pede para preencher a identidade quando a autenticação já assentou e
+      // de fato não há perfil; enquanto carrega, não faz sentido pedir nada.
+      if (isLoading || isInitializing) {
+        return <LoadingScreen message="Carregando seu perfil..." />;
+      }
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sala" />;
     }
     return <LoadingScreen message="Sincronizando cerimônia..." />;
@@ -1390,7 +1741,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   if (!currentUser) return <LoadingScreen message="Juntando-se à squad..." submessage="Validando sua identidade global" />;
 
   const mappedTimer = roomData.timer ? {
-    status: roomData.timer.status as any,
+    status: roomData.timer.status,
     initialDuration: roomData.timer.initialDuration || 120,
     remainingOnPause: roomData.timer.remainingOnPause || 120,
     endTime: roomData.timer.endTime ? Number(roomData.timer.endTime) : null
@@ -1427,6 +1778,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onUpdateSettings={stableUpdateSettings}
         creatorId={roomData.creatorId}
         onOpenFeedback={stableOpenFeedback}
+        onOpenRetro={stableOpenRetro}
       />
     );
   }
@@ -1486,14 +1838,20 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onCompleteIssue={stableCompleteIssue}
         onSkipIssue={stableSkipIssue}
         onParkIssue={stableParkIssue}
+        onCancelIssue={stableCancelIssue}
         onStartSession={stableStartSession}
         onFinishSession={stableFinishSession}
         onUnskipIssue={stableUnskipIssue}
+        onUncancelIssue={stableUncancelIssue}
         onRevoteIssue={stableRevoteIssue}
         settings={roomData.settings}
         onUpdateSettings={stableUpdateSettings}
         onClaimFacilitator={stableClaimFacilitator}
         onOpenFeedback={stableOpenFeedback}
+        onOpenRetro={stableOpenRetro}
+        messagesByChannel={messagesByChannel}
+        onSendMessage={stableSendMessage}
+        onDeleteMessage={stableDeleteMessage}
       />
       <FeedbackWidget
         toolName="Scrum Poker"

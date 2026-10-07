@@ -3,11 +3,17 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
-import { Zap, Headphones } from 'lucide-react';
+import { Zap, User, LogOut, Settings } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
-import { useCalmariaStore } from '@/store/useCalmariaStore';
-import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const DAILY_TIPS = [
   "Revise suas pendências antes de iniciar blocos de foco intensos.",
@@ -21,11 +27,8 @@ const DAILY_TIPS = [
 ];
 
 export function GreetingWidget() {
-  const { userProfile, requestIdentity, isInitializing } = useUserContext();
+  const { userProfile, requestIdentity, isInitializing, setIsEditProfileOpen, logout } = useUserContext();
   const [greeting, setGreeting] = useState('Olá');
-  const { toggleOpen, isTimerRunning, activeSounds } = useCalmariaStore();
-  const isFocusActive = isTimerRunning || Object.keys(activeSounds).length > 0;
-  
   const [phraseIndex, setPhraseIndex] = useState(0);
 
   useEffect(() => {
@@ -72,30 +75,36 @@ export function GreetingWidget() {
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={(e) => {
-                e.preventDefault();
-                toggleOpen();
-              }}
-              className={cn(
-                "h-6 w-6 rounded-lg transition-all relative border-none",
-                isFocusActive 
-                  ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500" 
-                  : "text-slate-400 hover:text-orange-500 hover:bg-orange-100/50 dark:hover:bg-slate-800/50"
-              )}
-              title="Modo de Foco (Calmaria)"
-            >
-              <Headphones className={cn("h-3.5 w-3.5", isFocusActive && "animate-pulse")} />
-              {isFocusActive && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-duration-1000"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-orange-500"></span>
-                </span>
-              )}
-            </Button>
             <ThemeToggle className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg border-none hover:bg-slate-100/50 dark:hover:bg-slate-800/50 text-slate-400 hover:text-slate-900 transition-all dark:hover:text-slate-100">
+                  <User className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                {userProfile ? (
+                  <>
+                    <DropdownMenuLabel className="font-bold">Meu Perfil</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="cursor-pointer rounded-lg">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Configurações</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout} className="cursor-pointer rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950 dark:focus:text-red-400">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sair</span>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={() => requestIdentity()} className="cursor-pointer rounded-lg">
+                    <Zap className="mr-2 h-4 w-4" />
+                    <span>Fazer Login</span>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

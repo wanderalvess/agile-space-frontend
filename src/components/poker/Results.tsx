@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from 'react';
+import { motion } from 'framer-motion';
 import type { Vote, Participant, DeckType, TshirtEquivalent } from '@/lib/types';
 import { TSHIRT_UNIT_LABELS } from '@/lib/types';
 import { getParticipantCategory, TECHNICAL_CATEGORIES, calculateRoleEfforts, TechnicalCategory, formatRoleForCopy, getEligibleStatsVotes, resolveTshirtHours } from '@/lib/poker-utils';
@@ -19,6 +20,28 @@ interface ResultsProps {
   // usada quando deck === 'tshirt'. Presente = resultado calculado de verdade
   // (média em horas). Ausente = comportamento histórico (moda).
   tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>;
+}
+
+// Estouro de partículas (uma vez) quando o time fecha em consenso pleno.
+const BURST_COLORS = ['bg-amber-400', 'bg-indigo-400', 'bg-fuchsia-400', 'bg-emerald-400'];
+function ConsensusBurst() {
+  return (
+    <div className="pointer-events-none absolute left-9 top-8" aria-hidden>
+      {Array.from({ length: 16 }).map((_, i) => {
+        const angle = (i / 16) * Math.PI * 2;
+        const dist = 70 + (i % 3) * 22;
+        return (
+          <motion.span
+            key={i}
+            className={cn('absolute h-1.5 w-1.5 rounded-full', BURST_COLORS[i % BURST_COLORS.length])}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1.2 }}
+            animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.3 }}
+            transition={{ duration: 1.2, ease: 'easeOut' }}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 export function Results({ votes, participants, deck, allowManagementToVote = false, tshirtEquivalents }: ResultsProps) {
@@ -204,10 +227,11 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
           className={cn(
             'relative overflow-hidden rounded-2xl border p-5 md:w-[38%] flex flex-col justify-center',
             stats.consensus
-              ? 'border-amber-200/70 dark:border-amber-900/40 bg-gradient-to-br from-amber-50/80 to-white dark:from-amber-950/20 dark:to-card/40'
+              ? 'border-amber-300/70 dark:border-amber-700/40 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 dark:from-amber-950/30 dark:to-card/40 shadow-[0_0_50px_-12px_rgba(245,158,11,0.45)]'
               : 'border-slate-200/70 dark:border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl'
           )}
         >
+          {stats.consensus && <ConsensusBurst />}
           <div className="flex items-center gap-2 mb-2">
             {stats.consensus ? <Trophy className="h-4 w-4 text-amber-500" /> : <Hash className="h-4 w-4 text-indigo-400" />}
             <span className={cn('text-[10px] font-black uppercase tracking-[0.28em]', stats.consensus ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-500')}>
@@ -218,7 +242,20 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
           <div className="flex items-end justify-between gap-3">
             <div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-6xl lg:text-7xl font-black tracking-tighter text-slate-900 dark:text-white leading-none italic">{mainValue}</span>
+                <motion.span
+                  key={`${mainValue}-${stats.consensus}`}
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 14 }}
+                  className={cn(
+                    'inline-block origin-left pr-3 pb-1 text-6xl lg:text-7xl font-black tracking-tighter leading-[1.05] italic',
+                    stats.consensus
+                      ? 'bg-gradient-to-br from-amber-500 to-orange-500 bg-clip-text text-transparent'
+                      : 'text-slate-900 dark:text-white'
+                  )}
+                >
+                  {mainValue}
+                </motion.span>
                 {(deck === 'hours' || stats.tshirtNumeric) && <span className="text-2xl font-black text-slate-300 dark:text-slate-600 italic">H</span>}
               </div>
               {deck === 'tshirt' && !stats.tshirtNumeric && tshirtEquivalents?.[mainValue] && (

@@ -3,7 +3,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText
+  Trash2, Clock, Check, Bug, Code2, Camera, ExternalLink, Video, CheckCircle2, User, GitBranch, FileText, TrendingUp, Plus,
+  BarChart3, PieChart as PieChartIcon, LineChart as LineChartIcon, Sparkles, CheckSquare, ArrowRight, Maximize2, Minimize2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { ShowcaseTask, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
-import { isPdfUrl } from './utils';
+import { ShowcaseTask, ImpactMetric, ChartType, DECISION, Decision, ISSUE_TYPES, PREPARATION_STATUS, PreparationStatus, SessionMember } from './types';
+import { isPdfUrl, isTaskContentComplete } from './utils';
+import { ChartRenderer } from './ChartRenderer';
+import { CHART_PRESETS, getCategoryColor } from './chartPresets';
 
 // ── Controlled Inputs ────────────────────────────────────────────────────────
 const ControlledInput = React.memo(function ControlledInput({ value, onChange, debounceMs = 400, className, ...props }: any) {
@@ -153,6 +156,172 @@ function TextField({
   );
 }
 
+// ── Métricas de Impacto ──────────────────────────────────────────────────────
+// Lista de campo+valor livre (ex: "Economia (R$)": 5000) pra entregas que
+// valem um número pra mostrar na apresentação, mesmo sem ser ticket do Jira.
+// Sem id por item: a lista inteira é sempre substituída de uma vez (mesmo
+// padrão que evidence.* já usa), edição/remoção por índice já é suficiente.
+const CHART_TYPE_OPTIONS: { value: ChartType; label: string; icon: React.ElementType }[] = [
+  { value: 'bar', label: 'Barras', icon: BarChart3 },
+  { value: 'pie', label: 'Pizza', icon: PieChartIcon },
+  { value: 'line', label: 'Linha', icon: LineChartIcon },
+];
+
+function ChartTypePicker({ value, onChange }: { value: ChartType | undefined; onChange: (type: ChartType) => void }) {
+  const current = value || 'bar';
+  return (
+    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
+      {CHART_TYPE_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          title={opt.label}
+          className={cn(
+            'h-7 w-7 rounded-md flex items-center justify-center transition-all',
+            current === opt.value
+              ? 'bg-violet-500 text-white shadow-sm'
+              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+          )}
+        >
+          <opt.icon className="h-3.5 w-3.5" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const CHART_DISPLAY_OPTIONS: { value: 'compact' | 'featured'; label: string; title: string; icon: React.ElementType }[] = [
+  { value: 'compact', label: 'Compacto', title: 'Aparece pequeno junto com os detalhes', icon: Minimize2 },
+  { value: 'featured', label: 'Destaque', title: 'Vira o destaque grande da apresentação (substitui a evidência na tela principal)', icon: Maximize2 },
+];
+
+function ChartDisplayPicker({ value, onChange }: { value: 'compact' | 'featured' | undefined; onChange: (v: 'compact' | 'featured') => void }) {
+  const current = value || 'compact';
+  return (
+    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit shrink-0">
+      {CHART_DISPLAY_OPTIONS.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          title={opt.title}
+          className={cn(
+            'h-7 px-2 rounded-md flex items-center gap-1 text-[9px] font-black uppercase tracking-wider transition-all',
+            current === opt.value
+              ? 'bg-violet-500 text-white shadow-sm'
+              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+          )}
+        >
+          <opt.icon className="h-3 w-3" /> {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PresetPicker({ onApply }: { onApply: (preset: typeof CHART_PRESETS[number]) => void }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost" size="sm"
+        onClick={() => setOpen(v => !v)}
+        className="h-7 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-violet-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1"
+      >
+        <Sparkles className="h-3 w-3" /> Gráfico Pronto
+      </Button>
+      {open && (
+        <div className="absolute z-20 top-full left-0 mt-1 w-64 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-lg p-1.5">
+          {CHART_PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => { onApply(preset); setOpen(false); }}
+              className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors"
+            >
+              <p className="text-[11px] font-black text-slate-700 dark:text-slate-200">{preset.label}</p>
+              <p className="text-[9px] text-slate-400">{preset.description}</p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MetricsEditor({
+  metrics, onChange, chartType, onChartTypeChange, chartTitle, onChartTitleChange, onApplyPreset,
+}: {
+  metrics: ImpactMetric[]; onChange: (metrics: ImpactMetric[]) => void;
+  chartType?: ChartType; onChartTypeChange: (type: ChartType) => void;
+  chartTitle?: string; onChartTitleChange: (title: string) => void;
+  onApplyPreset: (preset: typeof CHART_PRESETS[number]) => void;
+}) {
+  const updateRow = (i: number, patch: Partial<ImpactMetric>) => {
+    onChange(metrics.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
+  };
+  const removeRow = (i: number) => onChange(metrics.filter((_, idx) => idx !== i));
+  const chartData = metrics.filter(m => m.field.trim()).map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <ChartTypePicker value={chartType} onChange={onChartTypeChange} />
+        <PresetPicker onApply={onApplyPreset} />
+      </div>
+      <ControlledInput
+        value={chartTitle || ''}
+        onChange={onChartTitleChange}
+        placeholder="Título do gráfico — ex: Bugs por Severidade"
+        className="w-full h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 px-2"
+      />
+      <div className="space-y-2">
+        {metrics.map((m, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <ControlledInput
+              value={m.field}
+              onChange={(v: string) => updateRow(i, { field: v })}
+              placeholder="Campo — ex: Economia (R$)"
+              className="flex-1 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 px-2"
+            />
+            <ControlledInput
+              type="number"
+              value={m.value ? String(m.value) : ''}
+              onChange={(v: string) => updateRow(i, { value: Number(v) || 0 })}
+              placeholder="Valor"
+              className="w-24 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-200 px-2"
+            />
+            <Button
+              variant="ghost" size="icon" onClick={() => removeRow(i)}
+              className="h-8 w-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all shrink-0"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <Button
+        variant="ghost" size="sm"
+        onClick={() => onChange([...metrics, { field: '', value: 0 }])}
+        className="h-7 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-violet-500 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1"
+      >
+        <Plus className="h-3 w-3" /> Adicionar Métrica
+      </Button>
+
+      {chartData.length > 0 && (
+        <ChartRenderer type={chartType} title={chartTitle || 'Impacto'} data={chartData} height={160} defaultColor="hsl(262, 83%, 65%)" />
+      )}
+    </div>
+  );
+}
+
+function truncate(text: string | undefined, n: number) {
+  if (!text) return 'não preenchido';
+  return text.length > n ? text.slice(0, n).trim() + '…' : text;
+}
+
 // ── Componente Principal ──────────────────────────────────────────────────────
 function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }: TaskCardProps) {
   const onUpdate = React.useCallback(
@@ -160,11 +329,33 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
     [task.id, onUpdateTask]
   );
   const onRemove = React.useCallback(() => onRemoveTask(task.id), [task.id, onRemoveTask]);
-  const hasProblem = !!task.evidence.problem;
-  const hasSolution = !!task.evidence.solution;
-  const hasEvidence = !!(task.evidence.screenshot || task.evidence.video);
-  const isReady = hasProblem && hasSolution && hasEvidence;
+  const isMetricsCard = task.cardKind === 'metrics';
+  const isReady = isTaskContentComplete(task);
   const isManual = task.id.startsWith('manual_') || task.key.startsWith('MANUAL-');
+  // Só pode recolher quando a squad já marcou a preparação como "Pronta" —
+  // colapsar um card ainda em aberto escondia campo vazio que precisava de
+  // atenção. Critério é o status explícito (preparationStatus), não o
+  // isReady calculado por conteúdo — são coisas diferentes.
+  const canCollapse = task.preparationStatus === 'done';
+  // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint
+  // grande) — sprint de 40 itens não vira scroll infinito de card 100% aberto.
+  const [collapsed, setCollapsed] = React.useState(canCollapse);
+
+  // Colapsa/reabre sozinho seguindo a transição de "Pronta" — mas só na
+  // TRANSIÇÃO (via ref), nunca a cada render: marcar "Pronta" já é uma ação
+  // discreta e deliberada no próprio header do card (clique num dropdown),
+  // então reagir a ela colapsando na hora é a confirmação visual esperada,
+  // não vira fechar "debaixo do cursor" de quem tá digitando num campo de
+  // texto. Reabre se o status regredir de "Pronta" — nunca deixa escondido
+  // um card fora do critério de recolher. Sem o `prev` isso brigaria com
+  // reabrir manualmente um card já pronto pra reconferir algo.
+  const prevCanCollapseRef = React.useRef(canCollapse);
+  React.useEffect(() => {
+    const prev = prevCanCollapseRef.current;
+    prevCanCollapseRef.current = canCollapse;
+    if (canCollapse && !prev) setCollapsed(true);
+    else if (!canCollapse && collapsed) setCollapsed(false);
+  }, [canCollapse, collapsed]);
 
   return (
     <motion.div
@@ -193,6 +384,11 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 Manual
               </Badge>
             )}
+            {isMetricsCard && (
+              <Badge className="bg-violet-100 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400 border-none font-black text-[8px] uppercase h-7 px-2 rounded-lg shrink-0 gap-1">
+                <TrendingUp className="h-3 w-3" /> Métrica
+              </Badge>
+            )}
 
             {/* KEY */}
             <Badge 
@@ -216,7 +412,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               <SelectTrigger className="h-7 w-fit px-3 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-lg text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors focus:ring-0 shrink-0">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-850">
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                 {ISSUE_TYPES.map((type) => (
                   <SelectItem key={type} value={type} className="text-[11px] font-black uppercase">
                     {type}
@@ -249,7 +445,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-850">
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                 {(['approved', 'needs_adjustment', 'rejected'] as const).map((d) => (
                   <SelectItem key={d} value={d} className="text-[10px] font-black uppercase">
                     <div className="flex items-center gap-1.5">
@@ -267,6 +463,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               onValueChange={(v) => onUpdate({ preparationStatus: v as PreparationStatus })}
             >
               <SelectTrigger
+                data-tour={index === 0 ? 'first-card-status' : undefined}
                 className={cn(
                   "h-7 w-fit px-3 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors shrink-0 border",
                   PREPARATION_STATUS[task.preparationStatus || 'todo'].cls,
@@ -275,7 +472,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               >
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="dark:bg-slate-900 dark:border-slate-850">
+              <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
                 {Object.entries(PREPARATION_STATUS).map(([key, config]) => (
                   <SelectItem key={key} value={key} className="text-[10px] font-black uppercase">
                     {config.label}
@@ -283,6 +480,26 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 ))}
               </SelectContent>
             </Select>
+
+            {/* Recolher/Expandir — Maximize2/Minimize2, não Chevron: um
+                caret de seta aqui ficava parecido demais com a seta do
+                select de Decisão do PO ao lado, sobretudo quando ele ainda
+                mostra "Aguardando" (mesmo texto/cor do preparationStatus
+                'todo') e perde o texto por falta de espaço. */}
+            <Button
+              variant="ghost" size="icon"
+              onClick={() => canCollapse && setCollapsed(c => !c)}
+              disabled={!canCollapse}
+              title={!canCollapse ? 'Marque a preparação como "Pronta" pra poder recolher' : (collapsed ? 'Expandir' : 'Recolher')}
+              className={cn(
+                'h-7 w-7 rounded-lg transition-all shrink-0',
+                canCollapse
+                  ? 'text-slate-300 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+                  : 'text-slate-200 dark:text-slate-700 cursor-not-allowed'
+              )}
+            >
+              {collapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+            </Button>
 
             {/* Deletar */}
             <Button
@@ -293,35 +510,105 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             </Button>
           </div>
 
+          {collapsed ? (
+            /* ╔══════════════════════════════════════╗
+                ║  RESUMO — card recolhido             ║
+                ╚══════════════════════════════════════╝ */
+            <button
+              type="button"
+              onClick={() => setCollapsed(false)}
+              className="w-full flex items-center gap-2.5 text-left"
+            >
+              <span className="flex-1 min-w-0 flex items-center gap-2 text-[11px] italic text-slate-400 dark:text-slate-500 truncate">
+                <span className="truncate">"{truncate(isMetricsCard ? task.description : task.evidence.problem, 42)}"</span>
+                {!isMetricsCard && (
+                  <>
+                    <ArrowRight className="h-3 w-3 text-slate-300 dark:text-slate-700 shrink-0" />
+                    <span className="truncate">"{truncate(task.evidence.solution, 42)}"</span>
+                  </>
+                )}
+              </span>
+              {!isMetricsCard && task.acceptanceCriteria && (
+                <span className="flex items-center gap-1 text-[9px] font-bold text-violet-500 dark:text-violet-400 shrink-0">
+                  <CheckSquare className="h-3 w-3" /> Critérios
+                </span>
+              )}
+              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
+                {task.evidence.dev || 'sem dev'}
+              </span>
+            </button>
+          ) : (
+          <>
           {/* ╔══════════════════════════════════════╗
               ║  SEÇÃO 2 — Conteúdo da Entrega       ║
               ╚══════════════════════════════════════╝ */}
-          <div className="grid grid-cols-2 gap-3">
+          {isMetricsCard ? (
             <TextField
-              id={`problem-${task.id}`}
-              label="O Problema / Motivação"
-              icon={Bug}
-              value={task.evidence.problem}
-              onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, problem: v } }))}
-              placeholder="Erro ou necessidade do cliente..."
-              multiline minRows={6}
-              colorScheme={{ label: 'text-rose-500 dark:text-rose-400', focus: 'focus:border-rose-200 dark:focus:border-rose-900/40', ring: 'focus:ring-1 focus:ring-rose-200/50 dark:focus:ring-rose-900/20' }}
+              id={`description-${task.id}`}
+              label="Contexto — o que esse número representa"
+              icon={FileText}
+              value={task.description}
+              onChange={(v) => onUpdate({ description: v })}
+              placeholder="Ex: Economia gerada pela automação do processo X no trimestre..."
+              multiline minRows={3}
+              colorScheme={{ label: 'text-violet-500 dark:text-violet-400', focus: 'focus:border-violet-200 dark:focus:border-violet-900/40', ring: 'focus:ring-1 focus:ring-violet-200/50 dark:focus:ring-violet-900/20' }}
             />
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <TextField
+                id={`problem-${task.id}`}
+                label="O Problema / Motivação"
+                icon={Bug}
+                value={task.evidence.problem}
+                onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, problem: v } }))}
+                placeholder="Erro ou necessidade do cliente..."
+                multiline minRows={6}
+                colorScheme={{ label: 'text-rose-500 dark:text-rose-400', focus: 'focus:border-rose-200 dark:focus:border-rose-900/40', ring: 'focus:ring-1 focus:ring-rose-200/50 dark:focus:ring-rose-900/20' }}
+              />
+              <TextField
+                id={`solution-${task.id}`}
+                label="A Solução Implementada"
+                icon={Code2}
+                value={task.evidence.solution}
+                onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, solution: v } }))}
+                placeholder="O que foi desenvolvido tecnicamente..."
+                multiline minRows={6}
+                colorScheme={{ label: 'text-emerald-600 dark:text-emerald-400', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
+              />
+            </div>
+          )}
+
+          {!isMetricsCard && (
             <TextField
-              id={`solution-${task.id}`}
-              label="A Solução Implementada"
-              icon={Code2}
-              value={task.evidence.solution}
-              onChange={(v) => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, solution: v } }))}
-              placeholder="O que foi desenvolvido tecnicamente..."
-              multiline minRows={6}
-              colorScheme={{ label: 'text-emerald-600 dark:text-emerald-450', focus: 'focus:border-emerald-200 dark:focus:border-emerald-900/40', ring: 'focus:ring-1 focus:ring-emerald-200/50 dark:focus:ring-emerald-900/20' }}
+              id={`acceptance-criteria-${task.id}`}
+              label="Critérios de Aceite"
+              icon={CheckSquare}
+              value={task.acceptanceCriteria}
+              onChange={(v) => onUpdate({ acceptanceCriteria: v })}
+              placeholder="O que precisa ser validado para considerar essa entrega aceita..."
+              multiline minRows={3}
+              colorScheme={{ label: 'text-violet-500 dark:text-violet-400', focus: 'focus:border-violet-200 dark:focus:border-violet-900/40', ring: 'focus:ring-1 focus:ring-violet-200/50 dark:focus:ring-violet-900/20' }}
             />
-          </div>
+          )}
 
           {/* ╔══════════════════════════════════════╗
-              ║  SEÇÃO 3 — Responsáveis + Evidências ║
+              ║  SEÇÃO 3 — Métricas (card de métricas) ou
+              ║            Responsáveis + Evidências (card padrão)
               ╚══════════════════════════════════════╝ */}
+          {isMetricsCard ? (
+            <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
+              <FieldLabel icon={TrendingUp} label="Campos e Valores" color="text-violet-500 dark:text-violet-400" />
+              <MetricsEditor
+                metrics={task.metrics || []}
+                onChange={(metrics) => onUpdate({ metrics })}
+                chartType={task.chartType}
+                onChartTypeChange={(chartType) => onUpdate({ chartType })}
+                chartTitle={task.chartTitle}
+                onChartTitleChange={(chartTitle) => onUpdate({ chartTitle })}
+                onApplyPreset={(preset) => onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) })}
+              />
+            </div>
+          ) : (
           <div className="grid grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
             {/* Responsáveis */}
             <div className="space-y-3">
@@ -329,9 +616,9 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               <div className="space-y-2">
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[8px] font-black uppercase text-blue-400 dark:text-blue-400">Dev</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dev</label>
                     {task.evidence.planned?.dev && (
-                      <span className="text-[7px] font-black text-slate-400 dark:text-slate-400 uppercase italic">Plano: {task.evidence.planned.dev}</span>
+                      <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-400 uppercase">Plano: {task.evidence.planned.dev}</span>
                     )}
                   </div>
                   <ControlledInput
@@ -343,9 +630,9 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-[8px] font-black uppercase text-amber-500 dark:text-amber-500">QA / Validação</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">QA / Validação</label>
                     {task.evidence.planned?.qa && (
-                      <span className="text-[7px] font-black text-slate-400 dark:text-slate-400 uppercase italic">Plano: {task.evidence.planned.qa}</span>
+                      <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-400 uppercase">Plano: {task.evidence.planned.qa}</span>
                     )}
                   </div>
                   <ControlledInput
@@ -363,7 +650,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
               <FieldLabel icon={GitBranch} label="CI/CD & Versões" color="text-slate-500 dark:text-slate-400" />
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black uppercase text-cyan-500 dark:text-cyan-400">Projeto / Repositório</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Projeto / Repositório</label>
                   <ControlledInput
                     value={task.project}
                     onChange={(v: string) => onUpdate({ project: v })}
@@ -372,8 +659,15 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400">Versões (M / D / R)</label>
-                  <div className="grid grid-cols-3 gap-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Versões (S / M / R / D)</label>
+                  <div className="grid grid-cols-4 gap-1">
+                    <ControlledInput
+                      value={task.versionSuporte}
+                      onChange={(v: string) => onUpdate({ versionSuporte: v })}
+                      placeholder="Suporte"
+                      title="Versão Suporte"
+                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
+                    />
                     <ControlledInput
                       value={task.versionMaster}
                       onChange={(v: string) => onUpdate({ versionMaster: v })}
@@ -382,17 +676,17 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                       className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
                     />
                     <ControlledInput
-                      value={task.versionDevelop}
-                      onChange={(v: string) => onUpdate({ versionDevelop: v })}
-                      placeholder="Develop"
-                      title="Versão Develop"
-                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
-                    />
-                    <ControlledInput
                       value={task.versionRelease}
                       onChange={(v: string) => onUpdate({ versionRelease: v })}
                       placeholder="Release"
                       title="Versão Release"
+                      className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
+                    />
+                    <ControlledInput
+                      value={task.versionDevelop}
+                      onChange={(v: string) => onUpdate({ versionDevelop: v })}
+                      placeholder="Develop"
+                      title="Versão Develop"
                       className="h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[9px] font-bold text-slate-700 dark:text-slate-200 px-1.5 text-center"
                     />
                   </div>
@@ -426,9 +720,70 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                     <Video className="h-3 w-3" />
                   </Button>
                 </div>
+                {/* Só faz sentido escolher quando os dois links estão preenchidos
+                    — com um só, esse é o que aparece na apresentação, sem
+                    ambiguidade nenhuma. Com os dois, essa escolha só decide qual
+                    abre primeiro: quem apresenta ainda alterna pra outra lá. */}
+                {task.evidence.screenshot && task.evidence.video && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Abre primeiro:</span>
+                    <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg w-fit">
+                      {([
+                        { value: 'video' as const, label: 'Vídeo', icon: Video },
+                        { value: 'screenshot' as const, label: 'Print', icon: Camera },
+                      ]).map(opt => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => onUpdate(prev => ({ ...prev, evidence: { ...prev.evidence, evidencePreference: opt.value } }))}
+                          className={cn(
+                            'h-6 px-2 rounded-md flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide transition-all',
+                            (task.evidence.evidencePreference || 'video') === opt.value
+                              ? 'bg-violet-500 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
+                          )}
+                        >
+                          <opt.icon className="h-3 w-3" /> {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+          )}
+
+          {/* ╔══════════════════════════════════════╗
+              ║  SEÇÃO 4 — Métrica de Impacto avulsa  ║
+              ║  (só no card padrão — no card de      ║
+              ║  métricas isso já é a SEÇÃO 3)         ║
+              ╚══════════════════════════════════════╝ */}
+          {!isMetricsCard && ((task.metrics && task.metrics.length > 0) ? (
+            <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+                <ChartDisplayPicker value={task.chartDisplay} onChange={(chartDisplay) => onUpdate({ chartDisplay })} />
+              </div>
+              <MetricsEditor
+                metrics={task.metrics}
+                onChange={(metrics) => onUpdate({ metrics })}
+                chartType={task.chartType}
+                onChartTypeChange={(chartType) => onUpdate({ chartType })}
+                chartTitle={task.chartTitle}
+                onChartTitleChange={(chartTitle) => onUpdate({ chartTitle })}
+                onApplyPreset={(preset) => onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) })}
+              />
+            </div>
+          ) : (
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => onUpdate({ metrics: [{ field: '', value: 0 }] })}
+              className="h-7 px-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1 w-fit"
+            >
+              <Plus className="h-3 w-3" /> Métrica de Impacto
+            </Button>
+          ))}
 
           {/* Feedback do PO */}
           {(task.feedback !== undefined || task.decision === 'needs_adjustment' || task.decision === 'rejected') && (
@@ -439,7 +794,7 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
             >
               <div className="w-1 rounded-full bg-amber-400 shrink-0" />
               <div className="flex-1">
-                <p className="text-[8px] font-black uppercase tracking-widest text-amber-500 dark:text-amber-400 mb-0.5">Feedback da Review</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-500 dark:text-amber-400 mb-0.5">Feedback da Review</p>
                 <ControlledTextarea
                   value={task.feedback || ''}
                   onChange={(v: string) => onUpdate({ feedback: v })}
@@ -448,6 +803,8 @@ function TaskCardComponent({ task, index, members, onUpdateTask, onRemoveTask }:
                 />
               </div>
             </motion.div>
+          )}
+          </>
           )}
         </div>
       </Card>

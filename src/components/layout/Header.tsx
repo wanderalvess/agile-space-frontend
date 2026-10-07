@@ -32,8 +32,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UserProfileModal } from './UserProfileModal';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { ProfileAvatar } from '@/components/common/ProfileAvatar';
 import { ThemeToggle } from './ThemeToggle';
+import { GlobalProjectSelector } from '@/components/admin/GlobalProjectSelector';
 
 
 export function Header() {
@@ -51,6 +52,7 @@ export function Header() {
   // Oculta o header global em módulos que possuem seu próprio cabeçalho ou sidebar dedicada
   const isMinimalLayout =
     pathname === '/' ||
+    pathname === '/login' ||
     pathname.startsWith('/jolt') ||
     pathname.startsWith('/manual') ||
     pathname.startsWith('/room') ||
@@ -58,19 +60,19 @@ export function Header() {
     pathname.startsWith('/brainstorming') ||
     pathname.startsWith('/health-check') ||
     pathname.startsWith('/workspace') ||
+    pathname.startsWith('/painel') ||
     pathname.startsWith('/sprint-planner') ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/devtools') ||
     pathname.startsWith('/showcase') ||
-    pathname.startsWith('/daily-flow') ||
     pathname.startsWith('/squad') ||
+    pathname.startsWith('/qa') ||
+    pathname.startsWith('/devtools') ||
     pathname.startsWith('/knowledge') ||
     pathname.startsWith('/governance') ||
     pathname.startsWith('/changelog') ||
     pathname.startsWith('/support') ||
-    pathname.startsWith('/vault') ||
     pathname.startsWith('/prompt-hub') ||
-    pathname.startsWith('/focus') ||
+    pathname.startsWith('/dashboards') ||
     pathname.startsWith('/action-plan');
 
   if (isMinimalLayout) {
@@ -87,7 +89,7 @@ export function Header() {
                 <Rocket className="h-5 w-5 text-primary drop-shadow-md" />
               </div>
               <span className="text-xl font-black tracking-tighter italic font-headline uppercase bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
-                Espaço <span className="text-primary not-italic">Ágil</span>
+                Portal Tech <span className="text-primary not-italic">V&D</span>
               </span>
             </Link>
           </div>
@@ -125,6 +127,7 @@ export function Header() {
               )}
             </Button>
 
+            <GlobalProjectSelector />
             <ThemeToggle />
 
             {/* Hydration-safe auth area */}
@@ -137,7 +140,7 @@ export function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2.5 px-3 py-1.5 rounded-full hover:bg-muted/50 transition-all outline-none group border border-transparent hover:border-border/40">
-                      <NiceAvatar className="w-8 h-8 rounded-full border border-primary/20 shadow-md shadow-primary/20 shrink-0 group-hover:scale-105 transition-transform bg-primary" {...(PREDEFINED_AVATARS[userProfile.avatarSeed || ''] || genConfig(userProfile.avatarSeed || userProfile.email || userProfile.name))} />
+                      <ProfileAvatar className="w-8 h-8 rounded-full border border-primary/20 shadow-md shadow-primary/20 shrink-0 group-hover:scale-105 transition-transform bg-primary" />
                       <div className="flex flex-col items-start hidden md:flex">
                         <span className="text-[11px] font-black text-foreground uppercase tracking-tight leading-none mb-1">
                           {userProfile.name}
@@ -160,7 +163,7 @@ export function Header() {
                       className="text-xs font-bold gap-2 py-3 cursor-pointer group"
                     >
                       <Settings className="h-4 w-4 text-primary group-hover:rotate-45 transition-transform" />
-                      ⚙️ Meu Perfil
+                      Meu Perfil
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="text-xs font-bold gap-2 py-3 cursor-pointer group">
                       <Link href="/workspace" className="flex items-center w-full">

@@ -15,6 +15,8 @@ interface VotingAreaProps {
   // Opt-in (facilitador): quebra as cartas em blocos por papel, com cabeçalho
   // por cargo. Default false = grade única.
   groupByRole?: boolean;
+  // Modo apresentação: cartas maiores para ler de longe numa tela compartilhada/projetada.
+  large?: boolean;
 }
 
 // Ordem canônica dos blocos e o acento de cor (alinhado ao Relatório por papel).
@@ -24,9 +26,13 @@ const CATEGORY_ACCENT: Record<string, string> = {
 };
 const CATEGORY_LABEL: Record<string, string> = { Management: 'Gestão', Outros: 'Outros' };
 
-const GRID_CLS = 'grid gap-4 grid-cols-[repeat(auto-fill,minmax(95px,1fr))] md:grid-cols-[repeat(auto-fill,minmax(115px,1fr))]';
+// Flex centralizado com largura fixa por carta: com poucas pessoas as cartas ficam
+// no meio da mesa em vez de coladas à esquerda numa grade de colunas vazias.
+const GRID_CLS = 'flex flex-wrap justify-center gap-4';
+const CARD_SLOT_CLS = 'w-[95px] md:w-[115px]';
+const CARD_SLOT_LARGE_CLS = 'w-[120px] md:w-[150px] xl:w-[180px]';
 
-export function VotingArea({ participants, votes, votesRevealed, divergences = new Map(), groupByRole = false }: VotingAreaProps) {
+export function VotingArea({ participants, votes, votesRevealed, divergences = new Map(), groupByRole = false, large = false }: VotingAreaProps) {
   const votesByParticipant = useMemo(() => {
     return new Map(votes.map(v => [v.participantId, v]));
   }, [votes]);
@@ -49,17 +55,18 @@ export function VotingArea({ participants, votes, votesRevealed, divergences = n
   }, [groupByRole, votingParticipants]);
 
   const renderCard = (participant: Participant) => (
-    <ParticipantCard
-      key={participant.id}
-      participant={participant}
-      vote={votesByParticipant.get(participant.id)}
-      isRevealed={votesRevealed}
-      divergenceLevel={divergences.get(participant.id) || 'none'}
-    />
+    <div key={participant.id} className={large ? CARD_SLOT_LARGE_CLS : CARD_SLOT_CLS}>
+      <ParticipantCard
+        participant={participant}
+        vote={votesByParticipant.get(participant.id)}
+        isRevealed={votesRevealed}
+        divergenceLevel={divergences.get(participant.id) || 'none'}
+      />
+    </div>
   );
 
   if (!groups) {
-    return <div className={GRID_CLS}>{votingParticipants.map(renderCard)}</div>;
+    return <div className={cn(GRID_CLS, large && 'gap-6')}>{votingParticipants.map(renderCard)}</div>;
   }
 
   return (
@@ -74,7 +81,7 @@ export function VotingArea({ participants, votes, votesRevealed, divergences = n
             <span className="text-[9px] font-black text-slate-400 shrink-0">· {ps.length}</span>
             <span className="flex-1 h-px bg-slate-100 dark:bg-border/40" />
           </div>
-          <div className={GRID_CLS}>{ps.map(renderCard)}</div>
+          <div className={cn(GRID_CLS, large && 'gap-6')}>{ps.map(renderCard)}</div>
         </div>
       ))}
     </div>

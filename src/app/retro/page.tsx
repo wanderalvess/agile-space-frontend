@@ -1,48 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Zap, 
-  Target, 
-  Users, 
+import {
+  LayoutDashboard,
+  Zap,
+  Target,
   ShieldCheck,
   TrendingUp,
-  ArrowRight as ArrowRightIcon,
-  HeartPulse,
   Sparkles,
   CheckCircle2,
   AlertCircle,
   ListTodo,
-  Trash2
 } from 'lucide-react';
-import { useFirebase } from '@/firebase';
 import { retroApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { RETRO_TEMPLATES, RetroTemplateKey, RetroColumnDef, RetroColumnTheme } from '@/lib/types';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cn } from '@/lib/utils';
+import { CreateRetroDialog, DEFAULT_SETUP_SETTINGS, SetupSettings } from '@/components/retro/CreateRetroDialog';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 
 export default function RetroHubPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { firestore, auth, user } = useFirebase();
   const { userProfile, requestIdentity } = useUserContext();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
@@ -50,13 +32,43 @@ export default function RetroHubPage() {
   
   // Setup State
   const [title, setTitle] = useState('');
-  const [team, setTeam] = useState(userProfile?.squadId || userProfile?.team || '');
+  const [team, setTeam] = useState('');
   const [template, setTemplate] = useState<RetroTemplateKey>('classic');
   const [customColumns, setCustomColumns] = useState<{ title: string; theme: RetroColumnTheme }[]>([
     { title: '', theme: 'success' },
     { title: '', theme: 'warning' },
     { title: '', theme: 'action' },
   ]);
+  const [setupSettings, setSetupSettings] = useState<SetupSettings>(DEFAULT_SETUP_SETTINGS);
+  const [healthCheckQuestion, setHealthCheckQuestion] = useState('');
+  const [sprintId, setSprintId] = useState('');
+
+  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
+  // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma
+  // edição manual nem um valor já preenchido por uma resolução anterior.
+  useEffect(() => {
+    if (team) return;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const squadParam = urlParams.get('squad');
+      if (squadParam) {
+        setTeam(squadParam);
+        return;
+      }
+    }
+    const userTeam = userProfile?.squadId || userProfile?.team;
+    if (userTeam) setTeam(userTeam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile]);
+
+  // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
+  // pra ligar o board novo à sprint já em andamento no restante do ciclo.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sprintIdParam = urlParams.get('sprintId');
+    if (sprintIdParam) setSprintId(sprintIdParam);
+  }, []);
 
   const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
     try {
@@ -67,7 +79,7 @@ export default function RetroHubPage() {
         type,
         title,
         team,
-        createdBy: user?.uid,
+        createdBy: userProfile?.id,
         createdAt: new Date().toISOString()
       };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
@@ -77,7 +89,17 @@ export default function RetroHubPage() {
   };
 
   const handleCreate = async () => {
-    if (!auth.currentUser || isCreating) return;
+    if (isCreating) return;
+
+    if (!userProfile || !userProfile.id) {
+      console.error("[retro] Tentativa de criação de quadro abortada: usuário nulo ou sem ID.");
+      toast({
+        title: "Perfil Não Identificado",
+        description: "Não foi possível carregar a sua identidade. Por favor, defina seu perfil e tente novamente.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!title.trim()) {
       toast({
@@ -116,36 +138,48 @@ export default function RetroHubPage() {
       return;
     }
 
+    const resolvedTeam = team.trim() || 'Squad Geral';
+
     const newBoard = {
       id: crypto.randomUUID(),
-      creatorId: auth.currentUser.uid,
+      creatorId: userProfile.id,
       isCardsRevealed: false,
-      isAuthorsRevealed: false,
       votingStatus: 'disabled' as const,
-      timer: { status: 'stopped', endTime: null, initialDuration: 300, remainingOnPause: 300 },
+      maxVotesPerParticipant: 5,
+      ...setupSettings,
+      timer: { status: 'stopped' as const, endTime: null, initialDuration: 300, remainingOnPause: 300 },
       title: title.trim(),
-      team: team.trim() || 'Squad Geral',
+      team: resolvedTeam,
       createdAt: new Date().toISOString(),
-      participantIds: [auth.currentUser.uid],
+      participantIds: [userProfile.id],
       columns,
       templateKey: template,
+      ...(healthCheckQuestion.trim() ? { healthCheckQuestion: healthCheckQuestion.trim() } : {}),
+      ...(userProfile.squadId ? { squadId: userProfile.squadId } : {}),
+      ...(sprintId ? { sprintId } : {}),
     };
 
     try {
       const docRef = await retroApi.saveOrUpdateBoard(newBoard);
       if (docRef && docRef.id) {
-        saveRoomMeta(docRef.id, 'retro', title.trim(), team.trim() || 'Squad');
+        saveRoomMeta(docRef.id, 'retro', title.trim(), resolvedTeam);
         setIsSetupOpen(false);
         router.push(`/retro/${docRef.id}`);
       } else {
+        console.error("[retro] Resposta da API ao criar quadro não veio com ID válido:", docRef);
         setIsCreating(false);
+        toast({
+          title: "Erro na Criação",
+          description: "O servidor não retornou um ID para o novo quadro.",
+          variant: "destructive"
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating retro board: ", error);
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar o quadro no momento.",
+        description: error?.message || "Não foi possível iniciar o quadro no momento.",
         variant: "destructive"
       });
     }
@@ -153,18 +187,18 @@ export default function RetroHubPage() {
 
   const tips = [
     {
-      title: "Segurança Psicológica",
-      description: "A retro é um espaço seguro. O foco deve estar no processo e no sistema, nunca em apontar culpados.",
+      title: "Foco no processo, não nas pessoas",
+      description: "A retro é um espaço seguro: fale do processo e do sistema, nunca para apontar culpados.",
       icon: <ShieldCheck className="text-emerald-600" />
     },
     {
-      title: "Ações Concretas",
-      description: "Uma boa retrospectiva termina com itens de ação claros, com responsáveis e prazos definidos.",
+      title: "Termine com ações claras",
+      description: "Cada ação precisa de um responsável e de um prazo.",
       icon: <Target className="text-emerald-600" />
     },
     {
-      title: "Melhoria Contínua",
-      description: "Pequenos ajustes incrementais a cada ciclo geram resultados massivos no longo prazo.",
+      title: "Pequenos ajustes a cada sprint",
+      description: "Mudanças pequenas e constantes somam muito ao longo do tempo.",
       icon: <TrendingUp className="text-emerald-600" />
     }
   ];
@@ -173,25 +207,25 @@ export default function RetroHubPage() {
     {
       title: "O que foi bom",
       label: "Celebração",
-      description: "Momento de reconhecer vitórias, elogiar o time e garantir que processos eficientes sejam mantidos e replicados.",
+      description: "Reconheça as vitórias, elogie o time e mantenha o que está funcionando.",
       icon: <CheckCircle2 className="text-emerald-500" />
     },
     {
       title: "O que melhorar",
       label: "Gargalos",
-      description: "Identificação honesta de falhas de comunicação, débitos técnicos ou processos que estão travando a squad.",
+      description: "Aponte com honestidade falhas de comunicação, dívidas técnicas ou processos que travam a squad.",
       icon: <AlertCircle className="text-rose-500" />
     },
     {
-      title: "Plano de Ação",
+      title: "Plano de ação",
       label: "Execução",
-      description: "Comprometimento real. Cada item de melhoria deve gerar uma ação prática com responsável definido para a próxima sprint.",
+      description: "Cada melhoria vira uma ação prática, com responsável definido para a próxima sprint.",
       icon: <ListTodo className="text-blue-500" />
     },
     {
-      title: "Poderes do Facilitador",
-      label: "Gestão",
-      description: "O facilitador pode revelar cards em massa, limpar votos para recalibrar o foco e exportar o relatório final consolidado.",
+      title: "Ferramentas do facilitador",
+      label: "Facilitação",
+      description: "O facilitador revela os cards, abre e encerra a votação, controla o timer e exporta o resumo da retro.",
       icon: <Zap className="text-amber-500" />
     }
   ];
@@ -207,7 +241,7 @@ export default function RetroHubPage() {
         tips={tips}
         referenceSections={referenceSections}
         onNewSession={() => {
-          if (!user) {
+          if (!userProfile) {
             requestIdentity(() => setIsSetupOpen(true));
           } else {
             setIsSetupOpen(true);
@@ -217,118 +251,29 @@ export default function RetroHubPage() {
         isCreating={isCreating}
       />
 
-      <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-[3rem] border-none shadow-2xl bg-white/95 backdrop-blur-xl">
-          <DialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-600/20 text-white">
-               <HeartPulse className="h-6 w-6" />
-            </div>
-            <DialogTitle className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none">Novo Quadro</DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Escolha o formato ideal para seu time</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-6 font-sans">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Título da Retro</Label>
-                <Input 
-                  placeholder="Ex: Fim da Sprint #42" 
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  className="h-12 rounded-2xl border-slate-100 focus:border-emerald-500 font-bold bg-slate-50/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Squad / Time</Label>
-                <Input 
-                  placeholder="Ex: Delta Force" 
-                  value={team}
-                  onChange={e => setTeam(e.target.value)}
-                  className="h-12 rounded-2xl border-slate-100 focus:border-emerald-500 font-bold bg-slate-50/50"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Template de Colunas</Label>
-              <Select value={template} onValueChange={(val: RetroTemplateKey) => setTemplate(val)}>
-                <SelectTrigger className="h-14 rounded-2xl border-slate-100 bg-slate-50/50 font-bold">
-                  <SelectValue placeholder="Selecione um formato" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl border-slate-100 p-2">
-                  <SelectItem value="classic" className="rounded-xl font-bold py-3 px-4">🏆 Clássico (Parar, Começar, Continuar)</SelectItem>
-                  <SelectItem value="start_stop_continue" className="rounded-xl font-bold py-3 px-4">🔄 Começar, Parar, Continuar</SelectItem>
-                  <SelectItem value="four_ls" className="rounded-xl font-bold py-3 px-4">🍃 4L (Liked, Learned, Lacked...)</SelectItem>
-                  <SelectItem value="daki" className="rounded-xl font-bold py-3 px-4">💎 DAKI (Drop, Add, Keep, Improve)</SelectItem>
-                  <SelectItem value="sailboat" className="rounded-xl font-bold py-3 px-4">⛵ Sailboat (Vento, Sol, Âncora...)</SelectItem>
-                  <SelectItem value="starfish" className="rounded-xl font-bold py-3 px-4">⭐ Starfish (5 Estágios: Manter, Menos, Mais...)</SelectItem>
-                  <SelectItem value="mad_sad_glad" className="rounded-xl font-bold py-3 px-4">😤 Glad, Sad, Mad (Feliz, Triste, Irritado)</SelectItem>
-                  <SelectItem value="three_little_pigs" className="rounded-xl font-bold py-3 px-4">🐷 Três Porquinhos (Palha, Madeira, Tijolo)</SelectItem>
-                  <SelectItem value="speed_car" className="rounded-xl font-bold py-3 px-4">🏎️ Speed Car (Motor e Paraquedas)</SelectItem>
-                  <SelectItem value="custom" className="rounded-xl font-bold py-3 px-4 text-emerald-600">🛠️ Personalizado...</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {template === 'custom' && (
-              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Definição de Colunas</Label>
-                 <div className="grid grid-cols-1 gap-2">
-                    {customColumns.map((col, idx) => (
-                      <div key={idx} className="flex gap-2">
-                         <Input 
-                            value={col.title}
-                            onChange={(e) => {
-                              const newCols = [...customColumns];
-                              newCols[idx].title = e.target.value;
-                              setCustomColumns(newCols);
-                            }}
-                            placeholder={`Coluna ${idx + 1}`}
-                            className="h-11 rounded-xl border-slate-100 bg-slate-50/30 font-bold"
-                         />
-                         {customColumns.length > 2 && (
-                            <Button 
-                              variant="ghost" 
-                              onClick={() => setCustomColumns(customColumns.filter((_, i) => i !== idx))}
-                              className="h-11 w-11 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50"
-                            >
-                               <Trash2 className="h-4 w-4" />
-                            </Button>
-                         )}
-                      </div>
-                    ))}
-                    {customColumns.length < 5 && (
-                       <Button 
-                         variant="outline" 
-                         onClick={() => setCustomColumns([...customColumns, { title: '', theme: 'neutral' }])}
-                         className="h-11 rounded-xl border-dashed border-2 text-[10px] font-black uppercase tracking-[0.2em]"
-                       >
-                          + Adicionar Coluna
-                       </Button>
-                    )}
-                 </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="pt-6 border-t border-slate-100 flex-col gap-3">
-             <Button 
-               disabled={isCreating}
-               onClick={handleCreate}
-               className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-emerald-600/10 gap-3"
-             >
-               {isCreating ? 'Sincronizando...' : 'Abrir Sessão'}
-               <ArrowRightIcon className="h-4 w-4" />
-             </Button>
-             <button 
-               onClick={() => setIsSetupOpen(false)}
-               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
-             >
-                Cancelar
-             </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CreateRetroDialog
+        open={isSetupOpen}
+        onOpenChange={setIsSetupOpen}
+        title={title}
+        onTitleChange={setTitle}
+        team={team}
+        onTeamChange={setTeam}
+        template={template}
+        onTemplateChange={setTemplate}
+        customColumns={customColumns}
+        onCustomColumnsChange={setCustomColumns}
+        setupSettings={setupSettings}
+        onSetupSettingsChange={setSetupSettings}
+        healthCheckQuestion={healthCheckQuestion}
+        onHealthCheckQuestionChange={setHealthCheckQuestion}
+        isCreating={isCreating}
+        onCreate={handleCreate}
+        onCancel={() => {
+          setIsSetupOpen(false);
+          setSetupSettings(DEFAULT_SETUP_SETTINGS);
+          setHealthCheckQuestion('');
+        }}
+      />
     </>
   );
 }

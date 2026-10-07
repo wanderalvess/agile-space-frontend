@@ -219,7 +219,7 @@ async function handleMockRequest(
 
     return NextResponse.json(
       {
-        error: 'Rota não encontrada no Motor de Mock do Agile Space',
+        error: 'Rota não encontrada no Motor de Mock do Portal Tech V&D',
         detalhes: {
           metodoSolicitado: method,
           rotaSolicitada: targetCleanPath,

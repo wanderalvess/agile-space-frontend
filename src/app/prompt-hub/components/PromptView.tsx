@@ -27,8 +27,9 @@ import { getTypeMeta, getStatusMeta, getImpactMeta, getVisibilityMeta } from '..
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { promptApi } from '../api';
+import { MarkdownRenderer } from '@/components/shared/MarkdownRenderer';
 
 interface PromptViewProps {
   prompt: PromptItem | null;
@@ -91,8 +92,9 @@ export function PromptView({
   onSelectTag,
   userProfile
 }: PromptViewProps) {
-  const { user } = useFirebase();
+  const { session } = useAuth();
 
+  const [viewMode, setViewMode] = React.useState<'formatted' | 'raw'>('formatted');
   const [variableValues, setVariableValues] = React.useState<Record<string, string>>({});
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [newComment, setNewComment] = React.useState('');
@@ -124,7 +126,7 @@ export function PromptView({
   }, [prompt?.content, variableValues]);
 
   const fetchComments = React.useCallback(async () => {
-    if (!prompt?.id || !isOpen || !user) {
+    if (!prompt?.id || !isOpen || !session) {
       setComments([]);
       return;
     }
@@ -135,7 +137,7 @@ export function PromptView({
       console.warn('Discussão indisponível para este item:', err.message);
       setComments([]);
     }
-  }, [prompt?.id, isOpen, user]);
+  }, [prompt?.id, isOpen, session]);
 
   React.useEffect(() => {
     fetchComments();
@@ -144,11 +146,13 @@ export function PromptView({
   React.useEffect(() => {
     setVariableValues({});
     setNewComment('');
+    setViewMode('formatted');
   }, [prompt?.id]);
 
   if (!prompt) return null;
 
   const type = getTypeMeta(prompt.type);
+  const supportsMarkdownPreview = prompt.type === 'skill' || prompt.type === 'resource';
   const status = getStatusMeta(prompt.status);
   const impact = getImpactMeta(prompt.impact);
   const visibility = getVisibilityMeta(prompt.visibility);
@@ -162,8 +166,8 @@ export function PromptView({
 
   const formattedDate = prompt.updatedAt
     ? format(
-        prompt.updatedAt instanceof Date
-          ? prompt.updatedAt
+        (prompt.updatedAt as any) instanceof Date
+          ? (prompt.updatedAt as unknown as Date)
           : typeof prompt.updatedAt === 'string'
             ? new Date(prompt.updatedAt)
             : (prompt.updatedAt as any).toDate?.() || new Date(),
@@ -198,13 +202,13 @@ export function PromptView({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newComment.trim() || !prompt?.id) return;
+    if (!session || !newComment.trim() || !prompt?.id) return;
 
     setIsPosting(true);
     try {
       await promptApi.addComment(prompt.id, {
-        authorId: user.uid,
-        authorName: userProfile?.name || user.displayName || user.email?.split('@')[0] || 'Membro',
+        authorId: session.id,
+        authorName: userProfile?.name || session.name || 'Membro',
         authorRole: userProfile?.role || 'Engenheiro',
         authorSquad: userProfile?.squadId || 'Squad Geral',
         authorAvatar: userProfile?.avatarSeed || '',
@@ -225,7 +229,7 @@ export function PromptView({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+      <DialogContent className="flex max-h-[94vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl">
         <DialogHeader className="space-y-3 border-b border-border px-6 py-4 text-left">
           <div className="flex flex-wrap items-center gap-2">
             <span
@@ -343,176 +347,232 @@ export function PromptView({
           )}
         </DialogHeader>
 
-        <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
-          {variables.length > 0 && (
-            <section className="space-y-3 rounded-lg border border-border bg-muted/40 p-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Personalize antes de copiar</h3>
-                <p className="text-xs text-muted-foreground">
-                  Os valores preenchidos substituem as variáveis no conteúdo copiado.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {variables.map(variable => (
-                  <div key={variable} className="space-y-1.5">
-                    <Label htmlFor={`var-${variable}`} className="text-xs font-medium">
-                      {variable}
-                    </Label>
-                    <Input
-                      id={`var-${variable}`}
-                      value={variableValues[variable] || ''}
-                      onChange={e =>
-                        setVariableValues(prev => ({ ...prev, [variable]: e.target.value }))
-                      }
-                      placeholder={`Valor para ${variable}`}
-                      className="h-9 text-sm"
-                    />
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="space-y-6 lg:space-y-0 lg:grid lg:grid-cols-12 lg:gap-8">
+            {/* Coluna Esquerda: Variáveis preenchíveis + Pré-visualização do conteúdo / Prompt Specimen */}
+            <div className="lg:col-span-7 xl:col-span-7 space-y-5">
+              {variables.length > 0 && (
+                <section className="space-y-3 rounded-xl border border-border bg-muted/40 p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Personalize antes de copiar</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Os valores preenchidos substituem as variáveis no conteúdo copiado.
+                    </p>
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {hasContent && (
-            <section className="space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">{type.contentLabel}</h3>
-              <pre className="max-h-[380px] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-border bg-muted/40 p-4 font-code text-[13px] leading-relaxed text-foreground">
-                {processedContent}
-              </pre>
-            </section>
-          )}
-
-          <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <MetaRow icon={Users} label="Autor">
-              {prompt.authorName || 'Membro'}
-              {prompt.authorSquad ? ` · ${prompt.authorSquad}` : ''}
-            </MetaRow>
-
-            {formattedDate && (
-              <MetaRow icon={Calendar} label="Atualizado em">
-                {formattedDate}
-              </MetaRow>
-            )}
-
-            <MetaRow icon={ArrowUpRight} label="Uso">
-              {prompt.useCount || 0} cópias · {prompt.forkCount || 0} clones
-            </MetaRow>
-
-            {prompt.targetAudience?.trim() && (
-              <MetaRow icon={Users} label="Público-alvo">
-                {prompt.targetAudience}
-              </MetaRow>
-            )}
-
-            {prompt.businessGoal?.trim() && (
-              <div className="sm:col-span-2">
-                <MetaRow icon={Target} label="Objetivo de negócio">
-                  {prompt.businessGoal}
-                </MetaRow>
-              </div>
-            )}
-
-            {safeDocLink && (
-              <div className="sm:col-span-2">
-                <MetaRow icon={FileText} label="Documentação">
-                  <button
-                    onClick={() => openExternalUrl(safeDocLink)}
-                    className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                  >
-                    {safeDocLink}
-                    <ExternalLink className="h-3 w-3" />
-                  </button>
-                </MetaRow>
-              </div>
-            )}
-          </section>
-
-          {prompt.tags && prompt.tags.length > 0 && (
-            <section className="flex flex-wrap gap-1.5">
-              {prompt.tags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => onSelectTag?.(tag)}
-                  className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  title="Filtrar a biblioteca por esta tag"
-                >
-                  #{tag}
-                </button>
-              ))}
-            </section>
-          )}
-
-          <section className="space-y-3 border-t border-border pt-5">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              Discussão
-              {comments.length > 0 && (
-                <span className="text-xs font-normal text-muted-foreground">
-                  ({comments.length})
-                </span>
-              )}
-            </h3>
-
-            {!user ? (
-              <p className="text-sm text-muted-foreground">Entre para participar da discussão.</p>
-            ) : (
-              <>
-                <form onSubmit={handleAddComment} className="flex items-center gap-2">
-                  <Input
-                    value={newComment}
-                    onChange={e => setNewComment(e.target.value)}
-                    placeholder="Deixe uma dica de uso, ajuste ou resultado obtido..."
-                    className="h-10 text-sm"
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    disabled={isPosting || !newComment.trim()}
-                    className="h-10 w-10 shrink-0"
-                    title="Enviar"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </form>
-
-                {comments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum comentário ainda. Seja a primeira pessoa a contar como usou.
-                  </p>
-                ) : (
-                  <ul className="space-y-3">
-                    {comments.map(comment => (
-                      <li key={comment.id} className="rounded-lg border border-border p-3">
-                        <div className="mb-1 flex items-center justify-between gap-3">
-                          <span className="text-xs font-medium text-foreground">
-                            {comment.authorName}
-                            {comment.authorSquad ? (
-                              <span className="font-normal text-muted-foreground">
-                                {' '}
-                                · {comment.authorSquad}
-                              </span>
-                            ) : null}
-                          </span>
-                          {comment.authorId === user.uid && (
-                            <button
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="text-muted-foreground hover:text-destructive"
-                              title="Excluir comentário"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                          {comment.content}
-                        </p>
-                      </li>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {variables.map(variable => (
+                      <div key={variable} className="space-y-1.5">
+                        <Label htmlFor={`var-${variable}`} className="text-xs font-medium">
+                          {variable}
+                        </Label>
+                        <Input
+                          id={`var-${variable}`}
+                          value={variableValues[variable] || ''}
+                          onChange={e =>
+                            setVariableValues(prev => ({ ...prev, [variable]: e.target.value }))
+                          }
+                          placeholder={`Valor para ${variable}`}
+                          className="h-9 text-sm"
+                        />
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                </section>
+              )}
+
+              {hasContent && (
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-foreground">{type.contentLabel}</h3>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {supportsMarkdownPreview && (
+                        <div className="flex items-center rounded-lg border border-border p-0.5">
+                          <button
+                            onClick={() => setViewMode('formatted')}
+                            className={cn(
+                              'px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors',
+                              viewMode === 'formatted' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            Formatado
+                          </button>
+                          <button
+                            onClick={() => setViewMode('raw')}
+                            className={cn(
+                              'px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors',
+                              viewMode === 'raw' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            Cru
+                          </button>
+                        </div>
+                      )}
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {processedContent.length} chars · {processedContent.split('\n').length} linhas
+                      </span>
+                    </div>
+                  </div>
+                  {supportsMarkdownPreview && viewMode === 'formatted' ? (
+                    <div className="max-h-[520px] min-h-[200px] overflow-auto rounded-xl border border-border bg-muted/30 p-4">
+                      <MarkdownRenderer content={processedContent} />
+                    </div>
+                  ) : (
+                    <pre className="max-h-[520px] min-h-[200px] overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-muted/30 p-4 font-code text-[13px] leading-relaxed text-foreground select-text">
+                      {processedContent}
+                    </pre>
+                  )}
+                </section>
+              )}
+            </div>
+
+            {/* Coluna Direita: Metadados técnicos, Tags e Discussão */}
+            <div className="lg:col-span-5 xl:col-span-5 space-y-6 lg:border-l lg:border-border/60 lg:pl-6">
+              {/* Metadados */}
+              <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Ficha Técnica
+                </h3>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-1">
+                  <MetaRow icon={Users} label="Autor">
+                    {prompt.authorName || 'Membro'}
+                    {prompt.authorSquad ? ` · ${prompt.authorSquad}` : ''}
+                  </MetaRow>
+
+                  {formattedDate && (
+                    <MetaRow icon={Calendar} label="Atualizado em">
+                      {formattedDate}
+                    </MetaRow>
+                  )}
+
+                  <MetaRow icon={ArrowUpRight} label="Uso">
+                    {prompt.useCount || 0} cópias · {prompt.forkCount || 0} clones
+                  </MetaRow>
+
+                  {prompt.targetAudience?.trim() && (
+                    <MetaRow icon={Users} label="Público-alvo">
+                      {prompt.targetAudience}
+                    </MetaRow>
+                  )}
+
+                  {prompt.businessGoal?.trim() && (
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <MetaRow icon={Target} label="Objetivo de negócio">
+                        {prompt.businessGoal}
+                      </MetaRow>
+                    </div>
+                  )}
+
+                  {safeDocLink && (
+                    <div className="sm:col-span-2 lg:col-span-1">
+                      <MetaRow icon={FileText} label="Documentação">
+                        <button
+                          onClick={() => openExternalUrl(safeDocLink)}
+                          className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline text-left break-all"
+                        >
+                          {safeDocLink}
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </button>
+                      </MetaRow>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Tags */}
+              {prompt.tags && prompt.tags.length > 0 && (
+                <section className="space-y-2">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Tags
+                  </h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {prompt.tags.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => onSelectTag?.(tag)}
+                        className="rounded-md bg-muted px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        title="Filtrar a biblioteca por esta tag"
+                      >
+                        #{tag}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Discussão */}
+              <section className="space-y-3 pt-2">
+                <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  Discussão
+                  {comments.length > 0 && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      ({comments.length})
+                    </span>
+                  )}
+                </h3>
+
+                {!session ? (
+                  <p className="text-xs text-muted-foreground">Entre para participar da discussão.</p>
+                ) : (
+                  <>
+                    <form onSubmit={handleAddComment} className="flex items-center gap-2">
+                      <Input
+                        value={newComment}
+                        onChange={e => setNewComment(e.target.value)}
+                        placeholder="Deixe uma dica de uso ou resultado..."
+                        className="h-9 text-xs"
+                      />
+                      <Button
+                        type="submit"
+                        size="icon"
+                        disabled={isPosting || !newComment.trim()}
+                        className="h-9 w-9 shrink-0"
+                        title="Enviar"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </Button>
+                    </form>
+
+                    {comments.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Nenhum comentário ainda. Seja a primeira pessoa a contar como usou.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2.5 max-h-[280px] overflow-y-auto pr-1">
+                        {comments.map(comment => (
+                          <li key={comment.id} className="rounded-lg border border-border bg-muted/20 p-3">
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <span className="text-xs font-semibold text-foreground">
+                                {comment.authorName}
+                                {comment.authorSquad ? (
+                                  <span className="font-normal text-muted-foreground">
+                                    {' '}
+                                    · {comment.authorSquad}
+                                  </span>
+                                ) : null}
+                              </span>
+                              {comment.authorId === session.id && (
+                                <button
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  className="text-muted-foreground hover:text-destructive"
+                                  title="Excluir comentário"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                              {comment.content}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </section>
+              </section>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

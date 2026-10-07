@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useFirebase } from '@/firebase';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { GlobalSearch } from '@/components/knowledge/GlobalSearch';
-import { 
-  ArrowLeft,
-  BookMarked, 
+import {
+  BookMarked,
   Search, 
   LayoutDashboard, 
   BookOpen, 
@@ -14,28 +13,27 @@ import {
   Settings, 
   Database,
   SearchIcon,
-  Plus,
-  Headphones
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { KnowledgeGuide } from '@/components/knowledge/KnowledgeGuide';
 import { HelpCircle } from 'lucide-react';
-import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { useUserContext } from '@/context/UserContext';
 
 export default function KnowledgeLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isUserLoading } = useFirebase();
+  const { session, isLoading: isUserLoading } = useAuth();
+  const { userProfile, isInitializing } = useUserContext();
   const router = useRouter();
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
-  const { isOpen: isFocusActive, toggleOpen } = useCalmariaStore();
 
   const navItems = [
     { label: 'Base de Conhecimento', path: '/knowledge/kb', icon: BookOpen },
@@ -43,8 +41,10 @@ export default function KnowledgeLayout({
     { label: 'Ajustes', path: '/knowledge/settings', icon: Settings },
   ];
 
+  const effectiveUser = session || userProfile;
+
   // Se não está logado, renderiza apenas o children (a page.tsx cuida da tela de "Identidade Necessária")
-  if (!user) {
+  if (!effectiveUser && !isInitializing && !isUserLoading) {
     return <>{children}</>;
   }
 
@@ -60,12 +60,12 @@ export default function KnowledgeLayout({
           <div className="flex items-center gap-6">
             <Button
               variant="ghost"
-              size="icon"
               onClick={() => router.push('/')}
-              className="h-10 w-10 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all group"
-              title="Voltar ao Início"
+              className="h-10 px-3 gap-2 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all group"
+              title="Sair para o Portal Tech V&D"
             >
-              <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+              <LayoutDashboard className="h-4.5 w-4.5" />
+              <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Portal</span>
             </Button>
  
             <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push('/knowledge')}>
@@ -118,37 +118,17 @@ export default function KnowledgeLayout({
             </div>
  
             <div className="flex items-center gap-3">
-                {/* Calmaria Focus Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleOpen}
-                  className={cn(
-                    "h-10 w-10 border rounded-xl transition-all relative bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800",
-                    isFocusActive 
-                      ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 text-orange-500 border border-orange-500/30" 
-                      : "text-slate-600 hover:text-orange-500 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
-                  )}
-                  title="Modo de Foco (Calmaria)"
-                >
-                  <Headphones className={cn("h-4.5 w-4.5", isFocusActive && "animate-pulse")} />
-                  {isFocusActive && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75 animate-duration-1000"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
-                    </span>
-                  )}
-                </Button>
- 
                 {/* Theme Switcher Toggle */}
                 <ThemeToggle className="h-10 w-10 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40" />
  
-                <button 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setIsGuideOpen(true)}
-                  className="h-10 w-10 rounded-xl border flex items-center justify-center transition-all bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
+                  className="h-10 w-10 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
                 >
-                  <HelpCircle className="h-5 w-5" />
-                </button>
+                  <HelpCircle className="!h-5 !w-5" />
+                </Button>
                 <Button onClick={() => router.push('/knowledge/admin/new-asset')} className="h-10 px-6 bg-cyan-600 hover:bg-cyan-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-cyan-900/20 gap-2 transition-all active:scale-95">
                    <Plus className="h-3.5 w-3.5" /> Criar
                 </Button>

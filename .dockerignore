@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.idea
+.vscode
+cypress
+coverage
+*.md
+.env
+.env.*
+# Worktrees de agentes (cada um pode ter seu próprio node_modules) — nunca deve ir pra imagem.
+.claude

@@ -1,9 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, query, doc, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { 
   Select, 
@@ -26,11 +23,26 @@ import {
   Trash2,
   HelpCircle,
   Sparkles,
-  Terminal
+  Terminal,
+  Workflow,
+  GitCompare,
+  CheckCircle2,
+  AlertCircle,
+  Cpu,
+  Info,
+  X
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { transformJolt } from '@/lib/jolt-engine';
+import { transformJolt, type JoltEngineMode } from '@/lib/jolt-engine';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,12 +57,15 @@ import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { JoltGuide } from '@/components/jolt/JoltGuide';
-import { JoltPanel } from '@/components/jolt/JoltPanel';
+import { RoomHeader } from '@/components/layout/RoomHeader';
+import { SandboxPane } from './SandboxPane';
 import { GithubIntegrationBar } from '@/components/jolt/GithubIntegrationBar';
 import Link from 'next/link';
 
+const LAYOUTS_STORAGE_KEY_PREFIX = 'agileSpace_jolt_layouts';
+
 export default function JoltSandboxPage() {
-  const { firestore, user } = useFirebase();
+  const router = useRouter();
   const { userProfile, requestIdentity } = useUserContext();
   const { toast } = useToast();
 
@@ -65,6 +80,30 @@ export default function JoltSandboxPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Legenda dos motores: dispensável e lembrada neste navegador (só visual).
+  const ENGINE_HINT_KEY = 'agileSpace_jolt_sandbox_engine_hint_dismissed';
+  const [isEngineHintDismissed, setIsEngineHintDismissed] = useState(false);
+  useEffect(() => {
+    try { setIsEngineHintDismissed(localStorage.getItem(ENGINE_HINT_KEY) === '1'); } catch {}
+  }, []);
+  const dismissEngineHint = () => {
+    setIsEngineHintDismissed(true);
+    try { localStorage.setItem(ENGINE_HINT_KEY, '1'); } catch {}
+  };
+
+  // Engine & Comparison States
+  const [engineMode, setEngineMode] = useState<JoltEngineMode>('local');
+  const [isComparing, setIsComparing] = useState(false);
+  const [executionStats, setExecutionStats] = useState<{ timeMs?: number; engine?: string } | null>(null);
+  const [compareResult, setCompareResult] = useState<{
+    identical: boolean;
+    localTime: number;
+    javaTime: number;
+    localOutput: string;
+    javaOutput: string;
+  } | null>(null);
+  const [isCompareDialogOpen, setIsCompareDialogOpen] = useState(false);
 
   const editorInputRef = useRef<any>(null);
   const editorSpecRef = useRef<any>(null);
@@ -90,7 +129,7 @@ export default function JoltSandboxPage() {
   // Sync data from Visual Mapper if it exists in localStorage
   useEffect(() => {
     setIsHydrated(true);
-    document.title = `Jolt Sandbox | Espaço Ágil`;
+    document.title = `Jolt Sandbox | Portal Tech V&D`;
 
     const specFromVisual = localStorage.getItem('jolt_visual_generated_spec');
     const inputFromVisual = localStorage.getItem('jolt_visual_input_json');
@@ -100,7 +139,6 @@ export default function JoltSandboxPage() {
       
       if (inputFromVisual) {
         setInputJson(inputFromVisual);
-        localStorage.removeItem('jolt_visual_input_json');
       }
 
       toast({ 
@@ -385,18 +423,27 @@ export default function JoltSandboxPage() {
     }
   }, [joltSpec, inputJson]);
 
-  const layoutsQuery = useMemoFirebase(
-    () => {
-      if (!firestore || !user || !isHydrated) return null;
-      return query(
-        collection(firestore, 'users', user.uid, 'dev_tools'), 
-        where('toolType', '==', 'jolt')
-      );
-    },
-    [firestore, !!user, isHydrated]
-  );
-  
-  const { data: savedLayouts, isLoading: isLoadingLayouts } = useCollection<any>(layoutsQuery);
+  const [savedLayouts, setSavedLayouts] = useState<any[]>([]);
+
+  const getLayoutsStorageKey = useCallback(() => {
+    return userProfile?.id ? `${LAYOUTS_STORAGE_KEY_PREFIX}_${userProfile.id}` : LAYOUTS_STORAGE_KEY_PREFIX;
+  }, [userProfile?.id]);
+
+  const loadLayoutsFromStorage = useCallback((): any[] => {
+    try {
+      const raw = localStorage.getItem(getLayoutsStorageKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [getLayoutsStorageKey]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    setSavedLayouts(loadLayoutsFromStorage());
+  }, [isHydrated, loadLayoutsFromStorage]);
 
   const sortedLayouts = useMemo(() => {
     if (!savedLayouts) return [];
@@ -428,7 +475,6 @@ export default function JoltSandboxPage() {
       requestIdentity(() => handleSaveLayout());
       return;
     }
-    if (!user || !firestore) return;
     if (!currentTitle.trim()) { toast({ title: "Nome ausente", variant: "destructive" }); return; }
 
     setIsSaving(true);
@@ -440,17 +486,24 @@ export default function JoltSandboxPage() {
         joltSpec: joltSpec,
         lastInput: inputJson,
         updatedAt: new Date().toISOString(),
-        creatorId: user.uid,
+        creatorId: userProfile.id,
         authorName: userProfile.name,
       };
-      
+
+      const key = getLayoutsStorageKey();
+      const current = loadLayoutsFromStorage();
+
+      let updated: any[];
       if (selectedLayoutId) {
-        updateDocumentNonBlocking(doc(firestore, 'users', user.uid, 'dev_tools', selectedLayoutId), layoutData);
-        toast({ title: "Atualizado na Nuvem!" });
+        updated = current.map(l => l.id === selectedLayoutId ? { ...l, ...layoutData, id: selectedLayoutId } : l);
+        toast({ title: "Atualizado!" });
       } else {
-        addDocumentNonBlocking(collection(firestore, 'users', user.uid, 'dev_tools'), layoutData);
-        toast({ title: "Salvo na Nuvem!" });
+        updated = [...current, { id: crypto.randomUUID(), ...layoutData }];
+        toast({ title: "Salvo!" });
       }
+
+      localStorage.setItem(key, JSON.stringify(updated));
+      setSavedLayouts(updated);
     } catch (e: any) {
       toast({ title: "Erro ao salvar", variant: "destructive" });
     } finally {
@@ -459,8 +512,12 @@ export default function JoltSandboxPage() {
   };
 
   const handleDeleteLayout = async () => {
-    if (!selectedLayoutId || !firestore || !user) return;
-    deleteDocumentNonBlocking(doc(firestore, 'users', user.uid, 'dev_tools', selectedLayoutId));
+    if (!selectedLayoutId) return;
+    const key = getLayoutsStorageKey();
+    const current = loadLayoutsFromStorage();
+    const updated = current.filter(l => l.id !== selectedLayoutId);
+    localStorage.setItem(key, JSON.stringify(updated));
+    setSavedLayouts(updated);
     setSelectedLayoutId(null);
     setIsDeleteDialogOpen(false);
     toast({ title: "Layout Excluído" });
@@ -560,9 +617,13 @@ export default function JoltSandboxPage() {
 
     setIsLoading(true);
     try {
-      const result = await transformJolt(parsedInput, parsedSpec);
+      const result = await transformJolt(parsedInput, parsedSpec, { engine: engineMode });
       setOutputJson(JSON.stringify(result.outputData, null, 2));
-      toast({ title: "Sucesso!", description: "Transformação concluída." });
+      setExecutionStats({ timeMs: result.executionTimeMs, engine: result.engine });
+      toast({ 
+        title: "Sucesso!", 
+        description: `Transformado via ${result.engine === 'java' ? 'Java Bazaarvoice (Oficial)' : 'JavaScript Local'} em ${result.executionTimeMs ?? 0}ms.` 
+      });
     } catch (error: any) {
       toast({ title: "Erro na Transformação", description: error.message, variant: "destructive" });
     } finally {
@@ -570,71 +631,225 @@ export default function JoltSandboxPage() {
     }
   };
 
+  const handleCompareEngines = async () => {
+    if (!inputJson.trim() || !joltSpec.trim()) return;
+
+    const parsedInput = validateJSON(inputJson, 'Entrada (Input)', editorInputRef);
+    if (!parsedInput) return;
+    const parsedSpec = validateJSON(joltSpec, 'Jolt Spec', editorSpecRef);
+    if (!parsedSpec) return;
+
+    setIsComparing(true);
+    try {
+      const localResult = await transformJolt(parsedInput, parsedSpec, { engine: 'local' });
+      const localOutStr = JSON.stringify(localResult.outputData, null, 2);
+
+      const javaResult = await transformJolt(parsedInput, parsedSpec, { engine: 'java' });
+      const javaOutStr = JSON.stringify(javaResult.outputData, null, 2);
+
+      const isIdentical = localOutStr === javaOutStr;
+
+      setCompareResult({
+        identical: isIdentical,
+        localTime: localResult.executionTimeMs ?? 0,
+        javaTime: javaResult.executionTimeMs ?? 0,
+        localOutput: localOutStr,
+        javaOutput: javaOutStr,
+      });
+
+      setOutputJson(javaOutStr);
+      setExecutionStats({ timeMs: javaResult.executionTimeMs, engine: 'java' });
+      setIsCompareDialogOpen(true);
+
+      if (isIdentical) {
+        toast({
+          title: "Motores 100% Idênticos!",
+          description: `JS: ${localResult.executionTimeMs}ms | Java: ${javaResult.executionTimeMs}ms.`,
+        });
+      } else {
+        toast({
+          title: "Resultados Divergentes!",
+          description: "O motor JS e o Java oficial produziram saídas diferentes. Verifique a modal de comparação.",
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      toast({ title: "Erro na Comparação", description: error.message, variant: "destructive" });
+    } finally {
+      setIsComparing(false);
+    }
+  };
+
+  const handleOpenInVisualMapper = () => {
+    if (!inputJson.trim()) {
+      toast({
+        title: "Entrada vazia",
+        description: "Preencha o JSON de entrada para transferir ao Mapeador Visual.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      localStorage.setItem('jolt_visual_input_json', inputJson);
+      localStorage.setItem('jolt_visual_imported_from_sandbox', 'true');
+      toast({
+        title: "Transferindo para o Visual...",
+        description: "Abrindo o Mapeador Visual com os dados da Sandbox."
+      });
+      router.push('/jolt/visual');
+    } catch (e: any) {
+      toast({
+        title: "Erro ao transferir",
+        description: e.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+
   if (!isHydrated) {
     return <LoadingScreen message="Carregando Jolt Sandbox..." />;
   }
 
+  const snippetItemClass = 'cursor-pointer rounded-lg text-[10px] font-bold uppercase';
+
   return (
-    <div className="flex flex-col h-screen w-full overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
       <TooltipProvider>
-        {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950 shrink-0">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <Button asChild variant="ghost" size="icon" className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all rounded-xl border border-slate-200 dark:border-slate-900">
-              <Link href="/jolt">
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
-              <Terminal className="h-4 w-4 text-white" />
+        <RoomHeader
+          title="Jolt Sandbox"
+          toolIcon={<Terminal className="h-4 w-4" />}
+          actions={
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleOpenInVisualMapper}
+                className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+                title="Leva o JSON de entrada para o Mapeador Visual, onde você desenha o mapa em vez de escrever a spec"
+                aria-label="Abrir no Mapeador Visual"
+              >
+                <Workflow className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">Mapeador Visual</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsGuideOpen(true)}
+                className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+                aria-label="Abrir guia de operações Jolt"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Guia</span>
+              </Button>
+              <JoltGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
+              <Button asChild variant="ghost" size="sm" className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+                <Link href="/jolt" aria-label="Voltar ao hub Jolt">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Jolt</span>
+                </Link>
+              </Button>
             </div>
-            <div className="flex flex-col flex-1 min-w-0">
-              <h1 className="text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase italic leading-none">Jolt Sandbox</h1>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mt-1 leading-none truncate">Editor e Validador Jolt</p>
-            </div>
-            
-            {/* Cloud layouts dropdown */}
-            <div className="flex items-center gap-2 flex-1 max-w-[280px] ml-4">
-              <Select onValueChange={handleLoadLayout} value={selectedLayoutId || ""} disabled={isLoadingLayouts}>
-                <SelectTrigger className="h-9 w-full bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest rounded-xl px-4 text-slate-700 dark:text-slate-300">
-                  <SelectValue placeholder={isLoadingLayouts ? "Carregando..." : "MEUS LAYOUTS"} />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                  {sortedLayouts.map(layout => (
-                    <SelectItem key={layout.id} value={layout.id} className="text-xs font-bold uppercase hover:bg-slate-100 dark:hover:bg-slate-800 focus:bg-slate-100 dark:focus:bg-slate-800">{layout.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedLayoutId ? (
-                <Button variant="ghost" size="icon" onClick={() => setIsDeleteDialogOpen(true)} className="h-9 w-9 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all rounded-xl">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              ) : null}
-            </div>
-          </div>
+          }
+        />
 
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setIsGuideOpen(true)}
-              className="h-9 px-4 font-black text-[9px] uppercase tracking-widest gap-2 text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-900 transition-all rounded-xl"
-            >
-              <HelpCircle className="h-4 w-4" />
-              GUIA
-            </Button>
-            <JoltGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
-
-            <Button size="sm" onClick={handleSaveLayout} disabled={isSaving} className="h-9 px-4 font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white shadow-none">
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-2" />}
+        {/* Barra de controle: layouts salvos, motor e execução */}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 bg-card/40 px-4 py-2 md:px-6">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Select onValueChange={handleLoadLayout} value={selectedLayoutId || ""}>
+              <SelectTrigger aria-label="Meus layouts salvos" className="h-8 w-[200px] max-w-full rounded-xl border-border bg-background px-3 text-[10px] font-black uppercase tracking-widest text-foreground">
+                <SelectValue placeholder="Meus layouts" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedLayouts.map(layout => (
+                  <SelectItem key={layout.id} value={layout.id} className="text-xs font-bold uppercase">{layout.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedLayoutId ? (
+              <Button variant="ghost" size="icon" onClick={() => setIsDeleteDialogOpen(true)} className="h-8 w-8 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Excluir layout" aria-label="Excluir layout selecionado">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" onClick={handleSaveLayout} disabled={isSaving} className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
               {selectedLayoutId ? 'Atualizar' : 'Salvar'}
             </Button>
-            <Button size="sm" onClick={handleRunTransformation} disabled={isLoading} className="h-9 px-6 font-black text-[10px] uppercase tracking-widest bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/10 transition-all active:scale-95 rounded-xl border-none">
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="mr-2 h-4 w-4 fill-current" />}
-              EXECUTAR
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Motor</span>
+            <div role="group" aria-label="Motor de execução" className="flex items-center rounded-xl border border-border bg-muted p-0.5">
+              <button
+                type="button"
+                onClick={() => setEngineMode('local')}
+                aria-pressed={engineMode === 'local'}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  engineMode === 'local' ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Execução local rápida em JavaScript no navegador"
+              >
+                JavaScript
+              </button>
+              <button
+                type="button"
+                onClick={() => setEngineMode('java')}
+                aria-pressed={engineMode === 'java'}
+                className={cn(
+                  "flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  engineMode === 'java' ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+                title="Execução no backend oficial da Bazaarvoice em Java"
+              >
+                <Cpu className="h-3 w-3" />
+                Java
+              </button>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCompareEngines}
+              disabled={isLoading || isComparing}
+              className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+              title="Executa simultaneamente em JS e Java e compara os resultados"
+            >
+              {isComparing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <GitCompare className="h-3.5 w-3.5" />}
+              Comparar
+            </Button>
+
+            <Button size="sm" onClick={handleRunTransformation} disabled={isLoading} className="h-8 gap-1.5 rounded-xl px-5 text-[10px] font-black uppercase tracking-wider">
+              {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+              Executar
             </Button>
           </div>
-        </header>
+        </div>
+
+        {/* Legenda dos motores (dispensável) */}
+        {!isEngineHintDismissed && (
+          <div role="note" className="flex shrink-0 items-start gap-3 border-b border-border/60 bg-primary/5 px-4 py-2 md:px-6">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+            <p className="min-w-0 flex-1 text-xs font-medium leading-relaxed text-muted-foreground">
+              Aqui você escreve a spec e vê o resultado. <strong className="font-bold text-foreground">JavaScript</strong>: instantâneo, roda no navegador.{' '}
+              <strong className="font-bold text-foreground">Java</strong>: motor oficial Bazaarvoice via backend, igual à produção.{' '}
+              <strong className="font-bold text-foreground">Comparar</strong>: roda os dois e aponta diferenças.
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={dismissEngineHint}
+              className="h-6 w-6 shrink-0 rounded-lg text-muted-foreground hover:text-foreground"
+              aria-label="Dispensar explicação dos motores"
+              title="Dispensar"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
         <GithubIntegrationBar
           currentTitle={currentTitle}
           setCurrentTitle={setCurrentTitle}
@@ -659,10 +874,9 @@ export default function JoltSandboxPage() {
           setIsLayoutPopoverOpen={setIsLayoutPopoverOpen}
         />
 
-        {/* 3-Column Monaco Editor Layout */}
-        <div className="flex-1 flex p-4 gap-4 bg-slate-100 dark:bg-slate-950 overflow-hidden">
-          {/* Input Panel */}
-          <JoltPanel
+        {/* Corpo: 3 painéis; empilha no mobile (rola a página interna) e fica zero-scroll no desktop */}
+        <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 md:p-4 lg:flex-row lg:overflow-hidden">
+          <SandboxPane
             title="JSON de Entrada"
             value={inputJson}
             onChange={setInputJson}
@@ -672,14 +886,10 @@ export default function JoltSandboxPage() {
             onMount={(editor) => {
               editorInputRef.current = editor;
             }}
-            dotColor="bg-slate-500"
-            pasteTooltip="Colar JSON de Entrada"
-            formatTooltip="Formatar/Identar JSON"
-            copyTooltip="Copiar JSON de Entrada"
+            dotClass="bg-muted-foreground"
           />
 
-          {/* Jolt Spec Panel */}
-          <JoltPanel
+          <SandboxPane
             title="Jolt Spec"
             value={joltSpec}
             onChange={setJoltSpec}
@@ -690,62 +900,130 @@ export default function JoltSandboxPage() {
               editorSpecRef.current = editor;
               monacoRef.current = monaco;
             }}
-            dotColor="bg-blue-500"
-            pulse
-            pasteTooltip="Colar Jolt Spec"
-            formatTooltip="Formatar/Identar Spec"
-            copyTooltip="Copiar Jolt Spec"
-            actions={
+            dotClass="bg-primary"
+            toolbar={
               <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all rounded-lg">
-                        <Sparkles className="h-3.5 w-3.5 text-blue-500 dark:text-blue-400 animate-pulse" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-[10px] text-slate-700 dark:text-slate-300 font-sans">Modelos Jolt (Snippets)</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="end" className="w-[180px] p-1 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 rounded-xl">
-                  <div className="px-2 py-1.5 text-[8.5px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 mb-1">Modelos Jolt</div>
-                  <DropdownMenuItem onClick={() => handleInjectSnippet('shift')} className="text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Shift (De/Para)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleInjectSnippet('modify')} className="text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Modify (Conversão)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleInjectSnippet('default')} className="text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Default (Valores Padrão)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleInjectSnippet('cardinality')} className="text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Cardinality (ONE/MANY)</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleInjectSnippet('remove')} className="text-[10px] font-bold uppercase cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">Remove (Exclusão)</DropdownMenuItem>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-primary hover:text-primary" title="Inserir um modelo de operação Jolt" aria-label="Modelos Jolt (snippets)">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span className="hidden xl:inline">Modelos</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[190px] rounded-xl p-1">
+                  <div className="mb-1 border-b border-border px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Modelos Jolt (substituem a spec)</div>
+                  <DropdownMenuItem onClick={() => handleInjectSnippet('shift')} className={snippetItemClass}>Shift (De/Para)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleInjectSnippet('modify')} className={snippetItemClass}>Modify (Conversão)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleInjectSnippet('default')} className={snippetItemClass}>Default (Valores Padrão)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleInjectSnippet('cardinality')} className={snippetItemClass}>Cardinality (ONE/MANY)</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleInjectSnippet('remove')} className={snippetItemClass}>Remove (Exclusão)</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             }
           />
 
-          {/* Output Panel */}
-          <JoltPanel
+          <SandboxPane
             title="Resultado (Output)"
             value={outputJson}
             readOnly
-            onPaste={() => {}}
             onClear={() => setOutputJson('')}
             onCopy={() => handleCopy(outputJson, 'Resultado')}
-            dotColor="bg-emerald-500"
-            pulse
-            clearTooltip="Limpar Resultado"
-            copyTooltip="Copiar Resultado JSON"
+            dotClass="bg-emerald-500"
+            toolbar={
+              executionStats ? (
+                <div className="mr-1 flex items-center gap-1.5 rounded-full border border-border bg-muted px-2.5 py-0.5 text-[10px] font-bold text-foreground">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", executionStats.engine === 'java' ? "bg-purple-500" : "bg-primary")} aria-hidden />
+                  <span>{executionStats.engine === 'java' ? 'Java Bazaarvoice' : 'JavaScript'}</span>
+                  <span className="text-muted-foreground" aria-hidden>•</span>
+                  <span className="font-code text-emerald-600 dark:text-emerald-400">{executionStats.timeMs}ms</span>
+                </div>
+              ) : null
+            }
           />
-        </div>
+        </main>
+
+        {/* Modal de Comparação de Motores */}
+        <Dialog open={isCompareDialogOpen} onOpenChange={setIsCompareDialogOpen}>
+          <DialogContent className="flex max-h-[85vh] max-w-4xl flex-col rounded-2xl border-border bg-card p-6 text-foreground shadow-2xl">
+            <DialogHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <GitCompare className="h-5 w-5 text-primary" />
+                  <DialogTitle className="font-headline text-lg font-black uppercase tracking-tight">
+                    Comparação de Motores JOLT
+                  </DialogTitle>
+                </div>
+                {compareResult && (
+                  <span className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold",
+                    compareResult.identical
+                      ? "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "border-destructive/30 bg-destructive/10 text-destructive"
+                  )}>
+                    {compareResult.identical ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Saídas 100% Idênticas
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        Saídas Divergentes
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+              <DialogDescription className="mt-1 text-xs text-muted-foreground">
+                Comparando a execução do motor local JavaScript (Navegador) contra o motor oficial Bazaarvoice em Java (Backend).
+              </DialogDescription>
+            </DialogHeader>
+
+            {compareResult && (
+              <div className="mt-4 grid min-h-[350px] flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
+                <div className="flex min-h-[200px] flex-col overflow-hidden rounded-xl border border-border bg-background">
+                  <div className="flex items-center justify-between border-b border-border/60 bg-muted px-3 py-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-primary">
+                      JavaScript (Navegador)
+                    </span>
+                    <span className="rounded border border-border bg-card px-2 py-0.5 font-code text-[10px] text-foreground">
+                      {compareResult.localTime} ms
+                    </span>
+                  </div>
+                  <pre className="flex-1 overflow-auto p-3 font-code text-xs text-foreground">
+                    {compareResult.localOutput}
+                  </pre>
+                </div>
+
+                <div className="flex min-h-[200px] flex-col overflow-hidden rounded-xl border border-border bg-background">
+                  <div className="flex items-center justify-between border-b border-border/60 bg-muted px-3 py-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                      Java Bazaarvoice (Backend Oficial)
+                    </span>
+                    <span className="rounded border border-border bg-card px-2 py-0.5 font-code text-[10px] text-foreground">
+                      {compareResult.javaTime} ms
+                    </span>
+                  </div>
+                  <pre className="flex-1 overflow-auto p-3 font-code text-xs text-foreground">
+                    {compareResult.javaOutput}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Dialog */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <AlertDialogContent className="rounded-2xl border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xl">
+          <AlertDialogContent className="rounded-2xl border-border bg-card text-foreground shadow-2xl">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl font-black uppercase tracking-tight italic">Excluir Layout?</AlertDialogTitle>
-              <AlertDialogDescription className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                O layout <strong className="text-slate-800 dark:text-slate-200">"{currentTitle}"</strong> será removido permanentemente da nuvem.
+              <AlertDialogTitle className="font-headline text-xl font-black uppercase tracking-tight">Excluir Layout?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sm font-medium text-muted-foreground">
+                O layout <strong className="text-foreground">"{currentTitle}"</strong> será removido permanentemente.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="rounded-xl font-bold uppercase text-[10px] tracking-widest border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300">Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteLayout} className="rounded-xl font-bold uppercase text-[10px] tracking-widest bg-red-600 hover:bg-red-700 text-white transition-all border-none">EXCLUIR</AlertDialogAction>
+              <AlertDialogCancel className="rounded-xl text-[10px] font-bold uppercase tracking-widest">Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteLayout} className="rounded-xl border-none bg-destructive text-[10px] font-bold uppercase tracking-widest text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

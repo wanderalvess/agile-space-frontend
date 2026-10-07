@@ -1,49 +1,47 @@
 import { HealthCheckBoard, HealthCheckParticipant, HealthCheckVote } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export const healthCheckApi = {
   // --- Boards ---
   async getBoard(id: string): Promise<HealthCheckBoard> {
-    const res = await fetch(`${API_BASE_URL}/health-checks/${id}`);
+    const res = await authFetch(`${API_BASE_URL}/health-checks/${id}`);
     if (!res.ok) throw new Error('Falha ao obter dados do Radar de Saúde');
     return res.json();
   },
 
   async saveOrUpdateBoard(board: Partial<HealthCheckBoard>): Promise<HealthCheckBoard> {
-    const res = await fetch(`${API_BASE_URL}/health-checks`, {
+    const res = await authFetch(`${API_BASE_URL}/health-checks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(board),
     });
-    if (!res.ok) throw new Error('Falha ao salvar Radar de Saúde');
+    if (!res.ok) throw new Error('Falha ao salvar radar');
     return res.json();
   },
 
-  async listBoards(): Promise<HealthCheckBoard[]> {
-    const res = await fetch(`${API_BASE_URL}/health-checks`);
+  async listBoards(squadId: string): Promise<HealthCheckBoard[]> {
+    const res = await authFetch(`${API_BASE_URL}/health-checks?squadId=${encodeURIComponent(squadId)}`);
     if (!res.ok) throw new Error('Falha ao listar radares');
     return res.json();
   },
 
   async deleteBoard(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/health-checks/${id}`, {
+    const res = await authFetch(`${API_BASE_URL}/health-checks/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao deletar radar');
   },
 
   // --- Participants ---
   async getParticipants(boardId: string): Promise<HealthCheckParticipant[]> {
-    const res = await fetch(`${API_BASE_URL}/health-checks/${boardId}/participants`);
+    const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/participants`);
     if (!res.ok) throw new Error('Falha ao obter participantes');
     return res.json();
   },
 
   async joinBoard(boardId: string, participant: Partial<HealthCheckParticipant>): Promise<HealthCheckParticipant> {
-    const res = await fetch(`${API_BASE_URL}/health-checks/${boardId}/participants`, {
+    const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/participants`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(participant),
     });
     if (!res.ok) throw new Error('Falha ao entrar no radar');
@@ -51,10 +49,9 @@ export const healthCheckApi = {
   },
 
   async leaveBoard(boardId: string, userId: string): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/health-checks/${boardId}/participants/${userId}`, {
+    const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/participants/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao sair do radar');
   },
 
   // --- Votes ---
@@ -62,15 +59,14 @@ export const healthCheckApi = {
     const url = participantId 
       ? `${API_BASE_URL}/health-checks/${boardId}/votes?participantId=${participantId}`
       : `${API_BASE_URL}/health-checks/${boardId}/votes`;
-    const res = await fetch(url);
+    const res = await authFetch(url);
     if (!res.ok) throw new Error('Falha ao obter votos');
     return res.json();
   },
 
   async saveVote(boardId: string, vote: Partial<HealthCheckVote>): Promise<HealthCheckVote> {
-    const res = await fetch(`${API_BASE_URL}/health-checks/${boardId}/votes`, {
+    const res = await authFetch(`${API_BASE_URL}/health-checks/${boardId}/votes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vote),
     });
     if (!res.ok) throw new Error('Falha ao salvar voto');

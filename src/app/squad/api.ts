@@ -2,11 +2,47 @@ import type {
   SquadConfig, SquadMetricsRollup, SquadIssueSnapshot, SquadMember,
   SquadMemberMetric, SquadDailySnapshot, SquadIssueWorklogCache
 } from '@/lib/types';
+import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+// O backend devolve o corpo de erro do Spring (`{message: "..."}`) pra exceções
+// de negócio (ex: freio de segurança do sync abortando por segurança) — sem
+// isso, o erro exibido na tela seria o JSON cru em vez da frase feita pra
+// gente ler, exatamente o tipo de mensagem que o sync sempre teve o cuidado
+// de produzir (ver SquadSyncService).
+async function extractErrorMessage(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    if (typeof json?.message === 'string' && json.message) return json.message;
+  } catch {
+    // corpo não é JSON — cai no fallback abaixo
+  }
+  return `Squad API error ${res.status}: ${text}`;
+}
+
+// Raw backend shape for /api/squads/{squadId}/panels — deliberately NOT the
+// rich `SquadPanel` type from '@/lib/types' (that one models the UI's JQL
+// panel domain: chartType/groupBy/aggregateMetric/resultRows/etc). The
+// backend entity only knows name/type/config(opaque TEXT)/visibility; the
+// store is responsible for packing/unpacking the richer shape into `config`.
+export interface SquadPanelRecord {
+  id: string;
+  squadId: string;
+  ownerId: string;
+  name: string;
+  type: string;
+  config: string;
+  visibility: 'PRIVATE' | 'SQUAD';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SquadPanelWritableFields = Pick<SquadPanelRecord, 'name' | 'type' | 'config' | 'visibility'>;
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -23,13 +59,32 @@ export const squadApi = {
   },
 
   async saveSquad(squadId: string, data: Partial<SquadConfig>): Promise<SquadConfig> {
-    return req<SquadConfig>(`/squads/${squadId}`, { method: 'POST', body: JSON.stringify({ ...data, id: squadId }) });
+    return req<SquadConfig>(`/squads/${squadId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        id: squadId,
+        name: data.name || (data as any)?.squadName || squadId
+      })
+    });
+  },
+
+  // ----- Sync (motor roda no backend — ver SquadSyncService) -----
+  async sync(squadId: string, forceFull?: boolean): Promise<void> {
+    const qs = forceFull ? '?forceFull=true' : '';
+    const res = await authFetch(`${API_BASE_URL}/squads/${squadId}/sync${qs}`, { method: 'POST' });
+    if (!res.ok) throw new Error(await extractErrorMessage(res));
+  },
+
+  async forceResyncSprint(squadId: string, sprintId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/squads/${squadId}/force-resync-sprint?sprintId=${encodeURIComponent(sprintId)}`, { method: 'POST' });
+    if (!res.ok) throw new Error(await extractErrorMessage(res));
   },
 
   // ----- Metrics Rollup -----
   async getRollup(squadId: string): Promise<SquadMetricsRollup | null> {
     try { return await req<SquadMetricsRollup>(`/squads/${squadId}/rollup`); }
-    catch (e: any) { if (e.message?.includes('404')) return null; throw e; }
+    catch (e: any) { if (e.status === 404 || e.message?.includes('404')) return null; throw e; }
   },
 
   async saveRollup(squadId: string, rollup: SquadMetricsRollup): Promise<SquadMetricsRollup> {
@@ -48,15 +103,67 @@ export const squadApi = {
 
   async getIssueByKey(squadId: string, jiraKey: string): Promise<SquadIssueSnapshot | null> {
     try { return await req<SquadIssueSnapshot>(`/squads/${squadId}/issues/${encodeURIComponent(jiraKey)}`); }
-    catch (e: any) { if (e.message?.includes('404')) return null; throw e; }
+    catch (e: any) { if (e.status === 404 || e.message?.includes('404')) return null; throw e; }
   },
 
   async batchUpsertIssues(squadId: string, snapshots: SquadIssueSnapshot[]): Promise<SquadIssueSnapshot[]> {
-    return req<SquadIssueSnapshot[]>(`/squads/${squadId}/issues/batch`, { method: 'POST', body: JSON.stringify(snapshots) });
+    const toStr = (v: any): string => {
+      if (!v) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number') return String(v);
+      if (typeof v === 'object') {
+        if (typeof v.value === 'string') return v.value;
+        if (typeof v.name === 'string') return v.name;
+        if (typeof v.key === 'string') return v.key;
+        if (typeof v.id === 'string' || typeof v.id === 'number') return String(v.id);
+        return '';
+      }
+      return '';
+    };
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+    const toBool = (v: any): boolean => Boolean(v);
+    // orderIndex é 0-based — toNum coagiria undefined pra 0 e colidiria com a
+    // primeira subtarefa de verdade (índice 0). null preserva "sem posição".
+    const toOptNum = (v: any): number | null => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && v !== '' && !isNaN(Number(v)) ? Number(v) : null));
+
+    const formatted = snapshots.map(s => {
+      const issueKey = toStr(s.jiraKey || s.key || (s as any).jira_key);
+      return {
+        dbId: `${squadId}_${issueKey}`,
+        squadId,
+        jiraKey: issueKey,
+        key: issueKey,
+        title: toStr(s.title) || issueKey,
+        type: toStr(s.type),
+        isBug: toBool(s.isBug),
+        status: toStr(s.status),
+        statusCategory: toStr(s.statusCategory) || 'unknown',
+        sprintId: toStr(s.sprintId),
+        sprintName: toStr(s.sprintName),
+        assigneeId: toStr(s.assigneeId),
+        assigneeName: toStr(s.assigneeName),
+        estimateSec: toNum(s.estimateSec),
+        remainingSec: toNum(s.remainingSec),
+        loggedSec: toNum(s.loggedSec),
+        staleSinceDays: toNum(s.staleSinceDays),
+        dueDate: toStr(s.dueDate),
+        targetStart: toStr(s.targetStart),
+        targetEnd: toStr(s.targetEnd),
+        datesAreInferred: toBool(s.datesAreInferred),
+        orderIndex: toOptNum(s.orderIndex),
+        parentKey: toStr(s.parentKey),
+        parentTitle: toStr(s.parentTitle),
+        updatedAtJira: toStr(s.updatedAtJira),
+        resolutionDate: toStr(s.resolutionDate),
+        syncedAt: toStr(s.syncedAt),
+      };
+    });
+    return req<SquadIssueSnapshot[]>(`/squads/${squadId}/issues/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
-  async batchDeleteIssues(squadId: string, keys: string[]): Promise<void> {
-    return req<void>(`/squads/${squadId}/issues/batch`, { method: 'DELETE', body: JSON.stringify(keys) });
+  async batchDeleteIssues(squadId: string, keys: (string | { key?: string })[]): Promise<void> {
+    const safeKeys = keys.map(k => (typeof k === 'string' ? k : (k && typeof k === 'object' && 'key' in k ? String(k.key) : ''))).filter(Boolean);
+    return req<void>(`/squads/${squadId}/issues/batch`, { method: 'DELETE', body: JSON.stringify(safeKeys) });
   },
 
   // ----- Members -----
@@ -72,7 +179,31 @@ export const squadApi = {
   },
 
   async batchUpsertMembers(squadId: string, members: SquadMember[]): Promise<SquadMember[]> {
-    return req<SquadMember[]>(`/squads/${squadId}/members/batch`, { method: 'POST', body: JSON.stringify(members) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+
+    const formatted = members.map(m => {
+      const accountId = toStr(m.jiraAccountId);
+      return {
+        dbId: `${squadId}_${accountId}`,
+        squadId,
+        jiraAccountId: accountId,
+        displayName: toStr(m.displayName) || accountId,
+        email: toStr(m.email) || null,
+        role: toStr(m.role) || null,
+        capacityHoursPerDay: m.capacityHoursPerDay != null ? toNum(m.capacityHoursPerDay) : null,
+        systemCalculatedCapacityHoursPerDay: m.systemCalculatedCapacityHoursPerDay != null ? toNum(m.systemCalculatedCapacityHoursPerDay) : null,
+        calibrationNotes: toStr(m.calibrationNotes) || null,
+        overrideType: toStr(m.overrideType) || null,
+        claimedByUid: toStr(m.claimedByUid) || null,
+        updatedAt: toStr(m.updatedAt) || new Date().toISOString(),
+      };
+    });
+    return req<SquadMember[]>(`/squads/${squadId}/members/batch`, { method: 'POST', body: JSON.stringify(formatted) });
+  },
+
+  async deleteMember(squadId: string, jiraAccountId: string): Promise<void> {
+    return req<void>(`/squads/${squadId}/members/${encodeURIComponent(jiraAccountId)}`, { method: 'DELETE' });
   },
 
   // ----- Member Metrics -----
@@ -81,7 +212,25 @@ export const squadApi = {
   },
 
   async batchUpsertMemberMetrics(squadId: string, metrics: SquadMemberMetric[]): Promise<SquadMemberMetric[]> {
-    return req<SquadMemberMetric[]>(`/squads/${squadId}/member-metrics/batch`, { method: 'POST', body: JSON.stringify(metrics) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+
+    const formatted = metrics.map(m => {
+      const aid = toStr(m.assigneeId);
+      return {
+        dbId: `${squadId}_${aid}`,
+        squadId,
+        assigneeId: aid,
+        assigneeName: toStr(m.assigneeName) || aid,
+        issuesInProgress: toNum(m.issuesInProgress),
+        issuesCompleted: toNum(m.issuesCompleted),
+        hoursLogged: toNum(m.hoursLogged),
+        capacityHours: toNum(m.capacityHours),
+        utilizationPct: toNum(m.utilizationPct),
+        computedAt: toStr(m.computedAt) || new Date().toISOString(),
+      };
+    });
+    return req<SquadMemberMetric[]>(`/squads/${squadId}/member-metrics/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   // ----- Daily Snapshots -----
@@ -91,7 +240,25 @@ export const squadApi = {
   },
 
   async batchUpsertDailySnapshots(squadId: string, snapshots: SquadDailySnapshot[]): Promise<SquadDailySnapshot[]> {
-    return req<SquadDailySnapshot[]>(`/squads/${squadId}/daily-snapshots/batch`, { method: 'POST', body: JSON.stringify(snapshots) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+    const toNum = (v: any): number => (typeof v === 'number' && !isNaN(v) ? v : (typeof v === 'string' && !isNaN(Number(v)) ? Number(v) : 0));
+
+    const formatted = snapshots.map(s => {
+      const dateStr = toStr(s.snapshotDate);
+      return {
+        dbId: `${squadId}_${dateStr}`,
+        squadId,
+        snapshotDate: dateStr,
+        doneIssues: toNum(s.doneIssues),
+        inProgressIssues: toNum(s.inProgressIssues),
+        totalIssues: toNum(s.totalIssues),
+        bugIssues: toNum(s.bugIssues),
+        staleIssues: toNum(s.staleIssues),
+        loggedSec: toNum(s.loggedSec),
+        syncedAt: toStr(s.syncedAt),
+      };
+    });
+    return req<SquadDailySnapshot[]>(`/squads/${squadId}/daily-snapshots/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   // ----- Worklog Cache -----
@@ -101,10 +268,84 @@ export const squadApi = {
   },
 
   async batchUpsertWorklogCache(squadId: string, entries: SquadIssueWorklogCache[]): Promise<SquadIssueWorklogCache[]> {
-    return req<SquadIssueWorklogCache[]>(`/squads/${squadId}/worklog-cache/batch`, { method: 'POST', body: JSON.stringify(entries) });
+    const toStr = (v: any): string => (typeof v === 'string' ? v : (v != null && typeof v !== 'object' ? String(v) : ''));
+
+    const formatted = entries.map(e => {
+      const issueKey = toStr(e.jiraKey || (e as any).key || (e as any).jira_key);
+      return {
+        dbId: `${squadId}_${issueKey}`,
+        squadId,
+        jiraKey: issueKey,
+        key: issueKey,
+        sprintId: toStr(e.sprintId),
+        updatedAtJira: toStr(e.updatedAtJira),
+        syncedAt: toStr(e.syncedAt),
+        worklogByAuthor: e.worklogByAuthor || {},
+        worklogAuthorNames: e.worklogAuthorNames || {},
+      };
+    });
+    return req<SquadIssueWorklogCache[]>(`/squads/${squadId}/worklog-cache/batch`, { method: 'POST', body: JSON.stringify(formatted) });
   },
 
   async deleteWorklogCacheEntry(squadId: string, jiraKey: string): Promise<void> {
     return req<void>(`/squads/${squadId}/worklog-cache/${encodeURIComponent(jiraKey)}`, { method: 'DELETE' });
   },
+
+  // ----- Panels (ad-hoc JQL dashboard widgets) -----
+  // Shape mirrors the backend entity 1:1 — `config` is an opaque TEXT/JSON
+  // blob the caller owns (see useSquadPanelsStore for the rich domain shape
+  // it packs in/out of that string). `ownerId` is never sent on create; the
+  // backend stamps it from the JWT.
+  async listPanels(squadId: string): Promise<SquadPanelRecord[]> {
+    return req<SquadPanelRecord[]>(`/squads/${squadId}/panels`);
+  },
+
+  async createPanel(squadId: string, data: SquadPanelWritableFields): Promise<SquadPanelRecord> {
+    return req<SquadPanelRecord>(`/squads/${squadId}/panels`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async updatePanel(squadId: string, panelId: string, data: Partial<SquadPanelWritableFields>): Promise<SquadPanelRecord> {
+    return req<SquadPanelRecord>(`/squads/${squadId}/panels/${panelId}`, { method: 'PUT', body: JSON.stringify(data) });
+  },
+
+  async deletePanel(squadId: string, panelId: string): Promise<void> {
+    return req<void>(`/squads/${squadId}/panels/${panelId}`, { method: 'DELETE' });
+  },
+
+  // ----- Person Config (papel DEV/QA + capacidade por fase, com herança de sprint
+  // anterior -> default global do squad — ver SquadCapacityService) -----
+  async getPersonConfig(squadId: string, jiraAccountId: string, sprintId?: string): Promise<ResolvedPersonConfig> {
+    const qs = sprintId ? `?sprintId=${encodeURIComponent(sprintId)}` : '';
+    return req<ResolvedPersonConfig>(`/squads/${squadId}/person-config/${encodeURIComponent(jiraAccountId)}${qs}`);
+  },
+
+  async savePersonConfig(
+    squadId: string,
+    jiraAccountId: string,
+    sprintId: string | undefined,
+    updates: Partial<Pick<ResolvedPersonConfig, 'papel' | 'diasCodificacaoTeste' | 'diasRegressivo' | 'horasProdutivas'>>
+  ): Promise<void> {
+    const qs = sprintId ? `?sprintId=${encodeURIComponent(sprintId)}` : '';
+    await req<unknown>(`/squads/${squadId}/person-config/${encodeURIComponent(jiraAccountId)}${qs}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  },
 };
+
+// Espelha SquadCapacityService.ResolvedPersonConfig no backend.
+export interface ResolvedPersonConfig {
+  jiraAccountId: string;
+  papel: string;
+  diasCodificacaoTeste: number;
+  diasRegressivo: number;
+  horasProdutivas: number;
+  papelInherited: boolean;
+  diasCodificacaoTesteInherited: boolean;
+  diasRegressivoInherited: boolean;
+  horasProdutivasInherited: boolean;
+  papelSource: string | null;
+  diasCodificacaoTesteSource: string | null;
+  diasRegressivoSource: string | null;
+  horasProdutivasSource: string | null;
+}

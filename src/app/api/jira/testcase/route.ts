@@ -13,13 +13,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { testCaseKey, pat, username, password } = body;
+    const { testCaseKey, pat, username, password, domain } = body;
 
     if (!testCaseKey) {
       return NextResponse.json({ error: 'O código do caso de teste é obrigatório.' }, { status: 400 });
     }
 
-    const jiraUrl = `https://jiraproducao.totvs.com.br/rest/atm/1.0/testcase/${testCaseKey}`;
+    const domainToUse = (domain || process.env.JIRA_DEFAULT_DOMAIN || '').trim();
+    if (!domainToUse) {
+      return NextResponse.json({ error: 'O domínio do Jira é obrigatório.' }, { status: 400 });
+    }
+
+    const jiraUrl = `https://${domainToUse}/rest/atm/1.0/testcase/${testCaseKey}`;
     
     const userAgent = request.headers.get('user-agent') || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
     const acceptLanguage = request.headers.get('accept-language') || 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7';

@@ -1,30 +1,21 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect, memo } from 'react';
-import { User } from 'firebase/auth';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RetroCard as RetroCardType, RetroColumnKey, RetroBoard as RetroBoardType, RetroParticipant, RetroColumnTheme, RetroColumnDef } from "@/lib/types";
+import type { RetroCard as RetroCardType, RetroColumnKey, RetroBoard as RetroBoardType, RetroParticipant, RetroColumnTheme, RetroColumnDef, RetroReactionType } from "@/lib/types";
 import { AddRetroCard } from "./AddRetroCard";
 import { RetroCard } from "./RetroCard";
 import { RetroActionImportDialog } from "./RetroActionImportDialog";
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, ThumbsUp, History, MonitorPlay, Minimize2, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock } from 'lucide-react';
+import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, Star, History, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock, PenLine, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useToast } from '@/hooks/use-toast';
-import { useFirebase } from '@/firebase';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { doc } from 'firebase/firestore';
+import { retroApi } from '../../app/retro/api';
 
 // Theme-based configuration mapping
-const THEME_CONFIG: Record<RetroColumnTheme, {
+export const THEME_CONFIG: Record<RetroColumnTheme, {
   color: string;
   accent: string;
   icon: typeof CheckCircle2;
@@ -90,6 +81,18 @@ const THEME_CONFIG: Record<RetroColumnTheme, {
   },
 };
 
+// Convite do estado vazio por tema: diz o que escrever ali, em vez de um
+// "silêncio" genérico igual em todas as colunas.
+const EMPTY_COPY: Record<RetroColumnTheme, { title: string; hint: string }> = {
+  success: { title: 'Nenhuma vitória ainda', hint: 'O que deu certo e merece ser repetido?' },
+  warning: { title: 'Nada travando por aqui', hint: 'O que atrapalhou ou pode melhorar?' },
+  action: { title: 'Sem ações definidas', hint: 'Transforme os temas votados em ações com responsável.' },
+  neutral: { title: 'Coluna vazia', hint: 'Compartilhe o primeiro ponto desta coluna.' },
+  purple: { title: 'Nenhuma ideia ainda', hint: 'Que novas ideias o time quer experimentar?' },
+  pink: { title: 'Nenhum reconhecimento ainda', hint: 'Quem ou o que merece um agradecimento?' },
+  cyan: { title: 'Nenhuma nota ainda', hint: 'Algum contexto que o time precisa saber?' },
+};
+
 interface RetroColumnProps {
   title: string;
   columnKey: RetroColumnKey;
@@ -98,13 +101,14 @@ interface RetroColumnProps {
   allCards: RetroCardType[];
   boardId: string;
   boardData: RetroBoardType;
-  currentUser: User;
+  currentUser: { uid: string };
   isCreator: boolean;
   isCardsRevealed: boolean;
   onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => void;
   onDeleteCard: (cardId: string) => void;
   onUpdateCard: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
+  onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
   onImportActions: (board: RetroBoardType, pendingCards: RetroCardType[]) => void;
   votingStatus: RetroBoardType['votingStatus'];
@@ -119,6 +123,7 @@ interface RetroColumnProps {
   isFocusMode?: boolean;
   onToggleFocusMode?: (value: boolean) => void;
   columns?: RetroColumnDef[];
+  layoutMode?: 'board' | 'focus';
 }
 
 function RetroColumnComponent({
@@ -137,6 +142,7 @@ function RetroColumnComponent({
   onDeleteCard,
   onUpdateCard,
   onToggleVote,
+  onToggleReaction,
   onToggleDone,
   onImportActions,
   votingStatus,
@@ -150,16 +156,26 @@ function RetroColumnComponent({
   isFocusMode,
   onToggleFocusMode,
   columns,
+  layoutMode = 'board',
 }: RetroColumnProps) {
-  const isSortedByVotes = boardData.columnSorts?.[columnKey] || false;
+  const isBoardMode = layoutMode === 'board';
+  const showFullColumn = isBoardMode || isFocused;
+
+  // Se houver preferência explícita na coluna salva pelo facilitador, respeita;
+  // senão, durante votação ativa ou encerrada, ordena automaticamente pelos mais votados
+  const explicitSort = boardData.columnSorts?.[columnKey];
+  const isSortedByVotes = explicitSort !== undefined
+    ? explicitSort
+    : (votingStatus === 'active' || votingStatus === 'finished');
   const { toast } = useToast();
-  const { firestore, user } = useFirebase();
   const [isImportOpen, setIsImportOpen] = useState(false);
 
   // Inline title editing state
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const focusComposer = () => composerRef.current?.querySelector('textarea')?.focus();
 
   useEffect(() => {
     setEditedTitle(title);
@@ -175,14 +191,13 @@ function RetroColumnComponent({
   const handleTitleSave = () => {
     setIsEditingTitle(false);
     const newTitle = editedTitle.trim();
-    if (!newTitle || newTitle === title || !firestore || !boardData.columns) return;
+    if (!newTitle || newTitle === title || !boardData.columns) return;
 
     // Update the column title in the columns array
     const updatedColumns = boardData.columns.map(col =>
       col.id === columnKey ? { ...col, title: newTitle } : col
     );
-    const boardRef = doc(firestore, 'retro_boards', boardId);
-    updateDocumentNonBlocking(boardRef, { columns: updatedColumns });
+    retroApi.saveOrUpdateBoard({ ...boardData, columns: updatedColumns }).catch(err => console.error(err));
     toast({ title: "Título atualizado!", description: `Coluna renomeada para "${newTitle}".` });
   };
 
@@ -204,18 +219,25 @@ function RetroColumnComponent({
     const tempCards = [...uniqueCards];
     const shouldSortByVotes = isSortedByVotes && isFeedbackColumn;
     
-    if (votingStatus === 'finished' || shouldSortByVotes) {
-      tempCards.sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
+    if (shouldSortByVotes) {
+      tempCards.sort((a, b) => {
+        const votesA = a.votes?.length || 0;
+        const votesB = b.votes?.length || 0;
+        if (votesB !== votesA) {
+          return votesB - votesA; // Mais votados sobem automaticamente para cima
+        }
+        return a.order - b.order; // Desempate estável pela ordem original
+      });
     } else {
       tempCards.sort((a, b) => a.order - b.order);
     }
     return tempCards;
-  }, [cards, votingStatus, isSortedByVotes, isFeedbackColumn]);
+  }, [cards, isSortedByVotes, isFeedbackColumn]);
 
   const cardIds = useMemo(() => sortedCards.map(c => c.id), [sortedCards]);
 
   const handleExportToWorkspace = () => {
-    if (cards.length === 0 || !firestore || !user) {
+    if (cards.length === 0) {
       toast({ title: "Nenhuma ação para exportar", variant: "destructive" });
       return;
     }
@@ -237,8 +259,7 @@ function RetroColumnComponent({
       actionItems
     };
 
-    const boardRef = doc(firestore, 'retro_boards', boardId);
-    updateDocumentNonBlocking(boardRef, { summary });
+    retroApi.saveOrUpdateBoard({ ...boardData, summary }).catch(err => console.error(err));
 
     toast({
       title: "Resumo Sincronizado!",
@@ -255,108 +276,91 @@ function RetroColumnComponent({
       ref={setNodeRef}
       onClick={!isFocused && !isNavLocked ? onFocus : undefined}
       className={cn(
-        "flex flex-col bg-white/40 backdrop-blur-xl border border-white/60 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
-        isFocused && isFocusMode ? "fixed inset-0 z-[100] m-0 rounded-none bg-white font-sans" :
-        isFocused ? cn("flex-[6] z-10", config.shadowPulse) :
-        isFocusMode ? "hidden" : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60"),
+        "flex flex-col bg-white/40 dark:!bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:!border-slate-700/50 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
+        isFocused && isFocusMode
+          ? "fixed inset-x-0 top-14 bottom-0 z-[100] m-0 rounded-none bg-white dark:!bg-slate-950"
+          : isBoardMode
+            ? cn(
+                "flex-1 min-w-[310px] xl:min-w-[360px] 2xl:min-w-[400px] max-w-full",
+                isFocused ? cn("ring-2 ring-emerald-500/40 shadow-xl border-emerald-300 dark:!border-emerald-700", config.shadowPulse) : "hover:border-white/80 dark:hover:!border-slate-600/60"
+              )
+            : isFocused
+              ? cn("flex-[6] z-10", config.shadowPulse)
+              : isFocusMode
+                ? "hidden"
+                : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60 dark:hover:!bg-slate-800/60"),
         isOver && "ring-2 ring-emerald-500/30 bg-emerald-50/20"
       )}
     >
-      {/* HEADER: FOCUSED MODE */}
-      {isFocused ? (
+      {/* HEADER: FOCUSED OR FULL BOARD MODE */}
+      {showFullColumn ? (
         <>
-          <div className="flex items-center justify-between p-5 pt-6 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className={cn("p-4 rounded-2xl text-white shadow-xl", config.color)}>
-                <Icon className="h-8 w-8" />
+          <div className={cn(
+            "flex items-center shrink-0 gap-2",
+            isFocused && isFocusMode ? "justify-end px-4 py-2" : "justify-between px-3 py-2.5 sm:px-4 sm:py-3"
+          )}>
+            {!(isFocused && isFocusMode) && (
+              <div className="flex items-center gap-2 min-w-0">
+                <div className={cn("p-1.5 rounded-lg text-white shadow-md shrink-0", config.color)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col justify-center min-w-0">
+                  {/* Inline Title Edit */}
+                  {isEditingTitle ? (
+                    <input
+                      ref={titleInputRef}
+                      value={editedTitle}
+                      onChange={e => setEditedTitle(e.target.value)}
+                      onBlur={handleTitleSave}
+                      onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
+                      className="text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-none bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2 group/title min-w-0">
+                      <h2 className="min-w-0 flex-1 text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-tight line-clamp-2" title={title}>{title}</h2>
+                      {isCreator && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                          className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 shrink-0"
+                          title="Editar título"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col justify-center">
-                {/* Inline Title Edit */}
-                {isEditingTitle ? (
-                  <input
-                    ref={titleInputRef}
-                    value={editedTitle}
-                    onChange={e => setEditedTitle(e.target.value)}
-                    onBlur={handleTitleSave}
-                    onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
-                    className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
-                  />
-                ) : (
-                  <div className="flex items-center gap-2 group/title">
-                    <h2 className="text-3xl font-black uppercase tracking-tighter text-slate-800 leading-none italic">{title}</h2>
-                    {isCreator && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                        className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700"
-                        title="Editar título"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                )}
-                {/* Removido o rótulo técnico do tema para um visual mais limpo e premium */}
-              </div>
-            </div>
-            
-              <div className="flex items-center gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); onToggleFocusMode?.(!isFocusMode); }}
-                        className={cn(
-                          "h-8 px-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all gap-2",
-                          isFocusMode ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-500 hover:text-emerald-600 hover:bg-emerald-50"
-                        )}
-                      >
-                        {isFocusMode ? (
-                          <>
-                            <Minimize2 className="h-3.5 w-3.5" />
-                            Sair do Modo Foco
-                          </>
-                        ) : (
-                          <>
-                            <MonitorPlay className="h-3.5 w-3.5" />
-                            Apresentar
-                          </>
-                        )}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border-none">
-                      <p>{isFocusMode ? 'Sair (ESC) · ← → Navegar' : 'Modo Apresentação'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+            )}
 
-                {isActionColumn && isCreator && (
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {isActionColumn && isCreator && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); setIsImportOpen(true); }}
-                  className="h-8 px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  className="h-8 w-8 p-0 border-emerald-200/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
                   title="Importar ações pendentes de uma retro anterior do mesmo squad"
+                  aria-label="Importar ações pendentes"
                 >
-                  <PackageOpen className="w-3.5 h-3.5 mr-2" />
-                  Importar Pendências
+                  <PackageOpen className="w-3.5 h-3.5" />
                 </Button>
               )}
 
-                {isActionColumn && cards.length > 0 && (
+              {isActionColumn && cards.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleExportToWorkspace}
-                  className="h-8 px-3 text-[9px] font-black uppercase tracking-widest border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
-                  title="Sincronizar Resumo"
+                  className="h-8 w-8 p-0 border-emerald-200/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
+                  title="Sincronizar resumo com o histórico"
+                  aria-label="Sincronizar resumo"
                 >
-                  <History className="w-3.5 h-3.5 mr-2" />
-                  Sincronizar
+                  <History className="w-3.5 h-3.5" />
                 </Button>
               )}
-              {isFeedbackColumn && (
+
+              {isFeedbackColumn && (isCreator || isSortedByVotes) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -365,11 +369,11 @@ function RetroColumnComponent({
                   className={cn(
                     "h-8 w-8 p-0 rounded-xl transition-all",
                     isSortedByVotes ? "bg-emerald-100 text-emerald-600 shadow-sm" : "text-slate-500 hover:bg-slate-50",
-                    !isCreator && "opacity-30"
+                    !isCreator && "pointer-events-none"
                   )}
-                  title="Ordenar por Votos"
+                  title={isCreator ? "Ordenar por votos" : "Ordenado por votos"}
                 >
-                  <ThumbsUp className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
+                  <Star className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
                 </Button>
               )}
 
@@ -380,28 +384,54 @@ function RetroColumnComponent({
           </div>
 
           {!isFocusMode && (
-            <div className="px-5 pb-3 shrink-0">
+            <div ref={composerRef} className="px-5 pb-3 shrink-0">
               <AddRetroCard columnKey={columnKey} theme={theme} onAddCard={onAddCard} participants={participants} />
             </div>
           )}
 
-          <ScrollArea className={cn("flex-1 px-5 pb-6 custom-scrollbar", isFocusMode && "px-10 py-6 bg-slate-50/30")}>
+          <ScrollArea className={cn("flex-1 px-4 sm:px-5 pb-6 custom-scrollbar", isFocusMode && "px-10 py-6 bg-slate-50/30")}>
             <SortableContext items={cardIds} strategy={rectSortingStrategy}>
               <div className={cn(
-                "grid gap-3 min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
-                isFocusMode 
-                  ? "grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6" 
-                  : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
+                "grid min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
+                isFocusMode
+                  ? "grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5 [&_p]:text-[19px] [&_p]:leading-snug"
+                  : isBoardMode
+                    ? "grid-cols-1 2xl:grid-cols-2 gap-3"
+                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"
               )}>
-                {sortedCards.length === 0 && !isFocusMode && (
-                  <div className="col-span-full py-20 flex flex-col items-center justify-center text-center space-y-4 opacity-70 group/empty">
-                    <div className={cn("p-6 rounded-full", config.accent)}>
-                      <Icon className="h-10 w-10" />
+                {sortedCards.length === 0 && (
+                  <div className={cn(
+                    "col-span-full flex flex-col items-center justify-center text-center gap-4",
+                    isFocusMode ? "py-32" : "py-14"
+                  )}>
+                    <div className={cn("rounded-3xl flex items-center justify-center", config.accent, isFocusMode ? "p-8" : "p-5")}>
+                      <Icon className={isFocusMode ? "h-14 w-14" : "h-8 w-8"} />
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Silêncio produtivo...</p>
-                      <p className="text-[10px] font-bold text-slate-500">Seja o primeiro a compartilhar um insight.</p>
+                    <div className="space-y-1 max-w-[240px]">
+                      <p className={cn("font-black uppercase tracking-[0.15em] text-slate-700 dark:!text-slate-200", isFocusMode ? "text-sm" : "text-[11px]")}>
+                        {EMPTY_COPY[theme]?.title ?? EMPTY_COPY.neutral.title}
+                      </p>
+                      <p className={cn("font-medium text-slate-500 dark:!text-slate-400 leading-snug", isFocusMode ? "text-base" : "text-[11px]")}>
+                        {EMPTY_COPY[theme]?.hint ?? EMPTY_COPY.neutral.hint}
+                      </p>
                     </div>
+                    {!isFocusMode && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); focusComposer(); }}
+                        className={cn("h-8 px-3.5 rounded-xl text-[9px] font-black uppercase tracking-widest gap-1.5", config.accent, config.hoverBg)}
+                      >
+                        <PenLine className="h-3.5 w-3.5" />
+                        Escrever
+                      </Button>
+                    )}
+                    {!isFocusMode && !isCardsRevealed && !isActionColumn && (
+                      <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:!text-slate-500">
+                        <EyeOff className="h-3 w-3" />
+                        Seus cards ficam ocultos até a revelação
+                      </p>
+                    )}
                   </div>
                 )}
                 {sortedCards.map(card => (
@@ -409,13 +439,14 @@ function RetroColumnComponent({
                     key={card.id}
                     card={card}
                     isCardsRevealed={isCardsRevealed}
-                    isAuthor={card.authorId === user?.uid}
+                    isAuthor={card.authorId === currentUser?.uid}
                     isCreator={isCreator}
                     onDelete={onDeleteCard}
                     onUpdate={onUpdateCard}
                     onToggleVote={onToggleVote as any}
+                    onToggleReaction={onToggleReaction}
                     onToggleDone={onToggleDone}
-                    currentUser={user as any}
+                    currentUser={currentUser}
                     theme={theme}
                     votingStatus={votingStatus}
                     participants={participants}

@@ -9,7 +9,11 @@ import {
   X, 
   Target, 
   ExternalLink,
-  FileText
+  FileText,
+  Eye,
+  Layers,
+  PartyPopper,
+  Crosshair
 } from 'lucide-react';
 import { cn, formatExternalUrl } from '@/lib/utils';
 
@@ -28,6 +32,55 @@ interface TopicDisplayProps {
   untouchedCount?: number;
   isTheaterMode?: boolean;
   onShowDetail?: () => void;
+  // Palco da rodada (opcionais — sem eles o cabeçalho cai no visual simples).
+  votedCount?: number;
+  totalVoters?: number;
+  round?: number;
+  revealed?: boolean;
+}
+
+// Anel de progresso dos votos: quem já votou / quem falta.
+function VoteRing({ voted, total, revealed }: { voted: number; total: number; revealed: boolean }) {
+  const size = 52;
+  const stroke = 5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = total > 0 ? Math.min(1, voted / total) : 0;
+  const complete = revealed || (total > 0 && voted >= total);
+  return (
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+      title={revealed ? 'Votos revelados' : `${voted} de ${total} já votaram`}
+      role="img"
+      aria-label={revealed ? 'Votos revelados' : `${voted} de ${total} já votaram`}
+    >
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-slate-200 dark:stroke-slate-800" />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - (revealed ? 1 : pct))}
+          className={cn('transition-all duration-700 ease-out', complete ? 'stroke-emerald-500' : 'stroke-indigo-500')}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+        {revealed ? (
+          <Eye className="h-4 w-4 text-emerald-500" />
+        ) : (
+          <>
+            <span className="text-sm font-black tabular-nums text-slate-900 dark:text-white">{voted}</span>
+            <span className="text-[8px] font-black tabular-nums text-slate-400">/{total}</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function TopicDisplay({
@@ -39,7 +92,11 @@ export function TopicDisplay({
   isSessionFinished,
   untouchedCount = 0,
   isTheaterMode,
-  onShowDetail
+  onShowDetail,
+  votedCount = 0,
+  totalVoters = 0,
+  round,
+  revealed = false
 }: TopicDisplayProps) {
   const [editingTopic, setEditingTopic] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +128,7 @@ export function TopicDisplay({
             value={editingTopic}
             onChange={(e) => setEditingTopic(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="pl-12 h-14 text-lg font-black border-none bg-slate-50 focus-visible:ring-blue-500/10 rounded-2xl shadow-inner placeholder:text-slate-300"
+            className="pl-12 h-14 text-lg font-black border-none bg-slate-50 dark:bg-slate-800 focus-visible:ring-blue-500/10 rounded-2xl shadow-inner placeholder:text-slate-300 dark:placeholder:text-slate-600"
           />
         </div>
         <div className="flex gap-2 shrink-0">
@@ -88,26 +145,51 @@ export function TopicDisplay({
   }
 
   const showFinishedUI = isSessionFinished && !isEditing;
+  const showStage = !showFinishedUI && !!topic;
+  const showRing = showStage && totalVoters > 0;
 
   return (
-    <div className="flex items-center justify-between gap-6 w-full animate-in fade-in duration-700">
-      <div className="flex items-center gap-3 overflow-hidden flex-1">
-        <div className="overflow-hidden flex-1">
-          <div className="flex flex-wrap items-center gap-3 mb-1.5">
-            <p className={cn(
-              "text-[10px] text-blue-600 font-black uppercase tracking-[0.4em] opacity-80 transition-all",
-              isTheaterMode && "text-xs"
-            )}>
-              {showFinishedUI ? "Sessão Concluída" : "Votando Agora"}
-            </p>
+    <div className="flex items-center justify-between gap-4 sm:gap-6 w-full animate-in fade-in duration-700">
+      <div className="flex items-center gap-4 overflow-hidden flex-1 min-w-0">
+        {showRing && <VoteRing voted={votedCount} total={totalVoters} revealed={revealed} />}
+        <div className="overflow-hidden flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2 mb-1.5">
+            {showFinishedUI ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-[0.25em]">
+                <PartyPopper className="h-3 w-3" /> Sessão concluída
+              </span>
+            ) : topic ? (
+              <span className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-[0.25em]',
+                revealed
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                  : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+                isTheaterMode && 'text-xs'
+              )}>
+                <span className="relative flex h-1.5 w-1.5">
+                  {!revealed && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-indigo-500 opacity-75" />}
+                  <span className={cn('relative inline-flex h-1.5 w-1.5 rounded-full', revealed ? 'bg-emerald-500' : 'bg-indigo-500')} />
+                </span>
+                {revealed ? 'Votos revelados' : 'Votando agora'}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 text-[9px] font-black uppercase tracking-[0.25em]">
+                <Crosshair className="h-3 w-3" /> Mesa livre
+              </span>
+            )}
+            {showStage && !!round && round > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest">
+                <Layers className="h-3 w-3" /> Rodada {round}
+              </span>
+            )}
             {jiraLink && (
               <a
                 href={formatExternalUrl(jiraLink)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-[9px] font-black text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl hover:bg-blue-50 dark:hover:bg-slate-800 transition-all uppercase tracking-widest border border-slate-100 dark:border-slate-800 shadow-sm"
+                className="flex items-center gap-1.5 text-[9px] font-black text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-full hover:bg-blue-50 dark:hover:bg-slate-800 transition-all uppercase tracking-widest border border-slate-100 dark:border-slate-800 shadow-sm"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
+                <ExternalLink className="h-3 w-3" />
                 No Jira
               </a>
             )}
@@ -116,8 +198,8 @@ export function TopicDisplay({
             <h2
               title={topic}
               className={cn(
-                "text-base sm:text-lg md:text-xl font-black line-clamp-2 overflow-hidden text-ellipsis tracking-tight uppercase leading-tight text-slate-900 dark:text-white transition-all duration-500",
-                isTheaterMode && "text-lg sm:text-2xl lg:text-3xl py-1",
+                "text-base sm:text-lg md:text-2xl font-black line-clamp-2 overflow-hidden text-ellipsis tracking-tight uppercase leading-tight text-slate-900 dark:text-white transition-all duration-500",
+                isTheaterMode && "text-lg sm:text-2xl lg:text-4xl py-1",
                 showFinishedUI && "text-emerald-600 italic"
               )}>
               {topic}
@@ -125,18 +207,25 @@ export function TopicDisplay({
           ) : (
             <h2 className={cn(
               "text-sm font-black uppercase tracking-[0.2em]",
-              showFinishedUI ? (untouchedCount > 0 ? "text-amber-600" : "text-emerald-600") : "text-slate-300 animate-pulse"
+              showFinishedUI ? (untouchedCount > 0 ? "text-amber-600" : "text-emerald-600") : "text-slate-400 dark:text-slate-500"
             )}>
               {showFinishedUI
                 ? (untouchedCount > 0
                     ? `Encerrado com ${untouchedCount} tarefa${untouchedCount !== 1 ? 's' : ''} não abordada${untouchedCount !== 1 ? 's' : ''}`
                     : 'Todas as tarefas concluídas! 🎉')
-                : 'Aguardando definição...'}
+                : (
+                  <>
+                    Aguardando a primeira tarefa
+                    <span className="block mt-1 text-[10px] font-bold normal-case tracking-normal text-slate-400/80 dark:text-slate-500">
+                      {isFacilitator ? 'Importe do Jira, adicione na fila ou defina uma pelo lápis.' : 'O facilitador vai colocar a tarefa na mesa.'}
+                    </span>
+                  </>
+                )}
             </h2>
           )}
         </div>
       </div>
-      
+
       <div className="flex items-center gap-2">
         {isFacilitator && !showFinishedUI && (
           <Button

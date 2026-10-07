@@ -1,0 +1,125 @@
+import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
+import { resolvePostLoginRedirect } from '../AuthGuard';
+import { isCollaborativeRoute, ONBOARDING_EXEMPT_ROUTES } from '../IdentityGatekeeper';
+
+describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Colaborativas', () => {
+
+  describe('Sanitização e Resolução de returnUrl pós-login (resolvePostLoginRedirect)', () => {
+    it('deve preservar rotas internas válidas', () => {
+      expect(resolvePostLoginRedirect('/dashboard')).toBe('/dashboard');
+      expect(resolvePostLoginRedirect('/room/room-123')).toBe('/room/room-123');
+      expect(resolvePostLoginRedirect('/showcase/sess-456')).toBe('/showcase/sess-456');
+    });
+
+    it('deve preservar rotas com parâmetros de query legítimos', () => {
+      expect(resolvePostLoginRedirect('/room/room-123?tab=history&user=dev1')).toBe('/room/room-123?tab=history&user=dev1');
+    });
+
+    it('deve impedir loop de login quando returnUrl apontar para /login', () => {
+      expect(resolvePostLoginRedirect('/login')).toBe('/');
+      expect(resolvePostLoginRedirect('/login?returnUrl=/dashboard')).toBe('/');
+    });
+
+    it('deve impedir ataques de redirecionamento aberto (Open Redirect)', () => {
+      expect(resolvePostLoginRedirect('https://evil-phishing.com')).toBe('/');
+      expect(resolvePostLoginRedirect('http://malicious.org/steal')).toBe('/');
+      expect(resolvePostLoginRedirect('javascript:alert(1)')).toBe('/');
+    });
+
+    it('deve retornar rota raiz quando returnUrl for nulo, indefinido ou vazio', () => {
+      expect(resolvePostLoginRedirect(null)).toBe('/');
+      expect(resolvePostLoginRedirect('')).toBe('/');
+    });
+
+    it('deve rejeitar URLs relativas ao protocolo que apontam para outro site', () => {
+      expect(resolvePostLoginRedirect('//evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('//evil.com/room/1')).toBe('/');
+      expect(resolvePostLoginRedirect('/\\evil.com')).toBe('/');
+    });
+
+    it('deve rejeitar tab, quebra de linha e barra invertida que o navegador normaliza para //host', () => {
+      expect(resolvePostLoginRedirect('/\t/evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/\n/evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/\r/evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/a\\evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/%2F/ok')).toBe('/%2F/ok');
+    });
+
+    it('quem acabou de criar a conta e foi vinculado a um time vai ao Painel quando não veio de um link', () => {
+      expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/painel');
+      expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/painel');
+      expect(resolvePostLoginRedirect(null, { linkedTeam: false })).toBe('/');
+    });
+
+    it('o link vence: quem chegou por uma sala vai para a sala mesmo vinculado a um time', () => {
+      expect(resolvePostLoginRedirect('/room/abc', { linkedTeam: true })).toBe('/room/abc');
+      expect(resolvePostLoginRedirect('/invite/tok', { linkedTeam: true })).toBe('/invite/tok');
+    });
+
+    it('um returnUrl inválido com time vinculado também cai no Painel, nunca no site de fora', () => {
+      expect(resolvePostLoginRedirect('//evil.com', { linkedTeam: true })).toBe('/painel');
+    });
+  });
+
+  describe('Identificação de Rotas Colaborativas (isCollaborativeRoute)', () => {
+    it('deve identificar salas e cerimônias ágeis como colaborativas', () => {
+      expect(isCollaborativeRoute('/room/planning-poker-1')).toBe(true);
+      expect(isCollaborativeRoute('/showcase/entrega-sprint-45')).toBe(true);
+      expect(isCollaborativeRoute('/retro/retro-board-12')).toBe(true);
+      expect(isCollaborativeRoute('/brainstorming/ideacao-2026')).toBe(true);
+      expect(isCollaborativeRoute('/health-check/squad-hc-1')).toBe(true);
+      expect(isCollaborativeRoute('/action-plan/5w2h-plano')).toBe(true);
+      expect(isCollaborativeRoute('/jiradash')).toBe(true);
+    });
+
+    it('deve retornar falso para rotas individuais e administrativas', () => {
+      expect(isCollaborativeRoute('/workspace')).toBe(false);
+      expect(isCollaborativeRoute('/admin')).toBe(false);
+      expect(isCollaborativeRoute('/profile')).toBe(false);
+      expect(isCollaborativeRoute('/settings')).toBe(false);
+    });
+  });
+
+  describe('Rotas isentas de Onboarding (ONBOARDING_EXEMPT_ROUTES)', () => {
+    it('deve conter as rotas essenciais de login e onboarding', () => {
+      expect(ONBOARDING_EXEMPT_ROUTES).toContain('/login');
+      expect(ONBOARDING_EXEMPT_ROUTES).toContain('/onboarding');
+    });
+  });
+
+  describe('Cadastro com returnUrl (ex.: /invite/{token}) - regressão da corrida pós-login', () => {
+    it('resolvePostLoginRedirect deve preservar returnUrl de convite após registro, igual ao caso de login', () => {
+      // Mesma função usada pelo AuthGuard para login e registro: garante que
+      // não existe uma segunda implementação divergente para o fluxo de cadastro.
+      expect(resolvePostLoginRedirect('/invite/abc123')).toBe('/invite/abc123');
+    });
+
+    it('resolvePostLoginRedirect e a leitura de returnUrl do AuthGuard são determinísticas (chamar 2x não muda o resultado)', () => {
+      // A corrida original vinha de login/page.tsx reimplementar a leitura de
+      // returnUrl e disparar um segundo router.push depois de um await
+      // (fetch de projetos), competindo com o redirect síncrono do AuthGuard.
+      // Com uma única função pura e sem estado, chamadas repetidas (como
+      // ocorreria em re-renders/efeitos concorrentes) sempre convergem pro
+      // mesmo destino - não há "quem chega por último vence".
+      const first = resolvePostLoginRedirect('/invite/abc123');
+      const second = resolvePostLoginRedirect('/invite/abc123');
+      expect(first).toBe(second);
+      expect(first).toBe('/invite/abc123');
+    });
+
+    it('login/page.tsx não deve reimplementar redirect pós-login (fonte única em AuthGuard)', () => {
+      // Guarda de regressão: se alguém reintroduzir uma leitura própria de
+      // returnUrl/decisão de onboarding em login/page.tsx, a corrida volta.
+      // O AuthGuard (returnUrl) e o IdentityGatekeeper (mustOnboard) já cobrem
+      // 100% dos casos pós-login/registro.
+      const loginPagePath = path.resolve(__dirname, '../../../app/login/page.tsx');
+      const source = fs.readFileSync(loginPagePath, 'utf-8');
+
+      expect(source).not.toContain('redirectPostLogin');
+      expect(source).not.toContain('returnUrl');
+      expect(source).not.toContain('projectService');
+    });
+  });
+});

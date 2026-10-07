@@ -35,12 +35,13 @@ import {
   TrendingUp,
   Zap
 } from 'lucide-react';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/auth-client';
+import { knowledgeApi } from '@/app/knowledge/api';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from '@/lib/utils';
-import { EliteSpinner } from '@/components/ui/EliteSpinner';
+import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
 
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -174,21 +175,23 @@ function NewAssetContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assetId = searchParams.get('id');
-  const { firestore, user } = useFirebase();
+  const { session } = useAuth();
 
-  const kbQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
-    return query(collection(firestore, 'knowledge_kb'), orderBy('updatedAt', 'desc'));
-  }, [firestore, user]);
+  const [allDocs, setAllDocs] = useState<KnowledgeDocument[]>([]);
 
-  const { data: allDocs } = useCollection<KnowledgeDocument>(kbQuery);
+  useEffect(() => {
+    if (!session) return;
+    knowledgeApi.listDocuments(undefined, undefined, 0, 200)
+      .then(response => setAllDocs(response.content))
+      .catch(err => console.error('Erro ao carregar sugestões de caminho:', err));
+  }, [session]);
+
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     category: 'Processo',
     fullPath: '',
     content: '',
-    importance: 1,
     status: 'published'
   });
 
@@ -213,29 +216,28 @@ function NewAssetContent() {
   });
 
   useEffect(() => {
-    if (assetId && firestore) {
+    if (assetId) {
       const loadAsset = async () => {
-        const docRef = doc(firestore, 'knowledge_kb', assetId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        try {
+          const data = await knowledgeApi.getDocumentById(assetId);
           const loadedData = {
             title: data.title || '',
             category: data.category || 'Processo',
             fullPath: data.fullPath || '',
             content: data.content || '',
-            importance: data.importance || 1,
             status: data.status || 'published'
           };
           setFormData(loadedData);
           if (editor) {
             editor.commands.setContent(data.content || '');
           }
+        } catch (err: any) {
+          toast.error('Erro ao carregar o documento: ' + err.message);
         }
       };
       loadAsset();
     }
-  }, [assetId, firestore, editor]);
+  }, [assetId, editor]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -247,7 +249,7 @@ function NewAssetContent() {
       try {
         const formDataPayload = new FormData();
         formDataPayload.append('file', file);
-        const response = await fetch('/api/knowledge/ingest-pdf', { method: 'POST', body: formDataPayload });
+        const response = await authFetch('/api/knowledge/ingest-pdf', { method: 'POST', body: formDataPayload });
         const data = await response.json();
         if (data.text && editor) {
           editor.commands.setContent(data.text);
@@ -273,7 +275,7 @@ function NewAssetContent() {
   };
 
   const handleSave = async () => {
-    if (!firestore || !user) return;
+    if (!session) return;
     if (!formData.title || !formData.content) {
         toast.error('Preencha título e conteúdo');
         return;
@@ -281,19 +283,22 @@ function NewAssetContent() {
     setIsLoading(true);
 
     try {
-      const docId = assetId || doc(collection(firestore, 'knowledge_kb')).id;
-      const docRef = doc(firestore, 'knowledge_kb', docId);
-
-      const payload = {
-        ...formData,
-        id: docId,
-        updatedAt: serverTimestamp(),
-        updatedBy: user.uid,
+      const payload: Partial<KnowledgeDocument> = {
+        title: formData.title,
+        category: formData.category,
+        fullPath: formData.fullPath,
+        content: formData.content,
+        status: formData.status as KnowledgeDocument['status'],
+        updatedBy: session.id,
+        authorId: session.id,
         byteSize: new Blob([formData.content]).size,
-        ...(assetId ? {} : { createdAt: serverTimestamp(), createdBy: user.uid })
       };
 
-      await setDoc(docRef, payload, { merge: true });
+      if (assetId) {
+        await knowledgeApi.updateDocument(assetId, payload);
+      } else {
+        await knowledgeApi.saveOrUpdateDocument(payload);
+      }
       toast.success(assetId ? 'Documento atualizado' : 'Documento salvo');
       router.push('/knowledge/kb');
     } catch (error: any) {
@@ -307,7 +312,7 @@ function NewAssetContent() {
       <div className="flex-1 flex overflow-hidden">
         {/* Main Editor Area */}
         <main className="flex-1 overflow-y-auto no-scrollbar p-6 lg:p-8">
-          <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
              <Card className="border border-slate-200 dark:border-slate-800 rounded-[2rem] bg-white dark:bg-slate-900 overflow-hidden shadow-2xl flex flex-col min-h-[850px]">
                 <EditorToolbar 
                    onSave={handleSave} 
@@ -457,7 +462,7 @@ function NewAssetContent() {
 
 export default function KnowledgeAdminNewAssetPage() {
   return (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-950"><EliteSpinner size="md" variant="indigo" /></div>}>
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-950"><AgileSpinner size="md" variant="indigo" /></div>}>
       <NewAssetContent />
     </Suspense>
   );

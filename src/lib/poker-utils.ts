@@ -19,6 +19,7 @@ export const DEFAULT_ROOM_SETTINGS = {
   decisionNotes: true,
   refinementNotes: true,
   // Opções do facilitador
+  cancelTask: true,
   parkTask: true,
   referenceStory: true,
   roundNudge: true,
@@ -146,6 +147,8 @@ export type SessionBreakdown = {
   discussed: number;
   /** Itens finalizados como pulados. */
   skipped: number;
+  /** Itens cancelados durante o refinamento. */
+  cancelled: number;
   /** Itens adiados ao menos uma vez durante a sessão (park). */
   parked: number;
   /** Itens que nunca chegaram à mesa (sessão encerrada com fila pendente). */
@@ -165,9 +168,10 @@ export function computeSessionBreakdown(issues: Issue[], rounds: VotingRound[]):
     if (r.issueId && (r.votes || []).length > 0) issuesWithVotes.add(r.issueId);
   });
 
-  let estimated = 0, discussed = 0, skipped = 0, parked = 0, untouched = 0;
+  let estimated = 0, discussed = 0, skipped = 0, cancelled = 0, parked = 0, untouched = 0;
   (issues || []).forEach(i => {
-    if (i.skipped) skipped++;
+    if (i.cancelled) cancelled++;
+    else if (i.skipped) skipped++;
     else if (i.status === 'completed') estimated++;
     else untouched++;
 
@@ -175,7 +179,7 @@ export function computeSessionBreakdown(issues: Issue[], rounds: VotingRound[]):
     if ((i.parkCount || 0) > 0 || i.parked) parked++;
   });
 
-  return { estimated, discussed, skipped, parked, untouched, total: (issues || []).length };
+  return { estimated, discussed, skipped, cancelled, parked, untouched, total: (issues || []).length };
 }
 
 /**

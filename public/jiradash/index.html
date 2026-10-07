@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+    script-src-attr 'none';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data:;
+    font-src 'self' data:;
+    connect-src 'self';
+    base-uri 'self';
+    form-action 'self';
+    object-src 'none';
+  " />
+  <title>JiraDash - Sprint Dashboard</title>
+  <script>
+    // Acesso direto ao arquivo estático (fora do iframe de /jiradash) redireciona pra
+    // rota real da aplicação — que traz o header padrão e o modal de config em React.
+    try {
+      if (window.self === window.top) {
+        window.location.replace('/jiradash');
+      }
+    } catch (e) {}
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"
+          integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3ZSTk7kajkaj4D292NLuduDCO1c/NT8Id+jE58KYLKT7hXnbtryGmMg=="
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+  <script>
+    try {
+      const theme = localStorage.getItem('theme');
+      const variant = localStorage.getItem('theme-variant') || 'default';
+      const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      
+      document.documentElement.classList.remove('dark', 'light', 'theme-default', 'theme-nebula', 'theme-cyberpunk', 'theme-midnight', 'theme-nordic');
+      document.documentElement.classList.add(isDark ? 'dark' : 'light');
+      document.documentElement.classList.add('theme-' + variant);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./assets/css/jiradash.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header" id="dash-header">
+      <div>
+        <h1 id="dash-title">Sprint Dashboard</h1>
+        <div class="header-sub" id="dash-sub">Jira TOTVS</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn" type="button" data-action="toggle-config" id="btn-toggle-config-inner">⚙ Configurar</button>
+        <button class="btn btn-primary" type="button" data-action="load-data">↻ Atualizar</button>
+      </div>
+    </header>
+
+    <nav class="squad-tabs" id="squad-tabs" aria-label="Squads configuradas"></nav>
+
+    <dialog class="config-panel" id="config-panel" aria-label="Configuração do dashboard">
+      <div class="config-section">
+        <div class="config-section-title">Autenticação</div>
+        <div id="auth-status" class="auth-status auth-status-row" aria-live="polite">Verificando token…</div>
+
+        <label for="pat-input">Personal Access Token (PAT) do Jira</label>
+        <input type="password" id="pat-input" autocomplete="off" spellcheck="false" data-action="save-pat"
+               placeholder="Cole aqui seu token de acesso pessoal do Jira" />
+      </div>
+
+      <div class="config-section">
+        <div class="config-section-title">Consulta JQL</div>
+        <label for="jql-input">JQL da Sprint</label>
+        <input type="text" id="jql-input" placeholder='project = "Meu Projeto" AND Sprint = 12345 AND status != Cancelled' />
+
+        <div class="jql-quick-row chip-row">
+          <span class="jql-row-label">Exemplos rápidos:</span>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in openSprints() AND status != Cancelled'>⚡ Sprint Aberta</button>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND Sprint in futureSprints()'>📅 Próxima Sprint</button>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "PROJETO" AND status != Cancelled ORDER BY created DESC'>🔍 Últimas do Projeto</button>
+          <button type="button" class="jql-helper-btn" data-jql-example='project = "Varejo Front"  AND sprint = 52188 AND (issuetype in (História, "Débito Técnico", Legislação, Story) OR issuetype in (Manutencao, Manutenção, "Rejeição - Manutenção") AND priority = Crítica OR labels in (ApresentarReview)) AND sprint not in (futureSprints(), openSprints() )'>📊 Review DDPDV</button>
+          <button type="button" class="jql-helper-btn" id="btn-open-save-jql" style="border-style:dashed;">💾 Salvar Atual</button>
+        </div>
+        <div id="custom-jqls-container" class="jql-saved-row chip-row">
+          <span class="jql-row-label">Salvas:</span>
+          <div id="custom-jqls-list" class="chip-row"></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-action="load-data">▶ Carregar sprint</button>
+        <button class="btn" type="button" data-action="toggle-config">Fechar</button>
+      </div>
+    </dialog>
+
+    <!-- Modal simples para salvar JQL -->
+    <dialog id="modal-save-jql" class="modal-save-jql">
+      <h3>Salvar JQL Personalizada</h3>
+      <div class="field">
+        <label for="jql-save-name">Nome da JQL</label>
+        <input type="text" id="jql-save-name" placeholder="Ex: Bugs Críticos" />
+      </div>
+      <label class="checkbox-field">
+        <input type="checkbox" id="jql-save-public" />
+        Salvar como Pública (visível para todos)
+      </label>
+      <div class="modal-footer">
+        <button type="button" class="btn" id="btn-cancel-save-jql">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-save-jql">Salvar</button>
+      </div>
+    </dialog>
+
+    <div id="error-area"></div>
+    <div id="warning-area"></div>
+    <div id="loading-area"></div>
+
+    <section id="dashboard" hidden>
+      <div class="sprint-info" id="sprint-info"></div>
+      <div class="metrics-grid" id="metrics-grid"></div>
+
+      <div class="tabs" role="tablist" aria-label="Visões do dashboard">
+        <button class="tab active" type="button" data-tab="charts">Visão Geral</button>
+        <button class="tab" type="button" data-tab="planning">Planejamento</button>
+        <button class="tab" type="button" data-tab="issues">Issues</button>
+        <button class="tab" type="button" data-tab="assignees">Pessoas</button>
+        <button class="tab" type="button" data-tab="horas">Horas</button>
+        <button class="tab" type="button" data-tab="cycletime">Fluxo</button>
+        <button class="tab" type="button" data-tab="quality">Qualidade</button>
+        <button class="tab" type="button" data-tab="config">Configuração</button>
+      </div>
+
+      <div id="tab-charts"></div>
+      <div id="tab-planning" hidden></div>
+      <div id="tab-issues" hidden></div>
+      <div id="tab-assignees" hidden></div>
+      <div id="tab-horas" hidden></div>
+      <div id="tab-cycletime" hidden></div>
+      <div id="tab-quality" hidden></div>
+      <div id="tab-config" hidden></div>
+    </section>
+
+    <div id="empty-state" class="empty-state-card">
+      <div class="empty-state-icon">⚡</div>
+      <h2 class="empty-state-title">Nenhuma Sprint Carregada</h2>
+      <p class="empty-state-desc">
+        Configure sua JQL e clique em Carregar Sprint para visualizar métricas completas de Burndown de horas reais, cycle time, capacidade por papel DEV/QA e reconciliação.
+      </p>
+      <div class="empty-state-actions">
+        <button class="btn btn-primary" type="button" data-action="toggle-config" id="btn-open-config-empty">⚙ Abrir Configuração / JQL</button>
+        <button class="btn" type="button" data-action="load-data">↻ Carregar Sprint</button>
+      </div>
+      <div class="empty-state-pills">
+        <span>✓ 8 Abas de Análise</span>
+        <span>✓ Cálculo Fiel de Capacidade</span>
+        <span>✓ Burndown Horas Reais</span>
+        <span>✓ Exportação PNG & CSV</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Bridge com Portal Tech V&amp;D (auto-autenticação e sincronização de tema)
+    function applyTheme(mode, variant) {
+      const isDark = mode === 'dark';
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(isDark ? 'dark' : 'light');
+
+      if (variant) {
+        document.documentElement.classList.remove(
+          'theme-default',
+          'theme-nebula',
+          'theme-cyberpunk',
+          'theme-midnight',
+          'theme-nordic'
+        );
+        document.documentElement.classList.add('theme-' + variant);
+      }
+
+      if (typeof Chart !== 'undefined' && Chart.defaults) {
+        Chart.defaults.color = isDark ? '#94a3b8' : '#64748b';
+        Chart.defaults.borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)';
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+
+      if (event.data.type === 'SET_THEME') {
+        applyTheme(event.data.mode, event.data.variant);
+      }
+
+      if (event.data.type === 'SET_JIRA_CREDENTIALS' || event.data.type === 'SET_JIRA_PAT') {
+        const token = event.data.token || event.data.pat;
+        if (token) {
+          sessionStorage.setItem('jira-pat', token);
+          const patInput = document.getElementById('pat-input');
+          if (patInput) patInput.value = token;
+          const authStatus = document.getElementById('auth-status');
+          if (authStatus) {
+            authStatus.innerHTML = `<div class="auth-status-row">
+              <span class="auth-status-ok">✓ Token configurado (Portal Tech V&amp;D)</span>
+              <button class="btn btn-sm" type="button" data-action="clear-pat">Limpar token</button>
+            </div>`;
+          }
+          // Este PAT chega assíncrono, DEPOIS do módulo app.js já ter rodado apply() (que
+          // roda no load do script, antes do onLoad do iframe disparar este postMessage).
+          // Avisa o app pra tentar de novo agora que a autenticação existe — ver
+          // `retryApplyAfterAuthReady` em app.js.
+          window.dispatchEvent(new CustomEvent('jiradash:pat-ready'));
+        }
+      }
+
+      // Vem do modal de config em React (/jiradash), o "padrão" do app: token + JQL
+      // configurados ali e o carregamento é disparado aqui como se o usuário tivesse
+      // clicado em "Carregar sprint" — mesmo caminho de código, sem duplicar lógica.
+      if (event.data.type === 'JIRADASH_LOAD') {
+        const token = event.data.token;
+        if (token) {
+          sessionStorage.setItem('jira-pat', token);
+          const patInput = document.getElementById('pat-input');
+          if (patInput) patInput.value = token;
+        }
+        const jql = event.data.jql;
+        const jqlInput = document.getElementById('jql-input');
+        if (jqlInput && typeof jql === 'string') {
+          jqlInput.value = jql;
+          jqlInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        const configPanel = document.getElementById('config-panel');
+        if (configPanel && configPanel.open) configPanel.close();
+        document.querySelector('[data-action="load-data"]')?.click();
+      }
+
+      // Ícone de refresh do header externo (React): o botão "Atualizar" de dentro do
+      // iframe fica escondido junto com #dash-header quando embedado, mas continua no
+      // DOM — clicar nele de fora dispara loadData() de verdade (nunca lê o snapshot
+      // compartilhado, sempre busca no Jira), sem duplicar a lógica de carregamento.
+      if (event.data.type === 'JIRADASH_FORCE_REFRESH') {
+        document.querySelector('[data-action="load-data"]')?.click();
+      }
+    });
+
+    // Embedado em /jiradash (React): o header próprio deste HTML (título + Configurar/
+    // Atualizar) duplica o RoomHeader de fora — mesma config, mesmo refresh, dois lugares
+    // pra clicar. Some com ele aqui: sobra tela e o cabeçalho externo para de brigar por
+    // espaço com um segundo título. Todo botão que abre config (aqui, no estado vazio, ou
+    // programaticamente ao trocar/criar squad) passa por ui.toggleConfig()/setConfigVisible(),
+    // que já sabe pedir pro pai abrir o modal padrão em vez do <dialog> interno — nada
+    // a interceptar aqui além de esconder o header.
+    if (window.self !== window.top) {
+      // `hidden`, não `.remove()`: app.js continua escrevendo em #dash-title/#dash-sub
+      // (nome da sprint carregada) e no <title> da aba — remover o nó quebraria isso.
+      const dashHeader = document.getElementById('dash-header');
+      if (dashHeader) dashHeader.hidden = true;
+      // #squad-tabs continua visível (troca de squad/JQL salva é útil mesmo embedado,
+      // sobretudo pra quem lidera várias) — só marca pra virar sub-barra do header do
+      // React em vez de flutuar solta. Ver .is-embedded .squad-tabs no CSS.
+      document.body.classList.add('is-embedded');
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.key === 'theme') {
+        applyTheme(event.newValue === 'dark');
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-jql-example]');
+      if (btn) {
+        const input = document.getElementById('jql-input');
+        if (input) {
+          input.value = btn.getAttribute('data-jql-example');
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.focus();
+        }
+      }
+    });
+
+    // --- Lógica para salvar e carregar JQLs customizadas ---
+    const PUBLIC_KEY = 'agile_jql_presets_public';
+
+    function getSavedJqls() {
+      let publicList = [];
+      let privateList = [];
+      try {
+        const pubRaw = localStorage.getItem(PUBLIC_KEY);
+        if (pubRaw) publicList = JSON.parse(pubRaw);
+      } catch (e) {}
+
+      // Busca todas as JQLs privadas de qualquer userId logado no Portal Tech V&amp;D na mesma origem
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('agile_jql_presets_private_')) {
+          try {
+            const privRaw = localStorage.getItem(key);
+            if (privRaw) privateList = privateList.concat(JSON.parse(privRaw));
+          } catch(e) {}
+        }
+      }
+
+      const allMap = new Map();
+      publicList.forEach(item => allMap.set(item.id, { ...item, isPublic: true }));
+      privateList.forEach(item => allMap.set(item.id, { ...item, isPublic: false }));
+      
+      return Array.from(allMap.values()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    function renderSavedJqls() {
+      const container = document.getElementById('custom-jqls-container');
+      const list = document.getElementById('custom-jqls-list');
+      if (!list || !container) return;
+      
+      const jqls = getSavedJqls();
+      if (jqls.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+      
+      container.style.display = 'flex';
+      list.innerHTML = '';
+      
+      jqls.forEach(j => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'jql-helper-btn';
+        btn.textContent = `${j.isPublic ? '🌐' : '🔒'} ${j.label}`;
+        btn.title = j.jql;
+        btn.onclick = () => {
+          const input = document.getElementById('jql-input');
+          if (input) {
+            input.value = j.jql;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+          }
+        };
+        list.appendChild(btn);
+      });
+    }
+
+    renderSavedJqls();
+    
+    const btnOpenSave = document.getElementById('btn-open-save-jql');
+    const modalSave = document.getElementById('modal-save-jql');
+    const btnCancelSave = document.getElementById('btn-cancel-save-jql');
+    const btnConfirmSave = document.getElementById('btn-confirm-save-jql');
+    const inputSaveName = document.getElementById('jql-save-name');
+    const inputSavePublic = document.getElementById('jql-save-public');
+    const inputJql = document.getElementById('jql-input');
+
+    if (btnOpenSave && modalSave) {
+      btnOpenSave.addEventListener('click', () => {
+        const currentJql = inputJql.value.trim();
+        if (!currentJql) {
+          alert('Digite uma JQL antes de salvar.');
+          return;
+        }
+        inputSaveName.value = '';
+        inputSavePublic.checked = false;
+        modalSave.showModal();
+      });
+
+      btnCancelSave.addEventListener('click', () => {
+        modalSave.close();
+      });
+
+      btnConfirmSave.addEventListener('click', () => {
+        const label = inputSaveName.value.trim();
+        const jqlStr = inputJql.value.trim();
+        const isPublic = inputSavePublic.checked;
+
+        if (!label) {
+          alert('Dê um nome para a JQL.');
+          return;
+        }
+
+        const newPreset = {
+          id: 'jql_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          label: label,
+          jql: jqlStr,
+          isPublic: isPublic,
+          createdBy: 'Usuário (Legado)',
+          createdAt: new Date().toISOString()
+        };
+
+        if (isPublic) {
+          try {
+            const currentPub = JSON.parse(localStorage.getItem(PUBLIC_KEY) || '[]');
+            localStorage.setItem(PUBLIC_KEY, JSON.stringify([newPreset, ...currentPub]));
+          } catch(e) {}
+        } else {
+          let privateKey = 'agile_jql_presets_private_default';
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('agile_jql_presets_private_')) {
+              privateKey = key;
+              break;
+            }
+          }
+          try {
+            const currentPriv = JSON.parse(localStorage.getItem(privateKey) || '[]');
+            localStorage.setItem(privateKey, JSON.stringify([newPreset, ...currentPriv]));
+          } catch(e) {}
+        }
+
+        modalSave.close();
+        renderSavedJqls();
+      });
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.key && (event.key === PUBLIC_KEY || event.key.startsWith('agile_jql_presets_private_'))) {
+        renderSavedJqls();
+      }
+    });
+  </script>
+  <script type="module" src="./assets/js/jiradash.js"></script>
+</body>
+</html>

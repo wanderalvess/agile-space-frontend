@@ -1,23 +1,34 @@
 /**
  * jiraService.ts
  * Serviço centralizado de integração com o Jira.
- * Utilizado pelo Scrum Poker e pelo Sprint Showcase.
+ * Utilizado pelo Daily Timesheet, Scrum Poker e Sprint Showcase.
  */
-import { initializeFirebase } from '@/firebase';
+
+import { authFetch } from '@/lib/auth-client';
 
 /**
- * As rotas /api/jira/* exigem um ID token do Firebase Auth (Authorization:
- * Bearer <token>) — sem isso, qualquer visitante não autenticado podia usar
- * o backend como proxy pra qualquer host Jira público.
+ * Busca um anexo/thumbnail do próprio Jira (ex.: /secure/attachment/...,
+ * /secure/thumbnail/...) via proxy autenticado com o PAT — usado quando a
+ * evidência de uma task é uma imagem hospedada no Jira, que como <img>
+ * cross-origin nunca carrega (Jira exige sessão/cookie que o navegador não
+ * envia numa requisição de terceiro; só funciona em navegação de página
+ * inteira, tipo abrir em nova aba). Retorna um blob URL local, ou null se
+ * falhar (token sem permissão, anexo não é imagem, etc.) — quem chama deve
+ * cair pro fallback de link externo nesse caso.
  */
-const getAuthHeader = async (): Promise<Record<string, string>> => {
-  const { auth } = initializeFirebase();
-  await auth.authStateReady();
-  const token = await auth.currentUser?.getIdToken();
-  if (!token) {
-    console.error('[getAuthHeader] Token é vazio! auth.currentUser =', auth.currentUser);
+export const fetchJiraAttachmentBlobUrl = async (domain: string, token: string, url: string): Promise<string | null> => {
+  try {
+    const res = await authFetch('/api/jira/attachment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim(), url }),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
   }
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
 export interface JiraIssue {
@@ -44,21 +55,31 @@ export interface JiraIssue {
   timeRemaining?: number; // estimativa RESTANTE (aggregatetimeestimate/timeestimate) — "tempo restante" no Jira
   planned?: { dev?: string; qa?: string; tu?: string };
   updated?: string;
+  // `resolutiondate` do Jira — só muda uma vez, quando a issue resolve/fecha
+  // (diferente de `updated`, que muda a qualquer edição). Ver inferSlip.
+  resolutionDate?: string;
   dueDate?: string; // campo `duedate` do Jira, formato YYYY-MM-DD
+  targetStart?: string;
+  targetEnd?: string;
+  // true = targetStart/targetEnd caiu no fallback (created/updated), não veio
+  // de campo de data real do Jira. Ver comentário em fetchJiraIssues.
+  datesAreInferred?: boolean;
   parentKey?: string; // chave da issue pai (história), quando esta issue é subtarefa
   parentTitle?: string;
   labels?: string[];
   worklogs?: any[];
   project?: string;
+  versionSuporte?: string;
   versionMaster?: string;
-  versionDevelop?: string;
   versionRelease?: string;
+  versionDevelop?: string;
   // Valor bruto do campo Sprint (customfield_XXXXX) — só vem preenchido
   // quando fetchJiraIssues é chamado com opts.sprintFieldId (ID varia por
   // instância Jira, ver SquadConfig.sprintFieldId). Formato varia: array de
   // objetos (Jira Cloud) ou array de strings toString() estilo Greenhopper
   // (Jira Server/DC) — quem consome decide como parsear.
   sprintRaw?: unknown;
+  subtaskKeys?: string[];
 }
 
 /**
@@ -94,8 +115,8 @@ const parsePlannedFromTitle = (title: string) => {
  * Extrai dados de CI/CD (Projeto e Versões) de um único texto/comentário
  */
 const parseCicdFromText = (text: string) => {
-  const info: { project?: string; versionMaster?: string; versionDevelop?: string; versionRelease?: string } = {};
-  
+  const info: { project?: string; versionSuporte?: string; versionMaster?: string; versionRelease?: string; versionDevelop?: string } = {};
+
   if (!text || !text.includes('Esteira de Integração Continua')) {
     return info;
   }
@@ -112,7 +133,9 @@ const parseCicdFromText = (text: string) => {
     const version = versionMatch[1].trim();
     const branch = branchMatch[1].trim().toLowerCase();
 
-    if (branch.includes('master') || branch.includes('main')) {
+    if (branch.includes('suporte') || branch.includes('support') || branch.includes('hotfix')) {
+      info.versionSuporte = version;
+    } else if (branch.includes('master') || branch.includes('main')) {
       info.versionMaster = version;
     } else if (branch.includes('develop') || branch.includes('dev')) {
       info.versionDevelop = version;
@@ -128,16 +151,17 @@ const parseCicdFromText = (text: string) => {
  * Acumula os dados de CI/CD de múltiplos comentários
  */
 const parseCicdFromComments = (comments: string[]) => {
-  const result: { project?: string; versionMaster?: string; versionDevelop?: string; versionRelease?: string } = {};
-  
+  const result: { project?: string; versionSuporte?: string; versionMaster?: string; versionRelease?: string; versionDevelop?: string } = {};
+
   for (const comment of comments) {
     const parsed = parseCicdFromText(comment);
     if (parsed.project) result.project = parsed.project;
+    if (parsed.versionSuporte) result.versionSuporte = parsed.versionSuporte;
     if (parsed.versionMaster) result.versionMaster = parsed.versionMaster;
-    if (parsed.versionDevelop) result.versionDevelop = parsed.versionDevelop;
     if (parsed.versionRelease) result.versionRelease = parsed.versionRelease;
+    if (parsed.versionDevelop) result.versionDevelop = parsed.versionDevelop;
   }
-  
+
   return result;
 };
 
@@ -151,42 +175,204 @@ const extractDriveLink = (text: string): string => {
 };
 
 /**
- * Remove tags HTML e decodifica entidades de texto
+ * Remove marcação wiki do Jira — a API v2 devolve a description/comentário
+ * como texto CRU nesse formato (não HTML), então sem isso a pontuação de
+ * negrito/heading/cor sobra visível no meio do texto extraído
+ * ("h3. *Descrição da Situação:*" em vez de "Descrição da Situação:").
+ * O `*` de negrito ("*palavra*", sem espaço colado no `*`) é distinto do `*`
+ * de marcador de lista ("* item", com espaço) — só o primeiro é removido.
+ */
+const stripWikiMarkup = (text: string): string => {
+  if (!text) return text;
+  return text
+    .replace(/^h[1-6]\.[ \t]*/gm, '')
+    .replace(/\{color[^}]*\}([\s\S]*?)\{color\}/gi, '$1')
+    .replace(/\{(?:quote|noformat|code[^}]*)\}([\s\S]*?)\{\/?(?:quote|noformat|code)\}/gi, '$1')
+    .replace(/\*(\S(?:[^*\n]*\S)?)\*/g, '$1')
+    .replace(/^-{3,}[ \t]*$/gm, '');
+};
+
+/**
+ * Remove tags HTML, marcação wiki do Jira, e decodifica entidades de texto,
+ * preservando quebra de linha (vira '\n' em vez de espaço) — os campos que
+ * consomem isso no TaskCard são textarea multi-linha, então lista/bullet
+ * colapsada numa linha só fica ilegível.
  */
 const stripHtml = (html: string): string => {
   if (!html) return '';
-  // Limpa as tags HTML
-  let text = html.replace(/<[^>]*>?/gm, ' ');
-  // Decodifica entidades comuns que o Jira exporta
+  let text = html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+    .replace(/<[^>]*>?/gm, '');
   text = text.replace(/&nbsp;/g, ' ')
              .replace(/&quot;/g, '"')
              .replace(/&amp;/g, '&')
              .replace(/&lt;/g, '<')
              .replace(/&gt;/g, '>')
              .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec, 10)));
-  // Remove espaços duplos e colchetes residuais de links
-  return text.replace(/\s+/g, ' ').trim();
+  text = stripWikiMarkup(text);
+  const lines = text.split('\n').map(l => l.replace(/[ \t]+/g, ' ').trim());
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 };
 
 /**
- * Helpers para extração de dados da descrição via Regex
+ * Extração tolerante de Problema/Solução/Critérios de Aceite. O time não
+ * escreve religiosamente com esses cabeçalhos — varia sinônimo, ordem,
+ * emoji/negrito na frente do título ("📝 Contexto", "*Solução:*"), ou não usa
+ * cabeçalho nenhum — então em vez de regex rígido por campo, isto localiza
+ * QUALQUER cabeçalho conhecido (de qualquer categoria) pra servir de fim de
+ * seção, independente da ordem em que apareçam no texto.
  */
+const SECTION_ALIASES = {
+  problem: [
+    'PROBLEMA', 'CONTEXTO', 'MOTIVA[ÇC][ÃA]O', 'POR\\s+QU[ÊE]', 'ERRO\\s+ENCONTRADO',
+    // "CENÁRIO" sozinho fica de fora: palavra comum demais — aparece solta
+    // em item de lista ("1. Cenário: X") e não só em header de seção real.
+    // "Cenário" como problema sem header dedicado ainda cai no fallback do
+    // preâmbulo (guessProblemFromPreamble).
+  ],
+  solution: [
+    'SOLU[ÇC][ÃA]O', 'RESOLU[ÇC][ÃA]O', 'AN[ÁA]LISE',
+    'O\\s+QUE\\s+FOI\\s+FEITO', 'COMO\\s+FOI\\s+FEITO', 'IMPLEMENTA[ÇC][ÃA]O',
+    'ALTERA[ÇC][ÕO]ES?\\s+REALIZADAS?', 'PROPOSTA\\s+(?:DE\\s+)?SOLU[ÇC][ÃA]O',
+    // Histórias de usuário formais (sem bug report por trás) descrevem "a
+    // solução" com esses títulos em vez de "Solução" mesmo.
+    'DETALHAMENTO\\s+FUNCIONAL', 'OBJETIVO\\s+DA\\s+MUDAN[ÇC]A', 'IMPACTOS?\\s+T[ÉE]CNICOS?',
+    // "CORREÇÃO" sozinho NÃO entra: bate com títulos de seção-container tipo
+    // "Correção/Alteração Efetuada na Rotina" (template real visto em
+    // produção) antes de achar o "Solução" de verdade lá dentro.
+  ],
+  acceptanceCriteria: [
+    'CRIT[ÉE]RIOS?\\s+DE\\s+ACEITE', 'CRIT[ÉE]RIOS?\\s+DE\\s+ACEITA[ÇC][ÃA]O',
+    'ACCEPTANCE\\s+CRITERIA', 'O\\s+QUE\\s+SER[ÁA]\\s+TESTADO',
+    'CEN[ÁA]RIOS?\\s+DE\\s+TESTE', 'COMPORTAMENTO\\s+ESPERADO',
+    'ROTEIRO\\s+DE\\s+TESTES?', 'CHECKLIST',
+  ],
+  // Só servem de delimitador de fim de seção — não viram nenhum dos 3 campos,
+  // mas sem eles na lista o conteúdo deles é engolido pela seção anterior
+  // (ex.: "Pontos de Atenção" grudado no fim dos Critérios de Aceite).
+  other: [
+    'PONTOS?\\s+DE\\s+ATEN[ÇC][ÃA]O', 'DOCUMENTA[ÇC][ÃA]O(?:\\s+E\\s+EVID[ÊE]NCIAS)?',
+    'DADOS\\s+T[ÉE]CNICOS(?:\\s+E\\s+LINKS)?', 'V[ÍI]DEO', 'EVID[ÊE]NCIAS?',
+    // Seções fixas de um template de ticket real (TOTVS) — não são nenhum
+    // dos 3 campos, só cabeçalho de container; sem eles entram como conteúdo
+    // do Problema/Solução/Critério da seção anterior.
+    'ROTINA', 'VERS[ÃA]O\\s+PARA\\s+TESTE', 'TABELAS\\s+UTILIZADAS',
+    'NECESSITA\\s+DE\\s+PERMISS[ÃA]O(?:\\s+OU\\s+PARAMETRIZA[ÇC][ÃA]O)?(?:\\?\\s*QUAIS\\?)?',
+    'CEN[ÁA]RIOS?\\s+A\\s+SEREM\\s+TESTADOS',
+  ],
+};
+
+const ALL_ALIASES = [
+  ...SECTION_ALIASES.problem, ...SECTION_ALIASES.solution,
+  ...SECTION_ALIASES.acceptanceCriteria, ...SECTION_ALIASES.other,
+];
+
+// Pula opcionalmente "h1."-"h6." (heading de wiki markup do Jira — começa
+// com letra, não é "símbolo" pro skip abaixo) e depois até 8 caracteres
+// não-letra (emoji, *, #, número, espaço) antes do cabeçalho — cobre
+// "📝 Contexto", "🛠 Alterações Realizadas", "*Solução:*", "h2. Solução".
+const HEADER_LEAD = '^(?:h[1-6]\\.[ \\t]*)?[^\\p{L}\\n]{0,8}';
+// Cabeçalhos colados tipo "Contexto/Problema" viram um cabeçalho só (senão a
+// busca pelo fim da 1ª seção acha o 2º alias colado e zera o conteúdo).
+const HEADER_GLUE = `(?:\\s*[\\/,]\\s*(?:${ALL_ALIASES.join('|')}))*`;
+// A palavra extra tolerada ("Problema Atual", "Critério Geral") só conta se
+// vier seguida de quebra de linha (lookahead, não consome) — sem essa
+// âncora, "Problema Identificou-se uma falha..." (frase corrida colada no
+// cabeçalho) comia a primeira palavra da frase como se fosse qualificador.
+const HEADER_TAIL = '(?:[ \\t]+\\p{L}{2,20}(?=[ \\t]*(?:\\n|$)))?(?:\\s*\\([^)]{0,40}\\))?[ \\t]*:?[ \\t]*\\n?';
+
+const findHeader = (text: string, aliases: string[]): RegExpMatchArray | null => {
+  const re = new RegExp(`${HEADER_LEAD}(?:${aliases.join('|')})${HEADER_GLUE}${HEADER_TAIL}`, 'imu');
+  return text.match(re);
+};
+
+// Junta TODAS as ocorrências da mesma categoria (ex.: "Cenários de Teste" e
+// "Comportamento Esperado" são as duas Critérios de Aceite) em vez de só a
+// primeira — senão a segunda seção do mesmo tipo se perde.
+const extractSection = (text: string, aliases: string[]): string => {
+  const parts: string[] = [];
+  let searchFrom = 0;
+  while (searchFrom < text.length) {
+    const rest = text.slice(searchFrom);
+    const startMatch = findHeader(rest, aliases);
+    if (!startMatch || startMatch.index === undefined) break;
+    const absStart = searchFrom + startMatch.index;
+    const afterStart = absStart + startMatch[0].length;
+    const endMatch = findHeader(text.slice(afterStart), ALL_ALIASES);
+    const absEnd = endMatch && endMatch.index !== undefined ? afterStart + endMatch.index : text.length;
+    parts.push(text.slice(afterStart, absEnd));
+    searchFrom = absEnd;
+  }
+  return stripHtml(parts.join('\n\n'));
+};
+
+const GHERKIN_LINE = /^\s*(?:dado|given|quando|when|ent[ãa]o|then)\b/i;
+const BULLET_LINE = /^\s*(?:[-*•#]|\d+[.)]|\[[ xX]\])\s+/;
+
+// Tira spans já reconhecidos por outro campo (Problema, Solução, "other" —
+// Dados Técnicos, Documentação, Pontos de Atenção...) antes de varrer por
+// bullets soltos — senão uma lista de links vira "Critério de Aceite" só
+// por ter marcador de lista, ou um bullet que já virou Solução (via
+// "Objetivo da Mudança"/"Detalhamento Funcional" etc.) aparece duplicado
+// como Critério de Aceite também.
+const stripKnownSections = (text: string, aliases: string[]): string => {
+  let result = text;
+  let searchFrom = 0;
+  const spans: Array<[number, number]> = [];
+  while (searchFrom < result.length) {
+    const rest = result.slice(searchFrom);
+    const m = findHeader(rest, aliases);
+    if (!m || m.index === undefined) break;
+    const absStart = searchFrom + m.index;
+    const afterHeader = absStart + m[0].length;
+    const endM = findHeader(result.slice(afterHeader), ALL_ALIASES);
+    const absEnd = endM && endM.index !== undefined ? afterHeader + endM.index : result.length;
+    spans.push([absStart, absEnd]);
+    searchFrom = absEnd;
+  }
+  for (let i = spans.length - 1; i >= 0; i--) {
+    result = result.slice(0, spans[i][0]) + result.slice(spans[i][1]);
+  }
+  return result;
+};
+
+/** Sem cabeçalho de critério: procura um bloco de linhas em Gherkin ou lista com marcador. */
+const guessAcceptanceCriteria = (text: string): string => {
+  const claimed = [...SECTION_ALIASES.other, ...SECTION_ALIASES.problem, ...SECTION_ALIASES.solution];
+  const lines = stripHtml(stripKnownSections(text, claimed)).split('\n');
+  const hits = lines.filter(l => GHERKIN_LINE.test(l) || BULLET_LINE.test(l));
+  return hits.join('\n');
+};
+
 const parseAcceptanceCriteriaFromDescription = (desc: string) => {
   if (!desc) return '';
-  const acMatch = desc.match(/(?:CRIT[ÉÉ]RIOS? DE ACEITE|ACCEPTANCE CRITERIA|CRIT[ÉÉ]RIOS? DE ACEITAÇÃO|O QUE SERÁ TESTADO):?\s*([\s\S]*?)(?:PROBLEMA|SOLUÇÃO|VÍDEO|---|[#*]|$)/i);
-  return acMatch ? stripHtml(acMatch[1]) : '';
+  return extractSection(desc, SECTION_ALIASES.acceptanceCriteria) || guessAcceptanceCriteria(desc);
 };
 
 const parseProblemFromDescription = (desc: string) => {
   if (!desc) return '';
-  const probMatch = desc.match(/(?:PROBLEMA|MOTIVAÇÃO|POR QUE):?([\s\S]*?)(?:SOLUÇÃO|VÍDEO|---|<br|[#*]|$)/i);
-  return probMatch ? stripHtml(probMatch[1]) : '';
+  return extractSection(desc, SECTION_ALIASES.problem);
 };
 
 const parseSolutionFromDescription = (desc: string) => {
   if (!desc) return '';
-  const solMatch = desc.match(/(?:SOLUÇÃO|O QUE FOI FEITO|COMO FOI FEITO):?([\s\S]*?)(?:PROBLEMA|VÍDEO|---|<br|[#*]|$)/i);
-  return solMatch ? stripHtml(solMatch[1]) : '';
+  return extractSection(desc, SECTION_ALIASES.solution);
+};
+
+/**
+ * Último recurso pro Problema: sem cabeçalho dedicado, usa o preâmbulo — tudo
+ * antes do primeiro cabeçalho conhecido, de qualquer categoria. Cobre abrir a
+ * descrição direto com o contexto, sem rotular nada; sem cabeçalho NENHUM no
+ * texto, o preâmbulo é o texto inteiro. Chamado à parte (não embutido nos
+ * parse*FromDescription) pra não atropelar quem tenta uma fonte (comentário)
+ * e cai pra outra (descrição) antes de aceitar o preâmbulo como resposta.
+ */
+const guessProblemFromPreamble = (text: string): string => {
+  if (!text) return '';
+  const firstHeader = findHeader(text, ALL_ALIASES);
+  const preamble = firstHeader && firstHeader.index !== undefined ? text.slice(0, firstHeader.index) : text;
+  return stripHtml(preamble);
 };
 
 const parseQAFromDescription = (desc: string) => {
@@ -258,7 +444,7 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         if (indEst) timeEstimate = parseInt(indEst, 10);
       }
 
-      // Tenta pegar o Dev Real de customfield_10046 (Jira TOTVS)
+      // Tenta pegar o Dev Real de customfield_10046 (Jira Custom Field)
       item.querySelectorAll('customfield').forEach((cf) => {
         const cfId = cf.getAttribute('id');
         const cfName = cf.querySelector('customfieldname')?.textContent?.toLowerCase() || '';
@@ -277,33 +463,26 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         }
       });
 
-      // --- EXTRAÇÃO DE CRITÉRIOS DE ACEITE DA DESCRIÇÃO ---
-      if (!acceptanceCriteria && description) {
-        const acMatch = description.match(/(?:CRIT[ÉÉ]RIOS? DE ACEITE|ACCEPTANCE CRITERIA|CRIT[ÉÉ]RIOS? DE ACEITAÇÃO):?\s*([\s\S]*?)(?:PROBLEMA|SOLUÇÃO|VÍDEO|---|#|$)/i);
-        if (acMatch) acceptanceCriteria = stripHtml(acMatch[1]);
-      }
-
       // Varrer COMENTÁRIOS para achar Problema, Solução e Vídeos
       const comments = Array.from(item.querySelectorAll('comment')).map(c => ({
         author: c.getAttribute('author') || '',
         text: c.textContent?.trim() || ''
       }));
 
-      // Extrair Vídeo de qualquer comentário (prioridade Drive)
-      const allText = description + ' ' + comments.map(c => c.text).join(' ');
-      videoUrl = extractDriveLink(allText);
+      // Comentários do DEV entram primeiro no texto combinado (prioridade
+      // sem descartar o resto) — se o mesmo cabeçalho aparecer em dois
+      // lugares, o parser pega a primeira ocorrência.
+      const devComments = comments.filter(c => c.author === devUsername).map(c => c.text);
+      const otherComments = comments.filter(c => c.author !== devUsername).map(c => c.text);
+      const combinedText = [...devComments, description, ...otherComments].filter(Boolean).join('\n\n');
 
-      // Prioridade para comentários do DEV para Problema e Solução
-      const devComments = comments.filter(c => c.author === devUsername);
-      const searchTarget = devComments.length > 0 ? devComments.map(c => c.text).join(' ') : allText;
+      videoUrl = extractDriveLink(combinedText);
 
-      const probMatch = searchTarget.match(/PROBLEMA:?([\s\S]*?)(?:SOLUÇÃO|VÍDEO|---|<br|$)/i);
-      const solMatch = searchTarget.match(/SOLUÇÃO:?([\s\S]*?)(?:PROBLEMA|VÍDEO|---|<br|$)/i);
+      if (!acceptanceCriteria) acceptanceCriteria = parseAcceptanceCriteriaFromDescription(combinedText);
+      problem = parseProblemFromDescription(combinedText);
+      solution = parseSolutionFromDescription(combinedText);
 
-      problem = probMatch ? stripHtml(probMatch[1]) : '';
-      solution = solMatch ? stripHtml(solMatch[1]) : '';
-
-      // Fallback para campos específicos se não achar no texto
+      // Fallback para campo específico se não achar solução no texto
       if (!solution) {
         item.querySelectorAll('customfield').forEach(cf => {
           if (cf.getAttribute('id') === 'customfield_10410') {
@@ -314,11 +493,9 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         });
       }
 
-      // Cleanup final do problema se estiver vazio
-      if (!problem && description) {
-        const dMatch = description.match(/PROBLEMA:?([\s\S]*?)(?:SOLUÇÃO|---|<br|$)/i);
-        problem = dMatch ? stripHtml(dMatch[1]) : stripHtml(description.split('----')[0]);
-      }
+      // Sem cabeçalho de Problema achado: usa o preâmbulo do texto combinado
+      // pra não perder a informação deixando o campo em branco.
+      if (!problem) problem = guessProblemFromPreamble(combinedText);
 
       // Story points
       let points = 0;
@@ -339,9 +516,10 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
         problem, solution, qa, videoUrl, devName,
         timeSpent, timeEstimate, planned,
         project: cicdInfo.project,
+        versionSuporte: cicdInfo.versionSuporte,
         versionMaster: cicdInfo.versionMaster,
-        versionDevelop: cicdInfo.versionDevelop,
-        versionRelease: cicdInfo.versionRelease
+        versionRelease: cicdInfo.versionRelease,
+        versionDevelop: cicdInfo.versionDevelop
       });
 
       // Se for issue de Gestão (ex: Refinamento), extrair issues associadas do issuelinks
@@ -371,9 +549,10 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
               timeEstimate: 0,
               planned: undefined,
               project: '',
+              versionSuporte: '',
               versionMaster: '',
-              versionDevelop: '',
-              versionRelease: ''
+              versionRelease: '',
+              versionDevelop: ''
             });
           }
         });
@@ -424,6 +603,77 @@ const extractPlainTextFromDescription = (desc: unknown): string => {
   return '';
 };
 
+export interface JiraFieldMeta {
+  id: string;
+  name: string;
+  schema?: { custom?: string; type?: string };
+}
+
+/**
+ * Lista os campos do Jira (/rest/api/2/field via backend) e resolve o ID do
+ * customfield "Sprint" (schema.custom = gh-sprint, com fallback por nome) —
+ * esse ID varia por instância/projeto Jira, então não pode ficar hardcoded
+ * (ver UNMAPPED_SPRINT_ID em useSquadStore.ts). Retorna null se não achar ou
+ * se a chamada falhar — quem chama deve manter o comportamento de fallback
+ * atual nesse caso, sem quebrar o sync.
+ */
+export const resolveSprintFieldId = async (domain: string, token: string): Promise<string | null> => {
+  try {
+    const res = await authFetch('/api/jira/fields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim() }),
+    });
+    if (!res.ok) return null;
+    const fields: JiraFieldMeta[] = await res.json();
+    if (!Array.isArray(fields)) return null;
+    const byType = fields.find(f => f.schema?.custom === 'com.pyxis.greenhopper.jira:gh-sprint');
+    if (byType) return byType.id;
+    const byName = fields.find(f => f.name?.trim().toLowerCase() === 'sprint');
+    return byName?.id || null;
+  } catch {
+    return null;
+  }
+};
+
+export interface JiraSprintInfo {
+  id: string;
+  name: string;
+  state: string;
+  startDate: string;
+  endDate: string;
+}
+
+/**
+ * Busca metadados oficiais de uma sprint (/rest/agile/1.0/sprint/{id} via
+ * backend) — nome/estado/datas direto do Jira, não o blob embutido no
+ * customfield Sprint das issues (Server/DC serializa como toString() Java,
+ * sujeito a truncar nome com vírgula em parseSprintField). Retorna null em
+ * qualquer falha — quem chama deve manter os valores já parseados da issue
+ * como fallback nesse caso.
+ */
+export const fetchSprintInfo = async (domain: string, token: string, sprintId: string): Promise<JiraSprintInfo | null> => {
+  try {
+    const res = await authFetch('/api/jira/sprint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: domain.trim(), token: token.trim(), sprintId }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.id) return null;
+    return {
+      id: String(data.id),
+      name: data.name || '',
+      state: data.state || '',
+      startDate: data.startDate || '',
+      endDate: data.endDate || '',
+    };
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Busca issues no Jira via API REST (Atualizado para trazer campos de evidência)
  */
@@ -436,9 +686,9 @@ export const fetchJiraIssues = async (
 
   let res: Response;
   try {
-    res = await fetch('/api/jira/search', {
+    res = await authFetch('/api/jira/search', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await getAuthHeader()) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         domain: domain.trim(), token: token.trim(), jql: jql.trim(),
         ...(opts?.maxResults ? { maxResults: opts.maxResults } : {}),
@@ -490,17 +740,6 @@ export const fetchJiraIssues = async (
       ? renderedDescription
       : desc;
 
-    // Automação simplificada via API (Regex na descrição e campos custom)
-    const probMatch = desc.match(/PROBLEMA:?([\s\S]*?)(?:SOLUÇÃO|$)/i);
-    const solMatch = desc.match(/SOLUÇÃO:?([\s\S]*?)(?:PROBLEMA|$)/i);
-
-    // Extração Inteligente de Critérios de Aceite
-    let acceptanceCriteria = fields?.customfield_10100 || '';
-    if (!acceptanceCriteria) {
-      const acMatch = desc.match(/(?:CRIT[ÉÉ]RIOS? DE ACEITE|ACCEPTANCE CRITERIA|CRIT[ÉÉ]RIOS? DE ACEITAÇÃO):?\s*([\s\S]*?)(?:PROBLEMA|SOLUÇÃO|VÍDEO|---|#|$)/i);
-      if (acMatch) acceptanceCriteria = acMatch[1].trim();
-    }
-
     // Tenta extrair pontos (Story Points)
     let points = 0;
     const possiblePointFields = [
@@ -542,6 +781,28 @@ export const fetchJiraIssues = async (
     // primária aqui, descrição só como fallback.
     const commentsText = commentsList.join(' ');
 
+    const toSafeString = (val: any): string => {
+      if (!val) return '';
+      if (typeof val === 'string') return val;
+      if (typeof val === 'number') return String(val);
+      if (typeof val === 'object') {
+        if (typeof val.value === 'string') return val.value;
+        if (typeof val.name === 'string') return val.name;
+        if (typeof val.key === 'string') return val.key;
+        if (typeof val.id === 'string' || typeof val.id === 'number') return String(val.id);
+        return '';
+      }
+      return '';
+    };
+
+    // Data REAL de planejamento (campo que alguém preencheu de propósito no
+    // Jira) vs. fallback fabricado (created/updated, timestamp de auditoria,
+    // não data de plano). datesAreInferred avisa quem consome que a fase caiu
+    // no fallback — sem isso, uma cascata de atraso calcula em cima de uma
+    // data inventada sem avisar ninguém (ver Jira Plans / SquadPlansTimeline).
+    const realTargetStart = toSafeString(fields?.customfield_10015) || toSafeString(fields?.startDate) || toSafeString(fields?.target_start);
+    const realTargetEnd = toSafeString(fields?.customfield_10014) || toSafeString(fields?.duedate) || toSafeString(fields?.target_end);
+
     return {
       key: issue.key,
       title: fields?.summary || issue.key,
@@ -553,15 +814,22 @@ export const fetchJiraIssues = async (
       priority: fields?.priority?.name || '',
       assignee: fields?.assignee?.displayName || '',
       assigneeId: fields?.assignee?.accountId || fields?.assignee?.key || '',
-      updated: fields?.updated || '',
-      dueDate: fields?.duedate || '',
-      parentKey: fields?.parent?.key || '',
-      parentTitle: fields?.parent?.fields?.summary || '',
+      updated: toSafeString(fields?.updated),
+      resolutionDate: toSafeString(fields?.resolutiondate),
+      dueDate: toSafeString(fields?.duedate),
+      targetStart: realTargetStart || (typeof fields?.created === 'string' ? fields.created.substring(0, 10) : ''),
+      targetEnd: realTargetEnd || (typeof fields?.updated === 'string' ? fields.updated.substring(0, 10) : ''),
+      datesAreInferred: !realTargetStart || !realTargetEnd,
+      parentKey: toSafeString(fields?.parent?.key || (typeof fields?.parent === 'string' ? fields.parent : '')),
+      parentTitle: toSafeString(fields?.parent?.fields?.summary),
+      subtaskKeys: Array.isArray(fields?.subtasks)
+        ? fields.subtasks.map((st: any) => toSafeString(st?.key)).filter(Boolean)
+        : undefined,
       labels: fields?.labels || [],
       points,
       planned: parsePlannedFromTitle(fields?.summary || ''),
-      acceptanceCriteria: acceptanceCriteria || parseAcceptanceCriteriaFromDescription(desc),
-      problem: parseProblemFromDescription(commentsText) || parseProblemFromDescription(desc),
+      acceptanceCriteria: fields?.customfield_10100 || parseAcceptanceCriteriaFromDescription(desc),
+      problem: parseProblemFromDescription(commentsText) || parseProblemFromDescription(desc) || guessProblemFromPreamble(desc),
       solution: parseSolutionFromDescription(commentsText) || parseSolutionFromDescription(desc),
       qa: formatJiraName(fields?.customfield_25307?.displayName || fields?.customfield_25307 || '') || parseQAFromDescription(desc),
       videoUrl: extractDriveLink(commentsText) || extractDriveLink(desc),
@@ -571,10 +839,38 @@ export const fetchJiraIssues = async (
       timeRemaining: fields?.aggregatetimeestimate || fields?.timeestimate || 0,
       worklogs: fields?.worklog?.worklogs || [],
       project: cicdParsed.project,
+      versionSuporte: cicdParsed.versionSuporte,
       versionMaster: cicdParsed.versionMaster,
-      versionDevelop: cicdParsed.versionDevelop,
       versionRelease: cicdParsed.versionRelease,
-      sprintRaw: opts?.sprintFieldId ? fields?.[opts.sprintFieldId] : undefined,
+      versionDevelop: cicdParsed.versionDevelop,
+      sprintRaw: (() => {
+        if (opts?.sprintFieldId && fields?.[opts.sprintFieldId]) return fields[opts.sprintFieldId];
+        if (!fields) return undefined;
+        const candidateFields = [
+          'customfield_10005', 'customfield_10008', 'customfield_10007',
+          'customfield_10010', 'customfield_10020', 'customfield_10016',
+          'customfield_10100', 'customfield_10101', 'customfield_10004', 'sprint'
+        ];
+        for (const f of candidateFields) {
+          if (fields[f]) {
+            const val = fields[f];
+            if (Array.isArray(val) && val.length > 0) {
+              const first = val[0];
+              if (typeof first === 'string' && (first.includes('com.atlassian.greenhopper.service.sprint.Sprint') || first.includes('state='))) return val;
+              if (typeof first === 'object' && first !== null && ('startDate' in first || 'state' in first || 'name' in first)) return val;
+            }
+          }
+        }
+        for (const key of Object.keys(fields)) {
+          const val = fields[key];
+          if (Array.isArray(val) && val.length > 0) {
+            const first = val[0];
+            if (typeof first === 'string' && (first.includes('com.atlassian.greenhopper.service.sprint.Sprint') || (first.includes('[id=') && first.includes('startDate=')))) return val;
+            if (typeof first === 'object' && first !== null && ('startDate' in first || ('state' in first && 'name' in first))) return val;
+          }
+        }
+        return undefined;
+      })(),
     };
   });
 
@@ -590,7 +886,7 @@ export const fetchJiraIssues = async (
 export const fetchAllJiraIssues = async (
   domain: string, token: string, jql: string,
   opts?: { pageSize?: number; maxPages?: number; fields?: string[]; sprintFieldId?: string }
-): Promise<{ issues: JiraIssue[]; total: number }> => {
+): Promise<{ issues: JiraIssue[]; total: number; truncated: boolean }> => {
   const pageSize = opts?.pageSize ?? 100;
   const maxPages = opts?.maxPages ?? 20; // teto de segurança: 2000 issues
 
@@ -608,55 +904,135 @@ export const fetchAllJiraIssues = async (
     page += 1;
   }
 
-  return { issues: allIssues, total };
+  // truncated=true quando o teto de páginas foi atingido com issues ainda por
+  // buscar — sem esse sinal, um squad com >2000 issues no escopo perdia issues
+  // silenciosamente, sem aviso em lugar nenhum (nem log, nem lastSyncError).
+  const truncated = allIssues.length < total && page >= maxPages;
+  return { issues: allIssues, total, truncated };
 };
 
 /**
- * Preenche problema/solução/vídeo a partir da subtarefa "Codificação" quando a
- * issue principal não trouxe essa informação (nem na descrição, nem no
- * comentário dela) — nesse Jira, quem carrega o relato técnico é a issue
- * filha nativa (fields.parent aponta pra história/issue principal), não a
- * história em si. Ver SQUAD_SYNC_FIELDS_BASE em useSquadStore.ts, que já
- * assume essa mesma convenção pro rastreio de hora.
+ * Preenche problema/solução/vídeo a partir de subtarefas (ex: "Codificação", "Desenvolvimento",
+ * "Sub-task", etc.) quando a issue principal não trouxe essa informação.
+ * NÃO força issuetype = "Codificação" na JQL porque o nome da issue type de subtarefa
+ * varia entre projetos/instâncias do Jira (e gerava erro 400 "O valor 'Codificação' não existe para o campo 'issuetype'").
+ * parent in (...) já filtra diretamente e exclusivamente as subtarefas dessas issues pai.
  */
 export const enrichWithCodificacaoChildren = async (
   domain: string, token: string, issues: JiraIssue[]
 ): Promise<JiraIssue[]> => {
-  const pending = issues.filter(i => !i.problem || !i.solution);
+  const pending = issues.filter(i => {
+    if (i.problem && i.solution) return false;
+    // Se mapeamos as subtarefas da issue e sabemos que ela tem 0 subtarefas, podemos pular
+    if (Array.isArray(i.subtaskKeys) && i.subtaskKeys.length === 0) return false;
+    return true;
+  });
   if (pending.length === 0) return issues;
 
-  const childByParent = new Map<string, JiraIssue>();
-  // 40 chaves por chamada mantém a URL da GET /search dentro de um tamanho
-  // seguro (Jira aceita bem mais no IN(), o limite prático é a URL).
-  for (let i = 0; i < pending.length; i += 40) {
-    const chunkKeys = pending.slice(i, i + 40).map(p => p.key);
-    const jql = `parent in (${chunkKeys.join(',')}) AND issuetype = "Codificação"`;
+  const childrenByParent = new Map<string, JiraIssue[]>();
+  // 30 chaves por chamada mantém a URL da GET /search em tamanho seguro
+  for (let i = 0; i < pending.length; i += 30) {
+    const chunkKeys = pending.slice(i, i + 30).map(p => p.key);
+    const jql = `parent in (${chunkKeys.join(',')})`;
     try {
-      const { issues: children } = await fetchJiraIssues(domain, token, jql);
+      const { issues: children } = await fetchJiraIssues(domain, token, jql, { maxResults: 100 });
       children.forEach(child => {
-        if (child.parentKey) childByParent.set(child.parentKey, child);
+        if (child.parentKey) {
+          const list = childrenByParent.get(child.parentKey) || [];
+          list.push(child);
+          childrenByParent.set(child.parentKey, list);
+        }
       });
     } catch (e) {
-      // Uma falha pontual nessa busca extra não pode derrubar o import
-      // inteiro — as issues afetadas só ficam sem o enriquecimento.
-      console.error('[enrichWithCodificacaoChildren] Falha ao buscar subtarefas de Codificação:', e);
+      // Uma falha pontual nessa busca extra não derruba a importação
+      console.warn('[enrichWithCodificacaoChildren] Falha ao buscar subtarefas:', e);
     }
   }
 
-  if (childByParent.size === 0) return issues;
+  if (childrenByParent.size === 0) return issues;
+
+  const isDevSubtask = (child: JiraIssue) => {
+    const text = `${child.type || ''} ${child.title || ''}`.toLowerCase();
+    return text.includes('codifica') || text.includes('desenvolv') || text.includes('dev') || text.includes('coding');
+  };
 
   return issues.map(issue => {
-    const child = childByParent.get(issue.key);
-    if (!child) return issue;
+    const subtasks = childrenByParent.get(issue.key);
+    if (!subtasks || subtasks.length === 0) return issue;
+
+    // Prioriza subtarefas de codificação/desenvolvimento que possuam solução ou problema
+    const sortedSubtasks = [...subtasks].sort((a, b) => {
+      const scoreA = (isDevSubtask(a) ? 10 : 0) + (a.solution ? 5 : 0) + (a.problem ? 3 : 0) + (a.videoUrl ? 2 : 0);
+      const scoreB = (isDevSubtask(b) ? 10 : 0) + (b.solution ? 5 : 0) + (b.problem ? 3 : 0) + (b.videoUrl ? 2 : 0);
+      return scoreB - scoreA;
+    });
+
+    const bestSubtask = sortedSubtasks[0];
+    const anyWithProblem = sortedSubtasks.find(s => s.problem);
+    const anyWithSolution = sortedSubtasks.find(s => s.solution);
+    const anyWithVideo = sortedSubtasks.find(s => s.videoUrl);
+    const anyWithProject = sortedSubtasks.find(s => s.project);
+    const anyWithQA = sortedSubtasks.find(s => s.qa);
+    const anyWithDev = sortedSubtasks.find(s => s.devName);
+
     return {
       ...issue,
-      problem: issue.problem || child.problem,
-      solution: issue.solution || child.solution,
-      videoUrl: issue.videoUrl || child.videoUrl,
-      project: issue.project || child.project,
-      versionMaster: issue.versionMaster || child.versionMaster,
-      versionDevelop: issue.versionDevelop || child.versionDevelop,
-      versionRelease: issue.versionRelease || child.versionRelease,
+      problem: issue.problem || bestSubtask?.problem || anyWithProblem?.problem,
+      solution: issue.solution || bestSubtask?.solution || anyWithSolution?.solution,
+      videoUrl: issue.videoUrl || bestSubtask?.videoUrl || anyWithVideo?.videoUrl,
+      project: issue.project || bestSubtask?.project || anyWithProject?.project,
+      versionSuporte: issue.versionSuporte || bestSubtask?.versionSuporte || anyWithProject?.versionSuporte,
+      versionMaster: issue.versionMaster || bestSubtask?.versionMaster || anyWithProject?.versionMaster,
+      versionRelease: issue.versionRelease || bestSubtask?.versionRelease || anyWithProject?.versionRelease,
+      versionDevelop: issue.versionDevelop || bestSubtask?.versionDevelop || anyWithProject?.versionDevelop,
+      qa: issue.qa || anyWithQA?.qa,
+      devName: issue.devName || (bestSubtask?.devName && isDevSubtask(bestSubtask) ? bestSubtask.devName : anyWithDev?.devName),
+    };
+  });
+};
+
+/**
+ * Caminho inverso do enrichWithCodificacaoChildren: quando a subtarefa (ex.:
+ * "Codificação") é ela mesma a issue importada — não a história pai — o
+ * contexto (problema/critérios) geralmente está descrito na história, não
+ * repetido na subtarefa. Sem isso, importar a subtarefa direto (em vez da
+ * história) trazia o card sem problema/critério nenhum, mesmo a história pai
+ * tendo tudo isso preenchido.
+ */
+export const enrichWithParentContext = async (
+  domain: string, token: string, issues: JiraIssue[]
+): Promise<JiraIssue[]> => {
+  const pending = issues.filter(i => i.parentKey && (!i.problem || !i.solution || !i.acceptanceCriteria));
+  if (pending.length === 0) return issues;
+
+  const parentKeys = Array.from(new Set(pending.map(i => i.parentKey!)));
+  const parentsByKey = new Map<string, JiraIssue>();
+  // 30 chaves por chamada mantém a URL da GET /search em tamanho seguro
+  for (let i = 0; i < parentKeys.length; i += 30) {
+    const chunkKeys = parentKeys.slice(i, i + 30);
+    const jql = `key in (${chunkKeys.join(',')})`;
+    try {
+      const { issues: parents } = await fetchJiraIssues(domain, token, jql, { maxResults: 100 });
+      parents.forEach(p => parentsByKey.set(p.key, p));
+    } catch (e) {
+      // Uma falha pontual nessa busca extra não derruba a importação
+      console.warn('[enrichWithParentContext] Falha ao buscar issue pai:', e);
+    }
+  }
+
+  if (parentsByKey.size === 0) return issues;
+
+  return issues.map(issue => {
+    if (!issue.parentKey) return issue;
+    const parent = parentsByKey.get(issue.parentKey);
+    if (!parent) return issue;
+
+    return {
+      ...issue,
+      problem: issue.problem || parent.problem,
+      solution: issue.solution || parent.solution,
+      acceptanceCriteria: issue.acceptanceCriteria || parent.acceptanceCriteria,
+      videoUrl: issue.videoUrl || parent.videoUrl,
     };
   });
 };
