@@ -1,5 +1,26 @@
 [
   {
+    "tag": "v4.9.1",
+    "date": "6 de Outubro, 2026",
+    "title": "Segurança e ajustes",
+    "description": "Chat de IA e Base de Conhecimento agora exigem login, e o Poker ficou mais protegido contra identidade forjada.",
+    "changes": [
+      "Segurança: o chat de IA, o envio de documentos Word/PDF e a busca da Base de Conhecimento passaram a exigir login e têm limite de uso por pessoa.",
+      "Segurança: o contexto da Base de Conhecimento no chat de IA deixou de ser compartilhado entre pessoas diferentes.",
+      "Segurança: o login rejeita mais formas de destino que levariam para outro site.",
+      "Segurança no Poker: só dá para entrar na sala como você mesmo e só o facilitador altera outros participantes; o chat da sala valida autor, tamanho e mensagens repetidas.",
+      "Segurança: reimportar um projeto do Jira que já tem time agora exige ser liderança do projeto ou admin.",
+      "Retro: as setas e o Esc do modo foco não interferem mais quando você digita no chat ou em outros campos.",
+      "O aviso de time recém-vinculado expira em 10 minutos e não aparece mais no login de outra pessoa.",
+      "Google Agenda: depois de uma falha ao carregar o Google, é possível tentar conectar de novo sem recarregar a página."
+    ],
+    "type": "patch",
+    "icon": {
+      "name": "Zap",
+      "className": "h-5 w-5 text-indigo-500"
+    }
+  },
+  {
     "tag": "v4.9.0",
     "date": "7 de Outubro, 2026",
     "title": "Entrada por convite e hubs mais claros",

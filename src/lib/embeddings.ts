@@ -23,6 +23,8 @@ async function getEmbedder(): Promise<FeatureExtractionPipeline> {
       env.cacheDir = path.join(process.cwd(), '.cache', 'transformers-cache');
       return (await pipeline('feature-extraction', MODEL_ID)) as unknown as FeatureExtractionPipeline;
     })();
+    // Falha (ex.: download do modelo) não pode ficar em cache: a próxima chamada tenta de novo.
+    embedderPromise.catch(() => { embedderPromise = null; });
   }
   return embedderPromise;
 }

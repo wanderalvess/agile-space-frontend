@@ -8,10 +8,13 @@
  */
 
 const KEY = 'agileSpace_justSignedUp';
+// O sinal expira: se o cadastro der certo mas a pessoa nunca chegar ao aviso (ex.: sem time vinculado), ele não
+// pode sobrar no navegador e disparar "você já está no time X" no próximo login, seja dela ou de outra pessoa.
+export const JUST_SIGNED_UP_TTL_MS = 10 * 60 * 1000;
 
 export function markJustSignedUp(): void {
   try {
-    localStorage.setItem(KEY, '1');
+    localStorage.setItem(KEY, String(Date.now()));
   } catch {
     /* storage bloqueado: só perde o aviso */
   }
@@ -27,7 +30,13 @@ export function clearJustSignedUp(): void {
 
 export function isJustSignedUp(): boolean {
   try {
-    return localStorage.getItem(KEY) === '1';
+    const at = Number(localStorage.getItem(KEY));
+    if (!Number.isFinite(at) || at <= 0) return false;
+    if (Date.now() - at > JUST_SIGNED_UP_TTL_MS) {
+      localStorage.removeItem(KEY);
+      return false;
+    }
+    return true;
   } catch {
     return false;
   }

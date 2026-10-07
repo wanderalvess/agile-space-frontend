@@ -234,10 +234,14 @@ const RetroBoardComponent = ({
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isFocusMode) {
+        // Digitando (chat, notas, qualquer campo): as setas movem o cursor e o Esc fecha o próprio campo.
+        const t = e.target as HTMLElement | null;
+        if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
         if (e.key === 'Escape') {
           setIsFocusMode(false);
         } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !navLockedRef.current) {
           const keys = columnsRef.current.map(c => c.id);
+          if (keys.length === 0) return;
           const currentIndex = keys.indexOf(activeStageRef.current);
           
           if (e.key === 'ArrowRight') {

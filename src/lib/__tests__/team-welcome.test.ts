@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { clearJustSignedUp, hasLinkedTeam, isJustSignedUp, markJustSignedUp } from '../team-welcome';
+import { clearJustSignedUp, hasLinkedTeam, isJustSignedUp, JUST_SIGNED_UP_TTL_MS, markJustSignedUp } from '../team-welcome';
 
 describe('team-welcome', () => {
   beforeEach(() => {
@@ -11,6 +11,14 @@ describe('team-welcome', () => {
     markJustSignedUp();
     expect(isJustSignedUp()).toBe(true);
     clearJustSignedUp();
+    expect(isJustSignedUp()).toBe(false);
+  });
+
+  it('o sinal expira depois do TTL e não sobra para o próximo login', () => {
+    localStorage.setItem('agileSpace_justSignedUp', String(Date.now() - JUST_SIGNED_UP_TTL_MS - 1000));
+    expect(isJustSignedUp()).toBe(false);
+    expect(localStorage.getItem('agileSpace_justSignedUp')).toBeNull();
+    localStorage.setItem('agileSpace_justSignedUp', '1'); // formato antigo sem data: inválido
     expect(isJustSignedUp()).toBe(false);
   });
 

@@ -56,8 +56,8 @@ function loadGisScript(): Promise<void> {
   gisScriptPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${GIS_SCRIPT_SRC}"]`);
     if (existing) {
-      existing.addEventListener('load', () => resolve());
-      existing.addEventListener('error', () => reject(new Error('Falha ao carregar o script do Google')));
+      existing.addEventListener('load', () => resolve(), { once: true });
+      existing.addEventListener('error', () => reject(new Error('Falha ao carregar o script do Google')), { once: true });
       return;
     }
     const script = document.createElement('script');
@@ -68,6 +68,8 @@ function loadGisScript(): Promise<void> {
     script.onerror = () => reject(new Error('Falha ao carregar o script do Google'));
     document.head.appendChild(script);
   });
+  // Falha (offline, bloqueador de anúncios) não pode ficar em cache: o próximo "conectar" tenta de novo.
+  gisScriptPromise.catch(() => { gisScriptPromise = null; });
 
   return gisScriptPromise;
 }
