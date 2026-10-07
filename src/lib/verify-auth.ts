@@ -15,7 +15,7 @@ export async function requireAuth(req: NextRequest): Promise<{ uid: string } | n
   const authHeader = req.headers.get('authorization') || '';
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
-    console.error('[verify-auth] No Bearer token found in header:', authHeader);
+    console.error('[verify-auth] Authorization ausente ou fora do formato Bearer.');
     return null;
   }
 

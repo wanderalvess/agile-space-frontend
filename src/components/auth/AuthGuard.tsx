@@ -9,12 +9,27 @@ import { hasLinkedTeam, isJustSignedUp } from '@/lib/team-welcome';
 const PUBLIC_ROUTES = ['/login'];
 
 /**
+ * Só aceita caminho do próprio app. '//host' e '/\host' parecem caminhos mas o navegador os trata como outro
+ * site; tab/quebra de linha e barra invertida são removidos ou normalizados pelo parser de URL e transformam
+ * '/<TAB>/evil.com' em '//evil.com'. Por isso rejeita caracteres de controle e barra invertida e confere
+ * a origem resultante.
+ */
+export function isSafeInternalPath(path: string): boolean {
+  if (!path.startsWith('/') || path.startsWith('//')) return false;
+  if (/[\u0000-\u001f\u007f\\]/.test(path)) return false;
+  try {
+    return new URL(path, 'http://internal.invalid').origin === 'http://internal.invalid';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Para onde ir depois de entrar. Um link (returnUrl) sempre vence: quem chegou por uma sala vai para a sala.
  * Sem link, quem acabou de criar a conta e já foi vinculado a um time vai direto ao Painel dele.
  */
 export function resolvePostLoginRedirect(returnUrl: string | null, opts?: { linkedTeam?: boolean }): string {
-  // '//host' e '/\host' começam com '/', mas o navegador os trata como outro site (open redirect).
-  const isInternalPath = !!returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') && !returnUrl.startsWith('/\\');
+  const isInternalPath = !!returnUrl && isSafeInternalPath(returnUrl);
   if (returnUrl && isInternalPath && !returnUrl.startsWith('/login')) {
     return returnUrl;
   }

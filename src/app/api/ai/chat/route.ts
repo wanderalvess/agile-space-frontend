@@ -1,13 +1,16 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { generateText, type LanguageModel } from 'ai';
+import { NextRequest } from 'next/server';
+import { requireAuth } from '@/lib/verify-auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
-let serverContextCache = {
-  data: "",
-  lastFetch: 0
-};
+// Cache do contexto RAG POR USUÁRIO: o conteúdo é buscado com o token de quem pediu, então
+// compartilhá-lo entre usuários vazaria documentos que o próximo usuário não poderia ver.
+const serverContextCache = new Map<string, { data: string; lastFetch: number }>();
+const CONTEXT_CACHE_MAX_ENTRIES = 200;
 const CONTEXT_CACHE_TTL = 1000 * 60 * 15; // 15 minutos
 
 type AiProvider = 'gemini' | 'lynn';
@@ -69,12 +72,25 @@ function formatTaskContext(taskContext?: TaskContext): string {
   return `\n--- TAREFA EM REFINAMENTO/VOTAÇÃO ---\n${lines.join('\n')}\n`;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth) {
+    return new Response(JSON.stringify({ error: 'Não autenticado.' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  if (!checkRateLimit(`ai-chat:${auth.uid}`, 20, 60_000)) {
+    return new Response(JSON.stringify({ error: 'Muitas requisições. Tente novamente em instantes.' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const {
       messages: uiMessages,
       apiKey: clientApiKey,
-      userId,
       contextDocuments,
       provider: rawProvider,
       taskContext,
@@ -102,8 +118,9 @@ export async function POST(req: Request) {
       ).join('\n');
     } else {
       const now = Date.now();
-      if (serverContextCache.data && (now - serverContextCache.lastFetch < CONTEXT_CACHE_TTL)) {
-        context = serverContextCache.data;
+      const cached = serverContextCache.get(auth.uid);
+      if (cached && cached.data && (now - cached.lastFetch < CONTEXT_CACHE_TTL)) {
+        context = cached.data;
       } else {
         // Carrega o contexto RAG do Spring Boot / PostgreSQL (única fonte —
         // o fallback direto ao Firestore foi removido).
@@ -118,7 +135,10 @@ export async function POST(req: Request) {
             const docs = page.content || (Array.isArray(page) ? page : []);
             if (docs.length > 0) {
               context = docs.map((d: any) => `--- DOCUMENTO: ${d.title} (${d.fullPath || d.category || ''}) ---\n${d.content}\n`).join('\n');
-              serverContextCache = { data: context, lastFetch: now };
+              if (serverContextCache.size >= CONTEXT_CACHE_MAX_ENTRIES) {
+                serverContextCache.delete(serverContextCache.keys().next().value as string);
+              }
+              serverContextCache.set(auth.uid, { data: context, lastFetch: now });
             }
           } else {
             console.warn(`[API] Base de Conhecimento REST retornou status ${res.status}`);

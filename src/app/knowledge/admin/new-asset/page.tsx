@@ -36,6 +36,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { authFetch } from '@/lib/auth-client';
 import { knowledgeApi } from '@/app/knowledge/api';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -248,7 +249,7 @@ function NewAssetContent() {
       try {
         const formDataPayload = new FormData();
         formDataPayload.append('file', file);
-        const response = await fetch('/api/knowledge/ingest-pdf', { method: 'POST', body: formDataPayload });
+        const response = await authFetch('/api/knowledge/ingest-pdf', { method: 'POST', body: formDataPayload });
         const data = await response.json();
         if (data.text && editor) {
           editor.commands.setContent(data.text);

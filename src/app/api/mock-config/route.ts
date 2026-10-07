@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/verify-auth';
+
+const unauthorized = () => NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
 
 export interface CustomMock {
   id: string;
@@ -77,7 +80,8 @@ export function parseRouteUrl(inputUrl: string): {
   return { cleanPath, queryParams, rawUrl: inputUrl };
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   return NextResponse.json({
     customMocks: getMocks(),
     swaggerDocs: getSwaggerDocs(),
@@ -85,6 +89,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   try {
     const body = await req.json();
     const { type, mock, swagger } = body;
@@ -191,6 +196,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  if (!(await requireAuth(req))) return unauthorized();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

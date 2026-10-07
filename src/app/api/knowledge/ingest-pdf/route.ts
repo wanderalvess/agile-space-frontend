@@ -1,4 +1,7 @@
 import mammoth from 'mammoth';
+import { NextRequest } from 'next/server';
+import { requireAuth } from '@/lib/verify-auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { PDFParse } from 'pdf-parse';
 import path from 'path';
 import { pathToFileURL } from 'url';
@@ -22,7 +25,14 @@ function ensurePdfWorkerConfigured() {
   workerConfigured = true;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth) {
+    return Response.json({ error: 'Não autenticado.' }, { status: 401 });
+  }
+  if (!checkRateLimit(`ingest-file:${auth.uid}`, 10, 60_000)) {
+    return Response.json({ error: 'Muitas requisições. Tente novamente em instantes.' }, { status: 429 });
+  }
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File;

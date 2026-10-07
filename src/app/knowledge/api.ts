@@ -17,7 +17,7 @@ export interface PageResponse<T> {
 // em vez de travar o fluxo principal por causa de um problema no motor de IA local.
 async function tryEmbed(text: string): Promise<number[] | undefined> {
   try {
-    const res = await fetch('/api/knowledge/embed', {
+    const res = await authFetch('/api/knowledge/embed', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Título + fatia generosa do conteúdo: o modelo tem janela de contexto de

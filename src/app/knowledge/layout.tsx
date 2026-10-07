@@ -62,7 +62,7 @@ export default function KnowledgeLayout({
               variant="ghost"
               onClick={() => router.push('/')}
               className="h-10 px-3 gap-2 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all group"
-              title="Sair para o Portal AgileSpace"
+              title="Sair para o Portal Tech V&D"
             >
               <LayoutDashboard className="h-4.5 w-4.5" />
               <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Portal</span>

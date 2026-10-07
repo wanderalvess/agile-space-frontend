@@ -39,6 +39,14 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect('/\\evil.com')).toBe('/');
     });
 
+    it('deve rejeitar tab, quebra de linha e barra invertida que o navegador normaliza para //host', () => {
+      expect(resolvePostLoginRedirect('/\t/evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/\n/evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/\r/evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/a\\evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('/%2F/ok')).toBe('/%2F/ok');
+    });
+
     it('quem acabou de criar a conta e foi vinculado a um time vai ao Painel quando não veio de um link', () => {
       expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/painel');
       expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/painel');
