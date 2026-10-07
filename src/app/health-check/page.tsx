@@ -97,12 +97,12 @@ export default function HealthCheckHubPage() {
 
   const tips = [
     {
-      title: "Sinceridade Radical",
+      title: "Respostas sinceras",
       description: "O radar só é útil se as respostas forem honestas. Garanta que o time se sinta seguro para expressar a realidade.",
       icon: <Activity className="text-rose-500" />
     },
     {
-      title: "Tendências Importam",
+      title: "Olhe a tendência",
       description: "Compare os resultados com sessões anteriores. A direção do movimento é mais importante que o valor absoluto.",
       icon: <TrendingUp className="text-rose-500" />
     },
@@ -115,26 +115,26 @@ export default function HealthCheckHubPage() {
 
   const referenceSections = [
     {
-      title: "Sinceridade Radical",
+      title: "Respostas sinceras",
       label: "Cultura",
       description: "Ninguém sabe quem votou. O sistema agrupa os resultados para garantir que a verdade apareça sem medo de julgamentos.",
       icon: <Activity className="text-rose-500" />
     },
     {
-      title: "Dimensões do Sucesso",
-      label: "KPIs Humanos",
+      title: "O que é avaliado",
+      label: "Dimensões",
       description: "Avaliamos pilares como Qualidade do Código, Missão da Squad, Processos e Diversão. O foco é saúde sustentável.",
       icon: <HeartPulse className="text-rose-500" />
     },
     {
-      title: "Análise Radar",
-      label: "Estratégia",
-      description: "O gráfico radar revela graficamente onde o time está perdendo energia. Os 'furos' são os pontos prioritários de gestão.",
+      title: "Como ler o gráfico radar",
+      label: "Radar",
+      description: "O gráfico mostra onde o time está perdendo energia. Os pontos mais afundados são os que merecem atenção primeiro.",
       icon: <BarChart3 className="text-rose-500" />
     },
     {
-      title: "Evolução do Time",
-      label: "Maturidade",
+      title: "Compare ao longo do tempo",
+      label: "Evolução",
       description: "Compare os radares mensais. A direção do movimento é mais importante do que o valor absoluto de hoje.",
       icon: <History className="text-rose-500" />
     }

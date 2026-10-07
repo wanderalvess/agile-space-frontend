@@ -32,6 +32,27 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect(null)).toBe('/');
       expect(resolvePostLoginRedirect('')).toBe('/');
     });
+
+    it('deve rejeitar URLs relativas ao protocolo que apontam para outro site', () => {
+      expect(resolvePostLoginRedirect('//evil.com')).toBe('/');
+      expect(resolvePostLoginRedirect('//evil.com/room/1')).toBe('/');
+      expect(resolvePostLoginRedirect('/\\evil.com')).toBe('/');
+    });
+
+    it('quem acabou de criar a conta e foi vinculado a um time vai ao Painel quando não veio de um link', () => {
+      expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/painel');
+      expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/painel');
+      expect(resolvePostLoginRedirect(null, { linkedTeam: false })).toBe('/');
+    });
+
+    it('o link vence: quem chegou por uma sala vai para a sala mesmo vinculado a um time', () => {
+      expect(resolvePostLoginRedirect('/room/abc', { linkedTeam: true })).toBe('/room/abc');
+      expect(resolvePostLoginRedirect('/invite/tok', { linkedTeam: true })).toBe('/invite/tok');
+    });
+
+    it('um returnUrl inválido com time vinculado também cai no Painel, nunca no site de fora', () => {
+      expect(resolvePostLoginRedirect('//evil.com', { linkedTeam: true })).toBe('/painel');
+    });
   });
 
   describe('Identificação de Rotas Colaborativas (isCollaborativeRoute)', () => {

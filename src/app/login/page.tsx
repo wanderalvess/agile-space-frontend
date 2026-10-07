@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { clearJustSignedUp, markJustSignedUp } from '@/lib/team-welcome';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import packageInfo from '../../../package.json';
 
@@ -209,6 +210,8 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
+      // Gravado antes: o AuthGuard decide o destino assim que a sessão existe.
+      markJustSignedUp();
       await register({
         email,
         name,
@@ -220,6 +223,7 @@ export default function LoginPage() {
         description: "Identidade corporativa vinculada aos seus projetos.",
       });
     } catch (err: any) {
+      clearJustSignedUp();
       failAuth(err.message || 'Não foi possível registrar o usuário.');
     } finally {
       setLoading(false);

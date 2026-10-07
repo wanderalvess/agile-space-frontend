@@ -122,7 +122,7 @@ function SessionListCard({
         <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
           {icon}
         </div>
-        <h3 className="text-[14px] font-black uppercase tracking-wider text-slate-950 dark:text-slate-50">{title}</h3>
+        <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">{title}</h3>
       </div>
 
       <div className="space-y-2.5 flex-1 overflow-y-auto custom-scrollbar pr-1">
@@ -137,7 +137,7 @@ function SessionListCard({
             <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-300 dark:text-slate-700">
               {icon}
             </div>
-            <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{emptyLabel}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">{emptyLabel}</p>
           </div>
         ) : (
           rooms.map((r) => (
@@ -147,10 +147,10 @@ function SessionListCard({
               className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
             >
               <div className="space-y-0.5 truncate flex-1 min-w-0 pr-2">
-                <h5 className="text-[12px] font-bold text-slate-800 dark:text-slate-200 truncate">
+                <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">
                   {r.title || 'Sem título'}
                 </h5>
-                <p className="text-[9px] text-slate-400 truncate uppercase tracking-wider">
+                <p className="text-xs text-slate-400 truncate">
                   {r.team || 'Squad Geral'}
                   {r.createdAt ? ` · ${formatDistanceToNow(new Date(r.createdAt), { addSuffix: true, locale: ptBR })}` : ''}
                 </p>
@@ -352,45 +352,45 @@ export default function PokerHubPage() {
 
   const tips = [
     {
-      title: "Evite Ancoragem",
-      description: "A votação deve ser silenciada até que todos tenham votado. Isso evita que o chute do sênior domine os restantes.",
+      title: "Vote sem ver os outros votos",
+      description: "Enquanto todos não votarem, os votos ficam escondidos. Assim o palpite de quem fala primeiro não influencia o resto do time.",
       icon: <Lock className="text-violet-600" />
     },
     {
-      title: "Explique Desvios",
-      description: "Quando os votos divergem muito, peça para quem votou mais alto e mais baixo explicarem suas visões técnicos.",
+      title: "Converse quando os votos divergirem",
+      description: "Se os votos ficarem muito distantes, peça para quem votou mais alto e mais baixo explicarem o raciocínio.",
       icon: <MessageSquare className="text-violet-600" />
     },
     {
-      title: "Consenso é o Alvo",
-      description: "O objetivo não é a média, mas o consenso. Continue refinando até que o time entenda a complexidade real.",
+      title: "O objetivo é o entendimento",
+      description: "Não é fazer média: continue conversando até o time concordar sobre o tamanho real da tarefa.",
       icon: <Trophy className="text-violet-600" />
     }
   ];
 
   const referenceSections = [
     {
-      title: "Criação & Pauta",
+      title: "1. Monte a pauta",
       label: "Preparação",
-      description: "Adicione as tarefas, links do Jira e notas técnicas. Uma pauta bem definida é o primeiro passo para um refinamento ágil.",
+      description: "Adicione as tarefas, links do Jira e notas técnicas. Uma pauta bem definida deixa o refinamento mais rápido.",
       icon: <ListPlus className="text-violet-500" />
     },
     {
-      title: "Escolha do Deck",
-      label: "Calibração",
-      description: "Selecione entre Horas (ideal para sub-tarefas) ou Fibonacci (ideal para User Stories). O deck certo muda o foco da squad.",
+      title: "2. Escolha o baralho",
+      label: "Baralho",
+      description: "Horas funcionam bem para subtarefas; Fibonacci, para histórias de usuário. Dá para ajustar depois no painel do facilitador.",
       icon: <Zap className="text-violet-500" />
     },
     {
-      title: "Votação Silenciosa",
-      label: "Sem Ancoragem",
-      description: "Os votos permanecem ocultos até a revelação. Isso força o pensamento independente e evita que as opiniões dominantes silenciem o time.",
+      title: "3. Votem em silêncio",
+      label: "Votação",
+      description: "Os votos ficam ocultos até a revelação, para cada pessoa decidir sem ser influenciada.",
       icon: <Shield className="text-violet-500" />
     },
     {
-      title: "Consenso de Elite",
-      label: "Alinhamento",
-      description: "Revele os votos, debata as divergências e salve o consenso. O objetivo não é o número, mas o entendimento real da complexidade.",
+      title: "4. Revele e decida",
+      label: "Revelação",
+      description: "Revele os votos, converse sobre as diferenças e registre o valor combinado.",
       icon: <Trophy className="text-violet-500" />
     }
   ];
@@ -419,7 +419,7 @@ export default function PokerHubPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
           <SessionListCard
             icon={<Users className="h-4 w-4" />}
-            title="Sessões da Minha Squad"
+            title="Sessões da minha squad"
             loading={loadingRooms}
             rooms={rooms}
             emptyLabel="Nenhuma sessão da squad ainda"
@@ -427,7 +427,7 @@ export default function PokerHubPage() {
           />
           <SessionListCard
             icon={<UserCheck className="h-4 w-4" />}
-            title="Minhas Sessões Participadas"
+            title="Sessões em que participei"
             loading={loadingRooms}
             rooms={myParticipatedRooms}
             emptyLabel="Você ainda não participou de nenhuma sessão"

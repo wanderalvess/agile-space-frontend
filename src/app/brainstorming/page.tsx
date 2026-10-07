@@ -134,12 +134,12 @@ export default function BrainstormingHubPage() {
     },
     {
       title: "Construa sobre Outros",
-      description: "Use as ideias dos colegas como trampolim. 'Sim, e...' é muio mais poderoso do que 'Não, mas...'.",
+      description: "Use as ideias dos colegas como trampolim. 'Sim, e...' é muito mais poderoso do que 'Não, mas...'.",
       icon: <Target className="text-amber-500" />
     },
     {
       title: "Foco em Quantidade",
-      description: "Quanto mais ideias gerarmos, maior a chance de encontrarmos uma solução disruptiva e inovadora.",
+      description: "Quanto mais ideias gerarmos, maior a chance de encontrarmos uma boa solução.",
       icon: <Zap className="text-amber-500" />
     }
   ];
@@ -152,25 +152,25 @@ export default function BrainstormingHubPage() {
       icon: <BrainCircuit />
     },
     {
-      title: "2. Clusterização (Agrupamento)",
+      title: "2. Agrupamento",
       label: "Organização",
-      description: "Arraste uma ideia sobre a outra para criar 'Clusters'. O objetivo é reduzir a repetição e encontrar grandes temas estratégicos.",
+      description: "Arraste uma ideia sobre a outra para agrupá-las. O objetivo é reduzir a repetição e encontrar grandes temas estratégicos.",
       icon: <Network />
     },
     {
-      title: "3. Votação (Voz do Time)",
+      title: "3. Votação",
       label: "Decisão",
       description: "Cada participante possui 5 votos para distribuir livremente entre ideias ou agrupamentos. A democracia aplicada à estratégia.",
       icon: <Target />
     },
     {
-      title: "4. Matriz ROI (Prioridade)",
+      title: "4. Priorização",
       label: "Estratégia",
       description: "O facilitador posiciona as ideias mais votadas no gráfico de Impacto vs Esforço. Priorizamos o que dá 'Rápido Retorno'.",
       icon: <BarChart3 />
     },
     {
-      title: "5. Ações (Execution)",
+      title: "5. Ações",
       label: "Comprometimento",
       description: "Selecionamos as ideias vencedoras e definimos quem fará o quê. O fim do brainstorming é o começo da execução real.",
       icon: <ListTodo />

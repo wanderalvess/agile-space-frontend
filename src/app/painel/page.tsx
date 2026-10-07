@@ -34,6 +34,7 @@ import { Footer } from '@/components/layout/Footer';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { NextCeremonyCard } from '@/components/painel/NextCeremonyCard';
 import { PainelWelcome, type JiraSyncState } from '@/components/painel/PainelWelcome';
+import { LinkedTeamWelcome } from '@/components/home/LinkedTeamWelcome';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { useTeamAvatars, invalidateTeamAvatars } from '@/hooks/useTeamAvatars';
 import { squadApi } from '@/app/squad/api';
@@ -284,6 +285,7 @@ export default function PainelPage() {
       />
 
       <main className="relative z-10 flex-1 w-full px-4 md:px-8 lg:px-10 py-6 space-y-4">
+        <LinkedTeamWelcome showPainelLink={false} />
         {!hasSquad ? (
           <EmptyState
             title="Você ainda não está em uma squad"

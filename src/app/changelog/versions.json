@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v4.9.0",
+    "date": "7 de Outubro, 2026",
+    "title": "Entrada por convite e hubs mais claros",
+    "description": "Quem cria a conta já cai no time certo, e as telas iniciais das cerimônias passaram a falar em português direto.",
+    "changes": [
+      "Quem cria a conta com um e-mail que já está num time (por exemplo, importado do Jira) agora vai direto ao Painel desse time, com um aviso dizendo em qual time foi encontrado. Antes caía na home sem explicação.",
+      "Quem entra por um link de sala continua indo direto para a sala. O aviso do time aparece depois, na home ou no Painel, e some ao ser dispensado.",
+      "Segurança: o login deixou de aceitar destinos que começam com duas barras (por exemplo \"//site.com\"), que o navegador tratava como outro site.",
+      "Hubs de Poker, Retro, Review, Health Check, Brainstorming e Plano de Ação: \"Manual de Operação\" virou \"Como funciona\", \"Manifesto Ágil\" virou \"Dicas para a cerimônia\", e os textos ficaram em português direto, sem termos como \"Consenso de Elite\" ou \"Ancoragem\".",
+      "Os cartões dos hubs e as listas de sessões usam textos maiores e legíveis."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.8.0",
     "date": "7 de Outubro, 2026",
     "title": "Acabamento da Retro",

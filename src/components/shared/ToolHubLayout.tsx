@@ -274,7 +274,7 @@ export function ToolHubLayout({
                       <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
                         <History className="h-4 w-4" />
                       </div>
-                      <h3 className="text-[14px] font-black uppercase tracking-wider text-slate-950 dark:text-slate-50">Sessões Recentes</h3>
+                      <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">Sessões recentes</h3>
                     </div>
 
                     <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 flex-1 custom-scrollbar mt-3">
@@ -285,7 +285,7 @@ export function ToolHubLayout({
                         </div>
                       ) : history.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Ainda não há registros</p>
+                          <p className="text-sm text-slate-400 dark:text-slate-500">Nenhuma sessão ainda</p>
                         </div>
                       ) : (
                         history.slice(0, 3).map((room) => (
@@ -295,10 +295,10 @@ export function ToolHubLayout({
                             className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
                           >
                             <div className="space-y-0.5 truncate flex-1 min-w-0 pr-2">
-                              <h5 className="text-[12px] font-bold text-slate-800 dark:text-slate-200 group-item-hover:text-slate-950 dark:group-item-hover:text-white truncate">
+                              <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-item-hover:text-slate-950 dark:group-item-hover:text-white truncate">
                                 {room.title}
                               </h5>
-                              <p className="text-[9px] text-slate-400 truncate uppercase tracking-wider">
+                              <p className="text-xs text-slate-400 truncate">
                                 {room.team || 'Squad Geral'}
                               </p>
                             </div>
@@ -309,8 +309,8 @@ export function ToolHubLayout({
                     </div>
                   </div>
 
-                  <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-2 text-center border-t border-slate-100 dark:border-slate-800/80 pt-2 shrink-0">
-                    Histórico Local
+                  <div className="text-xs font-medium text-slate-400 mt-2 text-center border-t border-slate-100 dark:border-slate-800/80 pt-2 shrink-0">
+                    Salvo só neste navegador
                   </div>
                 </Card>
               </motion.div>
@@ -324,7 +324,7 @@ export function ToolHubLayout({
                         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center border text-slate-500", getGlowClasses(themeColor), getIconColor(themeColor).replace('text-', 'border-').replace('dark:text-', 'dark:border-'))}>
                           <Search className="h-4.5 w-4.5" />
                         </div>
-                        <h3 className="text-[14px] font-black uppercase tracking-wider text-slate-950 dark:text-slate-50">Manual de Operação</h3>
+                        <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">Como funciona</h3>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
@@ -348,8 +348,8 @@ export function ToolHubLayout({
                               {React.isValidElement(section.icon) ? React.cloneElement(section.icon as React.ReactElement<{ className?: string }>, { className: cn("h-4 w-4", getIconColor(themeColor)) }) : section.icon}
                             </div>
                             <div className="space-y-1">
-                              <h4 className="text-xs font-black uppercase tracking-tight text-slate-800 dark:text-slate-200">{section.title}</h4>
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal line-clamp-2">{section.description}</p>
+                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{section.title}</h4>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal line-clamp-4">{section.description}</p>
                             </div>
                           </div>
                         ))}
@@ -367,7 +367,7 @@ export function ToolHubLayout({
                       <div className="w-8 h-8 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 text-amber-500">
                         <Sparkles className="h-4 w-4" />
                       </div>
-                      <h3 className="text-[14px] font-black uppercase tracking-wider text-slate-950 dark:text-slate-50">Manifesto Ágil</h3>
+                      <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">Dicas para a cerimônia</h3>
                     </div>
 
                     <div className="space-y-3 mt-3 flex-1">
@@ -377,8 +377,8 @@ export function ToolHubLayout({
                             {React.isValidElement(tip.icon) ? React.cloneElement(tip.icon as React.ReactElement<{ className?: string }>, { className: "h-3.5 w-3.5 text-amber-500" }) : tip.icon}
                           </div>
                           <div className="space-y-0.5">
-                            <h4 className="text-[11px] font-black uppercase text-slate-800 dark:text-slate-200 tracking-tight">{tip.title}</h4>
-                            <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2">{tip.description}</p>
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{tip.title}</h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-4">{tip.description}</p>
                           </div>
                         </div>
                       ))}

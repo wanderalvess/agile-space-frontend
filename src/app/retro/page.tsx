@@ -187,18 +187,18 @@ export default function RetroHubPage() {
 
   const tips = [
     {
-      title: "Segurança Psicológica",
-      description: "A retro é um espaço seguro. O foco deve estar no processo e no sistema, nunca em apontar culpados.",
+      title: "Foco no processo, não nas pessoas",
+      description: "A retro é um espaço seguro: fale do processo e do sistema, nunca para apontar culpados.",
       icon: <ShieldCheck className="text-emerald-600" />
     },
     {
-      title: "Ações Concretas",
-      description: "Uma boa retrospectiva termina com itens de ação claros, com responsáveis e prazos definidos.",
+      title: "Termine com ações claras",
+      description: "Cada ação precisa de um responsável e de um prazo.",
       icon: <Target className="text-emerald-600" />
     },
     {
-      title: "Melhoria Contínua",
-      description: "Pequenos ajustes incrementais a cada ciclo geram resultados massivos no longo prazo.",
+      title: "Pequenos ajustes a cada sprint",
+      description: "Mudanças pequenas e constantes somam muito ao longo do tempo.",
       icon: <TrendingUp className="text-emerald-600" />
     }
   ];
@@ -207,25 +207,25 @@ export default function RetroHubPage() {
     {
       title: "O que foi bom",
       label: "Celebração",
-      description: "Momento de reconhecer vitórias, elogiar o time e garantir que processos eficientes sejam mantidos e replicados.",
+      description: "Reconheça as vitórias, elogie o time e mantenha o que está funcionando.",
       icon: <CheckCircle2 className="text-emerald-500" />
     },
     {
       title: "O que melhorar",
       label: "Gargalos",
-      description: "Identificação honesta de falhas de comunicação, débitos técnicos ou processos que estão travando a squad.",
+      description: "Aponte com honestidade falhas de comunicação, dívidas técnicas ou processos que travam a squad.",
       icon: <AlertCircle className="text-rose-500" />
     },
     {
-      title: "Plano de Ação",
+      title: "Plano de ação",
       label: "Execução",
-      description: "Comprometimento real. Cada item de melhoria deve gerar uma ação prática com responsável definido para a próxima sprint.",
+      description: "Cada melhoria vira uma ação prática, com responsável definido para a próxima sprint.",
       icon: <ListTodo className="text-blue-500" />
     },
     {
-      title: "Poderes do Facilitador",
-      label: "Gestão",
-      description: "O facilitador pode revelar cards em massa, limpar votos para recalibrar o foco e exportar o relatório final consolidado.",
+      title: "Ferramentas do facilitador",
+      label: "Facilitação",
+      description: "O facilitador revela os cards, abre e encerra a votação, controla o timer e exporta o resumo da retro.",
       icon: <Zap className="text-amber-500" />
     }
   ];

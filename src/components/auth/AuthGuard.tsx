@@ -4,18 +4,25 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
+import { hasLinkedTeam, isJustSignedUp } from '@/lib/team-welcome';
 
 const PUBLIC_ROUTES = ['/login'];
 
-export function resolvePostLoginRedirect(returnUrl: string | null): string {
-  if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('/login')) {
+/**
+ * Para onde ir depois de entrar. Um link (returnUrl) sempre vence: quem chegou por uma sala vai para a sala.
+ * Sem link, quem acabou de criar a conta e já foi vinculado a um time vai direto ao Painel dele.
+ */
+export function resolvePostLoginRedirect(returnUrl: string | null, opts?: { linkedTeam?: boolean }): string {
+  // '//host' e '/\host' começam com '/', mas o navegador os trata como outro site (open redirect).
+  const isInternalPath = !!returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') && !returnUrl.startsWith('/\\');
+  if (returnUrl && isInternalPath && !returnUrl.startsWith('/login')) {
     return returnUrl;
   }
-  return '/';
+  return opts?.linkedTeam ? '/painel' : '/';
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, session } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
@@ -32,11 +39,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       let target = '/';
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
-        target = resolvePostLoginRedirect(params.get('returnUrl'));
+        target = resolvePostLoginRedirect(params.get('returnUrl'), {
+          linkedTeam: isJustSignedUp() && hasLinkedTeam(session?.activeProjectId),
+        });
       }
       router.replace(target);
     }
-  }, [isLoading, isAuthenticated, isPublicRoute, router, pathname]);
+  }, [isLoading, isAuthenticated, isPublicRoute, router, pathname, session]);
 
   if (isPublicRoute) {
     return <>{children}</>;
