@@ -33,6 +33,7 @@ import Link from 'next/link';
 const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
 const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/SquadDashboardView').then(mod => mod.SquadDashboardView), { ssr: false });
 import { useTeamAvatars } from '@/hooks/useTeamAvatars';
+import { SquadDataState, deriveSquadDataState } from '@/components/squad/SquadDataState';
 import { SquadOverview } from '@/components/squad/SquadOverview';
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
 const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard').then(mod => mod.SquadScrumBoard), { ssr: false });
@@ -152,7 +153,9 @@ function SquadHubContent() {
   const isPeopleAdmin = !!role && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(role);
   const roleFocus = role ? ROLE_FOCUS[role] : undefined;
 
-  const { settings: jiraSettings, saveSettings: saveJiraSettings } = useJiraSettings();
+  const { settings: jiraSettings, loading: jiraSettingsLoading, saveSettings: saveJiraSettings } = useJiraSettings();
+  // Enquanto as credenciais carregam, não afirma que o Jira está desconectado.
+  const jiraConnected = jiraSettingsLoading || !!jiraSettings?.token;
   // ?settings=1 abre direto a configuração (Jira) — usado pelo painel, pra quem
   // quer conectar sem procurar a engrenagem.
   const [isSettingsOpen, setIsSettingsOpen] = useState(searchParams.get('settings') === '1');
@@ -504,6 +507,7 @@ function SquadHubContent() {
                 jiraProjectKey={config?.jiraProjectKey || projectKey || squadId}
                 rapidViewId={config?.rapidViewId || rapidViewId || ''}
                 jiraDomain={config?.jiraDomain || jiraDomain}
+                onOpenSettings={() => setIsSettingsOpen(true)}
               />
             </div>
           )}
@@ -513,7 +517,7 @@ function SquadHubContent() {
              ═══════════════════════════════════════════════════════════════════ */}
           {activeTab === 'plans' && (
             <div className="animate-in fade-in duration-300">
-              <SquadPlansTimeline />
+              <SquadPlansTimeline jiraConnected={jiraConnected} onConnectJira={() => setIsSettingsOpen(true)} onSync={() => handleSync()} />
             </div>
           )}
 
@@ -573,22 +577,14 @@ function SquadHubContent() {
               </div>
 
               {!isLoading && !rollup && (
-                <Card className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-8 shadow-sm text-center flex flex-col items-center justify-center">
-                  <p className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
-                    Ainda não há métricas desta sprint
-                  </p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-4">
-                    As métricas da sprint ativa ainda não foram carregadas para o squad <strong>{squadId}</strong>. Clique no botão abaixo para puxar as métricas e o quadro da sprint diretamente do Jira utilizando sua conexão/token.
-                  </p>
-                  <Button
-                    onClick={() => handleSync(true)}
-                    disabled={isSyncing}
-                    className="bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold px-5 h-11 shadow-md"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Sincronizando…' : 'Sincronizar agora'}
-                  </Button>
-                </Card>
+                <SquadDataState
+                  kind={deriveSquadDataState({ jiraConnected, lastSyncAt: config?.lastSyncAt, lastSyncStatus: config?.lastSyncStatus })}
+                  subject="as métricas"
+                  isSyncing={isSyncing}
+                  errorMessage={config?.lastSyncError}
+                  onConnect={() => setIsSettingsOpen(true)}
+                  onSync={() => handleSync(true)}
+                />
               )}
 
               {displayRollup && (
@@ -738,134 +734,149 @@ function SquadHubContent() {
 
         {/* Modal de Configuração do Squad */}
         <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-          <DialogContent className="max-w-lg rounded-3xl p-6">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                <Settings2 className="h-5 w-5 text-indigo-500" /> Configurações do Squad ({squadId})
+          <DialogContent className="sm:max-w-xl max-h-[92vh] overflow-y-auto rounded-[2rem] border border-border bg-card text-card-foreground p-6 gap-3">
+            <DialogHeader className="text-left space-y-1.5">
+              <DialogTitle className="text-2xl font-black tracking-tight leading-none flex items-center gap-2.5">
+                <Settings2 className="h-5 w-5 text-primary" /> Configurar a squad
               </DialogTitle>
-              <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Configure os parâmetros de integração com o Jira, JQL e RapidBoard.
+              <DialogDescription className="text-sm text-muted-foreground">
+                Conecte o Jira e diga de onde vêm as issues da sprint de <strong className="text-foreground">{squadId}</strong>. O essencial está logo abaixo; o resto fica em Opções avançadas.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 text-xs mt-2">
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Chave do Projeto no Jira (Project Key)
-                </label>
-                <Input
-                  value={projectKey}
-                  onChange={e => setProjectKey(e.target.value)}
-                  placeholder="Chave do projeto no Jira"
-                  className="rounded-xl h-9 text-xs"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Chave exata do projeto no Jira (ex.: a sigla que aparece nas issues, como ABC-123 → ABC).</p>
-              </div>
 
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  JQL de Sincronização
-                </label>
-                <Input
-                  value={jql}
-                  onChange={e => setJql(e.target.value)}
-                  placeholder='Ex.: project = "CHAVE" AND sprint in openSprints()'
-                  className="rounded-xl h-9 text-xs font-code"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Filtro JQL para buscar os itens da sprint ativa.</p>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block">
-                    Token de Acesso Jira (PAT / API Token)
-                  </label>
-                  {jiraToken.trim() ? (
-                    <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 font-bold px-1.5 py-0 gap-1">
-                      <CheckCircle2 className="h-2.5 w-2.5" /> Configurado
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[9px] bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 font-bold px-1.5 py-0 gap-1">
-                      <XCircle className="h-2.5 w-2.5" /> Não Informado
-                    </Badge>
-                  )}
-                </div>
-                <Input
-                  type="password"
-                  value={jiraToken}
-                  onChange={e => setJiraToken(e.target.value)}
-                  placeholder="Cole seu Personal Access Token (PAT) ou API Token do Jira..."
-                  className="rounded-xl h-9 text-xs font-code"
-                />
-                <p className="text-[10px] text-slate-400 mt-1">Seu token pessoal do Jira utilizado para realizar as consultas e sincronizações.</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    Domínio Jira
-                  </label>
+            <div className="space-y-5 pt-1">
+              <section className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+                <h3 className="text-sm font-bold">1. Conexão com o Jira</h3>
+                <div className="space-y-1.5">
+                  <label htmlFor="squad-jira-domain" className="text-sm font-semibold block">Endereço do Jira</label>
                   <Input
+                    id="squad-jira-domain"
                     value={jiraDomain}
                     onChange={e => setJiraDomain(e.target.value)}
                     placeholder="jira.suaempresa.com.br"
-                    className="rounded-xl h-9 text-xs"
+                    className="rounded-xl h-11 text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">O endereço que você usa para abrir o Jira no navegador.</p>
                 </div>
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    ID do Quadro Jira
-                  </label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor="squad-jira-token" className="text-sm font-semibold block">Token de acesso pessoal</label>
+                    {jiraToken.trim() ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle2 className="h-3 w-3" /> Informado
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-0.5 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                        <XCircle className="h-3 w-3" /> Falta informar
+                      </span>
+                    )}
+                  </div>
                   <Input
-                    value={rapidViewId}
-                    onChange={e => setRapidViewId(e.target.value)}
-                    placeholder="Ex.: 1234"
-                    className="rounded-xl h-9 text-xs font-code"
+                    id="squad-jira-token"
+                    type="password"
+                    value={jiraToken}
+                    onChange={e => setJiraToken(e.target.value)}
+                    placeholder="Cole aqui o token gerado no seu perfil do Jira"
+                    className="rounded-xl h-11 text-sm font-code"
                   />
+                  <p className="text-xs text-muted-foreground">É o Personal Access Token do seu perfil no Jira. Serve para buscar as issues e sincronizar a squad.</p>
                 </div>
-                <div>
-                  <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    ID Campo Sprint
-                  </label>
+              </section>
+
+              <section className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+                <h3 className="text-sm font-bold">2. Projeto da squad</h3>
+                <div className="space-y-1.5">
+                  <label htmlFor="squad-project-key" className="text-sm font-semibold block">Chave do projeto</label>
                   <Input
-                    value={sprintFieldId}
-                    onChange={e => setSprintFieldId(e.target.value)}
-                    placeholder="customfield_10005"
-                    className="rounded-xl h-9 text-xs"
+                    id="squad-project-key"
+                    value={projectKey}
+                    onChange={e => setProjectKey(e.target.value)}
+                    placeholder="Ex.: ABC"
+                    className="rounded-xl h-11 text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">A sigla que aparece antes do número nas issues (em ABC-123, a chave é ABC).</p>
                 </div>
-              </div>
+              </section>
 
-              <div>
-                <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Capacidade Padrão Diária (horas/dia por membro)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={16}
-                  value={capacityHours}
-                  onChange={e => setCapacityHours(Number(e.target.value) || 6)}
-                  className="rounded-xl h-9 text-xs"
-                />
-              </div>
+              <section className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
+                <h3 className="text-sm font-bold">3. Capacidade do time</h3>
+                <div className="space-y-1.5">
+                  <label htmlFor="squad-capacity" className="text-sm font-semibold block">Horas por dia de cada pessoa</label>
+                  <Input
+                    id="squad-capacity"
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={capacityHours}
+                    onChange={e => setCapacityHours(Number(e.target.value) || 6)}
+                    className="rounded-xl h-11 text-sm w-32"
+                  />
+                  <p className="text-xs text-muted-foreground">Valor padrão para quem ainda não tem horas definidas.</p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <Checkbox
+                    id="rankingEnabled"
+                    checked={rankingEnabled}
+                    onCheckedChange={v => setRankingEnabled(!!v)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="rankingEnabled" className="text-sm cursor-pointer">
+                    <span className="font-semibold block">Calcular a capacidade e as horas de cada pessoa</span>
+                    <span className="text-xs text-muted-foreground">Ao sincronizar, busca também as horas lançadas por cada pessoa no Jira.</span>
+                  </label>
+                </div>
+              </section>
 
-              <div className="flex items-center gap-2 pt-2">
-                <Checkbox
-                  id="rankingEnabled"
-                  checked={rankingEnabled}
-                  onCheckedChange={v => setRankingEnabled(!!v)}
-                />
-                <label htmlFor="rankingEnabled" className="font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                  Habilitar cálculo detalhado de capacidade e horas por membro
-                </label>
-              </div>
+              <details className="group rounded-2xl border border-border bg-muted/30 p-4">
+                <summary className="cursor-pointer select-none text-sm font-bold list-none flex items-center justify-between">
+                  Opções avançadas
+                  <span className="text-xs font-medium text-muted-foreground group-open:hidden">Só se algo não aparecer</span>
+                </summary>
+                <div className="mt-3 space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="squad-jql" className="text-sm font-semibold block">Filtro das issues da sprint (JQL)</label>
+                    <Input
+                      id="squad-jql"
+                      value={jql}
+                      onChange={e => setJql(e.target.value)}
+                      placeholder='project = "CHAVE" AND sprint in openSprints()'
+                      className="rounded-xl h-11 text-sm font-code"
+                    />
+                    <p className="text-xs text-muted-foreground">Consulta do Jira que escolhe as issues da sprint ativa. Se não souber o que é, deixe como está.</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <label htmlFor="squad-board-id" className="text-sm font-semibold block">Número do quadro Scrum</label>
+                      <Input
+                        id="squad-board-id"
+                        value={rapidViewId}
+                        onChange={e => setRapidViewId(e.target.value)}
+                        placeholder="Ex.: 1234"
+                        className="rounded-xl h-11 text-sm font-code"
+                      />
+                      <p className="text-xs text-muted-foreground">Preencha se o Quadro da squad não for encontrado.</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="squad-sprint-field" className="text-sm font-semibold block">Campo da sprint no Jira</label>
+                      <Input
+                        id="squad-sprint-field"
+                        value={sprintFieldId}
+                        onChange={e => setSprintFieldId(e.target.value)}
+                        placeholder="customfield_10005"
+                        className="rounded-xl h-11 text-sm font-code"
+                      />
+                      <p className="text-xs text-muted-foreground">Nome técnico do campo. Só mude se as sprints não aparecerem.</p>
+                    </div>
+                  </div>
+                </div>
+              </details>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <Button variant="ghost" onClick={() => setIsSettingsOpen(false)} className="rounded-xl text-xs">
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="ghost" onClick={() => setIsSettingsOpen(false)} className="rounded-xl text-sm font-semibold text-muted-foreground">
                   Cancelar
                 </Button>
-                <Button onClick={handleSaveConfig} className="bg-primary text-white rounded-xl text-xs font-bold">
-                  Salvar Configuração
+                <Button onClick={handleSaveConfig} className="h-11 px-6 rounded-xl text-sm font-bold">
+                  Salvar configuração
                 </Button>
               </div>
             </div>

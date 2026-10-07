@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.11.0",
+    "date": "7 de Outubro, 2026",
+    "title": "Squad: telas vazias que explicam e configuração em português",
+    "description": "Quando falta dado, o Squad Hub agora diz o motivo e o próximo passo, e a janela de configuração ficou clara.",
+    "changes": [
+      "Cronograma, Métricas e Quadro, quando não há dados, mostram um de quatro casos: Jira não conectado, primeira sincronização, quadro não encontrado ou erro ao sincronizar. Cada um traz os passos e o botão certo, em vez de uma tabela em branco ou um texto cinza.",
+      "A janela \"Configurar a squad\" foi reorganizada em 1. Conexão com o Jira, 2. Projeto da squad e 3. Capacidade do time. Termos técnicos como JQL, ID do quadro e campo da sprint foram para \"Opções avançadas\", cada um com uma explicação curta.",
+      "O botão \"Conectar o Jira\" das telas vazias abre direto essa janela."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-blue-500"
+    }
+  },
+  {
     "tag": "v4.10.0",
     "date": "7 de Outubro, 2026",
     "title": "Squad Hub mais claro: abas, Visão geral e Cronograma",

@@ -1,5 +1,6 @@
 'use client';
 
+import { SquadDataState } from '@/components/squad/SquadDataState';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw,
@@ -63,6 +64,8 @@ interface SquadScrumBoardProps {
   jiraProjectKey?: string;
   rapidViewId?: number | string;
   jiraDomain?: string;
+  /** Abre as configurações da squad (conexão com o Jira, chave do projeto, ID do quadro). */
+  onOpenSettings?: () => void;
 }
 
 interface ColumnWipOverride {
@@ -133,6 +136,7 @@ export function SquadScrumBoard({
   jiraProjectKey = '',
   rapidViewId: initialRapidViewId,
   jiraDomain: initialDomain,
+  onOpenSettings,
 }: SquadScrumBoardProps) {
   const { toast } = useToast();
   const { settings: jiraSettings } = useJiraSettings();
@@ -577,16 +581,17 @@ export function SquadScrumBoard({
 
   // Sem quadro real: explica o motivo em vez de mostrar dados de exemplo
   if (boardData.isFallback) {
+    const reason = boardData.fallbackReason || '';
+    const kind = !jiraSettings?.token ? 'no-jira' : reason === 'missing-config' || reason === 'invalid-rapid-view-id' ? 'no-board' : 'sync-error';
     return (
-      <div className="space-y-3 rounded-3xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 p-8 text-center">
-        <h2 className="text-lg font-black tracking-tight">Quadro indisponível</h2>
-        <p className="mx-auto max-w-md text-sm text-slate-500 dark:text-slate-400">
-          {FALLBACK_REASON_LABELS[boardData.fallbackReason || ''] || 'Não foi possível carregar o quadro ao vivo do Jira.'}
-        </p>
-        <Button onClick={() => loadBoardData(true)} disabled={isLoading} variant="outline" className="h-9 gap-2 rounded-xl text-[11px] font-black uppercase tracking-widest">
-          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} /> Tentar de novo
-        </Button>
-      </div>
+      <SquadDataState
+        kind={kind}
+        subject="o Quadro"
+        isSyncing={isLoading}
+        errorMessage={FALLBACK_REASON_LABELS[reason] || 'Não foi possível carregar o quadro ao vivo do Jira.'}
+        onConnect={onOpenSettings}
+        onSync={() => loadBoardData(true)}
+      />
     );
   }
 

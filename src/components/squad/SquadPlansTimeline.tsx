@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSquadStore } from '@/store/useSquadStore';
-import { useUserContext } from '@/context/UserContext';
+import { SquadDataState, deriveSquadDataState } from '@/components/squad/SquadDataState';
 import type { SquadIssueSnapshot, SquadWorkflowPhase } from '@/lib/types';
 import { isWeekend } from '@/lib/date-utils';
 
@@ -540,17 +540,15 @@ function timeAgo(iso?: string): string {
   return `${Math.floor(hours / 24)}d atrás`;
 }
 
-export function SquadPlansTimeline() {
-  const { toast } = useToast();
-  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing, syncSquad } = useSquadStore();
-  const { userProfile } = useUserContext();
+interface SquadPlansTimelineProps {
+  jiraConnected?: boolean;
+  onConnectJira?: () => void;
+  onSync?: () => void;
+}
 
-  const handleSyncFromEmptyState = useCallback(() => {
-    const userIdentifier = userProfile?.id || userProfile?.email;
-    const squadId = userProfile?.squadId;
-    if (!userIdentifier || !squadId || squadId === 'Sem Time') return;
-    syncSquad(userIdentifier, squadId).catch(() => toast({ variant: 'destructive', title: 'Não foi possível sincronizar', description: 'Tente de novo em instantes.' }));
-  }, [userProfile, syncSquad, toast]);
+export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync }: SquadPlansTimelineProps) {
+  const { toast } = useToast();
+  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing } = useSquadStore();
 
   const activeIssues = viewingSprintId ? viewedIssuesSnapshot : issuesSnapshot;
   const activeRollup = viewingSprintId ? viewedRollup : rollup;
@@ -1125,20 +1123,14 @@ export function SquadPlansTimeline() {
       </div>
 
       {tasks.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5">
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">Ainda não há issues da sprint aqui</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              O cronograma usa as issues da sprint ativa do Jira. {config?.lastSyncAt
-                ? 'Esta sprint não trouxe nenhuma issue na última sincronização. Confira se o quadro e o período estão certos.'
-                : 'A sprint desta squad ainda não foi sincronizada. A busca leva alguns segundos e pode ser repetida quando quiser.'}
-            </p>
-          </div>
-          <Button onClick={handleSyncFromEmptyState} disabled={isSyncing} className="h-11 px-5 rounded-xl font-bold gap-2 shrink-0">
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Sincronizando…' : 'Sincronizar agora'}
-          </Button>
-        </div>
+        <SquadDataState
+          kind={deriveSquadDataState({ jiraConnected, lastSyncAt: config?.lastSyncAt, lastSyncStatus: config?.lastSyncStatus })}
+          subject="o Cronograma"
+          isSyncing={isSyncing}
+          errorMessage={config?.lastSyncError}
+          onConnect={onConnectJira}
+          onSync={onSync}
+        />
       )}
 
       {/* ══════════ MAIN SPLIT-PANE TIMELINE CONTAINER ══════════ */}
