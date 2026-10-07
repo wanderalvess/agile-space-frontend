@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v4.10.0",
+    "date": "7 de Outubro, 2026",
+    "title": "Cronograma da sprint mais claro",
+    "description": "A aba Cronograma (Plans) foi refeita para mostrar cada issue por inteiro, sem repetir a chave e sem cortar tudo.",
+    "changes": [
+      "A chave da issue aparecia duas vezes (\"DDWMISSI-1 DDWMISSI-1\") porque o título da issue nunca era guardado na sincronização. Agora o título vem do Jira. Nas issues já sincronizadas, ele aparece depois da próxima sincronização; até lá a linha mostra \"Título ainda não sincronizado\".",
+      "Títulos longos ocupam até 3 linhas em vez de serem cortados, e as linhas ficaram mais altas. O título completo aparece ao passar o mouse.",
+      "Os filtros agora têm o nome visível e mostram o valor inteiro (por exemplo \"Histórias e subtarefas\" e \"Todas as pessoas\"), em vez de \"Pai ➔ Su…\" e \"Todos os…\".",
+      "Colunas e botões em português: Issue, Prazo, Progresso, Status, Responsável, \"Restaurar colunas\". Os status mostram o nome real do Jira; antes qualquer status desconhecido aparecia como \"Open\".",
+      "A legenda diz \"Cores das barras\" e, quando não há issues, a tela explica o motivo e traz o botão Sincronizar agora."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-blue-500"
+    }
+  },
+  {
     "tag": "v4.9.1",
     "date": "6 de Outubro, 2026",
     "title": "Segurança e ajustes",

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useSquadStore } from '@/store/useSquadStore';
+import { useUserContext } from '@/context/UserContext';
 import type { SquadIssueSnapshot, SquadWorkflowPhase } from '@/lib/types';
 import { isWeekend } from '@/lib/date-utils';
 
@@ -57,7 +58,9 @@ function squadIssueToPlansTask(snapshot: SquadIssueSnapshot): PlansTask {
   return {
     id: jiraKey,
     jiraKey,
-    title: snapshot.title || jiraKey,
+    // Sem título sincronizado (linhas anteriores à V29 do backend) fica vazio: o chip da chave já aparece ao lado,
+    // e repetir a chave aqui mostrava "DDWMISSI-1 DDWMISSI-1".
+    title: snapshot.title || '',
     type: snapshot.type || '',
     status: snapshot.status || '',
     statusCategory: snapshot.statusCategory,
@@ -386,39 +389,35 @@ function computeParentProgress(parent: PlansTask, children: PlansTask[]): number
   return Math.round(total / children.length);
 }
 
+// Nomes padrão do Jira em inglês viram português; qualquer outro status do workflow aparece como veio,
+// em vez de virar "Open" (o fallback antigo mostrava "Open" para "Impedido", "Aguardando" etc.).
+const STATUS_LABEL_PT: Record<string, string> = {
+  OPEN: 'Aberto',
+  'TO DO': 'A fazer',
+  'IN PROGRESS': 'Em andamento',
+  DONE: 'Concluído',
+  CLOSED: 'Concluído',
+  RESOLVED: 'Resolvido',
+};
+
 function getStatusBadge(status: string) {
-  const norm = (status || '').toUpperCase();
-  if (norm === 'CONCLUÍDO' || norm === 'DONE' || norm === 'CLOSED') {
-    return (
-      <Badge className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 text-[9px] uppercase font-bold px-1.5 py-0.5">
-        Closed
-      </Badge>
-    );
-  }
-  if (norm.includes('CODE REVIEW') || norm.includes('ACEITAÇÃO') || norm.includes('REVIEW')) {
-    return (
-      <Badge className="bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
-        {status}
-      </Badge>
-    );
-  }
-  if (norm === 'EM ANDAMENTO' || norm === 'IN PROGRESS' || norm === 'EM DESENVOLVIMENTO') {
-    return (
-      <Badge className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
-        Em Andamento
-      </Badge>
-    );
-  }
-  if (norm === 'COMPROMETIDO') {
-    return (
-      <Badge className="bg-slate-900 text-white dark:bg-slate-700 dark:text-slate-100 border-none text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
-        Comprometido
-      </Badge>
-    );
+  const raw = (status || '').trim();
+  const norm = raw.toUpperCase();
+  const label = STATUS_LABEL_PT[norm] ?? (raw || 'Sem status');
+  const base = 'text-xs font-semibold px-2 py-0.5 whitespace-nowrap normal-case';
+  let tone = 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+  if (norm === 'CONCLUÍDO' || norm === 'DONE' || norm === 'CLOSED' || norm === 'RESOLVED') {
+    tone = 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800';
+  } else if (norm.includes('CODE REVIEW') || norm.includes('ACEITAÇÃO') || norm.includes('REVIEW')) {
+    tone = 'bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800';
+  } else if (norm === 'EM ANDAMENTO' || norm === 'IN PROGRESS' || norm === 'EM DESENVOLVIMENTO') {
+    tone = 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800';
+  } else if (norm === 'COMPROMETIDO') {
+    tone = 'bg-slate-900 text-white dark:bg-slate-700 dark:text-slate-100 border-none';
   }
   return (
-    <Badge className="bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 text-[9px] uppercase font-bold px-1.5 py-0.5 whitespace-nowrap">
-      Open
+    <Badge className={`${tone} ${base}`} title={raw ? `Status no Jira: ${raw}` : undefined}>
+      {label}
     </Badge>
   );
 }
@@ -508,12 +507,17 @@ function packChildrenIntoTracks(
   return { trackOf, totalTracks: Math.max(1, trackEnds.length) };
 }
 
+// Altura das linhas: a tabela (esquerda) e o Gantt (direita) são dois blocos separados, então as duas
+// precisam usar o mesmo valor, senão as linhas desalinham. Maior que antes para o título caber em 2 linhas.
+const PARENT_ROW_H = 68;
+const CHILD_ROW_H = 64;
+
 const DEFAULT_COL_WIDTHS = {
-  issue: 330,
+  issue: 430,
   timeline: 140, // Monday.com Timeline pill column
   progress: 110, // Monday.com Progress column
-  status: 115,
-  assignee: 120,
+  status: 125,
+  assignee: 150,
   dayWidth: 54,
 };
 
@@ -538,7 +542,15 @@ function timeAgo(iso?: string): string {
 
 export function SquadPlansTimeline() {
   const { toast } = useToast();
-  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing } = useSquadStore();
+  const { issuesSnapshot, viewingSprintId, viewedIssuesSnapshot, rollup, viewedRollup, config, isSyncing, syncSquad } = useSquadStore();
+  const { userProfile } = useUserContext();
+
+  const handleSyncFromEmptyState = useCallback(() => {
+    const userIdentifier = userProfile?.id || userProfile?.email;
+    const squadId = userProfile?.squadId;
+    if (!userIdentifier || !squadId || squadId === 'Sem Time') return;
+    syncSquad(userIdentifier, squadId).catch(() => toast({ variant: 'destructive', title: 'Não foi possível sincronizar', description: 'Tente de novo em instantes.' }));
+  }, [userProfile, syncSquad, toast]);
 
   const activeIssues = viewingSprintId ? viewedIssuesSnapshot : issuesSnapshot;
   const activeRollup = viewingSprintId ? viewedRollup : rollup;
@@ -717,7 +729,8 @@ export function SquadPlansTimeline() {
             parent: {
               id: `v-${t.parentKey}`,
               jiraKey: t.parentKey,
-              title: t.parentTitle || `Tarefa Pai ${t.parentKey}`,
+              // A chave já aparece ao lado do título: repeti-la aqui mostrava "DDWMISSI-1 Tarefa Pai DDWMISSI-1".
+              title: t.parentTitle || 'Issue pai fora desta sprint',
               type: 'Story',
               status: t.parentStatus || 'Comprometido',
               assigneeName: t.parentAssignee || t.assigneeName,
@@ -745,7 +758,7 @@ export function SquadPlansTimeline() {
       subtasks.forEach(task => {
         const key = groupBy === 'assignee' 
           ? (task.assigneeName || 'Não Atribuído')
-          : (task.parentKey ? `${task.parentKey} - ${task.parentTitle || 'Tarefa Pai'}` : 'Sem Tarefa Pai');
+          : (task.parentKey ? (task.parentTitle ? `${task.parentKey} - ${task.parentTitle}` : task.parentKey) : 'Sem Tarefa Pai');
         if (!map.has(key)) map.set(key, []);
         map.get(key)!.push(task);
       });
@@ -755,7 +768,7 @@ export function SquadPlansTimeline() {
     if (hierarchyLevel === 'story-only') {
       const stories = filteredTasks.filter(t => t.isParent || !t.parentKey);
       stories.forEach(task => {
-        const key = groupBy === 'assignee' ? (task.assigneeName || 'Não Atribuído') : `${task.jiraKey} - ${task.title}`;
+        const key = groupBy === 'assignee' ? (task.assigneeName || 'Não Atribuído') : (task.title ? `${task.jiraKey} - ${task.title}` : task.jiraKey);
         if (!map.has(key)) map.set(key, []);
         map.get(key)!.push(task);
       });
@@ -894,13 +907,13 @@ export function SquadPlansTimeline() {
             </div>
             <div>
               <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
-                Jira Plans / Cronograma da Sprint
-                <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 font-bold">
-                  {tasks.length} Tarefas Mapeadas
+                Cronograma da sprint
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 font-semibold">
+                  {tasks.length} {tasks.length === 1 ? 'issue' : 'issues'}
                 </Badge>
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Visualização oficial completa do Jira Plans: Histórias, Legislações, Débitos Técnicos e Testes Sistêmicos
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Cada linha é uma issue do Jira. A barra mostra o prazo e o número mostra quanto já foi feito.
               </p>
             </div>
           </div>
@@ -909,7 +922,7 @@ export function SquadPlansTimeline() {
             {isDelaySimActive && (
               <div
                 className="h-8 pl-2.5 pr-1.5 flex items-center gap-1.5 text-[10px] font-bold text-rose-700 dark:text-rose-300 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 animate-pulse"
-                title={`${activeDelayTask!.title} atrasou +${activeDelayDays}d — fases seguintes da mesma história empurradas junto`}
+                title={`${activeDelayTask!.title || activeDelayTask!.jiraKey} atrasou +${activeDelayDays}d — fases seguintes da mesma história empurradas junto`}
               >
                 <Flame className="w-3.5 h-3.5" />
                 +{activeDelayDays}d em {activeDelayTask!.jiraKey}
@@ -928,19 +941,19 @@ export function SquadPlansTimeline() {
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDayZoom(-6)}
-                title="Diminuir largura dos dias (Zoom Out)"
+                title="Diminuir a largura dos dias"
                 className="h-7 w-7 p-0 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </Button>
               <span className="text-[10px] font-code font-bold px-1.5 text-slate-500">
-                {colWidths.dayWidth}px/dia
+                Dias: {colWidths.dayWidth}px
               </span>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDayZoom(+6)}
-                title="Aumentar largura dos dias (Zoom In)"
+                title="Aumentar a largura dos dias"
                 className="h-7 w-7 p-0 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
@@ -951,16 +964,16 @@ export function SquadPlansTimeline() {
               variant="outline"
               size="sm"
               onClick={handleResetColWidths}
-              title="Restaurar tamanho padrão das colunas"
+              title="Voltar as colunas ao tamanho padrão"
               className="h-8 px-2.5 text-xs rounded-xl font-medium border-slate-200 dark:border-slate-800"
             >
               <RotateCcw className="w-3 h-3 mr-1" />
-              Resetar Colunas
+              Restaurar colunas
             </Button>
 
             <div
               className="h-8 px-3 flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
-              title="Este cronograma usa o mesmo dado sincronizado da aba Squad Pulse. Use o botão Sincronizar no topo do Hub para atualizar."
+              title="O cronograma usa o mesmo dado sincronizado das Métricas. Use Sincronizar agora, no topo da página, para atualizar."
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
               {isSyncing ? 'Sincronizando…' : `Sincronizado ${timeAgo(config?.lastSyncAt)}`}
@@ -970,120 +983,121 @@ export function SquadPlansTimeline() {
 
         {/* Legenda de fase — a fita do Gantt (linha da história) identifica
             a fase só pela cor, essa legenda é a chave de leitura. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cores das barras:</span>
           {(config?.phases && config.phases.length > 0
             ? config.phases.map(p => ({ label: p.label, bg: p.color }))
             : DEFAULT_PHASE_LEGEND
           ).map(p => (
             <div key={p.label} className="flex items-center gap-1.5">
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${p.bg}`} />
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{p.label}</span>
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{p.label}</span>
             </div>
           ))}
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-inset ring-rose-500" />
-            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Além do prazo original</span>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Passou do prazo original</span>
           </div>
         </div>
 
         {/* Filter Controls Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2.5">
+        <div className="flex flex-wrap gap-3.5">
           {/* Hierarchy Level Selector */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Hierarquia (Níveis)</label>
+          <div className="flex-1 basis-[190px] min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Mostrar</label>
             <Select value={hierarchyLevel} onValueChange={(val: any) => setHierarchyLevel(val)}>
-              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
                 <ListTree className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="story-to-subtask">Pai ➔ Sub-task</SelectItem>
-                <SelectItem value="subtask-only">Apenas Sub-tasks</SelectItem>
-                <SelectItem value="story-only">Apenas Tarefas Pai</SelectItem>
+                <SelectItem value="story-to-subtask">Histórias e subtarefas</SelectItem>
+                <SelectItem value="subtask-only">Só subtarefas</SelectItem>
+                <SelectItem value="story-only">Só histórias (tarefas pai)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* GroupBy Mode */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Agrupamento</label>
+          <div className="flex-1 basis-[190px] min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Agrupar por</label>
             <Select value={groupBy} onValueChange={(val: any) => setGroupBy(val)}>
-              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
                 <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="parent">Por Tarefa Pai</SelectItem>
-                <SelectItem value="assignee">Por Executor</SelectItem>
+                <SelectItem value="parent">Tarefa pai</SelectItem>
+                <SelectItem value="assignee">Responsável</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Search Filter */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Buscar</label>
+          <div className="flex-[2] basis-[260px] min-w-[220px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Buscar</label>
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
               <Input 
-                placeholder="Chave ou texto..." 
+                placeholder="Chave ou título da issue" 
                 value={searchFilter}
                 onChange={e => setSearchFilter(e.target.value)}
-                className="pl-8 h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 rounded-xl"
+                className="pl-8 h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 rounded-xl"
               />
             </div>
           </div>
 
           {/* Issue Type / Specialty Filter */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Tipo / Disciplina</label>
+          <div className="flex-1 basis-[190px] min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Tipo</label>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
                 <Bookmark className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="ALL">Todos os Tipos</SelectItem>
-                <SelectItem value="Story">🟢 História Pai</SelectItem>
-                <SelectItem value="Legisla">📜 Legislação</SelectItem>
-                <SelectItem value="Débito">🛠️ Débito Técnico</SelectItem>
-                <SelectItem value="Sistêmico">🧪 Teste Sistêmico</SelectItem>
-                <SelectItem value="Manuten">🔧 Manutenção</SelectItem>
-                <SelectItem value="Codifica">💻 Codificação</SelectItem>
-                <SelectItem value="TI">⚙️ Execução de TI</SelectItem>
-                <SelectItem value="Automatiz">🤖 Testes Automatizados</SelectItem>
+                <SelectItem value="ALL">Todos os tipos</SelectItem>
+                <SelectItem value="Story">História pai</SelectItem>
+                <SelectItem value="Legisla">Legislação</SelectItem>
+                <SelectItem value="Débito">Débito técnico</SelectItem>
+                <SelectItem value="Sistêmico">Teste sistêmico</SelectItem>
+                <SelectItem value="Manuten">Manutenção</SelectItem>
+                <SelectItem value="Codifica">Codificação</SelectItem>
+                <SelectItem value="TI">Execução de TI</SelectItem>
+                <SelectItem value="Automatiz">Testes automatizados</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Status Filter */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Status</label>
+          <div className="flex-1 basis-[190px] min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Status</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
                 <Filter className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="ALL">Todos os Status</SelectItem>
-                <SelectItem value="Open">Open (Aberto)</SelectItem>
-                <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                <SelectItem value="Em Desenvolvimento">Em Desenvolvimento</SelectItem>
+                <SelectItem value="ALL">Todos os status</SelectItem>
+                <SelectItem value="Open">Aberto</SelectItem>
+                <SelectItem value="Em Andamento">Em andamento</SelectItem>
+                <SelectItem value="Em Desenvolvimento">Em desenvolvimento</SelectItem>
                 <SelectItem value="Comprometido">Comprometido</SelectItem>
-                <SelectItem value="Closed">Closed (Concluído)</SelectItem>
+                <SelectItem value="Closed">Concluído</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Assignee Filter */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Executor</label>
+          <div className="flex-1 basis-[190px] min-w-[190px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Responsável</label>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
                 <User className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <SelectValue placeholder="Executor" />
+                <SelectValue placeholder="Responsável" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="ALL">Todos os Executores</SelectItem>
+                <SelectItem value="ALL">Todas as pessoas</SelectItem>
                 {uniqueAssignees.map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
                 ))}
@@ -1092,23 +1106,40 @@ export function SquadPlansTimeline() {
           </div>
 
           {/* Preset Period Selector */}
-          <div>
-            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Período</label>
+          <div className="flex-1 basis-[260px] min-w-[240px]">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Período</label>
             <Select value={presetPeriod} onValueChange={handlePresetChange}>
-              <SelectTrigger className="h-9 text-xs bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
                 <CalendarIcon className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="SPRINT_CURRENT">Sprint Atual ({sprintWindow.start} a {sprintWindow.end})</SelectItem>
-                <SelectItem value="NEXT_14_DAYS">Próximos 14 Dias</SelectItem>
-                <SelectItem value="CURRENT_MONTH">Mês Atual</SelectItem>
-                <SelectItem value="CUSTOM">Customizado</SelectItem>
+                <SelectItem value="SPRINT_CURRENT">Sprint atual · {formatDateShort(sprintWindow.start)} a {formatDateShort(sprintWindow.end)}</SelectItem>
+                <SelectItem value="NEXT_14_DAYS">Próximos 14 dias</SelectItem>
+                <SelectItem value="CURRENT_MONTH">Este mês</SelectItem>
+                <SelectItem value="CUSTOM">Personalizado</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
       </div>
+
+      {tasks.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/60 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100">Ainda não há issues da sprint aqui</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              O cronograma usa as issues da sprint ativa do Jira. {config?.lastSyncAt
+                ? 'Esta sprint não trouxe nenhuma issue na última sincronização. Confira se o quadro e o período estão certos.'
+                : 'A sprint desta squad ainda não foi sincronizada. A busca leva alguns segundos e pode ser repetida quando quiser.'}
+            </p>
+          </div>
+          <Button onClick={handleSyncFromEmptyState} disabled={isSyncing} className="h-11 px-5 rounded-xl font-bold gap-2 shrink-0">
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Sincronizando…' : 'Sincronizar agora'}
+          </Button>
+        </div>
+      )}
 
       {/* ══════════ MAIN SPLIT-PANE TIMELINE CONTAINER ══════════ */}
       <div className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 overflow-hidden shadow-sm flex flex-col">
@@ -1118,11 +1149,11 @@ export function SquadPlansTimeline() {
             {/* ══════════ LEFT PANE: RESIZABLE TREE TABLE ══════════ */}
             <div className="shrink-0 border-r-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 select-none" style={{ width: `${totalTableWidth}px` }}>
               {/* Left Header */}
-              <div className="flex h-11 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[11px] font-bold border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider items-stretch">
+              <div className="flex h-11 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-xs font-semibold border-b border-slate-200 dark:border-slate-800 items-stretch">
                 
                 {/* 1. Column: Issue / Subtarefa */}
                 <div className="relative px-3 flex items-center justify-between border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
-                  <span className="truncate">Hierarquia: Issue / Disciplina</span>
+                  <span className="truncate">Issue</span>
                   <div 
                     onMouseDown={(e) => startResizing('issue', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
@@ -1134,7 +1165,7 @@ export function SquadPlansTimeline() {
 
                 {/* 2. Column: Timeline Pill (Monday.com style) */}
                 <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
-                  <span className="truncate text-center">Timeline</span>
+                  <span className="truncate text-center">Prazo</span>
                   <div 
                     onMouseDown={(e) => startResizing('timeline', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
@@ -1146,7 +1177,7 @@ export function SquadPlansTimeline() {
 
                 {/* 3. Column: Progress Bar (Monday.com style) */}
                 <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
-                  <span className="truncate text-center">Progress</span>
+                  <span className="truncate text-center">Progresso</span>
                   <div 
                     onMouseDown={(e) => startResizing('progress', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
@@ -1170,7 +1201,7 @@ export function SquadPlansTimeline() {
 
                 {/* 5. Column: Assignee */}
                 <div className="relative px-2 flex items-center justify-between overflow-hidden" style={{ width: `${colWidths.assignee}px` }}>
-                  <span className="truncate">Assignee</span>
+                  <span className="truncate">Responsável</span>
                   <div 
                     onMouseDown={(e) => startResizing('assignee', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
@@ -1200,7 +1231,8 @@ export function SquadPlansTimeline() {
                       {hierarchyLevel !== 'subtask-only' && (
                       <div
                         onClick={() => { if (hierarchyLevel === 'story-to-subtask') toggleParent(parentKey); }}
-                        className={`flex h-11 items-stretch border-t font-semibold transition-colors ${hierarchyLevel === 'story-to-subtask' ? 'cursor-pointer' : ''} ${
+                        style={{ height: PARENT_ROW_H }}
+                        className={`flex items-stretch border-t font-semibold transition-colors ${hierarchyLevel === 'story-to-subtask' ? 'cursor-pointer' : ''} ${
                           isOverdueRisk
                             ? 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-300 dark:border-rose-900/60'
                             : 'bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border-slate-200/60 dark:border-slate-800/60'
@@ -1210,8 +1242,10 @@ export function SquadPlansTimeline() {
                         <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                           {hierarchyLevel === 'story-to-subtask' && (isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />)}
                           {getIssueTypeBadge(parent.type, true, parent.isBug)}
-                          <span className="font-code text-[11px] font-bold text-blue-700 dark:text-blue-400 shrink-0">{parent.jiraKey}</span>
-                          <span className="truncate text-slate-900 dark:text-slate-100 font-bold" title={parent.title}>{parent.title}</span>
+                          <div className="min-w-0 flex-1 line-clamp-3 text-[13px] leading-snug text-slate-900 dark:text-slate-100 font-bold" title={parent.title ? `${parent.jiraKey} · ${parent.title}` : parent.jiraKey}>
+                            <span className="font-code text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded px-1.5 py-px mr-1.5">{parent.jiraKey}</span>
+                            {parent.title || <span className="font-normal italic text-slate-500 dark:text-slate-400">Título ainda não sincronizado</span>}
+                          </div>
                           {isOverdueRisk && (
                             <Badge className="ml-auto text-[8px] font-black bg-rose-600 text-white uppercase border-none animate-pulse shrink-0">
                               🚨 +{delayDays}d
@@ -1275,7 +1309,7 @@ export function SquadPlansTimeline() {
                         const confidenceNote = confidence === 'presumed' ? ' (estimativa, não confirmado)' : '';
 
                         return (
-                          <div key={task.id} className={`relative flex h-10 items-stretch transition-colors ${
+                          <div key={task.id} style={{ height: CHILD_ROW_H }} className={`relative flex items-stretch transition-colors ${
                             isOverdueRisk
                               ? 'bg-rose-500/5 hover:bg-rose-500/10'
                               : 'hover:bg-slate-50/90 dark:hover:bg-slate-900/40'
@@ -1284,8 +1318,10 @@ export function SquadPlansTimeline() {
                             <div className="px-3 pl-8 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                               <CornerDownRight className="w-3 h-3 text-slate-400 shrink-0" />
                               {getIssueTypeBadge(task.type, false, task.isBug)}
-                              <span className="font-code text-[11px] font-bold text-blue-600 dark:text-blue-400 shrink-0">{task.jiraKey}</span>
-                              <span className="truncate text-slate-800 dark:text-slate-200 font-medium" title={task.title}>{task.title}</span>
+                              <div className="min-w-0 flex-1 line-clamp-3 text-[13px] leading-snug text-slate-800 dark:text-slate-200 font-medium" title={task.title ? `${task.jiraKey} · ${task.title}` : task.jiraKey}>
+                                <span className="font-code text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded px-1.5 py-px mr-1.5">{task.jiraKey}</span>
+                                {task.title || <span className="font-normal italic text-slate-500 dark:text-slate-400">Título ainda não sincronizado</span>}
+                              </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setOpenDelayPickerFor(openDelayPickerFor === task.id ? null : task.id); }}
                                 className={`ml-auto shrink-0 p-1 rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'}`}
@@ -1296,7 +1332,7 @@ export function SquadPlansTimeline() {
                             </div>
 
                             {openDelayPickerFor === task.id && (
-                              <div className="absolute z-40 top-9 left-8 flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-1">
+                              <div className="absolute z-40 top-14 left-8 flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-1">
                                 {[0, 1, 2, 3].map(d => (
                                   <button
                                     key={d}
@@ -1423,13 +1459,13 @@ export function SquadPlansTimeline() {
                     : collapsedParents[parentKey];
                   const { getEffectiveDates } = storyCascades.get(parentKey)!;
                   const { trackOf, totalTracks } = packChildrenIntoTracks(children, getEffectiveDates);
-                  const trackHeight = Math.max(8, Math.floor(36 / totalTracks));
+                  const trackHeight = Math.max(8, Math.floor((PARENT_ROW_H - 8) / totalTracks));
 
                   return (
                     <React.Fragment key={parentKey}>
                       {/* ══════════ PARENT ROW: COMPOSITE MULTI-SEGMENT & STACKED TRACKS (Monday.com Style) ══════════ */}
                       {hierarchyLevel !== 'subtask-only' && (
-                      <div className="h-11 relative bg-blue-50/20 dark:bg-blue-950/10 flex items-center">
+                      <div style={{ height: PARENT_ROW_H }} className="relative bg-blue-50/20 dark:bg-blue-950/10 flex items-center">
                         {/* Grid background columns */}
                         <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
                           {daysList.map(d => (
@@ -1529,7 +1565,7 @@ export function SquadPlansTimeline() {
                         const disc = getDisciplineColorAndLabel(task);
 
                         return (
-                          <div key={task.id} className="h-10 relative group">
+                          <div key={task.id} style={{ height: CHILD_ROW_H }} className="relative group">
                             {/* Grid background columns */}
                             <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
                               {daysList.map(d => (
@@ -1543,8 +1579,8 @@ export function SquadPlansTimeline() {
                                 left: `${barLeft}px`,
                                 width: `${barWidth}px`,
                               }}
-                              className="absolute top-1.5 bottom-1.5 z-10 rounded-lg px-1 flex items-center justify-between text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
-                              title={`${task.jiraKey} (${disc.label}): ${task.title} (${start} até ${end})${isDelayed ? ` - Atraso em Cascata: +${delayDays}d${confidenceNote}` : ''}`}
+                              className="absolute top-4 bottom-4 z-10 rounded-lg px-1 flex items-center justify-between text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                              title={`${task.jiraKey} (${disc.label}): ${task.title || 'sem título sincronizado'} (${start} até ${end})${isDelayed ? ` - Atraso em Cascata: +${delayDays}d${confidenceNote}` : ''}`}
                             >
                               <div className={`w-full h-full rounded-md px-2 flex items-center gap-1.5 overflow-hidden ${
                                 isOverdueRisk 
@@ -1556,7 +1592,7 @@ export function SquadPlansTimeline() {
                                 <span className="text-[9px] bg-black/25 px-1 py-0.2 rounded font-black uppercase shrink-0">
                                   {disc.shortLabel}
                                 </span>
-                                <span className="truncate">{task.title}</span>
+                                <span className="truncate">{task.title || task.jiraKey}</span>
                                 {isDelayed && (
                                   <span className="text-[8.5px] bg-black/40 px-1 py-0.2 rounded font-black shrink-0">
                                     +{delayDays}d {isOverdueRisk ? '🚨' : ''}
