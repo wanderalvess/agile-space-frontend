@@ -1,175 +1,171 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { DashboardFilters } from "@/components/ui/DashboardFilters";
+import React, { useEffect, useMemo, useState } from "react";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
 import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
-import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
-import { projectService, ProjectDetail } from "@/services/projectService";
-import { Smile, CheckCircle, XCircle, Layers, TrendingUp, ShieldCheck } from "lucide-react";
+import { projectService } from "@/services/projectService";
+import { squadApi } from "@/app/squad/api";
+import type { SquadMetricsRollup } from "@/lib/types";
 
+type SquadRow = {
+  id: string;
+  name: string;
+  rollup: SquadMetricsRollup | null;
+};
+
+function predictability(r: SquadMetricsRollup | null): number | null {
+  if (!r || !r.totalIssues) return null;
+  return Math.round(((r.doneIssues ?? 0) / r.totalIssues) * 100);
+}
+
+/**
+ * Visão da tribo: o resumo de cada squad vem do que foi sincronizado do Jira. Squad sem sincronização aparece como
+ * "Sem dados". Velocidade, clima e rituais por squad ainda não têm fonte aqui e não são mostrados (antes eram números fixos).
+ */
 export default function TribeLevelDashboard() {
-  const {
-    rollup,
-    issues,
-    sprintOptions,
-    selectedSprint,
-    setSelectedSprint,
-  } = useSquadDashboardData();
-
-  const [projects, setProjects] = useState<ProjectDetail[]>([]);
+  const [rows, setRows] = useState<SquadRow[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    projectService.getAllProjects().then(setProjects).catch(() => {});
+    let alive = true;
+    setLoading(true);
+    projectService
+      .getAllProjects()
+      .then((projects) =>
+        Promise.all(
+          projects.map(async (p) => ({
+            id: p.id,
+            name: p.name && p.name !== p.id ? `${p.id} · ${p.name}` : p.id,
+            rollup: await squadApi.getRollup(p.id).catch(() => null),
+          }))
+        )
+      )
+      // Squads com dados primeiro; as demais em ordem alfabética.
+      .then((result) => alive && setRows([...result].sort((a, b) => Number(!!b.rollup?.totalIssues) - Number(!!a.rollup?.totalIssues) || a.id.localeCompare(b.id))))
+      .catch(() => alive && setRows([]))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const total = rollup?.totalIssues || issues.length || 0;
-  const done = rollup?.doneIssues || issues.filter((i) => i.status?.toLowerCase().includes("done")).length || 0;
-  const predictabilityRate = total > 0 ? Math.round((done / total) * 100) : 100;
+  const summary = useMemo(() => {
+    const withData = rows.filter((r) => r.rollup && r.rollup.totalIssues > 0);
+    const preds = withData.map((r) => predictability(r.rollup)!).filter((n) => Number.isFinite(n));
+    return {
+      squads: rows.length,
+      withData: withData.length,
+      avgPredictability: preds.length ? Math.round(preds.reduce((a, b) => a + b, 0) / preds.length) : null,
+      done: withData.reduce((a, r) => a + (r.rollup?.doneIssues ?? 0), 0),
+      total: withData.reduce((a, r) => a + (r.rollup?.totalIssues ?? 0), 0),
+      overdue: withData.reduce((a, r) => a + (r.rollup?.overdueIssues ?? 0), 0),
+    };
+  }, [rows]);
 
-  const squadMatrix = projects.length > 0
-    ? projects.map((p) => ({
-        name: p.name && p.name !== p.id ? `${p.id} - ${p.name}` : `Squad ${p.id}`,
-        velocity: `${(p.devTeamSize || 1) * 25} SP`,
-        predictability: predictabilityRate,
-        climate: "4.8/5",
-        rituals: [true, true, true, true],
-      }))
-    : [
-        {
-          name: "Squad Ativa",
-          velocity: `${total > 0 ? total * 3 : 0} SP`,
-          predictability: predictabilityRate,
-          climate: "5.0/5",
-          rituals: [true, true, true, true],
-        },
-      ];
+  const card = "bg-card border border-border p-5 rounded-2xl flex flex-col justify-between shadow-lg";
+  const label = "text-sm font-semibold text-muted-foreground";
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Abas com controle de acesso por Cargo */}
       <DashboardNavTabs />
 
-      {/* Top Banner & Filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-primary/15 text-primary font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              Visão Executiva Multi-Squad
-            </span>
-            <h1 className="text-xl md:text-2xl font-black italic tracking-wider text-foreground uppercase font-headline">
-              PAINEL DA TRIBO MULTI-SQUAD
-            </h1>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">
-            Visão consolidada da tribo: previsibilidade de entregas, rituais e maturidade das squads.
-          </p>
+      <div className="bg-card p-6 rounded-2xl border border-border shadow-lg">
+        <div className="flex items-center gap-2">
+          <span className="bg-primary/15 text-primary font-semibold text-xs px-2.5 py-0.5 rounded-full">Visão da tribo</span>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground font-headline">Painel da tribo</h1>
         </div>
-
-        <DashboardFilters
-          filters={[
-            {
-              label: "Sprint",
-              placeholder: "Selecione a Sprint",
-              options: sprintOptions,
-              value: selectedSprint,
-              onChange: setSelectedSprint,
-            },
-          ]}
-        />
+        <p className="text-sm text-muted-foreground mt-1.5">
+          Como está a sprint de cada squad, com base no que foi sincronizado do Jira. Squads que ainda não sincronizaram aparecem como &quot;Sem dados&quot;.
+        </p>
       </div>
 
-      {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border p-5 rounded-2xl flex flex-col justify-between shadow-lg">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Velocidade Média da Tribo</span>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-2xl font-black text-foreground font-headline">415 SP / Sprint</span>
-            <span className="text-xs font-bold text-emerald-500">(+6%)</span>
-          </div>
+        <div className={card}>
+          <span className={label}>Squads com dados</span>
+          <span className="mt-3 text-3xl font-black text-foreground font-headline">
+            {loading ? "…" : `${summary.withData} de ${summary.squads}`}
+          </span>
         </div>
-
-        <div className="bg-card border border-border p-5 rounded-2xl flex flex-col justify-between shadow-lg">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Previsibilidade Média</span>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-2xl font-black text-foreground font-headline">{predictabilityRate}%</span>
-            <span className="text-xs font-bold text-muted-foreground">(Meta: 90%)</span>
-          </div>
+        <div className={card}>
+          <span className={label}>Previsibilidade média</span>
+          <span className="mt-3 text-3xl font-black text-foreground font-headline">
+            {loading ? "…" : summary.avgPredictability === null ? "—" : `${summary.avgPredictability}%`}
+          </span>
+          <span className="mt-1 text-xs text-muted-foreground">Média das squads com dados.</span>
         </div>
-
-        <div className="bg-card border border-border p-5 rounded-2xl flex flex-col justify-between shadow-lg">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Saúde do Clima (NPS)</span>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-2xl font-black text-emerald-500 font-headline">4.4 / 5.0</span>
-            <span className="text-xs font-bold text-emerald-500">(Excelente)</span>
-          </div>
+        <div className={card}>
+          <span className={label}>Itens concluídos</span>
+          <span className="mt-3 text-3xl font-black text-foreground font-headline">
+            {loading ? "…" : summary.total === 0 ? "—" : `${summary.done} de ${summary.total}`}
+          </span>
         </div>
-
-        <div className="bg-card border border-border p-5 rounded-2xl flex flex-col justify-between shadow-lg">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Conformidade de Rituais</span>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-2xl font-black text-primary font-headline">95%</span>
-            <span className="text-xs font-bold text-emerald-500">(Em Dia)</span>
-          </div>
+        <div className={card}>
+          <span className={label}>Itens atrasados</span>
+          <span className={`mt-3 text-3xl font-black font-headline ${summary.overdue > 0 ? "text-rose-500" : "text-foreground"}`}>
+            {loading ? "…" : summary.total === 0 ? "—" : summary.overdue}
+          </span>
+          <span className="mt-1 text-xs text-muted-foreground">Prazo vencido e ainda não concluídos.</span>
         </div>
       </div>
 
-      {/* Matriz Comparativa Multi-Squad */}
       <WidgetCard title="Comparação entre squads">
+        <p className="text-sm text-muted-foreground mb-4">
+          Previsibilidade é a parte dos itens da sprint que já foi concluída.
+        </p>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-border text-muted-foreground font-bold uppercase tracking-wider text-[11px]">
+              <tr className="border-b border-border text-muted-foreground font-semibold">
                 <th className="pb-3 px-3">Squad</th>
-                <th className="pb-3 px-3">Velocidade</th>
+                <th className="pb-3 px-3">Sprint</th>
+                <th className="pb-3 px-3">Concluídos</th>
                 <th className="pb-3 px-3">Previsibilidade</th>
-                <th className="pb-3 px-3">Saúde do Clima</th>
-                <th className="pb-3 px-3">Rituais (Daily, Poker, Retro, Showcase)</th>
+                <th className="pb-3 px-3">Atrasados</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border font-medium">
-              {squadMatrix.map((sq, i) => (
-                <tr key={i} className="hover:bg-muted/40 transition-colors">
-                  <td className="py-4 px-3 font-bold text-foreground">{sq.name}</td>
-                  <td className="py-4 px-3 text-muted-foreground font-code">{sq.velocity}</td>
-                  <td className="py-4 px-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-foreground font-code w-8">{sq.predictability}%</span>
-                      <div className="w-28 bg-muted h-2 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            sq.predictability >= 90
-                              ? "bg-emerald-500"
-                              : sq.predictability >= 80
-                              ? "bg-primary"
-                              : "bg-destructive"
-                          }`}
-                          style={{ width: `${sq.predictability}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-3 text-foreground font-bold flex items-center gap-1.5">
-                    <Smile className="h-4 w-4 text-emerald-500" />
-                    {sq.climate}
-                  </td>
-                  <td className="py-4 px-3">
-                    <div className="flex items-center gap-2">
-                      {sq.rituals.map((r, idx) =>
-                        r ? (
-                          <CheckCircle key={idx} className="h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <XCircle key={idx} className="h-4 w-4 text-destructive" />
-                        )
-                      )}
-                    </div>
-                  </td>
+              {rows.map((sq) => {
+                const pred = predictability(sq.rollup);
+                return (
+                  <tr key={sq.id} className="hover:bg-muted/40 transition-colors">
+                    <td className="py-4 px-3 font-bold text-foreground">{sq.name}</td>
+                    {pred === null ? (
+                      <td colSpan={4} className="py-4 px-3 text-muted-foreground">Sem dados desta squad ainda</td>
+                    ) : (
+                      <>
+                        <td className="py-4 px-3 text-muted-foreground">{sq.rollup?.sprintName || "—"}</td>
+                        <td className="py-4 px-3 text-foreground font-code">{sq.rollup?.doneIssues} de {sq.rollup?.totalIssues}</td>
+                        <td className="py-4 px-3">
+                          <div className="flex items-center gap-3">
+                            <span className="text-foreground font-code w-10">{pred}%</span>
+                            <div className="w-28 bg-muted h-2 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${pred >= 90 ? "bg-emerald-500" : pred >= 80 ? "bg-primary" : "bg-destructive"}`}
+                                style={{ width: `${pred}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                        <td className={`py-4 px-3 font-code ${(sq.rollup?.overdueIssues ?? 0) > 0 ? "text-rose-500 font-bold" : "text-muted-foreground"}`}>
+                          {sq.rollup?.overdueIssues ?? 0}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-6 px-3 text-muted-foreground">Nenhuma squad encontrada.</td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Clima do time e participação nos rituais por squad ainda não aparecem aqui. Para o clima, use o Health Check de cada squad.
+        </p>
       </WidgetCard>
 
       <CustomJqlPanelsSection />

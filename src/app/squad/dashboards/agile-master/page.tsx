@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { DashboardFilters } from "@/components/ui/DashboardFilters";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
 import { GaugeChart } from "@/components/ui/GaugeChart";
@@ -53,15 +54,15 @@ export default function AgileMasterDashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
         <div>
           <div className="flex items-center gap-2">
-            <span className="bg-primary/15 text-primary font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              Governança & Rituais
+            <span className="bg-primary/15 text-primary font-semibold text-xs px-2.5 py-0.5 rounded-full">
+              Rituais e fluxo
             </span>
-            <h1 className="text-xl md:text-2xl font-black italic tracking-wider text-foreground uppercase font-headline">
-              AGILE MASTER GOVERNANCE DASHBOARD
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground font-headline">
+              Painel do Agile Master
             </h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">
-            Aderência a cerimônias ágeis, resolução de impedimentos e vazão da squad.
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Andamento da sprint, bugs e impedimentos, e as ações combinadas nas retrospectivas.
           </p>
         </div>
 
@@ -128,36 +129,16 @@ export default function AgileMasterDashboard() {
           title="Bugs e impedimentos"
           value={bugs}
           icon={<AlertCircle className="h-5 w-5 text-destructive" />}
-          subtitle={bugs > 0 ? `${bugs} bug(s) reportados na sprint atual.` : "Nenhum bloqueio ou bug crítico reportado."}
+          subtitle={bugs > 0 ? `${bugs} ${bugs === 1 ? "bug reportado" : "bugs reportados"} na sprint atual.` : "Nenhum bloqueio ou bug crítico reportado."}
         />
 
         {/* Aderência a Planos de Ação e Retros */}
         <WidgetCard title="Plano de ação das retrospectivas">
-          <div className="flex flex-col gap-2.5 mt-1 text-xs">
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <span className="text-foreground font-medium truncate max-w-[70%]">
-                Reduzir tempo de alinhamento na Daily
-              </span>
-              <span className="text-emerald-500 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                Concluído
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <span className="text-foreground font-medium truncate max-w-[70%]">
-                Melhorar critérios de aceitação no Refinamento
-              </span>
-              <span className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-md">
-                Em Andamento
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-border/60 pb-2">
-              <span className="text-foreground font-medium truncate max-w-[70%]">
-                Aumentar cobertura de testes automatizados
-              </span>
-              <span className="text-muted-foreground font-bold bg-muted px-2 py-0.5 rounded-md">
-                Planejado
-              </span>
-            </div>
+          <div className="flex flex-col gap-3 text-sm">
+            <p className="text-muted-foreground">
+              As ações combinadas nas retrospectivas ficam no Plano de ação, cada uma com responsável e prazo.
+            </p>
+            <Link href="/action-plan" className="self-start font-semibold text-primary hover:underline">Abrir o Plano de ação</Link>
           </div>
         </WidgetCard>
       </div>

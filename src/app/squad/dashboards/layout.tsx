@@ -4,12 +4,21 @@ import React from "react";
 import Link from "next/link";
 import { RoomHeader } from "@/components/layout/RoomHeader";
 import { LayoutDashboard, ArrowLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useUser } from "@/context/UserContext";
+import { canUserAccessDashboard, isUserLeadershipOrAdmin } from "@/lib/dashboard-roles";
+import { DashboardAccessDenied } from "@/components/squad/dashboards/DashboardNavTabs";
 
 export default function SquadDashboardsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const { userProfile, isLeadership, isInitializing } = useUser();
+  const isSuperUser = isLeadership || isUserLeadershipOrAdmin(userProfile?.role);
+  const hasAccess = canUserAccessDashboard(userProfile?.role, pathname, isSuperUser);
+
   return (
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
       {/* Cabeçalho padrão unificado do Portal Tech V&D respeitando o tema ativo */}
@@ -32,7 +41,8 @@ export default function SquadDashboardsLayout({
 
       {/* Conteúdo Principal */}
       <main className="flex-1 w-full max-w-[1440px] mx-auto p-4 md:p-8">
-        {children}
+        {/* Sem acesso, a página nem é montada: antes o aviso aparecia e o dashboard completo ficava logo abaixo. */}
+        {isInitializing ? null : hasAccess ? children : <DashboardAccessDenied />}
       </main>
     </div>
   );

@@ -38,11 +38,12 @@ export default function PeopleLeadDashboard() {
 
     const taskCount = assignedIssues.length;
     const capacity = (m.capacityHoursPerDay || 8) * 5; // capacidade semanal padrão
-    const estimatedHours = taskCount * 8; // aproximação de esforço
+    // Horas estimadas no Jira para as tarefas da pessoa; sem estimativa fica 0 (antes: 8 h por tarefa e 8 h "de piso").
+    const estimatedHours = Math.round(assignedIssues.reduce((acc, iss) => acc + (iss.estimateSec || 0), 0) / 3600);
 
     return {
       name: m.displayName || m.jiraAccountId,
-      jiraHours: estimatedHours || 8,
+      jiraHours: estimatedHours,
       capacity: capacity,
       role: m.role || "Membro",
     };
@@ -57,15 +58,15 @@ export default function PeopleLeadDashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
         <div>
           <div className="flex items-center gap-2">
-            <span className="bg-primary/15 text-primary font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              Gestão de Pessoas & Capacidade
+            <span className="bg-primary/15 text-primary font-semibold text-xs px-2.5 py-0.5 rounded-full">
+              Pessoas e capacidade
             </span>
-            <h1 className="text-xl md:text-2xl font-black italic tracking-wider text-foreground uppercase font-headline">
-              PEOPLE LEAD MANAGEMENT DASHBOARD
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground font-headline">
+              Painel do People Lead
             </h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">
-            Capacidade nominal da squad, equilíbrio de distribuição de tarefas e bem-estar do time.
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Quantas pessoas há no time, que papel cada uma tem e como a carga de tarefas se compara à capacidade semanal.
           </p>
         </div>
 
@@ -87,11 +88,14 @@ export default function PeopleLeadDashboard() {
         {/* Equilíbrio de Carga Nominal */}
         <WidgetCard title="Carga de trabalho e capacidade" className="lg:col-span-2">
           <p className="text-[11px] text-muted-foreground mb-4">
-            Comparação entre esforço alocado em tarefas do Jira e capacidade nominal semanal.
+            Horas estimadas no Jira para as tarefas de cada pessoa, ao lado da capacidade da semana (horas por dia × 5). Tarefas sem estimativa no Jira não entram na conta.
           </p>
+          {workloadData.length === 0 && (
+            <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma pessoa no time ainda. Cadastre as pessoas em Pessoas do time.</p>
+          )}
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={workloadData.length > 0 ? workloadData : [{ name: "Sem membros", jiraHours: 0, capacity: 40 }]}>
+              <BarChart data={workloadData.length > 0 ? workloadData : []}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.6} />
                 <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
                 <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
@@ -104,8 +108,8 @@ export default function PeopleLeadDashboard() {
                     fontSize: "12px",
                   }}
                 />
-                <Bar dataKey="jiraHours" name="Horas Alocadas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="capacity" name="Capacidade Semanal" fill="#22C55E" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="jiraHours" name="Horas estimadas no Jira" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="capacity" name="Capacidade da semana" fill="#22C55E" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

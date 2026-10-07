@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@/context/UserContext";
 import { squadApi } from "@/app/squad/api";
+import { projectService } from "@/services/projectService";
 import type {
   SquadMetricsRollup,
   SquadIssueSnapshot,
@@ -47,9 +48,24 @@ export function useSquadDashboardData(): SquadDashboardData {
         squadApi.getMembers(squadId).catch(() => []),
       ]);
 
+      let teamMembers: SquadMember[] = Array.isArray(fetchedMembers) ? fetchedMembers : [];
+      // Sem pessoas sincronizadas do Jira, usa o cadastro do projeto (mesma fonte do Painel) para os dashboards
+      // não dizerem "0 pessoas" de um time que existe.
+      if (teamMembers.length === 0 && squadId) {
+        const detail = await projectService.getProjectByKey(squadId).catch(() => null);
+        teamMembers = (detail?.members || []).map((m) => ({
+          dbId: m.id || `${squadId}_${m.email || m.displayName}`,
+          squadId,
+          jiraAccountId: m.jiraAccountId || m.email || m.displayName,
+          displayName: m.displayName,
+          email: m.email,
+          role: m.roleName,
+        }));
+      }
+
       setRawRollup(fetchedRollup);
       setAllIssues(Array.isArray(fetchedIssues) ? fetchedIssues : []);
-      setMembers(Array.isArray(fetchedMembers) ? fetchedMembers : []);
+      setMembers(teamMembers);
     } catch (err: any) {
       console.warn("Erro ao buscar dados reais do dashboard:", err);
       setError(err?.message || "Erro ao conectar com o serviço de métricas");

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useState } from "react";
 import { useUser } from "@/context/UserContext";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
@@ -110,7 +111,7 @@ export function SquadDashboardView() {
   const displayTasks = (myIssues.length > 0 ? myIssues : issues).slice(0, 6);
 
   // 2. DADOS PO
-  const poSayDoRate = total > 0 ? Math.round((done / total) * 100) : 85;
+  const poSayDoRate = total > 0 ? Math.round((done / total) * 100) : 0;
   const poTypeCounts = new Map<string, number>();
   issues.forEach((i) => {
     const t = i.type || "Story";
@@ -129,20 +130,13 @@ export function SquadDashboardView() {
     .slice(0, 5);
 
   // 3. DADOS TECH LEAD
-  const featuresCount =
-    issues.filter(
-      (i) => i.type?.toLowerCase() !== "bug" && !i.title?.toLowerCase().includes("debt")
-    ).length || 1;
-  const techDebtCount =
-    issues.filter(
-      (i) =>
-        i.title?.toLowerCase().includes("debt") ||
-        i.title?.toLowerCase().includes("refactor")
-    ).length || 0;
+  const isTechDebt = (i: { title?: string }) => /debt|refactor|débito/i.test(i.title || "");
+  const featuresCount = issues.filter((i) => i.type?.toLowerCase() !== "bug" && !isTechDebt(i)).length;
+  const techDebtCount = issues.filter(isTechDebt).length;
   const effortData = [
-    { name: "Features", value: featuresCount, color: "hsl(var(--primary))" },
+    { name: "Funcionalidades", value: featuresCount, color: "hsl(var(--primary))" },
     { name: "Bugs", value: bugs, color: "hsl(var(--destructive))" },
-    { name: "Tech Debt", value: Math.max(1, techDebtCount), color: "hsl(var(--muted-foreground))" },
+    { name: "Débito técnico", value: techDebtCount, color: "hsl(var(--muted-foreground))" },
   ];
 
   // 4. DADOS PEOPLE LEAD
@@ -155,7 +149,8 @@ export function SquadDashboardView() {
     );
     return {
       name: m.displayName || m.jiraAccountId,
-      jiraHours: assigned.length * 8 || 8,
+      // Horas estimadas no Jira; sem estimativa fica 0 (antes: 8 h por tarefa e 8 h "de piso").
+      jiraHours: Math.round(assigned.reduce((acc, iss) => acc + (iss.estimateSec || 0), 0) / 3600),
       capacity: (m.capacityHoursPerDay || 8) * 5,
     };
   });
@@ -345,9 +340,9 @@ export function SquadDashboardView() {
               </ResponsiveContainer>
             </div>
             <div className="flex justify-around border-t border-slate-100 dark:border-slate-800/60 pt-3 text-[11px] font-bold">
-              <span className="text-primary">Features ({featuresCount})</span>
+              <span className="text-primary">Funcionalidades ({featuresCount})</span>
               <span className="text-destructive">Bugs ({bugs})</span>
-              <span className="text-slate-500 dark:text-slate-400">Tech Debt ({techDebtCount})</span>
+              <span className="text-slate-500 dark:text-slate-400" title="Contado pelas palavras debt, refactor ou débito no título da issue">Débito técnico ({techDebtCount})</span>
             </div>
           </WidgetCard>
           <KPICard
@@ -369,8 +364,8 @@ export function SquadDashboardView() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.6} />
                   <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} />
-                  <Bar dataKey="jiraHours" name="Horas Alocadas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="capacity" name="Capacidade" fill="#22C55E" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="jiraHours" name="Horas estimadas no Jira" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="capacity" name="Capacidade da semana" fill="#22C55E" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -386,34 +381,16 @@ export function SquadDashboardView() {
 
       {/* ─── VISÃO 6: TRIBE LEVEL ─── */}
       {activeTab === "tribe-level" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Velocidade média"
-            value="415 SP"
-            subtitle="Média ponderada por sprint da tribo."
-            icon={<TrendingUp className="h-5 w-5 text-indigo-500" />}
-          />
-          <KPICard
-            title="Previsibilidade"
-            value="91%"
-            subtitle="Histórico de Say/Do Ratio agregado."
-            trend="up"
-            trendValue="+4%"
-            icon={<ShieldCheck className="h-5 w-5 text-emerald-500" />}
-          />
-          <KPICard
-            title="Saúde do clima"
-            value="4.4"
-            subtitle="Radar Health Check médio das squads."
-            icon={<Smile className="h-5 w-5 text-emerald-500" />}
-          />
-          <KPICard
-            title="Rituais em dia"
-            value="95%"
-            subtitle="Aderência às cerimônias ágeis contínuas."
-            icon={<CheckCircle className="h-5 w-5 text-primary" />}
-          />
-        </div>
+        <WidgetCard title="Visão da tribo">
+          <div className="flex flex-col gap-3 text-sm">
+            <p className="text-muted-foreground">
+              A comparação entre as squads, com previsibilidade e itens atrasados de cada uma, fica no painel da tribo.
+            </p>
+            <Link href="/squad/dashboards/tribe-level" className="self-start font-semibold text-primary hover:underline">
+              Abrir o painel da tribo
+            </Link>
+          </div>
+        </WidgetCard>
       )}
 
       {/* ─── SEÇÃO DE PAINÉIS JQL (CUSTOM) ─── */}

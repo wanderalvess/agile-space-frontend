@@ -36,13 +36,17 @@ export default function TechLeadDashboard() {
   const inProgress = rollup?.inProgressIssues || issues.filter((i) => i.status?.toLowerCase().includes("progress")).length || 0;
 
   // Distribuição de esforço baseada em tipos reais de issues
-  const featuresCount = issues.filter((i) => i.type?.toLowerCase() !== "bug" && !i.title?.toLowerCase().includes("debt")).length || 1;
-  const techDebtCount = issues.filter((i) => i.title?.toLowerCase().includes("debt") || i.title?.toLowerCase().includes("refactor")).length || 0;
+  const isTechDebt = (i: { title?: string }) => /debt|refactor|débito/i.test(i.title || "");
+  const featuresCount = issues.filter((i) => i.type?.toLowerCase() !== "bug" && !isTechDebt(i)).length;
+  const techDebtCount = issues.filter(isTechDebt).length;
+  const inReviewCount = issues.filter((i) => i.status?.toLowerCase().includes("review")).length;
+  const inQaCount = issues.filter((i) => i.status?.toLowerCase().includes("qa") || i.status?.toLowerCase().includes("test")).length;
+  const pct = (n: number) => `${Math.min(100, Math.round((n / Math.max(1, total)) * 100))}%`;
 
   const effortData = [
-    { name: "Features", value: featuresCount, color: "hsl(var(--primary))" },
+    { name: "Funcionalidades", value: featuresCount, color: "hsl(var(--primary))" },
     { name: "Bugs", value: bugs, color: "hsl(var(--destructive))" },
-    { name: "Tech Debt", value: Math.max(1, techDebtCount), color: "hsl(var(--muted-foreground))" },
+    { name: "Débito técnico", value: techDebtCount, color: "hsl(var(--muted-foreground))" },
   ];
 
   // Contribuição por membro da Squad
@@ -56,7 +60,7 @@ export default function TechLeadDashboard() {
     .slice(0, 5)
     .map(([name, count]) => ({
       name,
-      score: `${count} tarefas`,
+      score: `${count} ${count === 1 ? "tarefa" : "tarefas"}`,
       percent: Math.min(100, Math.round((count / Math.max(1, total)) * 100)),
     }));
 
@@ -69,15 +73,15 @@ export default function TechLeadDashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
         <div>
           <div className="flex items-center gap-2">
-            <span className="bg-primary/15 text-primary font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              Engenharia & Qualidade
+            <span className="bg-primary/15 text-primary font-semibold text-xs px-2.5 py-0.5 rounded-full">
+              Engenharia e qualidade
             </span>
-            <h1 className="text-xl md:text-2xl font-black italic tracking-wider text-foreground uppercase font-headline">
-              TECH LEAD ENGINEERING DASHBOARD
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground font-headline">
+              Painel do Tech Lead
             </h1>
           </div>
-          <p className="text-xs text-muted-foreground mt-1 font-medium">
-            Qualidade técnica do código, bugs em aberto, fluxo de Code Review e débitos técnicos.
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Bugs na sprint, tarefas esperando Code Review e QA, e como o esforço se divide entre funcionalidades, bugs e débito técnico.
           </p>
         </div>
 
@@ -118,9 +122,9 @@ export default function TechLeadDashboard() {
             </ResponsiveContainer>
           </div>
           <div className="flex justify-around border-t border-border/60 pt-3 text-[11px] font-bold">
-            <span className="text-primary">Features ({featuresCount})</span>
+            <span className="text-primary">Funcionalidades ({featuresCount})</span>
             <span className="text-destructive">Bugs ({bugs})</span>
-            <span className="text-muted-foreground">Tech Debt ({techDebtCount})</span>
+            <span className="text-muted-foreground" title="Contado pelas palavras debt, refactor ou débito no título da issue">Débito técnico ({techDebtCount})</span>
           </div>
         </WidgetCard>
 
@@ -129,24 +133,24 @@ export default function TechLeadDashboard() {
           <div className="flex flex-col justify-center gap-4 h-full py-2">
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="flex-1 bg-muted/40 p-4 rounded-xl border border-border w-full">
-                <span className="text-xs font-bold text-muted-foreground block mb-1">Code Review</span>
+                <span className="text-xs font-bold text-muted-foreground block mb-1">Esperando Code Review</span>
                 <span className="text-lg font-black text-foreground">
-                  {issues.filter((i) => i.status?.toLowerCase().includes("review")).length} Tarefas
+                  {inReviewCount} {inReviewCount === 1 ? "tarefa" : "tarefas"}
                 </span>
-                <div className="mt-2 h-2 bg-primary/30 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full w-[60%]" />
+                <div className="mt-2 h-2 bg-primary/30 rounded-full overflow-hidden" title="Parte das tarefas da sprint">
+                  <div className="h-full bg-primary rounded-full" style={{ width: pct(inReviewCount) }} />
                 </div>
               </div>
 
               <span className="text-muted-foreground font-bold text-lg hidden sm:inline">➔</span>
 
               <div className="flex-1 bg-muted/40 p-4 rounded-xl border border-border w-full">
-                <span className="text-xs font-bold text-muted-foreground block mb-1">QA Testing / Homologação</span>
+                <span className="text-xs font-bold text-muted-foreground block mb-1">Em QA ou homologação</span>
                 <span className="text-lg font-black text-foreground">
-                  {issues.filter((i) => i.status?.toLowerCase().includes("qa") || i.status?.toLowerCase().includes("test")).length} Tarefas
+                  {inQaCount} {inQaCount === 1 ? "tarefa" : "tarefas"}
                 </span>
-                <div className="mt-2 h-2 bg-primary/30 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full w-[80%]" />
+                <div className="mt-2 h-2 bg-primary/30 rounded-full overflow-hidden" title="Parte das tarefas da sprint">
+                  <div className="h-full bg-primary rounded-full" style={{ width: pct(inQaCount) }} />
                 </div>
               </div>
             </div>
@@ -158,7 +162,7 @@ export default function TechLeadDashboard() {
           title="Bugs na sprint"
           value={bugs}
           icon={<ShieldAlert className="h-5 w-5 text-destructive" />}
-          subtitle={bugs > 0 ? `${bugs} bug(s) reportados na sprint atual.` : "Zero bugs críticos em aberto."}
+          subtitle={bugs > 0 ? `${bugs} ${bugs === 1 ? "bug reportado" : "bugs reportados"} na sprint atual.` : "Zero bugs críticos em aberto."}
         />
 
         {/* Carga por Desenvolvedor / Contribuição */}

@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v4.12.0",
+    "date": "7 de Outubro, 2026",
+    "title": "Painéis por papel com dados reais e acesso protegido",
+    "description": "Os painéis de PO, Agile Master, People Lead, Tech Lead e Tribo deixaram de mostrar números inventados e passaram a dizer só o que vem do Jira e do cadastro da squad.",
+    "changes": [
+      "Painel da tribo refeito: lista cada squad com a sprint, itens concluídos, previsibilidade e itens atrasados, lidos do que foi sincronizado do Jira. Squad sem sincronização aparece como \"Sem dados desta squad ainda\". Os números fixos de velocidade, clima e rituais saíram.",
+      "People Lead: pessoas e papéis agora usam o cadastro da squad (o mesmo do Painel) quando o Jira ainda não trouxe ninguém, em vez de mostrar \"0 pessoas\". As horas vêm da estimativa do Jira, sem somar 8 horas por tarefa, e o gráfico explica quando não há pessoas.",
+      "Tech Lead: contagens reais de funcionalidades, bugs e débito técnico (palavras debt, refactor ou débito no título), tarefas esperando Code Review e QA, e carga de cada pessoa, com singular e plural corretos.",
+      "Agile Master: a lista de ações de retrospectiva inventada foi trocada por um atalho para o Plano de ação. Product Owner: sem conclusão fixa de 85% quando a sprint está vazia, \"Closed\" conta como concluído, status em português e itens sem título avisam que o título ainda não foi sincronizado.",
+      "Quem não tem o papel de um painel vê \"Este painel é de outro papel\" e nada do conteúdo (antes aparecia o aviso e o painel junto). A aba Tribo do Meu painel agora leva ao painel da tribo."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-blue-500"
+    }
+  },
+  {
     "tag": "v4.11.0",
     "date": "7 de Outubro, 2026",
     "title": "Squad: telas vazias, configuração e Meu painel em português",
