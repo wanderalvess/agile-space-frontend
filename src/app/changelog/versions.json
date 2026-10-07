@@ -2,14 +2,19 @@
   {
     "tag": "v4.10.0",
     "date": "7 de Outubro, 2026",
-    "title": "Cronograma da sprint mais claro",
-    "description": "A aba Cronograma (Plans) foi refeita para mostrar cada issue por inteiro, sem repetir a chave e sem cortar tudo.",
+    "title": "Squad Hub mais claro: abas, Visão geral e Cronograma",
+    "description": "O Squad Hub foi reorganizado para dizer o que cada tela mostra, e o Cronograma deixou de cortar e repetir informação.",
     "changes": [
       "A chave da issue aparecia duas vezes (\"DDWMISSI-1 DDWMISSI-1\") porque o título da issue nunca era guardado na sincronização. Agora o título vem do Jira. Nas issues já sincronizadas, ele aparece depois da próxima sincronização; até lá a linha mostra \"Título ainda não sincronizado\".",
       "Títulos longos ocupam até 3 linhas em vez de serem cortados, e as linhas ficaram mais altas. O título completo aparece ao passar o mouse.",
       "Os filtros agora têm o nome visível e mostram o valor inteiro (por exemplo \"Histórias e subtarefas\" e \"Todas as pessoas\"), em vez de \"Pai ➔ Su…\" e \"Todos os…\".",
       "Colunas e botões em português: Issue, Prazo, Progresso, Status, Responsável, \"Restaurar colunas\". Os status mostram o nome real do Jira; antes qualquer status desconhecido aparecia como \"Open\".",
-      "A legenda diz \"Cores das barras\" e, quando não há issues, a tela explica o motivo e traz o botão Sincronizar agora."
+      "A legenda diz \"Cores das barras\" e, quando não há issues, a tela explica o motivo e traz o botão Sincronizar agora.",
+      "As abas ficaram mais simples e em português: Visão geral, Quadro, Cronograma, Métricas e Meu painel. \"Squad Pulse\" e \"Performance\" mostravam quase o mesmo e viraram uma aba só, Métricas, com a escolha entre \"Sprint atual\" e \"Desempenho do time\". Links antigos continuam funcionando.",
+      "Visão geral refeita: nome da squad, sprint, última sincronização e botão Sincronizar agora no topo; \"Tempo da sprint\" ao lado de \"Trabalho concluído\"; 4 números (concluídos, em andamento, atrasados, horas); as cerimônias com uma frase sobre o que cada uma faz; e um bloco \"Precisa de atenção\" com os itens vencidos ou parados.",
+      "A contagem de pessoas da Visão geral agora usa também o cadastro do projeto, a mesma fonte do Painel, em vez de mostrar 0 quando ninguém foi sincronizado do Jira.",
+      "Métricas: títulos, rótulos e explicações em português simples, sem caixa-alta miúda e sem termos como \"throughput\" e \"Ofensiva de foco\". Sem dados, a tela diz por quê e traz o botão Sincronizar agora.",
+      "Os botões do topo (Sincronizar, Pessoas, Configurar, Fases) mostram o nome em telas largas, em vez de só um ícone."
     ],
     "type": "minor",
     "icon": {

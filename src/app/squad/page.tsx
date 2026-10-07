@@ -32,6 +32,8 @@ import Link from 'next/link';
 // Dynamic imports for Daily Flow components
 const SquadPerformanceView = dynamic(() => import('@/components/squad/SquadPerformanceView').then(mod => mod.SquadPerformanceView), { ssr: false });
 const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/SquadDashboardView').then(mod => mod.SquadDashboardView), { ssr: false });
+import { useTeamAvatars } from '@/hooks/useTeamAvatars';
+import { SquadOverview } from '@/components/squad/SquadOverview';
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
 const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard').then(mod => mod.SquadScrumBoard), { ssr: false });
 
@@ -74,13 +76,13 @@ function Kpi({ label, value, sub, icon: Icon, tone }: { label: string; value: st
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 flex flex-col justify-between shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</span>
+        <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</span>
         <div className={`p-2 rounded-xl shrink-0 ${tone}`}>
           <Icon className="h-4 w-4" />
         </div>
       </div>
-      <p className="text-2xl font-black text-slate-900 dark:text-white leading-none font-headline mt-2.5">{value}</p>
-      {sub && <p className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-2">{sub}</p>}
+      <p className="text-3xl font-black text-slate-900 dark:text-white leading-none font-headline mt-2.5">{value}</p>
+      {sub && <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{sub}</p>}
     </div>
   );
 }
@@ -89,7 +91,7 @@ function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/40 p-3 text-center">
       <p className="text-lg font-black text-slate-900 dark:text-white leading-none">{value}</p>
-      <p className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider mt-1.5">{label}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1.5">{label}</p>
     </div>
   );
 }
@@ -123,8 +125,11 @@ function MemberCapacityRow({ member, onSave }: { member: SquadMember; onSave: (i
 
 function SquadHubContent() {
   const searchParams = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'overview';
+  const requestedTab = searchParams.get('tab') || 'overview';
+  // Pulse e Performance viraram uma aba só (Métricas); links antigos continuam funcionando.
+  const initialTab = requestedTab === 'pulse' || requestedTab === 'performance' ? 'metrics' : requestedTab;
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [metricsView, setMetricsView] = useState<'sprint' | 'performance'>(requestedTab === 'performance' ? 'performance' : 'sprint');
 
   const { userProfile, isInitializing } = useUserContext();
   const { toast } = useToast();
@@ -139,6 +144,8 @@ function SquadHubContent() {
   } = useSquadStore();
 
   const squadId = userProfile?.squadId || '';
+  // Pessoas cadastradas no projeto (mesma fonte do Painel): serve de reserva quando ninguém foi sincronizado do Jira.
+  const { members: projectTeamMembers } = useTeamAvatars(squadId);
   const role = userProfile?.role as string | undefined;
   const isLeadership = !!role && (SQUAD_ADMIN_ROLES as string[]).includes(role);
   const isLeadershipViewer = !!role && (SQUAD_LEADERSHIP_VIEW_ROLES as string[]).includes(role);
@@ -396,7 +403,7 @@ function SquadHubContent() {
         tips={[]}
         onlyChildren={true}
         badge={
-          <div className="flex items-center gap-1.5 text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none ml-2 bg-slate-100 dark:bg-slate-900 px-2 py-1 rounded-md">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 leading-none ml-2 bg-slate-100 dark:bg-slate-900 px-2.5 py-1.5 rounded-md">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
             <span>{squadId || 'SQUAD'}</span>
           </div>
@@ -404,15 +411,15 @@ function SquadHubContent() {
         actions={
           <div className="flex items-center gap-1.5 sm:gap-2">
             <ModuleIntegrationButton moduleId="squad" variant="ghost" className="hidden lg:inline-flex" />
-            {sprintHistory.length > 0 && (activeTab === 'pulse' || activeTab === 'plans') && (
+            {sprintHistory.length > 0 && ((activeTab === 'metrics' && metricsView === 'sprint') || activeTab === 'plans') && (
               <Select
                 value={viewingSprintId || 'CURRENT'}
                 onValueChange={(val) => selectSprint(squadId, val === 'CURRENT' ? null : val, { isLeadershipViewer, myClaimedAssigneeId: myClaim?.jiraAccountId })}
               >
-                <SelectTrigger className="h-8 w-36 sm:w-44 text-[10px] font-bold rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800">
+                <SelectTrigger className="h-9 w-40 sm:w-52 text-xs font-semibold rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800">
                   <SelectValue placeholder="Selecione a sprint" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl text-[10px]">
+                <SelectContent className="rounded-xl text-xs">
                   <SelectItem value="CURRENT" className="font-bold text-indigo-600 dark:text-indigo-400">
                     ● {config?.activeSprintId ? `Sprint ativa (${config.activeSprintId})` : 'Sprint atual (ao vivo)'}
                   </SelectItem>
@@ -426,49 +433,41 @@ function SquadHubContent() {
             )}
 
             <Button
-              size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => handleSync()}
+              size="sm" variant="outline" className="h-9 px-2.5 xl:px-3 gap-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => handleSync()}
               disabled={isSyncing || viewingSprintId !== null}
-              title={viewingSprintId ? 'Volte para "Atual" pra sincronizar' : 'Sincronizar métricas agora com o Jira'}
+              title={viewingSprintId ? 'Volte para "Atual" pra sincronizar' : 'Sincronizar os dados da squad agora com o Jira'}
+              aria-label="Sincronizar com o Jira"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span className="hidden xl:inline text-xs font-semibold">Sincronizar</span>
             </Button>
             {isPeopleAdmin && (
-              <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => router.push('/squad/roster')} title="Gestão de Roster & Calibração de Capacidade">
+              <Button size="sm" variant="outline" className="h-9 px-2.5 xl:px-3 gap-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => router.push('/squad/roster')} title="Pessoas do time e horas por dia de cada uma" aria-label="Pessoas do time">
                 <UserCog className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline text-xs font-semibold">Pessoas</span>
               </Button>
             )}
-            <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsSettingsOpen(true)} title="Configurações do squad">
+            <Button size="sm" variant="outline" className="h-9 px-2.5 xl:px-3 gap-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsSettingsOpen(true)} title="Configurar a squad (projeto e conexão com o Jira)" aria-label="Configurar a squad">
               <Settings2 className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline text-xs font-semibold">Configurar</span>
             </Button>
-            <Button size="icon" variant="outline" className="h-8 w-8 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsPhasesOpen(true)} title="Fases do workflow (Jira Plans)">
+            <Button size="sm" variant="outline" className="h-9 px-2.5 xl:px-3 gap-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsPhasesOpen(true)} title="Fases e cores das barras do Cronograma" aria-label="Fases do Cronograma">
               <Workflow className="h-3.5 w-3.5" />
+              <span className="hidden xl:inline text-xs font-semibold">Fases</span>
             </Button>
           </div>
         }
       >
         {/* SUB-HEADER: BARRA DE NAVEGAÇÃO DE ABAS DO SQUAD HUB */}
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 md:px-6 py-2 flex items-center justify-between gap-3 shrink-0 sticky top-0 z-30 shadow-2xs">
+        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 px-4 md:px-6 py-0 flex items-center justify-between gap-3 shrink-0 sticky top-0 z-30 shadow-2xs">
           <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar w-full py-0.5">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
-              <TabsList className="bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl h-9 gap-1 inline-flex border border-slate-200/60 dark:border-slate-700/60">
-                <TabsTrigger value="overview" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Visão Geral & Fluxos
-                </TabsTrigger>
-                <TabsTrigger value="board" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold">
-                  Quadro Scrum
-                </TabsTrigger>
-                <TabsTrigger value="plans" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs text-blue-600 dark:text-blue-400">
-                  Plans / Cronograma
-                </TabsTrigger>
-                <TabsTrigger value="pulse" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Squad Pulse & Métricas
-                </TabsTrigger>
-                <TabsTrigger value="performance" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Performance
-                </TabsTrigger>
-                <TabsTrigger value="dashboards" className="text-[11px] font-black uppercase tracking-wider rounded-lg h-7 px-3.5 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 shadow-xs">
-                  Meu Dashboard
-                </TabsTrigger>
+              <TabsList className="h-auto bg-transparent p-0 gap-1 rounded-none inline-flex">
+                <TabsTrigger value="overview" className="rounded-none h-11 px-4 text-sm font-semibold text-slate-500 dark:text-slate-400 border-b-2 border-transparent bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-slate-900 dark:data-[state=active]:text-white hover:text-slate-800 dark:hover:text-slate-200">Visão geral</TabsTrigger>
+                <TabsTrigger value="board" className="rounded-none h-11 px-4 text-sm font-semibold text-slate-500 dark:text-slate-400 border-b-2 border-transparent bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-slate-900 dark:data-[state=active]:text-white hover:text-slate-800 dark:hover:text-slate-200">Quadro</TabsTrigger>
+                <TabsTrigger value="plans" className="rounded-none h-11 px-4 text-sm font-semibold text-slate-500 dark:text-slate-400 border-b-2 border-transparent bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-slate-900 dark:data-[state=active]:text-white hover:text-slate-800 dark:hover:text-slate-200">Cronograma</TabsTrigger>
+                <TabsTrigger value="metrics" className="rounded-none h-11 px-4 text-sm font-semibold text-slate-500 dark:text-slate-400 border-b-2 border-transparent bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-slate-900 dark:data-[state=active]:text-white hover:text-slate-800 dark:hover:text-slate-200">Métricas</TabsTrigger>
+                <TabsTrigger value="dashboards" className="rounded-none h-11 px-4 text-sm font-semibold text-slate-500 dark:text-slate-400 border-b-2 border-transparent bg-transparent shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-primary data-[state=active]:text-slate-900 dark:data-[state=active]:text-white hover:text-slate-800 dark:hover:text-slate-200">Meu painel</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
@@ -480,143 +479,19 @@ function SquadHubContent() {
               ABA 1: VISÃO GERAL & FLUXOS DE USO (NOVO HUB 360º)
              ═══════════════════════════════════════════════════════════════════ */}
           {activeTab === 'overview' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {/* Hero Banner Squad */}
-              <div className="bg-gradient-to-br from-indigo-50/90 via-white to-slate-50/90 dark:from-indigo-950/40 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200/80 dark:border-indigo-500/20 rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden">
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className="bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-none font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5">
-                        CENTRAL DA SQUAD
-                      </Badge>
-                      <span className="text-xs text-slate-400 font-code">Projeto: {squadId}</span>
-                    </div>
-                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tighter uppercase font-headline text-slate-900 dark:text-white">
-                      {config?.name || squadId} · Painel de Governança & Rituais
-                    </h2>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 max-w-2xl mt-1.5 leading-relaxed">
-                      Ciclo ágil contínuo conectado diretamente ao Jira. Acompanhe a esteira de entregas, registre worklogs diários e meça a maturidade do time.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-3 shrink-0">
-                    <Button
-                      onClick={() => setActiveTab('board')}
-                      variant="outline"
-                      className="rounded-2xl h-11 px-5 text-xs font-bold uppercase tracking-wider bg-white dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 gap-2 shadow-xs"
-                    >
-                      <LayoutGrid className="h-4 w-4 text-indigo-500" /> Ver Quadro Scrum
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Trilha do Ciclo Ágil Contínuo */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                    <Compass className="h-4 w-4 text-primary" /> Trilha de Rituais Ágeis da Squad
-                  </h3>
-                  <span className="text-[10px] font-bold text-slate-400">Do Refinamento ao Radar de Clima</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { step: '1', name: 'Scrum Poker', desc: 'Refinamento técnico e estimativas de Story Points em tempo real.', href: '/room', icon: Trophy, color: 'text-amber-500 bg-amber-500/10 border-amber-500/20' },
-                    { step: '2', name: 'Sprint Planner', desc: 'Em breve: planejamento de capacidade do time e alocação do escopo.', href: '/sprint-planner', icon: CalendarRange, color: 'text-violet-500 bg-violet-500/10 border-violet-500/20' },
-                    { step: '3', name: 'Sprint Showcase', desc: 'Demonstração de entregas e veredito final com PO e stakeholders.', href: '/showcase', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
-                    { step: '4', name: 'Retrospectiva', desc: 'Lições aprendidas com painel analítico da sprint automático.', href: '/retro', icon: History, color: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20' },
-                    { step: '5', name: 'Plano de Ação 5W2H', desc: 'Ações corretivas estruturadas e cobradas na sprint seguinte.', href: '/action-plan', icon: ListTodo, color: 'text-fuchsia-500 bg-fuchsia-500/10 border-fuchsia-500/20' },
-                    { step: '6', name: 'Radar Health Check', desc: 'Termômetro de clima, segurança psicológica e bem-estar.', href: '/health-check', icon: Activity, color: 'text-rose-500 bg-rose-500/10 border-rose-500/20' },
-                    { step: '7', name: 'Dashboards por Cargo', desc: 'Métricas especializadas para PO, AM, PL, Tech Lead e Tribo.', action: () => setActiveTab('dashboards'), icon: Gauge, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-                  ].map((ritual) => (
-                    <Card
-                      key={ritual.name}
-                      onClick={() => ritual.action ? ritual.action() : router.push(ritual.href!)}
-                      className="p-5 rounded-3xl bg-white dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 hover:border-primary/50 transition-all hover:shadow-lg cursor-pointer group flex flex-col justify-between"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-3">
-                          <div className={`p-2.5 rounded-2xl border ${ritual.color}`}>
-                            <ritual.icon className="h-4 w-4" />
-                          </div>
-                          <span className="text-[10px] font-black text-slate-400 font-code">FASE {ritual.step}</span>
-                        </div>
-                        <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white group-hover:text-primary transition-colors">
-                          {ritual.name}
-                        </h4>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                          {ritual.desc}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-primary mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-                        <span>Acessar Ritual</span>
-                        <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Atalho Rápido para Painéis de Liderança & Roster */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="p-6 rounded-3xl bg-white dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 lg:col-span-2">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <Users className="h-4 w-4 text-indigo-500" /> Membros Conectados ({members.length})
-                    </h4>
-                    <Button size="sm" variant="ghost" onClick={() => setActiveTab('pulse')} className="text-xs text-primary font-bold">
-                      Ver Quadro Completo →
-                    </Button>
-                  </div>
-                  {members.length === 0 ? (
-                    <p className="text-xs text-slate-400">Nenhum membro sincronizado ainda. Utilize o Hub Admin para sincronizar a Squad.</p>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {members.slice(0, 6).map(m => (
-                        <div key={m.jiraAccountId} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50">
-                          <div className="flex items-center gap-2.5 truncate">
-                            <div className="h-7 w-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xs shrink-0">
-                              {m.displayName.charAt(0)}
-                            </div>
-                            <div className="truncate">
-                              <p className="text-xs font-bold truncate text-slate-900 dark:text-slate-100">{m.displayName}</p>
-                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{m.role || 'Developer'}</p>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="text-[8px] font-bold shrink-0">{m.capacityHoursPerDay || 8}h/dia</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Card>
-
-                <Card className="p-6 rounded-3xl bg-white dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 flex flex-col justify-between">
-                  <div>
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-3">
-                      <Sparkles className="h-4 w-4 text-amber-500" /> Meu Papel & Ações
-                    </h4>
-                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                      {userProfile?.name}
-                    </p>
-                    <p className="text-xs font-black text-primary uppercase tracking-wider mt-0.5">
-                      {userProfile?.role || 'Membro'}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-                      Seu papel tem acesso direto aos dashboards analíticos e às cerimônias da squad.
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={() => router.push(role === 'Product Owner' ? '/squad/dashboards/product-owner' : role === 'Agile Master' ? '/squad/dashboards/agile-master' : role === 'People Lead' ? '/squad/dashboards/people-lead' : role === 'Tech Lead' ? '/squad/dashboards/tech-lead' : '/squad/dashboards/member')}
-                    className="w-full mt-4 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white rounded-2xl h-10 text-xs font-black uppercase tracking-wider"
-                  >
-                    Abrir Meu Dashboard ({role || 'Dev'})
-                  </Button>
-                </Card>
-              </div>
-            </div>
+            <SquadOverview
+              squadId={squadId}
+              config={config}
+              rollup={displayRollup}
+              members={members}
+              peopleCount={Math.max(members.length, projectTeamMembers.length)}
+              lastSyncLabel={config?.lastSyncAt ? `Sincronizado com o Jira ${timeAgo(config.lastSyncAt)}` : 'Ainda não sincronizado com o Jira'}
+              isSyncing={isSyncing}
+              canSync={viewingSprintId === null}
+              onSync={() => handleSync()}
+              onOpenTab={setActiveTab}
+              onNavigate={(href) => router.push(href)}
+            />
           )}
 
           {/* ═══════════════════════════════════════════════════════════════════
@@ -643,26 +518,43 @@ function SquadHubContent() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════════════
-              ABA 2: SQUAD PULSE & QUADRO DA SPRINT (VISÃO COMPLETA)
+              ABA 2: Sprint DA SPRINT (VISÃO COMPLETA)
              ═══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'pulse' && (
+          {activeTab === 'metrics' && (
+            <div role="group" aria-label="O que mostrar nas métricas" className="inline-flex self-start rounded-xl border border-slate-300 dark:border-slate-700 overflow-hidden">
+              <button
+                type="button" aria-pressed={metricsView === 'sprint'} onClick={() => setMetricsView('sprint')}
+                className={`h-10 px-4 text-sm font-semibold transition-colors ${metricsView === 'sprint' ? 'bg-primary text-primary-foreground' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                Sprint atual
+              </button>
+              <button
+                type="button" aria-pressed={metricsView === 'performance'} onClick={() => setMetricsView('performance')}
+                className={`h-10 px-4 text-sm font-semibold border-l border-slate-300 dark:border-slate-700 transition-colors ${metricsView === 'performance' ? 'bg-primary text-primary-foreground' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              >
+                Desempenho do time
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'metrics' && metricsView === 'sprint' && (
             <div className="space-y-6 animate-in fade-in duration-300">
               {/* Header Banner Squad Pulse */}
               <div className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-5 md:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-bold uppercase tracking-wider text-[9px] px-2.5 py-0.5">
-                      SQUAD PULSE & QUADRO
+                    <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-semibold text-xs px-2.5 py-0.5">
+                      Sprint
                     </Badge>
                     <span className="text-xs text-slate-400 font-code">
                       {displayRollup?.sprintName || config?.activeSprintId || squadId}
                     </span>
                   </div>
-                  <h2 className="text-xl md:text-2xl font-black italic tracking-tight uppercase font-headline text-slate-900 dark:text-white">
-                    Métricas da Sprint Ativa & Quadro
+                  <h2 className="text-2xl md:text-3xl font-black tracking-tight font-headline text-slate-900 dark:text-white">
+                    Métricas da sprint
                   </h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-2xl leading-relaxed">
-                    Visão em tempo real de vazão, horas trabalhadas, itens parados e composição do escopo da sprint sincronizados com o Jira.
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                    Quantos itens foram entregues, quantas horas foram registradas e o que está parado, a partir do que o Jira mostra.
                   </p>
                 </div>
 
@@ -670,7 +562,7 @@ function SquadHubContent() {
                   <div className="flex items-center gap-2.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 px-4 py-2.5 rounded-2xl shrink-0 text-xs">
                     <CalendarRange className="h-4 w-4 text-indigo-500 shrink-0" />
                     <div>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase">Período da Sprint</p>
+                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Período da sprint</p>
                       <p className="text-xs font-black text-slate-800 dark:text-slate-200">
                         {formatShortDate(displayRollup.extraMetrics.activeSprintStart as string)} → {formatShortDate(displayRollup.extraMetrics.activeSprintEnd as string)}
                         {!!displayRollup.workdaysTotal && <span className="text-slate-400 font-normal ml-1">({displayRollup.workdaysTotal} dias úteis)</span>}
@@ -682,19 +574,19 @@ function SquadHubContent() {
 
               {!isLoading && !rollup && (
                 <Card className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-8 shadow-sm text-center flex flex-col items-center justify-center">
-                  <p className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
-                    Sincronização de Métricas Pendente
+                  <p className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
+                    Ainda não há métricas desta sprint
                   </p>
-                  <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 max-w-md mb-4">
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mb-4">
                     As métricas da sprint ativa ainda não foram carregadas para o squad <strong>{squadId}</strong>. Clique no botão abaixo para puxar as métricas e o quadro da sprint diretamente do Jira utilizando sua conexão/token.
                   </p>
                   <Button
                     onClick={() => handleSync(true)}
                     disabled={isSyncing}
-                    className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-black uppercase tracking-wider px-5 h-9 shadow-md"
+                    className="bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold px-5 h-11 shadow-md"
                   >
                     <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Métricas Agora'}
+                    {isSyncing ? 'Sincronizando…' : 'Sincronizar agora'}
                   </Button>
                 </Card>
               )}
@@ -711,21 +603,21 @@ function SquadHubContent() {
               {displayRollup && byStatusEntries.length > 0 && (
                 <Card className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                       <LayoutGrid className="h-3.5 w-3.5 text-indigo-500" /> Quadro da sprint
                     </span>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       {totalCount} issues no escopo
                     </span>
                   </div>
                   <div className="space-y-2">
                     {byStatusEntries.map(([status, count]) => (
-                      <div key={status} className="flex items-center gap-2.5 text-[11px]">
+                      <div key={status} className="flex items-center gap-2.5 text-sm">
                         <span className="w-36 truncate font-bold text-slate-600 dark:text-slate-300">{status}</span>
                         <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                           <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${Math.round((count / maxStatusCount) * 100)}%` }} />
                         </div>
-                        <span className="text-[9.5px] font-black text-slate-400 tabular-nums w-8 text-right shrink-0">{count}</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums w-8 text-right shrink-0">{count}</span>
                       </div>
                     ))}
                   </div>
@@ -736,27 +628,27 @@ function SquadHubContent() {
               {rollup && (
                 <Card className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-sm">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                       <TrendingUp className="h-3.5 w-3.5 text-emerald-500" /> Produtividade diária
                     </span>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                       horas logadas por dia
                     </span>
                   </div>
                   {dailyDeltas.length === 0 ? (
-                    <p className="text-[10.5px] font-medium text-slate-400">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       Ainda sem histórico suficiente — aparece a partir do segundo dia com sincronização.
                     </p>
                   ) : (
                     <div className="space-y-2">
                       {dailyDeltas.map(d => (
-                        <div key={d.date} className="flex items-center gap-2.5 text-[11px]">
+                        <div key={d.date} className="flex items-center gap-2.5 text-sm">
                           <span className="w-16 shrink-0 font-bold text-slate-500 dark:text-slate-400 tabular-nums">{formatShortDate(d.date)}</span>
                           <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                             <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500" style={{ width: `${Math.round((d.loggedDelta / 10) * 100)}%` }} />
                           </div>
-                          <span className="text-[9.5px] font-black text-slate-400 tabular-nums w-16 text-right shrink-0">{d.loggedDelta.toFixed(1)}h</span>
-                          <span className="text-[8.5px] font-bold text-slate-400 tabular-nums w-16 text-right shrink-0">{d.doneDelta} concl.</span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums w-16 text-right shrink-0">{d.loggedDelta.toFixed(1)}h</span>
+                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums w-16 text-right shrink-0">{d.doneDelta} concl.</span>
                         </div>
                       ))}
                     </div>
@@ -767,7 +659,7 @@ function SquadHubContent() {
               {/* Roster de Membros */}
               <Card className="bg-white/80 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/50 rounded-3xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                     <Users className="h-3.5 w-3.5 text-indigo-500" /> Membros da Equipe ({members.length})
                   </span>
                   <Button
@@ -827,7 +719,7 @@ function SquadHubContent() {
           {/* ═══════════════════════════════════════════════════════════════════
               ABA 4: PERFORMANCE & HÁBITOS DE FOCO
              ═══════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'performance' && (
+          {activeTab === 'metrics' && metricsView === 'performance' && (
             <div className="animate-in fade-in duration-300">
               <SquadPerformanceView />
             </div>
