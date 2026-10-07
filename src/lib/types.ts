@@ -348,6 +348,9 @@ export interface Issue {
 
 export type Room = {
   id: string;
+  // Contador de versão otimista do backend (JPA @Version). Vem no GET e no evento ROOM_UPDATED e
+  // volta nos updates pelo spread de `roomData`; não deve ser alterado à mão.
+  version?: number;
   deckType: DeckType;
   votesRevealed: boolean;
   creatorId: string;

@@ -17,7 +17,7 @@ import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
 import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
-import { pokerApi } from '../api';
+import { pokerApi, ROOM_CONFLICT_EVENT } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { workItemsApi } from '@/app/work-items-api';
 import { squadApi } from '@/app/squad/api';
@@ -158,6 +158,27 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       setAreParticipantsLoading(false);
     }
   }, [roomId, session]);
+
+  // Conflito de gravação: duas ações partiram da mesma versão da sala e o backend recusou a mais
+  // lenta (409). Recarrega o estado real e avisa, em vez de falhar em silêncio ou sobrescrever.
+  // Vários conflitos em sequência (ações encadeadas) viram um único aviso e uma única recarga.
+  const lastConflictAtRef = useRef(0);
+  useEffect(() => {
+    const onConflict = (e: Event) => {
+      const detail = (e as CustomEvent<{ roomId?: string }>).detail;
+      if (detail?.roomId && detail.roomId !== roomId) return;
+      const now = Date.now();
+      if (now - lastConflictAtRef.current < 2000) return;
+      lastConflictAtRef.current = now;
+      reloadRoomData();
+      toast({
+        title: 'A sala mudou',
+        description: 'Outra pessoa atualizou a sala antes da sua ação ser salva. Os dados foram recarregados; repita a ação se ainda for necessária.',
+      });
+    };
+    window.addEventListener(ROOM_CONFLICT_EVENT, onConflict);
+    return () => window.removeEventListener(ROOM_CONFLICT_EVENT, onConflict);
+  }, [roomId, reloadRoomData, toast]);
 
   // Conexão WebSocket com Reconexão Automática e Carga Inicial
   useEffect(() => {
