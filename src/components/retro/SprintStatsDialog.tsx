@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workItemsApi } from '@/app/work-items-api';
 import { useUserContext } from '@/context/UserContext';
-import { TrendingUp, CheckCircle2, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useProjectEstimationUnit, type EstimationUnit } from '@/components/ui/DashboardFilters';
+import { TrendingUp, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 
 interface SprintStatsDialogProps {
   open: boolean;
@@ -12,13 +12,24 @@ interface SprintStatsDialogProps {
   sprintId?: string;
 }
 
+// Sufixo curto da unidade que a squad configurou (antes era sempre "pts").
+const UNIT_SUFFIX: Record<EstimationUnit, string> = {
+  SP: 'pts',
+  HOURS: 'h',
+  TSHIRT: 'tamanhos',
+  COUNT: 'itens',
+};
+
 export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintStatsDialogProps) {
   const { userProfile } = useUserContext();
+  const { unit, isConfigured } = useProjectEstimationUnit();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const activeSquad = squadId || userProfile?.squadId || '';
   const activeSprint = sprintId || 'active';
+  // Sem unidade configurada pela squad, não assume "pts": mostra só o número.
+  const suffix = isConfigured ? UNIT_SUFFIX[unit] : '';
 
   useEffect(() => {
     if (open) {
@@ -31,74 +42,76 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
     }
   }, [open, activeSquad, activeSprint]);
 
+  const delivered = stats ? (stats.entregue ?? stats.velocityReal ?? 0) : 0;
+  const planned = stats?.previsto || 0;
+  const hasAnyData = !!stats && (delivered > 0 || planned > 0 || (stats.carryOvers || 0) > 0);
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[620px] border-none bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl shadow-2xl rounded-[2.5rem] p-8 max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-800/50 font-bold text-[11px] uppercase tracking-wide px-2.5 py-0.5 rounded-full">
-              <Sparkles className="h-3 w-3 mr-1 inline" /> Métricas Automatizadas
-            </Badge>
-          </div>
-          <DialogTitle className="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100 uppercase">
-            Resumo Analítico da Sprint
-          </DialogTitle>
-          <DialogDescription className="text-xs font-medium text-slate-400">
-            Dados consolidados de <span className="font-bold text-slate-600 dark:text-slate-300">{activeSquad}</span> via <span className="font-code text-indigo-500">work_items</span>.
+      <DialogContent className="sm:max-w-[620px] rounded-[2rem] border border-border bg-card text-card-foreground shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-1.5 text-left">
+          <DialogTitle className="text-2xl font-black tracking-tight leading-none">Números da sprint</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            O que a squad <span className="font-semibold text-foreground">{activeSquad}</span> planejou e entregou, com dados do Jira.
           </DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-3">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Sincronizando métricas da sprint...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+            <p className="text-sm text-muted-foreground">Carregando os números da sprint…</p>
           </div>
         ) : (
-          <div className="w-full mt-2">
-            <div className="space-y-4 pt-3">
-              {stats ? (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100/50 dark:border-indigo-900/40 flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-indigo-600 dark:text-indigo-400 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Velocity Real</span>
-                        <TrendingUp className="h-4 w-4" />
-                      </div>
-                      <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.velocityReal || stats.entregue || 0} <span className="text-xs font-bold text-slate-400">pts</span></p>
+          <div className="space-y-4 pt-2">
+            {stats ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/5">
+                    <div className="flex items-center justify-between text-indigo-500 mb-2">
+                      <span className="text-xs font-bold">Entregue na sprint</span>
+                      <TrendingUp className="h-4 w-4" />
                     </div>
-
-                    <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-100/50 dark:border-emerald-900/40 flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Prev. vs Entr.</span>
-                        <CheckCircle2 className="h-4 w-4" />
-                      </div>
-                      <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.entregue ?? stats.velocityReal ?? 0} <span className="text-xs font-bold text-slate-400">/ {stats.previsto || 0}</span></p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/30 border border-amber-100/50 dark:border-amber-900/40 flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-2">
-                        <span className="text-[11px] font-bold uppercase tracking-wider">Carry-overs</span>
-                        <AlertTriangle className="h-4 w-4" />
-                      </div>
-                      <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{stats.carryOvers || 0} <span className="text-xs font-bold text-slate-400">pts</span></p>
-                    </div>
+                    <p className="text-2xl font-black">{stats.velocityReal || stats.entregue || 0} <span className="text-sm font-semibold text-muted-foreground">{suffix}</span></p>
+                    <p className="text-xs text-muted-foreground mt-1">Total concluído (velocidade).</p>
                   </div>
 
-                  {stats.previsto > 0 && (
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-medium">
-                      <span className="text-slate-500">Taxa de Aderência (Say/Do Ratio):</span>
-                      <span className="font-black text-slate-900 dark:text-slate-100">
-                        {Math.round(((stats.entregue ?? stats.velocityReal ?? 0) / (stats.previsto || 1)) * 100)}%
-                      </span>
+                  <div className="p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
+                    <div className="flex items-center justify-between text-emerald-500 mb-2">
+                      <span className="text-xs font-bold">Entregue do previsto</span>
+                      <CheckCircle2 className="h-4 w-4" />
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-6 text-xs font-black uppercase tracking-wider text-rose-500">
-                  Não foi possível carregar as métricas de cerimônia da sprint.
+                    <p className="text-2xl font-black">{delivered} <span className="text-sm font-semibold text-muted-foreground">de {planned}</span></p>
+                    <p className="text-xs text-muted-foreground mt-1">O que estava no planejamento.</p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5">
+                    <div className="flex items-center justify-between text-amber-500 mb-2">
+                      <span className="text-xs font-bold">Ficou para a próxima</span>
+                      <AlertTriangle className="h-4 w-4" />
+                    </div>
+                    <p className="text-2xl font-black">{stats.carryOvers || 0} <span className="text-sm font-semibold text-muted-foreground">{suffix}</span></p>
+                    <p className="text-xs text-muted-foreground mt-1">Itens que passaram de sprint.</p>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {planned > 0 && (
+                  <div className="p-3.5 rounded-xl border border-border bg-muted/30 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Cumprimento do planejado</span>
+                    <span className="font-black">{Math.round((delivered / (planned || 1)) * 100)}%</span>
+                  </div>
+                )}
+
+                {!hasAnyData && (
+                  <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border p-3.5">
+                    Ainda não há dados desta sprint. Conecte o Jira e sincronize a squad no Painel para os números aparecerem aqui.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-rose-500 text-center py-6">
+                Não foi possível carregar os números desta sprint. Tente de novo em instantes.
+              </p>
+            )}
           </div>
         )}
       </DialogContent>

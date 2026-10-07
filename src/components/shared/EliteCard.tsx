@@ -262,6 +262,8 @@ export function AgileCard({
               variant="ghost"
               size="sm"
               disabled={!canVote}
+              title={hasVoted ? 'Remover meu voto' : canVote ? 'Votar neste card' : 'A votação não está aberta'}
+              aria-label={hasVoted ? 'Remover meu voto' : 'Votar neste card'}
               onClick={(e) => { e.stopPropagation(); onVote(id); }}
               className={cn(
                 "h-7 px-2 gap-1 rounded-lg transition-all font-black text-[9px] uppercase tracking-widest shrink-0",
@@ -283,7 +285,7 @@ export function AgileCard({
                 size="icon"
                 onClick={(e) => { e.stopPropagation(); onEdit(id); }}
                 className="h-7 w-7 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
-                title="Editar Card"
+                title="Editar card" aria-label="Editar card"
               >
                 <Pencil className="h-3 w-3" />
               </Button>
@@ -295,7 +297,7 @@ export function AgileCard({
                 size="icon"
                 onClick={(e) => { e.stopPropagation(); onStartMerge(id); }}
                 className="h-7 w-7 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all"
-                title="Fundir Ideia"
+                title="Juntar com outro card" aria-label="Juntar com outro card"
               >
                 <GitMerge className="h-3 w-3" />
               </Button>
@@ -307,7 +309,7 @@ export function AgileCard({
                 size="icon"
                 onClick={(e) => { e.stopPropagation(); onDelete(id); }}
                 className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all"
-                title="Excluir Card"
+                title="Excluir card" aria-label="Excluir card"
               >
                 <Trash2 className="h-3 w-3" />
               </Button>

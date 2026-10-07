@@ -85,71 +85,64 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
 
   return (
     <Dialog open={isOpen} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="sm:max-w-[600px] border-none shadow-2xl bg-white/95 backdrop-blur-xl rounded-[2rem] p-0 overflow-hidden">
-        <DialogHeader className="p-8 pb-4 bg-indigo-50/50">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-indigo-100 rounded-xl text-indigo-600">
-              <ListTodo className="h-6 w-6" />
-            </div>
-            <div>
-              <DialogTitle className="text-2xl font-black uppercase tracking-tight  text-slate-800">Ações Pendentes</DialogTitle>
-              <DialogDescription className="font-medium text-slate-500">
-                Retros anteriores do squad <strong>{team}</strong> com itens ainda não concluídos.
-              </DialogDescription>
-            </div>
-          </div>
+      <DialogContent className="sm:max-w-[600px] rounded-[2rem] border border-border bg-card text-card-foreground shadow-2xl p-6 gap-3">
+        <DialogHeader className="text-left space-y-1.5">
+          <DialogTitle className="text-2xl font-black tracking-tight leading-none flex items-center gap-2.5">
+            <ListTodo className="h-5 w-5 text-emerald-500" /> Ações pendentes
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Retros anteriores de <strong className="text-foreground">{team}</strong> com ações que ainda não foram concluídas. Escolha uma para trazer essas ações para este quadro.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="px-8 py-4">
-          <ScrollArea className="h-[350px] pr-4">
-            {loading ? (
-              <div className="h-full flex flex-col items-center justify-center space-y-6 opacity-70">
-                <AgileSpinner size="lg" />
-                <p className="text-[11px] font-bold uppercase tracking-[0.4em] ml-[0.4em] animate-pulse text-slate-400">Buscando Histórico...</p>
-              </div>
-            ) : groups.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-30 py-10 text-center">
-                <History className="h-12 w-12" />
-                <p className="text-sm font-bold uppercase tracking-tight">Nenhuma pendência encontrada para este squad</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {groups.map(({ board, pendingCards }) => (
-                  <div
-                    key={board.id}
-                    onClick={() => { onImport(board, pendingCards); onClose(); }}
-                    className="group p-4 rounded-2xl border-2 border-slate-100 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all cursor-pointer"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-black text-sm text-slate-800 truncate uppercase tracking-tight">
-                          {board.title || 'Retrospectiva sem título'}
-                        </h4>
-                        <div className="flex items-center gap-4 text-[11px] text-slate-400 font-bold uppercase tracking-wide mt-1.5">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {formatDate(board.createdAt)}
-                          </span>
-                          <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100 text-[11px] font-bold uppercase px-2">
-                            {pendingCards.length} pendência{pendingCards.length > 1 ? 's' : ''}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="shrink-0 pt-1">
-                        <div className="h-8 w-8 rounded-full border-2 border-slate-200 flex items-center justify-center group-hover:border-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                          <ArrowRight className="h-4 w-4" />
-                        </div>
+        <ScrollArea className="h-[340px] pr-3">
+          {loading ? (
+            <div className="h-full flex flex-col items-center justify-center space-y-4 py-10">
+              <AgileSpinner size="lg" />
+              <p className="text-sm text-muted-foreground">Buscando retros anteriores…</p>
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3 py-10 text-center">
+              <History className="h-10 w-10 text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-foreground">Nenhuma ação pendente</p>
+              <p className="text-sm text-muted-foreground max-w-xs">As retros anteriores deste time não têm ações em aberto.</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {groups.map(({ board, pendingCards }) => (
+                <button
+                  type="button"
+                  key={board.id}
+                  onClick={() => { onImport(board, pendingCards); onClose(); }}
+                  className="group w-full text-left p-4 rounded-2xl border border-border bg-muted/20 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-sm text-foreground truncate">
+                        {board.title || 'Retrospectiva sem título'}
+                      </h4>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {formatDate(board.createdAt)}
+                        </span>
+                        <Badge variant="secondary" className="text-xs font-semibold px-2">
+                          {pendingCards.length} {pendingCards.length > 1 ? 'ações pendentes' : 'ação pendente'}
+                        </Badge>
                       </div>
                     </div>
+                    <div className="h-8 w-8 shrink-0 rounded-full border border-border flex items-center justify-center group-hover:border-emerald-500 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+                      <ArrowRight className="h-4 w-4" />
+                    </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-        </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </ScrollArea>
 
-        <DialogFooter className="p-6 bg-slate-50/50 border-t flex sm:justify-center">
-          <Button variant="ghost" onClick={onClose} className="font-bold uppercase tracking-wide text-[11px]">
+        <DialogFooter className="sm:justify-end">
+          <Button variant="ghost" onClick={onClose} className="font-bold text-sm text-muted-foreground hover:text-foreground">
             Fechar
           </Button>
         </DialogFooter>

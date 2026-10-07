@@ -313,11 +313,11 @@ function RetroColumnComponent({
                       onChange={e => setEditedTitle(e.target.value)}
                       onBlur={handleTitleSave}
                       onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
-                      className="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:!text-slate-100 leading-none bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
+                      className="text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-none bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
                     />
                   ) : (
                     <div className="flex items-center gap-2 group/title min-w-0">
-                      <h2 className="min-w-0 flex-1 text-[13px] font-black uppercase tracking-tight text-slate-800 dark:!text-slate-100 leading-tight truncate" title={title}>{title}</h2>
+                      <h2 className="min-w-0 flex-1 text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-tight line-clamp-2" title={title}>{title}</h2>
                       {isCreator && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
@@ -339,7 +339,7 @@ function RetroColumnComponent({
                   variant="outline"
                   size="sm"
                   onClick={(e) => { e.stopPropagation(); setIsImportOpen(true); }}
-                  className="h-8 w-8 p-0 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  className="h-8 w-8 p-0 border-emerald-200/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
                   title="Importar ações pendentes de uma retro anterior do mesmo squad"
                   aria-label="Importar ações pendentes"
                 >
@@ -352,7 +352,7 @@ function RetroColumnComponent({
                   variant="outline"
                   size="sm"
                   onClick={handleExportToWorkspace}
-                  className="h-8 w-8 p-0 border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all"
+                  className="h-8 w-8 p-0 border-emerald-200/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
                   title="Sincronizar resumo com o histórico"
                   aria-label="Sincronizar resumo"
                 >

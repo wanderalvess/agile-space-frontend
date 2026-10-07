@@ -1,5 +1,24 @@
 [
   {
+    "tag": "v4.8.0",
+    "date": "7 de Outubro, 2026",
+    "title": "Acabamento da Retro",
+    "description": "Cores, textos e diálogos da Retro revisados para ficarem claros e no mesmo padrão do Poker.",
+    "changes": [
+      "Barra da Retro: \"Cards visíveis\" e \"Iniciar votação\" usam o verde da ferramenta em vez de índigo e branco, e o texto do aviso \"Revele os cards primeiro\" ficou legível.",
+      "Colunas: os títulos aparecem em letras normais e o \"Plano de Ação\" não é mais cortado pelos botões de importar e sincronizar.",
+      "Cards: os botões de votar, editar, juntar e excluir agora têm dica ao passar o mouse (por exemplo \"Votar neste card\" e \"Juntar com outro card\").",
+      "Estatísticas da sprint viraram \"Números da sprint\": nomes diretos, uma frase explicando cada número e a unidade que a squad configurou. Sumiu o nome de tabela interna que aparecia no texto.",
+      "Ações pendentes, pergunta de humor antes de entrar e lista de participantes ganharam o visual padrão do app, com textos maiores e claros também no tema escuro.",
+      "Apresentação: as abas das colunas mostram o nome ao passar o mouse e o botão Sair deixou de ser um bloco branco."
+    ],
+    "type": "minor",
+    "icon": {
+      "name": "Sparkles",
+      "className": "h-5 w-5 text-emerald-500"
+    }
+  },
+  {
     "tag": "v4.7.0",
     "date": "6 de Outubro, 2026",
     "title": "Review e Retro no mesmo padrão do Poker",

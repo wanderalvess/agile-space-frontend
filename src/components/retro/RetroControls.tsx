@@ -145,14 +145,14 @@ export function RetroControls({
       <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-slate-50/50 rounded-xl border border-slate-200/30">
         <div className={cn(
           "p-1 rounded-lg transition-all",
-          isCardsRevealed ? "bg-indigo-600 text-white" : "bg-slate-200 text-slate-400"
+          isCardsRevealed ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-400"
         )}>
           {isCardsRevealed ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
         </div>
         {votingStatus !== 'disabled' && (
           <span className={cn(
             "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
-            votingStatus === 'active' ? "bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 animate-pulse" : "bg-slate-200 text-slate-500"
+            votingStatus === 'active' ? "bg-emerald-600 text-white animate-pulse" : "bg-slate-200 text-slate-500"
           )}>
             {votingStatus === 'active' ? 'Votando' : 'Votos'}
           </span>
@@ -263,8 +263,8 @@ export function RetroControls({
             className={cn(
               "h-8 px-3 rounded-xl border transition-all gap-1.5",
               isCardsRevealed
-                ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:text-white shadow-md shadow-indigo-600/20"
-                : "text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-600/50 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+                ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 hover:text-white shadow-md shadow-emerald-600/20"
+                : "text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-600/50 bg-slate-50/60 dark:bg-slate-800/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600 hover:border-emerald-200"
             )}
           >
             {isCardsRevealed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
@@ -282,7 +282,7 @@ export function RetroControls({
                       size="sm"
                       onClick={() => onSetVotingStatus('active')}
                       disabled={!isCardsRevealed}
-                      className="h-8 px-3 rounded-xl gap-1.5 bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200 disabled:opacity-40"
+                      className="h-8 px-3 rounded-xl gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 disabled:opacity-40 disabled:shadow-none"
                     >
                       <Vote className="h-3.5 w-3.5" />
                       <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Iniciar votação</span>
@@ -290,7 +290,7 @@ export function RetroControls({
                   </div>
                 </TooltipTrigger>
                 {!isCardsRevealed && (
-                  <TooltipContent side="bottom" className={cn("bg-slate-900 text-white border-none rounded-xl p-2 text-[10px] font-bold uppercase tracking-wide", compact && "z-[130]")}>
+                  <TooltipContent side="bottom" className={cn("bg-slate-900 text-white border-none rounded-xl p-2 text-xs font-medium", compact && "z-[130]")}>
                     Revele os cards primeiro
                   </TooltipContent>
                 )}
@@ -311,7 +311,7 @@ export function RetroControls({
               variant="outline"
               size="sm"
               onClick={() => onSetVotingStatus('disabled')}
-              className="h-8 px-3 rounded-xl gap-1.5 border-slate-200 text-slate-500 bg-white hover:bg-slate-100"
+              className="h-8 px-3 rounded-xl gap-1.5 border-border text-muted-foreground bg-transparent hover:bg-muted hover:text-foreground"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               <span className="text-[10px] font-bold uppercase tracking-wide hidden md:inline">Resetar votação</span>
@@ -332,8 +332,8 @@ export function RetroControls({
               className={cn(
                 "h-8 px-3 rounded-xl border transition-all gap-1.5",
                 isMenuOpen
-                  ? "bg-indigo-50 text-indigo-600 border-indigo-200"
-                  : "text-slate-500 border-slate-200/60 bg-slate-50/50 hover:bg-indigo-50 hover:text-indigo-600"
+                  ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border-emerald-200"
+                  : "text-slate-500 border-slate-200/60 bg-slate-50/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600"
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -341,11 +341,11 @@ export function RetroControls({
             </Button>
           </PopoverTrigger>
           {/* Na barra de apresentação (z-[110]) e com a coluna em tela cheia (z-[100]), o z-50 padrão ficaria por baixo */}
-          <PopoverContent align="end" className={cn("w-[300px] rounded-2xl border-slate-200 shadow-2xl p-3 space-y-2 bg-white/95 backdrop-blur-xl", compact && "z-[130]")}>
+          <PopoverContent align="end" className={cn("w-[300px] rounded-2xl border-border shadow-2xl p-3 space-y-2 bg-card text-card-foreground", compact && "z-[130]")}>
             {/* Limite de votos por pessoa */}
             {onSetMaxVotesPerParticipant && (
-              <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <Label className="text-[10px] font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+              <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-muted/40 border border-border">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <Star className="h-3 w-3" /> Votos por pessoa
                 </Label>
                 <div className="flex items-center gap-1">
@@ -355,9 +355,10 @@ export function RetroControls({
                       variant="ghost"
                       size="sm"
                       onClick={() => onSetMaxVotesPerParticipant(n)}
+                      title={n === 0 ? 'Sem limite de votos' : `${n} votos por pessoa`}
                       className={cn(
-                        "h-6 px-1.5 text-[9px] font-black rounded-md transition-all",
-                        maxVotesPerParticipant === n ? "bg-white text-indigo-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+                        "h-7 min-w-7 px-1.5 text-xs font-bold rounded-md transition-all",
+                        maxVotesPerParticipant === n ? "bg-emerald-600 text-white shadow-sm border border-emerald-600" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
                       {n === 0 ? '∞' : n}
@@ -368,9 +369,9 @@ export function RetroControls({
             )}
 
             {/* Timer */}
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2">
+            <div className="p-2.5 rounded-xl bg-muted/40 border border-border space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-[10px] font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <Clock className="h-3 w-3" /> Timer
                 </Label>
                 <div className="flex items-center gap-2">
@@ -402,8 +403,8 @@ export function RetroControls({
                         size="sm"
                         onClick={() => onSetTimerDuration(d)}
                         className={cn(
-                          "h-6 px-1.5 text-[9px] font-black rounded-md transition-all",
-                          timer?.initialDuration === d ? "bg-white text-indigo-600 shadow-sm border border-slate-200" : "text-slate-400 hover:text-slate-600"
+                          "h-7 min-w-7 px-1.5 text-xs font-bold rounded-md transition-all",
+                          timer?.initialDuration === d ? "bg-emerald-600 text-white shadow-sm border border-emerald-600" : "text-slate-400 hover:text-slate-600"
                         )}
                       >
                         {d / 60}m

@@ -493,8 +493,10 @@ const RetroBoardComponent = ({
                   variant="ghost"
                   onClick={() => onStageChange(col.id)}
                   disabled={boardData.syncStageEnabled && !isCurrentUserCreator}
+                  title={`${col.title} (${count})`}
+                  aria-label={`${col.title}, ${count} cards`}
                   className={cn(
-                    "h-10 px-3.5 sm:px-4 rounded-xl gap-2 shrink-0 font-black text-[11px] uppercase tracking-widest transition-all border",
+                    "h-10 px-3.5 sm:px-4 rounded-xl gap-2 shrink-0 font-bold text-xs transition-all border",
                     isActive
                       ? cn("text-white shadow-lg scale-[1.03] border-transparent", config.color)
                       : "bg-white/40 dark:!bg-slate-800/50 text-slate-500 dark:!text-slate-400 border-white/70 dark:!border-slate-600/50 hover:bg-white/70 dark:hover:!bg-slate-800/80"
@@ -543,8 +545,8 @@ const RetroBoardComponent = ({
               variant="ghost"
               size="sm"
               onClick={() => setIsFocusMode(false)}
-              className="h-9 px-3.5 shrink-0 rounded-xl text-[10px] font-black uppercase tracking-widest gap-1.5 bg-slate-900 text-white dark:!bg-white dark:!text-slate-900 hover:bg-slate-800 dark:hover:!bg-slate-200"
-              title="Sair (ESC)"
+              className="h-9 px-3.5 shrink-0 rounded-xl text-xs font-bold gap-1.5 border border-border bg-muted/40 text-foreground hover:bg-muted"
+              title="Sair da apresentação (Esc)"
             >
               <Minimize2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Sair</span>
@@ -609,16 +611,16 @@ const RetroBoardComponent = ({
       {/* Mobile Sidebar (Sheet) - Only rendered on mobile to avoid overlay conflicts on desktop */}
       <div className="md:hidden">
         <Sheet open={open} onOpenChange={setOpen}>
-          <SheetContent side="right" className="w-[300px] sm:w-[400px] border-l-2 border-emerald-200 p-0 flex flex-col bg-white/95 backdrop-blur-xl">
-            <SheetHeader className="p-6 border-b bg-emerald-50/30">
+          <SheetContent side="right" className="w-[300px] sm:w-[400px] border-l border-border p-0 flex flex-col bg-card text-card-foreground">
+            <SheetHeader className="p-6 border-b border-border text-left">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
                   <Users className="h-5 w-5" />
                 </div>
                 <div>
-                  <SheetTitle className="text-lg font-black uppercase tracking-tighter italic">Squad Ativa</SheetTitle>
-                  <SheetDescription className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/60">
-                    {participants.length} integrantes online
+                  <SheetTitle className="text-lg font-black tracking-tight">Participantes</SheetTitle>
+                  <SheetDescription className="text-sm text-muted-foreground">
+                    {participants.length} {participants.length === 1 ? 'pessoa na retro' : 'pessoas na retro'}
                   </SheetDescription>
                 </div>
               </div>
@@ -632,12 +634,12 @@ const RetroBoardComponent = ({
                 onClaimCreator={onClaimCreator}
               />
             </div>
-            <div className="p-4 border-t bg-white">
+            <div className="p-4 border-t border-border">
               <Button 
                 onClick={handleCopyLink} 
-                className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-emerald-600/20 gap-2"
+                className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-lg shadow-emerald-600/25 gap-2"
               >
-                <Copy className="h-4 w-4" /> Convidar Time
+                <Copy className="h-4 w-4" /> Copiar link de convite
               </Button>
             </div>
           </SheetContent>
