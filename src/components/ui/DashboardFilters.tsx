@@ -64,9 +64,9 @@ export function DashboardFilters({ filters }: DashboardFiltersProps) {
     <div className="flex flex-wrap items-center gap-3">
       {/* Indicador Fixo da Configuração Oficial do Projeto (definida na configuração da squad) */}
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
+        <label className="text-xs font-semibold text-primary flex items-center gap-1">
           <ShieldCheck className="h-3 w-3 text-primary" />
-          Métrica do Projeto
+          Unidade de estimativa
         </label>
         {isConfigured ? (
           <div className="h-9 px-3.5 bg-primary/10 border border-primary/25 text-primary text-xs font-bold rounded-xl flex items-center gap-2 shadow-inner">
@@ -84,7 +84,7 @@ export function DashboardFilters({ filters }: DashboardFiltersProps) {
       {/* Outros Filtros Dinâmicos (Sprint, Projeto, Período) */}
       {filters.map((filter, index) => (
         <div key={index} className="flex flex-col gap-1">
-          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          <label className="text-xs font-semibold text-muted-foreground">
             {filter.label}
           </label>
           <Select

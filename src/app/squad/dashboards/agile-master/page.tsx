@@ -82,13 +82,13 @@ export default function AgileMasterDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Saúde da Sprint / Conclusão */}
         <GaugeChart
-          title="VAZÃO E CONCLUSÃO DA SPRINT"
+          title="Itens entregues na sprint"
           value={completionRate}
           description={`${done} de ${total} histórias/itens concluídos na sprint.`}
         />
 
         {/* Distribuição do Fluxo de Trabalho */}
-        <WidgetCard title="STATUS DAS HISTÓRIAS (JIRA)">
+        <WidgetCard title="Status das histórias (Jira)">
           <div className="h-44 w-full relative flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -125,14 +125,14 @@ export default function AgileMasterDashboard() {
 
         {/* Impedimentos & Bugs */}
         <KPICard
-          title="BUGS E IMPEDIMENTOS IDENTIFICADOS"
+          title="Bugs e impedimentos"
           value={bugs}
           icon={<AlertCircle className="h-5 w-5 text-destructive" />}
           subtitle={bugs > 0 ? `${bugs} bug(s) reportados na sprint atual.` : "Nenhum bloqueio ou bug crítico reportado."}
         />
 
         {/* Aderência a Planos de Ação e Retros */}
-        <WidgetCard title="PLANO DE AÇÃO DAS RETROSPECTIVAS">
+        <WidgetCard title="Plano de ação das retrospectivas">
           <div className="flex flex-col gap-2.5 mt-1 text-xs">
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <span className="text-foreground font-medium truncate max-w-[70%]">

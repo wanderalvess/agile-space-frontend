@@ -97,7 +97,7 @@ export default function TechLeadDashboard() {
       {/* Grid de Métricas de Engenharia */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Distribuição de Esforço */}
-        <WidgetCard title="DISTRIBUIÇÃO DE ESFORÇO" className="lg:col-span-1">
+        <WidgetCard title="Onde o esforço está" className="lg:col-span-1">
           <div className="h-52 w-full relative flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -125,7 +125,7 @@ export default function TechLeadDashboard() {
         </WidgetCard>
 
         {/* Fila de Code Review & Homologação */}
-        <WidgetCard title="GARGALOS DO PIPELINE DE ENTREGA" className="lg:col-span-2">
+        <WidgetCard title="Onde as entregas estão travando" className="lg:col-span-2">
           <div className="flex flex-col justify-center gap-4 h-full py-2">
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <div className="flex-1 bg-muted/40 p-4 rounded-xl border border-border w-full">
@@ -155,14 +155,14 @@ export default function TechLeadDashboard() {
 
         {/* Bug KPI */}
         <KPICard
-          title="INCIDÊNCIA DE BUGS NA SPRINT"
+          title="Bugs na sprint"
           value={bugs}
           icon={<ShieldAlert className="h-5 w-5 text-destructive" />}
           subtitle={bugs > 0 ? `${bugs} bug(s) reportados na sprint atual.` : "Zero bugs críticos em aberto."}
         />
 
         {/* Carga por Desenvolvedor / Contribuição */}
-        <WidgetCard title="CARGA DE TRABALHO POR MEMBRO" className="lg:col-span-2">
+        <WidgetCard title="Carga de cada pessoa" className="lg:col-span-2">
           <div className="flex flex-col gap-3">
             {contributors.length > 0 ? (
               contributors.map((c, i) => (

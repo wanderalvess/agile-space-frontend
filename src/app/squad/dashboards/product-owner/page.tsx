@@ -83,26 +83,26 @@ export default function ProductOwnerDashboard() {
       {/* Grid de Widgets com Dados Reais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <GaugeChart
-          title="SAY / DO RATIO (ENTREGA DE ESCOPO)"
+          title="Entrega do escopo combinado (Say/Do)"
           value={sayDoRate}
           description={`Concluídos: ${done} de ${total} itens planejados na sprint atual.`}
         />
 
         <SimpleBarChart
-          title="COMPOSIÇÃO DO ESCOPO POR TIPO (JIRA)"
+          title="Escopo por tipo de issue (Jira)"
           data={issueTypeData.length > 0 ? issueTypeData : [{ name: "Story", value: 0 }]}
           defaultColor="hsl(var(--primary))"
         />
 
         <KPICard
-          title="ITENS EM PROGRESSO / BACKLOG DA SPRINT"
+          title="Itens em andamento e a fazer"
           value={inProgress}
           icon={<ListTodo className="h-5 w-5 text-primary" />}
           subtitle={`Total de Histórias na Sprint: ${total}. Concluídas: ${done}.`}
         />
 
         <WidgetCard
-          title="ITENS PENDENTES (RISCO DE CARRY-OVER)"
+          title="Itens pendentes (podem passar para a próxima sprint)"
           headerIcon={<AlertTriangle className="h-5 w-5 text-amber-500" />}
         >
           <div className="flex flex-col gap-2.5 mt-1">

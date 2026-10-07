@@ -89,28 +89,28 @@ export default function TeamMemberDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Gauge: Meu Progresso */}
         <GaugeChart
-          title="MEU PROGRESSO NA SPRINT"
+          title="Meu progresso na sprint"
           value={progressPercent}
           description={`${doneMyTasks} de ${totalMyTasks || displayTasks.length} tarefas concluídas`}
         />
 
         {/* Distribuição por Status */}
         <SimpleBarChart
-          title="MINHAS TAREFAS POR STATUS"
+          title="Minhas tarefas por status"
           data={taskDistributionData.length > 0 ? taskDistributionData : [{ name: "Sem itens", value: 0 }]}
           defaultColor="hsl(var(--primary))"
         />
 
         {/* Bugs & Retrabalho */}
         <KPICard
-          title="BUGS & IMPEDIMENTOS ATIVOS"
+          title="Bugs e impedimentos em aberto"
           value={myBugs}
           icon={<Bug className="h-5 w-5 text-destructive" />}
           subtitle={myBugs > 0 ? `${myBugs} bug(s) vinculados a você aguardando resolução.` : "Nenhum bug crítico bloqueando suas entregas."}
         />
 
         {/* Minhas Tarefas Ativas do Jira */}
-        <WidgetCard title="MINHAS TAREFAS NA SPRINT (JIRA)" className="md:col-span-2">
+        <WidgetCard title="Minhas tarefas na sprint (Jira)" className="md:col-span-2">
           <div className="flex flex-col gap-2.5 mt-1">
             {displayTasks.length > 0 ? (
               displayTasks.map((t) => (
@@ -150,7 +150,7 @@ export default function TeamMemberDashboard() {
         </WidgetCard>
 
         {/* Próximos Rituais e Cerimônias */}
-        <WidgetCard title="RITUAIS DA SQUAD">
+        <WidgetCard title="Rituais da squad">
           <SquadRituals />
         </WidgetCard>
       </div>

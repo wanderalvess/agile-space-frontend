@@ -166,16 +166,15 @@ export function SquadDashboardView() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/80 dark:bg-slate-900/80 p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="bg-primary/10 text-primary font-bold text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-              {userProfile?.role || "Membro da Squad"}
+            <span className="bg-primary/10 text-primary font-semibold text-xs px-2.5 py-0.5 rounded-full">
+              {userProfile?.role || "Membro da squad"}
             </span>
-            <span className="text-xs text-slate-400 font-code">Visão Analítica</span>
           </div>
-          <h2 className="text-lg md:text-xl font-black italic tracking-tight text-slate-900 dark:text-white uppercase font-headline">
-            Dashboards por Cargo & Governança
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white font-headline">
+            Meu painel
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
-            Métricas em tempo real integradas com o Jira para acompanhamento e tomada de decisão.
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Os números da sprint que importam para o seu papel, vindos do Jira. Use as abas para ver o painel de outros papéis.
           </p>
         </div>
 
@@ -205,7 +204,7 @@ export function SquadDashboardView() {
                 key={tab.id}
                 onClick={() => setActiveTab(tabKey)}
                 className={cn(
-                  "rounded-2xl px-4 py-2 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer",
+                  "rounded-xl px-4 py-2 text-sm font-semibold transition-all flex items-center gap-1.5 cursor-pointer",
                   isActive
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-[1.02]"
                     : "bg-white/80 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60"
@@ -219,7 +218,7 @@ export function SquadDashboardView() {
 
           {isSuperUser && (
             <span className="ml-auto hidden md:inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full bg-primary/10 text-primary border border-primary/20">
-              Visão Liderança
+              Visão de liderança
             </span>
           )}
         </div>
@@ -229,22 +228,22 @@ export function SquadDashboardView() {
       {activeTab === "member" && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <GaugeChart
-            title="MEU PROGRESSO NA SPRINT"
+            title="Meu progresso na sprint"
             value={myProgressPercent}
             description={`${doneMyTasks} de ${totalMyTasks || displayTasks.length} tarefas concluídas`}
           />
           <SimpleBarChart
-            title="MINHAS TAREFAS POR STATUS"
+            title="Minhas tarefas por status"
             data={taskDistributionData.length > 0 ? taskDistributionData : [{ name: "Sem itens", value: 0 }]}
             defaultColor="hsl(var(--primary))"
           />
           <KPICard
-            title="BUGS & IMPEDIMENTOS ATIVOS"
+            title="Bugs e impedimentos em aberto"
             value={myBugs}
             icon={<Bug className="h-5 w-5 text-destructive" />}
             subtitle={myBugs > 0 ? `${myBugs} bug(s) vinculados a você.` : "Nenhum bug bloqueando suas entregas."}
           />
-          <WidgetCard title="MINHAS TAREFAS NA SPRINT (JIRA)" className="md:col-span-2">
+          <WidgetCard title="Minhas tarefas na sprint (Jira)" className="md:col-span-2">
             <div className="flex flex-col gap-2.5 mt-1">
               {displayTasks.length > 0 ? (
                 displayTasks.map((t) => (
@@ -274,7 +273,7 @@ export function SquadDashboardView() {
               )}
             </div>
           </WidgetCard>
-          <WidgetCard title="RITUAIS DA SQUAD">
+          <WidgetCard title="Rituais da squad">
             <SquadRituals />
           </WidgetCard>
         </div>
@@ -284,22 +283,22 @@ export function SquadDashboardView() {
       {activeTab === "product-owner" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <GaugeChart
-            title="SAY / DO RATIO (ENTREGA DE ESCOPO)"
+            title="Entrega do escopo combinado (Say/Do)"
             value={poSayDoRate}
             description={`Concluídos: ${done} de ${total} itens planejados na sprint.`}
           />
           <SimpleBarChart
-            title="COMPOSIÇÃO DO ESCOPO POR TIPO"
+            title="Escopo por tipo de issue"
             data={poIssueTypeData.length > 0 ? poIssueTypeData : [{ name: "Story", value: 0 }]}
             defaultColor="hsl(var(--primary))"
           />
           <KPICard
-            title="ITENS EM PROGRESSO NA SPRINT"
+            title="Itens em andamento na sprint"
             value={inProgress}
             icon={<ListTodo className="h-5 w-5 text-primary" />}
             subtitle={`Total na sprint: ${total}. Concluídas: ${done}.`}
           />
-          <WidgetCard title="ITENS PENDENTES (RISCO DE CARRY-OVER)">
+          <WidgetCard title="Itens pendentes (podem passar para a próxima sprint)">
             <div className="flex flex-col gap-2 mt-1">
               {pendingIssues.map((iss) => (
                 <div key={iss.jiraKey} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-2 text-xs">
@@ -317,12 +316,12 @@ export function SquadDashboardView() {
       {activeTab === "agile-master" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <GaugeChart
-            title="VAZÃO E CONCLUSÃO DA SPRINT"
+            title="Itens entregues na sprint"
             value={total > 0 ? Math.round((done / total) * 100) : 0}
             description={`${done} de ${total} histórias/itens concluídos na sprint.`}
           />
           <KPICard
-            title="BUGS & BLOQUEIOS NA SPRINT"
+            title="Bugs e bloqueios na sprint"
             value={bugs}
             icon={<AlertCircle className="h-5 w-5 text-destructive" />}
             subtitle={bugs > 0 ? `${bugs} bug(s) reportados.` : "Nenhum bloqueio crítico ativo."}
@@ -333,7 +332,7 @@ export function SquadDashboardView() {
       {/* ─── VISÃO 4: TECH LEAD ─── */}
       {activeTab === "tech-lead" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <WidgetCard title="DISTRIBUIÇÃO DE ESFORÇO TÉCNICO">
+          <WidgetCard title="Onde o esforço técnico está">
             <div className="h-52 w-full flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -352,7 +351,7 @@ export function SquadDashboardView() {
             </div>
           </WidgetCard>
           <KPICard
-            title="BUGS EM ABERTO"
+            title="Bugs em aberto"
             value={bugs}
             icon={<ShieldAlert className="h-5 w-5 text-destructive" />}
             subtitle="Qualidade técnica e estabilidade da release."
@@ -363,7 +362,7 @@ export function SquadDashboardView() {
       {/* ─── VISÃO 5: PEOPLE LEAD ─── */}
       {activeTab === "people-lead" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <WidgetCard title="CARGA DE TRABALHO VS. CAPACIDADE">
+          <WidgetCard title="Carga de trabalho e capacidade">
             <div className="h-60 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={workloadData}>
@@ -377,7 +376,7 @@ export function SquadDashboardView() {
             </div>
           </WidgetCard>
           <KPICard
-            title="TOTAL DE MEMBROS ATIVOS"
+            title="Pessoas ativas no time"
             value={members.length}
             icon={<Users2 className="h-5 w-5 text-primary" />}
             subtitle="Membros registrados na squad atual."
@@ -389,13 +388,13 @@ export function SquadDashboardView() {
       {activeTab === "tribe-level" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard
-            title="VELOCIDADE MÉDIA"
+            title="Velocidade média"
             value="415 SP"
             subtitle="Média ponderada por sprint da tribo."
             icon={<TrendingUp className="h-5 w-5 text-indigo-500" />}
           />
           <KPICard
-            title="PREVISIBILIDADE"
+            title="Previsibilidade"
             value="91%"
             subtitle="Histórico de Say/Do Ratio agregado."
             trend="up"
@@ -403,13 +402,13 @@ export function SquadDashboardView() {
             icon={<ShieldCheck className="h-5 w-5 text-emerald-500" />}
           />
           <KPICard
-            title="SAÚDE DO CLIMA"
+            title="Saúde do clima"
             value="4.4"
             subtitle="Radar Health Check médio das squads."
             icon={<Smile className="h-5 w-5 text-emerald-500" />}
           />
           <KPICard
-            title="RITUAIS EM DIA"
+            title="Rituais em dia"
             value="95%"
             subtitle="Aderência às cerimônias ágeis contínuas."
             icon={<CheckCircle className="h-5 w-5 text-primary" />}

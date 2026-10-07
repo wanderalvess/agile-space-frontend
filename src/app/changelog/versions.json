@@ -2,12 +2,13 @@
   {
     "tag": "v4.11.0",
     "date": "7 de Outubro, 2026",
-    "title": "Squad: telas vazias que explicam e configuração em português",
-    "description": "Quando falta dado, o Squad Hub agora diz o motivo e o próximo passo, e a janela de configuração ficou clara.",
+    "title": "Squad: telas vazias, configuração e Meu painel em português",
+    "description": "Quando falta dado o Squad Hub diz o motivo, a configuração ficou clara e o Meu painel perdeu o jargão.",
     "changes": [
       "Cronograma, Métricas e Quadro, quando não há dados, mostram um de quatro casos: Jira não conectado, primeira sincronização, quadro não encontrado ou erro ao sincronizar. Cada um traz os passos e o botão certo, em vez de uma tabela em branco ou um texto cinza.",
       "A janela \"Configurar a squad\" foi reorganizada em 1. Conexão com o Jira, 2. Projeto da squad e 3. Capacidade do time. Termos técnicos como JQL, ID do quadro e campo da sprint foram para \"Opções avançadas\", cada um com uma explicação curta.",
-      "O botão \"Conectar o Jira\" das telas vazias abre direto essa janela."
+      "O botão \"Conectar o Jira\" das telas vazias abre direto essa janela.",
+      "Meu painel: o cabeçalho agora é \"Meu painel\", com uma frase dizendo o que a tela mostra. As abas por papel ficaram em português (\"Execução (Dev, QA e UX)\", \"Consultas do Jira (JQL)\", \"Tribo (várias squads)\") e os títulos dos gráficos e cartões (por exemplo \"Meu progresso na sprint\" e \"Itens pendentes (podem passar para a próxima sprint)\") deixaram a caixa-alta miúda e os termos técnicos."
     ],
     "type": "minor",
     "icon": {

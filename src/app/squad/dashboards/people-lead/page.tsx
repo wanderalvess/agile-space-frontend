@@ -85,7 +85,7 @@ export default function PeopleLeadDashboard() {
       {/* Grid de Métricas de Pessoas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Equilíbrio de Carga Nominal */}
-        <WidgetCard title="CARGA DE TRABALHO VS. CAPACIDADE" className="lg:col-span-2">
+        <WidgetCard title="Carga de trabalho e capacidade" className="lg:col-span-2">
           <p className="text-[11px] text-muted-foreground mb-4">
             Comparação entre esforço alocado em tarefas do Jira e capacidade nominal semanal.
           </p>
@@ -114,13 +114,13 @@ export default function PeopleLeadDashboard() {
         {/* Resumo de Membros */}
         <div className="flex flex-col gap-6">
           <KPICard
-            title="TOTAL DE MEMBROS ATIVOS"
+            title="Pessoas ativas no time"
             value={members.length}
             icon={<Users2 className="h-5 w-5 text-primary" />}
             subtitle="Membros registrados na squad atual."
           />
 
-          <WidgetCard title="DISTRIBUIÇÃO DE PAPÉIS NA SQUAD">
+          <WidgetCard title="Papéis do time">
             <div className="flex flex-col gap-2 mt-1">
               {members.slice(0, 5).map((m) => (
                 <div

@@ -10,7 +10,7 @@ export type DashboardTab = {
 export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   {
     id: "custom",
-    label: "PAINÉIS JQL (JIRA)",
+    label: "Consultas do Jira (JQL)",
     shortLabel: "JQL",
     href: "/squad/dashboards/custom",
     roles: ["*"], // Todos têm acesso aos painéis personalizados
@@ -18,7 +18,7 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   },
   {
     id: "member",
-    label: "DEV / QA / UX",
+    label: "Execução (Dev, QA e UX)",
     shortLabel: "Membro",
     href: "/squad/dashboards/member",
     roles: [
@@ -37,7 +37,7 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   },
   {
     id: "product-owner",
-    label: "PRODUCT OWNER",
+    label: "Product Owner",
     shortLabel: "PO",
     href: "/squad/dashboards/product-owner",
     roles: ["Product Owner", "Product Owner (PO)"],
@@ -45,7 +45,7 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   },
   {
     id: "agile-master",
-    label: "AGILE MASTER",
+    label: "Agile Master",
     shortLabel: "AM",
     href: "/squad/dashboards/agile-master",
     roles: [
@@ -58,7 +58,7 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   },
   {
     id: "people-lead",
-    label: "PEOPLE LEAD",
+    label: "People Lead",
     shortLabel: "PL",
     href: "/squad/dashboards/people-lead",
     roles: ["People Lead"],
@@ -66,7 +66,7 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   },
   {
     id: "tech-lead",
-    label: "TECH LEAD",
+    label: "Tech Lead",
     shortLabel: "TL",
     href: "/squad/dashboards/tech-lead",
     roles: ["Tech Lead", "Arquiteto(a) / Tech Lead"],
@@ -74,7 +74,7 @@ export const ALL_DASHBOARD_TABS: DashboardTab[] = [
   },
   {
     id: "tribe-level",
-    label: "TRIBE / MULTI-SQUAD",
+    label: "Tribo (várias squads)",
     shortLabel: "Tribe",
     href: "/squad/dashboards/tribe-level",
     roles: ["Tribe Lead", "admin"],

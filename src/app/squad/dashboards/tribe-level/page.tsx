@@ -116,7 +116,7 @@ export default function TribeLevelDashboard() {
       </div>
 
       {/* Matriz Comparativa Multi-Squad */}
-      <WidgetCard title="MATRIZ COMPARATIVA MULTI-SQUAD">
+      <WidgetCard title="Comparação entre squads">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

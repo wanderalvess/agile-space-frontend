@@ -18,7 +18,7 @@ export function WidgetCard({ title, children, className, headerIcon }: WidgetCar
     >
       {title && (
         <div className="mb-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-3">
-          <h3 className="text-[11px] font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">
             {title}
           </h3>
           {headerIcon && <div className="text-primary">{headerIcon}</div>}
