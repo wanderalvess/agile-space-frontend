@@ -15,6 +15,10 @@ export interface Evidence {
   // esse é o que aparece, sem ambiguidade). Ausente = 'video', mesmo default
   // de antes dessa flag existir — não muda o comportamento de card já criado.
   evidencePreference?: 'video' | 'screenshot';
+  // Links de apoio (não viram a evidência exibida no Teatro): inferidos na
+  // importação do Jira, editáveis no card.
+  techDocUrl?: string;
+  tdnUrl?: string;
   timeSpent?: number;
   timeEstimate?: number;
   planned?: { dev?: string; qa?: string; tu?: string } | null;
@@ -141,7 +145,19 @@ export interface PresentationPreset {
   isLight?: boolean;
 }
 
+/** Imagem padrão da empresa: capa e fundo de toda Review nova. Arquivo em `public/`. */
+export const DEFAULT_SHOWCASE_IMAGE = '/showcase/fundo-totvs.webp';
+
 export const PRESENTATION_PRESETS: PresentationPreset[] = [
+  {
+    id: 'totvs',
+    name: 'TOTVS (padrão)',
+    category: 'dark',
+    value: DEFAULT_SHOWCASE_IMAGE,
+    preview: 'url',
+    description: 'Foto da sede TOTVS, padrão de toda Review nova',
+    isLight: false,
+  },
   // --- TONS ESCUROS (CINEMATOGRÁFICO) ---
   {
     id: 'noir',
@@ -248,6 +264,7 @@ export const PRESENTATION_PRESETS: PresentationPreset[] = [
 
 
 export const PRESETS = [
+  { id: 'totvs-padrao', name: 'TOTVS', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
   { id: 'totvs', name: 'Corporativo Agile', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente profissional e moderno' },
   { id: 'abstract', name: 'Abstract Flow', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2029&auto=format&fit=crop', description: 'Gradients suaves e modernos' },
   { id: 'office', name: 'Focus Office', url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente de trabalho limpo' },

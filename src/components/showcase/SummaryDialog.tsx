@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import {
-  Download, FileText, CheckCircle2, AlertCircle, XCircle, Clock3, Copy, Loader2, UserCheck2
+  Download, FileText, CheckCircle2, AlertCircle, XCircle, Clock3, Copy, Loader2, UserCheck2, ExternalLink, Link2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
@@ -10,7 +10,6 @@ import { ptBR } from 'date-fns/locale';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, ShowcaseTask, Decision, DECISION } from './types';
 import { formatTime, getDirectImageUrl, stripWikiMarkup, stripNonLatin1ForPdf, getEvidenceUrls } from './utils';
@@ -151,13 +150,9 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         toast({ title: "Resumo Copiado!", description: "O resumo de aprovações foi copiado para a área de transferência." });
       }).catch(err => {
         console.error('Erro ao copiar resumo:', err);
+        toast({ title: 'Não foi possível copiar', description: 'Permita o acesso à área de transferência e tente de novo.', variant: 'destructive' });
       });
     }
-
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([lines], { type: 'text/markdown' }));
-    a.download = `resumo-aprovacoes-${sessionName.replace(/\s+/g, '-').toLowerCase()}.md`;
-    a.click();
   };
 
   // --------------------------------------------------------------------- PDF
@@ -422,12 +417,28 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     { label: 'Aprovadas', items: approved },
   ].filter(g => g.items.length > 0);
 
+  // Links das issues para o PO abrir no Jira: copia agrupado por decisão, um por linha.
+  const copyText = (text: string, title: string) => {
+    navigator.clipboard?.writeText(text)
+      .then(() => toast({ title }))
+      .catch(() => toast({ title: 'Não foi possível copiar', description: 'Permita o acesso à área de transferência e tente de novo.', variant: 'destructive' }));
+  };
+  const linkedCount = tasks.filter(t => t.url).length;
+  const copyAllLinks = () => {
+    const text = groups
+      .map(g => ({ ...g, items: g.items.filter(t => t.url) }))
+      .filter(g => g.items.length > 0)
+      .map(g => [`${g.label} (${g.items.length})`, ...g.items.map(t => `${t.key} - ${t.title}\n${t.url}`)].join('\n'))
+      .join('\n\n');
+    copyText(text, `${linkedCount} ${linkedCount === 1 ? 'link copiado' : 'links copiados'}`);
+  };
+
   // Eficiência = estimado ÷ gasto: acima de 100% a squad gastou menos do que estimou.
   const efficiencyTone = efficiency === null ? 'text-muted-foreground' : efficiency >= 100 ? 'text-emerald-500' : 'text-amber-500';
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[920px] max-h-[90vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden flex flex-col gap-0 bg-card text-card-foreground focus:outline-none">
+      <DialogContent className="sm:max-w-[1080px] w-[96vw] max-h-[90vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden flex flex-col gap-0 bg-card text-card-foreground focus:outline-none">
         <div className="px-6 pt-6 pb-4 shrink-0 border-b border-border">
           <DialogHeader className="text-left space-y-0">
             <DialogTitle className="text-2xl font-black tracking-tight leading-none pr-8">Resumo da Review</DialogTitle>
@@ -447,7 +458,9 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
           )}
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
+        {/* Rolagem simples: o ScrollArea do Radix envolve o conteúdo num `display: table`
+            que cresce com títulos longos e empurrava cards e indicadores para fora do modal. */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
           <div className="p-6 space-y-6">
             {/* Indicadores */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -484,7 +497,14 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
 
             {/* Entregas por decisão */}
             <div className="space-y-5 min-w-0">
-              <h3 className="text-sm font-bold text-foreground">Entregas por decisão</h3>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-foreground">Entregas por decisão</h3>
+                {linkedCount > 0 && (
+                  <Button onClick={copyAllLinks} variant="outline" className="h-8 px-3 rounded-lg text-xs font-bold gap-1.5">
+                    <Link2 className="h-3.5 w-3.5" /> Copiar links das issues
+                  </Button>
+                )}
+              </div>
               {groups.length === 0 && (
                 <p className="text-sm text-muted-foreground">Nenhuma entrega nesta Review.</p>
               )}
@@ -495,17 +515,39 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
                     <div key={t.id} className="rounded-2xl border border-border bg-muted/20 p-4 hover:border-violet-500/40 transition-colors">
                       <div className="flex justify-between items-start gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <span className="h-8 min-w-8 px-1.5 shrink-0 rounded-lg bg-violet-600/10 text-violet-500 flex items-center justify-center text-xs font-bold">
+                          <span className="h-8 min-w-8 px-1.5 shrink-0 rounded-lg bg-violet-600/10 text-violet-500 flex items-center justify-center text-xs font-bold" title={t.key}>
                             {t.key.split('-').pop()}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-foreground truncate">{t.title}</p>
+                            <p className="text-sm font-bold text-foreground line-clamp-2" title={t.title}>{t.title}</p>
                             <p className="text-xs text-muted-foreground truncate">{t.type} · {t.evidence.dev || 'Sem autor'}</p>
                           </div>
                         </div>
-                        <Badge className={cn('text-xs font-semibold border-none rounded-lg shrink-0', DECISION[t.decision].cls)}>
-                          {DECISION[t.decision].label}
-                        </Badge>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {t.url && (
+                            <>
+                              <Button
+                                variant="ghost" size="icon" asChild
+                                className="h-7 w-7 rounded-lg text-muted-foreground hover:text-violet-500"
+                              >
+                                <a href={t.url} target="_blank" rel="noopener noreferrer" title={`Abrir ${t.key} no Jira`} aria-label={`Abrir ${t.key} no Jira`}>
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              </Button>
+                              <Button
+                                variant="ghost" size="icon"
+                                onClick={() => copyText(t.url, `Link de ${t.key} copiado`)}
+                                title={`Copiar link de ${t.key}`} aria-label={`Copiar link de ${t.key}`}
+                                className="h-7 w-7 rounded-lg text-muted-foreground hover:text-violet-500"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                          <Badge className={cn('text-xs font-semibold border-none rounded-lg', DECISION[t.decision].cls)}>
+                            {DECISION[t.decision].label}
+                          </Badge>
+                        </div>
                       </div>
                       {t.decidedByName && (
                         <p className="flex items-center gap-1.5 mt-2.5 text-xs text-muted-foreground">
@@ -527,7 +569,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
               ))}
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Rodapé — o texto dos botões some abaixo de md e ficam só ícones (com title/aria-label) */}
         <div className="px-6 py-4 border-t border-border flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -547,11 +589,11 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
             <Button
               onClick={generateLog}
               variant="outline"
-              title="Copiar o log em Markdown"
-              aria-label="Copiar o log em Markdown"
+              title="Baixar o log em Markdown"
+              aria-label="Baixar o log em Markdown"
               className="h-10 px-4 rounded-xl font-bold text-sm gap-2"
             >
-              <FileText className="h-4 w-4" /> <span className="hidden md:inline">Copiar log (Markdown)</span>
+              <FileText className="h-4 w-4" /> <span className="hidden md:inline">Baixar log (.md)</span>
             </Button>
             <Button
               onClick={handlePDF}

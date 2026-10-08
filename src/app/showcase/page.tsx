@@ -6,7 +6,7 @@ import { ShieldCheck, Eye, ListPlus, Users, CalendarDays, ArrowRight } from 'luc
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { ShowcaseDashboard } from '@/components/showcase/ShowcaseDashboard';
-import { ShowcaseSession } from '@/components/showcase/types';
+import { ShowcaseSession, DEFAULT_SHOWCASE_IMAGE } from '@/components/showcase/types';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { useAuth } from '@/context/AuthContext';
 import { showcaseApi } from '@/app/showcase/api';
@@ -76,6 +76,9 @@ export default function ShowcaseHubPage() {
         sprintName: sprintName.trim(),
         squadName: resolvedSquad,
         tasks: [],
+        // Imagem da empresa como padrão; dá pra trocar em Configurar.
+        coverImage: DEFAULT_SHOWCASE_IMAGE,
+        presentationBackground: DEFAULT_SHOWCASE_IMAGE,
         status: 'planning',
       } as any);
 

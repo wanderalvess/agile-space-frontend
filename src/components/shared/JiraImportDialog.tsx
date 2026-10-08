@@ -236,7 +236,7 @@ export function JiraImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-4xl w-[98vw] max-h-[92vh] rounded-[2rem] p-0 border-none shadow-3xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col">
+      <DialogContent className="sm:max-w-[1200px] w-[96vw] max-h-[92vh] rounded-[2rem] p-0 border-none shadow-3xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col">
         <DialogHeader className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 relative overflow-hidden shrink-0">
           <div className="absolute top-0 right-0 p-6 opacity-5 rotate-12">
             <CloudDownload className="h-16 w-16" />

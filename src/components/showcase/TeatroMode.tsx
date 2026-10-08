@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
 import { ChartRenderer } from './ChartRenderer';
 import { getCategoryColor } from './chartPresets';
-import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls } from './utils';
+import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls, isImageBackground, imageBackgroundCss } from './utils';
+import { TeatroHeader } from './TeatroHeader';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
 import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
@@ -127,8 +128,8 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
         isLight ? "text-slate-900 bg-white" : "text-white"
       )}
       style={session.presentationBackground ? {
-        background: session.presentationBackground.startsWith('http')
-          ? `linear-gradient(rgba(5, 5, 16, 0.9), rgba(5, 5, 16, 0.95)), url(${session.presentationBackground})`
+        background: isImageBackground(session.presentationBackground)
+          ? imageBackgroundCss(session.presentationBackground)
           : session.presentationBackground,
         backgroundSize: 'cover',
         backgroundPosition: 'center'
@@ -137,206 +138,24 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
       aria-modal="true"
       aria-label="Modo Teatro - Apresentação de Sprint Review"
     >
-      <AnimatePresence>
-        {!isCover && (
-          <motion.header
-            initial={{ y: -100 }}
-            animate={{ y: 0 }}
-            exit={{ y: -100 }}
-            className={cn(
-              "h-16 flex items-center justify-between px-8 border-b backdrop-blur-xl shrink-0 z-50 transition-colors",
-              isLight ? "bg-white/95 border-slate-200 shadow-sm" : "bg-[#0a0a18]/90 border-white/10"
-            )}
-          >
-            <div className="flex items-center gap-5 xl:gap-8 min-w-0">
-              {/* Progress Dots — scrolla internamente em vez de esticar o
-                  header quando a sprint tem muita task (não empurra o resto
-                  da barra pra fora da tela). */}
-              <div className="flex items-center gap-2 overflow-x-auto max-w-[220px] xl:max-w-[340px] shrink py-1 scrollbar-hide" role="navigation" aria-label="Progresso da Apresentação">
-                <button
-                  onClick={() => onIndexChange(-1)}
-                  className={cn("rounded-full transition-all duration-500 shrink-0", isCover ? 'w-10 h-2 bg-violet-600 shadow-[0_0_15px_rgba(139,92,246,0.6)]' : cn('w-2 h-2', isLight ? 'bg-slate-300 hover:bg-slate-400' : 'bg-white/20 hover:bg-white/40'))}
-                />
-                {session.tasks.map((t, i) => {
-                  const isReady = t.preparationStatus === 'done';
-                  const isActive = !isCover && i === currentIndex;
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => onIndexChange(i)}
-                      className={cn(
-                        "relative rounded-full transition-all duration-500 shrink-0",
-                        isActive ? 'w-10 h-2 bg-violet-600 shadow-[0_0_15px_rgba(139,92,246,0.6)]' : cn('w-2 h-2', isLight ? 'bg-slate-300 hover:bg-slate-400' : 'bg-white/20 hover:bg-white/40')
-                      )}
-                      title={`${t.key}: ${t.title} (${isReady ? 'Pronta' : 'Pendente'})`}
-                    >
-                      {!isReady && !isActive && (
-                        <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Progress Badge (Sempre visível em qualquer resolução) */}
-              {!isCover && (
-                <div className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-code tabular-nums border shrink-0 transition-colors",
-                  isLight 
-                    ? "bg-slate-100 text-slate-700 border-slate-200" 
-                    : "bg-white/10 text-white/90 border-white/10"
-                )}>
-                  <span>{currentIndex + 1}</span>
-                  <span className="opacity-40">/</span>
-                  <span>{session.tasks.length}</span>
-                </div>
-              )}
-
-              {/* Sorting & Session Info */}
-              <div className="hidden xl:flex items-center gap-4 shrink-0">
-                {sortBy && (
-                  <div className={cn("hidden lg:flex items-center gap-2 px-3 py-1 rounded-lg border", isLight ? "bg-slate-100 border-slate-200" : "bg-white/5 border-white/5")}>
-                    <span className={cn("text-[11px] font-bold uppercase tracking-wide", isLight ? "text-slate-500" : "text-white/60")}>Ordenação</span>
-                    <span className={cn("text-[11px] font-bold uppercase", isLight ? "text-violet-600 font-extrabold" : "text-violet-400")}>
-                      {sortBy === 'key' ? 'Chave Jira' : sortBy === 'type' ? 'Tipo de Issue' : 'Desenvolvedor'}
-                    </span>
-                  </div>
-                )}
-                <div className="flex flex-col">
-                  <span className={cn("text-[11px] font-bold uppercase tracking-wide", isLight ? "text-slate-400 font-bold" : "text-white/40")}>Tempo de Sessão</span>
-                  <span className={cn("text-[11px] font-black font-code", isLight ? "text-slate-900" : "text-white")}>{formatSessionTime(sessionTime)}</span>
-                </div>
-              </div>
-
-
-              {/* Navigation Controls — texto só a partir de xl; abaixo disso
-                  fica só o ícone pra não sobrepor os botões de decisão à
-                  direita (ambos os grupos têm shrink-0 e não cabem juntos
-                  em telas menores). */}
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onIndexChange(isCover ? -1 : currentIndex - 1)}
-                  disabled={isCover}
-                  aria-label="Card anterior"
-                  title="Card anterior"
-                  className={cn(
-                    "h-9 px-2.5 xl:px-4 rounded-lg font-bold uppercase text-[11px] tracking-wide gap-1.5 border transition-all",
-                    isLight
-                      ? "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200 hover:text-slate-900"
-                      : "bg-white/8 text-white/70 border-white/10 hover:bg-white/15 hover:text-white",
-                    "disabled:opacity-30 disabled:cursor-not-allowed"
-                  )}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" /> <span className="hidden xl:inline">Anterior</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onIndexChange(isCover ? 0 : Math.min(session.tasks.length - 1, currentIndex + 1))}
-                  disabled={!isCover && currentIndex === session.tasks.length - 1}
-                  aria-label={isCover ? 'Começar' : 'Próximo card'}
-                  title={isCover ? 'Começar' : 'Próximo card'}
-                  className="h-9 px-2.5 xl:px-5 rounded-lg font-bold uppercase text-[11px] tracking-wide gap-1.5 bg-violet-600 text-white hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-violet-900/50"
-                >
-                  <span className="hidden xl:inline">{isCover ? 'Começar' : 'Próxima'}</span> <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              {!isCover && task && (
-                <div className="flex items-center gap-2" title={canDecide ? undefined : 'Somente PO ou SME pode registrar decisão.'}>
-                  {!canDecide && (
-                    <div className={cn("flex items-center gap-1.5 h-10 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wide", isLight ? "bg-slate-100 text-slate-400" : "bg-white/5 text-white/40")}>
-                      <Lock className="h-3 w-3" /> Somente PO/SME
-                    </div>
-                  )}
-                  {(['approved', 'needs_adjustment', 'rejected'] as const).map(d => {
-                    const config = {
-                      approved: { l: 'Aprovar', c: 'bg-emerald-600 shadow-emerald-500/20', icon: Check },
-                      needs_adjustment: { l: 'Ajustar', c: 'bg-amber-600 shadow-amber-500/20', icon: AlertTriangle },
-                      rejected: { l: 'Rejeitar', c: 'bg-rose-600 shadow-rose-500/20', icon: Ban }
-                    };
-                    const isSelected = task.decision === d;
-                    const Icon = config[d].icon;
-                    return (
-                      <motion.button
-                        key={d}
-                        disabled={!canDecide}
-                        whileHover={canDecide ? { y: -2, scale: 1.02 } : undefined}
-                        whileTap={canDecide ? { scale: 0.98 } : undefined}
-                        onClick={() => {
-                          if (!canDecide) return;
-                          if (d === 'approved') {
-                            onDecision(task.id, d);
-                          } else {
-                            setPendingDecision(d);
-                            setFeedbackText('');
-                            setShowFeedback(true);
-                          }
-                        }}
-                        className={cn(
-                          "flex items-center gap-2 h-10 px-4 rounded-xl font-bold uppercase text-[11px] tracking-wide transition-all border",
-                          !canDecide && "opacity-30 cursor-not-allowed",
-                          isSelected ? `${config[d].c} text-white border-transparent` : cn(isLight ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' : 'bg-white/10 text-white border-white/10 hover:bg-white/20')
-                        )}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {config[d].l}
-                      </motion.button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className={cn("h-7 w-px mx-1", isLight ? "bg-slate-200" : "bg-white/20")} aria-hidden="true" />
-
-              {currentIndex === session.tasks.length - 1 && (
-                <Button onClick={onFinish} size="sm" className="h-10 px-6 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold uppercase text-[11px] tracking-wide shadow-lg shadow-violet-600/20">Finalizar</Button>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSidebarCollapsed(v => !v)}
-                  title={sidebarCollapsed ? 'Mostrar painel lateral' : 'Recolher painel lateral'}
-                  className={cn(
-                    "h-10 w-10 rounded-xl transition-colors",
-                    isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80" : "bg-white/5 text-white hover:bg-white/10"
-                  )}
-                >
-                  {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleFullscreen}
-                  className={cn(
-                    "h-10 w-10 rounded-xl transition-colors",
-                    isLight ? "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200/80" : "bg-white/5 text-white hover:bg-white/10"
-                  )}
-                >
-                  {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className={cn(
-                    "h-10 w-10 rounded-xl transition-colors",
-                    isLight ? "bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white border border-rose-100" : "bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white"
-                  )}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </motion.header>
-        )}
-      </AnimatePresence>
+      <TeatroHeader
+        session={session}
+        currentIndex={currentIndex}
+        sortBy={sortBy}
+        isCover={isCover}
+        isLight={isLight}
+        canDecide={canDecide}
+        sessionTimeLabel={formatSessionTime(sessionTime)}
+        isFullscreen={isFullscreen}
+        sidebarCollapsed={sidebarCollapsed}
+        onIndexChange={onIndexChange}
+        onToggleFullscreen={toggleFullscreen}
+        onToggleSidebar={() => setSidebarCollapsed(v => !v)}
+        onClose={onClose}
+        onFinish={onFinish}
+        onApprove={(taskId) => onDecision(taskId, 'approved')}
+        onRequestFeedback={(d) => { setPendingDecision(d); setFeedbackText(''); setShowFeedback(true); }}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         <AnimatePresence mode="wait">
@@ -595,6 +414,20 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   <span className="opacity-50">/ {formatTime(task?.evidence.timeEstimate) || '—'}</span>
                 </span>
               )}
+              {([
+                { url: task?.evidence.techDocUrl, label: 'Doc. técnico' },
+                { url: task?.evidence.tdnUrl, label: 'TDN' },
+              ]).filter(l => l.url).map(l => (
+                <a
+                  key={l.label}
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn("flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline", isLight ? "text-violet-600" : "text-violet-300")}
+                >
+                  <FileText className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />{l.label}
+                </a>
+              ))}
             </div>
             )}
 

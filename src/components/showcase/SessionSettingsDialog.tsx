@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import {
   Sparkles, Link as LinkIcon, Check, AlertTriangle,
   Layout, Target, Palette, Video, SortAsc, Camera,
-  Sun, Moon, Pipette
+  Sun, Moon, Pipette,
+  CloudDownload, FileText, TrendingUp, Copy, ListChecks, Users, Info
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -13,8 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShowcaseSession, ShowcaseTask, PRESETS, PRESENTATION_PRESETS, PresentationPreset } from './types';
-import { getDirectImageUrl, isLightBackground } from './utils';
+import { ShowcaseSession, ShowcaseTask, CardKind, PRESETS, PRESENTATION_PRESETS, PresentationPreset } from './types';
+import { getDirectImageUrl, isLightBackground, isImageBackground, imageBackgroundCss } from './utils';
 
 interface SessionSettingsDialogProps {
   open: boolean;
@@ -26,9 +27,30 @@ interface SessionSettingsDialogProps {
   // silencioso como o botão de Config normal.
   presentWarning?: boolean;
   onPresentAnyway?: () => void;
+  /** Quantos cards a Review já tem (atualiza ao vivo enquanto o modal está aberto). */
+  taskCount?: number;
+  /** Abre a importação do Jira por cima deste modal: quem configura faz tudo daqui. */
+  onOpenJira?: () => void;
+  onAddManualTask?: (cardKind: CardKind) => void;
+  onCopyLink?: () => void;
 }
 
-type TabType = 'geral' | 'identidade' | 'apresentacao';
+type TabType = 'geral' | 'tarefas' | 'identidade' | 'apresentacao';
+
+/** Onde a importação procura cada informação (ver jiraService.ts e makeTask em utils.ts). */
+const JIRA_FIELD_SOURCES: [string, string][] = [
+  ['Título, tipo, status', 'Campos da própria issue.'],
+  ['Horas planejadas', 'Título da issue, no formato "(DEV 4h / QA 3h)".'],
+  ['Problema', 'Seção "Problema", "Contexto" ou "Motivação" no comentário do dev; se não houver, na descrição.'],
+  ['Solução', 'Seção "Solução", "O que foi feito" ou "Implementação" no comentário do dev ou na descrição.'],
+  ['Critérios de aceite', 'Campo "Critérios de Aceite" ou a seção com esse nome na descrição.'],
+  ['Dev e QA', 'Campos "Desenvolvedor" e de QA/aceitação; sem eles, o responsável da issue vira o dev.'],
+  ['Projeto e versões', 'Comentário da "Esteira de Integração Contínua" (Repositório, Versão e Branch).'],
+  ['Vídeo', 'Primeiro link do Google Drive nos comentários ou na descrição.'],
+  ['Print', 'Primeira imagem ou anexo da descrição (ícones e emoticons do Jira são ignorados).'],
+  ['Documento técnico', 'Link logo depois de "Documento técnico" ou "Documentação técnica"; senão, o primeiro link de Google Docs, SharePoint ou Confluence.'],
+  ['TDN', 'Primeiro link do tdn.totvs.com na descrição, nos comentários ou em campos da issue.'],
+];
 
 /**
  * Réplica em miniatura do painel lateral do Modo Teatro (TeatroMode.tsx) —
@@ -43,9 +65,7 @@ function PresentationPreview({ background, theme, task }: { background?: string;
 
   const bgStyle: React.CSSProperties = background
     ? {
-        background: background.startsWith('http')
-          ? `linear-gradient(rgba(5, 5, 16, 0.9), rgba(5, 5, 16, 0.95)), url(${background})`
-          : background,
+        background: isImageBackground(background) ? imageBackgroundCss(background) : background,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
@@ -128,8 +148,10 @@ function PresentationPreview({ background, theme, task }: { background?: string;
   );
 }
 
-export function SessionSettingsDialog({ open, onClose, session: initialSession, onUpdate: onCommit, presentWarning, onPresentAnyway }: SessionSettingsDialogProps) {
+export function SessionSettingsDialog({ open, onClose, session: initialSession, onUpdate: onCommit, presentWarning, onPresentAnyway, taskCount = 0, onOpenJira, onAddManualTask, onCopyLink }: SessionSettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<TabType>('geral');
+  const [linkCopied, setLinkCopied] = useState(false);
+  const shareUrl = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '';
   const [presetFilter, setPresetFilter] = useState<'all' | 'light' | 'dark'>('all');
   const [session, setSession] = useState<Partial<ShowcaseSession>>({});
   const [coverUrl, setCoverUrl] = useState('');
@@ -143,9 +165,12 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   // re-sync) e só carregamos no form quando o dialog efetivamente abre.
   const latestSessionRef = React.useRef(initialSession);
   React.useEffect(() => { latestSessionRef.current = initialSession; }, [initialSession]);
+  // Cópia de quando o modal abriu: base do diff no salvar.
+  const openedSessionRef = React.useRef<Partial<ShowcaseSession> | null>(null);
 
   React.useEffect(() => {
     if (open && latestSessionRef.current) {
+      openedSessionRef.current = latestSessionRef.current;
       setSession(latestSessionRef.current);
       setCoverUrl(latestSessionRef.current.coverImage || '');
       setPreviewError(false);
@@ -156,15 +181,25 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
     setSession(prev => ({ ...prev, ...updates }));
   };
 
+  // Grava só o que mudou no modal. Mandar a sessão inteira regravava `tasks`
+  // com a cópia de quando o modal abriu (apagando edições feitas nos cards
+  // nesse meio-tempo) e o Firestore recusava campos `undefined` dos cards.
   const handleSave = () => {
-    if (Object.keys(session).length > 0) {
-      onCommit(session);
+    const original = (openedSessionRef.current || {}) as Record<string, unknown>;
+    const changed = Object.fromEntries(
+      Object.entries(session).filter(([k, v]) =>
+        !['id', 'tasks', 'createdAt'].includes(k) && v !== undefined && v !== original[k]
+      )
+    ) as Partial<ShowcaseSession>;
+    if (Object.keys(changed).length > 0) {
+      onCommit(changed);
     }
     onClose();
   };
-  
+
   const tabs = [
     { id: 'geral', label: 'Geral', icon: Layout, description: 'Nome, time e objetivos' },
+    { id: 'tarefas', label: 'Cards e link', icon: ListChecks, description: 'Importar do Jira, criar cards e compartilhar com a squad' },
     { id: 'identidade', label: 'Capa', icon: Palette, description: 'Tela de abertura da Review' },
     { id: 'apresentacao', label: 'Apresentação', icon: Video, description: 'Cores e fundo do Modo Teatro' },
   ];
@@ -173,6 +208,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   // apresentação (o resto tem fallback razoável ou não é essencial).
   const checklist = [
     { key: 'squad', label: 'Squad / Time', done: !!session?.squadName?.trim(), tab: 'geral' as TabType },
+    { key: 'tarefas', label: taskCount > 0 ? `${taskCount} cards` : 'Cards', done: taskCount > 0, tab: 'tarefas' as TabType },
     { key: 'objetivos', label: 'Objetivos da Sprint', done: !!session?.description?.trim(), tab: 'geral' as TabType },
     { key: 'capa', label: 'Capa da sessão', done: !!session?.coverImage, tab: 'identidade' as TabType },
   ];
@@ -266,6 +302,115 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
     </motion.div>
   );
 
+  const renderTarefas = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
+      className="grid grid-cols-1 md:grid-cols-12 gap-4"
+    >
+      {/* Cards da Review */}
+      <div className="md:col-span-7 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ListChecks className="h-4 w-4 text-violet-500" />
+              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cards da Review</h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm">
+              A importação traz título, tipo, problema, solução e critérios de cada issue. Depois cada pessoa completa a evidência no próprio card.
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-3xl font-black tabular-nums text-slate-900 dark:text-slate-100 leading-none">{taskCount}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mt-1">{taskCount === 1 ? 'card' : 'cards'}</p>
+          </div>
+        </div>
+
+        <Button
+          onClick={onOpenJira}
+          disabled={!onOpenJira}
+          className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm gap-2 shadow-lg shadow-violet-600/20"
+        >
+          <CloudDownload className="h-4 w-4" /> {taskCount > 0 ? 'Importar mais issues do Jira' : 'Importar issues do Jira'}
+        </Button>
+
+        <div className="space-y-2">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Ou crie um card manual</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onAddManualTask?.('story')}
+              disabled={!onAddManualTask}
+              className="h-11 rounded-xl justify-start gap-2.5 font-semibold text-xs border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+            >
+              <FileText className="h-4 w-4 text-slate-400" /> Card padrão
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onAddManualTask?.('metrics')}
+              disabled={!onAddManualTask}
+              className="h-11 rounded-xl justify-start gap-2.5 font-semibold text-xs border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+            >
+              <TrendingUp className="h-4 w-4 text-violet-500" /> Card de métricas
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Compartilhar */}
+      <div className="md:col-span-5 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-violet-500" />
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Compartilhar com a squad</h3>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+            Quem abrir o link entra nesta Review e ajuda a preparar os cards antes da apresentação.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            readOnly
+            value={shareUrl}
+            onFocus={(e) => e.currentTarget.select()}
+            aria-label="Link da Review"
+            className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-mono text-[11px] text-slate-600 dark:text-slate-300"
+          />
+          <Button
+            onClick={() => { onCopyLink?.(); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
+            className={cn(
+              'h-10 px-4 rounded-xl font-bold text-xs gap-1.5 shrink-0 transition-colors',
+              linkCopied ? 'bg-emerald-600 hover:bg-emerald-600 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200'
+            )}
+          >
+            {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {linkCopied ? 'Copiado' : 'Copiar'}
+          </Button>
+        </div>
+      </div>
+
+      {/* Origem de cada campo: dá para arrumar a issue no Jira antes de importar */}
+      <div className="md:col-span-12 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-violet-500" />
+            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">De onde vem cada campo do card</h3>
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+            Quer que o card já chegue completo? Ajuste a issue no Jira antes de importar. Uma issue que já virou card não é importada de novo: para reimportar, exclua o card primeiro.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
+          {JIRA_FIELD_SOURCES.map(([field, source]) => (
+            <div key={field} className="flex gap-3 py-1.5 border-b border-slate-100 dark:border-slate-800/60 text-xs">
+              <span className="w-32 shrink-0 font-bold text-slate-700 dark:text-slate-200">{field}</span>
+              <span className="text-slate-500 dark:text-slate-400">{source}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+
   const renderIdentidade = () => (
     <motion.div 
       initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
@@ -280,12 +425,13 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fundos prontos</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {PRESETS.map(p => (
+              {PRESETS.map((p, i) => (
                 <button 
                   key={p.id}
                   onClick={() => { onUpdate({ coverImage: p.url }); setCoverUrl(p.url); }}
                   className={cn(
                     "group relative aspect-video rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02] hover:shadow-md",
+                    i === 0 && "col-span-2",
                     session?.coverImage === p.url ? "border-violet-600 shadow-md shadow-violet-600/20" : "border-transparent"
                   )}
                 >
@@ -458,7 +604,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                     >
                       {/* Swatch redondinho com anel de contraste */}
                       <div
-                        style={{ background: p.value }}
+                        style={isImageBackground(p.value) ? { background: `center / cover no-repeat url(${p.value})` } : { background: p.value }}
                         className={cn(
                           "w-9 h-9 rounded-lg shrink-0 flex items-center justify-center relative shadow-inner overflow-hidden",
                           isLightPreset
@@ -648,12 +794,12 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[1000px] w-[96vw] h-[90vh] sm:h-[680px] max-h-[92vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden bg-card text-card-foreground flex flex-col gap-0 focus:outline-none">
+      <DialogContent className="sm:max-w-[1440px] w-[96vw] h-[92vh] sm:h-[860px] max-h-[94vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden bg-card text-card-foreground flex flex-col gap-0 focus:outline-none">
         {/* Cabeçalho: mesmo padrão dos modais do Poker (título, explicação, abas) */}
         <div className="px-6 pt-6 pb-0 shrink-0">
           <DialogTitle className="text-2xl font-black tracking-tight text-foreground leading-none pr-8">Configurações da Review</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground mt-1.5">
-            Nome, capa e aparência da apresentação. Nada aqui é obrigatório, mas capa e objetivos deixam a Review mais completa.
+            Nome, cards, link da squad, capa e aparência da apresentação. Nada aqui é obrigatório, mas cards, capa e objetivos deixam a Review mais completa.
           </DialogDescription>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-border">
@@ -707,7 +853,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             <div className="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Esta Review ainda não tem objetivos nem capa</p>
+                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Esta Review ainda não tem os objetivos da sprint</p>
                 <p className="text-xs text-amber-600/80 dark:text-amber-400/70 font-medium">Complete agora ou apresente do jeito que está.</p>
               </div>
               <Button onClick={onPresentAnyway} variant="outline" className="h-9 px-4 rounded-xl border-amber-500/40 text-amber-600 dark:text-amber-400 font-bold text-xs shrink-0 hover:bg-amber-500/10">
@@ -718,6 +864,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
 
           <AnimatePresence mode="wait">
             {activeTab === 'geral' && renderGeral()}
+            {activeTab === 'tarefas' && renderTarefas()}
             {activeTab === 'identidade' && renderIdentidade()}
             {activeTab === 'apresentacao' && renderApresentacao()}
           </AnimatePresence>

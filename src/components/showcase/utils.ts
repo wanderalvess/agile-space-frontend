@@ -83,6 +83,17 @@ export const isPdfUrl = (url: string) => {
   return cleanUrl.endsWith('.pdf') || url.includes('drive.google.com') && (url.includes('/file/d/') || url.includes('id='));
 };
 
+/**
+ * Fundo da apresentação é imagem (vira `url(...)`) ou CSS puro (cor/gradiente). Além de links
+ * http, aceita arquivos do próprio app em `public/` (ex.: `/showcase/fundo-totvs.webp`).
+ */
+export const isImageBackground = (value?: string): boolean =>
+  !!value && (value.startsWith('http') || value.startsWith('/'));
+
+/** Véu sobre fundo de imagem: escurece o bastante para ler o card sem esconder a foto. */
+export const imageBackgroundCss = (url: string) =>
+  `linear-gradient(rgba(5, 5, 16, 0.55), rgba(5, 5, 16, 0.8)), url(${url})`;
+
 export const getDirectImageUrl = (url: string) => {
   if (!url) return '';
   
@@ -141,14 +152,24 @@ export const stripNonLatin1ForPdf = (text?: string): string => {
 export const getEvidenceUrls = (evidence: Pick<Evidence, 'screenshot' | 'video' | 'evidencePreference'>): string[] => {
   const preferScreenshot = evidence.evidencePreference === 'screenshot';
   const ordered = preferScreenshot ? [evidence.screenshot, evidence.video] : [evidence.video, evidence.screenshot];
-  return ordered.filter((u): u is string => !!u);
+  // Filtra também na exibição: sessões importadas antes da correção já têm o
+  // ícone salvo como evidência.
+  return ordered.filter((u): u is string => !!u && !isJiraDecorativeImage(u));
 };
+
+/**
+ * Imagens que o Jira insere na descrição só como decoração: emoticons
+ * (`/images/icons/emoticons/warning.png`), ícones de tipo/prioridade/status e
+ * avatares. Não são evidência de entrega e não devem virar o print do card.
+ */
+export const isJiraDecorativeImage = (url: string): boolean =>
+  /\/images\/icons\/|\/emoticons\/|\/secure\/(?:useravatar|viewavatar|projectavatar)|\/rest\/api\/\d+\/universal_avatar\//i.test(url);
 
 export const extractMediaUrl = (text: string) => {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s"']+)/g;
-  const matches = text.match(urlRegex);
-  if (!matches) return null;
+  const matches = text.match(urlRegex)?.filter(u => !isJiraDecorativeImage(u));
+  if (!matches || matches.length === 0) return null;
   
   // Prioritiza PDF, depois Vídeo (Loom/YT), depois Imagens
   const pdf = matches.find(u => isPdfUrl(u));
@@ -194,6 +215,8 @@ export const makeTask = (issue: any): any => {
       qa: qa, 
       screenshot: issue.screenshot || extractMediaUrl(issue.description || '') || '', 
       video: issue.videoUrl || (extractMediaUrl(issue.description || '')?.includes('loom.com') ? extractMediaUrl(issue.description || '') : '') || '',
+      techDocUrl: issue.techDocUrl || '',
+      tdnUrl: issue.tdnUrl || '',
       timeSpent: issue.timeSpent || 0,
       timeEstimate: issue.timeEstimate || 0,
       planned: {

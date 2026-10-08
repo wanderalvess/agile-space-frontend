@@ -30,7 +30,7 @@ const STEPS: TourStep[] = [
   {
     target: 'jira-import',
     title: 'Importação do Jira',
-    desc: 'Normalmente o PO ou o Agile já trouxe as issues pra cá. Esse botão importa mais issues, se precisar.',
+    desc: 'Normalmente o PO ou o Agile já trouxe as issues pra cá. Em "Adicionar" você importa mais issues do Jira ou cria um card manual, se precisar.',
   },
   {
     target: 'start-teatro',

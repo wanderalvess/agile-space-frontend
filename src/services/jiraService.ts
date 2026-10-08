@@ -49,6 +49,8 @@ export interface JiraIssue {
   solution?: string;
   qa?: string;
   videoUrl?: string;
+  techDocUrl?: string;
+  tdnUrl?: string;
   devName?: string;
   timeSpent?: number;
   timeEstimate?: number; // estimativa ORIGINAL (aggregatetimeoriginalestimate/timeoriginalestimate)
@@ -182,6 +184,34 @@ const extractDriveLink = (text: string): string => {
  * O `*` de negrito ("*palavra*", sem espaço colado no `*`) é distinto do `*`
  * de marcador de lista ("* item", com espaço) — só o primeiro é removido.
  */
+const DOC_URL_REGEX = /https?:\/\/[^\s"'<>\[\]|()]+/gi;
+const TECH_DOC_LABEL = /(?:documenta[çc][ãa]o|documento|doc\.?|especifica[çc][ãa]o)\s+t[ée]cnic[ao]/gi;
+// Sem rótulo explícito, só conta como documento técnico link de editor de documento.
+const TECH_DOC_HOST = /docs\.google\.com\/document|sharepoint\.com|\/wiki\/|confluence|\.docx?(?:$|[?#])/i;
+const isTdnUrl = (url: string) => /\/\/tdn\.totvs\.com/i.test(url);
+
+/**
+ * Infere os links de Documento Técnico e TDN a partir do texto da issue
+ * (descrição + comentários). TDN é qualquer link de tdn.totvs.com. Documento
+ * técnico é o primeiro link logo depois de um rótulo "Documento/Documentação
+ * técnica"; sem rótulo, o primeiro link de Google Docs/SharePoint/Confluence.
+ */
+export const extractDocLinks = (text: string): { techDocUrl: string; tdnUrl: string } => {
+  if (!text) return { techDocUrl: '', tdnUrl: '' };
+  const clean = (u: string) => u.replace(/&amp;/g, '&').replace(/[.,;:!?]+$/, '');
+  const urls = (text.match(DOC_URL_REGEX) || []).map(clean);
+  const tdnUrl = urls.find(isTdnUrl) || '';
+
+  let techDocUrl = '';
+  for (const label of Array.from(text.matchAll(TECH_DOC_LABEL))) {
+    const after = text.slice((label.index ?? 0) + label[0].length, (label.index ?? 0) + label[0].length + 300);
+    const found = (after.match(DOC_URL_REGEX) || []).map(clean).find(u => !isTdnUrl(u));
+    if (found) { techDocUrl = found; break; }
+  }
+  if (!techDocUrl) techDocUrl = urls.find(u => !isTdnUrl(u) && TECH_DOC_HOST.test(u)) || '';
+  return { techDocUrl, tdnUrl };
+};
+
 const stripWikiMarkup = (text: string): string => {
   if (!text) return text;
   return text
@@ -509,11 +539,14 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
 
       // Extrair informações do CI/CD dos comentários
       const cicdInfo = parseCicdFromComments(comments.map(c => c.text));
+      const customText = Array.from(item.querySelectorAll('customfieldvalue')).map(v => v.textContent || '').join(' ');
+      const docLinks = extractDocLinks(`${combinedText} ${customText}`);
 
       issues.push({ 
         key, title: summary, description, type, status, priority, 
         points, url: link, acceptanceCriteria, assignee,
         problem, solution, qa, videoUrl, devName,
+        techDocUrl: docLinks.techDocUrl, tdnUrl: docLinks.tdnUrl,
         timeSpent, timeEstimate, planned,
         project: cicdInfo.project,
         versionSuporte: cicdInfo.versionSuporte,
@@ -780,6 +813,7 @@ export const fetchJiraIssues = async (
     // (geralmente de quem desenvolveu) — por isso comentário é fonte
     // primária aqui, descrição só como fallback.
     const commentsText = commentsList.join(' ');
+    const docLinks = extractDocLinks(`${desc} ${typeof renderedDescription === 'string' ? renderedDescription : ''} ${commentsText}`);
 
     const toSafeString = (val: any): string => {
       if (!val) return '';
@@ -833,6 +867,8 @@ export const fetchJiraIssues = async (
       solution: parseSolutionFromDescription(commentsText) || parseSolutionFromDescription(desc),
       qa: formatJiraName(fields?.customfield_25307?.displayName || fields?.customfield_25307 || '') || parseQAFromDescription(desc),
       videoUrl: extractDriveLink(commentsText) || extractDriveLink(desc),
+      techDocUrl: docLinks.techDocUrl,
+      tdnUrl: docLinks.tdnUrl,
       devName: formatJiraName(fields?.customfield_10046?.displayName || fields?.assignee?.displayName || ''),
       timeSpent: fields?.aggregatetimespent || fields?.timespent || 0,
       timeEstimate: fields?.aggregatetimeoriginalestimate || fields?.timeoriginalestimate || 0,
