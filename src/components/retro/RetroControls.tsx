@@ -61,7 +61,6 @@ interface RetroControlsProps {
   // Limite de votos por pessoa (dot-voting) — 0/undefined = sem limite
   maxVotesPerParticipant?: number;
   onSetMaxVotesPerParticipant?: (max: number) => void;
-  votesUsed?: number;
 }
 
 const DURATION_OPTIONS = [120, 180, 240, 300]; // 2, 3, 4, 5 mins
@@ -88,7 +87,6 @@ export function RetroControls({
   onToggleLayoutMode,
   maxVotesPerParticipant = 0,
   onSetMaxVotesPerParticipant,
-  votesUsed = 0,
 }: RetroControlsProps) {
   const [remainingTime, setRemainingTime] = useState(timer?.initialDuration ?? 300);
   const prevStatusRef = useRef(timer?.status);
@@ -169,13 +167,12 @@ export function RetroControls({
         {!!maxVotesPerParticipant && (
           <span
             className={cn(
-              "flex items-center gap-1 font-code text-xs font-black tabular-nums",
-              votesUsed >= maxVotesPerParticipant ? "text-amber-600" : "text-slate-600"
+              "flex items-center gap-1 font-code text-xs font-black tabular-nums text-slate-600"
             )}
-            title="Seus votos usados / limite por pessoa"
+            title="Cada painel é uma votação separada: este é o limite de votos por pessoa em cada painel"
           >
             <Star className="h-3 w-3" />
-            {votesUsed}/{maxVotesPerParticipant}
+            {maxVotesPerParticipant} por painel
           </span>
         )}
       </div>
@@ -346,7 +343,7 @@ export function RetroControls({
             {onSetMaxVotesPerParticipant && (
               <div className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-muted/40 border border-border">
                 <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                  <Star className="h-3 w-3" /> Votos por pessoa
+                  <Star className="h-3 w-3" /> Votos por pessoa, por painel
                 </Label>
                 <div className="flex items-center gap-1">
                   {VOTE_LIMIT_OPTIONS.map(n => (
@@ -355,7 +352,7 @@ export function RetroControls({
                       variant="ghost"
                       size="sm"
                       onClick={() => onSetMaxVotesPerParticipant(n)}
-                      title={n === 0 ? 'Sem limite de votos' : `${n} votos por pessoa`}
+                      title={n === 0 ? 'Sem limite de votos' : `${n} votos por pessoa em cada painel`}
                       className={cn(
                         "h-7 min-w-7 px-1.5 text-xs font-bold rounded-md transition-all",
                         maxVotesPerParticipant === n ? "bg-emerald-600 text-white shadow-sm border border-emerald-600" : "text-slate-400 hover:text-slate-600"

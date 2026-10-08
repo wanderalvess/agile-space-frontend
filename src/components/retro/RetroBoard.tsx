@@ -146,10 +146,6 @@ const RetroBoardComponent = ({
   onDeleteChatMessage,
 }: RetroBoardProps) => {
   const { toast } = useToast();
-  const votesUsed = useMemo(
-    () => cards.filter(c => c.votes.includes(currentUserId)).length,
-    [cards, currentUserId]
-  );
   const [open, setOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -335,7 +331,6 @@ const RetroBoardComponent = ({
                   onToggleLayoutMode={handleToggleLayoutMode}
                   maxVotesPerParticipant={boardData.maxVotesPerParticipant}
                   onSetMaxVotesPerParticipant={onSetMaxVotesPerParticipant}
-                  votesUsed={votesUsed}
                 />
 
                 <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5 hidden sm:block" />
@@ -543,7 +538,6 @@ const RetroBoardComponent = ({
               autoRevealOnTimerEnd={boardData.autoRevealOnTimerEnd}
               maxVotesPerParticipant={boardData.maxVotesPerParticipant}
               onSetMaxVotesPerParticipant={onSetMaxVotesPerParticipant}
-              votesUsed={votesUsed}
             />
             <Button
               variant="ghost"

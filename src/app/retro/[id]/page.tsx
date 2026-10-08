@@ -545,11 +545,13 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     const isRemoving = existingIndex !== -1;
 
     if (!isRemoving && boardData?.maxVotesPerParticipant) {
-      const votesUsed = optimisticCards.filter(c => c.votes.includes(userProfile.id)).length;
+      // Cada painel é uma votação separada: o limite vale por coluna.
+      const target = optimisticCards.find(c => c.id === cardId);
+      const votesUsed = optimisticCards.filter(c => c.columnKey === target?.columnKey && c.votes.includes(userProfile.id)).length;
       if (votesUsed >= boardData.maxVotesPerParticipant) {
         toast({
           title: "Limite de votos atingido",
-          description: `Você já usou seus ${boardData.maxVotesPerParticipant} votos. Remova um voto antes de votar em outro card.`,
+          description: `Você já usou seus ${boardData.maxVotesPerParticipant} votos neste painel. Remova um voto dele antes de votar em outro card do mesmo painel.`,
           variant: "destructive"
         });
         return;

@@ -213,6 +213,14 @@ function RetroColumnComponent({
   const isActionColumn = theme === 'action';
   const isFeedbackColumn = !isActionColumn;
 
+  // Cada painel é uma votação separada: o limite de votos vale por coluna.
+  const maxVotes = boardData.maxVotesPerParticipant || 0;
+  const showVoteCounter = isFeedbackColumn && maxVotes > 0 && (votingStatus === 'active' || votingStatus === 'finished');
+  const votesUsedHere = useMemo(
+    () => cards.filter(c => c.votes.includes(currentUser.uid)).length,
+    [cards, currentUser.uid]
+  );
+
   const sortedCards = useMemo(() => {
     // Filtro de segurança contra duplicatas
     const uniqueCards = Array.from(new Map(cards.map(c => [c.id, c])).values());
@@ -334,6 +342,19 @@ function RetroColumnComponent({
             )}
 
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {showVoteCounter && (
+                <span
+                  className={cn(
+                    "flex items-center gap-1 font-code text-xs font-black tabular-nums",
+                    votesUsedHere >= maxVotes ? "text-amber-600" : "text-slate-600 dark:text-slate-300"
+                  )}
+                  title="Seus votos usados neste painel / limite por pessoa"
+                  aria-label={`Você usou ${votesUsedHere} de ${maxVotes} votos neste painel`}
+                >
+                  <Star className="h-3 w-3" />
+                  {votesUsedHere}/{maxVotes}
+                </span>
+              )}
               {isActionColumn && isCreator && (
                 <Button
                   variant="outline"

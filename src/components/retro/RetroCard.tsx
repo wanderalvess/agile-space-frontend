@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { RetroCard as RetroCardType, RetroParticipant, RetroColumnTheme, RetroReactionType } from '@/lib/types';
@@ -168,6 +168,24 @@ export function RetroCard({
   const [editedDueDate, setEditedDueDate] = useState(card.dueDate || '');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // O campo cresce com o texto (até 55% da altura da tela) em vez de rolar dentro de uma
+  // caixa pequena: a coluna da retro é estreita e o texto longo ficava ilegível.
+  useEffect(() => {
+    const el = editTextareaRef.current;
+    if (!isEditing || !el) return;
+    el.style.height = 'auto';
+    // scrollHeight não conta a borda; sem somar, sobra uma barra de rolagem de 1-2 px.
+    const border = el.offsetHeight - el.clientHeight;
+    el.style.height = `${Math.min(el.scrollHeight + border, Math.round(window.innerHeight * 0.55))}px`;
+  }, [editedContent, isEditing]);
+
+  // Ao abrir a edição o cursor vai para o fim do texto (autoFocus sozinho deixava no começo).
+  useEffect(() => {
+    const el = editTextareaRef.current;
+    if (isEditing && el) el.setSelectionRange(el.value.length, el.value.length);
+  }, [isEditing]);
 
   // Sync state with props to ensure merged content appears when editing starts
   useEffect(() => {
@@ -226,18 +244,24 @@ export function RetroCard({
   return (
     <div ref={setNodeRef} style={style} className={cn("group select-none relative", isDragging && "opacity-50 scale-95")}>
       {isEditing ? (
-        <AgileBaseCard theme="emerald" className="p-6 relative z-10">
-          <div className="space-y-4">
+        <AgileBaseCard theme="emerald" className="p-3 relative z-10">
+          <div className="space-y-3">
             <Textarea
+              ref={editTextareaRef}
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
               onKeyDown={handleKeyDown}
               autoFocus
-              className="text-xs min-h-[120px] p-6 bg-slate-50 border-emerald-100 rounded-[2rem] focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500 font-bold leading-relaxed"
+              rows={3}
+              aria-label="Editar o texto do card"
+              className="min-h-[96px] resize-none overflow-y-auto px-4 py-3 text-sm bg-slate-50 border-emerald-100 rounded-2xl focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500 font-semibold leading-relaxed text-slate-800"
             />
+            <p className="px-1 text-[10px] font-semibold leading-snug text-slate-500">
+              Enter salva · Shift+Enter quebra a linha · Esc cancela
+            </p>
             
             {isActionPlan && (
-              <div className="flex flex-col gap-3 p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100">
+              <div className="flex flex-col gap-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
                 <div className="flex items-center gap-3">
                   <UserPlus className="h-4 w-4 text-emerald-600" />
                   <input 
@@ -266,12 +290,13 @@ export function RetroCard({
               </div>
             )}
 
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" className="h-10 px-6 rounded-xl text-slate-500 font-black uppercase text-[10px]" onClick={() => setIsEditing(false)}>
-                Cancelar
+            {/* Empilhados: lado a lado os dois vazavam da coluna estreita da retro. */}
+            <div className="flex flex-col gap-2">
+              <Button size="sm" className="h-10 w-full rounded-xl bg-emerald-600 text-white font-black uppercase text-[10px] shadow-lg shadow-emerald-600/20" onClick={handleUpdate} disabled={!editedContent.trim()}>
+                Salvar alterações
               </Button>
-              <Button size="sm" className="h-10 px-8 rounded-xl bg-emerald-600 text-white font-black uppercase text-[10px] shadow-lg shadow-emerald-600/20" onClick={handleUpdate}>
-                Salvar Alterações
+              <Button variant="ghost" size="sm" className="h-9 w-full rounded-xl text-slate-500 font-black uppercase text-[10px]" onClick={() => { setIsEditing(false); setEditedContent(card.content); }}>
+                Cancelar
               </Button>
             </div>
           </div>
