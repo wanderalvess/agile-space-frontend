@@ -364,8 +364,10 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
           ),
         session.presentationTheme === 'minimalist' && "border-r-0 shadow-none"
       )}>
-        <ScrollArea className="flex-1">
-          <article className="p-6 space-y-5">
+        {/* O viewport do Radix embrulha o conteúdo em display:table, que cresce até o maior trecho
+            sem quebra (ex.: caminho/URL longo) e estoura o painel; forçar block deixa o texto quebrar. */}
+        <ScrollArea className="flex-1 [&>[data-radix-scroll-area-viewport]>div]:!block">
+          <article className="p-6 space-y-5 min-w-0 [overflow-wrap:anywhere]">
             <header className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
