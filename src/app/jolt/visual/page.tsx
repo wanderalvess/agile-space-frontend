@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   FileJson,
   FolderKanban,
+  Wrench,
   Plus,
   Save,
   Cpu,
@@ -66,6 +67,15 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { transformJolt, type JoltEngineMode } from '@/lib/jolt-engine';
+import {
+  parseLayoutText,
+  layoutToCanvas,
+  buildJsonFromNodePaths,
+  applyMapperChanges,
+  type ExistingEdge,
+  type LayoutParts,
+} from '@/lib/jolt-maintenance';
+import { ExistingLayoutDialog, type LoadLayoutResult } from '@/components/jolt/ExistingLayoutDialog';
 import {
   listJoltProjects,
   createJoltProject,
@@ -113,6 +123,16 @@ interface Mapping {
   target: string;
   type: 'direct' | 'expression';
   expression?: string;
+}
+
+/** Layout existente em manutenção: o que já está na spec e o que o mapa consegue desenhar dele. */
+interface BaseLayoutState {
+  text: string;
+  parts: LayoutParts;
+  /** Ligações desenhadas a partir do layout: servem de base para saber o que mudou no mapa. */
+  existing: ExistingEdge[];
+  advancedCount: number;
+  orphanCount: number;
 }
 
 interface PathInfo {
@@ -667,6 +687,7 @@ const STORAGE_KEYS = {
   spec:   'jolt_visual_generated_spec',
   useEnvelope: 'jolt_visual_use_envelope',
   envelopeTemplate: 'jolt_visual_envelope_template',
+  baseLayout: 'jolt_visual_base_layout',
 } as const;
 
 export const DEFAULT_ENVELOPE_TEMPLATE = JSON.stringify(
@@ -877,6 +898,11 @@ export default function VisualJoltMapperPage() {
   const [versionCommitMessage, setVersionCommitMessage] = useState('');
   const [saveToCloud, setSaveToCloud] = useState(true);
 
+  // Modo manutenção: parte de um layout que já existe em vez de gerar do zero
+  const [baseLayout, setBaseLayout] = useState<BaseLayoutState | null>(null);
+  const [isBaseDialogOpen, setIsBaseDialogOpen] = useState(false);
+  const [maintenanceNotes, setMaintenanceNotes] = useState<{ added: string[]; removed: string[]; errors: string[] } | null>(null);
+
   // Passo-a-passo de primeira visita (dispensável, persistido em localStorage)
   const [showQuickStart, setShowQuickStart] = useState(false);
   useEffect(() => {
@@ -919,8 +945,18 @@ export default function VisualJoltMapperPage() {
 
     // Detecta importação vinda do Sandbox
     const importedFromSandbox = localStorage.getItem('jolt_visual_imported_from_sandbox');
-    if (importedFromSandbox === 'true') {
-      localStorage.removeItem('jolt_visual_imported_from_sandbox');
+    const savedBase = localStorage.getItem(STORAGE_KEYS.baseLayout);
+    if (importedFromSandbox === 'true') localStorage.removeItem('jolt_visual_imported_from_sandbox');
+    if (savedBase) {
+      // Layout existente: vindo da Sandbox monta o mapa; numa recarga só reativa o modo (o mapa já foi restaurado).
+      setTimeout(() => {
+        const res = loadBaseLayout(savedBase, { rebuildCanvas: importedFromSandbox === 'true', input: s.input });
+        if (!res.ok) {
+          localStorage.removeItem(STORAGE_KEYS.baseLayout);
+          toast({ title: 'Layout existente não carregado', description: res.error, variant: 'destructive' });
+        }
+      }, 350);
+    } else if (importedFromSandbox === 'true') {
       setTimeout(() => {
         analyzeStructures(s.input, s.target);
         toast({
@@ -1017,6 +1053,107 @@ export default function VisualJoltMapperPage() {
     }
   }, [inputJson, targetJson, setNodes, setEdges, toast]);
 
+  // ── Modo manutenção: partir de um layout que já existe ─────────────────────
+  const loadBaseLayout = useCallback(
+    (text: string, opts: { rebuildCanvas: boolean; input?: string }): LoadLayoutResult => {
+      const parsed = parseLayoutText(text);
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      let inputObj: unknown;
+      try {
+        inputObj = JSON.parse(opts.input ?? inputJson ?? '{}');
+      } catch {
+        return { ok: false, error: 'O JSON de entrada do mapeador não é válido. Corrija-o antes de carregar o layout.' };
+      }
+      const sPaths = flattenJsonToPaths(inputObj);
+      const canvas = layoutToCanvas(parsed.parts.spec, new Set(sPaths.map((p) => p.path)));
+      if (canvas.edges.length + canvas.advanced.length + canvas.orphans.length === 0) {
+        return { ok: false, error: 'Este layout não tem nenhum mapeamento em uma operação shift.' };
+      }
+
+      if (opts.rebuildCanvas) {
+        const targetObj = buildJsonFromNodePaths(canvas.edges.map((e) => e.target));
+        setAndSaveTarget(JSON.stringify(targetObj, null, 2));
+        const tPaths = flattenJsonToPaths(targetObj);
+        const sourceNodes: SourceNodeType[] = sPaths.map((p, i) => ({
+          id: `source-${p.path}`,
+          type: 'source',
+          data: { label: p.path, type: p.type },
+          position: { x: 40, y: 50 + i * 72 },
+        }));
+        const targetNodes: TargetNodeType[] = tPaths.map((p, i) => ({
+          id: `target-${p.path}`,
+          type: 'target',
+          data: { label: p.path, type: p.type },
+          position: { x: 520, y: 50 + i * 72 },
+        }));
+        const allNodes = [...sourceNodes, ...targetNodes];
+        const targetIds = new Set(targetNodes.map((n) => n.id));
+        // Ligações que já existem no layout: tracejadas, para se distinguirem do que você ligar agora.
+        const existingEdges: Edge[] = canvas.edges
+          .filter((e) => targetIds.has(`target-${e.target}`))
+          .map((e) => ({
+            id: `existing-${e.mappingId}`,
+            source: `source-${e.source}`,
+            target: `target-${e.target}`,
+            animated: false,
+            style: { stroke: '#94a3b8', strokeWidth: 2, strokeDasharray: '6 4' },
+            markerEnd: { type: MarkerType.ArrowClosed, color: '#94a3b8' },
+            data: { existing: true },
+          }));
+        setNodes(allNodes);
+        setEdges(existingEdges);
+        localStorage.setItem(STORAGE_KEYS.nodes, JSON.stringify(allNodes));
+        localStorage.setItem(STORAGE_KEYS.edges, JSON.stringify(existingEdges));
+      }
+
+      setBaseLayout({
+        text,
+        parts: parsed.parts,
+        existing: canvas.edges,
+        advancedCount: canvas.advanced.length,
+        orphanCount: canvas.orphans.length,
+      });
+      setMaintenanceNotes(null);
+      try {
+        localStorage.setItem(STORAGE_KEYS.baseLayout, text);
+      } catch {
+        /* sem armazenamento: o modo vale só nesta sessão */
+      }
+      if (opts.rebuildCanvas) {
+        toast({
+          title: 'Layout existente carregado',
+          description: `${canvas.edges.length} ligação(ões) desenhada(s)${canvas.advanced.length ? `, ${canvas.advanced.length} avançada(s) preservada(s)` : ''}. Ligue só o que é novo.`,
+        });
+      }
+      return { ok: true };
+    },
+    [inputJson, setNodes, setEdges, setAndSaveTarget, toast],
+  );
+
+  const exitMaintenance = useCallback(() => {
+    setBaseLayout(null);
+    setMaintenanceNotes(null);
+    try {
+      localStorage.removeItem(STORAGE_KEYS.baseLayout);
+    } catch {
+      /* ignora */
+    }
+    toast({ title: 'Saiu do modo manutenção', description: 'A spec volta a ser gerada do zero a partir das ligações do mapa.' });
+  }, [toast]);
+
+  /** Aplica no layout existente só o que mudou no mapa (ligações novas entram; as apagadas saem). */
+  const buildMaintenanceSpec = useCallback(() => {
+    if (!baseLayout) return null;
+    const current = edges.map((e) => ({
+      source: e.source.replace('source-', ''),
+      target: e.target.replace('target-', ''),
+    }));
+    const res = applyMapperChanges(baseLayout.parts.spec, baseLayout.existing, current);
+    const notes = { added: res.added, removed: res.removed, errors: res.errors };
+    setMaintenanceNotes(notes);
+    return { text: JSON.stringify(baseLayout.parts.rebuild(res.spec), null, 2), notes };
+  }, [baseLayout, edges]);
+
   const onConnect = useCallback(
     (params: Connection) => {
       setEdges((eds) => {
@@ -1086,6 +1223,8 @@ export default function VisualJoltMapperPage() {
     setTargetJson(DEFAULT_TARGET);
     setNodes([]);
     setEdges([]);
+    setBaseLayout(null);
+    setMaintenanceNotes(null);
     Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
     toast({ title: 'Sessão limpa!', description: 'Todos os mapeamentos foram removidos.' });
   }, [setNodes, setEdges, toast]);
@@ -1165,13 +1304,28 @@ export default function VisualJoltMapperPage() {
       return;
     }
 
+    if (baseLayout) {
+      // Modo manutenção: acrescenta só o que ainda não tem ligação; o que já existe no layout fica.
+      const taken = new Set(edges.map((e) => e.target));
+      const fresh = newEdges.filter((e) => !taken.has(e.target));
+      if (fresh.length === 0) {
+        toast({ title: 'Nada novo para ligar', description: 'Os campos de saída com nome parecido já estão ligados.' });
+        return;
+      }
+      const merged = [...edges, ...fresh];
+      setEdges(merged);
+      localStorage.setItem(STORAGE_KEYS.edges, JSON.stringify(merged));
+      toast({ title: 'Auto-mapeamento concluído', description: `${fresh.length} ligação(ões) nova(s). As do layout foram mantidas.` });
+      return;
+    }
+
     setEdges(newEdges);
     localStorage.setItem(STORAGE_KEYS.edges, JSON.stringify(newEdges));
     toast({
       title: 'Auto-mapeamento concluído',
       description: `${newEdges.length} conexões detectadas e ligadas com sucesso.`,
     });
-  }, [nodes, setEdges, toast]);
+  }, [nodes, edges, baseLayout, setEdges, toast]);
 
   const fetchCloudProjects = useCallback(async () => {
     setIsLoadingCloud(true);
@@ -1272,6 +1426,9 @@ export default function VisualJoltMapperPage() {
     const p = savedProjects.find(item => item.id === id);
     if (!p) return;
 
+    setBaseLayout(null);
+    setMaintenanceNotes(null);
+    localStorage.removeItem(STORAGE_KEYS.baseLayout);
     setCurrentProjectId(p.id);
     setCurrentCloudProjectId(null);
     setCurrentProjectName(p.name);
@@ -1291,6 +1448,9 @@ export default function VisualJoltMapperPage() {
   }, [savedProjects, setNodes, setEdges, toast]);
 
   const handleLoadCloudProject = useCallback((proj: JoltProject) => {
+    setBaseLayout(null);
+    setMaintenanceNotes(null);
+    localStorage.removeItem(STORAGE_KEYS.baseLayout);
     setCurrentCloudProjectId(proj.id);
     setCurrentProjectId(proj.id);
     setCurrentProjectName(proj.name);
@@ -1398,6 +1558,9 @@ export default function VisualJoltMapperPage() {
     setNodes([]);
     setEdges([]);
     setEntityName('');
+    setBaseLayout(null);
+    setMaintenanceNotes(null);
+    localStorage.removeItem(STORAGE_KEYS.baseLayout);
     localStorage.removeItem(STORAGE_KEYS.nodes);
     localStorage.removeItem(STORAGE_KEYS.edges);
     localStorage.setItem(STORAGE_KEYS.input, DEFAULT_INPUT);
@@ -1406,6 +1569,20 @@ export default function VisualJoltMapperPage() {
   }, [setNodes, setEdges, toast]);
 
   const handlePreviewSpec = useCallback(() => {
+    if (baseLayout) {
+      const built = buildMaintenanceSpec();
+      if (!built) return;
+      setPreviewSpec(built.text);
+      setPreviewTab('spec');
+      setPreviewOutput('');
+      setPreviewError(null);
+      setPreviewExecutionTime(null);
+      setIsPreviewOpen(true);
+      if (built.notes.errors.length > 0) {
+        toast({ title: 'Algumas ligações não puderam ser aplicadas', description: built.notes.errors[0], variant: 'destructive' });
+      }
+      return;
+    }
     const mappings: Mapping[] = edges.map((e) => ({
       id: e.id,
       source: e.source.replace('source-', ''),
@@ -1445,7 +1622,7 @@ export default function VisualJoltMapperPage() {
         variant: 'destructive',
       });
     }
-  }, [edges, mappingMode, entityName, inputJson, targetJson, useEnvelopeTemplate, envelopeTemplate, toast]);
+  }, [edges, baseLayout, buildMaintenanceSpec, mappingMode, entityName, inputJson, targetJson, useEnvelopeTemplate, envelopeTemplate, toast]);
 
   const handleRunPreview = useCallback(async () => {
     if (!previewSpec) return;
@@ -1493,6 +1670,30 @@ export default function VisualJoltMapperPage() {
   }, [previewSpec, toast]);
 
   const generateSpecFromEdges = useCallback(() => {
+    if (baseLayout) {
+      const built = buildMaintenanceSpec();
+      if (!built) return;
+      if (built.notes.errors.length > 0) {
+        toast({
+          title: 'Algumas ligações não puderam ser aplicadas',
+          description: `${built.notes.errors[0]}${built.notes.errors.length > 1 ? ` (e mais ${built.notes.errors.length - 1})` : ''}`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      localStorage.setItem(STORAGE_KEYS.spec, built.text);
+      localStorage.setItem('jolt_visual_from_maintenance', 'true');
+      localStorage.setItem(STORAGE_KEYS.input, inputJson);
+      localStorage.setItem(STORAGE_KEYS.target, targetJson);
+      localStorage.setItem(STORAGE_KEYS.nodes, JSON.stringify(nodes));
+      localStorage.setItem(STORAGE_KEYS.edges, JSON.stringify(edges));
+      toast({
+        title: 'Layout atualizado',
+        description: `${built.notes.added.length} adicionado(s), ${built.notes.removed.length} removido(s). Abrindo na Sandbox...`,
+      });
+      router.push('/jolt/sandbox');
+      return;
+    }
     if (edges.length === 0) {
       toast({
         title: 'Nenhum mapeamento',
@@ -1529,7 +1730,7 @@ export default function VisualJoltMapperPage() {
 
     toast({ title: 'Especificação Jolt gerada com sucesso', description: 'Redirecionando para a Sandbox...' });
     router.push('/jolt/sandbox');
-  }, [edges, nodes, inputJson, targetJson, mappingMode, entityName, router, toast]);
+  }, [edges, nodes, baseLayout, buildMaintenanceSpec, inputJson, targetJson, mappingMode, entityName, router, toast]);
 
   const handleFormat = (text: string, setter: (val: string) => void, label: string) => {
     try {
@@ -1719,6 +1920,18 @@ export default function VisualJoltMapperPage() {
               </DropdownMenu>
 
               <Button
+                variant={baseLayout ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => setIsBaseDialogOpen(true)}
+                className="hidden h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider md:inline-flex"
+                aria-label="Partir de um layout existente"
+                title="Mexer num layout que já existe: você liga só o que é novo e o resto fica como está"
+              >
+                <Wrench className="h-3.5 w-3.5" aria-hidden />
+                <span className="hidden lg:inline">Layout existente</span>
+              </Button>
+
+              <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsGuideOpen(true)}
@@ -1817,6 +2030,20 @@ export default function VisualJoltMapperPage() {
             </Button>
           </div>
         </div>
+
+        {baseLayout && (
+          <div role="status" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-primary/20 bg-primary/5 px-4 py-2 text-xs md:px-6">
+            <Wrench className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+            <p className="min-w-0 flex-1 leading-relaxed text-muted-foreground">
+              <strong className="font-bold text-foreground">Modo manutenção.</strong>{' '}
+              {baseLayout.existing.length} ligação(ões) do layout aparecem tracejadas. Ligue só o que é novo; apagar uma tracejada tira o campo do layout.
+              {baseLayout.advancedCount > 0 && <> {baseLayout.advancedCount} mapeamento(s) condicional(is) ou avançado(s) não aparecem no mapa e ficam como estão.</>}
+              {baseLayout.orphanCount > 0 && <> {baseLayout.orphanCount} usa(m) campos que não estão no JSON de entrada atual e também ficam como estão.</>}
+            </p>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setIsBaseDialogOpen(true)} className="h-7 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider">Trocar layout</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={exitMaintenance} className="h-7 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider">Sair do modo</Button>
+          </div>
+        )}
 
         {/* ── Corpo zero-scroll ─────────────────────────────────────────────── */}
         <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:p-4">
@@ -2165,6 +2392,12 @@ export default function VisualJoltMapperPage() {
           </div>
         </main>
 
+        <ExistingLayoutDialog
+          open={isBaseDialogOpen}
+          onOpenChange={setIsBaseDialogOpen}
+          onLoad={(text) => loadBaseLayout(text, { rebuildCanvas: true })}
+        />
+
         {/* ── Modal de Pré-visualização da Spec Jolt com Execução Instantânea ─── */}
         <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
           <DialogContent className="flex h-[85dvh] max-h-[88dvh] max-w-3xl flex-col rounded-2xl border border-border bg-card p-4 shadow-2xl sm:p-6">
@@ -2260,6 +2493,23 @@ export default function VisualJoltMapperPage() {
                 </div>
               </div>
             </DialogHeader>
+            {baseLayout && maintenanceNotes && (
+              <div className="shrink-0 space-y-1 rounded-xl border border-border bg-muted/40 p-3 text-xs" role="status">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">O que mudou no layout</p>
+                {maintenanceNotes.added.length === 0 && maintenanceNotes.removed.length === 0 && maintenanceNotes.errors.length === 0 && (
+                  <p className="text-muted-foreground">Nenhuma mudança: o mapa está igual ao layout.</p>
+                )}
+                {maintenanceNotes.added.map((a) => (
+                  <p key={`a-${a}`} className="font-code text-[11px] text-emerald-600 dark:text-emerald-400">+ {a}</p>
+                ))}
+                {maintenanceNotes.removed.map((r) => (
+                  <p key={`r-${r}`} className="font-code text-[11px] text-rose-600 dark:text-rose-400">− {r}</p>
+                ))}
+                {maintenanceNotes.errors.map((er) => (
+                  <p key={`e-${er}`} className="text-[11px] text-destructive">{er}</p>
+                ))}
+              </div>
+            )}
 
             {/* Corpo do Modal */}
             <div className="relative my-2 min-h-[240px] w-full flex-1 overflow-hidden rounded-xl border border-border">

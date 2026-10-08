@@ -30,7 +30,9 @@ import {
   AlertCircle,
   Cpu,
   Info,
-  X
+  X,
+  Wrench,
+  FileJson
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -60,6 +62,10 @@ import { JoltGuide } from '@/components/jolt/JoltGuide';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { SandboxPane } from './SandboxPane';
 import { GithubIntegrationBar } from '@/components/jolt/GithubIntegrationBar';
+import { useGithubLayouts, type LoadedGithubLayout } from '@/components/jolt/useGithubLayouts';
+import { JoltMaintenancePanel } from '@/components/jolt/JoltMaintenancePanel';
+import { parseLayoutData, parseLayoutText, listShiftMappings } from '@/lib/jolt-maintenance';
+import { diffJson, describeValue, type JsonDiff } from '@/lib/jolt-compare';
 import Link from 'next/link';
 
 const LAYOUTS_STORAGE_KEY_PREFIX = 'agileSpace_jolt_layouts';
@@ -98,6 +104,9 @@ export default function JoltSandboxPage() {
   const [executionStats, setExecutionStats] = useState<{ timeMs?: number; engine?: string } | null>(null);
   const [compareResult, setCompareResult] = useState<{
     identical: boolean;
+    /** Mesmo conteúdo, só a ordem das chaves é outra (não muda o significado do JSON). */
+    orderOnly: boolean;
+    diffs: JsonDiff[];
     localTime: number;
     javaTime: number;
     localOutput: string;
@@ -109,22 +118,30 @@ export default function JoltSandboxPage() {
   const editorSpecRef = useRef<any>(null);
   const monacoRef = useRef<any>(null);
 
-  // GitHub Integration States
-  const [githubRepo, setGithubRepo] = useState('totvs/winthor-smart-hub-layouts');
-  const [repoInput, setRepoInput] = useState('totvs/winthor-smart-hub-layouts');
-  const [githubTags, setGithubTags] = useState<string[]>([]);
-  const [selectedTag, setSelectedTag] = useState<string>('');
-  const [githubIntegrations, setGithubIntegrations] = useState<string[]>([]);
-  const [selectedIntegration, setSelectedIntegration] = useState<string>('');
-  const [githubLayouts, setGithubLayouts] = useState<any[]>([]);
-  const [selectedLayoutPath, setSelectedLayoutPath] = useState<string>('');
+  // Layout completo do arquivo carregado do GitHub (o editor mostra só a transformação):
+  // guardado para "Copiar layout completo" devolver o arquivo inteiro com a spec editada.
+  const [loadedDocument, setLoadedDocument] = useState<any | null>(null);
   const [isLayoutPopoverOpen, setIsLayoutPopoverOpen] = useState(false);
-  
-  const [loadingGithubTags, setLoadingGithubTags] = useState(false);
-  const [loadingGithubTree, setLoadingGithubTree] = useState(false);
-  const [loadingGithubLayout, setLoadingGithubLayout] = useState(false);
+  const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
 
-  const treeCacheRef = useRef<Record<string, any[]>>({});
+  const handleGithubLayoutLoaded = useCallback((layout: LoadedGithubLayout) => {
+    const parsed = parseLayoutData(layout.document);
+    // Layout completo: o editor mostra a LAYOUTTRANSFORMACAO; outro formato vai inteiro.
+    const specValue = parsed.ok ? parsed.parts.spec : layout.document;
+    setJoltSpec(JSON.stringify(specValue, null, 2));
+    setLoadedDocument(parsed.ok && parsed.parts.kind === 'envelope' ? layout.document : null);
+    setSelectedLayoutId(null);
+    setCurrentTitle(layout.title);
+    toast({
+      title: 'Layout carregado!',
+      description: `"${layout.title}" na versão ${layout.tag}.`,
+    });
+  }, [toast]);
+
+  const github = useGithubLayouts({
+    onLayoutLoaded: handleGithubLayoutLoaded,
+    onNotify: n => toast(n),
+  });
 
   // Sync data from Visual Mapper if it exists in localStorage
   useEffect(() => {
@@ -134,8 +151,17 @@ export default function JoltSandboxPage() {
     const specFromVisual = localStorage.getItem('jolt_visual_generated_spec');
     const inputFromVisual = localStorage.getItem('jolt_visual_input_json');
     if (specFromVisual) {
-      setJoltSpec(specFromVisual);
       localStorage.removeItem('jolt_visual_generated_spec');
+      // Vindo do modo manutenção: o editor mostra a transformação e o arquivo completo fica guardado para exportar.
+      const fromMaintenance = localStorage.getItem('jolt_visual_from_maintenance') === 'true';
+      localStorage.removeItem('jolt_visual_from_maintenance');
+      const parsedLayout = fromMaintenance ? parseLayoutText(specFromVisual) : null;
+      if (parsedLayout?.ok && parsedLayout.parts.kind === 'envelope') {
+        setLoadedDocument(JSON.parse(specFromVisual));
+        setJoltSpec(JSON.stringify(parsedLayout.parts.spec, null, 2));
+      } else {
+        setJoltSpec(specFromVisual);
+      }
       
       if (inputFromVisual) {
         setInputJson(inputFromVisual);
@@ -147,188 +173,6 @@ export default function JoltSandboxPage() {
       });
     }
   }, []);
-
-  // Fetch tags when repository changes
-  useEffect(() => {
-    if (githubRepo) {
-      fetchGithubTags(githubRepo);
-    }
-  }, [githubRepo]);
-
-  const filterLayoutsForIntegration = (tree: any[], integration: string) => {
-    if (!integration) return;
-    const layouts = tree
-      .filter((node: any) => {
-        return node.type === 'blob' && 
-               node.path.startsWith(`${integration}/rotas/`) && 
-               node.path.endsWith('.json');
-      })
-      .map((node: any) => {
-        const parts = node.path.split('/');
-        const filename = parts[parts.length - 1].replace('.json', '');
-        return {
-          name: filename,
-          path: node.path
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    setGithubLayouts(layouts);
-  };
-
-  const processTree = (tree: any[], tag: string) => {
-    const rootsSet = new Set<string>();
-    tree.forEach((node: any) => {
-      if (node.type === 'tree') {
-        const parts = node.path.split('/');
-        if (parts.length === 1 && parts[0] !== '.github' && parts[0] !== 'docs') {
-          rootsSet.add(parts[0]);
-        }
-      }
-    });
-
-    const integrations = Array.from(rootsSet).sort();
-    setGithubIntegrations(integrations);
-    
-    if (integrations.length > 0) {
-      setSelectedIntegration(integrations[0]);
-      filterLayoutsForIntegration(tree, integrations[0]);
-    }
-  };
-
-  const fetchGithubTree = async (tag: string) => {
-    if (!tag) return;
-    setLoadingGithubTree(true);
-    
-    setGithubIntegrations([]);
-    setSelectedIntegration('');
-    setGithubLayouts([]);
-    setSelectedLayoutPath('');
-
-    try {
-      const cacheKey = `github_tree_${githubRepo}_${tag}`;
-      if (treeCacheRef.current[cacheKey]) {
-        processTree(treeCacheRef.current[cacheKey], tag);
-        return;
-      }
-      const cachedTree = sessionStorage.getItem(cacheKey);
-      if (cachedTree) {
-        const parsed = JSON.parse(cachedTree);
-        treeCacheRef.current[cacheKey] = parsed;
-        processTree(parsed, tag);
-        return;
-      }
-
-      const res = await fetch(`https://api.github.com/repos/${githubRepo}/git/trees/${tag}?recursive=1`);
-      if (!res.ok) throw new Error('Erro ao buscar estrutura do repositório');
-      const data = await res.json();
-      
-      const tree = data.tree || [];
-      treeCacheRef.current[cacheKey] = tree;
-      try {
-        sessionStorage.setItem(cacheKey, JSON.stringify(tree));
-      } catch (_) {}
-      processTree(tree, tag);
-    } catch (e: any) {
-      console.error(e);
-      toast({
-        title: "Erro de Conexão",
-        description: "Não foi possível carregar a árvore de arquivos para esta tag.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingGithubTree(false);
-    }
-  };
-
-  const fetchGithubTags = async (repo = githubRepo) => {
-    setLoadingGithubTags(true);
-    try {
-      const cacheKey = `github_layouts_tags_${repo}`;
-      const cachedTags = sessionStorage.getItem(cacheKey);
-      if (cachedTags) {
-        const parsed = JSON.parse(cachedTags);
-        setGithubTags(parsed);
-        if (parsed.length > 0) setSelectedTag(parsed[0]);
-        return;
-      }
-
-      const res = await fetch(`https://api.github.com/repos/${repo}/tags`);
-      if (!res.ok) throw new Error('Erro ao buscar tags do repositório. Verifique se o nome está correto e se o repositório é público.');
-      const data = await res.json();
-      const tags = data.map((t: any) => t.name);
-      setGithubTags(tags);
-      sessionStorage.setItem(cacheKey, JSON.stringify(tags));
-      if (tags.length > 0) setSelectedTag(tags[0]);
-    } catch (e: any) {
-      console.error(e);
-      setGithubTags([]);
-      toast({
-        title: "Erro ao Carregar Repositório",
-        description: "Não foi possível carregar as tags do repositório: " + e.message,
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingGithubTags(false);
-    }
-  };
-
-  const fetchLayoutContent = async (path: string, tag: string) => {
-    if (!path || !tag) return;
-    setLoadingGithubLayout(true);
-    try {
-      const res = await fetch(`https://raw.githubusercontent.com/${githubRepo}/${tag}/${path}`);
-      if (!res.ok) throw new Error('Não foi possível carregar o conteúdo do layout');
-      const data = await res.json();
-      
-      let specValue = data;
-      
-      if (data && !Array.isArray(data) && data.tabela?.campos) {
-        const campoTransformacao = data.tabela.campos.find((c: any) => c.nome === 'LAYOUTTRANSFORMACAO');
-        if (campoTransformacao?.valor) {
-          specValue = Array.isArray(campoTransformacao.valor)
-            ? campoTransformacao.valor
-            : JSON.parse(typeof campoTransformacao.valor === 'string' ? campoTransformacao.valor : JSON.stringify(campoTransformacao.valor));
-        }
-      }
-      
-      const formattedSpec = JSON.stringify(specValue, null, 2);
-      setJoltSpec(formattedSpec);
-      
-      const parts = path.split('/');
-      const filename = parts[parts.length - 1].replace('.json', '');
-      setCurrentTitle(filename);
-
-      toast({
-        title: "Layout Carregado!",
-        description: `O layout "${filename}" foi carregado com sucesso.`
-      });
-    } catch (e: any) {
-      console.error(e);
-      toast({
-        title: "Erro ao buscar layout",
-        description: e.message,
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingGithubLayout(false);
-    }
-  };
-
-  const handleIntegrationChange = (integration: string) => {
-    setSelectedIntegration(integration);
-    setSelectedLayoutPath('');
-    const cacheKey = `github_tree_${githubRepo}_${selectedTag}`;
-    const currentTree = treeCacheRef.current[cacheKey] || [];
-    filterLayoutsForIntegration(currentTree, integration);
-  };
-
-  const handleLayoutPathChange = (path: string) => {
-    setSelectedLayoutPath(path);
-    if (path) {
-      fetchLayoutContent(path, selectedTag);
-    }
-  };
 
   const JOLT_SNIPPETS = {
     shift: [
@@ -377,17 +221,12 @@ export default function JoltSandboxPage() {
   const handleInjectSnippet = (type: keyof typeof JOLT_SNIPPETS) => {
     const spec = JOLT_SNIPPETS[type];
     setJoltSpec(JSON.stringify(spec, null, 2));
+    setLoadedDocument(null);
     toast({
       title: "Modelo Injetado!",
       description: `Operação Jolt "${type.toUpperCase()}" injetada com sucesso.`
     });
   };
-
-  useEffect(() => {
-    if (selectedTag) {
-      fetchGithubTree(selectedTag);
-    }
-  }, [selectedTag]);
 
   // AUTO-FILL ENGINE
   useEffect(() => {
@@ -527,6 +366,7 @@ export default function JoltSandboxPage() {
     const layout = savedLayouts?.find(l => l.id === id);
     if (layout) {
       setSelectedLayoutId(id);
+      setLoadedDocument(null);
       setJoltSpec(layout.joltSpec || '');
       setApiUrl(layout.apiUrl || '');
       setCurrentTitle(layout.name || '');
@@ -607,12 +447,12 @@ export default function JoltSandboxPage() {
     }
   };
 
-  const handleRunTransformation = async () => {
-    if (!inputJson.trim() || !joltSpec.trim()) return;
+  const runTransformation = async (inputText: string, specText: string) => {
+    if (!inputText.trim() || !specText.trim()) return;
 
-    const parsedInput = validateJSON(inputJson, 'Entrada (Input)', editorInputRef);
+    const parsedInput = validateJSON(inputText, 'Entrada (Input)', editorInputRef);
     if (!parsedInput) return;
-    const parsedSpec = validateJSON(joltSpec, 'Jolt Spec', editorSpecRef);
+    const parsedSpec = validateJSON(specText, 'Jolt Spec', editorSpecRef);
     if (!parsedSpec) return;
 
     setIsLoading(true);
@@ -631,6 +471,52 @@ export default function JoltSandboxPage() {
     }
   };
 
+  const handleRunTransformation = () => runTransformation(inputJson, joltSpec);
+
+  // Manutenção do layout: o painel devolve o texto novo da spec; se já havia resultado na tela, roda de novo.
+  const handleMaintenanceChange = (newSpecText: string, message: string) => {
+    setJoltSpec(newSpecText);
+    toast({ title: 'Layout atualizado', description: message });
+    if (outputJson.trim()) runTransformation(inputJson, newSpecText);
+  };
+
+  /** Layout completo para levar de volta ao arquivo: o do GitHub com a spec editada, ou o colado inteiro. */
+  const buildFullLayout = (): string | null => {
+    const current = parseLayoutText(joltSpec);
+    if (!current.ok) {
+      toast({ title: 'Spec inválida', description: current.error, variant: 'destructive' });
+      return null;
+    }
+    if (current.parts.kind === 'envelope') return JSON.stringify(JSON.parse(joltSpec), null, 2);
+    if (loadedDocument) {
+      const base = parseLayoutData(loadedDocument);
+      if (base.ok) return JSON.stringify(base.parts.rebuild(current.parts.spec), null, 2);
+    }
+    toast({
+      title: 'Sem layout completo',
+      description: 'Carregue uma rota do GitHub ou cole o layout inteiro (com tabela.campos) no editor para exportar o arquivo completo.',
+      variant: 'destructive',
+    });
+    return null;
+  };
+
+  const handleCopyFullLayout = async () => {
+    const full = buildFullLayout();
+    if (full) await handleCopy(full, 'Layout completo');
+  };
+
+  const handleDownloadFullLayout = () => {
+    const full = buildFullLayout();
+    if (!full) return;
+    const name = (currentTitle || 'layout').replace(/[\/:*?"<>|]+/g, '-').trim() || 'layout';
+    const url = URL.createObjectURL(new Blob([full], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleCompareEngines = async () => {
     if (!inputJson.trim() || !joltSpec.trim()) return;
 
@@ -647,10 +533,15 @@ export default function JoltSandboxPage() {
       const javaResult = await transformJolt(parsedInput, parsedSpec, { engine: 'java' });
       const javaOutStr = JSON.stringify(javaResult.outputData, null, 2);
 
-      const isIdentical = localOutStr === javaOutStr;
+      // Compara o conteúdo, não o texto: ordem de chaves diferente não é divergência.
+      const diffs = diffJson(localResult.outputData, javaResult.outputData);
+      const isIdentical = diffs.length === 0;
+      const orderOnly = isIdentical && localOutStr !== javaOutStr;
 
       setCompareResult({
         identical: isIdentical,
+        orderOnly,
+        diffs,
         localTime: localResult.executionTimeMs ?? 0,
         javaTime: javaResult.executionTimeMs ?? 0,
         localOutput: localOutStr,
@@ -664,12 +555,12 @@ export default function JoltSandboxPage() {
       if (isIdentical) {
         toast({
           title: "Motores 100% Idênticos!",
-          description: `JS: ${localResult.executionTimeMs}ms | Java: ${javaResult.executionTimeMs}ms.`,
+          description: `${orderOnly ? 'Mesmo conteúdo (só a ordem das chaves muda). ' : ''}JS: ${localResult.executionTimeMs}ms | Java: ${javaResult.executionTimeMs}ms.`,
         });
       } else {
         toast({
           title: "Resultados Divergentes!",
-          description: "O motor JS e o Java oficial produziram saídas diferentes. Verifique a modal de comparação.",
+          description: `${diffs.length} diferença${diffs.length === 1 ? '' : 's'} entre o motor JS e o Java oficial. A lista está na janela de comparação.`,
           variant: "destructive"
         });
       }
@@ -693,9 +584,24 @@ export default function JoltSandboxPage() {
     try {
       localStorage.setItem('jolt_visual_input_json', inputJson);
       localStorage.setItem('jolt_visual_imported_from_sandbox', 'true');
+
+      // Com um layout que já tem shift no editor, o mapeador abre em modo manutenção (só liga o que é novo).
+      let layoutForMapper: string | null = null;
+      const current = parseLayoutText(joltSpec);
+      if (current.ok && listShiftMappings(current.parts.spec).length > 0) {
+        const base = loadedDocument ? parseLayoutData(loadedDocument) : null;
+        layoutForMapper = current.parts.kind === 'envelope'
+          ? JSON.stringify(JSON.parse(joltSpec), null, 2)
+          : base?.ok ? JSON.stringify(base.parts.rebuild(current.parts.spec), null, 2) : JSON.stringify(current.parts.spec, null, 2);
+      }
+      if (layoutForMapper) localStorage.setItem('jolt_visual_base_layout', layoutForMapper);
+      else localStorage.removeItem('jolt_visual_base_layout');
+
       toast({
         title: "Transferindo para o Visual...",
-        description: "Abrindo o Mapeador Visual com os dados da Sandbox."
+        description: layoutForMapper
+          ? "Abrindo o Mapeador Visual em modo manutenção, com o layout atual."
+          : "Abrindo o Mapeador Visual com os dados da Sandbox."
       });
       router.push('/jolt/visual');
     } catch (e: any) {
@@ -855,21 +761,7 @@ export default function JoltSandboxPage() {
           setCurrentTitle={setCurrentTitle}
           apiUrl={apiUrl}
           setApiUrl={setApiUrl}
-          repoInput={repoInput}
-          setRepoInput={setRepoInput}
-          setGithubRepo={setGithubRepo}
-          githubTags={githubTags}
-          selectedTag={selectedTag}
-          setSelectedTag={setSelectedTag}
-          loadingGithubTags={loadingGithubTags}
-          githubIntegrations={githubIntegrations}
-          selectedIntegration={selectedIntegration}
-          handleIntegrationChange={handleIntegrationChange}
-          loadingGithubTree={loadingGithubTree}
-          githubLayouts={githubLayouts}
-          selectedLayoutPath={selectedLayoutPath}
-          handleLayoutPathChange={handleLayoutPathChange}
-          loadingGithubLayout={loadingGithubLayout}
+          github={github}
           isLayoutPopoverOpen={isLayoutPopoverOpen}
           setIsLayoutPopoverOpen={setIsLayoutPopoverOpen}
         />
@@ -902,11 +794,35 @@ export default function JoltSandboxPage() {
             }}
             dotClass="bg-primary"
             toolbar={
+              <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMaintenanceOpen(true)}
+                className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-primary hover:text-primary"
+                title="Acrescentar, trocar ou remover campos de um layout que já existe, sem refazer"
+                aria-label="Manutenção do layout"
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline">Manutenção</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-foreground" title="Levar o layout completo (com a spec editada) de volta para o arquivo" aria-label="Layout completo">
+                    <FileJson className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[210px] rounded-xl p-1">
+                  <div className="mb-1 border-b border-border px-2 py-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">Arquivo inteiro, com a spec atual</div>
+                  <DropdownMenuItem onClick={handleCopyFullLayout} className={snippetItemClass}>Copiar layout completo</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDownloadFullLayout} className={snippetItemClass}>Baixar como .json</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider text-primary hover:text-primary" title="Inserir um modelo de operação Jolt" aria-label="Modelos Jolt (snippets)">
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span className="hidden xl:inline">Modelos</span>
+                    <span className="hidden 2xl:inline">Modelos</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[190px] rounded-xl p-1">
@@ -918,6 +834,7 @@ export default function JoltSandboxPage() {
                   <DropdownMenuItem onClick={() => handleInjectSnippet('remove')} className={snippetItemClass}>Remove (Exclusão)</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              </>
             }
           />
 
@@ -940,6 +857,14 @@ export default function JoltSandboxPage() {
             }
           />
         </main>
+
+        <JoltMaintenancePanel
+          open={isMaintenanceOpen}
+          onOpenChange={setIsMaintenanceOpen}
+          specText={joltSpec}
+          inputText={inputJson}
+          onSpecChange={handleMaintenanceChange}
+        />
 
         {/* Modal de Comparação de Motores */}
         <Dialog open={isCompareDialogOpen} onOpenChange={setIsCompareDialogOpen}>
@@ -978,6 +903,28 @@ export default function JoltSandboxPage() {
               </DialogDescription>
             </DialogHeader>
 
+            {compareResult?.orderOnly && (
+              <p className="mt-3 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                Os dois motores devolveram exatamente os mesmos valores; só a ordem das chaves no JSON é diferente, o que não muda o resultado.
+              </p>
+            )}
+            {compareResult && compareResult.diffs.length > 0 && (
+              <div className="mt-3 max-h-[170px] overflow-y-auto rounded-xl border border-destructive/30 bg-destructive/5 p-2" role="list" aria-label="Diferenças entre os motores">
+                {compareResult.diffs.slice(0, 50).map(d => (
+                  <div key={d.path + d.kind} role="listitem" className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 px-2 py-1 font-code text-[11px]">
+                    <span className="font-bold text-foreground">{d.path}</span>
+                    {d.kind === 'valor' && (
+                      <span className="text-muted-foreground">
+                        JS <span className="text-foreground">{describeValue(d.local)}</span> · Java <span className="text-foreground">{describeValue(d.java)}</span>
+                      </span>
+                    )}
+                    {d.kind === 'so-local' && <span className="text-muted-foreground">só no JS: <span className="text-foreground">{describeValue(d.local)}</span></span>}
+                    {d.kind === 'so-java' && <span className="text-muted-foreground">só no Java: <span className="text-foreground">{describeValue(d.java)}</span></span>}
+                  </div>
+                ))}
+                {compareResult.diffs.length > 50 && <p className="px-2 py-1 text-[11px] text-muted-foreground">e mais {compareResult.diffs.length - 50} diferenças…</p>}
+              </div>
+            )}
             {compareResult && (
               <div className="mt-4 grid min-h-[350px] flex-1 grid-cols-1 gap-4 overflow-hidden md:grid-cols-2">
                 <div className="flex min-h-[200px] flex-col overflow-hidden rounded-xl border border-border bg-background">

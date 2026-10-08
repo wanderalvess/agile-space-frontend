@@ -740,19 +740,12 @@ function resolveValue(path: string, current: any, parents: any[], currentKey?: s
 }
 
 /**
- * Converte literais Jolt (#) para seus tipos nativos (booleanos, números, null ou strings).
+ * Literais Jolt (#): o valor depois do `#` é SEMPRE texto, igual ao motor oficial (Bazaarvoice).
+ * `"#1"` gera "1" e `"#False"` gera "False" — não 1 nem false. Para número ou booleano a spec
+ * precisa de um modify depois (ex.: `"sexo": "=toInteger"`). Converter aqui fazia a prévia local
+ * mostrar um resultado que a produção nunca entrega.
  */
-function parseLiteralValue(rawVal: string): any {
-  if (rawVal === 'True' || rawVal === 'true') return true;
-  if (rawVal === 'False' || rawVal === 'false') return false;
-  if (rawVal === 'null') return null;
-  if (/^-?\d+$/.test(rawVal)) {
-    if (rawVal.length > 1 && rawVal.startsWith('0')) return rawVal;
-    return parseInt(rawVal, 10);
-  }
-  if (/^-?\d+\.\d+$/.test(rawVal)) {
-    return parseFloat(rawVal);
-  }
+function parseLiteralValue(rawVal: string): string {
   return rawVal;
 }
 

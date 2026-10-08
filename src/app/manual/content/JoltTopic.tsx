@@ -98,6 +98,15 @@ export function JoltTopic() {
                       Interface gráfica para criar mapeamentos complexos apenas arrastando nós e conexões, gerando a spec Jolt correspondente automaticamente.
                     </p>
                   </div>
+
+                  <div className="p-6 bg-white/5 border border-white/10 rounded-3xl space-y-2 hover:bg-white/10 transition-colors">
+                    <h5 className="text-xs font-black uppercase text-white">
+                      Manutenção de layout existente
+                    </h5>
+                    <p className="text-xs text-slate-400 font-medium leading-relaxed">
+                      Não precisa refazer um layout para acrescentar um campo. Na Sandbox, o botão <strong className="text-slate-200">Manutenção</strong> lista os campos da entrada que a spec ainda não usa, insere o novo na shift com o padrão dos vizinhos e permite trocar ou remover destinos. No Mapeador Visual, <strong className="text-slate-200">Layout existente</strong> desenha as ligações que o layout já tem e aplica só o que você mudou. Modify, default e condicionais não são tocados. <strong className="text-slate-200">Layout completo</strong> devolve o arquivo inteiro com a spec atualizada.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
