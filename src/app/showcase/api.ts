@@ -1,4 +1,4 @@
-import { ShowcaseSession } from '@/components/showcase/types';
+import { ShowcaseSession, TaskFile } from '@/components/showcase/types';
 import { authFetch, getAuthToken } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
@@ -16,6 +16,17 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
   if (!res.ok) throw new Error(`Showcase API error ${res.status}: ${await res.text()}`);
   if (res.status === 204) return undefined as T;
   return res.json();
+}
+
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const data = await res.json();
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+  } catch {
+    // corpo sem JSON: cai na mensagem padrão
+  }
+  if (res.status === 413) return 'O arquivo excede o limite de 10 MB.';
+  return fallback;
 }
 
 export const showcaseApi = {
@@ -37,6 +48,35 @@ export const showcaseApi = {
       method: 'POST',
       body: JSON.stringify(session),
     });
+  },
+
+  /** Anexa um arquivo (PNG, JPEG ou PDF) ao card. Erros chegam com a mensagem em português do servidor. */
+  async uploadTaskFile(sessionId: string, taskId: string, file: File): Promise<TaskFile> {
+    const body = new FormData();
+    body.append('file', file);
+    const res = await authFetch(
+      `${API_BASE_URL}/showcase-sessions/${encodeURIComponent(sessionId)}/tasks/${encodeURIComponent(taskId)}/files`,
+      { method: 'POST', body }
+    );
+    if (!res.ok) throw new Error(await readErrorMessage(res, 'Não foi possível enviar o arquivo.'));
+    return res.json();
+  },
+
+  async deleteTaskFile(sessionId: string, fileId: string): Promise<void> {
+    const res = await authFetch(
+      `${API_BASE_URL}/showcase-sessions/${encodeURIComponent(sessionId)}/files/${encodeURIComponent(fileId)}`,
+      { method: 'DELETE' }
+    );
+    if (!res.ok) throw new Error(await readErrorMessage(res, 'Não foi possível remover o arquivo.'));
+  },
+
+  /** Baixa o conteúdo com o token da sessão (um <img>/<iframe> direto não manda o Authorization). */
+  async fetchTaskFileBlob(sessionId: string, fileId: string): Promise<Blob> {
+    const res = await authFetch(
+      `${API_BASE_URL}/showcase-sessions/${encodeURIComponent(sessionId)}/files/${encodeURIComponent(fileId)}`
+    );
+    if (!res.ok) throw new Error(await readErrorMessage(res, 'Não foi possível abrir o arquivo.'));
+    return res.blob();
   },
 
   getWebSocketUrl(id: string): string {

@@ -34,11 +34,19 @@ export const isLightBackground = (bg?: string): boolean => {
  * sala contava `preparationStatus` (dropdown manual, esquecível) e o card
  * calculava isReady por conta própria, podendo discordar sem aviso nenhum.
  */
-export const isTaskContentComplete = (task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics'>): boolean => {
+export const isTaskContentComplete = (task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics' | 'attachments'>): boolean => {
   if (task.cardKind === 'metrics') {
     return (task.metrics || []).some(m => m.field.trim() && m.value);
   }
-  return !!(task.evidence.problem && task.evidence.solution && (task.evidence.screenshot || task.evidence.video));
+  // Arquivo anexado no card vale como evidência, igual a print ou vídeo.
+  const hasEvidence = !!(task.evidence.screenshot || task.evidence.video || (task.attachments?.length ?? 0) > 0);
+  return !!(task.evidence.problem && task.evidence.solution && hasEvidence);
+};
+
+export const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
 };
 
 export const formatTime = (seconds?: number) => {

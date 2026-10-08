@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      frame-src 'self' https://*.google.com;
+      frame-src 'self' blob: https://*.google.com;
       frame-ancestors 'self';
       upgrade-insecure-requests;
     `.replace(/\s{2,}/g, ' ').trim();

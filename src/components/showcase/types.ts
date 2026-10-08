@@ -24,6 +24,21 @@ export interface Evidence {
   planned?: { dev?: string; qa?: string; tu?: string } | null;
 }
 
+/** Arquivo anexado a um card (PNG, JPEG ou PDF) — evidência que ainda não está no Jira. */
+export interface TaskFile {
+  id: string;
+  taskId: string;
+  name: string;
+  contentType: string;
+  size: number;
+  uploadedBy?: string;
+  createdAt?: string;
+}
+
+export const TASK_FILE_MAX_COUNT = 5;
+export const TASK_FILE_MAX_BYTES = 10 * 1024 * 1024;
+export const TASK_FILE_ACCEPT = 'image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf';
+
 export interface ImpactMetric {
   field: string; // "campo" — ex: "Economia (R$)", "Tempo Poupado (dias)"
   value: number; // "valor"
@@ -57,6 +72,8 @@ export interface ShowcaseTask {
   // ele tem pra mostrar). Ausente = 'compact' (comportamento anterior).
   chartDisplay?: 'compact' | 'featured';
   metrics?: ImpactMetric[];
+  // Só leitura: vem do backend (arquivos enviados no card). Entra e sai pelos endpoints de arquivo.
+  attachments?: TaskFile[];
   assignee: string; 
   url: string;
   evidence: Evidence; 

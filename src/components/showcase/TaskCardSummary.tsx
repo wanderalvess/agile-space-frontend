@@ -19,7 +19,7 @@ interface TaskCardSummaryProps {
 export function TaskCardSummary({ task, isMetricsCard, onExpand }: TaskCardSummaryProps) {
   const problem = (isMetricsCard ? task.description : task.evidence.problem)?.trim();
   const solution = task.evidence.solution?.trim();
-  const hasEvidence = getEvidenceUrls(task.evidence).length > 0;
+  const hasEvidence = getEvidenceUrls(task.evidence).length > 0 || (task.attachments?.length ?? 0) > 0;
 
   return (
     <button

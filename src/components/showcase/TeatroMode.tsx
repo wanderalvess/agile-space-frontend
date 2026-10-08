@@ -15,6 +15,7 @@ import { ChartRenderer } from './ChartRenderer';
 import { getCategoryColor } from './chartPresets';
 import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls, isImageBackground, imageBackgroundCss } from './utils';
 import { TeatroHeader } from './TeatroHeader';
+import { TaskFileEvidence } from './TaskFileEvidence';
 import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
 import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
@@ -266,10 +267,14 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
   // apresenta alterna pra outra logo abaixo, nenhuma fica escondida.
   const [evidenceIndex, setEvidenceIndex] = useState(0);
   const evidenceUrls = getEvidenceUrls(task?.evidence || { screenshot: '', video: '' });
-  const safeIndex = Math.min(evidenceIndex, Math.max(evidenceUrls.length - 1, 0));
-  const url = evidenceUrls[safeIndex];
+  // Arquivos anexados ao card vêm depois dos links (print/vídeo do Jira) e entram na mesma navegação.
+  const attachedFiles = task?.attachments || [];
+  const evidenceCount = evidenceUrls.length + attachedFiles.length;
+  const safeIndex = Math.min(evidenceIndex, Math.max(evidenceCount - 1, 0));
+  const url = safeIndex < evidenceUrls.length ? evidenceUrls[safeIndex] : undefined;
+  const currentFile = safeIndex >= evidenceUrls.length ? attachedFiles[safeIndex - evidenceUrls.length] : undefined;
   const goToEvidence = (i: number) => {
-    if (i < 0 || i >= evidenceUrls.length) return;
+    if (i < 0 || i >= evidenceCount) return;
     setEvidenceIndex(i);
   };
 
@@ -575,6 +580,10 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                 </motion.div>
               );
 
+              if (currentFile) return (
+                <TaskFileEvidence key={`file-${currentFile.id}`} sessionId={session.id} file={currentFile} title={task.title} isLight={isLight} />
+              );
+
               if (!url) return (
                 <motion.div
                   key="no-evidence"
@@ -591,7 +600,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   </div>
                   <div className="space-y-3">
                     <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/20")}>Sem evidência vinculada</p>
-                    <p className={cn("text-xs font-bold max-w-xs mx-auto", isLight ? "text-slate-500" : "text-white/40")}>Vincule um link de vídeo ou screenshot para demonstrar esta entrega.</p>
+                    <p className={cn("text-xs font-bold max-w-xs mx-auto", isLight ? "text-slate-500" : "text-white/40")}>Vincule um link de vídeo ou screenshot, ou anexe um arquivo no card, para demonstrar esta entrega.</p>
                   </div>
                 </motion.div>
               );
@@ -745,7 +754,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
           </AnimatePresence>
         </div>
 
-        {evidenceUrls.length > 1 && (
+        {evidenceCount > 1 && (
           <div className={cn(
             "absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 p-1.5 rounded-2xl border backdrop-blur-xl shadow-xl",
             isLight ? "bg-white/90 border-slate-200" : "bg-white/5 border-white/10"
@@ -761,13 +770,13 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className={cn("px-2 text-[11px] font-bold uppercase tracking-wide tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
-              Evidência {safeIndex + 1}/{evidenceUrls.length}
+              Evidência {safeIndex + 1}/{evidenceCount}
             </span>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => goToEvidence(safeIndex + 1)}
-              disabled={safeIndex === evidenceUrls.length - 1}
+              disabled={safeIndex === evidenceCount - 1}
               title="Próxima evidência"
               className={cn("h-9 w-9 rounded-xl disabled:opacity-30", isLight ? "text-slate-500 hover:bg-slate-100" : "text-white/70 hover:bg-white/10")}
             >

@@ -7,13 +7,18 @@ import { cn } from '@/lib/utils';
 import { ShowcaseTask } from './types';
 import { FieldLabel } from './TaskCardFields';
 import { ControlledInput } from './ControlledFields';
+import { TaskCardAttachments } from './TaskCardAttachments';
 
 interface TaskCardExecutionDetailsProps {
   task: ShowcaseTask;
   onUpdate: (updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => void;
+  /** Sem estes três, o campo de arquivos não aparece (ex.: card ainda sem Review salva). */
+  sessionId?: string;
+  onUploadFile?: (taskId: string, file: File) => Promise<void>;
+  onDeleteFile?: (fileId: string) => Promise<void>;
 }
 
-export function TaskCardExecutionDetails({ task, onUpdate }: TaskCardExecutionDetailsProps) {
+export function TaskCardExecutionDetails({ task, onUpdate, sessionId, onUploadFile, onDeleteFile }: TaskCardExecutionDetailsProps) {
   return (
     <div className="grid grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
       {/* Responsáveis */}
@@ -161,6 +166,11 @@ export function TaskCardExecutionDetails({ task, onUpdate }: TaskCardExecutionDe
               </Button>
             </div>
           ))}
+          {sessionId && onUploadFile && onDeleteFile && (
+            <div className="pt-2 mt-1 border-t border-slate-200/60 dark:border-slate-800/60">
+              <TaskCardAttachments task={task} sessionId={sessionId} onUploadFile={onUploadFile} onDeleteFile={onDeleteFile} />
+            </div>
+          )}
           {/* Alternador de evidência principal quando ambas existem */}
           {task.evidence.screenshot && task.evidence.video && (
             <div className="flex items-center gap-2 pt-0.5">

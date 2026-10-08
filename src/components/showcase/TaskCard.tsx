@@ -32,9 +32,13 @@ interface TaskCardProps {
   // todo mundo a cada edição de um único card.
   onUpdateTask: (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => void;
   onRemoveTask: (taskId: string) => void;
+  // Anexos (PNG/JPEG/PDF): funções estáveis da página, pelo mesmo motivo do React.memo acima.
+  sessionId?: string;
+  onUploadFile?: (taskId: string, file: File) => Promise<void>;
+  onDeleteFile?: (fileId: string) => Promise<void>;
 }
 
-function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask }: TaskCardProps) {
+function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId, onUploadFile, onDeleteFile }: TaskCardProps) {
   const onUpdate = React.useCallback(
     (updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => onUpdateTask(task.id, updates),
     [task.id, onUpdateTask]
@@ -119,7 +123,7 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask }: TaskCard
                   />
                 </div>
               ) : (
-                <TaskCardExecutionDetails task={task} onUpdate={onUpdate} />
+                <TaskCardExecutionDetails task={task} onUpdate={onUpdate} sessionId={sessionId} onUploadFile={onUploadFile} onDeleteFile={onDeleteFile} />
               )}
 
               {/* Métrica de Impacto avulsa — só no card padrão (no card de

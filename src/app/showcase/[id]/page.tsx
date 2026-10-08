@@ -362,6 +362,17 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
 
 
+  // Anexos: o servidor avisa a sala toda por WebSocket; recarregar aqui garante que quem enviou veja na hora.
+  const uploadTaskFile = useCallback(async (taskId: string, file: File) => {
+    await showcaseApi.uploadTaskFile(id, taskId, file);
+    await reloadSession();
+  }, [id, reloadSession]);
+
+  const deleteTaskFile = useCallback(async (fileId: string) => {
+    await showcaseApi.deleteTaskFile(id, fileId);
+    await reloadSession();
+  }, [id, reloadSession]);
+
   const handleOpenRetro = async () => {
     const firstTaskKey = session?.tasks?.[0]?.key;
     const issueProjectKey = firstTaskKey?.includes('-') ? firstTaskKey.split('-')[0].toUpperCase() : '';
@@ -790,6 +801,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                   members={session?.members || []}
                   onUpdateTask={updateTask}
                   onRemoveTask={removeTask}
+                  sessionId={session?.id}
+                  onUploadFile={uploadTaskFile}
+                  onDeleteFile={deleteTaskFile}
                 />
               ))
             ) : (
