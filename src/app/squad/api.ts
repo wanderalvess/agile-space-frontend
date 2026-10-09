@@ -350,6 +350,40 @@ export const squadApi = {
   },
 };
 
+export interface TeamCandidate {
+  userId: string;
+  name: string;
+  email: string;
+}
+
+// Pessoas do time: adicionar, trocar o papel e remover. O servidor só aceita Agile Master/People Lead da squad (ou admin),
+// não deixa tirar a última liderança e audita cada ação.
+export const teamApi = {
+  async canManage(squadId: string): Promise<boolean> {
+    const r = await req<{ canManage: boolean }>(`/squads/${encodeURIComponent(squadId)}/team/can-manage`);
+    return !!r.canManage;
+  },
+
+  searchCandidates(squadId: string, q: string): Promise<TeamCandidate[]> {
+    return req<TeamCandidate[]>(`/squads/${encodeURIComponent(squadId)}/team/candidates?q=${encodeURIComponent(q)}`);
+  },
+
+  addMember(squadId: string, body: { userId?: string; email?: string; displayName?: string; roleName: string }): Promise<SquadMember> {
+    return req<SquadMember>(`/squads/${encodeURIComponent(squadId)}/team/members`, { method: 'POST', body: JSON.stringify(body) });
+  },
+
+  changeRole(squadId: string, jiraAccountId: string, roleName: string): Promise<SquadMember> {
+    return req<SquadMember>(`/squads/${encodeURIComponent(squadId)}/team/members/${encodeURIComponent(jiraAccountId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ roleName }),
+    });
+  },
+
+  removeMember(squadId: string, jiraAccountId: string): Promise<void> {
+    return req<void>(`/squads/${encodeURIComponent(squadId)}/team/members/${encodeURIComponent(jiraAccountId)}`, { method: 'DELETE' });
+  },
+};
+
 // Espelha SquadCapacityService.ResolvedPersonConfig no backend.
 export interface ResolvedPersonConfig {
   jiraAccountId: string;

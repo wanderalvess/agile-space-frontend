@@ -41,7 +41,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { SquadMember } from '@/lib/types';
 import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
 import { inviteApi, type Invite } from '@/lib/invite-api';
-import { squadApi, type ResolvedPersonConfig } from '@/app/squad/api';
+import { squadApi, teamApi, type ResolvedPersonConfig, type TeamCandidate } from '@/app/squad/api';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -73,6 +73,9 @@ function parseCsvLine(line: string): string[] {
   out.push(cur.trim());
   return out;
 }
+
+// Agile Master, Scrum Master e People Lead dão o poder de gerir equipes: só administrador atribui (o servidor também recusa).
+const MANAGER_ROLES = ['Agile Master', 'Scrum Master', 'People Lead'];
 
 const SQUAD_ROLES = [
   'Developer',
@@ -319,24 +322,56 @@ function RosterContent() {
   const [manualCapacity, setManualCapacity] = useState(DEFAULT_DAILY_HOURS);
   const [isSavingManual, setIsSavingManual] = useState(false);
 
+  // Quem pode mexer nas pessoas do time (Agile Master/People Lead da squad ou admin). Só decide o que a tela mostra;
+  // o servidor valida de novo em cada ação.
+  const [canManageTeam, setCanManageTeam] = useState(false);
+  const isAdminRole = role === 'admin';
+  const [manualUserId, setManualUserId] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<TeamCandidate[]>([]);
+
+  useEffect(() => {
+    if (!activeSquadId) return;
+    let alive = true;
+    setCanManageTeam(false);
+    teamApi.canManage(activeSquadId).then(v => alive && setCanManageTeam(v)).catch(() => alive && setCanManageTeam(false));
+    return () => { alive = false; };
+  }, [activeSquadId]);
+
+  // Busca de conta existente enquanto digita o e-mail (3+ caracteres).
+  useEffect(() => {
+    const q = manualEmail.trim();
+    if (!isManualAddOpen || !canManageTeam || q.length < 3 || manualUserId) { setCandidates([]); return; }
+    let alive = true;
+    const t = setTimeout(() => {
+      teamApi.searchCandidates(activeSquadId, q).then(r => alive && setCandidates(r)).catch(() => alive && setCandidates([]));
+    }, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [manualEmail, isManualAddOpen, canManageTeam, manualUserId, activeSquadId]);
+
   const handleManualAddMember = async () => {
-    if (!manualName.trim() || !activeSquadId) {
+    if ((!manualName.trim() && !manualUserId) || !activeSquadId) {
       toast({ title: 'Informe o nome do integrante', variant: 'destructive' });
       return;
     }
-    const syntheticId = `manual-${activeSquadId}-${manualName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
     setIsSavingManual(true);
     try {
-      await saveMemberCapacity(activeSquadId, syntheticId, {
-        displayName: manualName.trim(),
-        email: manualEmail.trim() || undefined,
-        role: manualRole,
+      const added = await teamApi.addMember(activeSquadId, {
+        ...(manualUserId ? { userId: manualUserId } : {}),
+        ...(manualEmail.trim() ? { email: manualEmail.trim() } : {}),
+        displayName: manualName.trim() || undefined,
+        roleName: manualRole,
+      });
+      // Horas por dia: gravação parcial da linha que acabou de nascer.
+      await saveMemberCapacity(activeSquadId, added.jiraAccountId, {
         capacityHoursPerDay: manualCapacity || DEFAULT_DAILY_HOURS,
         overrideType: 'MANUAL_OVERRIDE',
       });
-      toast({ title: 'Integrante adicionado', description: `${manualName.trim()} entrou na equipe. Ajuste as horas se precisar.` });
+      await fetchMembers(activeSquadId);
+      toast({ title: 'Integrante adicionado', description: `${added.displayName} entrou na equipe. Ajuste as horas se precisar.` });
       setManualName('');
       setManualEmail('');
+      setManualUserId(null);
+      setCandidates([]);
       setManualRole('Developer');
       setManualCapacity(DEFAULT_DAILY_HOURS);
       setIsManualAddOpen(false);
@@ -482,9 +517,13 @@ function RosterContent() {
       const isOverride = draft.capacity !== systemVal;
       const overrideType = isOverride ? 'MANUAL_OVERRIDE' : 'SYSTEM';
 
+      // O papel na equipe muda por um endpoint próprio (validado e auditado); aqui só horas e observação.
+      if (canManageTeam && draft.role !== (m.role || 'Developer')) {
+        await teamApi.changeRole(activeSquadId, m.jiraAccountId, draft.role);
+        await fetchMembers(activeSquadId);
+      }
       await saveMemberCapacity(activeSquadId, m.jiraAccountId, {
         displayName: m.displayName,
-        role: draft.role,
         capacityHoursPerDay: draft.capacity,
         systemCalculatedCapacityHoursPerDay: systemVal,
         calibrationNotes: draft.notes,
@@ -522,7 +561,6 @@ function RosterContent() {
     try {
       await saveMemberCapacity(activeSquadId, m.jiraAccountId, {
         displayName: m.displayName,
-        role: m.role || 'Developer',
         capacityHoursPerDay: systemVal,
         systemCalculatedCapacityHoursPerDay: systemVal,
         calibrationNotes: '',
@@ -767,6 +805,7 @@ function RosterContent() {
             </div>
           </label>
 
+          {canManageTeam && (
           <Button
             size="sm"
             onClick={() => setIsManualAddOpen(true)}
@@ -774,6 +813,7 @@ function RosterContent() {
           >
             <UserPlus className="h-4 w-4" /> Adicionar Integrante
           </Button>
+          )}
 
           <Button
             size="sm"
@@ -1057,6 +1097,7 @@ function RosterContent() {
                       >
                         <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} /> Sincronizar com o Jira
                       </Button>
+                      {canManageTeam && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -1065,6 +1106,7 @@ function RosterContent() {
                       >
                         <UserPlus className="h-4 w-4" /> Ou adicionar manualmente
                       </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1106,14 +1148,15 @@ function RosterContent() {
                       <td className="py-3 px-4">
                         <Select
                           value={draft.role}
+                          disabled={!canManageTeam}
                           onValueChange={val => setEditDrafts(prev => ({ ...prev, [m.jiraAccountId]: { ...prev[m.jiraAccountId], role: val } }))}
                         >
                           <SelectTrigger className="h-7 text-[11px] w-32 border-transparent hover:border-slate-200 dark:hover:border-slate-800 bg-transparent font-medium">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {SQUAD_ROLES.map(r => (
-                              <SelectItem key={r} value={r}>{r}</SelectItem>
+                            {SQUAD_ROLES.filter(r => r !== 'Tribe Lead' || r === draft.role).map(r => (
+                              <SelectItem key={r} value={r} disabled={!isAdminRole && MANAGER_ROLES.includes(r) && r !== draft.role}>{r}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -1236,15 +1279,18 @@ function RosterContent() {
                             <Save className="h-3 w-3" /> {isSavingThis ? '...' : 'Salvar'}
                           </Button>
 
+                          {canManageTeam && (
                           <Button
                             variant="ghost"
                             size="icon"
+                            aria-label={`Remover ${m.displayName} da squad`}
                             onClick={() => handleRemoveMember(m)}
                             className="h-7 w-7 text-slate-300 hover:!text-rose-600 hover:!bg-rose-50 dark:hover:!bg-rose-950/40 rounded-lg"
                             title="Remover da squad"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1441,11 +1487,30 @@ function RosterContent() {
           <div className="space-y-3 my-2">
             <div className="space-y-1">
               <Label className="text-xs font-bold text-slate-500">Nome</Label>
-              <Input value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Ex: Maria Silva" className="h-10 text-sm rounded-xl" />
+              <Input value={manualName} onChange={e => setManualName(e.target.value)} placeholder="Ex: Maria Silva" className="h-10 text-sm rounded-xl" disabled={!!manualUserId} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs font-bold text-slate-500">E-mail (opcional)</Label>
-              <Input value={manualEmail} onChange={e => setManualEmail(e.target.value)} placeholder="maria@empresa.com" className="h-10 text-sm rounded-xl" />
+              <Input value={manualEmail} onChange={e => { setManualEmail(e.target.value); setManualUserId(null); }} placeholder="maria@empresa.com" className="h-10 text-sm rounded-xl" />
+              {candidates.length > 0 && (
+                <ul className="rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden" aria-label="Contas encontradas">
+                  {candidates.map(c => (
+                    <li key={c.userId}>
+                      <button
+                        type="button"
+                        onClick={() => { setManualUserId(c.userId); setManualName(c.name || ''); setManualEmail(c.email || ''); setCandidates([]); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                      >
+                        <span className="font-bold text-slate-800 dark:text-slate-100">{c.name}</span>
+                        <span className="ml-2 text-slate-400">{c.email}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[11px] text-slate-400">
+                {manualUserId ? 'Conta existente selecionada: a pessoa já entra com acesso à squad.' : 'Digite o e-mail para achar quem já tem conta. Sem conta, vira um pré-cadastro que vale quando a pessoa entrar com esse e-mail.'}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -1455,7 +1520,7 @@ function RosterContent() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SQUAD_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    {SQUAD_ROLES.filter(r => r !== 'Tribe Lead').map(r => <SelectItem key={r} value={r} disabled={!isAdminRole && MANAGER_ROLES.includes(r)}>{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

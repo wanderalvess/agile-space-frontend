@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { squadApi, SquadApiError } from '../api';
+import { squadApi, teamApi, SquadApiError } from '../api';
 import * as authClient from '../../../lib/auth-client';
 
 function response(status: number, body: unknown) {
@@ -66,5 +66,31 @@ describe('squadApi', () => {
     vi.spyOn(authClient, 'authFetch').mockResolvedValue(response(409, { message: 'Já existe uma sincronização em andamento para esta squad.' }));
     await expect(squadApi.sync('SQ1')).rejects.toThrow('Já existe uma sincronização em andamento');
     await expect(squadApi.forceResyncSprint('SQ1', '7')).rejects.toThrow('Já existe uma sincronização em andamento');
+  });
+
+  it('teamApi: papel por PATCH, remoção por DELETE e adição por POST (ids codificados)', async () => {
+    const spy = vi.spyOn(authClient, 'authFetch').mockResolvedValue(response(200, { jiraAccountId: 'a b' }));
+
+    await teamApi.changeRole('SQ1', 'a b', 'QA');
+    expect(spy.mock.calls[0][0]).toContain('/squads/SQ1/team/members/a%20b');
+    expect((spy.mock.calls[0][1] as RequestInit).method).toBe('PATCH');
+    expect(JSON.parse((spy.mock.calls[0][1] as RequestInit).body as string)).toEqual({ roleName: 'QA' });
+
+    spy.mockResolvedValueOnce(response(204, ''));
+    await teamApi.removeMember('SQ1', 'acc-1');
+    expect((spy.mock.calls[1][1] as RequestInit).method).toBe('DELETE');
+
+    await teamApi.addMember('SQ1', { email: 'ana@x.com', roleName: 'Developer' });
+    expect((spy.mock.calls[2][1] as RequestInit).method).toBe('POST');
+  });
+
+  it('teamApi: a frase do servidor ao recusar (ex.: única liderança) chega à tela', async () => {
+    vi.spyOn(authClient, 'authFetch').mockResolvedValue(response(409, { message: 'Esta é a única liderança da equipe.' }));
+    await expect(teamApi.removeMember('SQ1', 'acc-1')).rejects.toThrow('Esta é a única liderança da equipe.');
+  });
+
+  it('teamApi.canManage devolve falso quando o servidor diz que não', async () => {
+    vi.spyOn(authClient, 'authFetch').mockResolvedValue(response(200, { canManage: false }));
+    await expect(teamApi.canManage('SQ1')).resolves.toBe(false);
   });
 });

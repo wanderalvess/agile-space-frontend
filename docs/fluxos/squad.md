@@ -77,7 +77,8 @@ Regra do servidor (`SquadAccessService`): **ler** = membro real da squad (víncu
 | "Sou eu" | Membro, só a própria conta, linha livre |
 | Salvar cerimônias, unidade de estimativa, nº do quadro | Membro (`meetLink` da cerimônia só http/https, senão 400; o Painel também só renderiza http/https) |
 | Configuração do Jira (projeto, JQL, domínio, campo da sprint), capacidade padrão, ranking, fases, dono do sync agendado | Liderança |
-| Salvar/remover pessoa, roster em lote, papel/capacidade por pessoa | Liderança |
+| Horas/dia, observação e papel/capacidade por pessoa, roster em lote (planilha) | Liderança |
+| **Adicionar, remover e mudar o papel de pessoas do time** (`/api/squads/{id}/team/...`) | Agile Master, Scrum Master ou People Lead **da própria squad**, ou admin. Agile Master/Scrum Master/People Lead só o admin atribui. Quem tem esses papéis só é alterado/removido pelo admin (ou por ele mesmo). Nunca remove nem rebaixa a única liderança (admin pode). Papéis válidos: Developer, QA, Designer, UX, SME, Stakeholder, Product Owner, Tech Lead (Tribe Lead/Agile Coach só vêm do Jira). Cada ação grava auditoria |
 | Horas por pessoa (`member-metrics`) e cache de worklog | Liderança |
 | Gravar rollup, issues, snapshots diretamente | Liderança (o sync grava por dentro do servidor) |
 | Lista de squads, "squads de uma pessoa" (`by-user` e `/api/users/{uid}/squads`) | Só squads legíveis; vínculos só do próprio identificador (admin vê qualquer) |
@@ -87,9 +88,18 @@ O cliente (`SQUAD_ADMIN_ROLES`, `SQUAD_PEOPLE_ADMIN_ROLES`, `SQUAD_LEADERSHIP_VI
 
 Primeiro uso em ambiente limpo: usuário sem squad que escreve numa squad **que ainda não existe** é vinculado a ela. Antes, qualquer usuário sem squad se vinculava a qualquer squad existente.
 
+## Pessoas do time (adicionar, remover, mudar o papel)
+
+Na tela `/squad/roster`, os botões "Adicionar Integrante", a lixeira e o seletor de cargo aparecem só para quem o servidor diz que gerencia (`GET …/team/can-manage`); o servidor valida de novo em cada ação.
+
+- **Adicionar:** digitar o e-mail procura contas existentes (3+ letras); escolher uma já entra com acesso (a conta é vinculada à linha). Sem conta, é pré-cadastro por nome (e e-mail opcional) e vale quando a pessoa entrar com esse e-mail. Cria a linha do roster **e** o papel no cadastro do projeto (é o que dá ou não liderança). Pessoa já no time dá 409.
+- **Mudar o papel:** atualiza roster e cadastro do projeto juntos; liderança acompanha o papel (PO e Tech Lead são liderança; Developer/QA/Designer/UX/SME/Stakeholder não). O papel não muda mais pelo salvar genérico da linha.
+- **Remover:** apaga a linha e o papel no projeto, solta a conta da squad (`squadId`/projeto padrão) **sem apagar a conta** e grava uma *exclusão* (`squad_member_exclusions`, V46). O sync do Jira não recoloca no roster quem tem exclusão; adicionar de novo limpa a exclusão.
+- Nunca mexe em `User.role` (autorização global).
+
 ## Dados persistidos (negócio)
 
-Squad (nome, projeto Jira, JQL, domínio, campo da sprint, nº do quadro, sprint ativa, histórico de sprints, estado da última sincronização e motivo do erro, capacidade padrão, ranking ligado/desligado, fases, modo e lista de cerimônias, unidade de estimativa, dono do sync agendado); rollup por sprint; foto das issues; roster; horas por pessoa (só com ranking ligado); foto diária; cache de worklog por autor; papel/capacidade por pessoa e sprint; painéis JQL. Índices de consulta: V45.
+Pessoas removidas à mão (exclusões do sync), auditoria das ações do time; squad (nome, projeto Jira, JQL, domínio, campo da sprint, nº do quadro, sprint ativa, histórico de sprints, estado da última sincronização e motivo do erro, capacidade padrão, ranking ligado/desligado, fases, modo e lista de cerimônias, unidade de estimativa, dono do sync agendado); rollup por sprint; foto das issues; roster; horas por pessoa (só com ranking ligado); foto diária; cache de worklog por autor; papel/capacidade por pessoa e sprint; painéis JQL. Índices de consulta: V45.
 
 ## Pontos frágeis e erros de fluxo conhecidos
 
@@ -101,7 +111,7 @@ Corrigidos em 2026-10-09 (para contexto): escrita aberta a qualquer membro; auto
 - **Painéis JQL custom ficam só no navegador.** A opção "Toda a Squad" não compartilha nada, embora o backend (`/panels`) e `useSquadPanelsStore` existam sem uso. A tela agora avisa; ligar ao servidor é feature nova (opt-in).
 - **Dois modelos de capacidade** (horas/dia × papel/dias/horas produtivas) sem integração; horas registradas somam o worklog inteiro da issue, não só a janela da sprint.
 - **Issue em sprint futura sem datas cai em `UNMAPPED`**; só o sync completo (a cada ~6 h) apaga issues que saíram da sprint.
-- **Roster nunca remove** quem saiu do Jira; "Hora real" volta para 1 quando o campo é apagado; `sprintHours` do roster assume 10 dias úteis.
+- **Roster não remove sozinho** quem saiu do Jira (a liderança remove à mão e o sync respeita; o importador de quadro de `JiraAdminService` e a reimportação Profields não consultam as exclusões e podem recolocar a pessoa); "Hora real" volta para 1 quando o campo é apagado; `sprintHours` do roster assume 10 dias úteis.
 - **Quadro Scrum usa `localStorage`** para filtros/raias/WIP (não compartilhado entre pessoas).
 - **Duas instâncias do hook de dados** na mesma página (painel + seção de JQL) duplicam as requisições.
 - **Pessoa vê "o próprio painel" por nome/ID:** quem tem nome diferente do Jira não vê tarefas; a tela avisa para conferir o nome.

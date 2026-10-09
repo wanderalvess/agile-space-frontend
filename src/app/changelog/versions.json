@@ -1,5 +1,16 @@
 [
   {
+    "tag": "v4.22.5",
+    "date": "9 de Outubro, 2026",
+    "title": "Agile Master e People Lead cuidam das pessoas da própria equipe",
+    "description": "Em Pessoas do time, quem lidera a equipe adiciona, remove e muda o papel de cada pessoa.",
+    "changes": [
+      "Agile Master e People Lead da squad (e administradores) adicionam pessoas ao time, escolhendo uma conta que já existe pelo e-mail ou fazendo um pré-cadastro, mudam o papel (Developer, QA, PO, Tech Lead…) e removem pessoas, direto em Pessoas do time.",
+      "Quem foi removido deixa de ter acesso à squad (a conta continua existindo) e não volta sozinho na próxima sincronização com o Jira.",
+      "O sistema não deixa remover nem rebaixar a única liderança da equipe, e só um administrador atribui Agile Master e People Lead; cada ação fica registrada no histórico de auditoria."
+    ]
+  },
+  {
     "tag": "v4.22.4",
     "date": "9 de Outubro, 2026",
     "title": "Gestão de usuários e cadastro para colaboradores externos",
