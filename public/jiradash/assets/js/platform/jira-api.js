@@ -119,7 +119,7 @@ export const jiraApi = {
     try {
       const sprintId = String(jql || '').match(/Sprint\s*=\s*(\d+)/i)?.[1];
       if (!sprintId) return null;
-      return this.request(`/rest/agile/1.0/sprint/${sprintId}`);
+      return await this.request(`/rest/agile/1.0/sprint/${sprintId}`);
     } catch {
       return null;
     }

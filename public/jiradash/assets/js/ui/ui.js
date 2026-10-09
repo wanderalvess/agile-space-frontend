@@ -52,7 +52,7 @@ export const ui = {
     if (dom.configPanel.open) {
       dom.configPanel.close();
     } else if (this.isEmbedded()) {
-      window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
+      window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, window.location.origin);
     } else {
       dom.configPanel.showModal();
     }
@@ -67,7 +67,7 @@ export const ui = {
       return;
     }
     if (this.isEmbedded()) {
-      window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, '*');
+      window.parent.postMessage({ type: 'JIRADASH_OPEN_CONFIG' }, window.location.origin);
     } else if (!dom.configPanel.open) {
       dom.configPanel.showModal();
     }

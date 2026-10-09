@@ -2484,10 +2484,14 @@ export const renderers = {
         const situation = getSituation(issue);
         const productiveHours = getProductiveHours(issue);
         const estimatedSeconds = meta?.estimatedEffective || 0;
+        // Horas produtivas 0 (campo apagado) não dão dias: mostra "—" em vez de Infinity/NaN.
+        const hasProductiveHours = productiveHours > 0;
         const estimatedDays =
-          estimatedSeconds > 0 ? `${(estimatedSeconds / (productiveHours * 3600)).toFixed(1)}d` : '—';
+          estimatedSeconds > 0 && hasProductiveHours ? `${(estimatedSeconds / (productiveHours * 3600)).toFixed(1)}d` : '—';
         const dateEntered = meta?.enteredCurrentStatus || new Date(issue.fields.created);
-        const elapsedDays = issueService.productiveHoursSince(dateEntered, productiveHours) / productiveHours;
+        const elapsedDays = hasProductiveHours
+          ? issueService.productiveHoursSince(dateEntered, productiveHours) / productiveHours
+          : null;
         const fullAssignee = issue.fields.assignee?.displayName || 'Não atribuído';
         const assignee = issue.fields.assignee ? compactName(fullAssignee) : 'Não atribuído';
         const noConfiguredHours = !getPersonConf(fullAssignee).hasConfiguredHoras;
@@ -2503,7 +2507,7 @@ export const renderers = {
                   <div class="truncate text-muted" title="${escapeAttr(fullAssignee)}">${escapeHtml(assignee)} ${warn}</div>
                   ${renderStatusBadge(issue.fields.status.name)}
                   <div class="text-right text-muted">${formatDate(dateEntered)}</div>
-                  <div class="text-right font-semibold">${elapsedDays.toFixed(1)}d</div>
+                  <div class="text-right font-semibold">${elapsedDays === null ? '—' : `${elapsedDays.toFixed(1)}d`}</div>
                   <div class="text-right text-muted">${estimatedDays}</div>
                   <div class="text-right font-semibold" style="color:${situationColor[situation]};">${situationLabel[situation]}</div>
                 </div>`;

@@ -35,7 +35,7 @@
 // configuração do port ou escrita em `state`/`squadCache`. O primeiro efeito de execução
 // acontece quando `app.initialize()` é chamado — pelo bootstrap, no `DOMContentLoaded`.
 import { CONFIG } from './core/config.js';
-import { escapeHtml, formatDate, safeDomId, relativeTime } from './core/helpers.js';
+import { escapeHtml, formatDate, safeDomId, relativeTime, reviveDate } from './core/helpers.js';
 import { state, squadCache } from './core/state.js';
 import { numOrZero, validateConfigField, redactedCoordOf } from './domain/person-config.js';
 import { ISSUE_FILTER_KEYS, emptyIssueFilters, toggleFilterValue } from './domain/issue-filters.js';
@@ -1115,6 +1115,7 @@ export const app = {
         resolve(value);
       };
       const onMessage = event => {
+        if (event.origin !== window.location.origin || event.source !== window.parent) return;
         if (event.data?.type !== 'JIRADASH_SNAPSHOT_RESULT' || event.data.jql !== jql) return;
         finish(event.data.snapshot || null);
       };
@@ -1122,7 +1123,7 @@ export const app = {
       // sempre — cai pro fetch ao vivo depois de um tempo curto.
       const timer = setTimeout(() => finish(null), 4000);
       window.addEventListener('message', onMessage);
-      window.parent.postMessage({ type: 'JIRADASH_REQUEST_SNAPSHOT', jql }, '*');
+      window.parent.postMessage({ type: 'JIRADASH_REQUEST_SNAPSHOT', jql }, window.location.origin);
     });
   },
 
@@ -1173,8 +1174,8 @@ export const app = {
     state.issuePage = 1;
     state.issueFilters = emptyIssueFilters();
     state.issueFilterOpen = null;
-    state.sprintDates.start = cached.sprintDates.start;
-    state.sprintDates.end = cached.sprintDates.end;
+    state.sprintDates.start = reviveDate(cached.sprintDates?.start);
+    state.sprintDates.end = reviveDate(cached.sprintDates?.end);
     state.sprintInfo = cached.sprintInfo || null;
     // sprintRemoved é opcional no cache (snapshot pode ser antigo) — undefined vira null.
     // Reidrata Date a partir do snapshot (cache pode ter sido serializado/desserializado).
@@ -1236,7 +1237,7 @@ export const app = {
     if (window.self !== window.top) {
       window.parent.postMessage(
         { type: 'JIRADASH_PUSH_SNAPSHOT', jql, payload: squadCache[ctx.squadId] },
-        '*'
+        window.location.origin
       );
     }
     this.updateHeader(issues, sprintInfo, jql);

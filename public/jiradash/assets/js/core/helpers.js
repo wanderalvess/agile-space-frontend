@@ -13,6 +13,13 @@ export const escapeHtml = value =>
     .replace(/'/g, '&#039;');
 
 export const escapeAttr = escapeHtml;
+// Snapshot compartilhado passa por JSON: Date volta como string ISO e `Date >= string` é sempre false
+// (zerava horas apontadas, scope creep e bugs da sprint). Devolve Date válida ou null.
+export const reviveDate = value => {
+  if (value === null || value === undefined || value === '') return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 export const normalize = value =>
   String(value ?? '')
     .toLowerCase()

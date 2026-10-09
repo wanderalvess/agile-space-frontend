@@ -48,7 +48,7 @@ export default function JiraDashPage() {
           type: 'SET_JIRA_PAT',
           token: targetToken,
         },
-        '*'
+        window.location.origin
       );
     } catch (e) {
       console.error('[JiraDash] Erro ao sincronizar token com iframe:', e);
@@ -64,7 +64,7 @@ export default function JiraDashPage() {
           mode: resolvedMode,
           variant,
         },
-        '*'
+        window.location.origin
       );
     }
   }, [iframeLoaded, resolvedMode, variant]);
@@ -84,7 +84,7 @@ export default function JiraDashPage() {
           mode: resolvedMode,
           variant,
         },
-        '*'
+        window.location.origin
       );
     }
     if (settings?.token) {
@@ -107,6 +107,8 @@ export default function JiraDashPage() {
   // este componente React, que já tem authFetch. O iframe só pede/empurra dado.
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
+      // Só o iframe do JiraDash (mesma origem) pode abrir a configuração ou ler/gravar o cache compartilhado.
+      if (event.origin !== window.location.origin || event.source !== iframeRef.current?.contentWindow) return;
       if (event.data?.type === 'JIRADASH_OPEN_CONFIG') {
         setIsConfigOpen(true);
         return;
@@ -115,10 +117,10 @@ export default function JiraDashPage() {
         const jql = event.data.jql as string;
         try {
           const snapshot = await getSnapshot(jql);
-          iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_SNAPSHOT_RESULT', jql, snapshot }, '*');
+          iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_SNAPSHOT_RESULT', jql, snapshot }, window.location.origin);
         } catch (e) {
           console.warn('[JiraDash] Falha ao buscar snapshot compartilhado:', e);
-          iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_SNAPSHOT_RESULT', jql, snapshot: null }, '*');
+          iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_SNAPSHOT_RESULT', jql, snapshot: null }, window.location.origin);
         }
         return;
       }
@@ -151,7 +153,7 @@ export default function JiraDashPage() {
       return;
     }
     saveSettings({ domain: settings?.domain || 'jiraproducao.totvs.com.br', token });
-    iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_LOAD', token, jql }, '*');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_LOAD', token, jql }, window.location.origin);
     setIsConfigOpen(false);
   };
 
@@ -159,7 +161,7 @@ export default function JiraDashPage() {
   // snapshot compartilhado) em vez de recarregar o iframe inteiro — que agora, com
   // cache compartilhado, só voltaria a mostrar a mesma versão salva.
   const handleForceRefresh = () => {
-    iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_FORCE_REFRESH' }, '*');
+    iframeRef.current?.contentWindow?.postMessage({ type: 'JIRADASH_FORCE_REFRESH' }, window.location.origin);
     toast({
       title: 'Atualizando JiraDash',
       description: 'Buscando os dados mais recentes do Jira...',

@@ -183,6 +183,9 @@
 
     window.addEventListener('message', (event) => {
       if (!event.data) return;
+      // Só mensagens do portal que embute esta página (mesma origem e janela pai): sem isso qualquer
+      // janela poderia trocar o token do Jira ou disparar uma carga.
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
 
       if (event.data.type === 'SET_THEME') {
         applyTheme(event.data.mode, event.data.variant);
