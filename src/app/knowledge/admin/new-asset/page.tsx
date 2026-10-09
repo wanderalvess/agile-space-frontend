@@ -1,5 +1,6 @@
 "use client";
 
+import { plainTextToHtml } from '@/lib/text-to-html';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -250,9 +251,15 @@ function NewAssetContent() {
         const formDataPayload = new FormData();
         formDataPayload.append('file', file);
         const response = await authFetch('/api/knowledge/ingest-pdf', { method: 'POST', body: formDataPayload });
-        const data = await response.json();
-        if (data.text && editor) {
-          editor.commands.setContent(data.text);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || `Não foi possível ler o arquivo (erro ${response.status}).`);
+        }
+        if (!data.text) {
+          throw new Error('Não encontramos texto neste arquivo.');
+        }
+        if (editor) {
+          editor.commands.setContent(plainTextToHtml(data.text));
           setFormData(prev => ({ ...prev, title: prev.title || file.name.split('.')[0] }));
           toast.success(`Word importado!`, { id: loadingToast });
         }
@@ -267,7 +274,7 @@ function NewAssetContent() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      if (editor) editor.commands.setContent(content);
+      if (editor) editor.commands.setContent(plainTextToHtml(content));
       setFormData(prev => ({ ...prev, title: prev.title || file.name.split('.')[0] }));
       toast.success(`Arquivo importado!`);
     };

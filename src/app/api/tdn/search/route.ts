@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveSafeHost } from '@/lib/ssrf-guard';
+import { requireAuth } from '@/lib/verify-auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (!auth) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  if (!checkRateLimit(`tdn-search:${auth.uid}`, 60, 60_000)) {
+    return NextResponse.json({ error: 'Muitas requisições. Tente novamente em instantes.' }, { status: 429 });
+  }
   let cql = '';
   let tdnUrl = '';
 
@@ -53,6 +60,7 @@ export async function POST(req: NextRequest) {
     // Perform the search
     const response = await fetch(tdnUrl, {
       method: 'GET',
+      redirect: 'error', // um redirecionamento poderia levar a um host interno, driblando o guarda de SSRF
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json, text/plain, */*',

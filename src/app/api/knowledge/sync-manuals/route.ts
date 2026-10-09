@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/verify-auth';
 import fs from 'fs';
 import path from 'path';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!(await requireAuth(req))) {
+    return NextResponse.json({ success: false, error: 'Não autenticado.' }, { status: 401 });
+  }
   try {
     const rootDir = process.cwd();
     const manualDir = path.join(rootDir, 'manual');
@@ -34,7 +38,7 @@ export async function GET() {
 
     return NextResponse.json({ success: true, files: results });
   } catch (error: any) {
-    console.error('Erro ao ler manuais:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('Erro ao ler manuais:', error?.message);
+    return NextResponse.json({ success: false, error: 'Erro ao ler os manuais.' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { knowledgeApi } from '@/app/knowledge/api';
 import { KnowledgeDocument } from '@/lib/knowledge-types';
+import { authFetch } from '@/lib/auth-client';
 
 export interface TdnSearchResult {
   id: string;
@@ -20,7 +21,7 @@ async function fetchTdn(url: string, body: unknown): Promise<any> {
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await authFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

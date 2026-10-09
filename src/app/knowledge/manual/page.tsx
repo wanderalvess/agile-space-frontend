@@ -44,7 +44,7 @@ export default function ManualPage() {
       desc: "Proteção de dados e lixeira compartilhada.",
       icon: ShieldCheck,
       items: [
-        "Documentos excluídos vão para a 'Lixeira' por 30 dias.",
+        "Documentos excluídos vão para a 'Lixeira' e podem ser restaurados; não há exclusão definitiva automática.",
         "A lixeira é comunitária: qualquer membro pode restaurar um ativo importante.",
         "Chaves de acesso são armazenadas de forma segura e cifrada."
       ]

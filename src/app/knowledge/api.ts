@@ -33,6 +33,15 @@ async function tryEmbed(text: string): Promise<number[] | undefined> {
   }
 }
 
+/** Mensagem do servidor (400/403 trazem o motivo em pt-BR); cai no texto padrão se o corpo não ajudar. */
+async function errorMessage(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body?.message === 'string' && body.message) return body.message;
+  } catch { /* corpo vazio */ }
+  return fallback;
+}
+
 export const knowledgeApi = {
   async listDocuments(query?: string, tags?: string[], page = 0, size = 50, status?: string): Promise<PageResponse<KnowledgeDocument>> {
     const params = new URLSearchParams();
@@ -59,7 +68,7 @@ export const knowledgeApi = {
       method: 'POST',
       body: JSON.stringify(embedding ? { ...doc, embedding } : doc),
     });
-    if (!res.ok) throw new Error('Falha ao salvar documento');
+    if (!res.ok) throw new Error(await errorMessage(res, 'Falha ao salvar documento'));
     return res.json();
   },
 
@@ -69,16 +78,18 @@ export const knowledgeApi = {
       method: 'PUT',
       body: JSON.stringify(embedding ? { ...doc, embedding } : doc),
     });
-    if (!res.ok) throw new Error('Falha ao atualizar documento');
+    if (!res.ok) throw new Error(await errorMessage(res, 'Falha ao atualizar documento'));
     return res.json();
   },
 
-  async deleteDocument(id: string, deletedBy: string): Promise<void> {
-    const params = new URLSearchParams();
-    params.append('deletedBy', deletedBy);
-    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}?${params.toString()}`, {
+  async deleteDocument(id: string, _deletedBy?: string): Promise<void> {
+    // O servidor usa o login (não o parâmetro) para saber quem apagou e só deixa o autor ou um admin apagar.
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}`, {
       method: 'DELETE',
     });
+    if (res.status === 403) throw new Error('Só o autor do documento ou um administrador pode apagá-lo.');
+    if (res.status === 404) throw new Error('Documento não encontrado.');
+    if (!res.ok) throw new Error('Falha ao apagar o documento');
   },
 
   async incrementViews(id: string): Promise<KnowledgeDocument> {

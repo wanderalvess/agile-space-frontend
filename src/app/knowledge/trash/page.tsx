@@ -115,7 +115,7 @@ export default function TrashPage() {
                          Cofre de <span className="text-rose-500 not-italic">Descarte</span>
                       </h1>
                       <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mt-1.5">
-                         Retenção de 30 dias para ativos removidos
+                         Documentos removidos ficam aqui até serem restaurados
                       </p>
                    </div>
                 </div>
@@ -192,7 +192,7 @@ export default function TrashPage() {
              </div>
              <h4 className="text-sm font-black uppercase italic tracking-tighter text-rose-600 dark:text-rose-500 leading-none">Aviso Estrutural</h4>
              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 max-w-4xl leading-relaxed uppercase tracking-wider">
-                Documentos em estado de descarte são mantidos por 30 dias antes da purga automática.
+                Documentos na lixeira continuam guardados e podem ser restaurados por qualquer pessoa logada. Hoje não existe exclusão definitiva automática.
                 A restauração recupera todos os metadados técnicos originais.
              </p>
           </div>

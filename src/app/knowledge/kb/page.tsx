@@ -71,8 +71,12 @@ function KBExplorerContent() {
   const readerViewportRef = useRef<HTMLDivElement | null>(null);
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('kb_favorites');
-      return saved ? JSON.parse(saved) : [];
+      try {
+        const saved = JSON.parse(localStorage.getItem('kb_favorites') || '[]');
+        return Array.isArray(saved) ? saved : [];
+      } catch {
+        return []; // valor corrompido não pode derrubar a página
+      }
     }
     return [];
   });
@@ -88,7 +92,9 @@ function KBExplorerContent() {
   const { settings: tdnSettings } = useTdnSettings();
 
   useEffect(() => {
-    localStorage.setItem('kb_favorites', JSON.stringify(favorites));
+    try {
+      localStorage.setItem('kb_favorites', JSON.stringify(favorites));
+    } catch { /* armazenamento bloqueado: favoritos valem só nesta sessão */ }
   }, [favorites]);
 
   const toggleFavorite = (id: string) => {
@@ -284,26 +290,32 @@ function KBExplorerContent() {
     if (selectedIds.size === 0) return;
     if (!confirm(`Tem certeza que deseja mover ${selectedIds.size} itens para a lixeira?`)) return;
 
-    try {
-      for (const id of Array.from(selectedIds)) {
-        await knowledgeApi.deleteDocument(id, session?.id || 'user');
+    // Um a um: se algum falhar (ex.: não é o autor) os outros continuam e o resumo diz o que aconteceu.
+    let ok = 0;
+    let firstError = '';
+    for (const id of Array.from(selectedIds)) {
+      try {
+        await knowledgeApi.deleteDocument(id);
+        ok++;
+      } catch (err: any) {
+        if (!firstError) firstError = err?.message || 'Erro desconhecido';
       }
-      toast.success(`${selectedIds.size} documentos movidos para a lixeira.`);
-      setSelectedIds(new Set());
-      fetchDocuments();
-    } catch (err) {
-      toast.error("Erro ao excluir documentos.");
     }
+    const failed = selectedIds.size - ok;
+    if (ok > 0) toast.success(`${ok} documento(s) movido(s) para a lixeira.`);
+    if (failed > 0) toast.error(`${failed} documento(s) não puderam ser apagados: ${firstError}`);
+    setSelectedIds(new Set());
+    fetchDocuments();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Tem certeza que deseja mover este documento para a lixeira?")) return;
     try {
-      await knowledgeApi.deleteDocument(id, session?.id || 'user');
+      await knowledgeApi.deleteDocument(id);
       toast.success("Documento movido para a lixeira.");
       fetchDocuments();
-    } catch (err) {
-      toast.error("Erro ao excluir documento.");
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao excluir documento.");
     }
   };
 

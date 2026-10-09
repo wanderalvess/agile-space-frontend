@@ -40,6 +40,7 @@ export default function KnowledgeSettingsPage() {
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const { toast } = useToast();
 
   // Carregar configurações de IA (modelo + chave BYOK)
@@ -53,6 +54,8 @@ export default function KnowledgeSettingsPage() {
         setByokApiKey(settings.byokApiKey || '');
       } catch (e) {
         console.error("Erro ao carregar config:", e);
+        toast({ title: "Não foi possível carregar suas configurações", description: "Recarregue a página antes de salvar, para não sobrescrever a chave atual.", variant: "destructive" });
+        setLoadFailed(true);
       } finally {
         setTimeout(() => setIsLoading(false), 300);
       }
@@ -75,13 +78,13 @@ export default function KnowledgeSettingsPage() {
   }, [session]);
 
   const handleSave = async () => {
-    if (!session) return;
+    if (!session || loadFailed) return;
     setIsSaving(true);
     try {
       await knowledgeChatApi.saveAiSettings({ model, byokApiKey });
       toast({ title: "Chave de API Atualizada!", description: "Sua chave de acesso foi sincronizada com segurança." });
     } catch (e) {
-      toast({ title: "Erro ao salvar", description: "Falha na sincronização.", variant: "destructive" });
+      toast({ title: "Erro ao salvar", description: e instanceof Error ? e.message : "Falha na sincronização. O que você digitou continua na tela.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +108,7 @@ export default function KnowledgeSettingsPage() {
             </p>
          </div>
          <div className="flex items-center gap-3">
-            <Button onClick={handleSave} disabled={isSaving} className="h-10 px-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-xl hover:bg-black dark:hover:bg-slate-200 gap-2 transition-all active:scale-95">
+            <Button onClick={handleSave} disabled={isSaving || loadFailed} className="h-10 px-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-xl font-black uppercase text-[9px] tracking-widest shadow-xl hover:bg-black dark:hover:bg-slate-200 gap-2 transition-all active:scale-95">
               {isSaving ? "Salvando..." : <><Save className="h-3.5 w-3.5 text-cyan-400" /> Salvar</>}
             </Button>
          </div>
@@ -126,9 +129,12 @@ export default function KnowledgeSettingsPage() {
                   {providers.map((provider) => (
                     <button
                       key={provider.id}
+                      type="button"
+                      disabled={provider.id !== 'gemini'}
+                      title={provider.id !== 'gemini' ? 'Em breve: hoje o assistente funciona apenas com chave do Google Gemini' : undefined}
                       onClick={() => setModel(provider.modelValue)}
                       className={cn(
-                        "p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all",
+                        "p-5 rounded-2xl border-2 flex flex-col items-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
                         model === provider.modelValue
                           ? "border-slate-900 dark:border-slate-100 bg-white dark:bg-slate-900 shadow-lg"
                           : "border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-700"
@@ -137,7 +143,7 @@ export default function KnowledgeSettingsPage() {
                       <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shadow-lg", provider.id === 'gemini' ? "bg-slate-900 dark:bg-slate-950 text-cyan-400" : "bg-emerald-900 text-white")}>
                         <provider.icon className="h-6 w-6" />
                       </div>
-                      <h3 className="text-[11px] font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 text-center leading-tight">{provider.name}</h3>
+                      <h3 className="text-[11px] font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 text-center leading-tight">{provider.name}{provider.id !== 'gemini' && <span className="block text-[8px] tracking-widest text-slate-500">Em breve</span>}</h3>
                       <a href={provider.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-[8px] font-black uppercase tracking-widest text-cyan-600 flex items-center gap-1">Obter Chave <ExternalLink className="h-3 w-3" /></a>
                     </button>
                   ))}
@@ -151,10 +157,10 @@ export default function KnowledgeSettingsPage() {
                     type={showKey ? "text" : "password"}
                     value={byokApiKey}
                     onChange={(e) => setByokApiKey(e.target.value)}
-                    placeholder="Cole sua chave de API aqui..."
+                    placeholder="Cole sua chave de API do Google Gemini aqui..."
                     className="h-12 pl-4 pr-12 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-code text-sm text-slate-900 dark:text-slate-100 shadow-inner"
                   />
-                  <button onClick={() => setShowKey(prev => !prev)} className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
+                  <button type="button" aria-label={showKey ? "Ocultar chave" : "Mostrar chave"} onClick={() => setShowKey(prev => !prev)} className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
                     {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>

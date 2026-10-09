@@ -177,7 +177,9 @@ function ChatContent({ chatId }: { chatId: string }) {
       if (id === chatId) router.push('/knowledge/chat/new');
       setConversations(prev => prev.filter(c => c.id !== id));
       toast({ title: "Removido", description: "Sessão deletada." });
-    } catch (e) {}
+    } catch (e) {
+      toast({ title: "Não foi possível excluir", description: "A conversa continua na lista. Tente de novo.", variant: "destructive" });
+    }
   };
 
   const onFormSubmit = async (e: React.FormEvent) => {
@@ -206,10 +208,21 @@ function ChatContent({ chatId }: { chatId: string }) {
       } else if (wasEmpty) {
         await knowledgeChatApi.renameConversation(activeConversationId, buildTitle(prompt));
       }
-      await knowledgeChatApi.appendMessage(activeConversationId, userMsg);
     } catch (e) {
-      // Segue com a conversa em memória mesmo se a persistência falhar.
+      // Segue com a conversa em memória mesmo se a persistência falhar, mas avisa.
+      toast({ title: "Histórico não salvo", description: "Não foi possível guardar esta conversa; ela vale só até recarregar a página.", variant: "destructive" });
     }
+
+    // Grava a pergunta junto com a resposta: se a resposta falhar, não sobra pergunta órfã no histórico.
+    const persistTurn = async (assistantMsg: ChatMessage) => {
+      if (!activeConversationId) return;
+      try {
+        await knowledgeChatApi.appendMessage(activeConversationId, userMsg);
+        await knowledgeChatApi.appendMessage(activeConversationId, assistantMsg);
+      } catch (e) {
+        toast({ title: "Histórico não salvo", description: "A resposta apareceu, mas não foi guardada no histórico.", variant: "destructive" });
+      }
+    };
 
     if (!userApiKey) {
       try {
@@ -253,11 +266,11 @@ function ChatContent({ chatId }: { chatId: string }) {
         const finalMessages = [...newMessages, assistantMsg];
         setMessages(finalMessages);
 
-        if (activeConversationId) {
-          try { await knowledgeChatApi.appendMessage(activeConversationId, assistantMsg); } catch (e) {}
-        }
+        await persistTurn(assistantMsg);
       } catch (err: any) {
-         toast({ title: "Erro na Busca", description: "Falha ao buscar nas bases.", variant: "destructive" });
+         setMessages(messages);
+         setInput(prompt);
+         toast({ title: "Erro na Busca", description: "Falha ao buscar nas bases. Sua pergunta foi mantida na caixa de texto.", variant: "destructive" });
       } finally {
         setIsLoading(false);
         refreshConversations();
@@ -269,9 +282,16 @@ function ChatContent({ chatId }: { chatId: string }) {
       const response = await authFetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, apiKey: userApiKey, userId: session?.id })
+        // Só papel e texto: mensagens antigas do modo sem chave carregam listas de documentos inteiras.
+        body: JSON.stringify({
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          apiKey: userApiKey,
+        })
       });
-      if (!response.ok) throw new Error('Falha na resposta.');
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => null);
+        throw new Error(errBody?.message || errBody?.error || `O assistente não respondeu (erro ${response.status}).`);
+      }
       const data = await response.json();
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -281,9 +301,7 @@ function ChatContent({ chatId }: { chatId: string }) {
       const finalMessages = [...newMessages, assistantMsg];
       setMessages(finalMessages);
 
-      if (activeConversationId) {
-        try { await knowledgeChatApi.appendMessage(activeConversationId, assistantMsg); } catch (e) {}
-      }
+      await persistTurn(assistantMsg);
 
       // Registrar uso de tokens no backend (substitui o antigo write direto no Firestore)
       if (session && data.usage) {
@@ -295,6 +313,9 @@ function ChatContent({ chatId }: { chatId: string }) {
         }
       }
     } catch (err: any) {
+      // Devolve a pergunta à caixa de texto: quem digitou não precisa reescrever.
+      setMessages(messages);
+      setInput(prompt);
       toast({ title: "Erro no Motor", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -317,8 +338,8 @@ function ChatContent({ chatId }: { chatId: string }) {
         labels: fullContent.labels || tdnResult.labels || []
       });
       toast({ title: "Documento Importado!" });
-    } catch (err) {
-      toast({ title: "Erro na Importação", variant: "destructive" });
+    } catch (err: any) {
+      toast({ title: "Erro na Importação", description: err?.message, variant: "destructive" });
     } finally {
       setIsImporting(null);
     }
