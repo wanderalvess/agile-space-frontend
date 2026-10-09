@@ -1,8 +1,12 @@
 'use client';
 
 /**
- * Importação de um time do Jira (Profields): formulário de credenciais, prévia
+ * Importação de times do Jira (Profields): formulário de credenciais, prévia
  * do que será importado e confirmação. Nada é gravado até a confirmação.
+ *
+ * Aceita várias chaves de uma vez: o Agile Master costuma cuidar de várias
+ * equipes, então cada chave entra numa fila, com prévia e confirmação próprias,
+ * sem pedir domínio e token de novo.
  *
  * Extraído do /onboarding pra ser reaproveitado no /painel, onde quem criou o
  * time na mão pode importar pessoas e papéis depois. Quem usa decide o que
@@ -23,11 +27,22 @@ import { JiraImportPreview } from '@/components/jira/JiraImportPreview';
 import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
 
 export interface JiraImportResult {
+  /** Primeira equipe importada (a que fica ativa). */
   project: ProjectDetail;
   /** Papel da própria pessoa na lista importada, se ela foi reconhecida. */
   myRoleName?: string;
   /** Verdadeiro quando o papel dela administra pessoas da squad. */
   leadsPeople: boolean;
+  /** Todas as equipes gravadas nesta rodada (mais de uma no import em lote). */
+  importedProjects: ProjectDetail[];
+  /** Chaves que falharam na prévia ou foram puladas. */
+  notImportedKeys: string[];
+}
+
+/** "abc, def  ghi;ABC" -> ["ABC", "DEF", "GHI"]. */
+export function parseProjectKeys(raw: string): string[] {
+  const keys = raw.split(/[\s,;]+/).map(k => k.trim().toUpperCase()).filter(Boolean);
+  return Array.from(new Set(keys));
 }
 
 interface JiraProfieldsImportProps {
@@ -54,6 +69,13 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
   const [jiraToken, setJiraToken] = useState('');
   const [syncedProject, setSyncedProject] = useState<ProjectDetail | null>(null);
 
+  // Fila: cada chave tem a própria prévia e confirmação.
+  const [queue, setQueue] = useState<string[]>([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const [imported, setImported] = useState<ProjectDetail[]>([]);
+  const [notImported, setNotImported] = useState<string[]>([]);
+  const inQueue = queue.length > 1;
+
   useEffect(() => {
     if (jiraSettings) {
       if (jiraSettings.domain && !jiraDomain) setJiraDomain(jiraSettings.domain);
@@ -62,54 +84,122 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
   }, [jiraSettings]);
 
   const myEmail = (userProfile?.email || '').toLowerCase().trim();
-  const isMe = (m: ProjectMemberRoleItem) =>
+  const isMe = useCallback((m: ProjectMemberRoleItem) =>
     (!!userProfile?.id && m.userId === userProfile.id) ||
-    (!!myEmail && (m.email || '').toLowerCase().trim() === myEmail);
-  const myMembership = syncedProject?.members.find(isMe);
+    (!!myEmail && (m.email || '').toLowerCase().trim() === myEmail),
+  [userProfile?.id, myEmail]);
 
   useEffect(() => {
     onPreviewChange?.(!!syncedProject);
     return () => onPreviewChange?.(false);
   }, [syncedProject, onPreviewChange]);
 
+  const finishQueue = useCallback((done: ProjectDetail[], skipped: string[]) => {
+    setSyncedProject(null);
+    setQueue([]);
+    setQueueIndex(0);
+    setImported([]);
+    setNotImported([]);
+    if (done.length === 0) {
+      toast({ title: 'Nenhuma equipe foi importada', description: skipped.length ? `Sem importar: ${skipped.join(', ')}.` : undefined });
+      return;
+    }
+    if (skipped.length) {
+      toast({ title: `${done.length} importada${done.length === 1 ? '' : 's'}`, description: `Sem importar: ${skipped.join(', ')}.` });
+    }
+    const first = done[0];
+    const mine = first.members.find(isMe);
+    const leadsPeople = !!mine && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(mine.roleName);
+    onImported({ project: first, myRoleName: mine?.roleName, leadsPeople, importedProjects: done, notImportedKeys: skipped });
+  }, [isMe, onImported, toast]);
+
+  /** Abre a prévia da próxima equipe da fila que o Jira devolver; as que falham entram em "sem importar". */
+  const openFrom = useCallback(async (keys: string[], from: number, done: ProjectDetail[], skippedSoFar: string[]) => {
+    let skipped = skippedSoFar;
+    for (let i = from; i < keys.length; i++) {
+      setBusy('jira');
+      try {
+        const preview = await projectService.previewProjectProfields(keys[i], jiraDomain.trim(), jiraToken.trim());
+        setQueueIndex(i);
+        setSyncedProject(preview);
+        setBusy(null);
+        if (keys.length === 1) {
+          toast({ title: 'Dados encontrados no Jira', description: 'Nada foi gravado ainda. Confira e confirme pra importar.' });
+        }
+        return;
+      } catch (err: any) {
+        if (keys.length === 1) {
+          toast({ title: 'Falha na sincronização', description: err.message, variant: 'destructive' });
+          setQueue([]);
+          setBusy(null);
+          return;
+        }
+        toast({ title: `Não consegui ler ${keys[i]}`, description: err.message, variant: 'destructive' });
+        skipped = [...skipped, keys[i]];
+        setNotImported(skipped);
+      }
+    }
+    setBusy(null);
+    finishQueue(done, skipped);
+  }, [jiraDomain, jiraToken, toast, finishQueue]);
+
   const handlePreview = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!jiraKey.trim() || !jiraToken.trim()) {
+    const keys = parseProjectKeys(jiraKey);
+    if (keys.length === 0 || !jiraToken.trim()) {
       toast({ title: 'Informe a chave do projeto e seu token do Jira', variant: 'destructive' });
       return;
     }
-    setBusy('jira');
-    try {
-      const preview = await projectService.previewProjectProfields(
-        jiraKey.trim().toUpperCase(), jiraDomain.trim(), jiraToken.trim()
-      );
-      setSyncedProject(preview);
-      toast({ title: 'Dados encontrados no Jira', description: 'Nada foi gravado ainda. Confira e confirme pra importar.' });
-    } catch (err: any) {
-      toast({ title: 'Falha na sincronização', description: err.message, variant: 'destructive' });
-    } finally {
-      setBusy(null);
-    }
-  }, [jiraDomain, jiraKey, jiraToken, toast]);
+    setQueue(keys);
+    setQueueIndex(0);
+    setImported([]);
+    setNotImported([]);
+    await openFrom(keys, 0, [], []);
+  }, [jiraKey, jiraToken, toast, openFrom]);
 
   const handleConfirm = useCallback(async (body: ProjectImportConfirmBody) => {
     if (!syncedProject) return;
     setBusy('confirm');
     try {
       const saved = await projectService.confirmProjectProfields(syncedProject.id, body, jiraDomain.trim(), jiraToken.trim());
-      await switchProject(syncedProject.id);
+      // O projeto ativo fica na primeira equipe importada; as demais só entram na lista da pessoa.
+      if (imported.length === 0) await switchProject(syncedProject.id);
       if (jiraToken.trim()) {
         await saveJiraSettings({ domain: jiraDomain.trim(), token: jiraToken.trim() });
       }
-      const mine = saved.members.find(isMe);
-      const leadsPeople = !!mine && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(mine.roleName);
-      onImported({ project: saved, myRoleName: mine?.roleName, leadsPeople });
+      const done = [...imported, saved];
+      setImported(done);
+      if (queueIndex + 1 < queue.length) {
+        await openFrom(queue, queueIndex + 1, done, notImported);
+      } else {
+        finishQueue(done, notImported);
+      }
     } catch (err: any) {
       toast({ title: 'Não foi possível importar', description: err.message, variant: 'destructive' });
     } finally {
       setBusy(null);
     }
-  }, [syncedProject, jiraDomain, jiraToken, switchProject, saveJiraSettings, isMe, onImported, toast]);
+  }, [syncedProject, jiraDomain, jiraToken, imported, queue, queueIndex, notImported, switchProject, saveJiraSettings, openFrom, finishQueue, toast]);
+
+  const handleSkip = useCallback(async () => {
+    if (!syncedProject) return;
+    const skipped = [...notImported, syncedProject.id];
+    setNotImported(skipped);
+    if (queueIndex + 1 < queue.length) {
+      await openFrom(queue, queueIndex + 1, imported, skipped);
+    } else {
+      finishQueue(imported, skipped);
+    }
+  }, [syncedProject, notImported, queueIndex, queue, imported, openFrom, finishQueue]);
+
+  const handleBack = useCallback(() => {
+    if (imported.length > 0) {
+      finishQueue(imported, [...notImported, ...queue.slice(queueIndex)]);
+      return;
+    }
+    setSyncedProject(null);
+    setQueue([]);
+  }, [imported, notImported, queue, queueIndex, finishQueue]);
 
   // Prévia: conferir, editar e escolher antes de gravar
   if (syncedProject) {
@@ -117,12 +207,17 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
       <JiraImportPreview
         project={syncedProject}
         isMe={isMe}
-        busy={busy === 'confirm'}
-        onBack={() => setSyncedProject(null)}
+        busy={busy !== null}
+        onBack={handleBack}
         onConfirm={handleConfirm}
+        blocked={syncedProject.canImport === false}
+        queueLabel={inQueue ? `Equipe ${queueIndex + 1} de ${queue.length}` : undefined}
+        onSkip={inQueue ? handleSkip : undefined}
       />
     );
   }
+
+  const keyCount = parseProjectKeys(jiraKey).length;
 
   // Formulário
   return (
@@ -134,10 +229,13 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
             placeholder="empresa.atlassian.net" autoComplete="off" className="h-11 rounded-xl" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="jira-chave" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Projeto no Jira</Label>
+          <Label htmlFor="jira-chave" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Projetos no Jira</Label>
           <Input id="jira-chave" name="jiraProjectKey" value={jiraKey} onChange={e => setJiraKey(e.target.value)}
-            placeholder="Ex: DDWMISSI" autoComplete="off" data-lpignore="true"
+            placeholder="Ex: DDWMISSI, DDWFENIX, DDWATLAS" autoComplete="off" data-lpignore="true"
             className="h-11 font-code uppercase rounded-xl" />
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Cuida de mais de uma equipe? Cole todas as chaves, separadas por vírgula ou espaço. Cada equipe tem a sua prévia e só grava quando você confirma.
+          </p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="jira-token" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Seu token do Jira</Label>
@@ -146,7 +244,9 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
             placeholder="Token de acesso do Jira" className="h-11 font-code rounded-xl" />
         </div>
         <Button type="submit" disabled={busy !== null} className="h-12 rounded-xl font-bold gap-2">
-          {busy === 'jira' ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Ver o que vai ser importado <ArrowRight className="w-4 h-4" /></>}
+          {busy === 'jira'
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <>{keyCount > 1 ? `Começar com ${keyCount} equipes` : 'Ver o que vai ser importado'} <ArrowRight className="w-4 h-4" /></>}
         </Button>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           O token fica guardado na sua conta e nada é gravado até você conferir a prévia.

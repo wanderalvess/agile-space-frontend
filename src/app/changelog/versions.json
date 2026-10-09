@@ -1,5 +1,19 @@
 [
   {
+    "tag": "v4.16.0",
+    "date": "8 de Outubro, 2026",
+    "title": "Onboarding para Agile Master e People Lead, com importação de várias equipes",
+    "description": "Quem cuida de várias equipes importa todas do Jira em sequência, e só Agile Master e People Lead cadastram equipes. Quem participa procura a própria equipe.",
+    "changes": [
+      "Nova tela inicial do onboarding pergunta como você usa o Portal: Agile Master ou People Lead (cadastra equipes) ou participante (entra numa equipe já cadastrada).",
+      "Importação do Jira em lote: cole as chaves de todas as suas equipes, separadas por vírgula ou espaço. Cada equipe tem a sua prévia, pode ser pulada e só grava quando você confirma, sem pedir domínio e token de novo. Antes a tela saía depois da primeira equipe.",
+      "Só Agile Master e People Lead podem criar ou importar equipes. A prévia avisa quando o seu nome não aparece com esse papel no Jira, e o servidor recusa a gravação.",
+      "Quem participa e não acha a equipe recebe a orientação de pedir o cadastro ao Agile Master ou People Lead, ou usar um link de convite. O botão de criar equipe saiu dessa tela.",
+      "Agile Coach e Agile Coaching deixam de virar Agile Master ao importar do Jira. \"Sou eu\" em papel de liderança só vale quando e-mail, conta do Jira ou nome batem com a pessoa.",
+      "Criar uma equipe na mão não dá papel a ninguém: quem cria entra com o papel que já tem (Agile Master ou People Lead). Quem não tem nenhum dos dois entra sem liderança."
+    ]
+  },
+  {
     "tag": "v4.12.0",
     "date": "7 de Outubro, 2026",
     "title": "Painéis por papel com dados reais e acesso protegido",

@@ -61,6 +61,9 @@ export interface ProjectDetail {
   // 2. Pessoas & Lideranças
   members: ProjectMemberRoleItem[];
 
+  /** Só na prévia da importação: false = quem importa não é AM/PL e o backend vai recusar a gravação. */
+  canImport?: boolean;
+
   // 3. Status e Números
   devTeamSize: number; // Ex: 12
   status: string;      // Ex: "EM ANDAMENTO"

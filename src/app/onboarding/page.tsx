@@ -10,11 +10,15 @@
  *
  * Aqui o fluxo é uma decisão por tela, do mais provável pro menos:
  *   1. "É você?"        — casamento por nome contra o roster do Profields (1 clique)
- *   2. "Qual seu time?" — busca por time OU por pessoa
- *   3. Roster           — a pessoa se marca na lista ("sou eu" = claim)
- *   4. Papel            — só pra quem não está na lista, em 3 opções de linguagem comum
- *   5. Criar time       — 1 campo
- *   6. Jira             — caminho avançado, com o PAT pedido só na hora certa
+ *   2. "Qual seu papel?" — separa quem cadastra equipes (Agile Master / People Lead) de quem participa
+ *   3. "Qual seu time?" — busca por time OU por pessoa (participante)
+ *   4. Roster           — a pessoa se marca na lista ("sou eu" = claim)
+ *   5. Papel            — só pra quem não está na lista, em 3 opções de linguagem comum
+ *   6. Criar time       — 1 campo (só AM/PL; o backend recusa os demais)
+ *   7. Jira             — import em lote das equipes de quem lidera, com o PAT pedido só na hora certa
+ *
+ * Só Agile Master e People Lead cadastram equipes. Quem participa procura a própria equipe
+ * e, se ela não existir, é orientado a pedir o cadastro a quem lidera.
  *
  * Quem chega aqui é justamente quem o vínculo automático por e-mail não pegou
  * (ver UserProjectResolverService no backend) — o claim é o que resolve isso.
@@ -49,7 +53,7 @@ import { onboardingService, type OnboardingCandidate, type OnboardingRoster } fr
 import { JiraProfieldsImport } from '@/components/jira/JiraProfieldsImport';
 import { cn } from '@/lib/utils';
 
-type Step = 'suggestion' | 'search' | 'roster' | 'role' | 'create' | 'jira';
+type Step = 'suggestion' | 'intent' | 'search' | 'roster' | 'role' | 'create' | 'jira';
 
 /** Destino de todo caminho concluído: o time por dentro, sem tarefa no meio. */
 const DONE_ROUTE = '/painel';
@@ -146,11 +150,11 @@ export default function OnboardingPage() {
     onboardingService.suggestions()
       .then(found => {
         setSuggestions(found);
-        if (found.length === 0) setStep('search');
+        if (found.length === 0) setStep('intent');
       })
       .catch(() => {
         setSuggestions([]);
-        setStep('search');
+        setStep('intent');
       })
       .finally(() => setLoadingSuggestions(false));
   }, []);
@@ -177,16 +181,6 @@ export default function OnboardingPage() {
     toast({ title, description });
     router.push(route);
   }, [router, toast]);
-
-  /** Leva o que a pessoa já digitou na busca pro formulário de criação — sem digitar de novo. */
-  const startCreate = useCallback(() => {
-    const typed = query.trim();
-    if (typed && !projectName) {
-      setProjectName(typed);
-      if (!keyEdited) setProjectKey(slugify(typed));
-    }
-    setStep('create');
-  }, [query, projectName, keyEdited]);
 
   /** "Sou eu" — liga a conta à linha do roster e entra no time com o papel do Jira. */
   const handleClaim = useCallback(async (candidate: OnboardingCandidate, projectId: string) => {
@@ -243,7 +237,7 @@ export default function OnboardingPage() {
       try { localStorage.setItem(`agileSpace_newSquad_${key}`, '1'); } catch { /* sem storage: só não mostra o aviso */ }
       // Time recém-criado não tem dados do Jira: o painel estaria vazio. A home, com
       // as ferramentas (Poker, Retro...), é o destino útil.
-      finish('Time criado', `${name} (${key}). Você é o Agile Master e pode passar isso pra outra pessoa depois.`, '/');
+      finish('Time criado', `${name} (${key}). Você entrou com o seu papel; as demais pessoas entram pelo Jira ou por convite.`, '/');
     } catch (err: any) {
       toast({ title: 'Não foi possível criar o time', description: err.message, variant: 'destructive' });
     } finally {
@@ -300,8 +294,8 @@ export default function OnboardingPage() {
           </div>
           <ol className="space-y-3">
             {[
-              { t: 'Encontre ou crie seu time', d: 'Busque pelo nome do time, do projeto ou de um colega.' },
-              { t: 'Conecte o Jira', d: 'Traz projeto, pessoas e papéis de uma vez. Dá para fazer depois.' },
+              { t: 'Diga como você usa o Portal', d: 'Agile Master e People Lead cadastram equipes; os demais entram na sua.' },
+              { t: 'Importe ou encontre a equipe', d: 'AM/PL importam todas do Jira de uma vez. Quem participa busca pelo nome do time ou de um colega.' },
               { t: 'Comece as cerimônias', d: 'Poker, Review e Retro com o time já dentro.' },
             ].map((item, i) => (
               <li key={item.t} className="flex gap-3 rounded-2xl border border-border/60 bg-card/60 p-3.5 backdrop-blur">
@@ -362,7 +356,7 @@ export default function OnboardingPage() {
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : <>Sim, sou eu — entrar no time <ArrowRight className="w-4 h-4" /></>}
                 </Button>
-                <Button variant="outline" onClick={() => setStep('search')} disabled={busy !== null} className="h-11 rounded-xl text-sm font-semibold">
+                <Button variant="outline" onClick={() => setStep('intent')} disabled={busy !== null} className="h-11 rounded-xl text-sm font-semibold">
                   Não sou eu / quero outro time
                 </Button>
               </div>
@@ -391,7 +385,55 @@ export default function OnboardingPage() {
           </>
         )}
 
-        {/* PASSO 2 — BUSCA */}
+        {/* PASSO 2 — PAPEL NO SISTEMA */}
+        {step === 'intent' && (
+          <>
+            <Header
+              title="Como você usa o Portal Tech V&D?"
+              subtitle="Isso define o que a gente te mostra primeiro. Nada é gravado agora."
+            />
+
+            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setStep('jira')}
+                className="flex flex-col gap-3 p-5 text-left rounded-2xl border border-primary/40 bg-primary/5 backdrop-blur-xl hover:border-primary transition-colors"
+              >
+                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center">
+                  <Crown className="w-5 h-5" />
+                </div>
+                <div className="text-base font-extrabold font-headline">Sou Agile Master ou People Lead</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Cuido de uma ou mais equipes. Importo todas do Jira de uma vez, ou crio uma nova.
+                </p>
+                <div className="mt-auto pt-2 text-[11px] text-muted-foreground/80">Só AM e PL cadastram equipes</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep('search')}
+                className="flex flex-col gap-3 p-5 text-left rounded-2xl border border-border/60 bg-card/70 backdrop-blur-xl hover:border-primary/50 transition-colors"
+              >
+                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div className="text-base font-extrabold font-headline">Participo de uma equipe</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Dev, QA, design, PO, stakeholder. Procuro a minha equipe e entro nela.
+                </p>
+                <div className="mt-auto pt-2 text-[11px] text-muted-foreground/80">A equipe precisa já estar cadastrada</div>
+              </button>
+            </div>
+
+            {suggestions.length > 0 && (
+              <Button variant="ghost" onClick={() => setStep('suggestion')} className="text-xs gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" /> Voltar
+              </Button>
+            )}
+          </>
+        )}
+
+        {/* PASSO 3 — BUSCA (participante) */}
         {step === 'search' && (
           <>
             <Header
@@ -448,31 +490,28 @@ export default function OnboardingPage() {
               )}
 
               {debouncedQuery.trim().length >= 2 && !searching && results.length === 0 && (
-                <div className="flex items-center justify-between gap-3 px-1">
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum time encontrado com “{debouncedQuery.trim()}”.
-                  </p>
-                  <Button size="sm" onClick={startCreate} className="shrink-0 rounded-xl text-xs font-bold gap-2">
-                    Criar “{debouncedQuery.trim()}” <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
+                <p className="px-1 text-sm text-muted-foreground">
+                  Nenhum time encontrado com “{debouncedQuery.trim()}”. Confira a grafia ou procure pelo nome de um colega.
+                </p>
               )}
 
-              <div className="flex items-center justify-between gap-4 rounded-2xl border border-dashed border-border/70 px-4 py-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold">Meu time ainda não está aqui</div>
-                  <div className="text-xs text-muted-foreground">Cria em 15 segundos — só o nome, o resto vem depois.</div>
+              <div className="flex items-start gap-3 rounded-2xl border border-dashed border-border/70 px-4 py-3">
+                <Crown className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="min-w-0 space-y-1">
+                  <div className="text-sm font-bold">Seu time não aparece?</div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Quem cadastra as equipes é o Agile Master ou o People Lead. Peça a ele para importar o time
+                    ou para te mandar um link de convite (use “Tenho um link de convite”, no rodapé).
+                  </p>
+                  <button type="button" onClick={() => setStep('jira')} className="text-xs font-semibold text-primary hover:underline">
+                    Eu sou Agile Master ou People Lead
+                  </button>
                 </div>
-                <Button variant="outline" onClick={startCreate} className="shrink-0 rounded-xl text-xs font-bold gap-2">
-                  Criar meu time <ArrowRight className="w-3.5 h-3.5" />
-                </Button>
               </div>
 
-              {suggestions.length > 0 && (
-                <Button variant="ghost" onClick={() => setStep('suggestion')} className="self-start text-xs gap-1.5">
-                  <ArrowLeft className="w-3.5 h-3.5" /> Voltar
-                </Button>
-              )}
+              <Button variant="ghost" onClick={() => setStep('intent')} className="self-start text-xs gap-1.5">
+                <ArrowLeft className="w-3.5 h-3.5" /> Voltar
+              </Button>
             </div>
           </>
         )}
@@ -639,7 +678,7 @@ export default function OnboardingPage() {
 
               <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
                 Segmento, tribo e horas do time a gente pergunta lá dentro, quando fizer diferença.
-                Você entra como Agile Master e pode passar isso pra outra pessoa.
+                Você entra com o papel que já tem (Agile Master ou People Lead).
               </p>
             </form>
 
@@ -653,8 +692,8 @@ export default function OnboardingPage() {
               </Button>
             </div>
 
-            <Button variant="ghost" onClick={() => setStep('search')} className="text-xs gap-1.5">
-              <ArrowLeft className="w-3.5 h-3.5" /> Procurar um time existente
+            <Button variant="ghost" onClick={() => setStep('intent')} className="text-xs gap-1.5">
+              <ArrowLeft className="w-3.5 h-3.5" /> Voltar
             </Button>
           </>
         )}
@@ -663,20 +702,25 @@ export default function OnboardingPage() {
         {step === 'jira' && (
           <>
             <Header
-              title="Importar um time do Jira"
-              subtitle="Traz projeto, pessoas e papéis do Profields de uma vez. Quem já usa o Portal Tech V&D é reconhecido automaticamente."
-              badge="Caminho avançado"
+              title="Importe suas equipes do Jira"
+              subtitle="Cole as chaves de todas as equipes que você cuida. Cada uma traz projeto, pessoas e papéis do Profields, com prévia antes de gravar."
+              badge="Agile Master / People Lead"
             />
             <JiraProfieldsImport
               onPreviewChange={setWideImport}
-              onImported={({ project, myRoleName, leadsPeople }) =>
-                finish(
-                  `${project.id} importado`,
-                  leadsPeople ? `Você entrou como ${myRoleName}.` : 'O time e os papéis vieram do Jira junto.'
-                )
+              onImported={({ project, myRoleName, leadsPeople, importedProjects }) =>
+                importedProjects.length > 1
+                  ? finish(
+                      `${importedProjects.length} equipes importadas`,
+                      `${importedProjects.map(p => p.id).join(', ')}. Você começa em ${project.id} e troca de equipe pelo seletor.`
+                    )
+                  : finish(
+                      `${project.id} importado`,
+                      leadsPeople ? `Você entrou como ${myRoleName}.` : 'O time e os papéis vieram do Jira junto.'
+                    )
               }
-              skipHint="Sem token e sem paciência? Dá pra criar o time na mão agora e importar do Jira depois, sem perder nada."
-              skipAction={{ label: 'Criar o time sem o Jira', onClick: () => setStep('create') }}
+              skipHint="Sem token? Dá pra criar uma equipe na mão agora e importar do Jira depois, sem perder nada."
+              skipAction={{ label: 'Criar uma equipe sem o Jira', onClick: () => setStep('create') }}
             />
           </>
         )}

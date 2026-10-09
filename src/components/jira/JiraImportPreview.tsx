@@ -29,6 +29,12 @@ interface Props {
   busy: boolean;
   onBack: () => void;
   onConfirm: (body: ProjectImportConfirmBody) => void;
+  /** Quem importa não é AM/PL nem aparece como tal no Jira: o backend recusaria a gravação. */
+  blocked?: boolean;
+  /** Posição na fila de importação em lote (ex.: "Equipe 2 de 5"). */
+  queueLabel?: string;
+  /** Pula esta equipe e segue pra próxima da fila. */
+  onSkip?: () => void;
 }
 
 interface RowState {
@@ -61,7 +67,7 @@ function Field({ id, label, value, onChange, placeholder, inputMode }: {
   );
 }
 
-export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Props) {
+export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm, blocked, queueLabel, onSkip }: Props) {
   const [fields, setFields] = useState({
     // O Jira devolve a chave (DDWMISSI) quando não há nome melhor; nesse caso o campo começa vazio para o usuário preencher.
     name: project.name && project.name.toUpperCase() !== project.id.toUpperCase() ? project.name : '',
@@ -122,16 +128,34 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
     <div className="flex w-full flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          {!!queueLabel && (
+            <Badge variant="outline" className="mb-1 text-[10px] font-bold uppercase tracking-widest">{queueLabel}</Badge>
+          )}
           <div className="flex items-center gap-2">
             <h2 className="font-headline text-xl font-black tracking-tight">{fields.name.trim() || project.name || project.id}</h2>
             <Badge variant="outline" className="font-code text-[10px]">{project.id}</Badge>
           </div>
           <p className="text-xs text-muted-foreground">Confira, ajuste o que precisar e escolha quem entra. Nada é gravado antes de confirmar.</p>
         </div>
-        <Button variant="ghost" onClick={onBack} disabled={busy} className="h-9 gap-1.5 rounded-xl text-xs font-bold">
-          <ArrowLeft className="h-3.5 w-3.5" /> Trocar projeto
-        </Button>
+        <div className="flex items-center gap-1">
+          {onSkip && (
+            <Button variant="ghost" onClick={onSkip} disabled={busy} className="h-9 rounded-xl text-xs font-bold">
+              Pular esta equipe
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onBack} disabled={busy} className="h-9 gap-1.5 rounded-xl text-xs font-bold">
+            <ArrowLeft className="h-3.5 w-3.5" /> {queueLabel ? 'Voltar à lista' : 'Trocar projeto'}
+          </Button>
+        </div>
       </div>
+
+      {blocked && (
+        <div role="alert" className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+          <strong className="text-foreground">Só Agile Master ou People Lead cadastram equipes.</strong>{' '}
+          Seu nome não aparece com esse papel nesta equipe no Jira. Peça a quem lidera o time para importá-lo
+          ou para mandar um link de convite.
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* DADOS DO PROJETO */}
@@ -244,7 +268,7 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm }: Pr
         <p className="text-xs text-muted-foreground">
           {selectedCount} pessoa{selectedCount === 1 ? '' : 's'} vão entrar no time. Você pode ajustar cargos e pessoas depois no Painel.
         </p>
-        <Button onClick={confirm} disabled={busy} className="h-11 gap-2 rounded-xl px-6 text-xs font-bold">
+        <Button onClick={confirm} disabled={busy || blocked} className="h-11 gap-2 rounded-xl px-6 text-xs font-bold">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Importar {selectedCount} pessoa{selectedCount === 1 ? '' : 's'} <ArrowRight className="h-4 w-4" /></>}
         </Button>
       </div>
