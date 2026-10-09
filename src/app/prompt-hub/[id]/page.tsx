@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { promptApi, ApiError } from '../api';
+import { promptApi, publicPromptApi, ApiError } from '../api';
 import { PromptItem } from '../types';
 import { PromptView } from '../components/PromptView';
 import { useRouter } from 'next/navigation';
@@ -28,7 +28,10 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
 
     async function load() {
       try {
-        const data = await promptApi.getPromptById(params.id);
+        // Sem login só a leitura pública existe: item privado e inexistente respondem 404 igual.
+        const data = session
+          ? await promptApi.getPromptById(params.id)
+          : await publicPromptApi.get(params.id);
 
         // Itens não públicos são visíveis apenas para o autor.
         if (data.visibility === 'public' || data.authorId === session?.id) {
@@ -38,7 +41,9 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
         }
       } catch (e: any) {
         console.error(e);
-        if (e instanceof ApiError && e.status === 404) {
+        if (e instanceof ApiError && e.status === 404 && !session) {
+          setError(deniedMessage(false));
+        } else if (e instanceof ApiError && e.status === 404) {
           setError('Item não encontrado, ou ele não é público e só o autor pode abri-lo.');
         } else if (e instanceof ApiError && e.status === 401) {
           setError(deniedMessage(false));

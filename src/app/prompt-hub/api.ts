@@ -197,6 +197,45 @@ export const promptApi = {
   }
 };
 
+/** Item como a leitura anônima o devolve: sem authorId nem qualquer identificador interno. */
+type PublicPromptDTO = Omit<PromptItem, 'authorId' | 'visibility'>;
+
+const fromPublic = (dto: PublicPromptDTO): PromptItem => ({
+  ...dto,
+  authorId: '',
+  visibility: 'public',
+  tags: dto.tags ?? [],
+});
+
+/**
+ * Leitura sem login (`/api/public/prompt-hub`): só itens públicos, só GET. Usa fetch puro, sem token.
+ * Qualquer escrita, comentário, coleção ou item privado continua exigindo login.
+ */
+export const publicPromptApi = {
+  async listPage(page = 0, size = 50): Promise<PageResponse<PromptItem>> {
+    const res = await fetch(`${API_BASE_URL}/public/prompt-hub/items?page=${page}&size=${size}`);
+    if (!res.ok) throw await apiError(res, 'Falha ao listar a biblioteca pública');
+    const body: PageResponse<PublicPromptDTO> = await res.json();
+    return { ...body, content: body.content.map(fromPublic) };
+  },
+
+  async listAll(pageSize = 50, maxPages = 20): Promise<PromptItem[]> {
+    const all: PromptItem[] = [];
+    for (let page = 0; page < maxPages; page += 1) {
+      const res = await publicPromptApi.listPage(page, pageSize);
+      all.push(...res.content);
+      if (page + 1 >= res.totalPages) break;
+    }
+    return all;
+  },
+
+  async get(id: string): Promise<PromptItem> {
+    const res = await fetch(`${API_BASE_URL}/public/prompt-hub/items/${encodeURIComponent(id)}`);
+    if (!res.ok) throw await apiError(res, 'Falha ao carregar o item');
+    return fromPublic(await res.json());
+  },
+};
+
 /**
  * Formato retornado pelo backend para uma Coleção — os itens já vêm embutidos
  * (join `ManyToMany`), não há mais subcoleção separada para buscar à parte.

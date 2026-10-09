@@ -1,5 +1,15 @@
 [
   {
+    "tag": "v4.21.0",
+    "date": "9 de Outubro, 2026",
+    "title": "Biblioteca de IA aberta para leitura sem login",
+    "description": "Quem ainda não entrou consegue explorar os itens públicos da Biblioteca de IA.",
+    "changes": [
+      "\"Explorar Biblioteca Pública\" agora funciona sem login: mostra só os itens públicos (busca, filtros e o link de cada item). Item privado ou inexistente aparece como não encontrado, igual nos dois casos.",
+      "Sem login não há escrita nem dados internos: publicar, duplicar, favoritar, comentar, coleções e itens privados continuam pedindo login, com um aviso e o botão Entrar na própria tela. Copiar o conteúdo funciona para todos. Quem já está logado não vê mudança."
+    ]
+  },
+  {
     "tag": "v4.20.0",
     "date": "9 de Outubro, 2026",
     "title": "Scrum Poker mais confiável: sala que reconecta, votos que não se perdem e arredondamento configurável",

@@ -118,7 +118,8 @@ Autoria, dono de coleção e autor de comentário vêm do JWT, nunca do corpo. I
 não público (e coleção privada) só é visto pelo autor ou ADMIN; para os demais a
 API responde 404. Editar/excluir exige autor ou ADMIN (403). Favoritos continuam
 no `localStorage` do navegador (não sincronizam entre dispositivos). A leitura
-sem login não existe: `/api/prompts` exige token.
+sem login existe só em `GET /api/public/prompt-hub/items[/{id}]`: itens públicos, sem `authorId`,
+sem comentários nem coleções; privado e inexistente dão 404. Todo o resto de `/api/prompts` exige token.
 
 ## 6. Limitações conhecidas
 

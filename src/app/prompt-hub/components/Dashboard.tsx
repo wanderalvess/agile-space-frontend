@@ -29,7 +29,7 @@ import { PromptSpecimenCard } from './PromptSpecimenCard';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import { promptApi, ApiError } from '../api';
+import { promptApi, publicPromptApi, ApiError } from '../api';
 import { normalize } from '../findSimilar';
 import { PromptEditor } from './PromptEditor';
 import { PromptView } from './PromptView';
@@ -104,6 +104,8 @@ export function PromptDashboard({
   }, [session]);
 
   const sessionId = session?.id;
+  // Sem login só existe a leitura pública (rota aberta, apenas itens públicos); quem está logado não muda.
+  const isAnonymous = isPublicView && !session;
 
   // Spinner de tela cheia só na primeira carga: nas demais (salvar, excluir, duplicar) a lista
   // continua na tela e é atualizada por cima, sem perder scroll nem foco da busca.
@@ -113,7 +115,7 @@ export function PromptDashboard({
     if (!hasLoadedOnce.current) setIsLoading(true);
     try {
       const [publicItems, myItems] = await Promise.all([
-        promptApi.listAllPrompts(),
+        isAnonymous ? publicPromptApi.listAll() : promptApi.listAllPrompts(),
         sessionId && !isPublicView ? promptApi.listAllPrompts(sessionId) : Promise.resolve([] as PromptItem[]),
       ]);
 
@@ -137,7 +139,7 @@ export function PromptDashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [sessionId, isPublicView]);
+  }, [sessionId, isPublicView, isAnonymous]);
 
   React.useEffect(() => {
     loadData();
@@ -156,7 +158,7 @@ export function PromptDashboard({
     const searchTerm = normalize(filters.search);
 
     return prompts.filter(item => {
-      const isOwner = item.authorId === session?.id;
+      const isOwner = !!session && item.authorId === session.id;
       if (!isOwner && item.visibility !== 'public') return false;
 
       if (filters.visibility === 'public' && item.visibility !== 'public') return false;
@@ -341,6 +343,8 @@ export function PromptDashboard({
   };
 
   const handleCopy = async (id: string) => {
+    // Copiar funciona para todos; a contagem de uso exige login.
+    if (!session) return;
     try {
       await promptApi.usePrompt(id);
       setRawPrompts(prev => prev.map(p => p.id === id ? { ...p, useCount: (p.useCount || 0) + 1 } : p));
@@ -668,6 +672,18 @@ export function PromptDashboard({
 
           {/* Área Principal (Main Canvas): Busca, Ordenação, Vitrine Hero e Grid de Cards */}
           <main className="flex flex-1 min-w-0 flex-col overflow-hidden xl:pl-6">
+            {isAnonymous && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+                <p className="text-sm text-foreground">
+                  Você está vendo só os itens públicos. Entre para publicar, duplicar para a sua biblioteca,
+                  favoritar, comentar e ver seus itens privados.
+                </p>
+                <Button size="sm" onClick={() => router.push('/login')}>
+                  Entrar
+                </Button>
+              </div>
+            )}
+
             {/* Barra de descoberta: busca em destaque, escopo e ordenação ao lado. */}
             <div className="flex flex-col gap-3 py-5 lg:flex-row lg:items-center">
               <div className="relative flex-1">
@@ -897,7 +913,7 @@ export function PromptDashboard({
                         key={`highlight-${prompt.id}`}
                         prompt={prompt}
                         featured={true}
-                        isOwner={prompt.authorId === session?.id}
+                        isOwner={!!session && prompt.authorId === session.id}
                         isReadOnly={isPublicView}
                         onFork={handleFork}
                         onEdit={handleEdit}
@@ -906,7 +922,7 @@ export function PromptDashboard({
                         onToggleFavorite={handleToggleFavorite}
                         onSelectTag={toggleTag}
                         onCopy={handleCopy}
-                        onSelectAuthor={authorId => router.push(`/prompt-hub/autor/${authorId}`)}
+                        onSelectAuthor={isAnonymous ? undefined : authorId => router.push(`/prompt-hub/autor/${authorId}`)}
                       />
                     ))}
                   </div>
@@ -962,7 +978,7 @@ export function PromptDashboard({
                       <PromptSpecimenCard
                         key={prompt.id}
                         prompt={prompt}
-                        isOwner={prompt.authorId === session?.id}
+                        isOwner={!!session && prompt.authorId === session.id}
                         isReadOnly={isPublicView}
                         onFork={handleFork}
                         onEdit={handleEdit}
@@ -971,7 +987,7 @@ export function PromptDashboard({
                         onToggleFavorite={handleToggleFavorite}
                         onSelectTag={toggleTag}
                         onCopy={handleCopy}
-                        onSelectAuthor={authorId => router.push(`/prompt-hub/autor/${authorId}`)}
+                        onSelectAuthor={isAnonymous ? undefined : authorId => router.push(`/prompt-hub/autor/${authorId}`)}
                       />
                     ))}
                   </div>
@@ -1024,7 +1040,7 @@ export function PromptDashboard({
         onClose={() => setViewingPrompt(null)}
         prompt={currentViewingPrompt}
         onCopy={handleCopy}
-        isOwner={currentViewingPrompt?.authorId === session?.id}
+        isOwner={!!session && currentViewingPrompt?.authorId === session.id}
         isReadOnly={isPublicView}
         onEdit={handleEdit}
         onDelete={handleDelete}
