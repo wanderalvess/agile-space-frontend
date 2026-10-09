@@ -1,152 +1,49 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CheckCircle2, Info, Shield, Zap, Sparkles } from 'lucide-react';
-import { ManualHero } from '../components/ManualHero';
+import { ManualGuide } from '../components/ManualGuide';
 import { ModuleApiToolSection } from '../components/ModuleApiToolSection';
-import { getTopicById } from '../data/topics';
 
 export function PokerTopic() {
-  const meta = getTopicById('poker')!;
-
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <ManualHero
-        title={meta.title}
-        subtitle={meta.subtitle}
-        description={meta.description}
-        icon={meta.icon}
-        color={meta.color}
-        badgeBg={meta.badgeBg}
-        badgeBorder={meta.badgeBorder}
-        badgeText={meta.badgeText}
-        actionUrl={meta.actionUrl}
-        actionLabel={meta.actionLabel}
-      />
-
-      {/* Grid: Context & Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Col: Mindset & Strategy */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="p-8 bg-blue-600 rounded-[2.5rem] text-white shadow-2xl shadow-blue-500/20 space-y-4">
-            <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">
-              <Shield className="h-4 w-4" /> Vantagem Estratégica
-            </h4>
-            <p className="text-sm font-medium leading-relaxed italic opacity-95">
-              &quot;Ao ocultar os votos, forçamos o cérebro a pensar de forma independente. O valor não está no número final, mas na discussão que surge quando as opiniões divergem.&quot;
-            </p>
-          </div>
-
-          <div className="p-6 bg-slate-50 dark:bg-slate-900 rounded-[2rem] border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <h5 className="text-[11px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-500" /> Baralho Recomendado
-            </h5>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-              Utilize a sequência de <strong>Fibonacci (1, 2, 3, 5, 8, 13, 21)</strong> para Histórias de Usuário inteiras. Para desdobramento de sub-tarefas técnicas em refinamento fino, alterne para o baralho de <strong>Horas</strong>.
-            </p>
-          </div>
-        </div>
-
-        {/* Right Col: 4-Step Walkthrough */}
-        <div className="lg:col-span-8">
-          <Card className="border-none bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
-            <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-                Manual de Operação Passo a Passo
-              </CardTitle>
-              <CardDescription className="text-xs font-medium">
-                Siga este fluxo para conduzir uma rodada de estimativas ágil e sem atrito.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-3 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                      01
-                    </div>
-                    <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Criação & Pauta
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    O facilitador cria a sala e adiciona os itens na aba <strong>Tarefas</strong>. Cada item pode conter o link da demanda no Jira e notas com critérios de aceite para consulta rápida do time.
-                  </p>
-                </div>
-
-                <div className="space-y-3 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                      02
-                    </div>
-                    <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Escolha do Baralho
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    Alterne entre <strong>Fibonacci</strong> (padrão Scrum) ou <strong>Horas</strong>. Isso atualiza instantaneamente as cartas interativas disponíveis no painel de cada participante conectado.
-                  </p>
-                </div>
-
-                <div className="space-y-3 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                      03
-                    </div>
-                    <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Votação Silenciosa
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    Os participantes escolhem suas cartas em sigilo. O sistema exibe um indicador visual de quem já concluiu o voto, mas os valores só aparecem após o comando de <strong>Revelação</strong>.
-                  </p>
-                </div>
-
-                <div className="space-y-3 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                      04
-                    </div>
-                    <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Revelação & Consenso
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                    Ao revelar, o sistema detecta desvios: as menores e maiores estimativas explicam seus pontos de vista técnicos. Após o alinhamento, o facilitador <strong>Salva o Consenso</strong>.
-                  </p>
-                </div>
-              </div>
-
-              {/* Responsibilities */}
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/60 rounded-3xl border border-slate-200/60 dark:border-slate-700/60 space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                  <Info className="h-4 w-4" /> Funções Exclusivas do Facilitador
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Pular tarefas (Ignoradas) caso o time julgue não prioritário para a rodada.</p>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Editar estimativas individuais se algum membro errar o clique.</p>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Comando &quot;Limpar Mesa&quot; para resetar votos e avançar para a próxima história.</p>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">Exportar relatório consolidado com médias, consensos e histórico em CSV/PDF.</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Seção Detalhada de API e MCP Tools */}
+    <ManualGuide
+      topicId="poker"
+      accentClass="bg-blue-600"
+      quoteTitle="Por que esconder os votos"
+      quote="Ao ocultar os votos, forçamos o cérebro a pensar de forma independente. O valor não está no número final, mas na discussão que surge quando as opiniões divergem."
+      notes={[
+        {
+          title: 'Quem vota',
+          text: 'Desenvolvedores e QA votam. Gestão só vota se o facilitador liberar “Gestão pode votar”. Espectadores nunca votam. A categoria vem do cargo do seu perfil.',
+        },
+        {
+          title: 'Regras opcionais',
+          text: 'Automações (revelar sozinho, iniciar sozinho) e mudanças de regra ficam desligadas por padrão. Quem facilita liga só o que o time quer.',
+        },
+      ]}
+      sections={[
+        {
+          title: 'Rodada síncrona, passo a passo',
+          description: 'Todo mundo na mesma sala, uma tarefa por vez.',
+          items: [
+            { title: 'Criar a sala', text: 'Escolha título, squad, baralho (Fibonacci, Horas ou Camisetas) e o modo. Quem recebe o link e está logado entra.' },
+            { title: 'Montar a fila', text: 'Adicione tarefas à mão, cole uma lista/CSV ou importe do Jira. Cada tarefa pode ter link da demanda e notas com critérios de aceite.' },
+            { title: 'Iniciar refinamento', text: 'Antes disso o baralho fica bloqueado. A sala pode iniciar sozinha quando há 1 dev e 1 QA online, se essa opção estiver ligada.' },
+            { title: 'Votar em sigilo', text: 'Escolha a carta; clicar de novo na mesma carta remove o voto. Todos veem quem já votou, mas não o valor.' },
+            { title: 'Revelar', text: 'O facilitador revela. O sistema mostra consenso, menor e maior voto e a média; o arredondamento padrão é para cima e pode ser mudado.' },
+            { title: 'Revotar ou salvar', text: '“Revotar todos” limpa os votos; a revotação parcial refaz só uma categoria. “Salvar e próxima” grava a estimativa, devolve o número ao Jira quando a tarefa tem chave e ativa a próxima.' },
+          ],
+        },
+        {
+          title: 'Outras opções',
+          items: [
+            { title: 'Pular, adiar, cancelar', text: 'Cada tarefa pode ser pulada, adiada (volta ao fim da fila) ou cancelada, e depois reaberta.' },
+            { title: 'Modo assíncrono', text: 'Cada pessoa vota quando puder, em qualquer tarefa, e o facilitador revela e consolida tarefa por tarefa. Não há timer nem revelação automática.' },
+            { title: 'Estimativa salva', text: 'Em Fibonacci e Horas a estimativa salva é a soma das médias por papel (por exemplo, Developer + QA), e o card avisa quando difere da média geral.' },
+            { title: 'Relatório', text: 'Ao encerrar a sessão a tela mostra o relatório; dá para exportar com médias, consensos e histórico das rodadas.' },
+          ],
+        },
+      ]}
+    >
       <ModuleApiToolSection moduleId="poker" />
-    </div>
+    </ManualGuide>
   );
 }

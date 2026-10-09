@@ -1,113 +1,46 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { LayoutGrid, Code2, Zap, ShieldCheck, Bookmark, Sparkles } from 'lucide-react';
-import { ManualHero } from '../components/ManualHero';
-import { getTopicById } from '../data/topics';
+import { ManualGuide } from '../components/ManualGuide';
 
 export function WorkspaceTopic() {
-  const meta = getTopicById('workspace')!;
-
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <ManualHero
-        title={meta.title}
-        subtitle={meta.subtitle}
-        description={meta.description}
-        icon={meta.icon}
-        color={meta.color}
-        badgeBg={meta.badgeBg}
-        badgeBorder={meta.badgeBorder}
-        badgeText={meta.badgeText}
-        actionUrl={meta.actionUrl}
-        actionLabel={meta.actionLabel}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-6">
-          <div className="p-8 bg-slate-900 rounded-[2.5rem] text-white shadow-2xl space-y-6">
-            <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
-              <Sparkles className="h-4 w-4" /> Produtividade Solo
-            </h4>
-            <p className="text-xs text-slate-300 font-medium leading-relaxed italic">
-              &quot;O sucesso da squad começa na excelência individual. O Workspace elimina o atrito entre a ideação e o registro técnico.&quot;
-            </p>
-          </div>
-        </div>
-
-        <div className="lg:col-span-8">
-          <Card className="border-none bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
-            <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-                Ferramentas de Comando Pessoal
-              </CardTitle>
-              <CardDescription className="text-xs font-medium">
-                Recursos para potencializar sua rotina diária como desenvolvedor.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-3">
-                    <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                      <Zap className="h-5 w-5" />
-                    </div>
-                    <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Apoio à Daily
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                    Prepare seu status da Daily com tranquilidade. O sistema possui salvamento automático em tempo real e permite copiar em formato markdown pronto para Slack ou Teams com um único clique.
-                  </p>
-                </div>
-
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                      <Code2 className="h-5 w-5" />
-                    </div>
-                    <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
-                      Biblioteca de Trechos de Código
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                    Seu bloco de notas técnico privado. Guarde consultas SQL complexas, scripts Docker, comandos e trechos de código com destaque de sintaxe por linguagem.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/40 rounded-3xl border border-slate-200/60 dark:border-slate-800 flex items-center gap-4">
-                <ShieldCheck className="h-8 w-8 text-emerald-500 shrink-0" />
-                <div className="space-y-1">
-                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                    Isolamento por Identidade (UID)
-                  </h5>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    Seus dados pessoais de rascunho e anotações não são visíveis para outros membros nem misturados com as salas comunitárias.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Seção de Conectividade & API Keys */}
-      <Card className="border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/30 dark:shadow-none overflow-hidden">
-        <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
-          <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-            Conectividade & Chaves de API Pessoais
-          </CardTitle>
-          <CardDescription className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Como emitir sua credencial para integrar scripts e agentes sem precisar de acesso de Administrador.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-8 space-y-4">
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-            Na aba <strong>Conectividade</strong> do Meu Espaço, qualquer desenvolvedor autenticado pode gerar e revogar suas próprias chaves de API (<code className="font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">X-Api-Key</code>). 
-            Essas chaves permitem consumir a API REST e invocar ferramentas MCP (Model Context Protocol) com o mesmo nível de permissão e squad do seu usuário.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <ManualGuide
+      topicId="workspace"
+      accentClass="bg-slate-900"
+      quoteTitle="Só seu"
+      quote="Tudo o que você guarda no Meu Espaço é visível apenas para você. Nem a sua squad nem os administradores veem as suas tarefas, notas, atalhos e snippets."
+      notes={[
+        {
+          title: 'Limites',
+          text: 'Até 2.000 itens de cada tipo (tarefas, notas, atalhos, snippets). Notas e snippets aceitam textos longos, mas há um teto; se passar, o sistema avisa.',
+        },
+        {
+          title: 'Busca rápida',
+          text: 'Use o botão Busca (ou Ctrl/⌘ + K) para pular entre as abas e criar tarefa, nota ou snippet sem tirar a mão do teclado.',
+        },
+      ]}
+      sections={[
+        {
+          title: 'As abas do Meu Espaço',
+          description: 'Cada aba cuida de uma parte da sua rotina.',
+          items: [
+            { title: 'Início', text: 'Resumo do dia: tarefas abertas, notas recentes e as últimas cerimônias de que você participou.' },
+            { title: 'Kanban', text: 'Três colunas: A Fazer, Em Andamento e Concluído. Arraste o cartão para outra coluna para mudar o status, ou clique nele para editar título, descrição, urgência e status. Dentro da coluna os cartões ficam do mais recente para o mais antigo; a ordem manual ainda não é guardada.' },
+            { title: 'Notas', text: 'Mural de notas coloridas. O texto é salvo sozinho poucos segundos depois que você para de digitar (e ao trocar de aba). Dá para fixar uma nota no topo, trocar a cor ou promovê-la a tarefa do Kanban.' },
+            { title: 'Histórico', text: 'Poker, retrospectivas e radares de saúde da sua squad em que você participou ou que você criou, com link para reabrir cada um.' },
+            { title: 'Perfil', text: 'Seus dados de exibição. Cargo e equipe vêm do Jira ou do convite; você não escolhe papéis de liderança sozinho.' },
+            { title: 'Conectividade', text: 'Domínio e token do Jira, dados do TDN e as suas chaves de API pessoais (X-Api-Key), usadas para integrar scripts e agentes com o mesmo acesso que você tem.' },
+            { title: 'Atalhos', text: 'Links rápidos com nome, ícone e cor. Só endereços http:// ou https:// são aceitos; se você digitar sem o início, o sistema completa com https://.' },
+            { title: 'Prompts e Snippets', text: 'Prompts mostra os seus itens da Biblioteca de IA. Snippets é o seu caderno de código, com destaque de sintaxe por linguagem e botão de copiar.' },
+          ],
+        },
+        {
+          title: 'Quando algo dá errado',
+          items: [
+            { title: 'Erro ao salvar', text: 'Uma mensagem vermelha explica o motivo. Em tarefas e atalhos o diálogo continua aberto com o que você digitou, para tentar de novo.' },
+            { title: 'Dados não aparecem', text: 'Se a lista não carregar, o sistema avisa. Recarregue a página; o conteúdo não foi apagado.' },
+          ],
+        },
+      ]}
+    />
   );
 }

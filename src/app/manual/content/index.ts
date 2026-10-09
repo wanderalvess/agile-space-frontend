@@ -12,6 +12,7 @@ import { ShowcaseTopic } from './ShowcaseTopic';
 import { ManifestoTopic } from './ManifestoTopic';
 import { GovernanceTopic } from './GovernanceTopic';
 import { IntegracoesTopic } from './IntegracoesTopic';
+import { PrimeirosPassosTopic } from './PrimeirosPassosTopic';
 
 export const TOPIC_COMPONENTS: Record<string, React.ComponentType> = {
   'poker': PokerTopic,
@@ -27,4 +28,5 @@ export const TOPIC_COMPONENTS: Record<string, React.ComponentType> = {
   'manifesto': ManifestoTopic,
   'governance': GovernanceTopic,
   'integracoes': IntegracoesTopic,
+  'primeiros-passos': PrimeirosPassosTopic,
 };

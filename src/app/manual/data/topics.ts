@@ -12,6 +12,7 @@ import {
   Eye,
   Shield,
   ShieldCheck,
+  Compass,
   LucideIcon
 } from 'lucide-react';
 
@@ -142,7 +143,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     id: 'workspace',
     title: 'Meu Espaço',
     subtitle: 'Central de Produtividade Individual',
-    description: 'Ferramentas projetadas para acelerar o fluxo solo de engenharia: repositório privado de snippets, anotações e prompts.',
+    description: 'Seu espaço privado: kanban pessoal, notas, atalhos, snippets, histórico das suas cerimônias e conexões com Jira e TDN.',
     category: 'engineering',
     icon: LayoutGrid,
     color: 'text-slate-900 dark:text-slate-100',
@@ -187,7 +188,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     id: 'knowledge',
     title: 'Base de Conhecimento',
     subtitle: 'Wiki Central & Assistente de IA',
-    description: 'A central de conhecimento da sua squad. Repositório organizado para manuais técnicos, guias e assistente inteligente integrado.',
+    description: 'A wiki da empresa para manuais técnicos e guias, com busca, importação do TDN e um assistente que responde com base nos documentos.',
     category: 'intelligence',
     icon: Sparkles,
     color: 'text-cyan-600 dark:text-cyan-400',
@@ -200,9 +201,9 @@ export const MANUAL_TOPICS: ManualTopic[] = [
   },
   {
     id: 'prompt-hub',
-    title: 'Hub de Prompts',
-    subtitle: 'Engenharia de Instruções & Compartilhamento',
-    description: 'A arte de estruturar prompts de alta performance. Gerencie, compartilhe, versione e colabore em instruções reutilizáveis.',
+    title: 'Biblioteca de IA',
+    subtitle: 'Prompts, Skills, Agentes e Iniciativas',
+    description: 'Acervo da empresa para ativos de IA reaproveitáveis: prompts, skills, agentes, Gems, workflows e iniciativas. Ache o que já existe antes de escrever de novo.',
     category: 'intelligence',
     icon: MessageSquare,
     color: 'text-violet-600 dark:text-violet-400',
@@ -211,13 +212,13 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     badgeText: 'text-violet-600 dark:text-violet-400',
     heroBg: 'from-violet-600 to-purple-800',
     actionUrl: '/prompt-hub',
-    actionLabel: 'Abrir Hub de Prompts'
+    actionLabel: 'Abrir Biblioteca de IA'
   },
   {
     id: 'showcase',
-    title: 'Showcase de Sprint',
-    subtitle: 'Apresentações & Modo Teatro',
-    description: 'O palco das suas entregas. Transforme dados de Sprint em slides executivos profissionais com visual imersivo para stakeholders.',
+    title: 'Review de Sprint',
+    subtitle: 'Review sem Slides & Modo Teatro',
+    description: 'Importe as entregas da sprint, complete a evidência de cada card e apresente uma entrega por vez no Modo Teatro, com a decisão do PO registrada.',
     category: 'intelligence',
     icon: Eye,
     color: 'text-pink-600 dark:text-pink-400',
@@ -226,10 +227,25 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     badgeText: 'text-pink-600 dark:text-pink-400',
     heroBg: 'from-pink-600 to-rose-700',
     actionUrl: '/showcase',
-    actionLabel: 'Abrir Showcase'
+    actionLabel: 'Abrir Review'
   },
 
   // Categoria Governança
+  {
+    id: 'primeiros-passos',
+    title: 'Primeiros Passos & Papéis',
+    subtitle: 'Entrar na equipe certa',
+    description: 'Como o primeiro acesso funciona, quem cadastra equipes e como cada pessoa chega à sua equipe sem se declarar líder por conta própria.',
+    category: 'governance',
+    icon: Compass,
+    color: 'text-indigo-600 dark:text-indigo-400',
+    badgeBg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
+    badgeBorder: 'border-indigo-500/20',
+    badgeText: 'text-indigo-600 dark:text-indigo-400',
+    heroBg: 'from-indigo-600 to-slate-900',
+    actionUrl: '/onboarding',
+    actionLabel: 'Abrir o primeiro acesso'
+  },
   {
     id: 'manifesto',
     title: 'Manifesto Portal Tech V&D',

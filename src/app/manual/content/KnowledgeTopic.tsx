@@ -1,115 +1,52 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Sparkles, Key, MessageSquare, Database, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { ManualHero } from '../components/ManualHero';
+import { ManualGuide } from '../components/ManualGuide';
 import { ModuleApiToolSection } from '../components/ModuleApiToolSection';
-import { getTopicById } from '../data/topics';
 
 export function KnowledgeTopic() {
-  const meta = getTopicById('knowledge')!;
-
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <ManualHero
-        title={meta.title}
-        subtitle={meta.subtitle}
-        description={meta.description}
-        icon={meta.icon}
-        color={meta.color}
-        badgeBg={meta.badgeBg}
-        badgeBorder={meta.badgeBorder}
-        badgeText={meta.badgeText}
-        actionUrl={meta.actionUrl}
-        actionLabel={meta.actionLabel}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-6">
-          <div className="p-8 bg-cyan-600 rounded-[2.5rem] text-white shadow-2xl shadow-cyan-500/20 space-y-4">
-            <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-100">
-              <ShieldCheck className="h-4 w-4" /> Sua Chave, Seu Controle
-            </h4>
-            <p className="text-xs text-cyan-100/90 leading-relaxed font-medium italic">
-              &quot;Privacidade em primeiro lugar: sua chave de API do Google AI Studio fica guardada apenas no seu próprio navegador via LocalStorage. O servidor nunca persiste nem compartilha suas credenciais.&quot;
-            </p>
-          </div>
-        </div>
-
-        <div className="lg:col-span-8">
-          <Card className="border-none bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
-            <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-                Manual de Operação da Wiki & Assistente
-              </CardTitle>
-              <CardDescription className="text-xs font-medium">
-                Alimente a base de conhecimento e use o assistente para responder dúvidas do projeto.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-black text-xs">
-                      01
-                    </div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      Configuração da Chave
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Obtenha sua chave gratuita no Google AI Studio (Gemini Flash) e cole no painel de Configurações do módulo.
-                  </p>
-                </div>
-
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-black text-xs">
-                      02
-                    </div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      Gestão de Artigos
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Crie e edite manuais técnicos em formato Markdown com suporte a diagramas, código-fonte e categorias.
-                  </p>
-                </div>
-
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-black text-xs">
-                      03
-                    </div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      Assistente Contextual
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Inicie conversas com respostas geradas por streaming e fundamentadas diretamente nos documentos salvos da squad.
-                  </p>
-                </div>
-
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-cyan-500 text-white flex items-center justify-center font-black text-xs">
-                      04
-                    </div>
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      Lixeira Comunitária
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Documentos excluídos ficam retidos por 30 dias na lixeira, permitindo restauração rápida por qualquer membro autorizado.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Seção Detalhada de API e MCP Tools */}
+    <ManualGuide
+      topicId="knowledge"
+      accentClass="bg-cyan-600"
+      quoteTitle="Sobre a sua chave de IA"
+      quote="Sua chave do Google Gemini fica guardada de forma cifrada no servidor da plataforma e é usada só nas suas perguntas ao Assistente. Você pode trocá-la ou apagá-la nas Configurações a qualquer momento."
+      notes={[
+        {
+          title: 'Quem vê o quê',
+          text: 'Os documentos da Base são compartilhados com todas as pessoas logadas. As suas conversas com o Assistente são privadas: só você as vê.',
+        },
+        {
+          title: 'Limites',
+          text: 'Arquivo importado: até 20 MB. Documento: até 2 milhões de caracteres. O Assistente lê as suas últimas 20 mensagens e no máximo uns 120 mil caracteres de documentos por pergunta.',
+        },
+      ]}
+      sections={[
+        {
+          title: 'Wiki: criar e manter documentos',
+          description: 'A Base de Conhecimento fica em Conhecimento > Base.',
+          items: [
+            { title: 'Criar e editar', text: 'O editor é visual (negrito, listas, títulos, código), não Markdown. Título é obrigatório e o documento tem categoria e tags.' },
+            { title: 'Importar arquivos', text: 'No editor, importe .docx, .txt, .md ou .json. O texto entra no editor para você revisar antes de salvar. PDFs ainda não são aceitos pela tela.' },
+            { title: 'Importar do TDN', text: 'Com o token do TDN configurado em Meu Espaço > Conectividade, busque páginas, importe e depois sincronize para atualizar o conteúdo.' },
+            { title: 'Ler e baixar', text: 'O leitor mostra um sumário lateral. Você pode baixar em Markdown, HTML ou texto e marcar favoritos (os favoritos ficam só no seu navegador).' },
+            { title: 'Quem pode apagar', text: 'Qualquer pessoa logada pode criar e editar. Apagar é só do autor do documento ou de um administrador.' },
+            { title: 'Lixeira', text: 'Documento apagado vai para a Lixeira e não aparece mais nas buscas. Qualquer pessoa logada pode restaurar. Hoje não existe exclusão definitiva automática: ele fica guardado até alguém restaurar.' },
+          ],
+        },
+        {
+          title: 'Assistente de IA',
+          description: 'Perguntas respondidas com base nos documentos da Base.',
+          items: [
+            { title: 'Configurar a chave', text: 'Em Conhecimento > Configurações cole a sua chave do Google AI Studio (Gemini). Por enquanto só chaves do Google funcionam; OpenAI e Anthropic aparecem como “Em breve”.' },
+            { title: 'Perguntar', text: 'O Assistente procura os documentos mais parecidos com a sua pergunta e responde citando as fontes. A resposta chega inteira, não aos poucos.' },
+            { title: 'Sem chave', text: 'Sem chave configurada o sistema só busca nos documentos (e no TDN, se configurado) e mostra os resultados, sem gerar texto.' },
+            { title: 'Consumo', text: 'Em Configurações você vê o total de tokens que as suas perguntas usaram. O valor é informado pelo seu navegador e serve de referência de custo, não de cobrança.' },
+            { title: 'Cuidado com as respostas', text: 'O Assistente pode errar. Confira o documento citado antes de decidir algo importante.' },
+            { title: 'Histórico', text: 'Cada consulta fica na barra lateral. Se o histórico não puder ser salvo, a tela avisa e a conversa vale só até recarregar.' },
+          ],
+        },
+      ]}
+    >
       <ModuleApiToolSection moduleId="knowledge" />
-    </div>
+    </ManualGuide>
   );
 }

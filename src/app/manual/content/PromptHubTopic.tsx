@@ -1,83 +1,48 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { MessageSquare, GitFork, Sliders, Zap, Sparkles } from 'lucide-react';
-import { ManualHero } from '../components/ManualHero';
+import { ManualGuide } from '../components/ManualGuide';
 import { ModuleApiToolSection } from '../components/ModuleApiToolSection';
-import { getTopicById } from '../data/topics';
 
 export function PromptHubTopic() {
-  const meta = getTopicById('prompt-hub')!;
-
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
-      <ManualHero
-        title={meta.title}
-        subtitle={meta.subtitle}
-        description={meta.description}
-        icon={meta.icon}
-        color={meta.color}
-        badgeBg={meta.badgeBg}
-        badgeBorder={meta.badgeBorder}
-        badgeText={meta.badgeText}
-        actionUrl={meta.actionUrl}
-        actionLabel={meta.actionLabel}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-6">
-          <div className="p-8 bg-violet-600 rounded-[2.5rem] text-white shadow-2xl shadow-violet-500/20 space-y-4">
-            <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-violet-100">
-              <Zap className="h-4 w-4" /> Engenharia de Instrução
-            </h4>
-            <p className="text-xs text-violet-100/90 leading-relaxed font-medium italic">
-              &quot;Um bom prompt economiza horas de código e refinamento. No Hub, transformamos intuição individual em ativos reutilizáveis para todo o time.&quot;
-            </p>
-          </div>
-        </div>
-
-        <div className="lg:col-span-8">
-          <Card className="border-none bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
-            <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-                Operação Social & Produtividade
-              </CardTitle>
-              <CardDescription className="text-xs font-medium">
-                Como catalogar e rodar templates inteligentes de prompts.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <GitFork className="h-5 w-5 text-violet-500" />
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      1. Clonar & Coleção (Fork)
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Descubra instruções criadas por outras squads, crie uma cópia derivada (Fork) para sua coleção privada e adapte as regras para seu projeto.
-                  </p>
-                </div>
-
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Sliders className="h-5 w-5 text-violet-500" />
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
-                      2. Variáveis Dinâmicas
-                    </h4>
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                    Use marcações como <code>[CONTEXTO]</code> ou <code>[FRAMEWORK]</code> no corpo do prompt. O sistema solicita os valores ao executar o modelo.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Seção Detalhada de API e MCP Tools */}
+    <ManualGuide
+      topicId="prompt-hub"
+      accentClass="bg-violet-600"
+      quoteTitle="Achar antes de escrever"
+      quote="Um bom prompt economiza horas de código e refinamento. Na Biblioteca, a intuição de uma pessoa vira ativo reutilizável para toda a empresa."
+      notes={[
+        {
+          title: 'Visibilidade',
+          text: 'Todo item novo nasce privado. Só itens públicos aparecem para os outros. Quem ainda não fez login pode explorar a biblioteca apenas lendo itens públicos.',
+        },
+        {
+          title: 'Links',
+          text: 'Links de ferramenta e de documentação só aceitam endereços http:// ou https://.',
+        },
+      ]}
+      sections={[
+        {
+          title: 'O que dá para guardar',
+          items: [
+            { title: 'Oito tipos', text: 'Prompt, Skill, Agente, Gem, Instrução, Workflow, MCP e Recurso. O tipo muda os rótulos e o formato esperado do conteúdo.' },
+            { title: 'Skills', text: 'Skills precisam do formato SKILL.md (nome e descrição no cabeçalho). Erros de formato bloqueiam a publicação; avisos não. Dá para importar uma pasta inteira de skills de uma vez.' },
+            { title: 'Detalhes de iniciativa', text: 'Seção opcional com status, impacto, objetivo de negócio, público-alvo e documentação, para acompanhar iniciativas de IA da empresa.' },
+            { title: 'Coleções', text: 'Trilhas ordenadas de itens, privadas ou públicas, para onboarding e temas.' },
+          ],
+        },
+        {
+          title: 'Usar um item',
+          items: [
+            { title: 'Variáveis', text: 'Marque campos com chaves duplas no texto. O detalhe do item mostra um campo para cada variável e o sistema substitui tudo ao copiar.' },
+            { title: 'Copiar', text: 'Itens sem variáveis são copiados direto do card. Quem está logado também soma 1 ao contador de uso.' },
+            { title: 'Duplicar', text: 'Cria uma cópia privada, “Cópia de …”, para você adaptar, e conta um clone no item original.' },
+            { title: 'Favoritar e comentar', text: 'Favoritos ficam salvos no seu navegador. Comentários são abertos a quem enxerga o item.' },
+            { title: 'Publicar', text: 'O botão fica travado enquanto salva e, se você fechar com alterações, o sistema pede confirmação. Itens parecidos geram um aviso, sem impedir a publicação.' },
+            { title: 'Seus itens', text: 'Editar, arquivar e excluir são do autor do item. Seus itens também aparecem em Meu Espaço > Prompts.' },
+          ],
+        },
+      ]}
+    >
       <ModuleApiToolSection moduleId="prompt-hub" />
-    </div>
+    </ManualGuide>
   );
 }
