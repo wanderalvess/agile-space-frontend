@@ -37,6 +37,24 @@ export interface JoltEngineInfo {
 }
 
 /**
+ * Lê a mensagem de erro de uma resposta HTTP do backend. O Spring devolve JSON
+ * ({message}, {error}); isso não deve aparecer cru na tela.
+ */
+export async function readApiError(res: Response, fallback: string): Promise<string> {
+  const text = await res.text().catch(() => '');
+  let msg = '';
+  if (text) {
+    try {
+      const json = JSON.parse(text);
+      msg = (typeof json?.message === 'string' && json.message) || (typeof json?.error === 'string' && json.error) || '';
+    } catch {
+      msg = text.length <= 300 && !text.trim().startsWith('<') ? text : '';
+    }
+  }
+  return msg || `${fallback} (${res.status})`;
+}
+
+/**
  * Executa a transformação JOLT utilizando o motor oficial Java (Bazaarvoice) no backend.
  */
 export async function transformJoltBackend(
@@ -56,13 +74,7 @@ export async function transformJoltBackend(
   });
 
   if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    let errorMsg = errorText;
-    try {
-      const json = JSON.parse(errorText);
-      errorMsg = json.message || json.error || errorText;
-    } catch {}
-    throw new Error(errorMsg || `Erro ao executar transformação JOLT no backend (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao executar transformação JOLT no backend'));
   }
 
   return res.json();
@@ -105,6 +117,8 @@ export interface JoltProject {
   flowNodes?: string;
   flowEdges?: string;
   versionCount?: number;
+  /** Versão de edição (lock otimista): devolvida em expectedVersion ao salvar. */
+  version?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -138,6 +152,8 @@ export interface SaveJoltProjectPayload {
   flowNodes?: string;
   flowEdges?: string;
   commitMessage?: string;
+  /** Versão que o cliente carregou; se o projeto já mudou, o servidor responde 409 em vez de sobrescrever. */
+  expectedVersion?: number;
 }
 
 /**
@@ -151,7 +167,7 @@ export async function listJoltProjects(search?: string): Promise<JoltProject[]> 
 
   const res = await authFetch(`${API_BASE_URL}/jolt/projects?${params.toString()}`);
   if (!res.ok) {
-    throw new Error(`Erro ao listar projetos JOLT (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao listar projetos JOLT'));
   }
   return res.json();
 }
@@ -164,7 +180,7 @@ export async function getJoltProject(id: string): Promise<JoltProject> {
 
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${id}`);
   if (!res.ok) {
-    throw new Error(`Erro ao carregar projeto JOLT (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao carregar projeto JOLT'));
   }
   return res.json();
 }
@@ -180,8 +196,7 @@ export async function createJoltProject(payload: SaveJoltProjectPayload): Promis
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(errText || `Erro ao salvar projeto JOLT (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao salvar projeto JOLT'));
   }
   return res.json();
 }
@@ -197,8 +212,7 @@ export async function updateJoltProject(id: string, payload: SaveJoltProjectPayl
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(errText || `Erro ao atualizar projeto JOLT (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao atualizar projeto JOLT'));
   }
   return res.json();
 }
@@ -213,7 +227,7 @@ export async function deleteJoltProject(id: string): Promise<void> {
     method: 'DELETE',
   });
   if (!res.ok) {
-    throw new Error(`Erro ao excluir projeto JOLT (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao excluir projeto JOLT'));
   }
 }
 
@@ -225,7 +239,7 @@ export async function listJoltProjectVersions(projectId: string): Promise<JoltPr
 
   const res = await authFetch(`${API_BASE_URL}/jolt/projects/${projectId}/versions`);
   if (!res.ok) {
-    throw new Error(`Erro ao listar versões do projeto (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao listar versões do projeto'));
   }
   return res.json();
 }
@@ -240,7 +254,7 @@ export async function rollbackJoltProjectVersion(projectId: string, versionId: s
     method: 'POST',
   });
   if (!res.ok) {
-    throw new Error(`Erro ao realizar rollback (${res.status})`);
+    throw new Error(await readApiError(res, 'Erro ao restaurar a versão'));
   }
   return res.json();
 }

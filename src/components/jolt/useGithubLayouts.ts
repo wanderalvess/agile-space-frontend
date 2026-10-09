@@ -27,6 +27,11 @@ interface Options {
   onNotify: (n: { title: string; description?: string; variant?: 'destructive' }) => void;
 }
 
+/** Repositório no formato usuário/repositório (só caracteres que o GitHub aceita). */
+export function isValidRepoName(name: string): boolean {
+  return /^[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}$/.test(name) && !name.includes('..');
+}
+
 /** 1.40.0.0 > 1.39.48 > 1.9: compara número a número, não texto. */
 export function compareVersionsDesc(a: string, b: string): number {
   const pa = a.replace(/^v/i, '').split(/[.\-]/);
@@ -271,7 +276,12 @@ export function useGithubLayouts({ onLayoutLoaded, onNotify }: Options) {
 
   const submitRepo = useCallback(() => {
     const next = repoInput.trim();
-    if (next) setRepo(next);
+    if (!next) return;
+    if (!isValidRepoName(next)) {
+      notify.current({ title: 'Repositório inválido', description: 'Use o formato usuário/repositório, por exemplo totvs/winthor-smart-hub-layouts.', variant: 'destructive' });
+      return;
+    }
+    setRepo(next);
   }, [repoInput]);
 
   return {

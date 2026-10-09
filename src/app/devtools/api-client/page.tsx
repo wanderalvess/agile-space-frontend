@@ -98,7 +98,7 @@ export default function ApiClientPage() {
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
       // fetch não distingue CORS de rede fora do ar: ambos viram TypeError genérico
-      setError('Falha na requisição: o servidor não respondeu ou bloqueou o acesso do navegador (CORS). APIs sem CORS liberado só funcionam via cURL/Postman.');
+      setError('Falha na requisição: o servidor não respondeu ou o navegador bloqueou o acesso (CORS ou política de segurança do Portal, que só libera alguns destinos). Para esses casos, use cURL ou Postman.');
     } finally {
       setLoading(false);
     }

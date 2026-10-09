@@ -67,6 +67,24 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { transformJolt, type JoltEngineMode } from '@/lib/jolt-engine';
+import { useUserContext } from '@/context/UserContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DEFAULT_ENVELOPE_TEMPLATE,
+  flattenJsonToPaths,
+  generateJoltSpec,
+  injectSpecIntoEnvelope,
+  type Mapping,
+} from '@/lib/jolt-visual';
 import {
   parseLayoutText,
   layoutToCanvas,
@@ -117,14 +135,6 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 // --- Types ---
-interface Mapping {
-  id: string;
-  source: string;
-  target: string;
-  type: 'direct' | 'expression';
-  expression?: string;
-}
-
 /** Layout existente em manutenção: o que já está na spec e o que o mapa consegue desenhar dele. */
 interface BaseLayoutState {
   text: string;
@@ -133,11 +143,6 @@ interface BaseLayoutState {
   existing: ExistingEdge[];
   advancedCount: number;
   orphanCount: number;
-}
-
-interface PathInfo {
-  path: string;
-  type: string;
 }
 
 // Node data carried by the source/target flow nodes
@@ -206,369 +211,6 @@ const TargetNode = ({ data }: NodeProps<TargetNodeType>) => {
 const nodeTypes: NodeTypes = {
   source: SourceNode,
   target: TargetNode,
-};
-
-// --- Helpers ---
-const flattenJsonToPaths = (jsonObj: any, prefix = ''): PathInfo[] => {
-  if (jsonObj === null || jsonObj === undefined || typeof jsonObj !== 'object') return [];
-  const paths: PathInfo[] = [];
-
-  if (Array.isArray(jsonObj)) {
-    const arrayPrefix = prefix ? `${prefix}[*]` : '[*]';
-    if (jsonObj.length > 0 && typeof jsonObj[0] === 'object' && jsonObj[0] !== null) {
-      paths.push(...flattenJsonToPaths(jsonObj[0], arrayPrefix));
-    } else {
-      paths.push({ path: arrayPrefix, type: 'Array' });
-    }
-    return paths;
-  }
-
-  for (const key in jsonObj) {
-    if (Object.prototype.hasOwnProperty.call(jsonObj, key)) {
-      const newPrefix = prefix ? `${prefix}.${key}` : key;
-      const value = jsonObj[key];
-      const type = Array.isArray(value) ? 'Array' : value === null ? 'null' : typeof value;
-
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        paths.push(...flattenJsonToPaths(value, newPrefix));
-      } else if (Array.isArray(value)) {
-        const arrayPrefix = `${newPrefix}[*]`;
-        if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
-          paths.push(...flattenJsonToPaths(value[0], arrayPrefix));
-        } else {
-          paths.push({ path: arrayPrefix, type: 'Array' });
-        }
-      } else {
-        paths.push({ path: newPrefix, type });
-      }
-    }
-  }
-  return paths;
-};
-
-interface GenerateSpecOptions {
-  mode: 'smarthub' | 'direct';
-  entityName?: string;
-  inputJson?: string;
-  targetJson?: string;
-}
-
-const generateJoltSpec = (mappings: Mapping[], options: GenerateSpecOptions) => {
-  const { mode = 'smarthub', entityName = '', inputJson = '', targetJson = '' } = options;
-
-  let sObj: any = {};
-  let tObj: any = {};
-  try { sObj = JSON.parse(inputJson || '{}'); } catch {}
-  try { tObj = JSON.parse(targetJson || '{}'); } catch {}
-
-  const targetSample = Array.isArray(tObj)
-    ? tObj[0] || {}
-    : Array.isArray(tObj?.items)
-      ? tObj.items[0] || {}
-      : tObj;
-  const targetKeysWithValues: Record<string, any> = {};
-  if (targetSample && typeof targetSample === 'object') {
-    Object.entries(targetSample).forEach(([k, v]) => {
-      targetKeysWithValues[k] = v;
-    });
-  }
-
-  const mappedTargetCleanSet = new Set(
-    mappings.map((m) => m.target.replace(/^(0\.|\[\*\]\.|items\[\*\]\.)/, '')),
-  );
-
-  const inputSampleItem = Array.isArray(sObj?.items)
-    ? sObj.items[0]
-    : Array.isArray(sObj)
-      ? sObj[0]
-      : sObj;
-
-  const findInputKey = (candidates: string[]) => {
-    if (!inputSampleItem || typeof inputSampleItem !== 'object') return null;
-    const lowerCandidates = candidates.map((c) => c.toLowerCase());
-    return (
-      Object.keys(inputSampleItem).find((k) => lowerCandidates.includes(k.toLowerCase())) || null
-    );
-  };
-
-  const idSrc =
-    findInputKey(['id', 'promotionId', 'codigo', 'idRetaguarda']) ||
-    mappings
-      .find((m) => m.target.toLowerCase().includes('retaguarda') || m.target.toLowerCase().includes('id'))
-      ?.source.split('.')
-      .pop()
-      ?.replace('[*]', '') ||
-    'id';
-
-  const branchSrc =
-    findInputKey(['branchId', 'codigoFilial', 'filial', 'idLoja']) ||
-    mappings
-      .find((m) => m.target.toLowerCase().includes('loja') || m.target.toLowerCase().includes('proprietario'))
-      ?.source.split('.')
-      .pop()
-      ?.replace('[*]', '');
-
-  const dateSrc =
-    findInputKey(['lastChangeDate', 'dataUltimaAtualizacao', 'startDate', 'dataAlteracao', 'data']) ||
-    'lastChangeDate';
-
-  // Deduzir nome da entidade se não fornecido
-  let resolvedEntity = entityName.trim();
-  if (!resolvedEntity) {
-    const allKeysStr = (
-      Object.keys(targetKeysWithValues).join(' ') +
-      ' ' +
-      (inputSampleItem ? Object.keys(inputSampleItem).join(' ') : '')
-    ).toLowerCase();
-
-    if (allKeysStr.includes('vigencia') || allKeysStr.includes('promotion') || allKeysStr.includes('oferta')) {
-      resolvedEntity = 'CAMPANHA-OFERTA';
-    } else if (allKeysStr.includes('endereco') || allKeysStr.includes('receiver') || allKeysStr.includes('bairro')) {
-      resolvedEntity = 'ENDERECO-ENTREGA-CLIENTE';
-    } else if (allKeysStr.includes('plano') || allKeysStr.includes('parcelas') || allKeysStr.includes('prazos')) {
-      resolvedEntity = 'PLANO-PAGAMENTO';
-    } else if (allKeysStr.includes('cliente') || allKeysStr.includes('customer')) {
-      resolvedEntity = 'CLIENTE';
-    } else if (allKeysStr.includes('produto') || allKeysStr.includes('product')) {
-      resolvedEntity = 'PRODUTO';
-    } else {
-      resolvedEntity = 'INTEGRACAO-DADOS';
-    }
-  }
-
-  const slugEntity = resolvedEntity.toLowerCase().replace(/_/g, '-');
-  const upperEntity = resolvedEntity.toUpperCase().replace(/-/g, '_');
-
-  // MODO SMARTHUB (Envelope _attr_access)
-  if (mode === 'smarthub') {
-    const spec: any[] = [];
-
-    // 1. base64ToObject (Apenas se o JSON de entrada possuir campo base64: conteudo)
-    const hasConteudoTag = inputJson.includes('"conteudo"') || (inputSampleItem && typeof inputSampleItem === 'object' && 'conteudo' in inputSampleItem);
-
-    if (hasConteudoTag) {
-      spec.push({
-        operation: 'custom-totvs',
-        spec: {
-          data: {
-            '*': {
-              conteudo: '=base64ToObject',
-            },
-          },
-        },
-      });
-    }
-
-    // 2. idExterno, idInterno, tipoIdInterno
-    const idExternoParts = [`'pdvsync-${slugEntity}-'`];
-    if (idSrc) idExternoParts.push(`@(1,${idSrc})`);
-    if (branchSrc) idExternoParts.push(`@(1,${branchSrc})`);
-    if (dateSrc) idExternoParts.push(`@(1,${dateSrc})`);
-
-    spec.push({
-      operation: 'modify-overwrite-beta',
-      spec: {
-        items: {
-          '*': {
-            idExterno: `=concat(${idExternoParts.join(", '-', ")})`,
-            idInterno: idSrc ? `=concat('', @(1,${idSrc}))` : "=concat('', @(1,id))",
-            tipoIdInterno: `PDVSYNC-${upperEntity}`,
-          },
-        },
-      },
-    });
-
-    // 3. Shift
-    const shiftSpecItems: any = {
-      tipoIdInterno: 'tipoIdInterno',
-      idExterno: 'idExterno',
-      idInterno: 'idInterno',
-    };
-
-    mappings.forEach(({ source, target }) => {
-      const targetClean = target.replace(/^(0\.|\[\*\]\.|items\[\*\]\.)/, '');
-      const sourceClean = source.split('.').pop()?.replace('[*]', '') || '';
-      if (!sourceClean || !targetClean) return;
-      if (['idExterno', 'idInterno', 'tipoIdInterno'].includes(targetClean)) return;
-
-      if (targetClean.toLowerCase() === 'situacao' || targetClean.toLowerCase() === 'ativo') {
-        shiftSpecItems[sourceClean] = {
-          true: { '#1': `items.[&3].${targetClean}` },
-          false: { '#0': `items.[&3].${targetClean}` },
-          '*': { '#0': `items.[&3].${targetClean}` },
-        };
-      } else if (targetClean.toLowerCase() === 'prioritaria') {
-        shiftSpecItems[sourceClean] = {
-          '0': { '#false': `items.[&3].${targetClean}` },
-          '*': { '#true': `items.[&3].${targetClean}` },
-        };
-      } else {
-        shiftSpecItems[sourceClean] = `items.[&1].${targetClean}`;
-      }
-    });
-
-    spec.push({
-      operation: 'shift',
-      spec: { items: { '*': shiftSpecItems } },
-    });
-
-    // 4. Modify casting & formatação de data
-    const castingSpec: any = {};
-    mappings.forEach(({ target }) => {
-      const targetClean = target.replace(/^(0\.|\[\*\]\.|items\[\*\]\.)/, '');
-      const tLower = targetClean.toLowerCase();
-      if (
-        ['idretaguarda', 'idretguardaproduto', 'idretguardaloja', 'idclienteretaguarda', 'idretguardaprodutoembalagem', 'idcliente'].includes(
-          tLower,
-        )
-      ) {
-        castingSpec[targetClean] = '=toString';
-      }
-      if (tLower === 'situacao') {
-        castingSpec[targetClean] = '=toInteger';
-      }
-      if (tLower === 'prioritaria') {
-        castingSpec[targetClean] = '=toBoolean';
-      }
-      if (['valor', 'offerprice', 'preco', 'precovenda'].includes(tLower)) {
-        castingSpec[targetClean] = '=toDouble';
-      }
-      if (tLower.includes('data') || tLower.includes('vigencia')) {
-        castingSpec[targetClean] = `=concat(=replace(@(1,${targetClean}),'T',' '),'.000')`;
-      }
-    });
-
-    if (Object.keys(castingSpec).length > 0) {
-      spec.push({
-        operation: 'modify-overwrite-beta',
-        spec: { items: { '*': castingSpec } },
-      });
-    }
-
-    // 5. Default spec: campos do destino não mapeados
-    const defaultItems: any = {};
-
-    Object.entries(targetKeysWithValues).forEach(([k, v]) => {
-      if (['idExterno', 'idInterno', 'tipoIdInterno'].includes(k)) return;
-      if (!mappedTargetCleanSet.has(k)) {
-        if (k.toLowerCase() === 'idinquilino') {
-          defaultItems[k] = '{{ID_INQUILINO}}';
-        } else if (k.toLowerCase() === 'loteorigem') {
-          defaultItems[k] = '{{LOTE_ORIGEM}}';
-        } else if (k.toLowerCase() === 'idproprietario' && (v === 'string' || !v)) {
-          defaultItems[k] = '{{MASTER_ID_PROPRIETARIO}}';
-        } else {
-          defaultItems[k] = v !== undefined ? v : 'string';
-        }
-      }
-    });
-
-    if (Object.keys(defaultItems).length > 0) {
-      spec.push({
-        operation: 'default',
-        spec: {
-          _attr_access: 'items',
-          'items[]': {
-            '*': defaultItems,
-          },
-        },
-      });
-    }
-
-    return spec;
-  }
-
-  // MODO DIRETO (Array Puro [ { ... } ])
-  const directSpec: any[] = [];
-  const shiftSpecItems: any = {};
-  const isSourceInItems = mappings.some((m) => m.source.includes('items['));
-
-  mappings.forEach(({ source, target }) => {
-    const targetClean = target.replace(/^(0\.|\[\*\]\.|items\[\*\]\.)/, '');
-    const sourceClean = source.split('.').pop()?.replace('[*]', '') || '';
-    if (!sourceClean || !targetClean) return;
-
-    if (targetClean.toLowerCase() === 'situacao' || targetClean.toLowerCase() === 'ativo') {
-      shiftSpecItems[sourceClean] = {
-        true: { '#1': `[&3].${targetClean}` },
-        false: { '#0': `[&3].${targetClean}` },
-        '*': { '#0': `[&3].${targetClean}` },
-      };
-    } else if (targetClean.toLowerCase() === 'prioritaria') {
-      shiftSpecItems[sourceClean] = {
-        '0': { '#false': `[&3].${targetClean}` },
-        '*': { '#true': `[&3].${targetClean}` },
-      };
-    } else {
-      shiftSpecItems[sourceClean] = `[&1].${targetClean}`;
-    }
-  });
-
-  if (isSourceInItems) {
-    directSpec.push({
-      operation: 'shift',
-      spec: { items: { '*': shiftSpecItems } },
-    });
-  } else {
-    directSpec.push({
-      operation: 'shift',
-      spec: { '*': shiftSpecItems },
-    });
-  }
-
-  // Default para campos não mapeados
-  const defaultItems: any = {};
-  Object.entries(targetKeysWithValues).forEach(([k, v]) => {
-    if (!mappedTargetCleanSet.has(k)) {
-      defaultItems[k] = v !== undefined ? v : 'string';
-    }
-  });
-
-  if (Object.keys(defaultItems).length > 0) {
-    directSpec.push({
-      operation: 'default',
-      spec: {
-        '*': defaultItems,
-      },
-    });
-  }
-
-  // Modify casting
-  const castingSpec: any = {};
-  mappings.forEach(({ target }) => {
-    const targetClean = target.replace(/^(0\.|\[\*\]\.|items\[\*\]\.)/, '');
-    const tLower = targetClean.toLowerCase();
-    if (
-      ['idretaguarda', 'idretguardaproduto', 'idretguardaloja', 'idclienteretaguarda', 'idretguardaprodutoembalagem', 'idcliente'].includes(
-        tLower,
-      )
-    ) {
-      castingSpec[targetClean] = '=toString';
-    }
-    if (tLower === 'situacao') {
-      castingSpec[targetClean] = '=toInteger';
-    }
-    if (tLower === 'prioritaria') {
-      castingSpec[targetClean] = '=toBoolean';
-    }
-    if (['valor', 'offerprice', 'preco', 'precovenda'].includes(tLower)) {
-      castingSpec[targetClean] = '=toDouble';
-    }
-    if (tLower.includes('data') || tLower.includes('vigencia')) {
-      castingSpec[targetClean] = `=concat(=replace(@(1,${targetClean}),'T',' '),'.000')`;
-    }
-  });
-
-  if (Object.keys(castingSpec).length > 0) {
-    directSpec.push({
-      operation: 'modify-overwrite-beta',
-      spec: { '*': castingSpec },
-    });
-  }
-
-  directSpec.push({ operation: 'sort' });
-
-  return directSpec;
 };
 
 
@@ -690,115 +332,6 @@ const STORAGE_KEYS = {
   baseLayout: 'jolt_visual_base_layout',
 } as const;
 
-export const DEFAULT_ENVELOPE_TEMPLATE = JSON.stringify(
-  {
-    tabela: {
-      nome: 'PCINTEGRACAOROTASERVICO',
-      campos: [
-        {
-          nome: 'SOMENTEATUALIZARINTEGRACAOCORE',
-          valor: 'N',
-        },
-        {
-          nome: 'ID',
-          valor: 'WTA - Buscar dados',
-        },
-        {
-          nome: 'IDEMPRESAAPI',
-          valor: 'WINTHOR-WTA',
-        },
-        {
-          nome: 'SERVICO',
-          valor: 'WTA - Buscar dados',
-        },
-        {
-          nome: 'LAYOUTCOMUNICACAO',
-          valor: {
-            name: 'WTA - Buscar dados',
-            request: {
-              method: 'GET',
-              header: [
-                {
-                  key: 'Authorization',
-                  value: 'Bearer {{TOKEN}}',
-                },
-                {
-                  key: 'Accept',
-                  value: '*/*',
-                },
-              ],
-              url: {
-                raw: '{{URL_BASE}}/winthor/venda/v0/servico/pdv-sync',
-              },
-            },
-            response: [],
-          },
-        },
-        {
-          nome: 'LAYOUTTRANSFORMACAO',
-          valor: '_JOLT_SPEC_',
-        },
-        {
-          nome: 'ATIVO',
-          valor: 'S',
-        },
-        {
-          nome: 'AUTENTICADOR',
-          valor: 'N',
-        },
-        {
-          nome: 'DATASINCRONISMO',
-          valor: '14-NOV-23',
-        },
-        {
-          nome: 'REFRESHTOKEN',
-          valor: '',
-        },
-        {
-          nome: 'TIPOPROCESSO',
-          valor: 'BUSCAR',
-        },
-      ],
-    },
-  },
-  null,
-  2
-);
-
-export function injectSpecIntoEnvelope(specArray: any[], templateStr: string): string {
-  try {
-    if (!templateStr || !templateStr.trim()) {
-      return JSON.stringify(specArray, null, 2);
-    }
-    
-    // Se tiver a tag literal "_JOLT_SPEC_"
-    if (templateStr.includes('"_JOLT_SPEC_"')) {
-      const specJson = JSON.stringify(specArray, null, 2);
-      const injected = templateStr.replace('"_JOLT_SPEC_"', specJson);
-      return JSON.stringify(JSON.parse(injected), null, 2);
-    }
-    
-    if (templateStr.includes('_JOLT_SPEC_')) {
-      const specJson = JSON.stringify(specArray, null, 2);
-      const injected = templateStr.replace('_JOLT_SPEC_', specJson);
-      return JSON.stringify(JSON.parse(injected), null, 2);
-    }
-
-    // Fallback: parse como JSON e procura campo LAYOUTTRANSFORMACAO
-    const parsed = JSON.parse(templateStr);
-    if (parsed?.tabela?.campos && Array.isArray(parsed.tabela.campos)) {
-      const campo = parsed.tabela.campos.find((c: any) => c.nome === 'LAYOUTTRANSFORMACAO');
-      if (campo) {
-        campo.valor = specArray;
-        return JSON.stringify(parsed, null, 2);
-      }
-    }
-
-    return JSON.stringify(specArray, null, 2);
-  } catch {
-    return JSON.stringify(specArray, null, 2);
-  }
-}
 
 export interface VisualProject {
   id: string;
@@ -842,10 +375,21 @@ function readSession() {
   }
 }
 
+/** localStorage pode estourar a cota (JSON grande) ou estar bloqueado: nunca derruba a tela. Devolve false se não gravou. */
+function safeSetItem(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function VisualJoltMapperPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const { userProfile } = useUserContext();
 
   const [inputJson, setInputJson] = useState(DEFAULT_INPUT);
   const [targetJson, setTargetJson] = useState(DEFAULT_TARGET);
@@ -892,6 +436,13 @@ export default function VisualJoltMapperPage() {
   const [cloudProjects, setCloudProjects] = useState<JoltProject[]>([]);
   const [isLoadingCloud, setIsLoadingCloud] = useState(false);
   const [currentCloudProjectId, setCurrentCloudProjectId] = useState<string | null>(null);
+  // Versão de edição do projeto da nuvem que está na tela: devolvida ao salvar para o servidor recusar sobrescrita de edição alheia.
+  const [cloudVersion, setCloudVersion] = useState<number | null>(null);
+  const [cloudListError, setCloudListError] = useState<string | null>(null);
+  // Ações destrutivas passam por uma confirmação única.
+  const [pendingConfirm, setPendingConfirm] = useState<{ title: string; description: string; confirmLabel: string; action: () => void } | null>(null);
+  // Texto dos JSONs na última análise: se mudou depois, o mapa está desatualizado em relação ao que foi digitado.
+  const [analyzedSignature, setAnalyzedSignature] = useState<string | null>(null);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
   const [projectVersions, setProjectVersions] = useState<JoltProjectVersion[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(false);
@@ -936,6 +487,7 @@ export default function VisualJoltMapperPage() {
     if (s.target !== DEFAULT_TARGET) setTargetJson(s.target);
     if (s.nodes.length > 0)  setNodes(s.nodes);
     if (s.edges.length > 0)  setEdges(s.edges);
+    if (s.nodes.length > 0) setAnalyzedSignature(JSON.stringify([s.input, s.target]));
 
     const savedUseEnvelope = localStorage.getItem(STORAGE_KEYS.useEnvelope) === 'true';
     const savedTemplate = localStorage.getItem(STORAGE_KEYS.envelopeTemplate) || DEFAULT_ENVELOPE_TEMPLATE;
@@ -981,12 +533,12 @@ export default function VisualJoltMapperPage() {
   // ── Typed setters that always persist to localStorage ──────────────────────
   const setAndSaveInput = useCallback((val: string) => {
     setInputJson(val);
-    localStorage.setItem(STORAGE_KEYS.input, val);
+    safeSetItem(STORAGE_KEYS.input, val);
   }, []);
 
   const setAndSaveTarget = useCallback((val: string) => {
     setTargetJson(val);
-    localStorage.setItem(STORAGE_KEYS.target, val);
+    safeSetItem(STORAGE_KEYS.target, val);
   }, []);
 
   const analyzeStructures = useCallback((customIn?: string, customTarget?: string) => {
@@ -996,6 +548,14 @@ export default function VisualJoltMapperPage() {
 
       const sPaths = flattenJsonToPaths(sObj);
       const tPaths = flattenJsonToPaths(tObj);
+      setAnalyzedSignature(JSON.stringify([customIn ?? inputJson, customTarget ?? targetJson]));
+
+      if (sPaths.length + tPaths.length > 1500) {
+        toast({
+          title: 'Muitos campos',
+          description: `Foram encontrados ${sPaths.length + tPaths.length} campos. O mapa pode ficar lento; considere mapear uma parte do JSON por vez.`,
+        });
+      }
 
       const sourceNodes: SourceNodeType[] = sPaths.map((p, i) => ({
         id: `source-${p.path}`,
@@ -1218,6 +778,12 @@ export default function VisualJoltMapperPage() {
     [toast],
   );
 
+  const clearEdges = useCallback(() => {
+    setEdges([]);
+    safeSetItem(STORAGE_KEYS.edges, '[]');
+    toast({ title: 'Conexões removidas', description: 'As ligações do mapa foram apagadas. Os campos continuam no quadro.' });
+  }, [setEdges, toast]);
+
   const handleClearSession = useCallback(() => {
     setInputJson(DEFAULT_INPUT);
     setTargetJson(DEFAULT_TARGET);
@@ -1332,8 +898,10 @@ export default function VisualJoltMapperPage() {
     try {
       const projs = await listJoltProjects();
       setCloudProjects(projs);
+      setCloudListError(null);
     } catch (e: any) {
       console.warn('Projetos na nuvem indisponíveis:', e.message);
+      setCloudListError(e.message || 'Não foi possível carregar os projetos da nuvem.');
     } finally {
       setIsLoadingCloud(false);
     }
@@ -1367,20 +935,24 @@ export default function VisualJoltMapperPage() {
 
         let saved: JoltProject;
         if (currentCloudProjectId) {
-          saved = await updateJoltProject(currentCloudProjectId, payload);
+          saved = await updateJoltProject(currentCloudProjectId, {
+            ...payload,
+            ...(cloudVersion !== null ? { expectedVersion: cloudVersion } : {}),
+          });
         } else {
           saved = await createJoltProject(payload);
           setCurrentCloudProjectId(saved.id);
         }
+        setCloudVersion(typeof saved.version === 'number' ? saved.version : null);
         fetchCloudProjects();
         toast({
-          title: "Salvo na Nuvem (PostgreSQL)!",
-          description: `"${finalName}" registrado no banco de dados.`
+          title: "Salvo na nuvem!",
+          description: `"${finalName}" foi salvo na nuvem.`
         });
       } catch (err: any) {
         toast({
-          title: "Aviso de Nuvem",
-          description: `Sincronização em nuvem: ${err.message}. O projeto foi salvo localmente.`,
+          title: "Não foi possível salvar na nuvem",
+          description: `${err.message} Seu trabalho continua nesta tela e será guardado como rascunho local neste navegador.`,
           variant: "destructive"
         });
       }
@@ -1410,7 +982,14 @@ export default function VisualJoltMapperPage() {
       updated = [newProject, ...currentList];
     }
 
-    localStorage.setItem(VISUAL_PROJECTS_STORAGE_KEY, JSON.stringify(updated));
+    if (!safeSetItem(VISUAL_PROJECTS_STORAGE_KEY, JSON.stringify(updated))) {
+      toast({
+        title: 'Não foi possível guardar o rascunho local',
+        description: 'O armazenamento do navegador está cheio ou bloqueado. Exclua rascunhos antigos ou salve na nuvem.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSavedProjects(updated);
     setCurrentProjectId(targetId);
     setCurrentProjectName(finalName);
@@ -1420,7 +999,7 @@ export default function VisualJoltMapperPage() {
     if (!saveToCloud) {
       toast({ title: 'Projeto Salvo!', description: `"${finalName}" foi salvo localmente.` });
     }
-  }, [projectNameInput, entityName, currentProjectName, currentProjectId, currentCloudProjectId, saveToCloud, versionCommitMessage, previewSpec, nodes, edges, inputJson, targetJson, mappingMode, fetchCloudProjects, toast]);
+  }, [projectNameInput, entityName, currentProjectName, currentProjectId, currentCloudProjectId, cloudVersion, saveToCloud, versionCommitMessage, previewSpec, nodes, edges, inputJson, targetJson, mappingMode, fetchCloudProjects, toast]);
 
   const handleLoadProject = useCallback((id: string) => {
     const p = savedProjects.find(item => item.id === id);
@@ -1451,9 +1030,12 @@ export default function VisualJoltMapperPage() {
     setBaseLayout(null);
     setMaintenanceNotes(null);
     localStorage.removeItem(STORAGE_KEYS.baseLayout);
-    setCurrentCloudProjectId(proj.id);
-    setCurrentProjectId(proj.id);
-    setCurrentProjectName(proj.name);
+    // Projeto de outra pessoa (público ou da squad) abre como cópia: ao salvar, cria um projeto seu em vez de tentar sobrescrever o dele.
+    const mine = !userProfile?.id || proj.authorId === userProfile.id;
+    setCurrentCloudProjectId(mine ? proj.id : null);
+    setCloudVersion(mine && typeof proj.version === 'number' ? proj.version : null);
+    setCurrentProjectId(mine ? proj.id : null);
+    setCurrentProjectName(mine ? proj.name : `${proj.name} (cópia)`);
     if (proj.inputJson) {
       setInputJson(proj.inputJson);
       localStorage.setItem(STORAGE_KEYS.input, proj.inputJson);
@@ -1474,13 +1056,20 @@ export default function VisualJoltMapperPage() {
       localStorage.setItem(STORAGE_KEYS.edges, JSON.stringify(parsedEdges));
     } catch (e) {
       console.error('Erro ao restaurar nós do projeto na nuvem:', e);
+      toast({
+        title: 'Mapa do projeto não pôde ser restaurado',
+        description: 'Os JSONs foram carregados, mas o desenho das ligações está inválido. Clique em Analisar JSON para refazê-lo.',
+        variant: 'destructive',
+      });
     }
 
     toast({
-      title: "Projeto Carregado da Nuvem",
-      description: `"${proj.name}" (v${proj.versionCount || 1}) pronto para edição.`
+      title: "Projeto carregado da nuvem",
+      description: mine
+        ? `"${proj.name}" (v${proj.versionCount || 1}) pronto para edição.`
+        : `"${proj.name}" é de ${proj.authorName || 'outra pessoa'}. Aberto como cópia: ao salvar, cria um projeto seu.`
     });
-  }, [setNodes, setEdges, toast]);
+  }, [setNodes, setEdges, toast, userProfile?.id]);
 
   const handleOpenVersionHistory = useCallback(async (projId?: string) => {
     const targetId = projId || currentCloudProjectId;
@@ -1504,28 +1093,37 @@ export default function VisualJoltMapperPage() {
     }
   }, [currentCloudProjectId, toast]);
 
-  const handleRollbackVersion = useCallback(async (versionId: string) => {
+  const doRollbackVersion = useCallback(async (versionId: string) => {
     if (!currentCloudProjectId) return;
     try {
       const restored = await rollbackJoltProjectVersion(currentCloudProjectId, versionId);
       handleLoadCloudProject(restored);
       setIsVersionModalOpen(false);
       toast({
-        title: "Rollback Concluído!",
-        description: "O projeto foi revertido para a versão selecionada com sucesso."
+        title: "Versão restaurada!",
+        description: "O projeto voltou para a versão selecionada."
       });
       fetchCloudProjects();
     } catch (e: any) {
-      toast({ title: "Falha no Rollback", description: e.message, variant: "destructive" });
+      toast({ title: "Falha ao restaurar a versão", description: e.message, variant: "destructive" });
     }
   }, [currentCloudProjectId, handleLoadCloudProject, fetchCloudProjects, toast]);
 
-  const handleDeleteCloudProject = useCallback(async (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+  const handleRollbackVersion = useCallback((versionId: string, versionNumber?: number) => {
+    setPendingConfirm({
+      title: 'Restaurar esta versão?',
+      description: `O projeto volta para ${versionNumber ? `a v${versionNumber}` : 'a versão escolhida'} e o que está na tela e ainda não foi salvo será substituído. O estado atual continua no histórico como uma nova versão.`,
+      confirmLabel: 'Restaurar',
+      action: () => { void doRollbackVersion(versionId); },
+    });
+  }, [doRollbackVersion]);
+
+  const doDeleteCloudProject = useCallback(async (id: string) => {
     try {
       await deleteJoltProject(id);
       if (currentCloudProjectId === id) {
         setCurrentCloudProjectId(null);
+        setCloudVersion(null);
         setCurrentProjectName('Novo Mapeamento');
       }
       fetchCloudProjects();
@@ -1534,6 +1132,16 @@ export default function VisualJoltMapperPage() {
       toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
     }
   }, [currentCloudProjectId, fetchCloudProjects, toast]);
+
+  const handleDeleteCloudProject = useCallback((id: string, name: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setPendingConfirm({
+      title: `Excluir "${name}" da nuvem?`,
+      description: 'O projeto e todo o histórico de versões são apagados para todos que têm acesso. Isso não pode ser desfeito.',
+      confirmLabel: 'Excluir',
+      action: () => { void doDeleteCloudProject(id); },
+    });
+  }, [doDeleteCloudProject]);
 
   const handleDeleteProject = useCallback((id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -1552,6 +1160,7 @@ export default function VisualJoltMapperPage() {
   const handleNewProject = useCallback(() => {
     setCurrentProjectId(null);
     setCurrentCloudProjectId(null);
+    setCloudVersion(null);
     setCurrentProjectName('Novo Mapeamento');
     setInputJson(DEFAULT_INPUT);
     setTargetJson(DEFAULT_TARGET);
@@ -1655,18 +1264,26 @@ export default function VisualJoltMapperPage() {
     }
   }, [previewSpec, inputJson, previewEngine, toast]);
 
-  const handleCopyOutput = useCallback(() => {
+  const handleCopyOutput = useCallback(async () => {
     if (!previewOutput) return;
-    navigator.clipboard.writeText(previewOutput);
-    toast({ title: 'Resultado copiado para a área de transferência!' });
+    try {
+      await navigator.clipboard.writeText(previewOutput);
+      toast({ title: 'Resultado copiado para a área de transferência!' });
+    } catch {
+      toast({ title: 'Não foi possível copiar', description: 'O navegador bloqueou o acesso à área de transferência.', variant: 'destructive' });
+    }
   }, [previewOutput, toast]);
 
-  const handleCopySpec = useCallback(() => {
+  const handleCopySpec = useCallback(async () => {
     if (!previewSpec) return;
-    navigator.clipboard.writeText(previewSpec);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-    toast({ title: 'Spec copiada para a área de transferência!' });
+    try {
+      await navigator.clipboard.writeText(previewSpec);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+      toast({ title: 'Spec copiada para a área de transferência!' });
+    } catch {
+      toast({ title: 'Não foi possível copiar', description: 'O navegador bloqueou o acesso à área de transferência.', variant: 'destructive' });
+    }
   }, [previewSpec, toast]);
 
   const generateSpecFromEdges = useCallback(() => {
@@ -1803,7 +1420,11 @@ export default function VisualJoltMapperPage() {
                       <RefreshCw className={cn('h-3 w-3', isLoadingCloud && 'animate-spin')} aria-hidden />
                     </button>
                   </div>
-                  {cloudProjects.length === 0 ? (
+                  {cloudListError ? (
+                    <div className="px-2 py-1.5 text-[11px] text-destructive" role="alert">
+                      Não foi possível carregar os projetos da nuvem: {cloudListError}
+                    </div>
+                  ) : cloudProjects.length === 0 ? (
                     <div className="px-2 py-1.5 text-[11px] italic text-muted-foreground">Nenhum projeto salvo na nuvem</div>
                   ) : (
                     <div className="max-h-40 space-y-0.5 overflow-y-auto">
@@ -1822,6 +1443,9 @@ export default function VisualJoltMapperPage() {
                           >
                             <span className="truncate">{proj.name}</span>
                             <span className="rounded bg-muted px-1 font-code text-[9px] text-muted-foreground">v{proj.versionCount || 1}</span>
+                            {userProfile?.id && proj.authorId !== userProfile.id && (
+                              <span className="truncate text-[9px] text-muted-foreground">de {proj.authorName || 'outra pessoa'}</span>
+                            )}
                           </button>
                           <div className="flex items-center gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
                             <button
@@ -1836,15 +1460,17 @@ export default function VisualJoltMapperPage() {
                             >
                               <History className="h-3.5 w-3.5" aria-hidden />
                             </button>
+                            {(!userProfile?.id || proj.authorId === userProfile.id || userProfile.role?.toLowerCase() === 'admin') && (
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteCloudProject(proj.id, e)}
+                              onClick={(e) => handleDeleteCloudProject(proj.id, proj.name, e)}
                               className="rounded-md p-1.5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               title="Excluir da nuvem"
                               aria-label={`Excluir ${proj.name} da nuvem`}
                             >
                               <Trash2 className="h-3.5 w-3.5" aria-hidden />
                             </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -2045,6 +1671,17 @@ export default function VisualJoltMapperPage() {
           </div>
         )}
 
+        {nodes.length > 0 && analyzedSignature !== null && analyzedSignature !== JSON.stringify([inputJson, targetJson]) && (
+          <div role="status" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs md:px-6">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden />
+            <p className="min-w-0 flex-1 leading-relaxed text-muted-foreground">
+              <strong className="font-bold text-foreground">Os JSONs mudaram depois da última análise.</strong>{' '}
+              O mapa ainda mostra os campos antigos; clique em Analisar JSON para atualizá-lo (as ligações que continuam válidas são mantidas).
+            </p>
+            <Button type="button" variant="ghost" size="sm" onClick={() => analyzeStructures()} className="h-7 rounded-lg px-2 text-[10px] font-black uppercase tracking-wider">Analisar JSON</Button>
+          </div>
+        )}
+
         {/* ── Corpo zero-scroll ─────────────────────────────────────────────── */}
         <main className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 md:p-4">
           {showQuickStart && <QuickStart onDismiss={dismissQuickStart} />}
@@ -2097,6 +1734,8 @@ export default function VisualJoltMapperPage() {
                   onEdgeClick={onEdgeClick}
                   onEdgesDelete={onEdgesDelete}
                   deleteKeyCode={['Backspace', 'Delete']}
+                  onBeforeDelete={async ({ edges: toDelete }) => ({ nodes: [], edges: toDelete })}
+                  onlyRenderVisibleElements
                   nodeTypes={nodeTypes}
                   fitView
                   fitViewOptions={{ padding: 0.25 }}
@@ -2287,7 +1926,12 @@ export default function VisualJoltMapperPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setEdges([])}
+                                onClick={() => setPendingConfirm({
+                                  title: 'Apagar todas as conexões?',
+                                  description: `As ${edges.length} ligação(ões) do mapa serão removidas. Os campos de origem e destino continuam no quadro.`,
+                                  confirmLabel: 'Apagar conexões',
+                                  action: clearEdges,
+                                })}
                                 disabled={edges.length === 0}
                                 className="h-7 flex-1 rounded-lg text-[11px] font-semibold hover:border-destructive/40 hover:text-destructive"
                                 title="Apagar apenas as conexões desenhadas"
@@ -2298,7 +1942,12 @@ export default function VisualJoltMapperPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={handleClearSession}
+                                onClick={() => setPendingConfirm({
+                                  title: 'Resetar o mapeamento inteiro?',
+                                  description: 'Os JSONs, os campos e as conexões voltam ao exemplo inicial. Projetos já salvos (nuvem ou rascunhos) não são afetados.',
+                                  confirmLabel: 'Resetar tudo',
+                                  action: handleClearSession,
+                                })}
                                 className="h-7 flex-1 rounded-lg text-[11px] font-semibold hover:border-destructive/40 hover:text-destructive"
                                 title="Resetar tudo: JSONs, nós e conexões"
                               >
@@ -2819,7 +2468,7 @@ export default function VisualJoltMapperPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRollbackVersion(v.id)}
+                      onClick={() => handleRollbackVersion(v.id, v.versionNumber)}
                       className="h-7 shrink-0 gap-1 rounded-lg border-primary/30 px-2.5 text-[10px] font-bold uppercase tracking-wider text-primary hover:bg-primary/10 hover:text-primary"
                       title="Restaurar o projeto para esta versão"
                     >
@@ -2918,6 +2567,26 @@ export default function VisualJoltMapperPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <AlertDialog open={!!pendingConfirm} onOpenChange={(open) => { if (!open) setPendingConfirm(null); }}>
+          <AlertDialogContent className="rounded-2xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>{pendingConfirm?.title}</AlertDialogTitle>
+              <AlertDialogDescription>{pendingConfirm?.description}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  const run = pendingConfirm?.action;
+                  setPendingConfirm(null);
+                  run?.();
+                }}
+              >
+                {pendingConfirm?.confirmLabel}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </TooltipProvider>
   );

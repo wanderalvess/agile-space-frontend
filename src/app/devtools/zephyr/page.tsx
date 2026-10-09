@@ -65,6 +65,14 @@ export default function ZephyrPage() {
       toast({ title: 'Atenção', description: 'Informe o seu Personal Access Token (PAT) do Jira/Zephyr.' });
       return;
     }
+    if (!jiraSettings?.domain?.trim()) {
+      toast({
+        title: 'Domínio do Jira não configurado',
+        description: 'Cadastre o domínio do Jira (ex.: suaempresa.atlassian.net) nas configurações de integração com o Jira e tente de novo.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setLoading(true);
     setTestCaseData(null);
@@ -265,7 +273,7 @@ export default function ZephyrPage() {
               {counters.map(c => (
                 <div key={c.label} className="space-y-1 rounded-xl border border-border bg-muted/40 p-2">
                   <Label className={labelClass}>{c.label}</Label>
-                  <Input type="number" min={0} value={c.value} onChange={e => c.set(parseInt(e.target.value) || 0)} className="h-8 rounded-lg font-code text-xs font-bold" />
+                  <Input type="number" min={0} value={c.value} onChange={e => c.set(Math.max(0, parseInt(e.target.value) || 0))} className="h-8 rounded-lg font-code text-xs font-bold" />
                 </div>
               ))}
             </div>

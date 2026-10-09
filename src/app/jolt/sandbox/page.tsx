@@ -332,19 +332,26 @@ export default function JoltSandboxPage() {
       const key = getLayoutsStorageKey();
       const current = loadLayoutsFromStorage();
 
+      // Se o layout selecionado sumiu (apagado em outra aba), salva como novo em vez de fingir que atualizou.
+      const exists = !!selectedLayoutId && current.some(l => l.id === selectedLayoutId);
       let updated: any[];
-      if (selectedLayoutId) {
+      if (exists) {
         updated = current.map(l => l.id === selectedLayoutId ? { ...l, ...layoutData, id: selectedLayoutId } : l);
-        toast({ title: "Atualizado!" });
       } else {
-        updated = [...current, { id: crypto.randomUUID(), ...layoutData }];
-        toast({ title: "Salvo!" });
+        const created = { id: crypto.randomUUID(), ...layoutData };
+        updated = [...current, created];
+        setSelectedLayoutId(created.id);
       }
 
       localStorage.setItem(key, JSON.stringify(updated));
       setSavedLayouts(updated);
+      toast({ title: exists ? "Atualizado!" : "Salvo!" });
     } catch (e: any) {
-      toast({ title: "Erro ao salvar", variant: "destructive" });
+      toast({
+        title: "Erro ao salvar o layout",
+        description: "O armazenamento do navegador está cheio ou bloqueado. Exclua layouts antigos ou copie a spec antes de fechar a página.",
+        variant: "destructive",
+      });
     } finally {
       setTimeout(() => setIsSaving(false), 1000);
     }
@@ -355,7 +362,13 @@ export default function JoltSandboxPage() {
     const key = getLayoutsStorageKey();
     const current = loadLayoutsFromStorage();
     const updated = current.filter(l => l.id !== selectedLayoutId);
-    localStorage.setItem(key, JSON.stringify(updated));
+    try {
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {
+      toast({ title: "Não foi possível excluir o layout", description: "O armazenamento do navegador está bloqueado.", variant: "destructive" });
+      setIsDeleteDialogOpen(false);
+      return;
+    }
     setSavedLayouts(updated);
     setSelectedLayoutId(null);
     setIsDeleteDialogOpen(false);
