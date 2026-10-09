@@ -146,8 +146,10 @@ export function UserProfileModal() {
         authFetch(`${apiUrl}/projects/user/${encodeURIComponent(userIdent)}`)
           .then(r => r.ok ? r.json() : null)
           .then((res: any) => {
-            if (res && res.accessibleProjects && Array.isArray(res.accessibleProjects)) {
-              const pIds = res.accessibleProjects.map((p: any) => String(p.projectId || '').trim()).filter(Boolean);
+            // O backend devolve a lista em `projects` (`accessibleProjects` nunca existiu: a lista ficava sempre vazia).
+            const accessible = res && (res.projects ?? res.accessibleProjects);
+            if (Array.isArray(accessible)) {
+              const pIds = accessible.map((p: any) => String(p.projectId || '').trim()).filter(Boolean);
               setUserDbProjectIds(pIds);
             }
           })

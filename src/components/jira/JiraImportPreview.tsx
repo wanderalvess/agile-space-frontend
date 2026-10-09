@@ -266,7 +266,9 @@ export function JiraImportPreview({ project, isMe, busy, onBack, onConfirm, bloc
 
       <div className="sticky bottom-0 flex flex-col-reverse items-stretch gap-2 rounded-2xl border border-border/60 bg-background/90 p-3 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
-          {selectedCount} pessoa{selectedCount === 1 ? '' : 's'} vão entrar no time. Você pode ajustar cargos e pessoas depois no Painel.
+          {selectedCount === 0
+            ? 'Nenhuma pessoa marcada: a equipe será criada só com você. Marque quem deve entrar ou ajuste depois no roster da squad.'
+            : `${selectedCount} pessoa${selectedCount === 1 ? '' : 's'} ${selectedCount === 1 ? 'vai' : 'vão'} entrar no time. Você pode ajustar cargos e pessoas depois no roster da squad.`}
         </p>
         <Button onClick={confirm} disabled={busy || blocked} className="h-11 gap-2 rounded-xl px-6 text-xs font-bold">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Importar {selectedCount} pessoa{selectedCount === 1 ? '' : 's'} <ArrowRight className="h-4 w-4" /></>}

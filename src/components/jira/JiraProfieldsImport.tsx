@@ -162,10 +162,19 @@ export function JiraProfieldsImport({ initialProjectKey = '', onImported, skipAc
     setBusy('confirm');
     try {
       const saved = await projectService.confirmProjectProfields(syncedProject.id, body, jiraDomain.trim(), jiraToken.trim());
-      // O projeto ativo fica na primeira equipe importada; as demais só entram na lista da pessoa.
-      if (imported.length === 0) await switchProject(syncedProject.id);
+      // A equipe JÁ está gravada no servidor. Se um passo posterior falhar, não diga que a importação falhou
+      // (a pessoa tentaria de novo): avise só do que faltou e siga a fila.
+      try {
+        // O projeto ativo fica na primeira equipe importada; as demais só entram na lista da pessoa.
+        if (imported.length === 0) await switchProject(syncedProject.id);
+      } catch (stepErr: any) {
+        toast({ title: 'Equipe importada, mas não foi possível ativá-la', description: 'Troque de equipe pelo seletor no topo da página.', variant: 'destructive' });
+      }
       if (jiraToken.trim()) {
-        await saveJiraSettings({ domain: jiraDomain.trim(), token: jiraToken.trim() });
+        const tokenSaved = await saveJiraSettings({ domain: jiraDomain.trim(), token: jiraToken.trim() });
+        if (!tokenSaved) {
+          toast({ title: 'Equipe importada, mas o token não ficou guardado na sua conta', description: 'Ele vale só neste navegador. Informe-o de novo se trocar de máquina.', variant: 'destructive' });
+        }
       }
       const done = [...imported, saved];
       setImported(done);

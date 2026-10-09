@@ -76,13 +76,14 @@ function Metric({ label, value, hint, loading }: { label: string; value: string;
 
 export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, onConnectJira }: Props) {
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [pokerSessions, setPokerSessions] = useState<number | null>(null);
+  const [pokerSessions, setPokerSessions] = useState<number | null | "erro">(null);
+  const [projectFailed, setProjectFailed] = useState(false);
   const [step, setStep] = useState(0);
 
   useEffect(() => {
     let alive = true;
-    projectService.getProjectByKey(squadId).then(p => alive && setProject(p)).catch(() => {});
-    pokerApi.listRooms(squadId).then(r => alive && setPokerSessions(Array.isArray(r) ? r.length : 0)).catch(() => alive && setPokerSessions(0));
+    projectService.getProjectByKey(squadId).then(p => alive && setProject(p)).catch(() => alive && setProjectFailed(true));
+    pokerApi.listRooms(squadId).then(r => alive && setPokerSessions(Array.isArray(r) ? r.length : 0)).catch(() => alive && setPokerSessions("erro"));
     return () => {
       alive = false;
     };
@@ -216,8 +217,13 @@ export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, 
           <Gauge className="h-3.5 w-3.5" /> O que o painel vai mostrar
         </h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Pessoas no time" value={String(members.length)} hint="Vindas do cadastro do projeto" loading={!project} />
-          <Metric label="Sessões de Poker" value={String(pokerSessions ?? 0)} hint={pokerSessions ? 'Salas criadas pelo time' : 'Aparece após a primeira sala'} loading={pokerSessions === null} />
+          <Metric label="Pessoas no time" value={projectFailed ? "—" : String(members.length)} hint={projectFailed ? "Não foi possível carregar o cadastro do projeto" : "Vindas do cadastro do projeto"} loading={!project && !projectFailed} />
+          <Metric
+            label="Sessões de Poker"
+            value={typeof pokerSessions === "number" ? String(pokerSessions) : "—"}
+            hint={pokerSessions === "erro" ? "Não foi possível carregar as salas" : pokerSessions ? 'Salas criadas pelo time' : 'Aparece após a primeira sala'}
+            loading={pokerSessions === null}
+          />
           <Metric label="Sprint atual" value={syncState === 'syncing' ? '…' : '—'} hint="Itens, progresso e board, via Jira" />
           <Metric label="Retrospectivas" value="—" hint="Ações e clima, conforme o uso" />
         </div>

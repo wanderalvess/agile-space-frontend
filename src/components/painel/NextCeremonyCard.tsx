@@ -10,6 +10,7 @@
  * "erro" e "nada encontrado" como estados explícitos, pras duas fontes.
  */
 
+import { formatCountdown } from '@/lib/ceremony-countdown';
 import { useState } from 'react';
 import { CalendarClock, Link2, RefreshCw, Settings, Users, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,21 +31,6 @@ function formatDuration(minutes: number) {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest ? `${hours}h${rest}min` : `${hours}h`;
-}
-
-function formatCountdown(start: Date, now: Date): { label: string; isSoon: boolean; isNow: boolean } {
-  const diffMs = start.getTime() - now.getTime();
-  if (diffMs <= 0) return { label: 'agora', isSoon: true, isNow: true };
-
-  const diffMin = Math.round(diffMs / 60000);
-  if (diffMin < 60) return { label: `em ${diffMin} min`, isSoon: diffMin <= 15, isNow: false };
-
-  const diffHours = Math.round(diffMin / 60);
-  if (diffHours < 24) return { label: `em ${diffHours}h`, isSoon: false, isNow: false };
-
-  const isTomorrow = start.getDate() !== now.getDate() || start.getMonth() !== now.getMonth();
-  const time = start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return { label: isTomorrow ? `amanhã ${time}` : `hoje ${time}`, isSoon: false, isNow: false };
 }
 
 function CardShell({ onOpenSettings, children }: { onOpenSettings?: () => void; children: React.ReactNode }) {

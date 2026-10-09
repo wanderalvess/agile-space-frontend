@@ -88,16 +88,12 @@ export const userApi = {
   },
 
   async saveJiraConfig(userId: string, config: UserJiraConfig): Promise<UserJiraConfig> {
-    try {
-      return await req<UserJiraConfig>(`/users/${userId}/jira-config`, {
-        method: 'POST',
-        headers: callerHeaders(userId),
-        body: JSON.stringify(config)
-      });
-    } catch (e: any) {
-      console.warn("userApi.saveJiraConfig warning (backend offline?):", e.message || e);
-      return config;
-    }
+    // Falha sobe para quem chama: antes o erro era engolido e a tela dizia que o token estava guardado na conta.
+    return await req<UserJiraConfig>(`/users/${userId}/jira-config`, {
+      method: 'POST',
+      headers: callerHeaders(userId),
+      body: JSON.stringify(config)
+    });
   },
 
   async deleteJiraConfig(userId: string): Promise<void> {
