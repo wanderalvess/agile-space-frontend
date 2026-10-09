@@ -2,6 +2,8 @@
 
 Estado do `develop` em 2026-10-09. Onde algo é suposição ou não foi testado ao vivo, o texto diz.
 
+> **Checagem da sessão ao abrir a página (`/api/auth/me`).** Só 401/403 apagam o token. 429 (limite de requisições), 5xx e falhas de rede são tratados como passageiros: o frontend tenta de novo até 3 vezes (respeitando `Retry-After`, no máximo 10 s) antes de desistir, e mesmo ao desistir mantém o token, para que recarregar depois restaure a sessão. Antes, um 429 mandava a pessoa à tela de login.
+
 ## Objetivo e quem usa
 
 Provar quem é a pessoa e mantê-la logada com segurança. Todo mundo passa por aqui: cadastro e login por **e-mail corporativo + senha** (conta local do Portal), sessão por **JWT** guardado no navegador, troca de equipe ativa e saída.

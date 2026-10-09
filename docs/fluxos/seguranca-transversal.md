@@ -39,7 +39,7 @@ Tudo o que está fora desta tabela e começa com `/api/` exige JWT. O prefixo s�
 
 | Rota | Método | Por que é pública | Risco / observação |
 |---|---|---|---|
-| `/api/auth/login` | POST | Entrar | Limite de 10/min por IP em `/api/auth/**`; mesma resposta para e-mail inexistente e senha errada |
+| `/api/auth/login` | POST | Entrar | Limite de 10/min por IP **só** em `login`, `register` e `forgot-password` (faixa apertada); mesma resposta para e-mail inexistente e senha errada. `/api/auth/me` e `/api/auth/switch-project` ficam na faixa geral (300/min por IP): antes, poucas navegações seguidas, ou um escritório inteiro atrás do mesmo IP, recebiam 429 e eram mandadas ao login (achado no teste ao vivo de 2026-10-09) |
 | `/api/auth/register` | POST | Cadastro | Restrito ao domínio corporativo; **sem verificação de e-mail** (risco alto aceito, ver abaixo). Pode ser fechado com `APP_REGISTRATION_ENABLED=false` |
 | `/api/auth/forgot-password` | POST | Pedir reset sem estar logado | Resposta sempre genérica; 1 pedido pendente por e-mail |
 | `/api/public/system-config` | GET | Marca/cor/logo/manutenção antes do login | Lê só 5 chaves fixas (`companyName`, `primaryColor`, `logoUrl`, `allowAnonymous`, `maintenanceMode`) |

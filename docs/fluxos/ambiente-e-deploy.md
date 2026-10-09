@@ -59,6 +59,21 @@ Várias sessões de agentes podem trabalhar nos mesmos checkouts ao mesmo tempo.
 - **Frontend:** `npx tsc --noEmit -p .` e `npx vitest run`.
 - **Verificação de tela:** o login é e-mail e senha do Portal, então dá para testar ao vivo com uma conta de teste, mas hoje não há banco local (Docker fora do ar) e criar contas em produção não é permitido a agentes; a verificação ao vivo é manual (Chrome real).
 
+## Ambiente local de teste (funciona hoje, com Docker Desktop de pé)
+
+O contêiner `agile-space-db` (Postgres 17, porta 5432) costuma estar de pé. **Nunca teste contra o banco `espacoagil` de desenvolvimento**: crie um banco novo, o que também exercita todas as migrations do zero.
+
+1. `docker exec agile-space-db psql -U postgres -c "CREATE DATABASE portal_test;"`
+2. Backend (porta 8002), apontando para o banco de teste: variáveis `DB_URL=jdbc:postgresql://localhost:5432/portal_test` e `APP_ENCRYPTION_SECRET` (o valor de desenvolvimento está em `run-backend.cmd`), `JAVA_HOME` do JDK 21, e `mvn -o spring-boot:run`. Sobe em ~20-30 s; a primeira subida aplica V1 a V65 e a validação do Hibernate roda de verdade.
+3. Frontend (porta 9002): `npm run dev` na pasta do frontend (o CORS do backend já aceita `http://localhost:9002`).
+4. Contas de teste: `POST /api/auth/register` com e-mail `@totvs.com.br` e senha de teste. Para papéis: `update users set role='ADMIN'` direto no banco de teste; para AM/PL, inserir linha em `project_member_roles` com `role_key` `AGILE_MASTER` ou `PEOPLE_LEAD`.
+5. Para entrar no navegador sem digitar senha: guardar o JWT em `localStorage['agileSpace_auth_token']` e abrir a rota.
+
+Cuidados que já custaram tempo:
+- `register` e `login` têm limite de 10/min por IP (faixa apertada). Em roteiros de teste, **guarde os tokens** em vez de logar de novo a cada execução.
+- Reiniciar o backend zera os limitadores em memória.
+- Votos concorrentes, eventos de WebSocket e conflitos de versão (409) só aparecem com chamadas reais; testes unitários não os pegam. Roteiros de API com várias contas (admin, AM, dois devs, intruso) pegaram bugs que 969 testes unitários não pegaram (ver o 429 em `/api/auth/me`).
+
 ## Checklist para uma mudança que mexe em contrato (frontend + backend)
 
 1. Backend aditivo primeiro (endpoint novo convive com o antigo) quando possível.

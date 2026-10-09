@@ -16,6 +16,8 @@ import {
 
 /** Tempo máximo esperando o backend responder na abertura do app; passado isso o spinner não pode ficar eterno. */
 const HYDRATE_TIMEOUT_MS = 15000;
+/** Tentativas extras da checagem de sessão quando o servidor responde 429/5xx ou a rede falha. */
+const HYDRATE_RETRIES = 3;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SPRING_API_URL || 'http://localhost:8002/api';
 
@@ -75,34 +77,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), HYDRATE_TIMEOUT_MS);
+    let cancelled = false;
+    let controller: AbortController | null = null;
 
-    authFetch(`${API_BASE_URL}/auth/me`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) {
-          // Só 401/403 significam "token inválido". Erro 5xx (deploy, banco fora) não pode derrubar a
-          // sessão: o token fica guardado e recarregar a página depois que o servidor voltar restaura a sessão.
-          if (res.status === 401 || res.status === 403) clearAuthToken();
-          setSession(null);
-          return;
+    const wait = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+    const hydrate = async () => {
+      for (let attempt = 0; attempt <= HYDRATE_RETRIES; attempt++) {
+        controller = new AbortController();
+        const timer = setTimeout(() => controller?.abort(), HYDRATE_TIMEOUT_MS);
+        let retryAfterMs = 0;
+        try {
+          const res = await authFetch(`${API_BASE_URL}/auth/me`, { signal: controller.signal });
+          if (cancelled) return;
+          if (res.ok) {
+            const data: AuthResponse = await res.json();
+            if (cancelled) return;
+            rememberSessionUser(data.id);
+            setSession(data);
+            return;
+          }
+          // Só 401/403 significam "token inválido". 429 (limite de requisições), 5xx (deploy, banco fora) e
+          // falhas de rede são passageiros: o token fica guardado e a checagem é refeita, em vez de mandar
+          // a pessoa ao login por um soluço do servidor.
+          if (res.status === 401 || res.status === 403) {
+            clearAuthToken();
+            setSession(null);
+            return;
+          }
+          const header = Number(res.headers.get('Retry-After'));
+          retryAfterMs = Number.isFinite(header) && header > 0 ? Math.min(header, 10) * 1000 : 0;
+        } catch {
+          if (cancelled) return;
+        } finally {
+          clearTimeout(timer);
         }
-        const data: AuthResponse = await res.json();
-        rememberSessionUser(data.id);
-        setSession(data);
-      })
-      .catch(() => {
-        // Rede fora ou tempo esgotado: mantém o token, só não há sessão agora.
-        setSession(null);
-      })
-      .finally(() => {
-        clearTimeout(timer);
-        setIsLoading(false);
-      });
+        if (attempt < HYDRATE_RETRIES) await wait(retryAfterMs || 800 * 2 ** attempt);
+        if (cancelled) return;
+      }
+      // Esgotou as tentativas: mantém o token (recarregar depois restaura a sessão), só não há sessão agora.
+      setSession(null);
+    };
+
+    hydrate().finally(() => {
+      if (!cancelled) setIsLoading(false);
+    });
 
     return () => {
-      clearTimeout(timer);
-      controller.abort();
+      cancelled = true;
+      controller?.abort();
     };
   }, []);
 

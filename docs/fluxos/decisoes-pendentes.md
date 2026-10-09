@@ -29,9 +29,13 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 11. **Expulsão não é permanente** (não há lista de banidos).
 12. **Timer usa o relógio de cada navegador**; falta um relógio do servidor.
 
+## Acesso por link (inconsistente entre módulos; achado no teste ao vivo de 2026-10-09)
+
+48. **Retro:** quem abre o link e é de **outra squad** leva **403** ("Acesso restrito a membros da squad deste board"); no **Poker** e na **Review** quem recebe o link entra. Decidiu-se que a Review é por link; vale a mesma regra para a Retro (e para Brainstorming e Radar de Saúde)? Se sim, a Retro precisa deixar quem tem o link entrar como participante (hoje a leitura e a entrada exigem pertencer à squad). Impacto prático: convidado de outra squad ou pessoa ainda fora do roster não consegue usar a retro.
+
 ## Poker (`poker.md`)
 
-13. Leitura de sala, participantes, votos e rodadas aberta a qualquer autenticado, e WebSocket sem checar membro: fechar exige mudar o fluxo de entrada.
+13. Leitura de sala, participantes, votos e rodadas aberta a qualquer autenticado, e WebSocket sem checar membro: fechar exige mudar o fluxo de entrada. **Confirmado ao vivo:** quem não está na sala não grava nem limpa nada, mas quem entra como participante (o link basta) consegue revelar e limpar os votos pela API.
 14. Exigir facilitador para revelar ou limpar: o facilitador de reserva é decidido no cliente.
 15. Pontos do Jira: a busca por `customfield_*` não funciona; precisa de `expand=names` ou de um id configurável por squad.
 
@@ -52,6 +56,11 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 22. Quem entra pelo link deve entrar em `participantIds`? Hoje o histórico do Meu Espaço só mostra o que a pessoa criou.
 23. Encerrar o Health Check com **baixa participação** deve avisar o organizador? E o anonimato real: a tabela guarda o id do votante.
 24. Limite de votos no Brainstorming nunca existiu (os textos prometiam 5): se quiserem, deve ser opt-in do facilitador.
+
+## Observações do teste ao vivo (2026-10-09)
+
+49. O `/painel` dispara sozinho uma sincronização (`POST /squads/{id}/sync?forceFull=true`) ao abrir, mesmo sem Jira configurado: devolve 400 e a tela lida bem, mas é uma requisição desperdiçada e ruído no console. Vale só sincronizar quando há Jira configurado.
+50. Várias telas repetem as mesmas leituras ao abrir (a Retro busca quadro, cards e participantes 5 vezes seguidas): não quebra nada, mas pesa; vale deduplicar.
 
 ## Painel, Governança, Jira (`painel.md`, `governanca-e-projetos.md`, `integracao-jira.md`, `jira-dash.md`)
 
