@@ -7,7 +7,7 @@ Quadro colaborativo de retrospectiva em tempo real. A equipe escreve cards em co
 - **Facilitador:** quem criou o quadro (`creatorId`) ou quem **assumiu o controle**. Controla fase, revelação, votação, timer e configurações. Há **um único** facilitador por vez.
 - **Participante:** qualquer pessoa que entrou no quadro. Escreve cards, vota, reage, move o **próprio** card, marca ação como feita, usa o chat.
 - **Admin:** pode o mesmo que o facilitador.
-- Entrar exige login. Quem abre o link vira participante automaticamente (e passa pela pergunta de check-in, se estiver ligada).
+- Entrar exige login, mas **não exige pertencer à squad**: o link dá acesso. Quem abre o link vira participante automaticamente (e passa pela pergunta de check-in, se estiver ligada).
 
 ## Telas
 
@@ -98,7 +98,7 @@ Os eventos saem **depois do commit**. Ao reconectar o cliente **recarrega** quad
 
 | Ação | Quem |
 |---|---|
-| Ler quadro, cards, participantes, abrir WebSocket | Participante, criador, admin, ou quem tem acesso à squad do quadro |
+| Ler quadro, cards, participantes, abrir WebSocket, entrar como participante | **Qualquer pessoa logada que receba o link** (mesma regra da Review e do Poker), mesmo de outra squad. Listagens por sprint continuam filtradas por participação/squad |
 | Criar card | Participante (autor é sempre quem chama) |
 | Editar texto/responsável do card | Autor, facilitador, admin |
 | Mover, marcar feito, reagir | Qualquer participante (cada um altera só a própria reação) |

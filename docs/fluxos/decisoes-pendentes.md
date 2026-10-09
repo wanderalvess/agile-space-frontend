@@ -31,7 +31,7 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Acesso por link (inconsistente entre módulos; achado no teste ao vivo de 2026-10-09)
 
-48. **Retro:** quem abre o link e é de **outra squad** leva **403** ("Acesso restrito a membros da squad deste board"); no **Poker** e na **Review** quem recebe o link entra. Decidiu-se que a Review é por link; vale a mesma regra para a Retro (e para Brainstorming e Radar de Saúde)? Se sim, a Retro precisa deixar quem tem o link entrar como participante (hoje a leitura e a entrada exigem pertencer à squad). Impacto prático: convidado de outra squad ou pessoa ainda fora do roster não consegue usar a retro.
+48. ~~Retro: quem é de outra squad levava 403 ao abrir o link.~~ **Decidido e implementado em 2026-10-09:** o link dá acesso (Retro alinhada com Review e Poker). Brainstorming e Radar de Saúde já seguiam essa regra. Efeito colateral a decidir: **"assumir controle" é permitido a qualquer participante**, o que agora inclui quem entrou pelo link vindo de outra squad (49b: restringir a assumir só quando o facilitador está ausente, ou a participantes da squad?).
 
 ## Poker (`poker.md`)
 
