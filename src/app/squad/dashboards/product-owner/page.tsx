@@ -9,12 +9,16 @@ import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs
 import { DashboardFilters, useProjectEstimationUnit } from "@/components/ui/DashboardFilters";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
-import { isDoneStatus, statusLabelPt } from "@/lib/jira-status";
+import { statusLabelPt } from "@/lib/jira-status";
+import { DashboardDataNotice, NoDataWidget } from "@/components/squad/dashboards/DashboardDataNotice";
+import { isBugIssue, isDoneIssue, isInProgressIssue, percentOf } from "@/lib/squad-metrics";
 import { ListTodo, AlertTriangle, Layers, Target, CheckCircle2 } from "lucide-react";
 
 export default function ProductOwnerDashboard() {
   const { unitLabel, isConfigured } = useProjectEstimationUnit();
   const {
+    hasSquad,
+    error,
     rollup,
     issues,
     sprintOptions,
@@ -23,12 +27,14 @@ export default function ProductOwnerDashboard() {
     loading,
   } = useSquadDashboardData();
 
-  const total = rollup?.totalIssues || issues.length || 0;
-  const done = rollup?.doneIssues || issues.filter((i) => isDoneStatus(i.status)).length || 0;
-  const inProgress = rollup?.inProgressIssues || issues.filter((i) => i.status?.toLowerCase().includes("progress")).length || 0;
-  const bugs = rollup?.bugIssues || issues.filter((i) => i.type?.toLowerCase() === "bug").length || 0;
+  // ?? (e não ||): rollup com 0 itens é um 0 de verdade, não "sem rollup".
+  const total = rollup?.totalIssues ?? issues.length;
+  const done = rollup?.doneIssues ?? issues.filter(isDoneIssue).length;
+  const inProgress = rollup?.inProgressIssues ?? issues.filter(isInProgressIssue).length;
+  const hasData = !!rollup || issues.length > 0;
 
-  const sayDoRate = total > 0 ? Math.round((done / total) * 100) : 0;
+  // null = ainda não há escopo (o gauge vira "sem dados" em vez de 0%)
+  const sayDoRate = percentOf(done, total);
 
   // Breakdown por tipo de issue real do Jira
   const typeCounts = new Map<string, number>();
@@ -43,13 +49,15 @@ export default function ProductOwnerDashboard() {
   }));
 
   // Itens em aberto ou com risco de carry-over
-  const pendingIssues = issues.filter((i) => !isDoneStatus(i.status)).slice(0, 5);
+  const pendingIssues = issues.filter((i) => !isDoneIssue(i)).slice(0, 5);
   const toDo = Math.max(0, total - done - inProgress);
 
   return (
     <div className="flex flex-col gap-6">
       {/* Abas com controle de acesso por Cargo */}
       <DashboardNavTabs />
+
+      <DashboardDataNotice hasSquad={hasSquad} loading={loading} error={error} hasData={hasData} />
 
       {/* Top Banner & Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
@@ -82,23 +90,31 @@ export default function ProductOwnerDashboard() {
 
       {/* Grid de Widgets com Dados Reais */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <GaugeChart
-          title="Entrega do escopo combinado (Say/Do)"
-          value={sayDoRate}
-          description={`Concluídos: ${done} de ${total} itens planejados na sprint atual.`}
-        />
+        {sayDoRate === null ? (
+          <NoDataWidget title="Entrega do escopo combinado (Say/Do)" message="Ainda não há itens na sprint para medir a entrega." />
+        ) : (
+          <GaugeChart
+            title="Entrega do escopo combinado (Say/Do)"
+            value={sayDoRate}
+            description={`Concluídos: ${done} de ${total} itens da sprint (inclui o que entrou depois do planejamento).`}
+          />
+        )}
 
-        <SimpleBarChart
-          title="Escopo por tipo de issue (Jira)"
-          data={issueTypeData.length > 0 ? issueTypeData : [{ name: "Story", value: 0 }]}
-          defaultColor="hsl(var(--primary))"
-        />
+        {issueTypeData.length > 0 ? (
+          <SimpleBarChart
+            title="Escopo por tipo de issue (Jira)"
+            data={issueTypeData}
+            defaultColor="hsl(var(--primary))"
+          />
+        ) : (
+          <NoDataWidget title="Escopo por tipo de issue (Jira)" />
+        )}
 
         <KPICard
           title="Itens em andamento"
-          value={inProgress}
+          value={hasData ? inProgress : "—"}
           icon={<ListTodo className="h-5 w-5 text-primary" />}
-          subtitle={`${toDo} a fazer e ${done} concluídos, de ${total} itens na sprint.`}
+          subtitle={hasData ? `${toDo} a fazer e ${done} concluídos, de ${total} itens na sprint.` : "Sem dados desta squad ainda."}
         />
 
         <WidgetCard
@@ -127,7 +143,7 @@ export default function ProductOwnerDashboard() {
               ))
             ) : (
               <div className="py-6 text-center text-xs text-muted-foreground">
-                Nenhum item pendente com risco de carry-over.
+                {hasData ? "Nenhum item pendente com risco de carry-over." : "Sem dados desta squad ainda."}
               </div>
             )}
           </div>

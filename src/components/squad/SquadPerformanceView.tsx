@@ -7,7 +7,7 @@ import {
   Target, Zap, Activity, ArrowUpRight, Award, UserCheck, CheckSquare,
   Bug, Code2, RefreshCw
 } from 'lucide-react';
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, ComposedChart, Line
 } from 'recharts';
@@ -17,15 +17,21 @@ import { RetroHistoryPanel } from '@/components/retro/RetroHistoryPanel';
 import { KPICard } from '@/components/ui/KPICard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { isWeekend } from '@/lib/date-utils';
+import { useUserContext } from '@/context/UserContext';
+import { SQUAD_LEADERSHIP_VIEW_ROLES } from '@/lib/types';
+import { dailyDeltas, isDoneIssue, percentOf, workTypeBreakdown } from '@/lib/squad-metrics';
+
+// Mínimo de horas registradas pelo time em um dia útil para o dia contar na "meta de ritmo".
+const DAILY_HOURS_TARGET = 4;
 
 export function SquadPerformanceView() {
   const {
@@ -40,6 +46,11 @@ export function SquadPerformanceView() {
     config,
     activeSquadId
   } = useSquadStore();
+
+  // Horas e carga por pessoa são dado nominal: só a liderança vê (o servidor também recusa as horas por pessoa).
+  const { userProfile } = useUserContext();
+  const role = userProfile?.role as string | undefined;
+  const canSeePeople = !!role && (SQUAD_LEADERSHIP_VIEW_ROLES as string[]).includes(role);
 
   const [periodFilter, setPeriodFilter] = useState<'hoje' | 'semana' | 'quinzena' | 'mes'>('semana');
   const [selectedMember, setSelectedMember] = useState<string>('all');
@@ -105,90 +116,72 @@ export function SquadPerformanceView() {
       });
     }
 
+    // loggedSec e doneIssues do snapshot são acumulados da sprint; o do dia é a diferença para o snapshot anterior.
+    // Dia sem snapshot fica sem valor (não vira "0 horas").
+    const deltas = dailyDeltas(dailySnapshots);
     return dateKeys.map(pd => {
-      const snap = dailySnapshots.find(s => s.snapshotDate === pd.key);
+      const d = deltas.get(pd.key);
       return {
         name: pd.label,
-        totalHoras: snap ? parseFloat((snap.loggedSec / 3600).toFixed(1)) : 0,
-        entregas: snap ? snap.doneIssues : 0
+        totalHoras: d ? parseFloat(d.loggedHours.toFixed(1)) : null,
+        entregas: d ? d.done : null
       };
     });
   }, [periodFilter, dailySnapshots, todayStr, weekDates]);
 
-  // Donut de Categorias de Trabalho
+  // Composição do escopo por tipo de issue (contagem real). Antes eram "minutos" inventados por tipo (60/30) e as
+  // categorias "Reuniões / Rituais" e "Infra & Setup" nunca tinham dado.
   const categoryData = useMemo(() => {
-    const catMap: Record<string, number> = {
-      'Desenvolvimento': 0,
-      'Bugs': 0,
-      'Reuniões / Rituais': 0,
-      'Infra & Setup': 0
-    };
-
-    if (activeIssues.length > 0) {
-      activeIssues.forEach(iss => {
-        const typeStr = (iss.type || '').toLowerCase();
-        if (typeStr.includes('bug')) catMap['Bugs'] += 60;
-        else if (typeStr.includes('subtask') || typeStr.includes('sub-tarefa')) catMap['Desenvolvimento'] += 30;
-        else catMap['Desenvolvimento'] += 60;
-      });
-    }
-
     const colors: Record<string, string> = {
-      'Desenvolvimento': '#6366f1', // Indigo
-      'Bugs': '#f43f5e',            // Rose
-      'Reuniões / Rituais': '#10b981',// Emerald
-      'Infra & Setup': '#06b6d4'    // Cyan
+      'Histórias e demais': '#6366f1',
+      'Subtarefas': '#06b6d4',
+      'Bugs': '#f43f5e',
     };
-
-    const currentTotal = Object.values(catMap).reduce((a, b) => a + b, 0);
-    const list = Object.keys(catMap).map(name => {
-      const min = catMap[name];
-      const pct = currentTotal > 0 ? Math.round((min / currentTotal) * 100) : 0;
-      return {
-        name,
-        value: pct,
-        color: colors[name] || '#94a3b8'
-      };
-    }).filter(c => c.value > 0);
-
-    return list.length > 0 ? list : [{ name: 'Sem registros', value: 100, color: 'hsl(var(--muted))' }];
+    const breakdown = workTypeBreakdown(activeIssues);
+    const total = breakdown.reduce((sum, b) => sum + b.count, 0);
+    return breakdown.map(b => ({ name: b.name, value: percentOf(b.count, total) ?? 0, count: b.count, color: colors[b.name] || '#94a3b8' }));
   }, [activeIssues]);
 
   // Cálculos de KPI Principais
+  // Capacidade do time por dia: só soma quem tem horas por dia cadastradas. null = não dá para calcular.
   const squadTotalCapacityHours = useMemo(() => {
-    if (!members || members.length === 0) return 40; // Fallback 40h por pessoa/squad
-    return members.reduce((sum, m) => sum + (m.capacityHoursPerDay || 8), 0);
+    const withHours = (members || []).filter(m => (m.capacityHoursPerDay ?? 0) > 0);
+    if (withHours.length === 0) return null;
+    return withHours.reduce((sum, m) => sum + (m.capacityHoursPerDay as number), 0);
   }, [members]);
 
+  // Capacidade da sprint = horas/dia do time × dias úteis da sprint (e não × 5, que era a semana).
+  const sprintWorkdays = activeRollup?.workdaysTotal || 0;
+  const sprintCapacityHours = squadTotalCapacityHours !== null && sprintWorkdays > 0 ? squadTotalCapacityHours * sprintWorkdays : null;
+
   const loggedHoursTotal = useMemo(() => {
-    return activeRollup?.loggedTotalSec ? (activeRollup.loggedTotalSec / 3600).toFixed(1) : '0.0';
+    return activeRollup ? ((activeRollup.loggedTotalSec ?? 0) / 3600).toFixed(1) : '—';
   }, [activeRollup]);
 
   const estimatedHoursTotal = useMemo(() => {
-    return activeRollup?.estimateTotalSec ? (activeRollup.estimateTotalSec / 3600).toFixed(0) : '0';
+    return activeRollup ? ((activeRollup.estimateTotalSec ?? 0) / 3600).toFixed(0) : '—';
   }, [activeRollup]);
 
   const remainingHoursTotal = useMemo(() => {
-    return activeRollup?.remainingTotalSec ? (activeRollup.remainingTotalSec / 3600).toFixed(0) : '0';
+    return activeRollup ? ((activeRollup.remainingTotalSec ?? 0) / 3600).toFixed(0) : '—';
   }, [activeRollup]);
 
   const throughputPercentage = useMemo(() => {
-    if (!activeRollup || activeRollup.totalIssues === 0) return 0;
-    return Math.round((activeRollup.doneIssues / activeRollup.totalIssues) * 100);
+    if (!activeRollup) return null;
+    return percentOf(activeRollup.doneIssues, activeRollup.totalIssues);
   }, [activeRollup]);
 
-  // Streak de Dias Batendo Meta (4h+)
+  // Dias úteis dos últimos 15 em que o time registrou DAILY_HOURS_TARGET h ou mais. Usa as horas do DIA (diferença entre
+  // snapshots); antes comparava o acumulado da sprint e quase todo dia contava. new Date('YYYY-MM-DD') é UTC e
+  // escorregava o dia da semana no Brasil, então o fim de semana é checado em data local.
   const streakDays = useMemo(() => {
+    const deltas = dailyDeltas(dailySnapshots);
     let count = 0;
-    const dates15 = getPastDates(15);
-    dates15.forEach(dStr => {
-      const dObj = new Date(dStr);
-      if (isWeekend(dObj)) return;
-      
-      const snap = dailySnapshots.find(s => s.snapshotDate === dStr);
-      if (snap && snap.loggedSec >= 14400) {
-        count++;
-      }
+    getPastDates(15).forEach(dStr => {
+      const [y, mo, da] = dStr.split('-').map(Number);
+      if (isWeekend(new Date(y, mo - 1, da))) return;
+      const d = deltas.get(dStr);
+      if (d && d.loggedHours >= DAILY_HOURS_TARGET) count++;
     });
     return count;
   }, [dailySnapshots]);
@@ -202,7 +195,7 @@ export function SquadPerformanceView() {
         const name = iss.assigneeName || 'Não Atribuído';
         const curr = assigneesMap.get(name) || { name, total: 0, done: 0, loggedSec: 0 };
         curr.total += 1;
-        if (iss.status?.toLowerCase().includes('done') || iss.status?.toLowerCase().includes('concluído')) {
+        if (isDoneIssue(iss)) {
           curr.done += 1;
         }
         curr.loggedSec += iss.loggedSec || 0;
@@ -213,7 +206,7 @@ export function SquadPerformanceView() {
         jiraAccountId: item.name,
         displayName: item.name,
         role: 'Membro',
-        capacityHoursPerDay: 8,
+        capacityHoursPerDay: 0,
         doneIssues: item.done,
         totalIssues: item.total,
         loggedHours: (item.loggedSec / 3600).toFixed(1),
@@ -224,7 +217,7 @@ export function SquadPerformanceView() {
     return members.map(m => {
       const metric = memberMetrics.find(mm => mm.assigneeId === m.jiraAccountId);
       const myItems = activeIssues.filter(iss => iss.assigneeId === m.jiraAccountId || iss.assigneeName === m.displayName);
-      const doneCount = myItems.filter(iss => iss.status?.toLowerCase().includes('done') || iss.status?.toLowerCase().includes('concluído')).length;
+      const doneCount = myItems.filter(isDoneIssue).length;
       const totalCount = myItems.length;
       const loggedHours = metric?.hoursLogged != null
         ? metric.hoursLogged.toFixed(1)
@@ -236,7 +229,7 @@ export function SquadPerformanceView() {
         jiraAccountId: m.jiraAccountId,
         displayName: m.displayName || 'Membro',
         role: m.role || 'Desenvolvedor',
-        capacityHoursPerDay: m.capacityHoursPerDay || 8,
+        capacityHoursPerDay: m.capacityHoursPerDay || 0,
         doneIssues: doneCount || metric?.issuesCompleted || 0,
         totalIssues: totalCount || metricTotalCount || 0,
         loggedHours,
@@ -246,15 +239,16 @@ export function SquadPerformanceView() {
   }, [members, memberMetrics, activeIssues]);
 
   const filteredMemberList = useMemo(() => {
+    if (!canSeePeople) return [];
     if (selectedMember === 'all') return squadMemberList;
     return squadMemberList.filter(m => m.jiraAccountId === selectedMember || m.displayName === selectedMember);
-  }, [squadMemberList, selectedMember]);
+  }, [squadMemberList, selectedMember, canSeePeople]);
 
   if (!isMounted) return null;
 
   return (
     <div className="w-full flex flex-col gap-6 animate-in fade-in duration-300 pb-8">
-      
+
       {/* ═══════════════════════════════════════════════════════════════════
           HEADER BANNER DA Desempenho
          ═══════════════════════════════════════════════════════════════════ */}
@@ -293,7 +287,7 @@ export function SquadPerformanceView() {
           </div>
 
           {/* Integrante */}
-          {squadMemberList.length > 0 && (
+          {canSeePeople && squadMemberList.length > 0 && (
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-slate-400">Pessoa:</span>
               <Select value={selectedMember} onValueChange={setSelectedMember}>
@@ -319,7 +313,7 @@ export function SquadPerformanceView() {
           CARDS DE KPI DA SQUAD (4 COLUNAS PADRONIZADAS)
          ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
+
         {/* KPI 1: Horas Logadas */}
         <WidgetCard className="hover:border-indigo-500/40 transition-all">
           <div className="flex items-center justify-between mb-2">
@@ -334,16 +328,24 @@ export function SquadPerformanceView() {
             </span>
           </div>
           <div className="mt-3">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-400 mb-1">
-              <span>Capacidade do time ({squadTotalCapacityHours}h/dia)</span>
-              <span>{Math.min(100, Math.round((parseFloat(loggedHoursTotal) / (squadTotalCapacityHours * 5)) * 100))}%</span>
-            </div>
-            <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div 
-                style={{ width: `${Math.min(100, Math.round((parseFloat(loggedHoursTotal) / (squadTotalCapacityHours * 5)) * 100))}%` }} 
-                className="h-full bg-indigo-600 dark:bg-indigo-500 rounded-full transition-all duration-500" 
-              />
-            </div>
+            {sprintCapacityHours === null ? (
+              <p className="text-xs font-medium text-slate-400">
+                Para comparar com a capacidade, cadastre as horas por dia de cada pessoa em Pessoas do time e sincronize a sprint.
+              </p>
+            ) : (
+              <>
+                <div className="flex justify-between items-center text-xs font-bold text-slate-400 mb-1">
+                  <span>Capacidade da sprint ({squadTotalCapacityHours}h/dia × {sprintWorkdays} dias úteis)</span>
+                  <span>{percentOf(parseFloat(loggedHoursTotal), sprintCapacityHours) ?? 0}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    style={{ width: `${percentOf(parseFloat(loggedHoursTotal), sprintCapacityHours) ?? 0}%` }}
+                    className="h-full bg-indigo-600 dark:bg-indigo-500 rounded-full transition-all duration-500"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </WidgetCard>
 
@@ -357,13 +359,13 @@ export function SquadPerformanceView() {
           </div>
           <div className="my-1 flex items-baseline gap-2">
             <span className="text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white font-headline">
-              {activeRollup?.doneIssues ?? 0}
+              {activeRollup ? activeRollup.doneIssues ?? 0 : '—'}
             </span>
-            <span className="text-xs text-slate-400 font-bold">/ {activeRollup?.totalIssues ?? 0} issues</span>
+            <span className="text-xs text-slate-400 font-bold">{activeRollup ? `/ ${activeRollup.totalIssues ?? 0} issues` : 'sem dados desta squad ainda'}</span>
           </div>
           <div className="mt-3 flex items-center gap-1.5">
             <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 font-bold">
-              {throughputPercentage}% Concluído
+              {throughputPercentage === null ? 'Sem escopo ainda' : `${throughputPercentage}% Concluído`}
             </Badge>
             <span className="text-xs font-medium text-slate-400">em relação ao escopo</span>
           </div>
@@ -392,7 +394,7 @@ export function SquadPerformanceView() {
         {/* KPI 4: Streak & Ritmo Diário */}
         <WidgetCard className="hover:border-rose-500/40 transition-all">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-400">Dias seguidos na meta de foco</span>
+            <span className="text-xs font-semibold text-slate-400">Dias úteis com {DAILY_HOURS_TARGET} h ou mais registradas</span>
             <div className="p-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 rounded-xl">
               <Flame className="h-4 w-4" />
             </div>
@@ -401,12 +403,12 @@ export function SquadPerformanceView() {
             <span className="text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white font-headline">
               {streakDays}
             </span>
-            <span className="text-xs font-bold text-slate-400 uppercase">dias úteis</span>
+            <span className="text-xs font-bold text-slate-400 uppercase">de 15 dias</span>
           </div>
           <div className="mt-3 flex items-center gap-1">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
             <span className="text-xs font-bold text-slate-400">
-              Acima da meta diária de foco
+              Soma de horas do time no dia, últimos 15 dias
             </span>
           </div>
         </WidgetCard>
@@ -417,9 +419,12 @@ export function SquadPerformanceView() {
           PAINÉIS DE GRÁFICOS DA SQUAD (TENDÊNCIA & CATEGORIAS)
          ═══════════════════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
+
         {/* Gráfico 1: Tendência Diária de Produtividade (2 colunas) */}
         <WidgetCard title="Horas e entregas por dia" className="lg:col-span-2">
+          {dailySnapshots.length < 2 && (
+            <p className="text-xs text-slate-400 font-medium">O gráfico aparece a partir do segundo dia com sincronização: ele mostra o que foi registrado em cada dia.</p>
+          )}
           <div className="h-[230px] w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
@@ -437,22 +442,26 @@ export function SquadPerformanceView() {
                     boxShadow: '0 10px 25px -5px rgba(0,0,0,0.3)'
                   }}
                 />
-                <Legend 
-                  verticalAlign="top" 
-                  height={28} 
+                <Legend
+                  verticalAlign="top"
+                  height={28}
                   iconSize={7}
                   iconType="circle"
-                  wrapperStyle={{ fontSize: '12px', fontWeight: 600 }} 
+                  wrapperStyle={{ fontSize: '12px', fontWeight: 600 }}
                 />
-                <Bar yAxisId="left" name="Horas Logadas" dataKey="totalHoras" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} />
-                <Line yAxisId="right" name="Itens concluídos" type="monotone" dataKey="entregas" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Bar yAxisId="left" name="Horas registradas no dia" dataKey="totalHoras" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={18} />
+                <Line yAxisId="right" name="Itens concluídos no dia" type="monotone" dataKey="entregas" connectNulls={false} stroke="#10b981" strokeWidth={2.5} dot={{ r: 3 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
         </WidgetCard>
 
         {/* Gráfico 2: Distribuição por Tipo / Categoria (1 coluna) */}
-        <WidgetCard title="Onde o tempo foi gasto" className="lg:col-span-1 flex flex-col justify-between">
+        <WidgetCard title="Composição do escopo (por tipo de issue)" className="lg:col-span-1 flex flex-col justify-between">
+          {categoryData.length === 0 ? (
+            <p className="py-10 text-center text-sm text-slate-400">Sem dados desta squad ainda.</p>
+          ) : (
+          <>
           <div className="h-[160px] w-full flex items-center justify-center my-auto">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -489,11 +498,13 @@ export function SquadPerformanceView() {
               <div key={index} className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 px-2 py-1 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {entry.name}: <strong>{entry.value}%</strong>
+                  {entry.name}: <strong>{entry.count}</strong> ({entry.value}%)
                 </span>
               </div>
             ))}
           </div>
+          </>
+          )}
         </WidgetCard>
 
       </div>
@@ -501,8 +512,9 @@ export function SquadPerformanceView() {
       {/* ═══════════════════════════════════════════════════════════════════
           DESEMPENHO E ALOCAÇÃO DOS INTEGRANTES DA SQUAD
          ═══════════════════════════════════════════════════════════════════ */}
-      <WidgetCard 
-        title="Carga de cada pessoa" 
+      {canSeePeople ? (
+      <WidgetCard
+        title="Carga de cada pessoa"
         headerIcon={<Users className="h-4 w-4 text-indigo-500" />}
       >
         {filteredMemberList.length === 0 ? (
@@ -512,7 +524,7 @@ export function SquadPerformanceView() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-1">
             {filteredMemberList.map(m => (
-              <div 
+              <div
                 key={m.jiraAccountId}
                 className="p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/40 flex flex-col justify-between hover:border-indigo-500/30 transition-all"
               >
@@ -559,12 +571,12 @@ export function SquadPerformanceView() {
                     <span>{m.progress}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div 
-                      style={{ width: `${m.progress}%` }} 
+                    <div
+                      style={{ width: `${m.progress}%` }}
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
                         m.progress >= 70 ? "bg-emerald-500" : m.progress >= 40 ? "bg-indigo-500" : "bg-amber-500"
-                      )} 
+                      )}
                     />
                   </div>
                 </div>
@@ -573,6 +585,11 @@ export function SquadPerformanceView() {
           </div>
         )}
       </WidgetCard>
+      ) : (
+        <WidgetCard title="Carga de cada pessoa" headerIcon={<Users className="h-4 w-4 text-indigo-500" />}>
+          <p className="py-6 text-center text-sm text-slate-400">A carga e as horas por pessoa são vistas só pela liderança da squad.</p>
+        </WidgetCard>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           HISTÓRICO DE RETROSPECTIVAS — tendência de check-in e follow-through

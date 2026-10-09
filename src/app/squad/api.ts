@@ -19,8 +19,21 @@ async function extractErrorMessage(res: Response): Promise<string> {
   } catch {
     // corpo não é JSON — cai no fallback abaixo
   }
+  if (res.status === 403) return 'Você não tem permissão para isso nesta squad.';
   return `Squad API error ${res.status}: ${text}`;
 }
+
+/** Erro da API da squad com o status HTTP à mão (404 não precisa mais ser adivinhado pelo texto da mensagem). */
+export class SquadApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'SquadApiError';
+    this.status = status;
+  }
+}
+
+const isNotFound = (e: unknown) => e instanceof SquadApiError && e.status === 404;
 
 // Raw backend shape for /api/squads/{squadId}/panels — deliberately NOT the
 // rich `SquadPanel` type from '@/lib/types' (that one models the UI's JQL
@@ -46,7 +59,7 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  if (!res.ok) throw new Error(`Squad API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new SquadApiError(res.status, await extractErrorMessage(res));
   if (res.status === 204) return undefined as T;
   return res.json();
 }
@@ -54,17 +67,19 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
 export const squadApi = {
   // ----- Squad Config -----
   async getSquad(squadId: string): Promise<SquadConfig | null> {
-    try { return await req<SquadConfig>(`/squads/${squadId}`); }
-    catch (e: any) { if (e.message?.includes('404')) return null; throw e; }
+    try { return await req<SquadConfig>(`/squads/${encodeURIComponent(squadId)}`); }
+    catch (e) { if (isNotFound(e)) return null; throw e; }
   },
 
   async saveSquad(squadId: string, data: Partial<SquadConfig>): Promise<SquadConfig> {
     return req<SquadConfig>(`/squads/${squadId}`, {
       method: 'POST',
+      // O nome só vai quando foi informado: o servidor mantém o nome salvo (e só usa a chave quando a squad é nova).
+      // Antes, qualquer gravação parcial mandava name = chave e trocava o nome de exibição da squad.
       body: JSON.stringify({
         ...data,
         id: squadId,
-        name: data.name || (data as any)?.squadName || squadId
+        ...((data.name || (data as any)?.squadName) ? { name: data.name || (data as any).squadName } : {})
       })
     });
   },
@@ -82,9 +97,11 @@ export const squadApi = {
   },
 
   // ----- Metrics Rollup -----
-  async getRollup(squadId: string): Promise<SquadMetricsRollup | null> {
-    try { return await req<SquadMetricsRollup>(`/squads/${squadId}/rollup`); }
-    catch (e: any) { if (e.status === 404 || e.message?.includes('404')) return null; throw e; }
+  // Sem sprintId: o rollup da sprint ativa (ou o mais recente). Com sprintId: o daquela sprint (null se não existe).
+  async getRollup(squadId: string, sprintId?: string): Promise<SquadMetricsRollup | null> {
+    const qs = sprintId ? `?sprintId=${encodeURIComponent(sprintId)}` : '';
+    try { return await req<SquadMetricsRollup>(`/squads/${encodeURIComponent(squadId)}/rollup${qs}`); }
+    catch (e) { if (isNotFound(e)) return null; throw e; }
   },
 
   async saveRollup(squadId: string, rollup: SquadMetricsRollup): Promise<SquadMetricsRollup> {
@@ -103,7 +120,7 @@ export const squadApi = {
 
   async getIssueByKey(squadId: string, jiraKey: string): Promise<SquadIssueSnapshot | null> {
     try { return await req<SquadIssueSnapshot>(`/squads/${squadId}/issues/${encodeURIComponent(jiraKey)}`); }
-    catch (e: any) { if (e.status === 404 || e.message?.includes('404')) return null; throw e; }
+    catch (e) { if (isNotFound(e)) return null; throw e; }
   },
 
   async batchUpsertIssues(squadId: string, snapshots: SquadIssueSnapshot[]): Promise<SquadIssueSnapshot[]> {

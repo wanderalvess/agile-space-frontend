@@ -11,11 +11,16 @@ import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { useSquadDashboardData } from "@/hooks/useSquadDashboardData";
 import { useUser } from "@/context/UserContext";
+import { DashboardDataNotice, NoDataWidget } from "@/components/squad/dashboards/DashboardDataNotice";
+import { isBugIssue, isDoneIssue, isInProgressIssue, percentOf } from "@/lib/squad-metrics";
+import { statusLabelPt } from "@/lib/jira-status";
 import { CheckCircle2, Clock, Bug, Code, Sparkles, Layers, ListTodo } from "lucide-react";
 
 export default function TeamMemberDashboard() {
   const { userProfile } = useUser();
   const {
+    hasSquad,
+    error,
     myIssues,
     issues: allIssues,
     rollup,
@@ -26,35 +31,30 @@ export default function TeamMemberDashboard() {
   } = useSquadDashboardData();
 
   const userRole = userProfile?.role || "Desenvolvedor";
+  const hasData = !!rollup || allIssues.length > 0;
 
-  // Calcular progresso real das tarefas do usuário
+  // Só as tarefas atribuídas a esta pessoa. Antes, sem tarefa própria, o painel mostrava as de TODO o time
+  // (com o nome da pessoa como responsável) e o progresso da squad como se fosse o dela.
   const totalMyTasks = myIssues.length;
-  const doneMyTasks = myIssues.filter(
-    (i) => i.status?.toLowerCase() === "done" || i.status?.toLowerCase() === "concluído"
-  ).length;
-  const myBugs = myIssues.filter((i) => i.type?.toLowerCase() === "bug").length;
+  const doneMyTasks = myIssues.filter(isDoneIssue).length;
+  const myOpenBugs = myIssues.filter((i) => isBugIssue(i) && !isDoneIssue(i)).length;
+  const progressPercent = percentOf(doneMyTasks, totalMyTasks);
 
-  const progressPercent =
-    totalMyTasks > 0 ? Math.round((doneMyTasks / totalMyTasks) * 100) : rollup ? Math.round(((rollup.doneIssues || 0) / Math.max(1, rollup.totalIssues || 1)) * 100) : 0;
-
-  // Worklogs ou distribuição de status das minhas tarefas
   const statusCounts = new Map<string, number>();
-  (myIssues.length > 0 ? myIssues : allIssues.slice(0, 10)).forEach((iss) => {
-    const st = iss.status || "To Do";
+  myIssues.forEach((iss) => {
+    const st = statusLabelPt(iss.status);
     statusCounts.set(st, (statusCounts.get(st) || 0) + 1);
   });
+  const taskDistributionData = Array.from(statusCounts.entries()).map(([name, value]) => ({ name, value }));
 
-  const taskDistributionData = Array.from(statusCounts.entries()).map(([name, value]) => ({
-    name,
-    value,
-  }));
-
-  const displayTasks = (myIssues.length > 0 ? myIssues : allIssues).slice(0, 6);
+  const displayTasks = myIssues.slice(0, 6);
 
   return (
     <div className="flex flex-col gap-6">
       {/* Abas com controle de acesso por Cargo */}
       <DashboardNavTabs />
+
+      <DashboardDataNotice hasSquad={hasSquad} loading={loading} error={error} hasData={hasData} />
 
       {/* Top Banner & Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
@@ -88,25 +88,36 @@ export default function TeamMemberDashboard() {
       {/* Grid de Widgets com Dados Reais */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Gauge: Meu Progresso */}
-        <GaugeChart
-          title="Meu progresso na sprint"
-          value={progressPercent}
-          description={`${doneMyTasks} de ${totalMyTasks || displayTasks.length} tarefas concluídas`}
-        />
+        {progressPercent === null ? (
+          <NoDataWidget
+            title="Meu progresso na sprint"
+            message={hasData ? "Nenhuma tarefa está atribuída a você nesta sprint." : "Sem dados desta squad ainda."}
+          />
+        ) : (
+          <GaugeChart
+            title="Meu progresso na sprint"
+            value={progressPercent}
+            description={`${doneMyTasks} de ${totalMyTasks} tarefas concluídas`}
+          />
+        )}
 
         {/* Distribuição por Status */}
-        <SimpleBarChart
-          title="Minhas tarefas por status"
-          data={taskDistributionData.length > 0 ? taskDistributionData : [{ name: "Sem itens", value: 0 }]}
-          defaultColor="hsl(var(--primary))"
-        />
+        {taskDistributionData.length > 0 ? (
+          <SimpleBarChart
+            title="Minhas tarefas por status"
+            data={taskDistributionData}
+            defaultColor="hsl(var(--primary))"
+          />
+        ) : (
+          <NoDataWidget title="Minhas tarefas por status" message="Sem tarefas suas nesta sprint." />
+        )}
 
         {/* Bugs & Retrabalho */}
         <KPICard
           title="Bugs e impedimentos em aberto"
-          value={myBugs}
+          value={totalMyTasks > 0 ? myOpenBugs : "—"}
           icon={<Bug className="h-5 w-5 text-destructive" />}
-          subtitle={myBugs > 0 ? `${myBugs} bug(s) vinculados a você aguardando resolução.` : "Nenhum bug crítico bloqueando suas entregas."}
+          subtitle={totalMyTasks === 0 ? "Sem tarefas suas nesta sprint." : myOpenBugs > 0 ? `${myOpenBugs} ${myOpenBugs === 1 ? "bug seu está" : "bugs seus estão"} aguardando resolução.` : "Nenhum bug seu em aberto."}
         />
 
         {/* Minhas Tarefas Ativas do Jira */}
@@ -121,29 +132,29 @@ export default function TeamMemberDashboard() {
                   <div className="flex flex-col gap-0.5 max-w-[70%]">
                     <div className="flex items-center gap-2">
                       <span className="font-code text-xs font-bold text-primary">{t.jiraKey}</span>
-                      <span className="text-xs font-bold text-foreground truncate">{t.title}</span>
+                      <span className="text-xs font-bold text-foreground truncate">{t.title || "Título ainda não sincronizado"}</span>
                     </div>
                     <span className="text-[10px] text-muted-foreground font-medium">
-                      Tipo: {t.type || "Story"} | Responsável: {t.assigneeName || userProfile?.name || "Não atribuído"}
+                      Tipo: {t.type || "Sem tipo"} | Responsável: {t.assigneeName || "Não atribuído"}
                     </span>
                   </div>
                   <span
                     className={`text-[11px] font-bold px-3 py-1 rounded-lg border ${
-                      t.status?.toLowerCase().includes("done") || t.status?.toLowerCase().includes("concluído")
+                      isDoneIssue(t)
                         ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                        : t.status?.toLowerCase().includes("progress") || t.status?.toLowerCase().includes("andamento")
+                        : isInProgressIssue(t)
                         ? "bg-primary/10 text-primary border-primary/30"
                         : "bg-muted text-muted-foreground border-border"
                     }`}
                   >
-                    {t.status}
+                    {statusLabelPt(t.status)}
                   </span>
                 </div>
               ))
             ) : (
               <div className="p-6 text-center text-muted-foreground text-xs flex flex-col items-center gap-2">
                 <ListTodo className="h-6 w-6 text-muted-foreground opacity-50" />
-                <span>Nenhuma tarefa atribuída encontrada na sprint atual.</span>
+                <span>{hasData ? "Nenhuma tarefa está atribuída a você nesta sprint. Se esperava ver tarefas, confira se o seu nome na equipe bate com o do Jira." : "Sem dados desta squad ainda."}</span>
               </div>
             )}
           </div>

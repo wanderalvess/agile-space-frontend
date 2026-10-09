@@ -5,18 +5,21 @@ import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs
 import { WidgetCard } from "@/components/ui/WidgetCard";
 import { CustomJqlPanelsSection } from "@/components/squad/dashboards/CustomJqlPanelsSection";
 import { projectService } from "@/services/projectService";
-import { squadApi } from "@/app/squad/api";
+import { squadApi, SquadApiError } from "@/app/squad/api";
+import { percentOf } from "@/lib/squad-metrics";
 import type { SquadMetricsRollup } from "@/lib/types";
 
 type SquadRow = {
   id: string;
   name: string;
   rollup: SquadMetricsRollup | null;
+  /** true quando o servidor negou a leitura desta squad (fora da tribo de quem consulta) */
+  restricted?: boolean;
 };
 
 function predictability(r: SquadMetricsRollup | null): number | null {
-  if (!r || !r.totalIssues) return null;
-  return Math.round(((r.doneIssues ?? 0) / r.totalIssues) * 100);
+  if (!r) return null;
+  return percentOf(r.doneIssues ?? 0, r.totalIssues);
 }
 
 /**
@@ -26,24 +29,33 @@ function predictability(r: SquadMetricsRollup | null): number | null {
 export default function TribeLevelDashboard() {
   const [rows, setRows] = useState<SquadRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
+    setLoadError(null);
     projectService
       .getAllProjects()
       .then((projects) =>
         Promise.all(
-          projects.map(async (p) => ({
-            id: p.id,
-            name: p.name && p.name !== p.id ? `${p.id} · ${p.name}` : p.id,
-            rollup: await squadApi.getRollup(p.id).catch(() => null),
-          }))
+          projects.map(async (p): Promise<SquadRow> => {
+            let restricted = false;
+            const rollup = await squadApi.getRollup(p.id).catch((e) => {
+              restricted = e instanceof SquadApiError && e.status === 403;
+              return null;
+            });
+            return { id: p.id, name: p.name && p.name !== p.id ? `${p.id} · ${p.name}` : p.id, rollup, restricted };
+          })
         )
       )
       // Squads com dados primeiro; as demais em ordem alfabética.
       .then((result) => alive && setRows([...result].sort((a, b) => Number(!!b.rollup?.totalIssues) - Number(!!a.rollup?.totalIssues) || a.id.localeCompare(b.id))))
-      .catch(() => alive && setRows([]))
+      .catch((e) => {
+        if (!alive) return;
+        setRows([]);
+        setLoadError(e?.message || "Não foi possível carregar as squads agora.");
+      })
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -131,7 +143,9 @@ export default function TribeLevelDashboard() {
                   <tr key={sq.id} className="hover:bg-muted/40 transition-colors">
                     <td className="py-4 px-3 font-bold text-foreground">{sq.name}</td>
                     {pred === null ? (
-                      <td colSpan={4} className="py-4 px-3 text-muted-foreground">Sem dados desta squad ainda</td>
+                      <td colSpan={4} className="py-4 px-3 text-muted-foreground">
+                        {sq.restricted ? "Sem acesso a esta squad (fora da sua tribo)" : "Sem dados desta squad ainda"}
+                      </td>
                     ) : (
                       <>
                         <td className="py-4 px-3 text-muted-foreground">{sq.rollup?.sprintName || "—"}</td>
@@ -157,7 +171,7 @@ export default function TribeLevelDashboard() {
               })}
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 px-3 text-muted-foreground">Nenhuma squad encontrada.</td>
+                  <td colSpan={5} className="py-6 px-3 text-muted-foreground">{loadError ? `Não foi possível carregar as squads: ${loadError}` : "Nenhuma squad encontrada."}</td>
                 </tr>
               )}
             </tbody>

@@ -61,6 +61,8 @@ export interface CustomJqlPanel {
   resultRows?: { label: string; value: number }[];
   resultIssues?: { key: string; title: string; status: string; type: string }[];
   lastUpdated?: string;
+  /** true quando o resultado veio dos dados sincronizados da squad (sem consulta direta ao Jira) e é só uma aproximação */
+  approximate?: boolean;
 }
 
 const DEFAULT_PANELS_TEMPLATES = (squadKey: string): CustomJqlPanel[] => [
@@ -175,10 +177,14 @@ export function CustomJqlPanelsSection() {
         priority?: string;
       }> = [];
 
+      // true quando o Jira respondeu à consulta (mesmo com 0 issues). Só sem resposta cai na aproximação local.
+      let answeredByJira = false;
+
       if (creds?.domain && creds?.token && panel.jql) {
         try {
           const res = await fetchJiraIssues(creds.domain, creds.token, panel.jql);
           if (Array.isArray(res)) {
+            answeredByJira = true;
             matchedIssues = res.map((i) => ({
               key: i.key,
               title: i.title || i.key,
@@ -193,8 +199,10 @@ export function CustomJqlPanelsSection() {
         }
       }
 
-      // Fallback: Se não retornou via API externa, filtra os dados locais sincronizados do Jira
-      if (matchedIssues.length === 0 && squadIssues.length > 0) {
+      // Fallback só quando o Jira NÃO respondeu (sem token, erro de rede/JQL). Antes, uma consulta que de fato
+      // dava 0 resultados caía aqui e mostrava issues sincronizadas que não correspondem à JQL.
+      const approximate = !answeredByJira && squadIssues.length > 0;
+      if (approximate) {
         const jqlLower = panel.jql.toLowerCase();
         matchedIssues = squadIssues
           .filter((iss) => {
@@ -209,8 +217,8 @@ export function CustomJqlPanelsSection() {
             status: iss.status,
             type: iss.type || "Story",
             assignee: iss.assigneeName || "Não Atribuído",
-            // squad não rastreia prioridade (sem coluna correspondente na API) — fixo em "Medium"
-            priority: "Medium",
+            // o snapshot da squad não guarda prioridade; não inventa uma
+            priority: "Sem prioridade",
           }));
       }
 
@@ -255,6 +263,7 @@ export function CustomJqlPanelsSection() {
         resultRows: rows,
         resultIssues: issueRows,
         lastUpdated: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        approximate,
       };
     },
     [squadIssues]
@@ -421,7 +430,7 @@ export function CustomJqlPanelsSection() {
                       ) : (
                         <Lock className="h-3 w-3 text-muted-foreground" />
                       )}
-                      {panel.visibility}
+                      {panel.visibility === "squad" ? "Squad" : "Privado"}
                     </span>
 
                     <button
@@ -457,6 +466,12 @@ export function CustomJqlPanelsSection() {
                     <span className="text-primary font-bold">JQL: </span>
                     {panel.jql}
                   </div>
+
+                  {panel.approximate && !isRunning && (
+                    <p role="note" className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Aproximação: o Jira não respondeu à consulta (confira o token), então este resultado usa as issues já sincronizadas da squad e pode não bater com a JQL.
+                    </p>
+                  )}
 
                   {/* Render do Gráfico */}
                   {isRunning ? (
@@ -664,6 +679,9 @@ export function CustomJqlPanelsSection() {
                     <SelectItem value="private">Privado (Apenas Eu)</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Por enquanto os painéis ficam salvos só neste navegador; o compartilhamento com o resto da squad ainda não está ativo.
+                </p>
               </div>
             </div>
           </div>

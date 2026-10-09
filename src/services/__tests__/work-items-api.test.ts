@@ -96,3 +96,27 @@ describe('workItemsApi - Cliente HTTP de Integração com Backend de Work Items'
     expect(result).toEqual(mockStats);
   });
 });
+
+describe('workItemsApi - mensagem de erro do servidor', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('mostra a frase do servidor quando ele recusa (ex.: estimativa inválida)', async () => {
+    vi.spyOn(authClient, 'authFetch').mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ message: 'Estimativa inválida: use um número entre 0 e 1000.' }),
+    } as any);
+
+    await expect(workItemsApi.estimateWorkItem('SQ1', 'DDW-1', -3)).rejects.toThrow('Estimativa inválida: use um número entre 0 e 1000.');
+  });
+
+  it('codifica squad e chave na URL', async () => {
+    const spy = vi.spyOn(authClient, 'authFetch').mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    await workItemsApi.estimateWorkItem('Squad Geral', 'DDW-1', 3);
+
+    expect(spy.mock.calls[0][0]).toContain('/work-items/Squad%20Geral/DDW-1/estimate');
+  });
+});

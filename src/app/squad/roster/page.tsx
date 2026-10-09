@@ -52,6 +52,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+// Horas por dia padrão da squad (o servidor semeia o roster com 6 h quando a squad não define outro valor).
+const DEFAULT_DAILY_HOURS = 6;
+
+/** Uma linha de CSV respeitando aspas ("Silva, Ana" é uma coluna só e "" é aspas dentro do campo). */
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cur += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === ',') { out.push(cur.trim()); cur = ''; }
+    else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
 const SQUAD_ROLES = [
   'Developer',
   'QA',
@@ -209,7 +231,7 @@ function RosterContent() {
   const [calcMethod, setCalcMethod] = useState<string>('STANDARD');
   const [customJql, setCustomJql] = useState<string>('');
   const [customFormula, setCustomFormula] = useState<string>('0.85'); // default 85% focus factor
-  const [baseCapacity, setBaseCapacity] = useState<number>(8);
+  const [baseCapacity, setBaseCapacity] = useState<number>(DEFAULT_DAILY_HOURS);
   const [isSavingRule, setIsSavingRule] = useState(false);
 
   // Edit draft state per member: { [jiraAccountId]: { capacity: number, role: string, notes: string } }
@@ -294,7 +316,7 @@ function RosterContent() {
   const [manualName, setManualName] = useState('');
   const [manualEmail, setManualEmail] = useState('');
   const [manualRole, setManualRole] = useState('Developer');
-  const [manualCapacity, setManualCapacity] = useState(8);
+  const [manualCapacity, setManualCapacity] = useState(DEFAULT_DAILY_HOURS);
   const [isSavingManual, setIsSavingManual] = useState(false);
 
   const handleManualAddMember = async () => {
@@ -309,14 +331,14 @@ function RosterContent() {
         displayName: manualName.trim(),
         email: manualEmail.trim() || undefined,
         role: manualRole,
-        capacityHoursPerDay: manualCapacity || 8,
+        capacityHoursPerDay: manualCapacity || DEFAULT_DAILY_HOURS,
         overrideType: 'MANUAL_OVERRIDE',
       });
       toast({ title: 'Integrante adicionado', description: `${manualName.trim()} entrou na equipe. Ajuste as horas se precisar.` });
       setManualName('');
       setManualEmail('');
       setManualRole('Developer');
-      setManualCapacity(8);
+      setManualCapacity(DEFAULT_DAILY_HOURS);
       setIsManualAddOpen(false);
     } catch (err: any) {
       toast({ title: 'Não foi possível adicionar', description: err?.message || 'Tente novamente.', variant: 'destructive' });
@@ -339,7 +361,7 @@ function RosterContent() {
       setCalcMethod(config.capacityCalculationMethod || 'STANDARD');
       setCustomJql(config.capacityJql || '');
       setCustomFormula(config.capacityFormula || '0.85');
-      setBaseCapacity(config.defaultDailyCapacityHours || 8);
+      setBaseCapacity(config.defaultDailyCapacityHours || DEFAULT_DAILY_HOURS);
     }
   }, [config]);
 
@@ -348,7 +370,7 @@ function RosterContent() {
     const drafts: Record<string, { capacity: number; role: string; notes: string }> = {};
     members.forEach(m => {
       drafts[m.jiraAccountId] = {
-        capacity: m.capacityHoursPerDay ?? 8,
+        capacity: m.capacityHoursPerDay ?? baseCapacity,
         role: m.role || 'Developer',
         notes: m.calibrationNotes || '',
       };
@@ -361,7 +383,7 @@ function RosterContent() {
     if (m.systemCalculatedCapacityHoursPerDay && m.systemCalculatedCapacityHoursPerDay > 0) {
       return m.systemCalculatedCapacityHoursPerDay;
     }
-    const base = baseCapacity || 8;
+    const base = baseCapacity || DEFAULT_DAILY_HOURS;
     if (calcMethod === 'CUSTOM_FORMULA') {
       const factor = parseFloat(customFormula) || 0.85;
       return Math.round(base * factor * 10) / 10;
@@ -379,7 +401,7 @@ function RosterContent() {
 
       const matchesRole = roleFilter === 'ALL' || (m.role || 'Developer') === roleFilter;
 
-      const overrideType = m.overrideType || (m.capacityHoursPerDay && m.capacityHoursPerDay !== 8 ? 'MANUAL_OVERRIDE' : 'SYSTEM');
+      const overrideType = m.overrideType || (m.capacityHoursPerDay && m.capacityHoursPerDay !== (baseCapacity || DEFAULT_DAILY_HOURS) ? 'MANUAL_OVERRIDE' : 'SYSTEM');
       const matchesOverride =
         overrideFilter === 'ALL' ||
         (overrideFilter === 'OVERRIDDEN' && overrideType !== 'SYSTEM') ||
@@ -391,19 +413,18 @@ function RosterContent() {
 
   // KPI Calculations
   const totalMembersCount = members.length;
-  const totalCalibratedDailyHours = members.reduce((sum, m) => sum + (m.capacityHoursPerDay ?? 8), 0);
+  const totalCalibratedDailyHours = members.reduce((sum, m) => sum + (m.capacityHoursPerDay ?? baseCapacity), 0);
   const totalSystemDailyHours = members.reduce((sum, m) => sum + calculateSystemHours(m), 0);
-  const avgCalibratedDailyHours = totalMembersCount > 0 ? (totalCalibratedDailyHours / totalMembersCount).toFixed(1) : '8.0';
+  const avgCalibratedDailyHours = totalMembersCount > 0 ? (totalCalibratedDailyHours / totalMembersCount).toFixed(1) : '—';
   const customOverridesCount = members.filter(m => m.overrideType && m.overrideType !== 'SYSTEM').length;
 
   // Save Squad Calculation Rule
   const handleSaveRule = async () => {
     setIsSavingRule(true);
     try {
+      // Escrita parcial: só a regra de capacidade. Antes reenviava chave do projeto, JQL e ranking lidos na abertura
+      // da tela (e, com a configuração ainda sem carregar, gravava a JQL vazia).
       await saveSquadConfig(activeSquadId, {
-        jiraProjectKey: config?.jiraProjectKey || activeSquadId,
-        syncJql: config?.syncJql || '',
-        rankingEnabled: config?.rankingEnabled ?? false,
         defaultDailyCapacityHours: baseCapacity,
         capacityCalculationMethod: calcMethod,
         capacityJql: customJql,
@@ -542,7 +563,7 @@ function RosterContent() {
     ];
 
     const rows = members.map(m => {
-      const draft = editDrafts[m.jiraAccountId] || { capacity: m.capacityHoursPerDay ?? 8, role: m.role || 'Developer', notes: m.calibrationNotes || '' };
+      const draft = editDrafts[m.jiraAccountId] || { capacity: m.capacityHoursPerDay ?? baseCapacity, role: m.role || 'Developer', notes: m.calibrationNotes || '' };
       const sysHours = calculateSystemHours(m);
       const override = m.overrideType || (draft.capacity !== sysHours ? 'MANUAL_OVERRIDE' : 'SYSTEM');
 
@@ -601,14 +622,16 @@ function RosterContent() {
 
         for (let i = 1; i < lines.length; i++) {
           const rowStr = lines[i];
-          const cols = rowStr.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+          const cols = parseCsvLine(rowStr);
           if (cols.length < 2) continue;
 
           const jiraAccountId = cols[0];
           const displayName = cols[1] || jiraAccountId;
           const email = cols[2] || '';
           const role = cols[3] || 'Developer';
-          const capacityVal = parseFloat(cols[5] || cols[4]) || 8;
+          const parsedCapacity = parseFloat((cols[5] || cols[4] || '').replace(',', '.'));
+          // Valor ilegível ou fora de 0–24 h não vira "8 h": mantém o que a pessoa já tem (ou o padrão da squad).
+          const capacityVal = Number.isFinite(parsedCapacity) && parsedCapacity > 0 && parsedCapacity <= 24 ? parsedCapacity : NaN;
           const notes = cols[7] || cols[6] || '';
 
           const existing = members.find(m =>
@@ -622,7 +645,7 @@ function RosterContent() {
             displayName: existing ? existing.displayName : displayName,
             role: role || (existing?.role || 'Developer'),
             email: email || (existing?.email || ''),
-            importedCapacity: capacityVal,
+            importedCapacity: Number.isFinite(capacityVal) ? capacityVal : (existing?.capacityHoursPerDay ?? baseCapacity),
             notes: notes || 'Importado via planilha',
             existingMember: existing,
           });
@@ -655,7 +678,7 @@ function RosterContent() {
           email: row.email,
           role: row.role,
           capacityHoursPerDay: row.importedCapacity,
-          systemCalculatedCapacityHoursPerDay: existing ? calculateSystemHours(existing) : 8,
+          systemCalculatedCapacityHoursPerDay: existing ? calculateSystemHours(existing) : baseCapacity,
           calibrationNotes: row.notes,
           overrideType: 'IMPORTED_EXCEL',
           claimedByUid: existing?.claimedByUid,
@@ -738,7 +761,7 @@ function RosterContent() {
           </Button>
 
           <label className="cursor-pointer">
-            <input type="file" accept=".csv, .txt, .xlsx" onChange={handleFileUpload} className="hidden" />
+            <input type="file" accept=".csv,.txt" onChange={handleFileUpload} className="hidden" />
             <div className="h-9 px-3.5 text-xs font-bold gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/20 flex items-center justify-center transition-all">
               <Upload className="h-4 w-4" /> Importar Planilha
             </div>
@@ -924,7 +947,7 @@ function RosterContent() {
               <Input
                 type="number" min={1} max={16}
                 value={baseCapacity}
-                onChange={e => setBaseCapacity(Number(e.target.value) || 8)}
+                onChange={e => setBaseCapacity(Number(e.target.value) || DEFAULT_DAILY_HOURS)}
                 className="h-9 rounded-xl text-xs bg-white dark:bg-slate-950"
               />
             </div>
@@ -1054,7 +1077,7 @@ function RosterContent() {
                 </tr>
               ) : (
                 filteredMembers.map(m => {
-                  const draft = editDrafts[m.jiraAccountId] || { capacity: m.capacityHoursPerDay ?? 8, role: m.role || 'Developer', notes: m.calibrationNotes || '' };
+                  const draft = editDrafts[m.jiraAccountId] || { capacity: m.capacityHoursPerDay ?? baseCapacity, role: m.role || 'Developer', notes: m.calibrationNotes || '' };
                   const systemHours = calculateSystemHours(m);
                   const calibratedHours = draft.capacity;
                   const weeklyHours = (calibratedHours * 5).toFixed(0);
@@ -1355,7 +1378,7 @@ function RosterContent() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {importedRows.map((row, idx) => {
-                    const currentCap = row.existingMember?.capacityHoursPerDay ?? 8;
+                    const currentCap = row.existingMember?.capacityHoursPerDay ?? baseCapacity;
                     const isChanged = currentCap !== row.importedCapacity;
                     return (
                       <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
@@ -1441,7 +1464,7 @@ function RosterContent() {
                 <Input
                   type="number" min={1} max={16}
                   value={manualCapacity}
-                  onChange={e => setManualCapacity(Number(e.target.value) || 8)}
+                  onChange={e => setManualCapacity(Number(e.target.value) || DEFAULT_DAILY_HOURS)}
                   className="h-10 text-sm rounded-xl"
                 />
               </div>

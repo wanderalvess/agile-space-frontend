@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { SquadRituals } from '@/components/squad/SquadRituals';
 import type { SquadConfig, SquadMember, SquadMetricsRollup } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { percentOf, sprintTimeProgress } from '@/lib/squad-metrics';
 
 interface SquadOverviewProps {
   squadId: string;
@@ -91,10 +92,16 @@ export function SquadOverview({
   const loggedH = Math.round((rollup?.loggedTotalSec ?? 0) / 3600);
   const estimateH = Math.round((rollup?.estimateTotalSec ?? 0) / 3600);
 
-  const wdTotal = rollup?.workdaysTotal ?? 0;
-  const wdLeft = rollup?.workdaysRemaining ?? 0;
-  const timePct = wdTotal > 0 ? Math.min(100, Math.max(0, Math.round(((wdTotal - wdLeft) / wdTotal) * 100))) : null;
-  const workPct = total > 0 ? Math.round((done / total) * 100) : null;
+  // Tempo da sprint a partir das datas reais (início/fim gravados no rollup). O servidor nunca grava
+  // "dias úteis restantes", então antes a tela mostrava "faltam 0 dias" e 100% do tempo em toda sprint.
+  const progress = sprintTimeProgress(
+    rollup?.extraMetrics?.activeSprintStart as string | undefined,
+    rollup?.extraMetrics?.activeSprintEnd as string | undefined,
+  );
+  const wdTotal = progress?.total ?? 0;
+  const wdLeft = progress?.remaining ?? 0;
+  const timePct = progress ? progress.pct : null;
+  const workPct = percentOf(done, total);
   const sprintName = rollup?.sprintName || (config?.activeSprintId ? `Sprint ${config.activeSprintId}` : '');
 
   const attention: { tone: string; text: string; actionLabel?: string; onAction?: () => void }[] = [];
@@ -157,7 +164,7 @@ export function SquadOverview({
           {rollup ? 'Resumo dos itens da sprint, vindo do Jira.' : 'Os números aparecem aqui depois da primeira sincronização com o Jira.'}
         </p>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Concluídos" value={done} unit={`de ${total} itens`} tone="ok" hint={total > 0 ? `${Math.round((done / total) * 100)}% do escopo da sprint` : 'Sem itens ainda'} />
+          <StatCard label="Concluídos" value={done} unit={`de ${total} itens`} tone="ok" hint={workPct !== null ? `${workPct}% do escopo da sprint` : 'Sem itens ainda'} />
           <StatCard label="Em andamento" value={inProgress} unit="itens" tone="info" hint={`${notStarted} ${notStarted === 1 ? 'ainda não foi iniciado' : 'ainda não foram iniciados'}`} />
           <StatCard
             label="Atrasados" value={overdue} unit="itens" tone={overdue > 0 ? 'warn' : 'neutral'}

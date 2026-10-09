@@ -3,6 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import { DashboardFilters } from "@/components/ui/DashboardFilters";
+import { DashboardDataNotice, NoDataWidget } from "@/components/squad/dashboards/DashboardDataNotice";
+import { isBugIssue, isDoneIssue, isInProgressIssue, percentOf } from "@/lib/squad-metrics";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
 import { GaugeChart } from "@/components/ui/GaugeChart";
 import { KPICard } from "@/components/ui/KPICard";
@@ -25,6 +27,9 @@ import {
 
 export default function AgileMasterDashboard() {
   const {
+    hasSquad,
+    loading,
+    error,
     rollup,
     issues,
     sprintOptions,
@@ -32,12 +37,14 @@ export default function AgileMasterDashboard() {
     setSelectedSprint,
   } = useSquadDashboardData();
 
-  const total = rollup?.totalIssues || issues.length || 0;
-  const done = rollup?.doneIssues || issues.filter((i) => i.status?.toLowerCase().includes("done")).length || 0;
-  const inProgress = rollup?.inProgressIssues || issues.filter((i) => i.status?.toLowerCase().includes("progress")).length || 0;
-  const bugs = rollup?.bugIssues || issues.filter((i) => i.type?.toLowerCase() === "bug").length || 0;
+  const total = rollup?.totalIssues ?? issues.length;
+  const done = rollup?.doneIssues ?? issues.filter(isDoneIssue).length;
+  const inProgress = rollup?.inProgressIssues ?? issues.filter(isInProgressIssue).length;
+  const bugs = rollup?.bugIssues ?? issues.filter(isBugIssue).length;
+  const hasData = !!rollup || issues.length > 0;
 
-  const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+  // null = sem escopo ainda (mostra "sem dados" em vez de 0%)
+  const completionRate = percentOf(done, total);
 
   const statusDistribution = [
     { name: "Concluído", value: done, color: "#22C55E" },
@@ -49,6 +56,8 @@ export default function AgileMasterDashboard() {
     <div className="flex flex-col gap-6">
       {/* Abas com controle de acesso por Cargo */}
       <DashboardNavTabs />
+
+      <DashboardDataNotice hasSquad={hasSquad} loading={loading} error={error} hasData={hasData} />
 
       {/* Top Banner & Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
@@ -82,11 +91,15 @@ export default function AgileMasterDashboard() {
       {/* Grid de Métricas Ágeis */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Saúde da Sprint / Conclusão */}
-        <GaugeChart
-          title="Itens entregues na sprint"
-          value={completionRate}
-          description={`${done} de ${total} histórias/itens concluídos na sprint.`}
-        />
+        {completionRate === null ? (
+          <NoDataWidget title="Itens entregues na sprint" message="Ainda não há itens na sprint." />
+        ) : (
+          <GaugeChart
+            title="Itens entregues na sprint"
+            value={completionRate}
+            description={`${done} de ${total} histórias/itens concluídos na sprint.`}
+          />
+        )}
 
         {/* Distribuição do Fluxo de Trabalho */}
         <WidgetCard title="Status das histórias (Jira)">
@@ -118,7 +131,7 @@ export default function AgileMasterDashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute flex flex-col items-center justify-center text-center">
-              <span className="text-3xl font-extrabold text-foreground">{completionRate}%</span>
+              <span className="text-3xl font-extrabold text-foreground">{completionRate === null ? "—" : `${completionRate}%`}</span>
               <span className="text-[10px] text-muted-foreground">Entregue</span>
             </div>
           </div>
@@ -127,9 +140,9 @@ export default function AgileMasterDashboard() {
         {/* Impedimentos & Bugs */}
         <KPICard
           title="Bugs e impedimentos"
-          value={bugs}
+          value={hasData ? bugs : "—"}
           icon={<AlertCircle className="h-5 w-5 text-destructive" />}
-          subtitle={bugs > 0 ? `${bugs} ${bugs === 1 ? "bug reportado" : "bugs reportados"} na sprint atual.` : "Nenhum bloqueio ou bug crítico reportado."}
+          subtitle={!hasData ? "Sem dados desta squad ainda." : bugs > 0 ? `${bugs} ${bugs === 1 ? "bug reportado" : "bugs reportados"} na sprint.` : "Nenhum bug na sprint. (Impedimentos não são lidos do Jira por aqui.)"}
         />
 
         {/* Aderência a Planos de Ação e Retros */}

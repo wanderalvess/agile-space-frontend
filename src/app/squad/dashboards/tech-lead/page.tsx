@@ -2,6 +2,8 @@
 
 import React from "react";
 import { DashboardFilters } from "@/components/ui/DashboardFilters";
+import { DashboardDataNotice, NoDataWidget } from "@/components/squad/dashboards/DashboardDataNotice";
+import { isBugIssue, isDoneIssue, isInProgressIssue, percentOf } from "@/lib/squad-metrics";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
 import { KPICard } from "@/components/ui/KPICard";
 import { WidgetCard } from "@/components/ui/WidgetCard";
@@ -23,25 +25,27 @@ import {
 
 export default function TechLeadDashboard() {
   const {
+    hasSquad,
+    loading,
+    error,
     rollup,
     issues,
-    members,
     sprintOptions,
     selectedSprint,
     setSelectedSprint,
   } = useSquadDashboardData();
 
-  const total = rollup?.totalIssues || issues.length || 0;
-  const bugs = rollup?.bugIssues || issues.filter((i) => i.type?.toLowerCase() === "bug").length || 0;
-  const inProgress = rollup?.inProgressIssues || issues.filter((i) => i.status?.toLowerCase().includes("progress")).length || 0;
+  const total = rollup?.totalIssues ?? issues.length;
+  const bugs = rollup?.bugIssues ?? issues.filter(isBugIssue).length;
+  const hasData = !!rollup || issues.length > 0;
 
   // Distribuição de esforço baseada em tipos reais de issues
   const isTechDebt = (i: { title?: string }) => /debt|refactor|débito/i.test(i.title || "");
-  const featuresCount = issues.filter((i) => i.type?.toLowerCase() !== "bug" && !isTechDebt(i)).length;
+  const featuresCount = issues.filter((i) => !isBugIssue(i) && !isTechDebt(i)).length;
   const techDebtCount = issues.filter(isTechDebt).length;
   const inReviewCount = issues.filter((i) => i.status?.toLowerCase().includes("review")).length;
   const inQaCount = issues.filter((i) => i.status?.toLowerCase().includes("qa") || i.status?.toLowerCase().includes("test")).length;
-  const pct = (n: number) => `${Math.min(100, Math.round((n / Math.max(1, total)) * 100))}%`;
+  const pct = (n: number) => `${percentOf(n, total) ?? 0}%`;
 
   const effortData = [
     { name: "Funcionalidades", value: featuresCount, color: "hsl(var(--primary))" },
@@ -61,13 +65,15 @@ export default function TechLeadDashboard() {
     .map(([name, count]) => ({
       name,
       score: `${count} ${count === 1 ? "tarefa" : "tarefas"}`,
-      percent: Math.min(100, Math.round((count / Math.max(1, total)) * 100)),
+      percent: percentOf(count, total) ?? 0,
     }));
 
   return (
     <div className="flex flex-col gap-6">
       {/* Abas com controle de acesso por Cargo */}
       <DashboardNavTabs />
+
+      <DashboardDataNotice hasSquad={hasSquad} loading={loading} error={error} hasData={hasData} />
 
       {/* Top Banner & Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
@@ -160,9 +166,9 @@ export default function TechLeadDashboard() {
         {/* Bug KPI */}
         <KPICard
           title="Bugs na sprint"
-          value={bugs}
+          value={hasData ? bugs : "—"}
           icon={<ShieldAlert className="h-5 w-5 text-destructive" />}
-          subtitle={bugs > 0 ? `${bugs} ${bugs === 1 ? "bug reportado" : "bugs reportados"} na sprint atual.` : "Zero bugs críticos em aberto."}
+          subtitle={!hasData ? "Sem dados desta squad ainda." : bugs > 0 ? `${bugs} ${bugs === 1 ? "bug reportado" : "bugs reportados"} na sprint.` : "Nenhum bug na sprint."}
         />
 
         {/* Carga por Desenvolvedor / Contribuição */}

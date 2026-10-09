@@ -2,6 +2,8 @@
 
 import React from "react";
 import { DashboardFilters } from "@/components/ui/DashboardFilters";
+import { DashboardDataNotice, NoDataWidget } from "@/components/squad/dashboards/DashboardDataNotice";
+import { isAssignedTo } from "@/lib/squad-metrics";
 import { DashboardNavTabs } from "@/components/squad/dashboards/DashboardNavTabs";
 import { WidgetCard } from "@/components/ui/WidgetCard";
 import { KPICard } from "@/components/ui/KPICard";
@@ -20,6 +22,9 @@ import {
 
 export default function PeopleLeadDashboard() {
   const {
+    hasSquad,
+    loading,
+    error,
     members,
     issues,
     rollup,
@@ -27,17 +32,14 @@ export default function PeopleLeadDashboard() {
     selectedSprint,
     setSelectedSprint,
   } = useSquadDashboardData();
+  const hasData = !!rollup || issues.length > 0 || members.length > 0;
 
-  // Calcular carga real de cada membro com base nas issues da squad
+  // Carga real de cada pessoa. Casa por id do Jira ou nome completo igual (antes: "contém", e "Ana" pegava as
+  // tarefas de "Mariana"). Sem horas por dia cadastradas, não inventa 8 h: a pessoa fica sem barra de capacidade.
   const workloadData = members.map((m) => {
-    const assignedIssues = issues.filter(
-      (iss) =>
-        iss.assigneeId === m.jiraAccountId ||
-        (m.displayName && iss.assigneeName?.toLowerCase().includes(m.displayName.toLowerCase()))
-    );
+    const assignedIssues = issues.filter((iss) => isAssignedTo(iss, m));
 
-    const taskCount = assignedIssues.length;
-    const capacity = (m.capacityHoursPerDay || 8) * 5; // capacidade semanal padrão
+    const capacity = m.capacityHoursPerDay ? m.capacityHoursPerDay * 5 : 0; // semana de 5 dias úteis
     // Horas estimadas no Jira para as tarefas da pessoa; sem estimativa fica 0 (antes: 8 h por tarefa e 8 h "de piso").
     const estimatedHours = Math.round(assignedIssues.reduce((acc, iss) => acc + (iss.estimateSec || 0), 0) / 3600);
 
@@ -53,6 +55,8 @@ export default function PeopleLeadDashboard() {
     <div className="flex flex-col gap-6">
       {/* Abas com controle de acesso por Cargo */}
       <DashboardNavTabs />
+
+      <DashboardDataNotice hasSquad={hasSquad} loading={loading} error={error} hasData={hasData} />
 
       {/* Top Banner & Filters */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-lg">
@@ -88,7 +92,7 @@ export default function PeopleLeadDashboard() {
         {/* Equilíbrio de Carga Nominal */}
         <WidgetCard title="Carga de trabalho e capacidade" className="lg:col-span-2">
           <p className="text-[11px] text-muted-foreground mb-4">
-            Horas estimadas no Jira para as tarefas de cada pessoa, ao lado da capacidade da semana (horas por dia × 5). Tarefas sem estimativa no Jira não entram na conta.
+            Horas estimadas no Jira para as tarefas de cada pessoa, ao lado da capacidade da semana (horas por dia × 5). Tarefas sem estimativa no Jira não entram na conta, e quem não tem horas por dia cadastradas fica sem barra de capacidade.
           </p>
           {workloadData.length === 0 && (
             <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma pessoa no time ainda. Cadastre as pessoas em Pessoas do time.</p>

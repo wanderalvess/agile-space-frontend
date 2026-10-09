@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { formatShortDate } from '@/lib/squad-metrics';
 import { useJiraSettings, getJiraCredentials } from '@/hooks/useJiraSettings';
 import Link from 'next/link';
 
@@ -37,19 +38,6 @@ import { SquadDataState, deriveSquadDataState } from '@/components/squad/SquadDa
 import { SquadOverview } from '@/components/squad/SquadOverview';
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
 const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard').then(mod => mod.SquadScrumBoard), { ssr: false });
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-}
-
-function DueCell({ dueDate }: { dueDate: string }) {
-  if (!dueDate) return <span className="text-slate-300 dark:text-slate-700">—</span>;
-  const days = Math.floor((new Date(dueDate).getTime() - Date.now()) / 86_400_000);
-  const tone = days < 0 ? 'text-rose-500 font-black' : days <= 3 ? 'text-amber-500 font-bold' : 'text-slate-500 dark:text-slate-400';
-  return <span className={tone}>{formatShortDate(dueDate)}</span>;
-}
 
 function timeAgo(iso?: string): string {
   if (!iso) return 'nunca';
@@ -254,6 +242,12 @@ function SquadHubContent() {
         }
         await saveJiraSettings({ domain: dom, token: jiraToken.trim() });
       }
+      if (!isLeadership) {
+        // Quem não é liderança só conecta o próprio Jira; a configuração da squad é da liderança (o servidor também recusa).
+        setIsSettingsOpen(false);
+        toast({ title: 'Conexão salva', description: 'O seu Jira está conectado. A configuração da squad (projeto, capacidade, filtro) é feita pela liderança.' });
+        return;
+      }
       await saveSquadConfig(squadId, {
         jiraProjectKey: projectKey.trim().toUpperCase(),
         syncJql: jql.trim(),
@@ -295,19 +289,9 @@ function SquadHubContent() {
       return;
     }
     try {
-      // saveSquadConfig substitui o registro inteiro — reenvia os campos já
-      // salvos do próprio config (não tem form próprio pra eles aqui) junto
-      // com o phases novo, senão o merge no backend limparia o resto.
-      await saveSquadConfig(squadId, {
-        jiraProjectKey: config.jiraProjectKey,
-        syncJql: config.syncJql,
-        rankingEnabled: !!config.rankingEnabled,
-        defaultDailyCapacityHours: config.defaultDailyCapacityHours || 6,
-        jiraDomain: config.jiraDomain,
-        sprintFieldId: config.sprintFieldId,
-        rapidViewId: config.rapidViewId,
-        phases,
-      });
+      // Escrita parcial: só as fases. O servidor preserva o resto da configuração (antes reenviava o config
+      // inteiro lido na abertura da tela e podia desfazer uma edição feita por outra pessoa nesse meio-tempo).
+      await saveSquadConfig(squadId, { phases });
       setIsPhasesOpen(false);
       toast({ title: 'Fases salvas', description: 'O cronograma do Jira Plans passa a usar essa ordem e cor.' });
     } catch (err: any) {
@@ -454,10 +438,12 @@ function SquadHubContent() {
               <Settings2 className="h-3.5 w-3.5" />
               <span className="hidden xl:inline text-xs font-semibold">Configurar</span>
             </Button>
-            <Button size="sm" variant="outline" className="h-9 px-2.5 xl:px-3 gap-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsPhasesOpen(true)} title="Fases e cores das barras do Cronograma" aria-label="Fases do Cronograma">
-              <Workflow className="h-3.5 w-3.5" />
-              <span className="hidden xl:inline text-xs font-semibold">Fases</span>
-            </Button>
+            {isLeadership && (
+              <Button size="sm" variant="outline" className="h-9 px-2.5 xl:px-3 gap-1.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800" onClick={() => setIsPhasesOpen(true)} title="Fases e cores das barras do Cronograma" aria-label="Fases do Cronograma">
+                <Workflow className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline text-xs font-semibold">Fases</span>
+              </Button>
+            )}
           </div>
         }
       >
@@ -641,7 +627,7 @@ function SquadHubContent() {
                         <div key={d.date} className="flex items-center gap-2.5 text-sm">
                           <span className="w-16 shrink-0 font-bold text-slate-500 dark:text-slate-400 tabular-nums">{formatShortDate(d.date)}</span>
                           <div className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500" style={{ width: `${Math.round((d.loggedDelta / 10) * 100)}%` }} />
+                            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500" style={{ width: `${Math.min(100, Math.round((d.loggedDelta / 10) * 100))}%` }} />
                           </div>
                           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tabular-nums w-16 text-right shrink-0">{d.loggedDelta.toFixed(1)}h</span>
                           <span className="text-xs font-medium text-slate-500 dark:text-slate-400 tabular-nums w-16 text-right shrink-0">{d.doneDelta} concl.</span>
@@ -697,7 +683,7 @@ function SquadHubContent() {
                           </Badge>
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-                          <span>Capacidade: {m.capacityHoursPerDay || 8}h/dia</span>
+                          <span>{m.capacityHoursPerDay ? `Capacidade: ${m.capacityHoursPerDay}h/dia` : 'Capacidade ainda não definida'}</span>
                           {isMe && (
                             <span className="text-emerald-500 font-bold flex items-center gap-1">
                               ● Você
@@ -783,6 +769,13 @@ function SquadHubContent() {
                 </div>
               </section>
 
+              {!isLeadership && (
+                <p className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  O projeto, a capacidade e o filtro de issues da squad são configurados pela liderança (Agile Master, People Lead, Tech Lead, PO). Aqui você só conecta o seu Jira.
+                </p>
+              )}
+
+              {isLeadership && (<>
               <section className="space-y-3 rounded-2xl border border-border bg-muted/30 p-4">
                 <h3 className="text-sm font-bold">2. Projeto da squad</h3>
                 <div className="space-y-1.5">
@@ -870,6 +863,7 @@ function SquadHubContent() {
                   </div>
                 </div>
               </details>
+              </>)}
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button variant="ghost" onClick={() => setIsSettingsOpen(false)} className="rounded-xl text-sm font-semibold text-muted-foreground">

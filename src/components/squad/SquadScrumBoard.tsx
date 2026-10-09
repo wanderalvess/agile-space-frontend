@@ -1,7 +1,7 @@
 'use client';
 
 import { SquadDataState } from '@/components/squad/SquadDataState';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   RefreshCw,
   SlidersHorizontal,
@@ -172,8 +172,13 @@ export function SquadScrumBoard({
     setBoardData(prev => applyLocalOverrides(prev, squadId));
   }, [squadId]);
 
+  // Só a resposta da carga mais recente vale: trocar de squad/quadro (ou clicar em atualizar de novo) enquanto uma
+  // busca está em voo deixava a resposta velha sobrescrever o quadro novo.
+  const loadSeqRef = useRef(0);
+
   // Busca dados do quadro
   const loadBoardData = async (showToast = false) => {
+    const seq = ++loadSeqRef.current;
     setIsLoading(true);
     try {
       // Sem ID de quadro configurado: descobre pelo projeto no Jira e guarda na configuração da squad,
@@ -195,6 +200,7 @@ export function SquadScrumBoard({
         rapidViewId: boardId || '',
         selectedProjectKey: jiraProjectKey,
       });
+      if (seq !== loadSeqRef.current) return;
       // Reaplica os overrides locais por cima do fetch — sem isso, qualquer
       // filtro/raia/WIP customizado salvo era descartado a cada refresh.
       setBoardData(applyLocalOverrides(data, squadId));
@@ -224,14 +230,16 @@ export function SquadScrumBoard({
         variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
-      setHasLoadedOnce(true);
+      if (seq === loadSeqRef.current) {
+        setIsLoading(false);
+        setHasLoadedOnce(true);
+      }
     }
   };
 
   useEffect(() => {
     loadBoardData(false);
-  }, [rapidViewId, jiraProjectKey, activeDomain, activeToken]);
+  }, [squadId, rapidViewId, jiraProjectKey, activeDomain, activeToken]);
 
   // Alterna filtro rápido
   const toggleFilter = (filterName: string) => {

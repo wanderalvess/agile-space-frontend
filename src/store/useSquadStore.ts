@@ -63,10 +63,10 @@ interface SquadStoreState {
   saveSquadConfig: (
     squadId: string,
     updates: {
-      jiraProjectKey: string;
-      syncJql: string;
-      rankingEnabled: boolean;
-      defaultDailyCapacityHours: number;
+      jiraProjectKey?: string;
+      syncJql?: string;
+      rankingEnabled?: boolean;
+      defaultDailyCapacityHours?: number;
       jiraDomain?: string;
       sprintFieldId?: string;
       capacityCalculationMethod?: string;
@@ -136,9 +136,10 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     if (!squadId) return;
     set({ activeSquadId: squadId, isLoadingDetail: true });
     try {
+      // Horas por pessoa são só da liderança no servidor (403 para os demais): isso não pode derrubar o backlog.
       const [issuesSnapshot, memberMetrics] = await Promise.all([
         squadApi.getIssues(squadId),
-        squadApi.getMemberMetrics(squadId),
+        squadApi.getMemberMetrics(squadId).catch((): SquadMemberMetric[] => []),
       ]);
       if (get().activeSquadId !== squadId) return;
       set({
@@ -264,14 +265,17 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     // Detecta a transição false->true de rankingEnabled pra forçar uma sync
     // FULL seguinte (backfill de issueWorklogCache pra partição inteira).
     const current = get().config;
-    const rankingJustEnabled = updates.rankingEnabled && !current?.rankingEnabled;
+    const rankingJustEnabled = updates.rankingEnabled === true && !current?.rankingEnabled;
+    // Só vai o que foi informado: o servidor preserva o resto. Vazio nunca apaga a chave do projeto nem a JQL.
+    const projectKey = updates.jiraProjectKey?.trim();
+    const jql = updates.syncJql?.trim();
     const payload: Partial<SquadConfig> = {
       squadId,
-      name: current?.name || squadId,
-      jiraProjectKey: updates.jiraProjectKey.trim(),
-      syncJql: updates.syncJql.trim(),
-      rankingEnabled: updates.rankingEnabled,
-      defaultDailyCapacityHours: updates.defaultDailyCapacityHours,
+      ...(current?.name ? { name: current.name } : {}),
+      ...(projectKey ? { jiraProjectKey: projectKey } : {}),
+      ...(jql ? { syncJql: jql } : {}),
+      ...(updates.rankingEnabled !== undefined ? { rankingEnabled: updates.rankingEnabled } : {}),
+      ...(updates.defaultDailyCapacityHours !== undefined ? { defaultDailyCapacityHours: updates.defaultDailyCapacityHours } : {}),
       ...(updates.capacityCalculationMethod ? { capacityCalculationMethod: updates.capacityCalculationMethod } : {}),
       ...(updates.capacityJql !== undefined ? { capacityJql: updates.capacityJql } : {}),
       ...(updates.capacityFormula !== undefined ? { capacityFormula: updates.capacityFormula } : {}),
@@ -301,7 +305,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       const [config, rollup, memberMetrics] = await Promise.all([
         squadApi.getSquad(squadId),
         squadApi.getRollup(squadId),
-        squadApi.getMemberMetrics(squadId),
+        squadApi.getMemberMetrics(squadId).catch((): SquadMemberMetric[] => []),
       ]);
       if (get().activeSquadId !== squadId) return;
       set({
@@ -331,7 +335,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     set({ isLoadingViewedSprint: true });
     try {
       const [viewedRollup, issuesForSprint, myIssuesForSprint] = await Promise.all([
-        squadApi.getRollup(squadId),
+        // Antes lia o rollup da sprint ativa, então a sprint escolhida mostrava os números da atual.
+        squadApi.getRollup(squadId, sprintId),
         squadApi.getIssues(squadId, sprintId),
         opts?.myClaimedAssigneeId
           ? squadApi.getIssuesByAssignee(squadId, opts.myClaimedAssigneeId).then(all => all.filter(s => s.sprintId === sprintId))
@@ -357,7 +362,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
 
       if (get().viewingSprintId === targetSprintId) {
         const [viewedRollup, viewedIssuesSnapshot] = await Promise.all([
-          squadApi.getRollup(squadId),
+          squadApi.getRollup(squadId, targetSprintId),
           squadApi.getIssues(squadId, targetSprintId),
         ]);
         if (get().viewingSprintId === targetSprintId) set({ viewedRollup, viewedIssuesSnapshot });
