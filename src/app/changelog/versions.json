@@ -1,5 +1,14 @@
 [
   {
+    "tag": "v4.22.2",
+    "date": "9 de Outubro, 2026",
+    "title": "Link de reunião mais seguro",
+    "description": "O link do Meet das cerimônias só aceita endereços https:// ou http://.",
+    "changes": [
+      "Cerimônias manuais: o link do Meet precisa começar com https:// (ou http://); links de outro tipo são recusados ao salvar e nunca viram botão no Painel."
+    ]
+  },
+  {
     "tag": "v4.22.1",
     "date": "9 de Outubro, 2026",
     "title": "Changelog aberto a todos",

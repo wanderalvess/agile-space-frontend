@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CEREMONY_DAY_LABEL } from '@/lib/ceremony-schedule';
 import type { CeremonyDayOfWeek, SquadCeremony, SquadConfig } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { safeHref } from '@/lib/safe-url';
 
 // Ordem de exibição segunda→domingo — CEREMONY_DAY_INDEX (ceremony-schedule.ts) começa em
 // domingo pra bater com Date#getDay(), mas isso é só um detalhe de cálculo, não de UI.
@@ -107,6 +108,15 @@ export function CeremonySettingsDialog({
     draftCeremonies.every((c) => c.title.trim() && c.daysOfWeek.length > 0 && c.durationMinutes > 0);
 
   const handleSave = async () => {
+    const badLink = draftMode === 'manual' ? draftCeremonies.find((c) => c.meetLink?.trim() && !safeHref(c.meetLink)) : undefined;
+    if (badLink) {
+      toast({
+        variant: 'destructive',
+        title: 'Link do Meet inválido',
+        description: `O link de "${badLink.title || 'cerimônia'}" precisa começar com https:// (ou http://).`,
+      });
+      return;
+    }
     setIsSaving(true);
     try {
       await onSave({

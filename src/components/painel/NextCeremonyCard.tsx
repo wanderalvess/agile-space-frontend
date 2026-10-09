@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { useNextCeremony } from '@/hooks/useNextCeremony';
 import { CeremonySettingsDialog } from './CeremonySettingsDialog';
+import { safeHref } from '@/lib/safe-url';
 import { cn } from '@/lib/utils';
 
 function formatTimeRange(start: Date, end: Date, isAllDay: boolean) {
@@ -282,17 +283,17 @@ function CeremonyBody({
       </div>
 
       <Button
-        asChild={!!(ceremony.meetLink || ceremony.eventLink)}
+        asChild={!!(safeHref(ceremony.meetLink) || safeHref(ceremony.eventLink))}
         size="sm"
         className="w-full mt-4 h-9 rounded-xl text-[11px] font-black uppercase tracking-widest gap-2"
-        disabled={!ceremony.meetLink && !ceremony.eventLink}
+        disabled={!safeHref(ceremony.meetLink) && !safeHref(ceremony.eventLink)}
       >
-        {ceremony.meetLink ? (
-          <a href={ceremony.meetLink} target="_blank" rel="noopener noreferrer">
+        {safeHref(ceremony.meetLink) ? (
+          <a href={safeHref(ceremony.meetLink)!} target="_blank" rel="noopener noreferrer">
             <Video className="h-3.5 w-3.5" /> Entrar no Meet
           </a>
-        ) : ceremony.eventLink ? (
-          <a href={ceremony.eventLink} target="_blank" rel="noopener noreferrer">
+        ) : safeHref(ceremony.eventLink) ? (
+          <a href={safeHref(ceremony.eventLink)!} target="_blank" rel="noopener noreferrer">
             <CalendarClock className="h-3.5 w-3.5" /> Ver na agenda
           </a>
         ) : (

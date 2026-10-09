@@ -94,4 +94,3 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 44. **Planejador de sprint:** `/sprint-planner` é "Em breve" e o backend existe sem tela. Portar ou redesenhar?
 45. **Decisão do PO na Review:** o servidor não checa papel; qualquer membro da squad grava.
 46. **Sincronização:** sprint futura sem datas cai em `UNMAPPED`; o roster nunca remove quem saiu do Jira; teto de 2000 issues; impedimentos e prioridade não sincronizam. **Ligar o agendador de sync em produção é decisão sua.**
-47. `meetLink` da cerimônia sem validação de esquema (`javascript:` em `<a href>`) e `/api/users/{uid}/squads` sem checar o dono: abertos.

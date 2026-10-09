@@ -75,12 +75,12 @@ Regra do servidor (`SquadAccessService`): **ler** = membro real da squad (víncu
 | Ler squad, rollup, issues, roster, snapshots diários | Membro |
 | Sincronizar / ressincronizar sprint | Membro (usa o token do Jira de **quem chama**) |
 | "Sou eu" | Membro, só a própria conta, linha livre |
-| Salvar cerimônias, unidade de estimativa, nº do quadro | Membro |
+| Salvar cerimônias, unidade de estimativa, nº do quadro | Membro (`meetLink` da cerimônia só http/https, senão 400; o Painel também só renderiza http/https) |
 | Configuração do Jira (projeto, JQL, domínio, campo da sprint), capacidade padrão, ranking, fases, dono do sync agendado | Liderança |
 | Salvar/remover pessoa, roster em lote, papel/capacidade por pessoa | Liderança |
 | Horas por pessoa (`member-metrics`) e cache de worklog | Liderança |
 | Gravar rollup, issues, snapshots diretamente | Liderança (o sync grava por dentro do servidor) |
-| Lista de squads, "squads de uma pessoa" (`by-user`) | Só squads legíveis; `by-user` só o próprio identificador (admin vê qualquer) |
+| Lista de squads, "squads de uma pessoa" (`by-user` e `/api/users/{uid}/squads`) | Só squads legíveis; vínculos só do próprio identificador (admin vê qualquer) |
 | Painéis JQL no servidor (`/panels`) | Membro cria; só o dono edita/apaga |
 
 O cliente (`SQUAD_ADMIN_ROLES`, `SQUAD_PEOPLE_ADMIN_ROLES`, `SQUAD_LEADERSHIP_VIEW_ROLES`, papel do perfil) só decide o que mostrar: botões Fases/Pessoas, seção de configuração, lista por pessoa. O servidor recusa mesmo se a tela mostrar. Ninguém indica **outra pessoa** como dono do sync agendado (token do Jira de terceiros).
