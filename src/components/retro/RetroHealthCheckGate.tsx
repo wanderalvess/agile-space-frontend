@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Frown, Annoyed, Meh, Smile, Laugh, MessageCircleHeart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ const SCALE: { key: HealthCheckAnswer; label: string; icon: typeof Frown }[] = [
 
 interface RetroHealthCheckGateProps {
   question?: string;
-  onAnswer: (answer: HealthCheckAnswer) => void;
+  onAnswer: (answer: HealthCheckAnswer) => void | Promise<void>;
 }
 
 /**
@@ -25,6 +26,18 @@ interface RetroHealthCheckGateProps {
  * currentUser.healthCheckAnswer passa a existir e retro/[id]/page.tsx para de renderizar isto.
  */
 export function RetroHealthCheckGate({ question, onAnswer }: RetroHealthCheckGateProps) {
+  // Um clique só: sem isso, cliques repetidos enviavam várias respostas e a tela não dava retorno nenhum.
+  const [submitting, setSubmitting] = useState(false);
+  const answer = async (key: HealthCheckAnswer) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await onAnswer(key);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md bg-card text-card-foreground border border-border rounded-[2rem] shadow-2xl p-8 sm:p-10 text-center relative overflow-hidden">
@@ -47,9 +60,11 @@ export function RetroHealthCheckGate({ question, onAnswer }: RetroHealthCheckGat
               <button
                 key={key}
                 type="button"
-                onClick={() => onAnswer(key)}
+                onClick={() => answer(key)}
+                disabled={submitting}
+                aria-label={label}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 group",
+                  "flex flex-col items-center gap-1.5 group disabled:opacity-60",
                 )}
               >
                 <div className="w-12 h-12 rounded-2xl border-2 border-border bg-muted/40 flex items-center justify-center text-muted-foreground transition-all group-hover:border-emerald-500 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 group-hover:scale-105">

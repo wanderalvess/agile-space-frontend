@@ -32,30 +32,37 @@ interface RetroActionImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
   team: string;
+  /** Squad.id real: `team` é só o nome de exibição e pode colidir entre squads. */
+  squadId?: string;
   currentBoardId: string;
   onImport: (board: RetroBoard, pendingCards: RetroCard[]) => void;
 }
 
-export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId, onImport }: RetroActionImportDialogProps) {
+export function RetroActionImportDialog({ isOpen, onClose, team, squadId, currentBoardId, onImport }: RetroActionImportDialogProps) {
   const [groups, setGroups] = useState<PendingGroup[]>([]);
   const [loading, setLoading] = useState(false);
+  // Falha de rede não é "nenhuma ação pendente": a tela diz que não conseguiu e deixa tentar de novo.
+  const [failedBoards, setFailedBoards] = useState(0);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
-    if (isOpen && team) {
+    if (isOpen && (squadId || team)) {
       fetchPending();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, team]);
+  }, [isOpen, team, squadId]);
 
   const fetchPending = async () => {
     setLoading(true);
+    setLoadFailed(false);
+    setFailedBoards(0);
     try {
-      const allBoards = await retroApi.listBoards({ team });
+      const allBoards = squadId ? await retroApi.listBoards({ squadId }) : await retroApi.listBoards({ team });
 
       const candidates = allBoards
         .filter(b => b.id !== currentBoardId);
 
-      const results = await Promise.all(candidates.map(async (board) => {
+      const settled = await Promise.allSettled(candidates.map(async (board) => {
         const cardsList = await retroApi.getCards(board.id);
         const cols = board.columns && board.columns.length > 0 ? board.columns : RETRO_TEMPLATES.classic;
         const actionColumnIds = new Set(cols.filter(c => c.theme === 'action').map(c => c.id));
@@ -64,6 +71,9 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
         return { board, pendingCards };
       }));
 
+      const results = settled.flatMap(r => (r.status === 'fulfilled' ? [r.value] : []));
+      setFailedBoards(settled.length - results.length);
+
       const sorted = results
         .filter(g => g.pendingCards.length > 0)
         .sort((a, b) => (b.board.createdAt || '').localeCompare(a.board.createdAt || ''));
@@ -71,6 +81,8 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
       setGroups(sorted);
     } catch (error) {
       console.error("Erro ao buscar ações pendentes:", error);
+      setGroups([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -91,7 +103,7 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
             <ListTodo className="h-5 w-5 text-emerald-500" /> Ações pendentes
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Retros anteriores de <strong className="text-foreground">{team}</strong> com ações que ainda não foram concluídas. Escolha uma para trazer essas ações para este quadro.
+            Retros anteriores de <strong className="text-foreground">{team || 'este time'}</strong> com ações que ainda não foram concluídas. Escolha uma para trazer essas ações para este quadro.
           </DialogDescription>
         </DialogHeader>
 
@@ -101,14 +113,30 @@ export function RetroActionImportDialog({ isOpen, onClose, team, currentBoardId,
               <AgileSpinner size="lg" />
               <p className="text-sm text-muted-foreground">Buscando retros anteriores…</p>
             </div>
+          ) : loadFailed ? (
+            <div className="h-full flex flex-col items-center justify-center gap-3 py-10 text-center">
+              <History className="h-10 w-10 text-muted-foreground/50" />
+              <p className="text-sm font-semibold text-foreground">Não foi possível buscar as retros anteriores</p>
+              <Button variant="outline" size="sm" onClick={fetchPending} className="rounded-xl font-bold">Tentar de novo</Button>
+            </div>
           ) : groups.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 py-10 text-center">
               <History className="h-10 w-10 text-muted-foreground/50" />
               <p className="text-sm font-semibold text-foreground">Nenhuma ação pendente</p>
-              <p className="text-sm text-muted-foreground max-w-xs">As retros anteriores deste time não têm ações em aberto.</p>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                {failedBoards > 0
+                  ? `Não consegui ler ${failedBoards} retro${failedBoards > 1 ? 's' : ''} anterior${failedBoards > 1 ? 'es' : ''}. As demais não têm ações em aberto.`
+                  : 'As retros anteriores deste time não têm ações em aberto.'}
+              </p>
+              {failedBoards > 0 && (
+                <Button variant="outline" size="sm" onClick={fetchPending} className="rounded-xl font-bold">Tentar de novo</Button>
+              )}
             </div>
           ) : (
             <div className="space-y-2.5">
+              {failedBoards > 0 && (
+                <p className="text-xs text-amber-600">Não consegui ler {failedBoards} retro{failedBoards > 1 ? 's' : ''} anterior{failedBoards > 1 ? 'es' : ''}; a lista pode estar incompleta.</p>
+              )}
               {groups.map(({ board, pendingCards }) => (
                 <button
                   type="button"

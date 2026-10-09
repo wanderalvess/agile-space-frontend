@@ -84,18 +84,32 @@ export function ExportRetroDialog({
   const actionCards = useMemo(() => {
     return validCards.filter(c => {
       const col = columns.find(col => col.id === c.columnKey);
-      return col?.theme === 'action' || c.columnKey === 'actions' || c.assignee || c.dueDate;
+      return col?.theme === 'action' || c.columnKey === 'actions';
     });
   }, [validCards, columns]);
 
   const completedActions = useMemo(() => actionCards.filter(c => c.isDone).length, [actionCards]);
   const pendingActions = actionCards.length - completedActions;
 
-  const formatDate = () => format(new Date(), 'dd/MM/yyyy', { locale: ptBR });
+  // Data da retro, não a de quem exporta: exportar uma semana depois carimbava o relatório com a data errada.
+  const formatDate = () => {
+    const created = boardData.createdAt ? new Date(boardData.createdAt) : null;
+    return format(created && !isNaN(created.getTime()) ? created : new Date(), 'dd/MM/yyyy', { locale: ptBR });
+  };
+  const formatDue = (d?: string) =>
+    /^\d{4}-\d{2}-\d{2}/.test(d || '') ? d!.slice(0, 10).split('-').reverse().join('/') : (d || '');
   // Compartilhado pelo markdown e pelo texto TDN: uma quebra de linha dentro
   // do conteúdo de um card vira um item de lista quebrado em ambos os
   // formatos, então os dois builders sanitizam pela mesma função.
-  const cleanContent = (content: string) => content.replace(/\n/g, ' ');
+  const cleanContent = (content: string) => content.replace(/\r?\n/g, ' ');
+  // Célula de tabela markdown: um "|" no texto abriria uma coluna a mais.
+  const mdCell = (content: string) => cleanContent(content).replace(/\|/g, '\\|');
+  const groupedNote = (c: { originalTexts?: string[] }, wrap: 'md' | 'plain') =>
+    c.originalTexts && c.originalTexts.length > 0
+      ? (wrap === 'md'
+          ? ` _(agrupado com: ${c.originalTexts.map(mdCell).join('; ')})_`
+          : ` (agrupado com: ${c.originalTexts.map(cleanContent).join('; ')})`)
+      : '';
   const formatFilename = (title: string, ext: string) => {
     const cleanTitle = (title || 'retrospectiva')
       .toLowerCase()
@@ -126,7 +140,7 @@ export function ExportRetroDialog({
     lines.push('');
 
     columns.forEach(col => {
-      const colCards = validCards.filter(c => c.columnKey === col.id);
+      const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
       if (colCards.length === 0) return;
 
       const isAction = col.theme === 'action' || col.id === 'actions';
@@ -139,8 +153,8 @@ export function ExportRetroDialog({
         colCards.forEach(c => {
           const status = c.isDone ? '[x] Concluído' : '[ ] Pendente';
           const assignee = c.assignee ? `👤 ${c.assignee}` : '-';
-          const dueDate = c.dueDate ? `📅 ${c.dueDate}` : '-';
-          lines.push(`| ${status} | ${cleanContent(c.content)} | ${assignee} | ${dueDate} |`);
+          const dueDate = c.dueDate ? `📅 ${formatDue(c.dueDate)}` : '-';
+          lines.push(`| ${status} | ${mdCell(c.content)}${groupedNote(c, 'md')} | ${mdCell(assignee)} | ${dueDate} |`);
         });
       } else {
         const sorted = [...colCards].sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
@@ -151,7 +165,7 @@ export function ExportRetroDialog({
           const author = boardData.isAuthorsRevealed && c.authorId && participantMap.has(c.authorId)
             ? participantMap.get(c.authorId)!
             : '-';
-          lines.push(`| ${votes} | ${cleanContent(c.content)} | ${author} |`);
+          lines.push(`| ${votes} | ${mdCell(c.content)}${groupedNote(c, 'md')} | ${mdCell(author)} |`);
         });
       }
       lines.push('');
@@ -232,7 +246,7 @@ export function ExportRetroDialog({
     }
 
     columns.forEach(col => {
-      const colCards = validCards.filter(c => c.columnKey === col.id);
+      const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
       if (colCards.length === 0) return;
 
       const isAction = col.theme === 'action' || col.id === 'actions';
@@ -241,12 +255,12 @@ export function ExportRetroDialog({
       if (isAction) {
         colCards.forEach(c => {
           const checkbox = c.isDone ? '[x]' : '[ ]';
-          const meta = [c.assignee, c.dueDate].filter(Boolean).join(' — ');
-          lines.push(`${checkbox} ${cleanContent(c.content)}${meta ? ` (${meta})` : ''}`);
+          const meta = [c.assignee, c.dueDate ? formatDue(c.dueDate) : ''].filter(Boolean).join(' — ');
+          lines.push(`${checkbox} ${cleanContent(c.content)}${groupedNote(c, 'plain')}${meta ? ` (${meta})` : ''}`);
         });
       } else {
         const sorted = [...colCards].sort((a, b) => (b.votes?.length || 0) - (a.votes?.length || 0));
-        sorted.forEach(c => lines.push(`- ${cleanContent(c.content)}`));
+        sorted.forEach(c => lines.push(`- ${cleanContent(c.content)}${groupedNote(c, 'plain')}`));
       }
       lines.push('');
     });
@@ -259,7 +273,12 @@ export function ExportRetroDialog({
   };
 
   // ---------------------------------------------------------------- CSV
-  const csvCell = (v: string | number | null | undefined) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Célula que começa com = + - @ vira fórmula no Excel/Sheets: o apóstrofo força texto.
+  const csvCell = (v: string | number | null | undefined) => {
+    let text = String(v ?? '');
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+  };
 
   const handleCSV = () => {
     const rows: string[] = [];
@@ -279,7 +298,7 @@ export function ExportRetroDialog({
     rows.push(['Coluna', 'Votos', 'Status', 'Conteúdo', 'Responsável', 'Prazo', 'Autor', 'Agrupado de'].map(csvCell).join(','));
 
     columns.forEach(col => {
-      const colCards = validCards.filter(c => c.columnKey === col.id);
+      const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
       const isAction = col.theme === 'action' || col.id === 'actions';
 
       const sorted = isAction 
@@ -299,7 +318,7 @@ export function ExportRetroDialog({
           status,
           c.content,
           c.assignee || '',
-          c.dueDate || '',
+          formatDue(c.dueDate),
           author,
           grouped,
         ].map(csvCell).join(','));
@@ -311,8 +330,10 @@ export function ExportRetroDialog({
     const link = document.createElement('a');
     link.href = url;
     link.download = formatFilename(boardData.title || 'retro', 'csv');
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast({ title: 'CSV Baixado!', description: 'Planilha exportada com sucesso.' });
   };
 
@@ -322,6 +343,10 @@ export function ExportRetroDialog({
    * Não utiliza html2canvas para evitar borramentos, recortes e perda de texto selecionável.
    * Todas as caixas são medidas antes da renderização garantindo paginação suave sem quebras indesejadas.
    */
+  // A fonte padrão do jsPDF não tem emoji nem símbolos fora do Latin-1: imprimiriam lixo no lugar.
+  const pdfSafe = (text: string) =>
+    (text || '').replace(/[\u{1F000}-\u{1FFFF}\u{2190}-\u{2BFF}\uFE0F\u200D]/gu, '').replace(/\s{2,}/g, ' ').trim();
+
   const handlePDF = async () => {
     setIsExporting(true);
     try {
@@ -375,7 +400,15 @@ export function ExportRetroDialog({
       };
 
       /** Altura que um texto ocuparia (para medir antes de desenhar) */
-      const measure = (text: string, width: number, size: number, lineH = size * 0.42 + 1.2) => {
+      const measure = (
+        text: string,
+        width: number,
+        size: number,
+        lineH = size * 0.42 + 1.2,
+        style: 'normal' | 'bold' | 'italic' = 'normal'
+      ) => {
+        // A fonte precisa ser a mesma do desenho: bold é mais largo e quebra em mais linhas.
+        doc.setFont('helvetica', style);
         doc.setFontSize(size);
         return (doc.splitTextToSize(text || '', width) as string[]).length * lineH;
       };
@@ -461,7 +494,7 @@ export function ExportRetroDialog({
 
       // -------------------------------------------- Colunas do Quadro
       columns.forEach(col => {
-        const colCards = validCards.filter(c => c.columnKey === col.id);
+        const colCards = validCards.filter(c => c.columnKey === col.id).sort((a, b) => a.order - b.order);
         if (colCards.length === 0) return;
 
         const isActionCol = col.theme === 'action' || col.id === 'actions';
@@ -483,7 +516,8 @@ export function ExportRetroDialog({
           const cardTextW = CW - 12;
 
           // Cálculo da altura do card
-          let contentH = measure(card.content, cardTextW, 9.5, 4.8);
+          const cardContent = pdfSafe(card.content);
+          let contentH = measure(cardContent, cardTextW - 24, 9.5, 4.8, 'bold');
           let extraH = 0;
 
           if (isActionCol) {
@@ -493,7 +527,7 @@ export function ExportRetroDialog({
           }
 
           if (card.originalTexts && card.originalTexts.length > 0) {
-            extraH += measure(`Agrupado: ${card.originalTexts.join(' | ')}`, cardTextW, 7.5, 3.8);
+            extraH += measure(`Agrupado de: ${card.originalTexts.map(pdfSafe).join('  •  ')}`, cardTextW, 7, 3.8, 'italic');
           }
 
           const totalCardH = Math.max(14, contentH + extraH + 7);
@@ -514,7 +548,7 @@ export function ExportRetroDialog({
 
           // Badge de status para Ações ou Votos
           if (isActionCol) {
-            const statusText = card.isDone ? '[X] CONCLUIDO' : '[ ] PENDENTE';
+            const statusText = card.isDone ? '[X] CONCLUÍDO' : '[ ] PENDENTE';
             const statusColor: [number, number, number] = card.isDone ? [16, 185, 129] : [217, 119, 6];
             setFont(8, 'bold', statusColor);
             doc.text(statusText, M + CW - 4, innerY, { align: 'right' });
@@ -525,7 +559,7 @@ export function ExportRetroDialog({
 
           // Conteúdo do card
           setFont(9.5, 'bold', [15, 23, 42]);
-          const contentLines = doc.splitTextToSize(card.content, cardTextW - 24) as string[];
+          const contentLines = doc.splitTextToSize(cardContent, cardTextW - 24) as string[];
           contentLines.forEach(line => {
             doc.text(line, M + 5.5, innerY);
             innerY += 4.8;
@@ -534,7 +568,7 @@ export function ExportRetroDialog({
           // Metadados específicos
           if (isActionCol) {
             setFont(7.5, 'normal', [100, 116, 139]);
-            const meta = `Responsavel: ${card.assignee || 'Nao definido'}    |    Prazo: ${card.dueDate || 'Sem prazo'}`;
+            const meta = `Responsável: ${pdfSafe(card.assignee || '') || 'Não definido'}    |    Prazo: ${formatDue(card.dueDate) || 'Sem prazo'}`;
             doc.text(meta, M + 5.5, innerY + 0.5);
             innerY += 4;
           } else if (author) {
@@ -546,7 +580,7 @@ export function ExportRetroDialog({
           // Histórico de fusão/agrupamento
           if (card.originalTexts && card.originalTexts.length > 0) {
             setFont(7, 'italic', [148, 163, 184]);
-            const groupedText = `Agrupado de: ${card.originalTexts.join('  •  ')}`;
+            const groupedText = `Agrupado de: ${card.originalTexts.map(pdfSafe).join('  •  ')}`;
             const groupedLines = doc.splitTextToSize(groupedText, cardTextW) as string[];
             groupedLines.forEach(gLine => {
               doc.text(gLine, M + 5.5, innerY + 0.5);

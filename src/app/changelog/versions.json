@@ -1,5 +1,22 @@
 [
   {
+    "tag": "v4.17.0",
+    "date": "9 de Outubro, 2026",
+    "title": "Retro mais estável: votos, timer, exportação e permissões",
+    "description": "Correções de uma revisão completa da Retrospectiva depois de uma sessão ao vivo com vários erros pequenos.",
+    "changes": [
+      "Votos: o voto agora é registrado pelo servidor, que aplica o limite por painel. Dois votos ao mesmo tempo no mesmo card não se perdem mais, e votar fora da fase de votação é recusado. \"Resetar votação\" zera os votos de verdade (com confirmação), e arrastar um card votado para outro painel respeita o limite de lá.",
+      "Timer: o contador parava de andar quando chegavam cards e votos, e o alarme podia tocar de novo ao recarregar. Agora o tempo corre direto, o fim é tratado uma única vez e o timer é encerrado no zero. No celular o timer e o estado da votação voltam a aparecer.",
+      "Entrar na sala não desfaz mais o que o facilitador fez: fase, timer, votação e revelação são gravados por campo. Quem entra com a sincronização de coluna ligada começa na coluna do facilitador.",
+      "Erros deixam de ser silenciosos: apagar, importar, fundir, remover participante, adicionar card e responder o check-in avisam quando falham, e o texto digitado não se perde. Se o quadro não carregar, aparece \"Tentar de novo\" em vez de \"quadro não encontrado\". Ao reconectar, o quadro é ressincronizado.",
+      "Fundir cards: só dentro do mesmo painel, sem contar duas vezes quem votou nos dois, e de uma vez só no servidor.",
+      "Facilitador pode editar e apagar cards de outras pessoas, assume o controle sem ficar com dois facilitadores, e só o facilitador sincroniza o resumo. Na fase anônima só o autor ou o facilitador move o card, e a exportação só abre depois de revelar os cards (exceto para o facilitador).",
+      "Cards de ação mostram o prazo, e textos fundidos aparecem também nas ações. A edição aceita até 1000 caracteres, não fecha em silêncio com o campo vazio e respeita acentos digitados com Enter.",
+      "Exportação: o PDF não deixa mais o texto vazar da caixa do card, ganhou os acentos que faltavam e ignora emojis; o Markdown não quebra com \"|\" no texto e inclui as ideias agrupadas; datas em dd/MM/aaaa e a data da retro no lugar da data de hoje; o CSV protege contra fórmulas.",
+      "Criar retro com colunas próprias permite marcar a coluna de plano de ação e exige pelo menos 2 nomes diferentes. Importar ações pendentes usa a squad correta e mostra erro com nova tentativa; o histórico conta ações de retros antigas e não junta ações diferentes."
+    ]
+  },
+  {
     "tag": "v4.16.0",
     "date": "8 de Outubro, 2026",
     "title": "Onboarding para Agile Master e People Lead, com importação de várias equipes",

@@ -77,6 +77,8 @@ function RetroCardReactions({
             key={key}
             type="button"
             title={label}
+            aria-label={`${label}${userIds.length > 0 ? ` (${userIds.length})` : ''}`}
+            aria-pressed={isActive}
             onClick={() => onToggleReaction(card.id, key, userIds)}
             className={cn(
               "flex items-center gap-1 h-6 px-2 rounded-full border text-[10px] font-black transition-all",
@@ -219,11 +221,17 @@ export function RetroCard({
   const canVote = votingStatus === 'active';
 
   const handleUpdate = () => {
-    if (editedContent.trim()) {
+    const text = editedContent.trim();
+    // Texto vazio não fecha o editor em silêncio: o card precisa de texto (para apagar existe a lixeira).
+    if (!text) return;
+    const unchanged = text === card.content
+      && (editedAssignee.trim() || undefined) === (card.assignee || undefined)
+      && (editedDueDate || undefined) === (card.dueDate || undefined);
+    if (!unchanged) {
       onUpdate(
-        card.id, 
-        editedContent.trim(), 
-        editedAssignee.trim() || undefined, 
+        card.id,
+        text,
+        editedAssignee.trim() || undefined,
         editedDueDate || undefined
       );
     }
@@ -231,7 +239,7 @@ export function RetroCard({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleUpdate();
     }
@@ -254,6 +262,7 @@ export function RetroCard({
               autoFocus
               rows={3}
               aria-label="Editar o texto do card"
+              maxLength={1000}
               className="min-h-[96px] resize-none overflow-y-auto px-4 py-3 text-sm bg-slate-50 border-emerald-100 rounded-2xl focus-visible:ring-emerald-500/20 focus-visible:border-emerald-500 font-semibold leading-relaxed text-slate-800"
             />
             <p className="px-1 text-[10px] font-semibold leading-snug text-slate-500">
@@ -314,9 +323,12 @@ export function RetroCard({
           isRevealed={showRealContent}
           votes={card.votes}
           onVote={() => onToggleVote(card.id, card.votes)}
+          allowAnyEdit={isCreator}
+          allowAnyDelete={isCreator}
+          dueDate={card.dueDate}
           canVote={canVote && showVotes}
           voteIcon={Star}
-          contentExtra={!isActionPlan ? <RetroMergedTimeline items={card.originalTexts || []} /> : undefined}
+          contentExtra={card.originalTexts?.length ? <RetroMergedTimeline items={card.originalTexts} /> : undefined}
           isDragging={isDragging}
           isOver={isOver}
           isMergingSource={mergingSourceId === card.id}

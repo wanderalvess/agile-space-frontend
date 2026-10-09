@@ -55,7 +55,7 @@ interface RetroBoardProps {
   participants: RetroParticipant[];
   currentUserId: string;
   timer: TimerState;
-  onAddCard: (content: string, column: RetroColumnKey, assignee?: string, dueDate?: string) => void;
+  onAddCard: (content: string, column: RetroColumnKey, assignee?: string, dueDate?: string) => Promise<boolean> | void;
   onDeleteCard: (cardId: string) => void;
   onUpdateCard: (cardId: string, content: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
@@ -63,11 +63,12 @@ interface RetroBoardProps {
   onToggleDone: (cardId: string, isDone: boolean) => void;
   onImportActions: (board: RetroBoardType, pendingCards: RetroCardType[]) => void;
   onToggleCardsRevealed: () => void;
-  onSetVotingStatus: (status: 'open' | 'closed') => void;
+  onSetVotingStatus: (status: 'disabled' | 'active' | 'finished') => void;
   onStartTimer: (duration: number) => void;
   onPauseTimer: () => void;
   onResumeTimer: () => void;
   onResetTimer: () => void;
+  onTimerExpired?: () => void;
   onSetTimerDuration: (duration: number) => void;
   onLeaveBoard: () => void;
   onRemoveParticipant: (id: string) => void;
@@ -117,6 +118,7 @@ const RetroBoardComponent = ({
   onPauseTimer,
   onResumeTimer,
   onResetTimer,
+  onTimerExpired,
   onSetTimerDuration,
   onLeaveBoard,
   onRemoveParticipant,
@@ -315,12 +317,13 @@ const RetroBoardComponent = ({
                   isCardsRevealed={boardData.isCardsRevealed}
                   onToggleCardsRevealed={onToggleCardsRevealed}
                   votingStatus={boardData.votingStatus}
-                  onSetVotingStatus={onSetVotingStatus as any}
+                  onSetVotingStatus={onSetVotingStatus}
                   timer={timer}
                   onStartTimer={onStartTimer}
                   onPauseTimer={onPauseTimer}
                   onResumeTimer={onResumeTimer}
                   onResetTimer={onResetTimer}
+                  onTimerExpired={onTimerExpired}
                   onSetTimerDuration={onSetTimerDuration}
                   isFacilitator={boardData.creatorId === currentUserId}
                   onPresent={() => setIsFocusMode(true)}
@@ -348,8 +351,15 @@ const RetroBoardComponent = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5 text-[11px] font-bold">
-                    <DropdownMenuItem onClick={() => setIsExportOpen(true)} className="rounded-xl gap-2.5 py-2 cursor-pointer">
-                      <Download className="h-4 w-4 text-slate-400" /> Exportar retrospectiva
+                    <DropdownMenuItem
+                      onClick={() => setIsExportOpen(true)}
+                      disabled={!boardData.isCardsRevealed && boardData.creatorId !== currentUserId}
+                      className="rounded-xl gap-2.5 py-2 cursor-pointer"
+                    >
+                      <Download className="h-4 w-4 text-slate-400" />
+                      {!boardData.isCardsRevealed && boardData.creatorId !== currentUserId
+                        ? 'Exportar (após revelar os cards)'
+                        : 'Exportar retrospectiva'}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleCopyLink} className="rounded-xl gap-2.5 py-2 cursor-pointer">
                       <Copy className="h-4 w-4 text-slate-400" /> Copiar link do quadro
@@ -525,12 +535,13 @@ const RetroBoardComponent = ({
               isCardsRevealed={boardData.isCardsRevealed}
               onToggleCardsRevealed={onToggleCardsRevealed}
               votingStatus={boardData.votingStatus}
-              onSetVotingStatus={onSetVotingStatus as any}
+              onSetVotingStatus={onSetVotingStatus}
               timer={timer}
               onStartTimer={onStartTimer}
               onPauseTimer={onPauseTimer}
               onResumeTimer={onResumeTimer}
               onResetTimer={onResetTimer}
+                  onTimerExpired={onTimerExpired}
               onSetTimerDuration={onSetTimerDuration}
               isFacilitator={boardData.creatorId === currentUserId}
               isSoundEnabled={isSoundEnabled}
@@ -581,7 +592,7 @@ const RetroBoardComponent = ({
                     onAddCard={onAddCard}
                     onDeleteCard={onDeleteCard}
                     onUpdateCard={onUpdateCard}
-                    onToggleVote={onToggleVote as any}
+                    onToggleVote={onToggleVote}
                     onToggleReaction={onToggleReaction}
                     onToggleDone={onToggleDone}
                     onImportActions={onImportActions}

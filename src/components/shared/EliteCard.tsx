@@ -71,6 +71,8 @@ interface AgileCardProps {
   // Actions
   onEdit?: (id: string) => void;
   allowAnyEdit?: boolean;
+  /** Quem não é o autor também pode excluir (ex.: facilitador da retro). */
+  allowAnyDelete?: boolean;
   onDelete?: (id: string, e?: React.MouseEvent) => void;
   onStartMerge?: (id: string) => void;
   onMerge?: (id: string) => void;
@@ -111,6 +113,7 @@ export function AgileCard({
   assignee,
   onEdit,
   allowAnyEdit = false,
+  allowAnyDelete = false,
   onDelete,
   onStartMerge,
   onMerge,
@@ -176,6 +179,11 @@ export function AgileCard({
             {assignee && (
               <span className="text-[7px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter mt-0.5">
                 Para: {assignee}
+              </span>
+            )}
+            {dueDate && (
+              <span className="text-[7px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tighter mt-0.5">
+                Prazo: {/^\d{4}-\d{2}-\d{2}/.test(dueDate) ? dueDate.slice(0, 10).split('-').reverse().join('/') : dueDate}
               </span>
             )}
           </div>
@@ -303,7 +311,7 @@ export function AgileCard({
               </Button>
             )}
 
-            {isAuthor && onDelete && (
+            {(isAuthor || allowAnyDelete) && onDelete && (
               <Button
                 variant="ghost"
                 size="icon"

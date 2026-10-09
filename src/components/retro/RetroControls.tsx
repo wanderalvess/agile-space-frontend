@@ -45,6 +45,8 @@ interface RetroControlsProps {
   onPauseTimer: () => void;
   onResumeTimer: () => void;
   onResetTimer: () => void;
+  /** Chamado só no facilitador quando o timer chega a zero, para encerrar o timer no servidor. */
+  onTimerExpired?: () => void;
   // Modo apresentação: botão no grupo de visão (omitido no modo compact)
   onPresent?: () => void;
   // compact: versão enxuta para a barra de apresentação — só status e controles
@@ -78,6 +80,7 @@ export function RetroControls({
   onPauseTimer,
   onResumeTimer,
   onResetTimer,
+  onTimerExpired,
   onPresent,
   compact = false,
   isSoundEnabled,
@@ -89,42 +92,56 @@ export function RetroControls({
   onSetMaxVotesPerParticipant,
 }: RetroControlsProps) {
   const [remainingTime, setRemainingTime] = useState(timer?.initialDuration ?? 300);
-  const prevStatusRef = useRef(timer?.status);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  // Valores que o fim do timer lê sem reiniciar o intervalo: o efeito abaixo só depende do relógio em si.
+  const latestRef = useRef({ isSoundEnabled, autoRevealOnTimerEnd, isFacilitator, isCardsRevealed, onToggleCardsRevealed, onTimerExpired });
+  latestRef.current = { isSoundEnabled, autoRevealOnTimerEnd, isFacilitator, isCardsRevealed, onToggleCardsRevealed, onTimerExpired };
+  // endTime do último timer cujo fim já foi tratado (alarme, auto-revelar): cada fim dispara uma única vez.
+  const firedForEndTimeRef = useRef<number | null>(null);
+
+  const timerStatus = timer?.status;
+  const timerEndTime = timer?.endTime ?? null;
+  const timerPausedLeft = timer?.remainingOnPause;
+  const timerInitial = timer?.initialDuration;
+
   useEffect(() => {
-    if (timer?.status !== 'running' || !timer.endTime) {
-      if (timer?.status === 'paused') {
-        setRemainingTime(timer.remainingOnPause);
-      } else {
-        setRemainingTime(timer?.initialDuration ?? 300);
-      }
-      prevStatusRef.current = timer?.status;
+    if (timerStatus === 'paused') {
+      setRemainingTime(timerPausedLeft ?? timerInitial ?? 300);
+      return;
+    }
+    if (timerStatus !== 'running' || !timerEndTime) {
+      setRemainingTime(timerInitial ?? 300);
       return;
     }
 
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const end = timer.endTime!;
-      const remaining = Math.round((end - now) / 1000);
+    // Quem abre ou recarrega a página bem depois do fim não ouve o alarme de novo: o fim já passou.
+    if (timerEndTime - Date.now() <= -3000 && firedForEndTimeRef.current !== timerEndTime) {
+      firedForEndTimeRef.current = timerEndTime;
+      if (latestRef.current.isFacilitator) latestRef.current.onTimerExpired?.();
+    }
 
-      if (remaining <= 0 && prevStatusRef.current === 'running') {
-        if (isSoundEnabled) {
-          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-          audio.play().catch(e => console.warn("Audio play failed:", e));
-        }
-        if (autoRevealOnTimerEnd && isFacilitator && !isCardsRevealed) {
-          onToggleCardsRevealed();
-        }
-        prevStatusRef.current = 'stopped'; // Marker
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
+      setRemainingTime(remaining);
+      if (remaining > 0 || firedForEndTimeRef.current === timerEndTime) return;
+
+      firedForEndTimeRef.current = timerEndTime;
+      const latest = latestRef.current;
+      if (latest.isSoundEnabled) {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(e => console.warn("Audio play failed:", e));
       }
+      if (latest.isFacilitator) {
+        if (latest.autoRevealOnTimerEnd && !latest.isCardsRevealed) latest.onToggleCardsRevealed();
+        latest.onTimerExpired?.();
+      }
+    };
 
-      setRemainingTime(Math.max(0, remaining));
-    }, 1000);
-
-    prevStatusRef.current = 'running';
+    tick(); // primeiro valor já na hora, sem mostrar a duração cheia por 1 segundo
+    const interval = setInterval(tick, 500);
     return () => clearInterval(interval);
-  }, [timer, isSoundEnabled, autoRevealOnTimerEnd, isFacilitator, isCardsRevealed, onToggleCardsRevealed]);
+  }, [timerStatus, timerEndTime, timerPausedLeft, timerInitial]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -140,9 +157,12 @@ export function RetroControls({
   return (
     <div className="flex items-center gap-2 shrink-0 pr-2">
       {/* STATUS COMPACTO — visível pra todo mundo, sem controles */}
-      <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 bg-slate-50/50 rounded-xl border border-slate-200/30">
+      <div className={cn(
+        "items-center gap-2 px-2.5 py-1 bg-slate-50/50 rounded-xl border border-slate-200/30",
+        (votingStatus !== 'disabled' || hasActiveTimer) ? "flex" : "hidden sm:flex"
+      )}>
         <div className={cn(
-          "p-1 rounded-lg transition-all",
+          "p-1 rounded-lg transition-all hidden sm:block",
           isCardsRevealed ? "bg-emerald-600 text-white" : "bg-slate-200 text-slate-400"
         )}>
           {isCardsRevealed ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -167,7 +187,7 @@ export function RetroControls({
         {!!maxVotesPerParticipant && (
           <span
             className={cn(
-              "flex items-center gap-1 font-code text-xs font-black tabular-nums text-slate-600"
+              "hidden sm:flex items-center gap-1 font-code text-xs font-black tabular-nums text-slate-600"
             )}
             title="Cada painel é uma votação separada: este é o limite de votos por pessoa em cada painel"
           >
@@ -187,6 +207,7 @@ export function RetroControls({
                   variant="ghost"
                   size="sm"
                   onClick={() => onToggleLayoutMode('board')}
+                  aria-label="Visão quadro: todas as colunas lado a lado"
                   className={cn(
                     "h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide rounded-lg transition-all gap-1.5",
                     layoutMode === 'board'
@@ -209,6 +230,7 @@ export function RetroControls({
                   variant="ghost"
                   size="sm"
                   onClick={() => onToggleLayoutMode('focus')}
+                  aria-label="Visão foco: uma coluna por vez"
                   className={cn(
                     "h-7 px-2.5 text-[10px] font-bold uppercase tracking-wide rounded-lg transition-all gap-1.5",
                     layoutMode === 'focus'
@@ -236,6 +258,7 @@ export function RetroControls({
                 variant="ghost"
                 size="sm"
                 onClick={onPresent}
+                aria-label="Apresentar a retrospectiva em tela cheia"
                 className="h-8 px-3 rounded-xl border border-slate-200/60 dark:border-slate-600/40 bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 transition-all gap-1.5"
               >
                 <MonitorPlay className="h-3.5 w-3.5" />
@@ -307,7 +330,11 @@ export function RetroControls({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onSetVotingStatus('disabled')}
+              onClick={() => {
+                if (typeof window === 'undefined' || window.confirm('Resetar a votação apaga todos os votos desta rodada. Continuar?')) {
+                  onSetVotingStatus('disabled');
+                }
+              }}
               className="h-8 px-3 rounded-xl gap-1.5 border-border text-muted-foreground bg-transparent hover:bg-muted hover:text-foreground"
             >
               <RefreshCw className="h-3.5 w-3.5" />
@@ -408,22 +435,22 @@ export function RetroControls({
                       </Button>
                     ))}
                   </div>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-100 rounded-lg" onClick={() => onStartTimer(timer?.initialDuration ?? 300)}>
+                  <Button size="icon" variant="ghost" aria-label="Iniciar timer" className="h-7 w-7 text-emerald-600 hover:bg-emerald-100 rounded-lg" onClick={() => onStartTimer(timer?.initialDuration ?? 300)}>
                     <Play className="h-4 w-4 fill-current" />
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center justify-end gap-1">
                   {isRunning ? (
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-500 hover:bg-amber-100 rounded-lg" onClick={onPauseTimer}>
+                    <Button size="icon" variant="ghost" aria-label="Pausar timer" className="h-7 w-7 text-amber-500 hover:bg-amber-100 rounded-lg" onClick={onPauseTimer}>
                       <Pause className="h-4 w-4 fill-current" />
                     </Button>
                   ) : (
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-emerald-600 hover:bg-emerald-100 rounded-lg" onClick={onResumeTimer}>
+                    <Button size="icon" variant="ghost" aria-label="Retomar timer" className="h-7 w-7 text-emerald-600 hover:bg-emerald-100 rounded-lg" onClick={onResumeTimer}>
                       <Play className="h-4 w-4 fill-current" />
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg" onClick={onResetTimer}>
+                  <Button size="icon" variant="ghost" aria-label="Zerar timer" className="h-7 w-7 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg" onClick={onResetTimer}>
                     <RotateCcw className="h-3.5 w-3.5" />
                   </Button>
                 </div>

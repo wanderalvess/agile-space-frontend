@@ -84,15 +84,22 @@ export function RetroSettingsDialog({
   // Debounce evita um saveOrUpdateBoard completo a cada tecla.
   const [localQuestion, setLocalQuestion] = useState(healthCheckQuestion);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Enquanto há texto digitado ainda não enviado, o eco do servidor (valor mais antigo) não pode sobrescrever o campo.
+  const hasUnsentRef = useRef(false);
 
   useEffect(() => {
+    if (hasUnsentRef.current) return;
     setLocalQuestion(healthCheckQuestion);
   }, [healthCheckQuestion]);
 
   const handleQuestionChange = (value: string) => {
     setLocalQuestion(value);
+    hasUnsentRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onHealthCheckQuestionChange(value), 500);
+    debounceRef.current = setTimeout(() => {
+      hasUnsentRef.current = false;
+      onHealthCheckQuestionChange(value);
+    }, 500);
   };
 
   useEffect(() => () => {

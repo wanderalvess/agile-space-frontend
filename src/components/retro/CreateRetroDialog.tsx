@@ -14,6 +14,7 @@ import {
   Plus,
   Sparkles,
   MessageCircleHeart,
+  ListChecks,
 } from 'lucide-react';
 import { RetroTemplateKey, RetroColumnTheme } from '@/lib/types';
 import {
@@ -353,19 +354,35 @@ export function CreateRetroDialog({
                   <Input
                     value={col.title}
                     onChange={(e) => {
-                      const newCols = [...customColumns];
-                      newCols[idx].title = e.target.value;
-                      onCustomColumnsChange(newCols);
+                      onCustomColumnsChange(customColumns.map((c, i) => (i === idx ? { ...c, title: e.target.value } : c)));
                     }}
                     placeholder={`Coluna ${idx + 1}`}
+                    aria-label={`Nome da coluna ${idx + 1}`}
+                    maxLength={40}
                     className="h-10 rounded-xl border-border bg-background font-bold text-xs"
                   />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onCustomColumnsChange(customColumns.map((c, i) => (i === idx ? { ...c, theme: c.theme === 'action' ? 'neutral' : 'action' } : c)))}
+                    aria-pressed={col.theme === 'action'}
+                    aria-label={`Coluna ${idx + 1} é de plano de ação`}
+                    title={col.theme === 'action' ? 'Coluna de plano de ação (clique para tornar comum)' : 'Tornar coluna de plano de ação'}
+                    className={cn(
+                      "h-10 w-10 rounded-xl shrink-0 border",
+                      col.theme === 'action' ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:text-white" : "text-muted-foreground border-border"
+                    )}
+                  >
+                    <ListChecks className="h-4 w-4" />
+                  </Button>
                   {customColumns.length > 2 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => onCustomColumnsChange(customColumns.filter((_, i) => i !== idx))}
+                      aria-label={`Remover coluna ${idx + 1}`}
                       className="h-10 w-10 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                     >
                       <Trash2 className="h-4 w-4" />

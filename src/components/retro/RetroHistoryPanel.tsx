@@ -6,6 +6,7 @@ import { TrendingUp, AlertTriangle, CheckCircle2, History } from 'lucide-react';
 import { WidgetCard } from '@/components/ui/WidgetCard';
 import { retroApi } from '@/app/retro/api';
 import type { RetroBoard, RetroCard, RetroParticipant, HealthCheckAnswer } from '@/lib/types';
+import { RETRO_TEMPLATES } from '@/lib/types';
 
 const MOOD_SCORE: Record<HealthCheckAnswer, number> = {
   exhausted: 1,
@@ -65,14 +66,18 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
 
         if (cancelled) return;
 
-        const actionColumnIds = new Set(
-          recentBoards.flatMap(b => (b.columns || []).filter(c => c.theme === 'action').map(c => c.id))
+        // Quadros antigos não gravaram `columns`: valem as colunas do modelo clássico, senão contavam 0 ações.
+        const actionIdsOf = (b: RetroBoard) => new Set(
+          (b.columns && b.columns.length > 0 ? b.columns : RETRO_TEMPLATES.classic)
+            .filter(c => c.theme === 'action')
+            .map(c => c.id)
         );
 
         const boardSummaries: BoardSummary[] = perBoard.map(({ board, cards, participants }) => {
           const moodValues = participants
             .map(p => p.healthCheckAnswer && MOOD_SCORE[p.healthCheckAnswer])
             .filter((v): v is number => typeof v === 'number');
+          const actionColumnIds = actionIdsOf(board);
           const actionCards = cards.filter(c => actionColumnIds.has(c.columnKey));
 
           return {
@@ -89,9 +94,11 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
         for (const { cards } of perBoard) {
           for (const card of cards) {
             if ((card.carryCount || 0) > 1 && card.carriedFromBoardId) {
-              const existing = recurringMap.get(card.carriedFromBoardId);
+              // Chave pela raiz E pelo texto: duas ações diferentes que vieram da mesma retro não podem virar uma só.
+              const key = `${card.carriedFromBoardId}|${(card.content || '').trim().toLowerCase()}`;
+              const existing = recurringMap.get(key);
               if (!existing || (card.carryCount || 0) > existing.carryCount) {
-                recurringMap.set(card.carriedFromBoardId, {
+                recurringMap.set(key, {
                   carriedFromBoardId: card.carriedFromBoardId,
                   carriedFromBoardTitle: card.carriedFromBoardTitle || 'Retro anterior',
                   content: card.content,
@@ -106,6 +113,9 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
         if (cancelled) return;
         setSummaries(boardSummaries);
         setRecurring(Array.from(recurringMap.values()).sort((a, b) => b.carryCount - a.carryCount).slice(0, 5));
+      } catch (error) {
+        console.error('Erro ao carregar o histórico de retros:', error);
+        if (!cancelled) { setSummaries([]); setRecurring([]); }
       } finally {
         if (!cancelled) setIsLoading(false);
       }

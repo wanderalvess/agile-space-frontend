@@ -34,11 +34,14 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
   useEffect(() => {
     if (open) {
       setLoading(true);
+      setStats(null); // não mostrar os números da squad/sprint anterior enquanto carrega ou se falhar
 
+      let cancelled = false;
       workItemsApi.getSprintStats(activeSquad, activeSprint)
-        .then(setStats)
+        .then(result => { if (!cancelled) setStats(result); })
         .catch(console.error)
-        .finally(() => setLoading(false));
+        .finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; };
     }
   }, [open, activeSquad, activeSprint]);
 
@@ -71,7 +74,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
                       <span className="text-xs font-bold">Entregue na sprint</span>
                       <TrendingUp className="h-4 w-4" />
                     </div>
-                    <p className="text-2xl font-black">{stats.velocityReal || stats.entregue || 0} <span className="text-sm font-semibold text-muted-foreground">{suffix}</span></p>
+                    <p className="text-2xl font-black">{delivered} <span className="text-sm font-semibold text-muted-foreground">{suffix}</span></p>
                     <p className="text-xs text-muted-foreground mt-1">Total concluído (velocidade).</p>
                   </div>
 

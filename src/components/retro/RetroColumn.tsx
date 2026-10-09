@@ -104,7 +104,7 @@ interface RetroColumnProps {
   currentUser: { uid: string };
   isCreator: boolean;
   isCardsRevealed: boolean;
-  onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => void;
+  onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => Promise<boolean> | void;
   onDeleteCard: (cardId: string) => void;
   onUpdateCard: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
@@ -182,23 +182,32 @@ function RetroColumnComponent({
   }, [title]);
 
   useEffect(() => {
+    if (isEditingTitle) skipBlurSaveRef.current = false;
     if (isEditingTitle && titleInputRef.current) {
       titleInputRef.current.focus();
       titleInputRef.current.select();
     }
   }, [isEditingTitle]);
 
+  // Enter e Escape desmontam o campo, e isso dispara o blur logo depois: sem a trava, salvava duas vezes
+  // (Enter) ou salvava o texto digitado mesmo cancelando com Esc.
+  const skipBlurSaveRef = useRef(false);
+
   const handleTitleSave = () => {
     setIsEditingTitle(false);
     const newTitle = editedTitle.trim();
     if (!newTitle || newTitle === title || !boardData.columns) return;
 
-    // Update the column title in the columns array
+    // Só a lista de colunas vai ao servidor: gravar o quadro inteiro desfazia o que o facilitador mudou no meio tempo.
     const updatedColumns = boardData.columns.map(col =>
       col.id === columnKey ? { ...col, title: newTitle } : col
     );
-    retroApi.saveOrUpdateBoard({ ...boardData, columns: updatedColumns }).catch(err => console.error(err));
-    toast({ title: "Título atualizado!", description: `Coluna renomeada para "${newTitle}".` });
+    retroApi.patchBoard(boardData.id, { columns: updatedColumns })
+      .then(() => toast({ title: "Título atualizado!", description: `Coluna renomeada para "${newTitle}".` }))
+      .catch(err => {
+        console.error(err);
+        toast({ title: "Não foi possível renomear a coluna", description: err?.message, variant: "destructive" });
+      });
   };
 
   const { setNodeRef, isOver } = useDroppable({
@@ -267,12 +276,15 @@ function RetroColumnComponent({
       actionItems
     };
 
-    retroApi.saveOrUpdateBoard({ ...boardData, summary }).catch(err => console.error(err));
-
-    toast({
-      title: "Resumo Sincronizado!",
-      description: "O histórico da cerimônia foi salvo para todos os participantes.",
-    });
+    retroApi.patchBoard(boardData.id, { summary })
+      .then(() => toast({
+        title: "Resumo sincronizado!",
+        description: "O histórico da cerimônia foi salvo para todos os participantes.",
+      }))
+      .catch(err => {
+        console.error(err);
+        toast({ title: "Não foi possível sincronizar o resumo", description: err?.message, variant: "destructive" });
+      });
   };
 
   // Navegação sincronizada: quando o facilitador liga "Sincronizar Coluna",
@@ -319,8 +331,11 @@ function RetroColumnComponent({
                       ref={titleInputRef}
                       value={editedTitle}
                       onChange={e => setEditedTitle(e.target.value)}
-                      onBlur={handleTitleSave}
-                      onKeyDown={e => { if (e.key === 'Enter') handleTitleSave(); if (e.key === 'Escape') { setEditedTitle(title); setIsEditingTitle(false); } }}
+                      onBlur={() => { if (skipBlurSaveRef.current) { skipBlurSaveRef.current = false; return; } handleTitleSave(); }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { skipBlurSaveRef.current = true; handleTitleSave(); }
+                        if (e.key === 'Escape') { skipBlurSaveRef.current = true; setEditedTitle(title); setIsEditingTitle(false); }
+                      }}
                       className="text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-none bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
                     />
                   ) : (
@@ -368,7 +383,7 @@ function RetroColumnComponent({
                 </Button>
               )}
 
-              {isActionColumn && cards.length > 0 && (
+              {isActionColumn && isCreator && cards.length > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -392,6 +407,8 @@ function RetroColumnComponent({
                     isSortedByVotes ? "bg-emerald-100 text-emerald-600 shadow-sm" : "text-slate-500 hover:bg-slate-50",
                     !isCreator && "pointer-events-none"
                   )}
+                  aria-label={isCreator ? "Ordenar por votos" : "Ordenado por votos"}
+                  aria-pressed={isSortedByVotes}
                   title={isCreator ? "Ordenar por votos" : "Ordenado por votos"}
                 >
                   <Star className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
@@ -464,7 +481,7 @@ function RetroColumnComponent({
                     isCreator={isCreator}
                     onDelete={onDeleteCard}
                     onUpdate={onUpdateCard}
-                    onToggleVote={onToggleVote as any}
+                    onToggleVote={onToggleVote}
                     onToggleReaction={onToggleReaction}
                     onToggleDone={onToggleDone}
                     currentUser={currentUser}
@@ -518,6 +535,7 @@ function RetroColumnComponent({
           isOpen={isImportOpen}
           onClose={() => setIsImportOpen(false)}
           team={boardData.team || ''}
+          squadId={boardData.squadId}
           currentBoardId={boardId}
           onImport={onImportActions}
         />

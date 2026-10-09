@@ -110,6 +110,18 @@ export default function RetroHubPage() {
       return;
     }
 
+    if (template === 'custom') {
+      const names = customColumns.map(c => c.title.trim().toLowerCase()).filter(Boolean);
+      if (names.length < 2 || new Set(names).size !== names.length) {
+        toast({
+          title: "Revise as colunas",
+          description: "Dê nome a pelo menos 2 colunas, sem nomes repetidos.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setIsCreating(true);
 
     // Resolve columns

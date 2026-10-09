@@ -13,12 +13,13 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
+import { Button } from '@/components/ui/button';
 import type { ChatMessage, ChatMessageKind } from '@/components/poker/team-chat/chatChannels';
 import { participantCategory } from '@/components/poker/team-chat/chatChannels';
 import { chatChannelsFor, mergeChatHistory, toChatParticipant, upsertChatMessage } from '@/components/retro/retro-chat';
 import { useUserContext } from '@/context/UserContext';
 import { FeedbackWidget } from '@/components/feedback-widget';
-import { retroApi } from '../api';
+import { retroApi, RetroApiError } from '../api';
 import { getAuthToken } from '@/lib/auth-client';
 import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
 
@@ -37,6 +38,15 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const [isBoardLoading, setIsBoardLoading] = useState(true);
   const [areCardsLoading, setAreCardsLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
+  // 'notfound' = o servidor disse que o quadro não existe; 'failed' = não deu pra carregar (rede, sessão, 5xx).
+  const [loadError, setLoadError] = useState<null | 'notfound' | 'failed'>(null);
+  const loadSeqRef = useRef(0);
+  const cardsRef = useRef<RetroCardType[]>([]);
+  const optimisticRef = useRef<RetroCardType[]>([]);
+  const boardRef = useRef<RetroBoardType | null>(null);
+  const leavingRef = useRef(false);
+  // Mudanças otimistas ainda em voo: sobrevivem a ecos de outros eventos do WebSocket até o servidor responder.
+  const pendingRef = useRef<Map<string, RetroCardType>>(new Map());
 
   const [hasJoined, setHasJoined] = useState(false);
   const [optimisticCards, setOptimisticCards] = useState<RetroCardType[]>([]);
@@ -52,6 +62,10 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const [showStats, setShowStats] = useState(false);
 
+  useEffect(() => { cardsRef.current = cards; }, [cards]);
+  useEffect(() => { optimisticRef.current = optimisticCards; }, [optimisticCards]);
+  useEffect(() => { boardRef.current = boardData; }, [boardData]);
+
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
   }, []);
@@ -59,23 +73,98 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   // Centralized data loading
   const reloadBoardData = useCallback(async () => {
     if (!isAuthenticated) return;
+    // Só a resposta mais recente vale: um reload lento que chega depois de eventos novos do WebSocket
+    // não pode sobrescrever o estado mais novo com dados velhos.
+    const seq = ++loadSeqRef.current;
     try {
       const [board, cardsList, participantsList] = await Promise.all([
         retroApi.getBoard(boardId),
         retroApi.getCards(boardId),
         retroApi.getParticipants(boardId)
       ]);
+      if (seq !== loadSeqRef.current) return;
       setBoardData(board);
       setCards(cardsList);
       setParticipants(participantsList);
+      setLoadError(null);
     } catch (e) {
       console.error("Erro ao carregar dados do quadro de retrospectiva:", e);
+      if (seq !== loadSeqRef.current) return;
+      // Já com o quadro na tela, uma falha de rede passageira não derruba nada: o próximo evento ou reconexão ressincroniza.
+      if (!boardRef.current) {
+        setLoadError(e instanceof RetroApiError && e.status === 404 ? 'notfound' : 'failed');
+      }
     } finally {
-      setIsBoardLoading(false);
-      setAreCardsLoading(false);
-      setAreParticipantsLoading(false);
+      if (seq === loadSeqRef.current) {
+        setIsBoardLoading(false);
+        setAreCardsLoading(false);
+        setAreParticipantsLoading(false);
+      }
     }
   }, [boardId, isAuthenticated]);
+
+  // Trocar de quadro (mesma página reaproveitada) não pode carregar estado do anterior.
+  useEffect(() => {
+    loadSeqRef.current++;
+    setBoardData(null);
+    setCards([]);
+    setOptimisticCards([]);
+    setParticipants([]);
+    setActiveStage('');
+    setMergingSourceId(null);
+    setLoadError(null);
+    setIsBoardLoading(true);
+    setAreCardsLoading(true);
+    setAreParticipantsLoading(true);
+    leavingRef.current = false;
+  }, [boardId]);
+
+  /** Aplica no estado um card devolvido pelo servidor (a resposta do POST vale mesmo se o eco do WebSocket se perder). */
+  const applyServerCard = useCallback((card: RetroCardType) => {
+    if (!card?.id) return;
+    setCards(prev => {
+      const idx = prev.findIndex(c => c.id === card.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = card;
+        return copy;
+      }
+      return [...prev, card];
+    });
+  }, []);
+
+  const trackOptimistic = useCallback((card: RetroCardType) => {
+    pendingRef.current.set(card.id, card);
+    setOptimisticCards(prev => (prev.some(c => c.id === card.id)
+      ? prev.map(c => (c.id === card.id ? card : c))
+      : [...prev, card]));
+  }, []);
+
+  const settleCard = useCallback((cardId: string) => {
+    pendingRef.current.delete(cardId);
+  }, []);
+
+  /** Desfaz só a mudança otimista deste card, sem apagar as outras que ainda estão em voo. */
+  const revertCard = useCallback((cardId: string) => {
+    const server = cardsRef.current.find(c => c.id === cardId);
+    setOptimisticCards(prev => server
+      ? prev.map(c => (c.id === cardId ? server : c))
+      : prev.filter(c => c.id !== cardId));
+  }, []);
+
+  /** Escrita parcial do quadro com a resposta aplicada na hora; erro vira aviso, não silêncio. */
+  const patchBoard = useCallback((patch: Partial<RetroBoardType>, errorTitle = 'Não foi possível salvar a alteração') => {
+    return retroApi.patchBoard(boardId, patch)
+      .then(updated => {
+        if (updated?.id) setBoardData(updated);
+        return updated;
+      })
+      .catch(err => {
+        console.error(err);
+        toast({ title: errorTitle, description: err?.message, variant: 'destructive' });
+        return null;
+      });
+  }, [boardId, toast]);
 
   // Initial load and WebSocket connection
   useEffect(() => {
@@ -98,11 +187,18 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     let stopped = false;
     let socket: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+    let hadConnection = false;
 
     const connect = () => {
       const wsUrl = buildWsUrl();
       console.log("Conectando ao WebSocket do Board Retro:", boardId);
       socket = new WebSocket(wsUrl);
+
+      socket.onopen = () => {
+        // Eventos perdidos durante a queda não voltam sozinhos: reconectou, ressincroniza.
+        if (hadConnection) reloadBoardData();
+        hadConnection = true;
+      };
 
       socket.onmessage = (event) => {
         try {
@@ -196,8 +292,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       socket.onclose = () => {
         if (stopped) return;
         console.warn("Conexão WebSocket fechada. Tentando reconectar...");
-        reloadBoardData();
-        reconnectTimeout = setTimeout(connect, 5000);
+        reconnectTimeout = setTimeout(connect, 3000);
       };
     };
 
@@ -224,9 +319,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const handleStageChange = useCallback((stage: RetroColumnKey) => {
     setActiveStage(stage);
     if (isCurrentUserCreator && boardData?.syncStageEnabled && boardData) {
-      retroApi.saveOrUpdateBoard({ ...boardData, activeColumnKey: stage });
+      patchBoard({ activeColumnKey: stage });
     }
-  }, [isCurrentUserCreator, boardData]);
+  }, [isCurrentUserCreator, boardData, patchBoard]);
 
   useEffect(() => {
     if (boardData?.syncStageEnabled && !isCurrentUserCreator && boardData.activeColumnKey) {
@@ -237,6 +332,11 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   // Initialize activeStage from board columns (dynamic or fallback)
   useEffect(() => {
     if (!activeStage && boardData) {
+      // Com a sincronização ligada, quem entra no meio da retro começa na coluna do facilitador, não na primeira.
+      if (boardData.syncStageEnabled && !isCurrentUserCreator && boardData.activeColumnKey) {
+        setActiveStage(boardData.activeColumnKey);
+        return;
+      }
       const cols = boardData.columns && boardData.columns.length > 0
         ? boardData.columns
         : RETRO_TEMPLATES.classic;
@@ -245,12 +345,17 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         setActiveStage(sorted[0].id);
       }
     }
-  }, [boardData, activeStage]);
+  }, [boardData, activeStage, isCurrentUserCreator]);
 
   useEffect(() => {
-    if (cards) {
+    const pending = pendingRef.current;
+    if (pending.size === 0) {
       setOptimisticCards(cards);
+      return;
     }
+    const byId = new Map(cards.map(c => [c.id, c]));
+    pending.forEach((card, id) => byId.set(id, card));
+    setOptimisticCards(Array.from(byId.values()));
   }, [cards]);
 
   useEffect(() => {
@@ -383,12 +488,12 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           ? prev
           : [...prev, newParticipant]);
         // Registrar ID no boardData localmente e no servidor se for novo
-        const currentParticipantIds = boardData.participantIds || [];
+        // Só participantIds: gravar o quadro inteiro com a cópia de quem entra desfazia fase, timer e votação do facilitador.
+        const currentParticipantIds = boardRef.current?.participantIds || boardData.participantIds || [];
         if (!currentParticipantIds.includes(userProfile.id)) {
-          retroApi.saveOrUpdateBoard({
-            ...boardData,
-            participantIds: [...currentParticipantIds, userProfile.id]
-          });
+          retroApi.patchBoard(boardId, { participantIds: [...currentParticipantIds, userProfile.id] })
+            .then(updated => { if (updated?.id) setBoardData(updated); })
+            .catch(err => console.error("Erro ao registrar participante no quadro:", err));
         }
       }).catch(err => {
         console.error("Erro ao registrar participante:", err);
@@ -414,8 +519,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         updates.globalRole = userProfile.role;
         updates.role = mapGlobalToTeamRole(userProfile.role);
       }
-      lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role };
-      retroApi.addOrUpdateParticipant(boardId, updates).catch(err => console.error(err));
+      retroApi.addOrUpdateParticipant(boardId, updates)
+        .then(() => { lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role }; })
+        .catch(err => console.error(err));
     } else {
       lastSyncedProfileRef.current = { name: userProfile.name, role: userProfile.role };
     }
@@ -439,7 +545,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardData]);
 
   useEffect(() => {
-    if (hasJoined && !currentUser && participants.length > 0) {
+    if (hasJoined && !currentUser && participants.length > 0 && !leavingRef.current) {
       toast({
         title: "Você saiu do quadro",
         description: "Você está sendo redirecionado para a página inicial.",
@@ -452,132 +558,149 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     return Array.from(new Map(cardsArray.map(c => [c.id, c])).values());
   };
 
-  const handleAddCard = useCallback((content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => {
-    if (!isAuthenticated || !userProfile || !boardId) return;
+  const handleAddCard = useCallback(async (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string): Promise<boolean> => {
+    if (!isAuthenticated || !userProfile || !boardId) return false;
+    const text = content.trim();
+    if (!text) return false;
 
-    const tempId = `temp-${Date.now()}`;
-    const newCard: RetroCardType = {
-      id: tempId,
-      boardId,
-      columnKey,
-      content,
-      authorId: userProfile.id,
-      votes: [],
-      order: Date.now(),
-      assignee,
-      dueDate
-    };
-
-    setOptimisticCards(prev => ensureUniqueCards([...prev, newCard]));
-
-    retroApi.saveOrUpdateCard(boardId, {
+    const card: RetroCardType = {
       id: crypto.randomUUID(),
       boardId,
       columnKey,
-      content,
+      content: text,
       authorId: userProfile.id,
       votes: [],
-      order: newCard.order,
+      order: Date.now(),
       assignee: assignee || undefined,
-      dueDate: dueDate || undefined
-    }).catch(err => {
+      dueDate: dueDate || undefined,
+    };
+
+    trackOptimistic(card);
+    try {
+      const saved = await retroApi.saveOrUpdateCard(boardId, card);
+      settleCard(card.id);
+      applyServerCard(saved);
+      return true;
+    } catch (err: any) {
       console.error(err);
-      if (cards) setOptimisticCards(cards);
-    });
-  }, [isAuthenticated, userProfile, boardId, cards]);
-  
+      settleCard(card.id);
+      revertCard(card.id);
+      toast({ title: 'Não foi possível adicionar o card', description: err?.message || 'Seu texto continua no campo. Tente de novo.', variant: 'destructive' });
+      return false;
+    }
+  }, [isAuthenticated, userProfile, boardId, trackOptimistic, settleCard, applyServerCard, revertCard, toast]);
+
   const handleDeleteCard = useCallback((cardId: string) => {
     if (!boardId) return;
-    retroApi.deleteCard(boardId, cardId).catch(err => console.error(err));
-  }, [boardId]);
-  
+    retroApi.deleteCard(boardId, cardId)
+      .then(() => {
+        setCards(prev => prev.filter(c => c.id !== cardId));
+        setOptimisticCards(prev => prev.filter(c => c.id !== cardId));
+      })
+      .catch(err => {
+        console.error(err);
+        toast({ title: 'Não foi possível apagar o card', description: err?.message, variant: 'destructive' });
+      });
+  }, [boardId, toast]);
+
   const handleUpdateCard = useCallback((cardId: string, newContent: string, assignee?: string, dueDate?: string) => {
-    if (!boardId || !cards) return;
-    const current = cards.find(c => c.id === cardId);
+    if (!boardId) return;
+    const current = optimisticRef.current.find(c => c.id === cardId) || cardsRef.current.find(c => c.id === cardId);
     if (!current) return;
-    
-    // Atualização otimista
-    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, content: newContent, assignee, dueDate } : c));
-    retroApi.saveOrUpdateCard(boardId, {
-      ...current,
-      content: newContent,
-      assignee: assignee || undefined,
-      dueDate: dueDate || undefined
-    }).catch(err => {
-      console.error(err);
-      setOptimisticCards(cards);
-    });
-  }, [boardId, cards]);
-  
+    const text = newContent.trim();
+    if (!text) return;
+    if (text === current.content && (assignee || undefined) === (current.assignee || undefined) && (dueDate || undefined) === (current.dueDate || undefined)) return;
+
+    const updated: RetroCardType = { ...current, content: text, assignee: assignee || undefined, dueDate: dueDate || undefined };
+    trackOptimistic(updated);
+    retroApi.saveOrUpdateCard(boardId, updated)
+      .then(saved => { settleCard(cardId); applyServerCard(saved); })
+      .catch(err => {
+        console.error(err);
+        settleCard(cardId);
+        revertCard(cardId);
+        toast({ title: 'Não foi possível salvar a edição', description: err?.message, variant: 'destructive' });
+      });
+  }, [boardId, trackOptimistic, settleCard, applyServerCard, revertCard, toast]);
+
   const handleToggleCardsRevealed = useCallback(() => {
     if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      isCardsRevealed: !boardData.isCardsRevealed
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ isCardsRevealed: !boardData.isCardsRevealed });
+  }, [boardData, patchBoard]);
 
-  const handleSetVotingStatus = useCallback((status: 'open' | 'closed') => {
+  const handleSetVotingStatus = useCallback((status: 'disabled' | 'active' | 'finished') => {
     if (!boardData) return;
-    const updates: any = { ...boardData, votingStatus: status };
-    if ((status as any) === 'finished' && boardData?.autoSortOnVoteEnd) {
+    if (status === 'disabled') {
+      // "Resetar votação" zera os votos de verdade: votos velhos continuavam valendo no limite da rodada seguinte.
+      retroApi.resetVotes(boardId)
+        .then(updated => {
+          if (updated?.id) setBoardData(updated);
+          setCards(prev => prev.map(c => ({ ...c, votes: [] })));
+        })
+        .catch(err => {
+          console.error(err);
+          toast({ title: 'Não foi possível resetar a votação', description: err?.message, variant: 'destructive' });
+        });
+      return;
+    }
+    const patch: Partial<RetroBoardType> = { votingStatus: status };
+    if (status === 'finished' && boardData.autoSortOnVoteEnd) {
       const cols = boardData.columns && boardData.columns.length > 0 ? boardData.columns : RETRO_TEMPLATES.classic;
       const feedbackIds = cols.filter(c => c.theme !== 'action').map(c => c.id);
-      updates.columnSorts = {
+      patch.columnSorts = {
         ...(boardData.columnSorts || {}),
         ...Object.fromEntries(feedbackIds.map(id => [id, true])),
       };
     }
-    retroApi.saveOrUpdateBoard(updates).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard(patch);
+  }, [boardData, boardId, patchBoard, toast]);
 
   const handleSetMaxVotesPerParticipant = useCallback((max: number) => {
     if (!boardData) return;
-    retroApi.saveOrUpdateBoard({ ...boardData, maxVotesPerParticipant: max }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ maxVotesPerParticipant: max });
+  }, [boardData, patchBoard]);
 
-  const handleToggleVote = useCallback((cardId: string, currentVotes: string[]) => {
-    if (!boardId || !isAuthenticated || !userProfile || !cards) return;
-    const current = cards.find(c => c.id === cardId);
+  const handleToggleVote = useCallback((cardId: string) => {
+    if (!boardId || !isAuthenticated || !userProfile || !boardData) return;
+    if (boardData.votingStatus !== 'active') {
+      toast({ title: 'A votação não está aberta', description: 'Peça ao facilitador para iniciar a votação.', variant: 'destructive' });
+      return;
+    }
+    const current = optimisticRef.current.find(c => c.id === cardId);
     if (!current) return;
 
-    const existingIndex = currentVotes.indexOf(userProfile.id);
-    const isRemoving = existingIndex !== -1;
-
-    if (!isRemoving && boardData?.maxVotesPerParticipant) {
+    const isRemoving = current.votes.includes(userProfile.id);
+    const max = boardData.maxVotesPerParticipant || 0;
+    if (!isRemoving && max > 0) {
       // Cada painel é uma votação separada: o limite vale por coluna.
-      const target = optimisticCards.find(c => c.id === cardId);
-      const votesUsed = optimisticCards.filter(c => c.columnKey === target?.columnKey && c.votes.includes(userProfile.id)).length;
-      if (votesUsed >= boardData.maxVotesPerParticipant) {
+      const votesUsed = optimisticRef.current.filter(c => c.columnKey === current.columnKey && c.votes.includes(userProfile.id)).length;
+      if (votesUsed >= max) {
         toast({
-          title: "Limite de votos atingido",
-          description: `Você já usou seus ${boardData.maxVotesPerParticipant} votos neste painel. Remova um voto dele antes de votar em outro card do mesmo painel.`,
-          variant: "destructive"
+          title: 'Limite de votos atingido',
+          description: `Você já usou ${max === 1 ? 'seu único voto' : `seus ${max} votos`} neste painel. Remova um voto dele antes de votar em outro card do mesmo painel.`,
+          variant: 'destructive'
         });
         return;
       }
     }
 
-    const newVotes = isRemoving
-      ? currentVotes.filter((_, i) => i !== existingIndex)
-      : [...currentVotes, userProfile.id];
-
-    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, votes: newVotes } : c));
-    retroApi.saveOrUpdateCard(boardId, {
-      ...current,
-      votes: newVotes
-    }).catch(err => {
-      console.error(err);
-      setOptimisticCards(cards);
-    });
-  }, [boardId, isAuthenticated, userProfile, cards, optimisticCards, boardData, toast]);
+    const newVotes = isRemoving ? current.votes.filter(v => v !== userProfile.id) : [...current.votes, userProfile.id];
+    trackOptimistic({ ...current, votes: newVotes });
+    // O servidor alterna só o voto desta pessoa e aplica o limite: dois votos ao mesmo tempo não se perdem.
+    retroApi.toggleVote(boardId, cardId)
+      .then(saved => { settleCard(cardId); applyServerCard(saved); })
+      .catch(err => {
+        console.error(err);
+        settleCard(cardId);
+        revertCard(cardId);
+        toast({ title: 'Não foi possível registrar o voto', description: err?.message, variant: 'destructive' });
+      });
+  }, [boardId, isAuthenticated, userProfile, boardData, toast, trackOptimistic, settleCard, applyServerCard, revertCard]);
 
   const handleToggleReaction = useCallback((cardId: string, type: RetroReactionType, currentUserIds: string[]) => {
-    if (!boardId || !isAuthenticated || !userProfile || !cards) return;
-    // Base em optimisticCards, não em cards: cards só chega atualizado após o
-    // round-trip do servidor, então duas reações clicadas em sequência rápida
-    // no mesmo card (antes do primeiro POST responder) perderiam uma delas.
-    const current = optimisticCards.find(c => c.id === cardId) || cards.find(c => c.id === cardId);
+    if (!boardId || !isAuthenticated || !userProfile) return;
+    // Base em optimisticRef: duas reações em sequência rápida no mesmo card não perdem uma delas.
+    const current = optimisticRef.current.find(c => c.id === cardId) || cardsRef.current.find(c => c.id === cardId);
     if (!current) return;
 
     // Reações são mutuamente exclusivas por pessoa: tirar o usuário de todos
@@ -593,30 +716,34 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       newReactions[type] = [...(newReactions[type] || []), userProfile.id];
     }
 
-    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, reactions: newReactions } : c));
-    retroApi.saveOrUpdateCard(boardId, {
-      ...current,
-      reactions: newReactions
-    }).catch(err => {
-      console.error(err);
-      setOptimisticCards(cards);
-    });
-  }, [boardId, isAuthenticated, userProfile, cards, optimisticCards]);
+    const updated = { ...current, reactions: newReactions };
+    trackOptimistic(updated);
+    retroApi.saveOrUpdateCard(boardId, updated)
+      .then(saved => { settleCard(cardId); applyServerCard(saved); })
+      .catch(err => {
+        console.error(err);
+        settleCard(cardId);
+        revertCard(cardId);
+        toast({ title: 'Não foi possível registrar a reação', description: err?.message, variant: 'destructive' });
+      });
+  }, [boardId, isAuthenticated, userProfile, trackOptimistic, settleCard, applyServerCard, revertCard, toast]);
 
   const handleToggleActionDone = useCallback((cardId: string, isDone: boolean) => {
-    if (!boardId || !cards) return;
-    const current = cards.find(c => c.id === cardId);
+    if (!boardId) return;
+    const current = optimisticRef.current.find(c => c.id === cardId) || cardsRef.current.find(c => c.id === cardId);
     if (!current) return;
 
-    setOptimisticCards(prev => prev.map(c => c.id === cardId ? { ...c, isDone } : c));
-    retroApi.saveOrUpdateCard(boardId, {
-      ...current,
-      isDone
-    }).catch(err => {
-      console.error(err);
-      setOptimisticCards(cards);
-    });
-  }, [boardId, cards]);
+    const updated = { ...current, isDone };
+    trackOptimistic(updated);
+    retroApi.saveOrUpdateCard(boardId, updated)
+      .then(saved => { settleCard(cardId); applyServerCard(saved); })
+      .catch(err => {
+        console.error(err);
+        settleCard(cardId);
+        revertCard(cardId);
+        toast({ title: 'Não foi possível atualizar a ação', description: err?.message, variant: 'destructive' });
+      });
+  }, [boardId, trackOptimistic, settleCard, applyServerCard, revertCard, toast]);
 
   const handleImportActions = useCallback(async (sourceBoard: RetroBoardType, pendingCards: RetroCardType[]) => {
     if (!boardId || !isAuthenticated || !userProfile || !boardData || pendingCards.length === 0) return;
@@ -675,9 +802,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [boardId, isAuthenticated, userProfile, boardData, cards, toast]);
 
   const handleMergeCards = useCallback(async (sourceId: string, targetId: string) => {
-    if (!boardId || !cards || !boardData) return;
+    if (!boardId || !boardData) return;
 
-    if (!boardData?.isCardsRevealed) {
+    if (!boardData.isCardsRevealed) {
       toast({
         title: "Ação bloqueada",
         description: "Não é possível fundir cards durante a fase anônima.",
@@ -685,332 +812,321 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       });
       return;
     }
-    
-    const sourceCard = cards.find(c => c.id === sourceId);
-    const targetCard = cards.find(c => c.id === targetId);
-    
+
+    const sourceCard = cardsRef.current.find(c => c.id === sourceId);
+    const targetCard = cardsRef.current.find(c => c.id === targetId);
     if (!sourceCard || !targetCard) return;
 
-    const combinedVotes = [...targetCard.votes, ...sourceCard.votes];
-    // Conteúdo do alvo nunca muda — as ideias fundidas entram como histórico
-    // separado (originalTexts) pra renderizar como linha do tempo, em vez de
-    // virar um texto único cheio de "- " concatenado.
-    const combinedOriginalTexts = [
-      ...(targetCard.originalTexts || []),
-      sourceCard.content,
-      ...(sourceCard.originalTexts || []),
-    ];
+    if (sourceCard.columnKey !== targetCard.columnKey) {
+      toast({
+        title: "Fusão não permitida",
+        description: "Só é possível fundir cards do mesmo painel: cada painel tem a sua votação.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
-      setOptimisticCards(prev => {
-        const withoutSource = prev.filter(c => c.id !== sourceId);
-        return withoutSource.map(c => c.id === targetId ? {
-          ...c,
-          votes: combinedVotes,
-          originalTexts: combinedOriginalTexts,
-          children: []
-        } : c);
-      });
-
-      // Salva a alteração no alvo
-      await retroApi.saveOrUpdateCard(boardId, {
-        ...targetCard,
-        votes: combinedVotes,
-        originalTexts: combinedOriginalTexts
-      });
-
-      // Exclui a origem
-      await retroApi.deleteCard(boardId, sourceId);
-
+      // Atômico no servidor: junta os textos como histórico, une os votos sem repetir quem votou nos dois e apaga o original.
+      const merged = await retroApi.mergeCards(boardId, targetId, sourceId);
+      setCards(prev => prev.filter(c => c.id !== sourceId));
+      applyServerCard(merged);
       toast({
-        title: "Ideias Fundidas!",
-        description: "Os textos e votos foram combinados com sucesso.",
+        title: "Ideias fundidas!",
+        description: "Os textos e votos foram combinados.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao fundir cards:", error);
-      if (cards) setOptimisticCards(cards);
+      reloadBoardData();
       toast({
-        title: "Erro na Fusão",
-        description: "Não foi possível combinar as ideias no banco de dados.",
+        title: "Não foi possível fundir os cards",
+        description: error?.message || "Tente de novo.",
         variant: "destructive"
       });
     }
-  }, [boardId, cards, toast, boardData]);
+  }, [boardId, boardData, toast, applyServerCard, reloadBoardData]);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || !cards || !boardId) return;
+    const allCards = cardsRef.current;
+    if (!over || !boardId || !userProfile) return;
 
-    const activeCard = cards.find(c => c.id === active.id);
+    const activeCard = allCards.find(c => c.id === active.id);
     if (!activeCard) return;
+
+    // Na fase anônima só o autor (ou o facilitador) move o próprio card: mexer no card alheio revelaria/atrapalharia a escrita.
+    if (!boardData?.isCardsRevealed && activeCard.authorId !== userProfile.id && !isCurrentUserCreator) {
+      toast({ title: 'Card de outra pessoa', description: 'Durante a fase anônima só o autor ou o facilitador move o card.', variant: 'destructive' });
+      return;
+    }
 
     const overId = over.id as string;
     const isOverAColumn = over.data.current?.type === 'column';
+    const sortedCards = [...allCards].sort((a, b) => a.order - b.order);
 
-    let newColumnKey = activeCard.columnKey;
-    let newOrder: number;
+    let targetColumn: RetroColumnKey;
+    if (isOverAColumn) {
+      targetColumn = overId as RetroColumnKey;
+    } else {
+      const overCard = allCards.find(c => c.id === overId);
+      if (!overCard || overCard.id === activeCard.id) return;
+      targetColumn = overCard.columnKey;
+    }
 
-    const sortedCards = [...cards].sort((a, b) => a.order - b.order);
+    // Coluna ordenada por votos: a ordem é pelo placar, soltar numa posição não faz sentido dentro dela.
+    if (targetColumn === activeCard.columnKey && boardData?.columnSorts?.[targetColumn]) return;
+    if (isOverAColumn && targetColumn === activeCard.columnKey) return;
 
-    try {
-      if (isOverAColumn) {
-        newColumnKey = overId as RetroColumnKey;
-        if (newColumnKey === activeCard.columnKey) return;
-        const cardsInNewColumn = sortedCards.filter(c => c.columnKey === newColumnKey);
-        const lastCard = cardsInNewColumn[cardsInNewColumn.length - 1];
-        newOrder = lastCard ? lastCard.order + 1000 : Date.now();
-        
-        await retroApi.saveOrUpdateCard(boardId, {
-          ...activeCard,
-          columnKey: newColumnKey,
-          order: newOrder
+    // Mudar de painel leva os votos junto: não pode estourar o limite do painel de destino.
+    const max = boardData?.maxVotesPerParticipant || 0;
+    if (targetColumn !== activeCard.columnKey && max > 0 && activeCard.votes.includes(userProfile.id)) {
+      const usedThere = allCards.filter(c => c.columnKey === targetColumn && c.id !== activeCard.id && c.votes.includes(userProfile.id)).length;
+      if (usedThere >= max) {
+        toast({
+          title: 'Limite de votos do painel de destino',
+          description: 'Você já usou todos os votos do painel de destino. Remova o seu voto deste card ou de outro card de lá antes de mover.',
+          variant: 'destructive'
         });
-      } else {
-        const overCard = cards.find(c => c.id === overId);
-        if (!overCard || overCard.id === activeCard.id) return;
-
-        newColumnKey = overCard.columnKey;
-        const cardsInTargetColumn = sortedCards.filter(c => c.columnKey === newColumnKey);
-        const activeIndex = cardsInTargetColumn.findIndex(c => c.id === activeCard.id);
-        const overIndex = cardsInTargetColumn.findIndex(c => c.id === overCard.id);
-
-        if(activeIndex !== -1) cardsInTargetColumn.splice(activeIndex, 1);
-        
-        const newOverIndex = cardsInTargetColumn.findIndex(c => c.id === overCard.id);
-        const isDroppingBefore = activeIndex === -1 || activeIndex > overIndex;
-        const cardBefore = isDroppingBefore ? cardsInTargetColumn[newOverIndex - 1] : overCard;
-        const cardAfter = isDroppingBefore ? overCard : cardsInTargetColumn[newOverIndex + 1];
-
-        const orderBefore = cardBefore?.order;
-        const orderAfter = cardAfter?.order;
-
-        if (orderBefore !== undefined && orderAfter !== undefined && (orderAfter - orderBefore) < 1) {
-          const finalColumnCards = [...cardsInTargetColumn];
-          const insertAt = isDroppingBefore ? newOverIndex : newOverIndex + 1;
-          finalColumnCards.splice(insertAt, 0, activeCard);
-          
-          for (let idx = 0; idx < finalColumnCards.length; idx++) {
-            const c = finalColumnCards[idx];
-            await retroApi.saveOrUpdateCard(boardId, {
-              ...c,
-              columnKey: newColumnKey,
-              order: (idx + 1) * 1000
-            });
-          }
-        } else {
-          if (orderBefore !== undefined && orderAfter !== undefined) {
-            newOrder = (orderBefore + orderAfter) / 2;
-          } else if (orderBefore !== undefined) {
-            newOrder = orderBefore + 1000;
-          } else if (orderAfter !== undefined) {
-            newOrder = orderAfter / 2;
-          } else {
-            newOrder = Date.now();
-          }
-          await retroApi.saveOrUpdateCard(boardId, {
-            ...activeCard,
-            columnKey: newColumnKey,
-            order: newOrder
-          });
-        }
+        return;
       }
-    } catch (error) {
+    }
+
+    // Calcula as novas posições (a coluna do card pode mudar), aplica na tela e grava.
+    const moves: RetroCardType[] = [];
+    const cardsInTargetColumn = sortedCards.filter(c => c.columnKey === targetColumn && c.id !== activeCard.id);
+
+    if (isOverAColumn) {
+      const lastCard = cardsInTargetColumn[cardsInTargetColumn.length - 1];
+      moves.push({ ...activeCard, columnKey: targetColumn, order: lastCard ? lastCard.order + 1000 : Date.now() });
+    } else {
+      const overCard = allCards.find(c => c.id === overId)!;
+      const columnWithActive = sortedCards.filter(c => c.columnKey === targetColumn);
+      const activeIndex = columnWithActive.findIndex(c => c.id === activeCard.id);
+      const overIndex = columnWithActive.findIndex(c => c.id === overCard.id);
+      const isDroppingBefore = activeIndex === -1 || activeIndex > overIndex;
+
+      const newOverIndex = cardsInTargetColumn.findIndex(c => c.id === overCard.id);
+      const cardBefore = isDroppingBefore ? cardsInTargetColumn[newOverIndex - 1] : overCard;
+      const cardAfter = isDroppingBefore ? overCard : cardsInTargetColumn[newOverIndex + 1];
+      const orderBefore = cardBefore?.order;
+      const orderAfter = cardAfter?.order;
+
+      if (orderBefore !== undefined && orderAfter !== undefined && (orderAfter - orderBefore) < 1) {
+        // Sem espaço entre os dois vizinhos: renumera a coluna inteira.
+        const finalColumnCards = [...cardsInTargetColumn];
+        const insertAt = isDroppingBefore ? newOverIndex : newOverIndex + 1;
+        finalColumnCards.splice(insertAt, 0, activeCard);
+        finalColumnCards.forEach((c, idx) => moves.push({ ...c, columnKey: targetColumn, order: (idx + 1) * 1000 }));
+      } else {
+        let newOrder: number;
+        if (orderBefore !== undefined && orderAfter !== undefined) newOrder = (orderBefore + orderAfter) / 2;
+        else if (orderBefore !== undefined) newOrder = orderBefore + 1000;
+        else if (orderAfter !== undefined) newOrder = orderAfter / 2;
+        else newOrder = Date.now();
+        moves.push({ ...activeCard, columnKey: targetColumn, order: newOrder });
+      }
+    }
+
+    moves.forEach(trackOptimistic);
+    try {
+      const saved = await Promise.all(moves.map(m => retroApi.saveOrUpdateCard(boardId, m)));
+      moves.forEach(m => settleCard(m.id));
+      saved.forEach(applyServerCard);
+    } catch (error: any) {
       console.error("Erro ao mover card:", error);
+      moves.forEach(m => { settleCard(m.id); revertCard(m.id); });
       toast({
         title: "Não foi possível mover o card",
-        description: "Tente novamente.",
+        description: error?.message || "Tente novamente.",
         variant: "destructive"
       });
     }
-  }, [cards, boardId, toast]);
+  }, [boardId, userProfile, boardData, isCurrentUserCreator, toast, trackOptimistic, settleCard, applyServerCard, revertCard]);
 
-  const handleRemoveParticipant = useCallback((participantId: string) => {
-    if(!boardId || !boardData) return;
-    
-    retroApi.removeParticipant(boardId, participantId).then(() => {
-      const currentParticipantIds = boardData.participantIds || [];
-      retroApi.saveOrUpdateBoard({
-        ...boardData,
-        participantIds: currentParticipantIds.filter(id => id !== participantId)
-      });
-    }).catch(error => {
+  const handleRemoveParticipant = useCallback(async (participantId: string): Promise<boolean> => {
+    if (!boardId) return false;
+    try {
+      await retroApi.removeParticipant(boardId, participantId);
+    } catch (error: any) {
       console.error("Erro ao remover participante:", error);
       toast({
         title: "Não foi possível remover o participante",
-        description: "Tente novamente.",
+        description: error?.message || "Tente novamente.",
         variant: "destructive"
       });
-    });
-  }, [boardId, boardData, toast]);
+      return false;
+    }
+    setParticipants(prev => prev.filter(p => p.id !== participantId));
+    const ids = (boardRef.current?.participantIds || []).filter(id => id !== participantId);
+    retroApi.patchBoard(boardId, { participantIds: ids })
+      .then(updated => { if (updated?.id) setBoardData(updated); })
+      .catch(err => console.error("Erro ao atualizar a lista de participantes do quadro:", err));
+    return true;
+  }, [boardId, toast]);
 
   const handleClaimCreator = useCallback(() => {
-    if (!boardData || !isAuthenticated || !userProfile || !participants) return;
+    if (!boardData || !isAuthenticated || !userProfile) return;
 
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      creatorId: userProfile.id
-    }).then(async () => {
-      const p = participants.find(part => part.id === userProfile.id);
-      if (p) {
-        await retroApi.addOrUpdateParticipant(boardId, { ...p, isCreator: true });
-      }
-
+    // O servidor troca o criador e limpa a flag de facilitador do anterior: nunca ficam dois.
+    retroApi.transferControl(boardId).then(updated => {
+      if (updated?.id) setBoardData(updated);
+      setParticipants(prev => prev.map(p => ({ ...p, isCreator: p.id === userProfile.id })));
       toast({
-        title: "👑 Controle Assumido",
-        description: `${userProfile?.name} agora é o organizador do quadro.`,
+        title: "👑 Controle assumido",
+        description: `${userProfile.name} agora é o organizador do quadro.`,
       });
     }).catch(error => {
       console.error("Erro ao assumir controle:", error);
       toast({
         title: "Erro ao assumir controle",
-        description: "Não foi possível completar a operação no banco de dados.",
+        description: error?.message || "Não foi possível completar a operação.",
         variant: "destructive"
       });
     });
-  }, [boardData, isAuthenticated, userProfile, participants, toast, boardId]);
+  }, [boardData, boardId, isAuthenticated, userProfile, toast]);
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
     if (!currentUser) return;
-    handleRemoveParticipant(currentUser.id);
-    router.push('/');
+    // Só sai da página depois que o servidor confirmou; senão a pessoa "sai" mas continua na lista.
+    leavingRef.current = true;
+    const ok = await handleRemoveParticipant(currentUser.id);
+    if (ok) {
+      router.push('/');
+    } else {
+      leavingRef.current = false;
+    }
   };
 
   const handleSetTimerDuration = useCallback((duration: number) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: {
-        status: 'stopped',
-        initialDuration: duration,
-        remainingOnPause: duration,
-        endTime: null,
-      }
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({
+      timer: { status: 'stopped', initialDuration: duration, remainingOnPause: duration, endTime: null }
+    });
+  }, [patchBoard]);
 
   const handleStartTimer = useCallback((duration: number) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: {
-        status: 'running',
-        endTime: Date.now() + duration * 1000,
-        initialDuration: duration,
-        remainingOnPause: duration,
-      }
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({
+      timer: { status: 'running', endTime: Date.now() + duration * 1000, initialDuration: duration, remainingOnPause: duration }
+    });
+  }, [patchBoard]);
 
   const handlePauseTimer = useCallback(() => {
-    const timer = boardData?.timer;
-    if (!boardData || !timer?.endTime) return;
+    const timer = boardRef.current?.timer;
+    if (!timer?.endTime) return;
     const remaining = Math.max(0, Math.round((Number(timer.endTime) - Date.now()) / 1000));
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: {
-        ...timer,
-        status: 'paused',
-        remainingOnPause: remaining,
-      }
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ timer: { ...timer, status: 'paused', remainingOnPause: remaining } });
+  }, [patchBoard]);
 
   const handleResumeTimer = useCallback(() => {
-    const timer = boardData?.timer;
-    if (!boardData || !timer) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: {
-        ...timer,
-        status: 'running',
-        endTime: Date.now() + timer.remainingOnPause * 1000,
-      }
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    const timer = boardRef.current?.timer;
+    if (!timer) return;
+    patchBoard({
+      timer: { ...timer, status: 'running', endTime: Date.now() + (timer.remainingOnPause ?? timer.initialDuration) * 1000 }
+    });
+  }, [patchBoard]);
 
   const handleResetTimer = useCallback(() => {
-    const timer = boardData?.timer;
-    if (!boardData || !timer) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      timer: {
-        ...timer,
-        status: 'stopped',
-        endTime: null,
-        remainingOnPause: timer.initialDuration,
-      }
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    const timer = boardRef.current?.timer;
+    if (!timer) return;
+    patchBoard({ timer: { ...timer, status: 'stopped', endTime: null, remainingOnPause: timer.initialDuration } });
+  }, [patchBoard]);
+
+  /** O facilitador encerra o timer que chegou a zero; sem isso ele ficava "running" para sempre e o alarme repetia. */
+  const handleTimerExpired = useCallback(() => {
+    const timer = boardRef.current?.timer;
+    if (!timer || timer.status !== 'running') return;
+    patchBoard({ timer: { ...timer, status: 'stopped', endTime: null, remainingOnPause: timer.initialDuration } });
+  }, [patchBoard]);
 
   const handleToggleAuthorsRevealed = useCallback((show: boolean) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      isAuthorsRevealed: show
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ isAuthorsRevealed: show });
+  }, [patchBoard]);
 
   const handleToggleSyncStage = useCallback((enabled: boolean) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      syncStageEnabled: enabled,
-      activeColumnKey: enabled ? activeStage : undefined,
-    }).catch(err => console.error(err));
-  }, [boardData, activeStage]);
+    patchBoard({ syncStageEnabled: enabled, activeColumnKey: enabled ? activeStage : undefined });
+  }, [patchBoard, activeStage]);
 
   const handleToggleAutoRevealOnTimerEnd = useCallback((enabled: boolean) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      autoRevealOnTimerEnd: enabled
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ autoRevealOnTimerEnd: enabled });
+  }, [patchBoard]);
 
   const handleToggleAutoSortOnVoteEnd = useCallback((enabled: boolean) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      autoSortOnVoteEnd: enabled
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ autoSortOnVoteEnd: enabled });
+  }, [patchBoard]);
 
   const handleToggleHealthCheck = useCallback((enabled: boolean) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      healthCheckEnabled: enabled
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ healthCheckEnabled: enabled });
+  }, [patchBoard]);
 
   const handleHealthCheckQuestionChange = useCallback((question: string) => {
-    if (!boardData) return;
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      healthCheckQuestion: question
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    patchBoard({ healthCheckQuestion: question });
+  }, [patchBoard]);
 
-  const handleSubmitHealthCheckAnswer = useCallback((answer: HealthCheckAnswer) => {
+  const handleSubmitHealthCheckAnswer = useCallback(async (answer: HealthCheckAnswer) => {
     if (!boardId || !currentUser) return;
-    retroApi.addOrUpdateParticipant(boardId, { ...currentUser, healthCheckAnswer: answer }).catch(err => {
+    // Aplica na hora: a trava some sem depender do eco do WebSocket (que pode se perder).
+    const previous = currentUser;
+    setParticipants(prev => prev.map(p => (p.id === currentUser.id ? { ...p, healthCheckAnswer: answer } : p)));
+    try {
+      await retroApi.addOrUpdateParticipant(boardId, { ...currentUser, healthCheckAnswer: answer });
+    } catch (err: any) {
       console.error("Erro ao registrar check-in inicial:", err);
-    });
-  }, [boardId, currentUser]);
+      setParticipants(prev => prev.map(p => (p.id === previous.id ? previous : p)));
+      toast({ title: 'Não foi possível registrar sua resposta', description: err?.message || 'Tente de novo.', variant: 'destructive' });
+    }
+  }, [boardId, currentUser, toast]);
 
   const handleToggleColumnSort = useCallback((columnKey: string, isSorted: boolean) => {
-    if (!boardData) return;
-    const currentSorts = boardData?.columnSorts || {};
-    retroApi.saveOrUpdateBoard({
-      ...boardData,
-      columnSorts: {
-        ...currentSorts,
-        [columnKey]: isSorted
-      }
-    }).catch(err => console.error(err));
-  }, [boardData]);
+    const currentSorts = boardRef.current?.columnSorts || {};
+    patchBoard({ columnSorts: { ...currentSorts, [columnKey]: isSorted } });
+  }, [patchBoard]);
 
-  if (isLoading || isInitializing || isBoardLoading || areCardsLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
+  // Timer: objeto estável. Recriá-lo a cada render reiniciava o intervalo do contador a cada card ou voto recebido.
+  const timerStatus = boardData?.timer?.status;
+  const timerInitial = boardData?.timer?.initialDuration;
+  const timerPaused = boardData?.timer?.remainingOnPause;
+  const timerEnd = boardData?.timer?.endTime;
+  const mappedTimer = useMemo<TimerState>(() => ({
+    status: (timerStatus || 'stopped') as any,
+    initialDuration: timerInitial || 300,
+    remainingOnPause: timerPaused ?? 300,
+    endTime: timerEnd ? Number(timerEnd) : null,
+  }), [timerStatus, timerInitial, timerPaused, timerEnd]);
+
+  const currentUserCompat = useMemo(() => ({ uid: userProfile?.id ?? '' }), [userProfile?.id]);
+
+  // Sem sessão não há o que carregar: antes ficava num "Sincronizando..." eterno.
+  if (!isLoading && !isInitializing && !isAuthenticated) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <h1 className="text-xl font-black">Entre para abrir este quadro</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">Sua sessão expirou ou você ainda não entrou. Faça login e volte para este link.</p>
+        <Button onClick={() => router.push('/login')} className="rounded-xl font-bold">Ir para o login</Button>
+      </div>
+    );
+  }
+
+  if (loadError === 'failed' && !boardData) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <h1 className="text-xl font-black">Não foi possível carregar o quadro</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">Pode ser uma falha de conexão ou da sua sessão. O quadro não foi perdido.</p>
+        <Button
+          onClick={() => {
+            setLoadError(null);
+            setIsBoardLoading(true);
+            setAreCardsLoading(true);
+            setAreParticipantsLoading(true);
+            reloadBoardData();
+          }}
+          className="rounded-xl font-bold"
+        >
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
+
+  if (isLoading || isInitializing || isBoardLoading || areCardsLoading || areParticipantsLoading || !userProfile) {
     if (!userProfile) {
       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar no quadro" />;
     }
@@ -1019,14 +1135,6 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   if (!boardData) return <NotFound resourceName="quadro retrospectivo" />;
   if (!currentUser) return <LoadingScreen message="Entrando" submessage="Validando seu acesso ao quadro..." />;
-
-  // Adapta o objeto de timer vindo do backend para a interface compatível do front
-  const mappedTimer: TimerState = {
-    status: (boardData.timer?.status || 'stopped') as any,
-    initialDuration: boardData.timer?.initialDuration || 300,
-    remainingOnPause: boardData.timer?.remainingOnPause || 300,
-    endTime: boardData.timer?.endTime ? Number(boardData.timer.endTime) : null
-  };
 
   const needsHealthCheck = !!boardData.healthCheckEnabled && !currentUser.healthCheckAnswer;
 
@@ -1044,7 +1152,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         cards={optimisticCards}
         participants={participants || []}
         currentUserId={userProfile.id}
-        currentUser={{ uid: userProfile.id }}
+        currentUser={currentUserCompat}
         currentParticipant={currentUser}
         isCurrentUserCreator={isCurrentUserCreator}
         isAuthorsRevealed={boardData.isAuthorsRevealed === true}
@@ -1074,6 +1182,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onPauseTimer={handlePauseTimer}
         onResumeTimer={handleResumeTimer}
         onResetTimer={handleResetTimer}
+        onTimerExpired={handleTimerExpired}
         onClaimCreator={handleClaimCreator}
         activeStage={activeStage}
         onStageChange={handleStageChange}
@@ -1100,7 +1209,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       <SprintStatsDialog
         open={showStats && !needsHealthCheck}
         onClose={() => setShowStats(false)}
-        squadId={boardData?.team || userProfile?.squadId || ''}
+        squadId={boardData?.squadId || userProfile?.squadId || ''}
         sprintId={boardData?.sprintId || undefined}
       />
     </>

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 interface AddRetroCardProps {
   columnKey: RetroColumnKey;
   theme?: RetroColumnTheme;
-  onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => void;
+  onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => Promise<boolean> | void;
   participants: RetroParticipant[];
 }
 
@@ -22,13 +22,24 @@ export function AddRetroCard({ columnKey, theme, onAddCard, participants }: AddR
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
-  const handleAdd = (e?: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleAdd = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    if (submitting) return;
     if (content.trim()) {
-      onAddCard(content.trim(), columnKey, assignee.trim() || undefined, dueDate || undefined);
-      setContent('');
-      setAssignee('');
-      setDueDate('');
+      // O texto só some depois que o servidor aceitou: se falhar, a pessoa não perde o que escreveu.
+      setSubmitting(true);
+      try {
+        const ok = await onAddCard(content.trim(), columnKey, assignee.trim() || undefined, dueDate || undefined);
+        if (ok !== false) {
+          setContent('');
+          setAssignee('');
+          setDueDate('');
+        }
+      } finally {
+        setSubmitting(false);
+      }
     } else {
       toast({
         title: "Campo Obrigatório",
@@ -39,7 +50,7 @@ export function AddRetroCard({ columnKey, theme, onAddCard, participants }: AddR
   };
   
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleAdd();
     }
@@ -75,12 +86,14 @@ export function AddRetroCard({ columnKey, theme, onAddCard, participants }: AddR
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
           maxLength={1000}
+          aria-label={isActionItem ? "Nova ação para o time" : "Escreva seu feedback"}
           className="!min-h-[40px] max-h-[160px] w-full py-2.5 pl-4 pr-12 text-[12px] font-medium bg-transparent border-none focus-visible:ring-0 resize-none overflow-hidden scrollbar-none placeholder:text-slate-400 text-slate-700"
           rows={1}
         />
         <button 
           type="submit"
-          disabled={!content.trim()}
+          aria-label="Adicionar card"
+          disabled={!content.trim() || submitting}
           className={cn(
             "absolute right-2.5 top-2.5 h-9 w-9 flex items-center justify-center rounded-xl transition-all",
             content.trim() 
