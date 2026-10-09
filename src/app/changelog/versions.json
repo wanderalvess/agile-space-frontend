@@ -1,5 +1,15 @@
 [
   {
+    "tag": "v4.22.8",
+    "date": "9 de Outubro, 2026",
+    "title": "Horários certos em todo o sistema",
+    "description": "Datas e horas vindas do servidor (criado em, atualizado em, último acesso) deixam de aparecer 3 horas adiantadas.",
+    "changes": [
+      "Os horários mostrados nas telas (criação, atualização, último acesso, validade de convites e outros) agora respeitam o horário de Brasília, em vez de aparecerem 3 horas à frente e, depois das 21h, no dia seguinte.",
+      "Prazos que você mesmo digita, como o do cartão do Kanban, continuam exatamente como foram escritos."
+    ]
+  },
+  {
     "tag": "v4.22.7",
     "date": "9 de Outubro, 2026",
     "title": "Painel sem chamadas à toa e avisos honestos no JiraDash",

@@ -41,7 +41,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Biblioteca de IA (`biblioteca-ia.md`)
 
-18. **Fuso das datas (conferido em produção):** VM, contêiner do backend e Postgres estão em **UTC**; o servidor envia `LocalDateTime` sem fuso e o navegador os lê como horário de Brasília, adiantando 3 h. Opções: (a) o servidor passa a enviar instante com `Z`/offset (serializar `LocalDateTime` como UTC, sem mudar o banco; o frontend já converte para o local); (b) colocar a JVM em `America/Sao_Paulo` (mexe nas linhas novas, as antigas ficariam 3 h desencontradas). Recomendado: (a). Afeta 59 classes; precisa de decisão e de teste ao vivo.
 19. **Seed restrito a admin só na tela**, não no servidor.
 
 ## Brainstorming, Health Check, Plano de Ação (`brainstorming.md`, `health-check.md`, `plano-de-acao.md`)

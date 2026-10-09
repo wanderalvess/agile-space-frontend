@@ -72,7 +72,7 @@ Convite (equipe, papel, e-mail opcional, quem convidou, status, datas, quem acei
 2. **Liderança é reconhecida também pelo `jobTitle`** (cargo gravado só por admin; ok) **e pela equipe ativa/padrão** da pessoa. Quem lidera várias equipes só convida na equipe ativa no momento.
 3. **Sem limite de convites** nem por equipe nem por pessoa; sem limite de taxa específico além do geral de `/api/**`.
 4. **Convite sem e-mail pode ser aceito por quem encontrar o link** (ex.: colado num canal público). Recomendação de uso: preencher o e-mail.
-5. **Datas** do convite são sem fuso (horário do servidor); a tela compara com o relógio do navegador, então pode haver pequena diferença na borda da validade.
+5. **Datas** do convite saem da API em UTC com `Z` (desde 09/10/2026) e o navegador converte para o horário local; a validade é conferida no servidor.
 6. **Convite não é reenviado/estendido**: venceu, cria outro.
 
 ## Onde olhar no código
