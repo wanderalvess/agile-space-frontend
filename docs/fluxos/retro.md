@@ -132,7 +132,7 @@ Quadro (título, squad, sprint, criador, colunas, estado de revelação/votaçã
 - **Gravação em movimentos em lote** (renumerar coluna) manda várias requisições em paralelo; uma falha reverte só aquele card.
 - **Fase do card:** o servidor só valida que a coluna existe; não impede editar fora da "fase" porque a sincronização de coluna é uma conveniência de tela.
 - **Conteúdo do export:** cards sem texto são ignorados; datas usam a da retro; PDF não imprime emoji.
-- **Não testado ao vivo:** nenhuma correção de 2026-10-09 foi exercitada no app (exige login Google). Validado por testes unitários. A migration V35 (que apaga votos duplicados) e a validação do Hibernate nunca rodaram contra um Postgres real antes do deploy.
+- **Não testado ao vivo:** nenhuma correção de 2026-10-09 foi exercitada no app (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários. A migration V35 (que apaga votos duplicados) e a validação do Hibernate nunca rodaram contra um Postgres real antes do deploy.
 - **Retro legada** (Firestore) segue regra própria: reagir a participantes é permitido nas regras do Firestore.
 
 ## Onde olhar no código

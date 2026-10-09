@@ -1,6 +1,6 @@
 # Painel (`/painel`) e Home (`/`)
 
-Descreve o que o código faz **hoje** (`develop`, 2026-10-09). Sem teste ao vivo (login Google/Jira reais): leitura de código + testes unitários.
+Descreve o que o código faz **hoje** (`develop`, 2026-10-09). Sem teste ao vivo (conta de teste e Jira reais): leitura de código + testes unitários.
 
 ## Objetivo e quem usa
 

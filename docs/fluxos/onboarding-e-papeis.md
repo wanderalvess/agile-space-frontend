@@ -132,11 +132,17 @@ Regras da prévia/confirmação:
 
 - **Expulsão não é permanente:** quem foi removido de uma sala/equipe pode voltar ao recarregar; não existe lista de banidos.
 - **Catálogo de papéis ainda é código:** a lista de papéis e apelidos do Jira está espalhada no backend (`JiraAdminService`, `JiraProfieldsService`) e no frontend (`lib/types.ts`). Plano: tabela única de papéis quando a lista completa do Jira estiver em mãos. Papel desconhecido do Jira hoje cai em Developer (nunca em liderança).
-- **Heurística de texto na importação de board** (`JiraAdminService.evaluateRole`): ainda adivinha o papel pelo texto. Pode errar em cargos novos; o Profields (`parseProfieldsMembers`) é mais fiel.
+- **Heurística de texto na importação de board** (`JiraAdminService.evaluateRole`): ainda adivinha o papel pelo texto. Siglas curtas (rte, am, sm, pm, em) agora só valem como palavra inteira, então "Suporte" deixou de virar Agile Master, "Equipe" de virar UX e "Overhead" de virar People Lead. Cargos novos ainda podem cair no papel errado; o Profields (`parseProfieldsMembers`) é mais fiel.
 - **Casamento por nome** (sugestão "É você?" e liberação de importação) pode confundir homônimos. Por isso o "É você?" ignora linhas de liderança, e a importação exige AM/PL no Jira.
 - **Banco de produção tem dados de teste** (importados antes da regra de papéis). Serão zerados; até lá, AM/PL antigos podem estar errados.
-- **Não testado ao vivo** (login Google/Firebase): tudo acima foi validado por testes unitários e leitura de código, não clicando no app.
+- **Não testado ao vivo** (login do Portal): tudo acima foi validado por testes unitários e leitura de código, não clicando no app.
 - **Onboarding não foi portado para o legado** (o legado não tem essa tela).
+
+- **O 403 "só AM/PL cadastram" também aparece quando a descoberta de pessoas do Jira falha em silêncio** (lista vazia): o sistema não acha o AM/PL na equipe e recusa. Se um AM legítimo recebe 403, vale conferir o token e o acesso dele ao projeto no Jira antes de suspeitar das permissões.
+- **A descoberta de pessoas pela API padrão do Jira não é paginada** (até 100 issues e 50 por grupo): equipes grandes podem vir com gente faltando. O Profields também não é paginado.
+- **Id do Jira da conta é protegido:** o `jiraAccountId` do perfil não pode mais ser trocado por um id que já pertence a outra pessoa do roster (isso permitia herdar equipes e liderança). O caminho para vincular a conta ao roster é o "Sou eu".
+- **Reimportar preserva vínculos:** quem entrou por "Sou eu" ou pelo join não é apagado pela reimportação, e o vínculo da conta é mantido. Na junção de duplicados, AM e PL vencem as outras lideranças (uma pessoa que é PO e PL continua PL).
+- **Cadastro sem verificação de e-mail** (risco alto, em `seguranca-transversal.md`): quem usa um e-mail corporativo ainda sem senha herda equipes e liderança ligadas a ele. Existe a chave opt-in `APP_REGISTRATION_ENABLED=false`; a solução definitiva é SSO.
 
 ## Onde olhar no código
 

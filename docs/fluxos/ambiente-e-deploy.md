@@ -26,8 +26,14 @@ Várias sessões de agentes podem trabalhar nos mesmos checkouts ao mesmo tempo.
 3. **Migrations Flyway.** `out-of-order` está ativo. Duas migrations com o mesmo número derrubam o boot ("Found more than one migration"). Descobrir o maior número com `ls | sort -V` (nunca `ls | tail`). Sessões paralelas já disputaram números: reconferir antes de criar.
 4. **`active_sprint_id = UNMAPPED`** numa squad com rollup gravado na sprint real dava 404 em `/api/squads/{id}/rollup`; corrigido com fallback. Se reaparecer, comparar `squads.active_sprint_id` com `squad_metrics_rollup.sprint_id`.
 5. **Importação do Jira/Profields:** o endpoint de layout traz só definições; os valores vêm de `.../values/projects/{chave}`. As pessoas vêm da descoberta do importador (papéis do projeto, grupos, líderes, atividade).
-6. **Token do WebSocket vai na query string** (`?token=`) nos três módulos com tempo real. Aparece em logs de proxy.
-7. **Docker local pode não subir** (sockets antigos que o Docker não consegue apagar). Sem banco local, o backend local responde 500 e só os testes unitários rodam.
+6. **Token do WebSocket vai na query string** (`?token=`) nos cinco endpoints de WebSocket (retro, poker, review, brainstorming, health check). Aparece em logs de proxy.
+7. **Mudou o `Caddyfile`? Reiniciar o proxy.** A rota `GET /api/v1/knowledge/docs/{id}/download` foi acrescentada à lista `@nextApi`; o deploy desta rodada exige reiniciar o contêiner do proxy (ver armadilha 2).
+8. **Chaves de configuração novas (todas com padrão que não muda o comportamento atual):**
+   - `APP_REGISTRATION_ENABLED` (padrão `true`): em `false`, fecha o cadastro de novas contas.
+   - `app.jira.allow-private-hosts` (padrão `false`): o backend agora bloqueia redes privadas como destino do Jira; quem tiver Jira em rede interna precisa ligar. Para o Jira público da TOTVS nada muda. `app.jira.allowed-domains` limita os domínios aceitos.
+9. **Variável de build `NEXT_PUBLIC_GEMINI_API_KEY`:** se tiver valor no `.env` da VM, a chave vai para o JavaScript público. Deve ficar vazia; `GEMINI_API_KEY` (sem `NEXT_PUBLIC_`) não expõe.
+10. **O login é do próprio Portal (e-mail e senha no Spring)**, não Firebase nem Google. Mensagens antigas e a memória de sessões falavam em Firebase; o frontend não depende dele. O SSO corporativo está só planejado (`DOCUMENTACAO_SSO.md` no backend).
+11. **Docker local pode não subir** (sockets antigos que o Docker não consegue apagar). Sem banco local, o backend local responde 500 e só os testes unitários rodam.
 
 ## Migrations recentes (o que fazem e o risco)
 
@@ -43,12 +49,15 @@ Várias sessões de agentes podem trabalhar nos mesmos checkouts ao mesmo tempo.
 | V37 | Review | `cover_image` vira `text`; índice por squad | — |
 | V38 | Poker | Unicidade do voto passa a `(sala, participante, tarefa)` para o modo assíncrono; índice de rodadas | Troca a restrição `poker_votes_room_id_participant_id_key` |
 | V39 | Retro | Colunas `column_sorts` e `summary` em `retro_boards` | — |
+| V40 | Brainstorming, Health Check, Plano de Ação | 7 índices de leitura | Só índices |
+| V60 | Workspace | `icon_type` e `color` em atalhos; `url` e `origin_link` passam a 2048; 6 índices | O `ALTER TYPE` roda uma vez no boot |
+| V65 | Jolt | `version` (lock otimista) e índices em `jolt_projects` e `jolt_project_versions` | O mapeamento `@Version` só é exercitado na primeira subida |
 
 ## Como rodar testes localmente
 
 - **Backend** (offline): JDK 21 e o Maven do wrapper do usuário (`mvn -o test`, ou `-Dtest=Classe`). Os testes são unitários (Mockito); nenhum sobe banco. Por isso **migrations e a validação do Hibernate só são exercitadas na primeira subida real**.
 - **Frontend:** `npx tsc --noEmit -p .` e `npx vitest run`.
-- **Verificação de tela:** o fluxo de salas exige login Google/Firebase, então a verificação ao vivo é manual (Chrome real). Nenhuma correção recente de fluxos foi validada assim até o momento deste documento.
+- **Verificação de tela:** o login é e-mail e senha do Portal, então dá para testar ao vivo com uma conta de teste, mas hoje não há banco local (Docker fora do ar) e criar contas em produção não é permitido a agentes; a verificação ao vivo é manual (Chrome real).
 
 ## Checklist para uma mudança que mexe em contrato (frontend + backend)
 

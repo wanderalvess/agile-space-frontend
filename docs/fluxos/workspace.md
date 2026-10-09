@@ -1,6 +1,6 @@
 # Meu Espaço (workspace pessoal)
 
-Descreve o que o código faz **hoje** (frontend após o commit "fix(workspace)" de 2026-10-09 e backend com a migration V60). Suposições estão marcadas com **(suposição)**. Nada foi exercitado ao vivo: o módulo exige login Firebase/Google, então tudo vem de leitura de código e de testes unitários.
+Descreve o que o código faz **hoje** (frontend após o commit "fix(workspace)" de 2026-10-09 e backend com a migration V60). Suposições estão marcadas com **(suposição)**. Nada foi exercitado ao vivo: o módulo exige uma conta logada, e não havia conta de teste nem banco local, então tudo vem de leitura de código e de testes unitários.
 
 ## 1. Objetivo e quem usa
 

@@ -1,6 +1,6 @@
 # Fluxo do Scrum Poker
 
-Documento do que o código faz hoje (frontend `v4.20.0` + backend com a migration V38). O que for suposição está marcado com **[suposição]**. Nada aqui foi exercitado ao vivo: a sala exige login Firebase (Google), então tudo vem de leitura de código e testes unitários.
+Documento do que o código faz hoje (frontend `v4.20.0` + backend com a migration V38). O que for suposição está marcado com **[suposição]**. Nada aqui foi exercitado ao vivo: a sala exige login do Portal (e-mail e senha), então tudo vem de leitura de código e testes unitários.
 
 ## 1. Objetivo e quem usa
 
@@ -20,7 +20,7 @@ Quem **vota**: dev, qa e (se o facilitador liberar "Gestão pode votar") organiz
 - `/room`: lista as salas da squad, abre o assistente de criação (título, squad, modo síncrono/assíncrono, baralho, regras opt-in, template, equivalência de camisetas) e permite entrar numa sala existente.
 - `/room/<id>`: a sala. Mesma tela para facilitador e participante; os controles de facilitador só aparecem para quem se acha facilitador.
 - Entrada por link (`/room/<id>`, copiado pelo botão Link), por id (colado na lista) ou clicando numa sala da lista. Não existe convite separado: quem tem o link e está autenticado entra.
-- Login Firebase (Google) obrigatório; sem perfil carregado a tela pede identidade antes de entrar. Ao abrir a sala o cliente registra o usuário como participante sozinho.
+- Login do Portal (e-mail e senha) obrigatório; sem perfil carregado a tela pede identidade antes de entrar. Ao abrir a sala o cliente registra o usuário como participante sozinho.
 
 ## 3. Fluxo principal (modo síncrono)
 

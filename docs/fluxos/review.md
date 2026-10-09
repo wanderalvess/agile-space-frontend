@@ -1,6 +1,6 @@
 # Fluxo da Review (Sprint Review / "showcase")
 
-Descreve o que o código faz **hoje** (frontend v4.19.0, backend com a migration V37). Onde algo é suposição, está marcado com **(suposição)**. Nada aqui foi testado ao vivo: o fluxo exige login Firebase/Google, então tudo vem de leitura de código e de testes automatizados.
+Descreve o que o código faz **hoje** (frontend v4.19.0, backend com a migration V37). Onde algo é suposição, está marcado com **(suposição)**. Nada aqui foi testado ao vivo: o fluxo exige login do Portal, então tudo vem de leitura de código e de testes automatizados.
 
 ## 1. Objetivo, quem usa e regra de acesso
 

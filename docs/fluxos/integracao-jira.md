@@ -1,6 +1,6 @@
 # Integração com o Jira
 
-Descreve o que o código faz **hoje** (`develop`, 2026-10-09). Sem teste ao vivo: nada abaixo foi exercitado contra um Jira real nem com login Google; vale como leitura de código + testes unitários.
+Descreve o que o código faz **hoje** (`develop`, 2026-10-09). Sem teste ao vivo: nada abaixo foi exercitado contra um Jira real nem com login do Portal; vale como leitura de código + testes unitários.
 
 ## Objetivo e quem usa
 

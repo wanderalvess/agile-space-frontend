@@ -104,7 +104,7 @@ Ainda abertos:
 - **"Gerar ações" vai para o Kanban pessoal** e cria um cartão por vez; falha no meio deixa parte criada.
 - **Componentes sem uso:** `HealthCheckTrendChart`, `HealthCheckNicknameDialog` e `FinishHealthCheckDialog` não são usados em nenhuma tela (a tendência entre radares não existe hoje, apesar do texto do hub).
 - **Pessoa removida** volta ao recarregar (entrada automática, sem lista de banidos).
-- **Não testado ao vivo** (exige login Google). Validado por testes unitários: backend (anonimato na leitura, voto de quem chama, escala, encerramento e cálculo do resumo, autorização, evento só ao votante) e frontend (cliente de API e reconexão). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
+- **Não testado ao vivo** (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários: backend (anonimato na leitura, voto de quem chama, escala, encerramento e cálculo do resumo, autorização, evento só ao votante) e frontend (cliente de API e reconexão). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
 
 ## Onde olhar no código
 

@@ -141,7 +141,7 @@ Corrigidos em 2026-10-09 (para referência): execução sem limites nem tempo m�
 - **`localStorage` de ~5 MB:** a sessão do Mapeador grava a cada mudança; JSONs muito grandes estouram (agora com aviso nos pontos principais, não em todos).
 - **GitHub sem token:** limite baixo; sem cache entre sessões do navegador além do `sessionStorage`.
 - **CORS dos controllers é `*` com credenciais.** A autenticação é por `Authorization: Bearer` (não cookie), então o risco prático é baixo; vale revisar junto com a política geral.
-- **Não testado ao vivo.** Nada disto foi exercitado no app (exige login Google). Validado por testes unitários (backend: Mockito/JUnit; frontend: vitest). A migration V65 e o mapeamento `@Version` do Hibernate nunca rodaram contra um Postgres real antes do deploy.
+- **Não testado ao vivo.** Nada disto foi exercitado no app (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários (backend: Mockito/JUnit; frontend: vitest). A migration V65 e o mapeamento `@Version` do Hibernate nunca rodaram contra um Postgres real antes do deploy.
 - **Não lido linha a linha:** o motor `jolt-lite` (1,1 mil linhas), o `JoltMaintenancePanel` e o miolo de JSX da Sandbox.
 
 ## Onde olhar no código

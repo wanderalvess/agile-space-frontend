@@ -200,7 +200,7 @@ Regras:
 - **Squad/cargo como visibilidade** não existem apesar do tipo prever.
 - **Favoritos locais**: somem ao trocar de navegador/limpar dados.
 - **Sem limite de requisições específico** na leitura anônima (vale o geral de `/api/**`).
-- **Nunca testado ao vivo** (login Firebase/Google indisponível nas auditorias): nenhuma das telas foi exercitada em navegador; as correções foram validadas por testes automatizados (backend com mocks; frontend na camada de API) e por checagem de tipos. Não houve teste contra Postgres real: as consultas novas e a migration V36 ainda precisam ser vistas em ambiente real.
+- **Nunca testado ao vivo** (login do Portal indisponível nas auditorias): nenhuma das telas foi exercitada em navegador; as correções foram validadas por testes automatizados (backend com mocks; frontend na camada de API) e por checagem de tipos. Não houve teste contra Postgres real: as consultas novas e a migration V36 ainda precisam ser vistas em ambiente real.
 - **Migrations**: V36 (índices do prompt-hub; no repositório fica entre a V35 da Retro e a V37 do Review — se alguma delas já foi aplicada em produção antes, o Flyway reclama de ordem). **V40 não foi criada** por esta frente.
 - **Doc antiga**: `src/app/prompt-hub/requisitos.md` ainda descreve partes do desenho em Firestore (favoritos, regras) **(suposição: desatualizado em parte)**.
 

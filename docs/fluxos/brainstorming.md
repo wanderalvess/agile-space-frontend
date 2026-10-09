@@ -121,7 +121,7 @@ Ainda abertos:
 - **"Exportar para 5W2H" não é idempotente:** cada clique cria outro plano.
 - **Exportar imagem** da Teia/Mural falha em silêncio para o usuário se o navegador bloquear a captura (só registra no console).
 - **Mural não lista os da squad**: quem perde o link só acha pelo histórico local do navegador ou pelo painel.
-- **Não testado ao vivo:** nada desta rodada foi exercitado no app (exige login Google). Validado por testes unitários (backend: autorização, voto, fusão, patch, eventos pós-commit; frontend: cliente de API, reconexão do WebSocket e regras de lista/quadrante). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
+- **Não testado ao vivo:** nada desta rodada foi exercitado no app (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários (backend: autorização, voto, fusão, patch, eventos pós-commit; frontend: cliente de API, reconexão do WebSocket e regras de lista/quadrante). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
 
 ## Onde olhar no código
 

@@ -84,7 +84,7 @@ Ainda abertos:
 - **Painel de cerimônias pode abrir plano de outra squad:** `openOrCreateActionPlan` procura o plano da sprint pela squad e, se não achar, usa o primeiro plano público da sprint.
 - **Listagem de planos por sprint** lê os participantes de cada plano em consultas separadas (carregamento eager), custo cresce com a quantidade de planos da sprint.
 - **Exportar do Brainstorming** cria sempre um plano novo; clicar duas vezes cria dois planos.
-- **Não testado ao vivo** (exige login Google). Validado por testes unitários: backend (criação, edição parcial com todos os campos preservados, validações, autorização por plano público/privado, participante só a si mesmo) e frontend (cliente de API, mensagens de erro e códigos). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
+- **Não testado ao vivo** (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários: backend (criação, edição parcial com todos os campos preservados, validações, autorização por plano público/privado, participante só a si mesmo) e frontend (cliente de API, mensagens de erro e códigos). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
 
 ## Onde olhar no código
 

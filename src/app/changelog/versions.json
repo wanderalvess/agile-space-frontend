@@ -1,5 +1,23 @@
 [
   {
+    "tag": "v4.22.0",
+    "date": "9 de Outubro, 2026",
+    "title": "Revisão geral de segurança e fluxos, com documentação de cada módulo",
+    "description": "Auditoria de todo o sistema: mais segurança no acesso e no Jira, painéis sem número inventado, Meu Espaço que salva de verdade e mapa dos fluxos de cada módulo.",
+    "changes": [
+      "Acesso: uma conta desativada ou rebaixada perde o acesso em poucos segundos, o id do Jira de outra pessoa não pode mais ser usado para herdar o acesso dela, e trocar de conta no mesmo navegador não deixa nada da conta anterior. Abrir o Portal durante uma instabilidade não derruba mais o seu login.",
+      "Convites de uso único, com mensagens claras em português; feedbacks e chamados de suporte protegidos contra alteração por terceiros.",
+      "Integração com o Jira mais segura (endereços internos bloqueados, certificado conferido, redirecionamentos recusados). O cargo sugerido na importação não confunde mais \"Suporte\", \"Equipe\" ou \"Overhead\" com Agile Master, UX ou People Lead, e reimportar uma equipe mantém quem entrou por \"Sou eu\".",
+      "Squad: os painéis deixam de mostrar números inventados e dizem \"sem dados desta squad ainda\"; escolher outra sprint mostra os números dela; configuração do Jira, capacidade e fases passam a ser da liderança; a sincronização registra o motivo quando falha e não perde mais métricas.",
+      "Painel e Jira Dash: \"Próxima cerimônia\" mostra o dia certo, falhas aparecem como \"—\" com motivo (não como zero), e o Jira Dash recarregado volta com horas apontadas, scope creep e bugs.",
+      "Meu Espaço: arrastar tarefas e fixar notas agora são salvos de verdade, o texto da nota não se perde e os atalhos mostram nome, ícone e cor.",
+      "Base de Conhecimento: só o autor ou um administrador apaga documentos; o Assistente de IA ficou mais barato e preciso e mantém sua pergunta na caixa em caso de erro. O manual foi atualizado e ganhou o tópico \"Primeiros Passos & Papéis\".",
+      "Brainstorming, Radar de Saúde e Plano de Ação: votos e fusões não se perdem mais com várias pessoas ao mesmo tempo, o Radar passa a ter votos anônimos de verdade, e editar uma célula do Plano de Ação não apaga os outros campos.",
+      "Mapeador Jolt: projetos na nuvem são privados de quem os criou, salvar um projeto alterado em outra aba avisa em vez de sobrescrever, e a execução no Java tem limites de tamanho e tempo. A consulta de CEP voltou a funcionar.",
+      "Novo: mapa de fluxos de cada módulo em docs/fluxos (como funciona, quem pode o quê e onde estão os pontos frágeis)."
+    ]
+  },
+  {
     "tag": "v4.21.0",
     "date": "9 de Outubro, 2026",
     "title": "Biblioteca de IA aberta para leitura sem login",

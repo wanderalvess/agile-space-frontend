@@ -1,6 +1,6 @@
 # Base de Conhecimento (wiki, busca, importação e Assistente de IA)
 
-Descreve o que o código faz **hoje** (frontend e backend após as correções de 2026-10-09; migration V60 com índices). Suposições estão marcadas com **(suposição)**. Nada foi exercitado ao vivo (login Google/Firebase e chave de IA reais não estavam disponíveis): leitura de código e testes unitários.
+Descreve o que o código faz **hoje** (frontend e backend após as correções de 2026-10-09; migration V60 com índices). Suposições estão marcadas com **(suposição)**. Nada foi exercitado ao vivo (login do Portal e chave de IA reais não estavam disponíveis): leitura de código e testes unitários.
 
 ## 1. Objetivo e quem usa
 

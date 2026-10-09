@@ -4,16 +4,56 @@ Documentação de **como cada módulo funciona**, escrita para que um agente (ou
 
 ## Índice
 
+### Acesso, equipes e papéis
 | Documento | Assunto |
 |---|---|
-| [onboarding-e-papeis.md](onboarding-e-papeis.md) | Primeiro acesso, quem cadastra equipes (AM/PL), importação do Jira em lote, papéis e permissões |
-| [retro.md](retro.md) | Retrospectiva: criação, fases, votação, timer, fusão, plano de ação, exportação, tempo real |
+| [onboarding-e-papeis.md](onboarding-e-papeis.md) | Primeiro acesso, quem cadastra equipes (AM/PL), importação do Jira em lote, papéis |
+| [autenticacao-e-sessao.md](autenticacao-e-sessao.md) | Login do Portal, JWT, sessão, cadastro |
+| [usuarios-e-administracao.md](usuarios-e-administracao.md) | Perfil, usuários, administração |
+| [convites.md](convites.md) | Convites de equipe |
+| [chaves-de-api-e-mcp.md](chaves-de-api-e-mcp.md) | Chaves de API (REST e MCP) |
+| [suporte-e-feedback.md](suporte-e-feedback.md) | Chamados de suporte e feedback |
+| [seguranca-transversal.md](seguranca-transversal.md) | Modelo de autorização, rotas públicas, riscos aceitos |
+
+### Cerimônias
+| Documento | Assunto |
+|---|---|
+| [retro.md](retro.md) | Retrospectiva: fases, votação, timer, fusão, plano de ação, exportação |
 | [poker.md](poker.md) | Scrum Poker: sala, rodadas, síncrono/assíncrono, votos às cegas, Jira |
 | [review.md](review.md) | Review (showcase): sessão, cards, anexos, decisão do PO, modo Teatro |
-| [biblioteca-ia.md](biblioteca-ia.md) | Biblioteca de IA (`/prompt-hub`): itens, coleções, visibilidade, leitura pública |
-| [ambiente-e-deploy.md](ambiente-e-deploy.md) | Repositórios, migrations, deploy em produção, armadilhas conhecidas |
+| [brainstorming.md](brainstorming.md) | Brainstorming: mural, ideias, grupos, votos, Matriz, Plano 5W2H |
+| [health-check.md](health-check.md) | Radar de saúde do time |
+| [plano-de-acao.md](plano-de-acao.md) | Planos de ação |
 
-> `poker.md`, `review.md` e `biblioteca-ia.md` são escritos pelas sessões que auditaram cada módulo. Se algum ainda não existir, a sessão correspondente não terminou.
+### Squad e Jira
+| Documento | Assunto |
+|---|---|
+| [squad.md](squad.md) | Hub da squad: roster, capacidade, board |
+| [dashboards-por-papel.md](dashboards-por-papel.md) | O que cada papel vê e de onde vem cada número |
+| [sincronizacao-jira-squad.md](sincronizacao-jira-squad.md) | Sync com o Jira, snapshots, rollups, agendador |
+| [planejamento-sprint.md](planejamento-sprint.md) | Planejamento de sprint e work items |
+| [painel.md](painel.md) | Painel (`/painel`) |
+| [governanca-e-projetos.md](governanca-e-projetos.md) | Governança, PO e projetos |
+| [integracao-jira.md](integracao-jira.md) | Proxy do Jira, importação Profields, tokens, segurança |
+| [jira-dash.md](jira-dash.md) | Jira Dash |
+
+### Conhecimento e ferramentas
+| Documento | Assunto |
+|---|---|
+| [biblioteca-ia.md](biblioteca-ia.md) | Biblioteca de IA (`/prompt-hub`): itens, coleções, visibilidade, leitura pública |
+| [base-de-conhecimento.md](base-de-conhecimento.md) | Wiki, ingestão de PDF/Word, busca, assistente de IA |
+| [workspace.md](workspace.md) | Meu Espaço: kanban, notas, atalhos |
+| [manual-e-ajuda.md](manual-e-ajuda.md) | Manual e ajuda |
+| [jolt.md](jolt.md) | Jolt: sandbox, mapeador visual, projetos salvos |
+| [devtools.md](devtools.md) | Ferramentas de desenvolvimento |
+| [central-de-qualidade.md](central-de-qualidade.md) | Central de Qualidade |
+| [ferramentas-ageis.md](ferramentas-ageis.md) | Ferramentas ágeis avulsas e arquitetura |
+
+### Operação
+| Documento | Assunto |
+|---|---|
+| [ambiente-e-deploy.md](ambiente-e-deploy.md) | Repositórios, migrations, deploy, armadilhas |
+| [decisoes-pendentes.md](decisoes-pendentes.md) | **O que depende de decisão sua**, por módulo, e riscos aceitos |
 
 ## Visão geral do sistema
 
