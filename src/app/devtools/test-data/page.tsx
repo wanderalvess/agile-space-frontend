@@ -83,11 +83,11 @@ export default function TestDataPage() {
       setBulkResult(JSON.stringify(list, null, 2));
     } else if (bulkFormat === 'csv') {
       const headers = Object.keys(list[0]).join(',');
-      const rows = list.map(item => Object.values(item).map(v => `"${v}"`).join(','));
+      const rows = list.map(item => Object.values(item).map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
       setBulkResult([headers, ...rows].join('\n'));
     } else {
       const columns = Object.keys(list[0]).join(', ');
-      const values = list.map(item => `(${Object.values(item).map(v => `'${v}'`).join(', ')})`).join(',\n  ');
+      const values = list.map(item => `(${Object.values(item).map(v => `'${String(v).replace(/'/g, "''")}'`).join(', ')})`).join(',\n  ');
       setBulkResult(`INSERT INTO tb_massa_${bulkType} (${columns})\nVALUES\n  ${values};`);
     }
     toast({ title: 'Massa gerada', description: `${list.length} registros no formato ${bulkFormat.toUpperCase()}.` });
