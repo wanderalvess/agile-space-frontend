@@ -35,9 +35,9 @@ const SECURITY_PILLARS = [
   {
     icon: Lock,
     title: "Autenticação",
-    description: "Login por email e senha, autenticado direto pelo backend próprio (Spring Boot) — sem depender de um provedor externo. Login com Google Workspace está em desenvolvimento, ainda não disponível.",
+    description: "Login por email e senha, autenticado direto pelo backend próprio (Spring Boot) — sem depender de um provedor externo. O cadastro é aberto apenas a e-mails @totvs.com.br e @ext.totvs.com.br e não exige confirmação por e-mail. Login com Google ou SSO corporativo ainda não existe (está planejado).",
     details: [
-      "Token JWT emitido e validado pelo backend, com expiração",
+      "Token JWT de 24 horas emitido e validado pelo backend. Não há logout nem refresh no servidor: desativar a conta é o que bloqueia o acesso (em até 30 segundos)",
       "Recuperação de senha própria (/api/auth/forgot-password)",
       "Nenhuma senha em texto puro: hash + verificação no servidor"
     ],
@@ -65,7 +65,7 @@ const SECURITY_PILLARS = [
     details: [
       "Campos sensíveis (ex.: token de integração com Jira) cifrados em repouso com AES-GCM",
       "Cofre de Segredos usa criptografia zero-knowledge no navegador: o backend nunca vê o texto puro",
-      "Sem migrations manuais: o schema é derivado diretamente das entidades"
+      "Mudanças de schema por migrations versionadas (Flyway); o servidor valida o schema ao subir"
     ],
     color: "text-indigo-600 dark:text-indigo-400",
     bg: "bg-indigo-50 dark:bg-indigo-950/40",
@@ -114,12 +114,24 @@ const SECURITY_PILLARS = [
 
 const KNOWN_LIMITATIONS = [
   {
+    title: "Token do Jira e do TDN",
+    detail: "No servidor o token fica cifrado, mas é devolvido em texto claro ao dono e a qualquer administrador. No navegador ele fica em texto claro (localStorage) e não é apagado ao sair. Quem executar script na página consegue lê-lo."
+  },
+  {
+    title: "JiraDash",
+    detail: "O proxy do JiraDash não exige login do Portal (só o token do Jira, com limite de requisições por IP), e o cache compartilhado de consultas pode ser gravado por qualquer pessoa logada. Os números do Jira são os que o Jira devolve para o token de quem atualizou por último."
+  },
+  {
+    title: "Acesso por cargo",
+    detail: "Os painéis por cargo (ex.: Product Owner) escondem abas na interface, mas o servidor libera os mesmos dados a qualquer membro da squad. Só o cadastro de equipes (Agile Master, People Lead e admin) é imposto no servidor."
+  },
+  {
     title: "Validação de certificado do Jira",
     detail: "O backend tenta validar o certificado TLS normalmente primeiro; só aceita qualquer certificado como fallback quando detecta o erro específico de handshake típico de um Jira corporativo com CA própria. Ainda assim, esse fallback existe e vale acompanhar."
   },
   {
     title: "Escopo desta revisão",
-    detail: "Confirmamos autenticação, autorização de admin, dados pessoais, WebSocket e CORS. Não auditamos individualmente se todos os domínios com dado por squad (Jira, Daily Flow, Sprint Planner, Plano de Ação, Base de Conhecimento) aplicam o módulo de liderança de squad de forma consistente — o módulo existe e é usado em pelo menos convites e gestão de squad."
+    detail: "Confirmamos autenticação, autorização de admin, dados pessoais, WebSocket e CORS. O acesso por squad não é aplicado de forma igual em todos os módulos (por exemplo, o acesso por link na Review, no Brainstorming e no Radar de Saúde). A lista atualizada, módulo a módulo, está nos documentos de fluxos do repositório (docs/fluxos)."
   }
 ];
 
@@ -131,7 +143,7 @@ const DATA_CATEGORIES = [
   { category: "Uso de Tokens do Motor", data: "Contagem de tokens consumidos", storage: "PostgreSQL", access: "Usuário + Admin (métricas)" },
   { category: "Tickets de Suporte", data: "Assunto, descrição, respostas", storage: "PostgreSQL", access: "Usuário criador + Admin" },
   { category: "Cofre de Segredos (Vault)", data: "Segredo cifrado + IV — backend nunca vê o texto puro", storage: "PostgreSQL, AES-GCM cifrado no navegador", access: "Quem tiver o link/ID (zero-knowledge, por design)" },
-  { category: "Integração Jira/TDN do usuário", data: "Token e URL da integração pessoal", storage: "PostgreSQL, campo cifrado (AES-GCM)", access: "Somente o usuário dono" },
+  { category: "Integração Jira/TDN do usuário", data: "Token e URL da integração pessoal", storage: "PostgreSQL, campo cifrado (AES-GCM); cópia em texto claro no navegador do dono", access: "Usuário dono e administradores" },
 ];
 
 export default function GovernancePage() {
@@ -173,7 +185,7 @@ export default function GovernancePage() {
               </Button>
               <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-800/40 rounded-full">
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Política v3.0</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Revisada em 09/10/2026</span>
               </div>
             </div>
           }

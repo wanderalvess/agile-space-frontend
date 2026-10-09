@@ -26,9 +26,9 @@ flowchart TD
     D --> E{Há dados da sprint?}
     E -- sim --> F[Painel completo]
     E -- não --> G[Boas-vindas]
-    G --> H{Auto-sync, uma vez por visita}
-    H -- "tem token do Jira" --> I["POST /api/squads/{id}/sync (forceFull)"]
-    H -- "sem token" --> J[Convite opcional: Conectar Jira]
+    G --> H{"Auto-sync, uma vez por visita: há Jira configurado?"}
+    H -- "sim (domínio + token salvos)" --> I["POST /api/squads/{id}/sync (forceFull)"]
+    H -- "não: nenhuma chamada ao servidor" --> J[Convite opcional: Conectar Jira]
     I -- ok --> F
     I -- "sem sprint aberta" --> K[Mensagem: nada para mostrar]
     I -- erro --> L[Motivo + Tentar de novo]
@@ -71,7 +71,7 @@ Rollup da sprint e issues sincronizadas (por squad), configuração da squad (mo
 - **Erros viram "sem dados"**: o hook engole 403/500 de rollup/issues/membros e dispara o auto-sync; o banner de dados defasados quase nunca aparece. Refatoração do hook (compartilhado com os dashboards de Squad).
 - **`Atualizar`/sync trocam a página inteira por spinner** (remonta cartões e perde estado); **corrida** se dois fetches terminam fora de ordem enquanto o perfil carrega.
 - **Filtros perdem estado**: sprint selecionada nos dashboards volta para "atual" ao navegar; o diálogo de importação perde fila e escolhas se fechado com Esc.
-- **Auto-sync automático** gasta o token Jira de quem apenas abre o painel (uma vez por visita sem dados).
+- **Auto-sync automático** gasta o token Jira de quem apenas abre o painel (uma vez por visita sem dados). **Corrigido:** sem Jira configurado ele não chama mais o servidor (antes recebia 400 a cada abertura); a decisão está em `lib/painel-sync`. O botão "Tentar de novo" continua chamando o servidor.
 - **Mensagens cruas do servidor** (`Squad API error 403: ...`) aparecem em erro de sync; qualquer erro contendo "token" é tratado como "sem Jira".
 - **Home com cartões decorativos** (Showcase "Squad Elite Alpha", notas de retro e cartas de poker de exemplo no `BentoGrid`) que parecem dados reais; "Resumo Diário" é só uma dica aleatória. Não é número de painel, mas pode confundir.
 - **Acessibilidade/mobile:** botão do menu de usuário sem `aria-label`; dias da semana na configuração de cerimônia sem `aria-pressed`; `Card` clicável sem teclado/`href`; atalhos "Explorar" com 3 colunas fixas em telas de ~320 px; textos de 7–9 px.

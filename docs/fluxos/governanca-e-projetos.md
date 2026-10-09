@@ -63,7 +63,7 @@ Ou seja: **o gate do dashboard do PO é só de interface**. Um Developer que alt
 
 **Não corrigidos (e por quê):**
 
-- **`/governance` afirma coisas que o código contradiz**: "sem migrations manuais: o schema é derivado das entidades" (há Flyway e `ddl-auto: validate`); "Integração Jira/TDN: somente o usuário dono" (admin também lê o token); "Política v3.0" é texto fixo; as limitações conhecidas não citam os riscos de segurança listados em `integracao-jira.md`. Reescrever é decisão de conteúdo/jurídico do dono do produto.
+- **`/governance` (texto)** foi reescrito em 09/10/2026: cadastro por domínio sem verificação de e-mail, JWT de 24 h sem logout no servidor, migrations Flyway, token do Jira/TDN visível a dono e administradores e em texto claro no navegador, JiraDash sem login e cache gravável, painéis por cargo só na interface; "Política v3.0" virou "Revisada em 09/10/2026". Um teste (`governance/__tests__/page-claims`) impede a volta das frases desmentidas. O texto continua fixo no código: mudança no sistema exige lembrar de atualizá-lo.
 - **Gate do PO só no cliente** (acima). Aplicar no servidor exige definir quem pode ler o quê por cargo; hoje a regra é "membro da squad".
 - **Config da squad editável por qualquer membro** (cerimônias, `jiraDomain`, `syncOwnerUserId`): ver `integracao-jira.md` (vazamento de token via domínio da squad). Frente de Squad.
 - **Liderança transversal por segmento** dá acesso a todas as equipes do segmento, e por nome de tribo/segmento (sem id); equipes cuja tribo vem como "Geral" ou nome repetido em segmentos diferentes podem se misturar. O resolvedor (`UserProjectResolverService`) está em edição por outra frente neste momento e não foi tocado.

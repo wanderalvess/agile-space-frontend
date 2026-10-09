@@ -193,7 +193,7 @@ Regras:
 
 ## 8. Pontos frágeis e erros de fluxo conhecidos
 
-- **Fuso das datas**: o servidor grava e envia datas sem fuso. O navegador as lê como horário local. Se o servidor estiver em UTC, o "Atualizado em" e a ordem de recentes podem deslocar 3 horas e, perto da meia-noite, mudar o dia. **Não verificado** (depende do fuso da máquina do servidor).
+- **Fuso das datas**: conferido em produção em 09/10/2026 (somente leitura): a VM, o contêiner do backend e o Postgres rodam em **UTC** e não há configuração de fuso no Spring/Hibernate. O servidor grava e envia `LocalDateTime` sem fuso, ou seja, em UTC; o navegador (Brasília, UTC−3) lê o texto como horário local, então o "Atualizado em" e a ordem de recentes podem aparecer **3 horas adiantados** e, depois das 21h, no dia seguinte (inferido da leitura do código: o efeito na tela não foi visto ao vivo). Vale para todas as telas que mostram datas do servidor (59 classes usam `LocalDateTime`). Ver decisão pendente 18.
 - **Seed só no cliente**: a restrição a admin existe só na tela (ver seção 5).
 - **API de coleções agora filtra itens**: `/api/prompts/collections` devolve só os itens que quem chama enxerga. Qualquer consumidor externo antigo que esperava a lista completa passa a ver menos itens. A API por chave (`/api/v1/prompt-hub`) já filtrava só públicos.
 - **Busca no navegador**: todo o acervo é carregado; não escala bem para milhares de itens.

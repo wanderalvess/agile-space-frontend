@@ -41,7 +41,7 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Biblioteca de IA (`biblioteca-ia.md`)
 
-18. **Fuso das datas:** `LocalDateTime` sem fuso pode deslocar 3 h se a JVM roda em UTC. Conferir o fuso da VM.
+18. **Fuso das datas (conferido em produção):** VM, contêiner do backend e Postgres estão em **UTC**; o servidor envia `LocalDateTime` sem fuso e o navegador os lê como horário de Brasília, adiantando 3 h. Opções: (a) o servidor passa a enviar instante com `Z`/offset (serializar `LocalDateTime` como UTC, sem mudar o banco; o frontend já converte para o local); (b) colocar a JVM em `America/Sao_Paulo` (mexe nas linhas novas, as antigas ficariam 3 h desencontradas). Recomendado: (a). Afeta 59 classes; precisa de decisão e de teste ao vivo.
 19. **Seed restrito a admin só na tela**, não no servidor.
 
 ## Brainstorming, Health Check, Plano de Ação (`brainstorming.md`, `health-check.md`, `plano-de-acao.md`)
@@ -54,17 +54,14 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Observações do teste ao vivo (2026-10-09)
 
-49. O `/painel` dispara sozinho uma sincronização (`POST /squads/{id}/sync?forceFull=true`) ao abrir, mesmo sem Jira configurado: devolve 400 e a tela lida bem, mas é uma requisição desperdiçada e ruído no console. Vale só sincronizar quando há Jira configurado.
 50. Várias telas repetem as mesmas leituras ao abrir (a Retro busca quadro, cards e participantes 5 vezes seguidas): não quebra nada, mas pesa; vale deduplicar.
 
 ## Painel, Governança, Jira (`painel.md`, `governanca-e-projetos.md`, `integracao-jira.md`, `jira-dash.md`)
 
 25. **Proxy `/jira` do Jira Dash funciona sem login do Portal** (o iframe só conhece o token do Jira). Exigir login muda o desenho.
-26. **Jira Dash:** os atalhos "Sprint Aberta" e "Próxima Sprint" mostram apontado acumulado de todas as sprints como se fosse da sprint.
 27. **Snapshot compartilhado do Jira Dash é gravável por qualquer logado** (dá para envenenar o cache de uma consulta).
 28. **TLS tolerante como segundo caminho:** o ideal é instalar a CA corporativa no contêiner e desligar o fallback.
 29. **Gate do dashboard do PO só na interface:** o servidor devolve os mesmos dados a qualquer membro da squad.
-30. Texto de `/governance` contradiz o código ("sem migrations", "só o dono lê o token"): reescrever é decisão de conteúdo.
 
 ## Workspace, Conhecimento, Manual (`workspace.md`, `base-de-conhecimento.md`, `manual-e-ajuda.md`)
 

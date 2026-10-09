@@ -46,6 +46,8 @@ import { JiraProfieldsImport } from '@/components/jira/JiraProfieldsImport';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { useSquadDashboardData } from '@/hooks/useSquadDashboardData';
+import { useJiraSettings } from '@/hooks/useJiraSettings';
+import { decideAutoSync } from '@/lib/painel-sync';
 import type { SquadIssueSnapshot } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -193,11 +195,26 @@ export default function PainelPage() {
   const hasSquad = !!squadId;
   const hasData = issues.length > 0 || !!rollup;
 
+  // Só chama o servidor quando a pessoa tem Jira configurado (sem isso ele responde 400): sem Jira, mostra direto o convite.
+  const { settings: jiraSettings, loading: jiraSettingsLoading } = useJiraSettings();
+  const hasJira = !!(jiraSettings?.domain && jiraSettings?.token);
   useEffect(() => {
-    if (loading || !hasSquad || hasData || autoSyncTried.current === squadId) return;
+    const decision = decideAutoSync({
+      loading,
+      hasSquad,
+      hasData,
+      alreadyTried: autoSyncTried.current === squadId,
+      jiraLoading: jiraSettingsLoading,
+      hasJira,
+    });
+    if (decision === 'skip' || decision === 'wait') return;
     autoSyncTried.current = squadId;
+    if (decision === 'no-jira') {
+      setSyncState('no-jira');
+      return;
+    }
     void runJiraSync();
-  }, [loading, hasSquad, hasData, squadId, runJiraSync]);
+  }, [loading, hasSquad, hasData, squadId, runJiraSync, jiraSettingsLoading, hasJira]);
 
   // Capacidade: ninguém do time tem hora/dia definida (nem manual, nem calculada
   // pelo sistema) — a sprint até aparece, mas a capacidade sai torta. É um aviso

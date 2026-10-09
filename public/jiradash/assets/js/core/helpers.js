@@ -13,6 +13,12 @@ export const escapeHtml = value =>
     .replace(/'/g, '&#039;');
 
 export const escapeAttr = escapeHtml;
+// Sem janela de sprint (a JQL não tem `Sprint = <número>`, ex.: openSprints()), as abas Horas, Pessoas e
+// capacidade somam o apontado de TODAS as sprints das issues. Devolve o aviso honesto, ou null quando há janela.
+export const sprintWindowNotice = start =>
+  start
+    ? null
+    : 'Consulta sem "Sprint = número": não há janela de sprint. Horas apontadas, Pessoas e capacidade somam o histórico inteiro das issues, não só a sprint. Use Sprint = <número> para ver a sprint.';
 // Snapshot compartilhado passa por JSON: Date volta como string ISO e `Date >= string` é sempre false
 // (zerava horas apontadas, scope creep e bugs da sprint). Devolve Date válida ou null.
 export const reviveDate = value => {

@@ -1,5 +1,16 @@
 [
   {
+    "tag": "v4.22.7",
+    "date": "9 de Outubro, 2026",
+    "title": "Painel sem chamadas à toa e avisos honestos no JiraDash",
+    "description": "O Painel só sincroniza com o Jira quando há Jira conectado, o JiraDash avisa quando os números não são de uma sprint e a página de Governança passou a dizer o que o sistema realmente faz.",
+    "changes": [
+      "Painel: quem ainda não conectou o Jira vê direto o convite para conectar, sem uma sincronização que falhava em segundo plano a cada abertura.",
+      "JiraDash: consultas sem Sprint = número (como Sprint Aberta e Próxima Sprint) agora mostram um aviso de que horas, Pessoas e capacidade somam o histórico inteiro das issues, e não só a sprint.",
+      "Governança: o texto foi reescrito para refletir o código (cadastro por domínio, token de 24 horas, migrations versionadas, token do Jira visível a administradores, JiraDash sem login e cuidados com o cache compartilhado)."
+    ]
+  },
+  {
     "tag": "v4.22.6",
     "date": "9 de Outubro, 2026",
     "title": "Quem foi removido do time não volta sozinho",

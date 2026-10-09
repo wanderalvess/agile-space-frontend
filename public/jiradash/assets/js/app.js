@@ -35,7 +35,7 @@
 // configuração do port ou escrita em `state`/`squadCache`. O primeiro efeito de execução
 // acontece quando `app.initialize()` é chamado — pelo bootstrap, no `DOMContentLoaded`.
 import { CONFIG } from './core/config.js';
-import { escapeHtml, formatDate, safeDomId, relativeTime, reviveDate } from './core/helpers.js';
+import { escapeHtml, formatDate, safeDomId, relativeTime, reviveDate, sprintWindowNotice } from './core/helpers.js';
 import { state, squadCache } from './core/state.js';
 import { numOrZero, validateConfigField, redactedCoordOf } from './domain/person-config.js';
 import { ISSUE_FILTER_KEYS, emptyIssueFilters, toggleFilterValue } from './domain/issue-filters.js';
@@ -1392,6 +1392,16 @@ export const app = {
       freshEl.className = 'sprint-info-freshness';
       freshEl.textContent = `↻ ${relativeTime(freshness.fetchedAt)}${freshness.fetchedByName ? ` por ${freshness.fetchedByName}` : ''}`;
       dom.sprintInfo.appendChild(freshEl);
+    }
+
+    // Sem janela de sprint os números de horas não são "da sprint": diz isso na cara em vez de deixar passar.
+    const notice = sprintWindowNotice(state.sprintDates.start);
+    if (notice) {
+      const noticeEl = document.createElement('span');
+      noticeEl.className = 'sprint-info-freshness';
+      noticeEl.setAttribute('role', 'note');
+      noticeEl.textContent = '⚠ ' + notice;
+      dom.sprintInfo.appendChild(noticeEl);
     }
   }
 };
