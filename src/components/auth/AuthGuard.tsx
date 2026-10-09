@@ -9,6 +9,16 @@ import { hasLinkedTeam, isJustSignedUp } from '@/lib/team-welcome';
 const PUBLIC_ROUTES = ['/login'];
 
 /**
+ * Rotas abertas a quem não está logado, mas que também servem a quem está (não redirecionam).
+ * Só páginas cujo dado vem de endpoint público do servidor: hoje o changelog (`GET /api/changelog`).
+ */
+const OPEN_ROUTES = ['/changelog'];
+
+export function isOpenRoute(path: string): boolean {
+  return OPEN_ROUTES.some((route) => path === route || path.startsWith(route + '/'));
+}
+
+/**
  * Só aceita caminho do próprio app. '//host' e '/\host' parecem caminhos mas o navegador os trata como outro
  * site; tab/quebra de linha e barra invertida são removidos ou normalizados pelo parser de URL e transformam
  * '/<TAB>/evil.com' em '//evil.com'. Por isso rejeita caracteres de controle e barra invertida e confere
@@ -41,10 +51,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
+  const isOpen = isOpenRoute(pathname);
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isAuthenticated && !isPublicRoute) {
+    if (!isAuthenticated && !isPublicRoute && !isOpen) {
       const currentQuery = typeof window !== 'undefined' ? window.location.search : '';
       const fullTarget = `${pathname}${currentQuery}`;
       const returnUrl = encodeURIComponent(fullTarget);
@@ -60,9 +71,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       }
       router.replace(target);
     }
-  }, [isLoading, isAuthenticated, isPublicRoute, router, pathname, session]);
+  }, [isLoading, isAuthenticated, isPublicRoute, isOpen, router, pathname, session]);
 
-  if (isPublicRoute) {
+  if (isPublicRoute || isOpen) {
     return <>{children}</>;
   }
 

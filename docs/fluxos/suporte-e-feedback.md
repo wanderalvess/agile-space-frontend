@@ -16,7 +16,7 @@ Estado do `develop` em 2026-10-09.
 | Triagem de chamados | painel admin (`components/admin/AdminComponents.tsx`) | Admin |
 | Widget de feedback | botão flutuante nas telas (`FeedbackWidget`) | Logado |
 | Feedbacks & NPS | `/admin` → Feedbacks | Admin |
-| Changelog | `/changelog` | Qualquer logado (a página usa `AuthGuard`; o endpoint de backend é público) |
+| Changelog | `/changelog` | Qualquer pessoa, **com ou sem login** (rota aberta no `AuthGuard`; o endpoint de backend é público) |
 | Gerência do changelog | `/admin` → Changelog | Admin |
 
 ## Chamados de suporte
@@ -68,7 +68,7 @@ Chamados e respostas (assunto, mensagem, solicitante, status, datas); feedbacks 
 3. **Sem limite de chamados/feedbacks por pessoa**; vale só o limite geral de taxa por IP.
 4. **Apagar chamado/feedback é definitivo** (sem lixeira).
 5. **Comentários de feedback podem citar nomes e dados internos** e ficam em texto no banco, sem política de retenção definida.
-6. **`/changelog` exige login no frontend**, embora o endpoint seja público "por design"; se a intenção é página pública, falta liberar a rota no `AuthGuard` (decisão do produto; não alterado).
+6. ~~`/changelog` exigia login no frontend~~ **Resolvido:** `/changelog` é rota aberta (`isOpenRoute` no `AuthGuard`); quem está logado continua nela sem redirecionamento, quem não está lê as versões publicadas.
 7. **Duas fontes de changelog** (backend e arquivo) podem divergir; a mescla resolve por tag, mas edição no painel de uma tag existente em `versions.json` passa a "vencer" o arquivo.
 
 ## Onde olhar no código

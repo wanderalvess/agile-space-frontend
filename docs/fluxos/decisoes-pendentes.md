@@ -19,7 +19,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 4. **`SquadAccessService` casa o nome da conta (editável) com o nome do membro da squad** para dar acesso à squad.
 5. **Sem logout nem refresh no servidor:** o token vale 24 h; a única revogação é desativar a conta. Token do WebSocket na query string (cinco endpoints).
 6. **Rate limit em memória e por IP**, sem limite em `/mcp` e `/ws`. O Caddy não roteia `/mcp/*`: confirmar se o MCP está acessível em produção.
-7. **`/changelog` exige login no frontend**, embora o endpoint seja público.
 8. **Chave de IA do usuário volta decifrada do servidor ao navegador** (`base-de-conhecimento.md`). A correção real é o Spring chamar o provedor (mudança de arquitetura).
 9. **Variável de build `NEXT_PUBLIC_GEMINI_API_KEY`:** conferir no `.env` da VM que está vazia.
 

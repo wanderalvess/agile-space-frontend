@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { resolvePostLoginRedirect } from '../AuthGuard';
+import { resolvePostLoginRedirect, isOpenRoute } from '../AuthGuard';
 import { isCollaborativeRoute, ONBOARDING_EXEMPT_ROUTES } from '../IdentityGatekeeper';
 
 describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Colaborativas', () => {
@@ -120,6 +120,17 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(source).not.toContain('redirectPostLogin');
       expect(source).not.toContain('returnUrl');
       expect(source).not.toContain('projectService');
+    });
+  });
+
+  describe('Rotas abertas sem login (isOpenRoute)', () => {
+    it('o changelog é aberto; o resto do app continua exigindo login', () => {
+      expect(isOpenRoute('/changelog')).toBe(true);
+      expect(isOpenRoute('/changelog/v4.22.0')).toBe(true);
+      expect(isOpenRoute('/changelogs')).toBe(false);
+      expect(isOpenRoute('/admin')).toBe(false);
+      expect(isOpenRoute('/painel')).toBe(false);
+      expect(isOpenRoute('/login')).toBe(false);
     });
   });
 });

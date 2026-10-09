@@ -1,5 +1,14 @@
 [
   {
+    "tag": "v4.22.1",
+    "date": "9 de Outubro, 2026",
+    "title": "Changelog aberto a todos",
+    "description": "A página de novidades agora abre sem precisar entrar.",
+    "changes": [
+      "A página de novidades (/changelog) abre sem login, para quem ainda não tem conta ou está com a sessão expirada; quem está logado continua nela normalmente."
+    ]
+  },
+  {
     "tag": "v4.22.0",
     "date": "9 de Outubro, 2026",
     "title": "Revisão geral de segurança e fluxos, com documentação de cada módulo",

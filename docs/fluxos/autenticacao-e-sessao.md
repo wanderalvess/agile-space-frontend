@@ -14,7 +14,7 @@ Provar quem é a pessoa e mantê-la logada com segurança. Todo mundo passa por 
 
 | Tela | Caminho | O que faz |
 |---|---|---|
-| Login / cadastro / esqueci a senha | `/login` | Única rota pública do frontend. Aceita `?returnUrl=` para voltar ao ponto de origem |
+| Login / cadastro / esqueci a senha | `/login` | Rota pública do frontend (junto com `/changelog`, aberta a todos). Aceita `?returnUrl=` para voltar ao ponto de origem |
 | Guarda de rota | `AuthGuard` (em todo o app) | Sem sessão manda para `/login?returnUrl=<destino>`; com sessão em `/login` manda para o destino |
 | Menu da pessoa | cabeçalho (`Header`, `RoomHeader`, widgets da home) | "Sair", editar perfil, trocar de equipe |
 

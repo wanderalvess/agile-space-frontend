@@ -57,7 +57,7 @@ Fora de `/api/`:
 | `/ws/retro/*`, `/ws/poker/*`, `/ws/health-check/*`, `/ws/brainstorming/*`, `/ws/showcase/*` | JWT em `?token=` no handshake | A Retro ainda confere acesso ao quadro; os demais conferem só o token e fazem a regra da sala dentro do handler |
 | `/actuator/health` | nenhuma | Só `health`, sem detalhes |
 | `/v3/api-docs`, `/swagger-ui.html` | nenhuma | **Desligados em produção** (`springdoc ... enabled: false` no perfil `prod`); abertos em desenvolvimento |
-| Frontend (Next) | `AuthGuard` no cliente | Só `/login` é pública; as páginas em si não têm segredo, os dados vêm da API autenticada |
+| Frontend (Next) | `AuthGuard` no cliente | Só `/login` e `/changelog` (rota aberta) dispensam login; as páginas em si não têm segredo, os dados vêm da API autenticada |
 
 Fora da cadeia de filtros de propósito: pré-voo `OPTIONS` (liberado pelo `CorsFilter`).
 
