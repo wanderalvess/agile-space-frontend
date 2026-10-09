@@ -178,7 +178,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
                        Objetivo da Sprint
                      </span>
                   </div>
-                  <p className={cn("text-base md:text-lg font-medium leading-relaxed border-l-2 border-violet-500/60 pl-4 py-1", isLight ? "text-slate-800" : "text-white/90")}>
+                  <p className={cn("text-base md:text-lg font-medium leading-relaxed border-l-2 border-violet-500/60 pl-4 py-1 whitespace-pre-wrap break-words max-h-[40vh] overflow-y-auto", isLight ? "text-slate-800" : "text-white/90")}>
                     {session.description || "Demonstração técnica dos incrementos e entregas realizados durante o ciclo para validação dos stakeholders."}
                   </p>
                </div>

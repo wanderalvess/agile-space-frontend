@@ -52,6 +52,11 @@ export default function ShowcaseHubPage() {
       setDbSessions(data);
     } catch (e) {
       console.error(e);
+      toast({
+        title: 'Não foi possível carregar as Reviews',
+        description: 'A lista pode estar incompleta. Recarregue a página para tentar de novo.',
+        variant: 'destructive',
+      });
     } finally {
       setIsSessionsLoading(false);
     }
@@ -59,6 +64,9 @@ export default function ShowcaseHubPage() {
 
   useEffect(() => {
     if (currentSquadId) fetchSessions(currentSquadId);
+    // Sem squad resolvida não há o que listar: sair do estado de carregamento em vez de ficar no esqueleto.
+    else setIsSessionsLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSquadId]);
 
   const handleCreate = async () => {

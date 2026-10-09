@@ -25,7 +25,7 @@ export function TaskCardContentFields({ task, isMetricsCard, onUpdate }: TaskCar
           colorScheme={{ label: 'text-violet-500 dark:text-violet-400', focus: 'focus:border-violet-200 dark:focus:border-violet-900/40', ring: 'focus:ring-1 focus:ring-violet-200/50 dark:focus:ring-violet-900/20' }}
         />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <TextField
             id={`problem-${task.id}`}
             label="O Problema / Motivação"

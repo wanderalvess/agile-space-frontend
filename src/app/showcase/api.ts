@@ -13,7 +13,11 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  if (!res.ok) throw new Error(`Showcase API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const error = new Error(`Showcase API error ${res.status}: ${await res.text()}`) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
   if (res.status === 204) return undefined as T;
   return res.json();
 }
@@ -38,7 +42,7 @@ export const showcaseApi = {
     try {
       return await req<ShowcaseSession>(`/showcase-sessions/${id}`);
     } catch (e: any) {
-      if (e.status === 404 || e.message?.includes('404')) return null;
+      if (e.status === 404) return null;
       throw e;
     }
   },

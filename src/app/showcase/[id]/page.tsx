@@ -17,12 +17,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { JiraIssue } from '@/services/jiraService';
 import { RoomHeader } from '@/components/layout/RoomHeader';
-import { getAuthToken } from '@/lib/auth-client';
 import { cn } from '@/lib/utils';
 
 // New Refactored Components & Utils
 import { ShowcaseSession, ShowcaseTask, Decision, CardKind, PREPARATION_STATUS } from '@/components/showcase/types';
-import { formatTime, makeTask, isTaskContentComplete } from '@/components/showcase/utils';
+import { formatTime, makeTask, isTaskContentComplete, compareText } from '@/components/showcase/utils';
 import { TaskCard } from '@/components/showcase/TaskCard';
 import { TeatroMode } from '@/components/showcase/TeatroMode';
 import { JiraImportDialog } from '@/components/shared/JiraImportDialog';
@@ -32,10 +31,77 @@ import { ShowcaseRoomHeaderBadge } from '@/components/showcase/ShowcaseRoomHeade
 import { SummaryDialog } from '@/components/showcase/SummaryDialog';
 import { PrintSlidesView } from '@/components/showcase/PrintSlidesView';
 import { ShowcaseTour, TOUR_STORAGE_KEY } from '@/components/showcase/ShowcaseTour';
-import { decryptSecret } from '@/lib/vault-crypto';
 import { showcaseApi } from '../api';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
+
+// ─────────────────────────────────────────────
+// Normalização e fila de salvamento
+// ─────────────────────────────────────────────
+
+/**
+ * Traz a sessão do servidor para o formato que a UI espera. Campos de evidência só caem para o
+ * valor legado quando vierem ausentes (null/undefined): um campo que a pessoa apagou continua
+ * vazio em vez de voltar com o texto antigo da descrição.
+ */
+function normalizeSession(raw: any): ShowcaseSession {
+  const tasks = (raw.tasks || []).map((t: any) => {
+    const ev = t.evidence || {};
+    return {
+      ...t,
+      key: t.key ?? '',
+      title: t.title ?? '',
+      type: t.type ?? '',
+      description: t.description ?? '',
+      acceptanceCriteria: t.acceptanceCriteria ?? '',
+      evidence: {
+        problem: ev.problem ?? t.description ?? '',
+        solution: ev.solution ?? ev.execution ?? '',
+        dev: ev.dev ?? t.assignee ?? '',
+        qa: ev.qa ?? '',
+        screenshot: ev.screenshot ?? ev.docLink ?? '',
+        video: ev.video ?? ev.videoLink ?? '',
+        evidencePreference: ev.evidencePreference,
+        techDocUrl: ev.techDocUrl ?? '',
+        tdnUrl: ev.tdnUrl ?? '',
+        timeSpent: ev.timeSpent || 0,
+        timeEstimate: ev.timeEstimate || 0,
+        planned: ev.planned || null,
+      },
+      metrics: t.metrics ? t.metrics.map((m: any) => ({ ...m, field: m.field ?? '', value: m.value ?? 0 })) : t.metrics,
+      attachments: t.attachments || [],
+      project: t.project ?? '',
+      versionSuporte: t.versionSuporte ?? '',
+      versionMaster: t.versionMaster ?? '',
+      versionRelease: t.versionRelease ?? '',
+      versionDevelop: t.versionDevelop ?? '',
+      preparationStatus: t.preparationStatus || 'todo',
+      decision: t.decision || 'open',
+      feedback: t.feedback || '',
+    };
+  });
+  return {
+    ...raw,
+    tasks,
+    coverImage: raw.coverImage || '',
+    squadName: raw.squadName || '',
+    period: raw.period || '',
+    description: raw.description || '',
+    members: raw.members || [],
+  } as ShowcaseSession;
+}
+
+/** Alteração local pendente: reaplicada sobre a versão mais recente do servidor antes de gravar. */
+type Mutator = (s: ShowcaseSession) => ShowcaseSession;
+interface PendingChange {
+  apply: Mutator;
+  resolve: (ok: boolean) => void;
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const MANUAL_KEY = /^MANUAL-(\d+)$/;
+// Só chaves reais do Jira entram no work_items; cards manuais (MANUAL-001) não existem lá.
+const JIRA_KEY = /^[A-Za-z][A-Za-z0-9_]*-\d+$/;
 
 // ─────────────────────────────────────────────
 // Main Room Component
@@ -49,13 +115,22 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const { userProfile } = useUserContext();
   const { toast } = useToast();
 
-  const [session, setSession] = useState<ShowcaseSession | null>(null);
+  const [session, setSessionState] = useState<ShowcaseSession | null>(null);
+  // Última versão conhecida, sempre em dia: callbacks lêem daqui em vez de uma closure velha.
+  const sessionRef = React.useRef<ShowcaseSession | null>(null);
+  const setSession = useCallback((next: ShowcaseSession | null) => {
+    sessionRef.current = next;
+    setSessionState(next);
+  }, []);
   // Buffer local do título: permite selecionar-tudo-e-apagar antes de retitular sem
   // disparar persist({ name: '' }) a cada tecla (backend rejeita name em branco).
   const [nameDraft, setNameDraft] = useState('');
+  const nameFocusedRef = React.useRef(false);
+  const nameTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'notfound' | 'error' | null>(null);
   const [isPresenting, setIsPresenting] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(-1);
+  const [currentIndex, setCurrentIndexState] = useState(-1);
   const [isJiraOpen, setIsJiraOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
@@ -76,122 +151,171 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
   const isMounted = React.useRef(false);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const reloadSeqRef = React.useRef(0);
+  const pendingRef = React.useRef<PendingChange[]>([]);
+  const flushingRef = React.useRef(false);
+  const orderedTasksRef = React.useRef<ShowcaseTask[]>([]);
+  // O slide em foco é lembrado pelo id do card: a lista muda sob os pés (outra pessoa
+  // adiciona, remove ou reordena) e o índice sozinho passaria a apontar para outro card.
+  const currentTaskIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
     return () => {
       isMounted.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (nameTimerRef.current) clearTimeout(nameTimerRef.current);
     };
+  }, []);
+
+  const goToIndex = useCallback((i: number) => {
+    setCurrentIndexState(i);
+    currentTaskIdRef.current = i >= 0 ? orderedTasksRef.current[i]?.id ?? null : null;
   }, []);
 
   const reloadSession = useCallback(async () => {
     if (!id) return;
+    const seq = ++reloadSeqRef.current;
     try {
       const data = await showcaseApi.getSession(id);
-      if (data) {
-        const tasks = (data.tasks || []).map((t: any) => ({
-          ...t,
-          evidence: {
-            problem: t.evidence?.problem || t.description || '',
-            solution: t.evidence?.solution || t.evidence?.execution || '',
-            dev: t.evidence?.dev || t.assignee || '',
-            qa: t.evidence?.qa || '',
-            screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
-            video: t.evidence?.video || t.evidence?.videoLink || '',
-            // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
-            // existe no backend mas nunca chega na UI.
-            evidencePreference: t.evidence?.evidencePreference,
-            techDocUrl: t.evidence?.techDocUrl || '',
-            tdnUrl: t.evidence?.tdnUrl || '',
-            timeSpent: t.evidence?.timeSpent || 0,
-            timeEstimate: t.evidence?.timeEstimate || 0,
-            planned: t.evidence?.planned || null
-          },
-          preparationStatus: t.preparationStatus || 'todo',
-          decision: t.decision || 'open',
-          feedback: t.feedback || '',
-        }));
-        setSession({ 
-          ...data, tasks, 
-          coverImage: data.coverImage || '', 
-          squadName: data.squadName || '', 
-          period: data.period || '',
-          description: data.description || '',
-          members: data.members || []
-        } as ShowcaseSession);
+      // Resposta velha, troca de sala ou salvamento local em andamento (o resultado do POST reconcilia).
+      if (!isMounted.current || seq !== reloadSeqRef.current) return;
+      if (flushingRef.current || pendingRef.current.length > 0) return;
+      if (!data) {
+        if (!sessionRef.current) setLoadError('notfound');
+        return;
       }
+      setLoadError(null);
+      setSession(normalizeSession(data));
     } catch (e) {
-      console.error("Error loading session:", e);
+      console.error('Error loading session:', e);
+      if (isMounted.current && !sessionRef.current) setLoadError('error');
     } finally {
-      setLoading(false);
+      if (isMounted.current && seq === reloadSeqRef.current) setLoading(false);
     }
-  }, [id]);
+  }, [id, setSession]);
+
+  /**
+   * Grava as alterações locais uma fila por vez. Cada rodada busca a versão atual do servidor e
+   * reaplica as alterações pendentes por cima, então edições de outras pessoas feitas nesse meio
+   * tempo não são sobrescritas por uma cópia velha da sessão.
+   */
+  const flushPending = useCallback(async () => {
+    if (flushingRef.current) return;
+    flushingRef.current = true;
+    try {
+      while (pendingRef.current.length > 0) {
+        const batch = pendingRef.current.splice(0);
+        try {
+          const latest = await showcaseApi.getSession(id);
+          if (!latest) throw new Error('Review não encontrada');
+          const next = batch.reduce((acc, change) => change.apply(acc), normalizeSession(latest));
+          const saved = await showcaseApi.saveSession(next);
+          batch.forEach(change => change.resolve(true));
+          if (isMounted.current && pendingRef.current.length === 0) setSession(normalizeSession(saved));
+        } catch (err) {
+          console.error('Falha ao salvar a Review:', err);
+          batch.forEach(change => change.resolve(false));
+          if (isMounted.current) {
+            toast({
+              title: 'Não foi possível salvar a última alteração',
+              description: 'Sua alteração foi desfeita para a tela voltar ao que está gravado. Tente de novo.',
+              variant: 'destructive',
+            });
+            if (pendingRef.current.length === 0) {
+              const fresh = await showcaseApi.getSession(id).catch(() => null);
+              if (fresh && isMounted.current) setSession(normalizeSession(fresh));
+            }
+          }
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [id, setSession, toast]);
+
+  /** Aplica na tela na hora e enfileira o salvamento. Resolve `true` quando gravou, `false` se falhou. */
+  const mutate = useCallback((apply: Mutator): Promise<boolean> => {
+    const current = sessionRef.current;
+    if (!id || !current) return Promise.resolve(false);
+    setSession(apply(current));
+    return new Promise<boolean>(resolve => {
+      pendingRef.current.push({ apply, resolve });
+      void flushPending();
+    });
+  }, [id, setSession, flushPending]);
+
+  const waitForSaves = useCallback(async () => {
+    for (let i = 0; i < 50 && (flushingRef.current || pendingRef.current.length > 0); i++) {
+      await sleep(100);
+    }
+  }, []);
 
   useEffect(() => {
     if (!id) return;
-    reloadSession();
+    setSession(null);
+    setLoading(true);
+    setLoadError(null);
+    pendingRef.current = [];
 
-    // WebSocket Nativo para tempo real
-    const wsUrl = showcaseApi.getWebSocketUrl(id);
-    console.log("Conectando ao WebSocket do Showcase:", id);
-    let socket = new WebSocket(wsUrl);
+    let disposed = false;
+    let socket: WebSocket | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
 
-    socket.onmessage = (event) => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'SESSION_UPDATED' && data.payload) {
-          const raw = data.payload;
-          const tasks = (raw.tasks || []).map((t: any) => ({
-            ...t,
-            evidence: {
-              problem: t.evidence?.problem || t.description || '',
-              solution: t.evidence?.solution || t.evidence?.execution || '',
-              dev: t.evidence?.dev || t.assignee || '',
-              qa: t.evidence?.qa || '',
-              screenshot: t.evidence?.screenshot || t.evidence?.docLink || '',
-              video: t.evidence?.video || t.evidence?.videoLink || '',
-              // Reconstrução explícita campo-a-campo — sem isso aqui, o campo
-              // existe no backend mas nunca chega na UI.
-              evidencePreference: t.evidence?.evidencePreference,
-              techDocUrl: t.evidence?.techDocUrl || '',
-              tdnUrl: t.evidence?.tdnUrl || '',
-              timeSpent: t.evidence?.timeSpent || 0,
-              timeEstimate: t.evidence?.timeEstimate || 0,
-              planned: t.evidence?.planned || null
-            },
-            preparationStatus: t.preparationStatus || 'todo',
-            decision: t.decision || 'open',
-            feedback: t.feedback || '',
-          }));
-          setSession({ 
-            id: raw.id, ...raw, tasks, 
-            coverImage: raw.coverImage || '', 
-            squadName: raw.squadName || '', 
-            period: raw.period || '',
-            description: raw.description || '',
-            members: raw.members || []
-          } as ShowcaseSession);
+          // Enquanto há salvamento local em andamento o resultado do POST é a verdade mais recente.
+          if (flushingRef.current || pendingRef.current.length > 0) return;
+          const current = sessionRef.current as any;
+          const incoming = data.payload;
+          if (current?.updatedAt && incoming.updatedAt && incoming.updatedAt < current.updatedAt) return;
+          setLoadError(null);
+          setSession(normalizeSession({ id: incoming.id, ...incoming }));
         } else {
-          reloadSession();
+          void reloadSession();
         }
       } catch (err) {
-        console.error("Erro ao processar mensagem do WebSocket do Showcase:", err);
-        reloadSession();
+        console.error('Erro ao processar mensagem do WebSocket do Showcase:', err);
+        void reloadSession();
       }
     };
 
-    socket.onclose = () => {
-      console.warn("WebSocket desconectado. Tentando reconectar...");
-      setTimeout(() => {
-        reloadSession();
-      }, 5000);
+    const connect = () => {
+      if (disposed) return;
+      const ws = new WebSocket(showcaseApi.getWebSocketUrl(id));
+      socket = ws;
+      // Ao (re)conectar, ressincroniza: o que mudou enquanto o socket estava fora não chega por evento.
+      ws.onopen = () => {
+        attempt = 0;
+        void reloadSession();
+      };
+      ws.onmessage = handleMessage;
+      ws.onerror = () => ws.close();
+      ws.onclose = () => {
+        if (disposed) return;
+        const delay = Math.min(30_000, 1_000 * 2 ** attempt++);
+        retryTimer = setTimeout(connect, delay);
+      };
     };
 
-    return () => {
-      socket.close();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') void reloadSession();
     };
-  }, [id, reloadSession]);
+
+    void reloadSession();
+    connect();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      disposed = true;
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (retryTimer) clearTimeout(retryTimer);
+      socket?.close();
+    };
+  }, [id, reloadSession, setSession]);
 
   useEffect(() => {
     if (session?.defaultSort) {
@@ -200,62 +324,52 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   }, [session?.defaultSort]);
 
   useEffect(() => {
-    setNameDraft(session?.name || '');
+    if (!nameFocusedRef.current) setNameDraft(session?.name || '');
   }, [session?.name]);
 
   useEffect(() => {
     const baseTitle = "Portal Tech V&D";
     const moduleName = "Sprint Showcase";
     const sessionName = session?.sprintName || session?.name;
-    
+
     if (sessionName) {
       document.title = `${sessionName} | ${moduleName} | ${baseTitle}`;
     } else {
       document.title = `${moduleName} | ${baseTitle}`;
     }
-  }, [session]);
+  }, [session?.sprintName, session?.name]);
 
-  const persist = useCallback(async (updates: Partial<ShowcaseSession>) => {
-    if (!id || !session) return;
-    try {
-      const updatedSession = { ...session, ...updates };
-      await showcaseApi.saveSession(updatedSession);
-      // O backend dispara o REFRESH_SESSION para atualizar o state local via WS
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao salvar alterações', variant: 'destructive' });
-    }
-  }, [id, session, toast]);
+  const persist = useCallback(
+    (updates: Partial<ShowcaseSession>) => mutate(s => ({ ...s, ...updates })),
+    [mutate]
+  );
+
+  const commitName = (value: string) => {
+    if (value.trim() && value !== sessionRef.current?.name) void persist({ name: value });
+  };
 
   const addTasks = async (issues: JiraIssue[]) => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    const existing = new Set(currentTasks.map((t: any) => t.key));
-    const newTasks = issues.filter(i => !existing.has(i.key)).map(makeTask);
+    if (!id || !sessionRef.current) return;
+    const known = new Set((sessionRef.current.tasks || []).map(t => t.key));
+    const newTasks = issues.filter(i => !known.has(i.key)).map(makeTask);
     const addedCount = newTasks.length;
 
     if (addedCount === 0) { toast({ title: 'Nenhuma tarefa nova' }); return; }
-    
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: [...currentTasks, ...newTasks]
-      });
-      toast({ title: `${addedCount} tarefas importadas!` });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao importar tarefas', description: 'Tente novamente.', variant: 'destructive' });
-    }
+
+    const ok = await mutate(s => {
+      const keys = new Set((s.tasks || []).map(t => t.key));
+      return { ...s, tasks: [...(s.tasks || []), ...newTasks.filter(t => !keys.has(t.key))] };
+    });
+    if (ok) toast({ title: `${addedCount} tarefas importadas!` });
   };
 
   const addManualTask = async (cardKind: CardKind = 'story') => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    const manualCount = currentTasks.filter((t: any) => t.key.startsWith('MANUAL-')).length + 1;
+    if (!id || !sessionRef.current) return;
     const isMetrics = cardKind === 'metrics';
-    const newTask: ShowcaseTask = {
-      id: `manual_${Date.now()}`,
-      key: `MANUAL-${String(manualCount).padStart(3, '0')}`,
+    const taskId = `manual_${typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`}`;
+    const buildTask = (key: string): ShowcaseTask => ({
+      id: taskId,
+      key,
       title: isMetrics ? 'Nova Métrica de Impacto' : 'Nova Tarefa Manual',
       description: '',
       acceptanceCriteria: '',
@@ -288,85 +402,73 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       versionMaster: '',
       versionRelease: '',
       versionDevelop: '',
-    };
+    });
 
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: [...currentTasks, newTask]
-      });
-      toast({ title: 'Tarefa manual adicionada!' });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao adicionar tarefa', description: 'Tente novamente.', variant: 'destructive' });
-    }
+    const ok = await mutate(s => {
+      // Próximo número = maior já usado + 1 (contar cards repetia MANUAL-002 depois de remover o 001).
+      const highest = (s.tasks || []).reduce((max, t) => {
+        const match = MANUAL_KEY.exec(t.key || '');
+        return match ? Math.max(max, Number(match[1])) : max;
+      }, 0);
+      const key = `MANUAL-${String(highest + 1).padStart(3, '0')}`;
+      return { ...s, tasks: [...(s.tasks || []), buildTask(key)] };
+    });
+    if (ok) toast({ title: 'Tarefa manual adicionada!' });
   };
 
   const removeTask = useCallback(async (taskId: string) => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: currentTasks.filter((t: any) => t.id !== taskId)
-      });
-      toast({ title: 'Tarefa removida' });
-    } catch (err) {
-      console.error(err);
-      toast({ title: 'Erro ao remover tarefa', description: 'Tente novamente.', variant: 'destructive' });
-    }
-  }, [id, session, toast]);
+    const ok = await mutate(s => ({ ...s, tasks: (s.tasks || []).filter(t => t.id !== taskId) }));
+    if (ok) toast({ title: 'Tarefa removida' });
+  }, [mutate, toast]);
 
-  const updateTask = useCallback(async (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => {
-    if (!id || !session) return;
-    const currentTasks = session.tasks || [];
-    let updatedTaskContent: any = null;
-    const newTasks = currentTasks.map((t: any) => {
-      if (t.id === taskId) {
+  const updateTask = useCallback(async (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)): Promise<boolean> => {
+    let updatedTaskContent: ShowcaseTask | null = null;
+    const ok = await mutate(s => ({
+      ...s,
+      tasks: (s.tasks || []).map(t => {
+        if (t.id !== taskId) return t;
         const result = typeof updates === 'function' ? updates(t) : { ...t, ...updates };
         updatedTaskContent = result;
         return result;
-      }
-      return t;
-    });
+      }),
+    }));
+    if (!ok) return false;
 
-    try {
-      await showcaseApi.saveSession({
-        ...session,
-        tasks: newTasks
-      });
+    // Veredito do PO também vai para o work_items — só cards que existem no Jira.
+    const task = updatedTaskContent as ShowcaseTask | null;
+    const decisionTouched = typeof updates === 'object' && ('decision' in updates || 'feedback' in updates);
+    if (task && decisionTouched && task.key && JIRA_KEY.test(task.key) && !MANUAL_KEY.test(task.key)) {
+      let backendStatus = 'committed';
+      if (task.decision === 'approved') backendStatus = 'delivered';
+      else if (task.decision === 'rejected') backendStatus = 'rejected';
+      else if (task.decision === 'needs_adjustment') backendStatus = 'carried_over';
 
-      // Phase 3: Backend decision push
-      if (updatedTaskContent && updatedTaskContent.key && updatedTaskContent.key.includes('-')) {
-        const hasDecisionChanged = typeof updates === 'object' && ('decision' in updates || 'feedback' in updates);
-        if (hasDecisionChanged) {
-          let backendStatus = 'committed';
-          if (updatedTaskContent.decision === 'approved') backendStatus = 'delivered';
-          else if (updatedTaskContent.decision === 'rejected') backendStatus = 'rejected';
-          else if (updatedTaskContent.decision === 'needs_adjustment') backendStatus = 'carried_over';
-
-          const issueProjectKey = updatedTaskContent.key?.includes('-') ? updatedTaskContent.key.split('-')[0].toUpperCase() : '';
-          const activeSquad = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
-          if (activeSquad) {
-            const { workItemsApi } = await import('@/app/work-items-api');
-            workItemsApi.showcaseDecision(activeSquad, updatedTaskContent.key, backendStatus, updatedTaskContent.feedback || '')
-              .catch(err => console.error('[Showcase] Falha ao registrar veredito em work_items:', err));
-          }
+      const issueProjectKey = task.key.split('-')[0].toUpperCase();
+      const activeSquad = sessionRef.current?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+      if (activeSquad) {
+        try {
+          const { workItemsApi } = await import('@/app/work-items-api');
+          await workItemsApi.showcaseDecision(activeSquad, task.key, backendStatus, task.feedback || '');
+        } catch (err) {
+          console.error('[Showcase] Falha ao registrar veredito em work_items:', err);
+          toast({
+            title: 'Decisão salva na Review, mas não chegou ao acompanhamento da squad',
+            description: `${task.key} não foi atualizado no painel de work items.`,
+            variant: 'destructive',
+          });
         }
       }
-
-    } catch (err) {
-      console.error(err);
     }
-  }, [id, session]);
-
-
+    return true;
+  }, [mutate, toast, userProfile?.squadId, authSession?.activeProjectId]);
 
   // Anexos: o servidor avisa a sala toda por WebSocket; recarregar aqui garante que quem enviou veja na hora.
   const uploadTaskFile = useCallback(async (taskId: string, file: File) => {
+    // Um card recém-criado só existe no servidor depois do save em andamento.
+    await waitForSaves();
     await showcaseApi.uploadTaskFile(id, taskId, file);
     await reloadSession();
-  }, [id, reloadSession]);
+  }, [id, reloadSession, waitForSaves]);
 
   const deleteTaskFile = useCallback(async (fileId: string) => {
     await showcaseApi.deleteTaskFile(id, fileId);
@@ -395,12 +497,20 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Link copiado!",
-      description: "Compartilhe com sua squad para prepararem a sessão juntos.",
-    });
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link copiado!",
+        description: "Compartilhe com sua squad para prepararem a sessão juntos.",
+      });
+    } catch {
+      toast({
+        title: "Não foi possível copiar o link",
+        description: window.location.href,
+        variant: "destructive",
+      });
+    }
   };
 
   const tasks = session?.tasks || [];
@@ -450,46 +560,53 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const qas = Array.from(new Set(tasks.map(t => t.evidence.qa).filter(Boolean))).sort();
   const types = Array.from(new Set(tasks.map(t => t.type).filter(Boolean))).sort();
 
-  const filteredTasks = React.useMemo(() => {
-    let result = [...tasks];
+  // Ordem da lista e da apresentação (chave em ordem natural: PROJ-2 antes de PROJ-10).
+  const orderedTasks = React.useMemo(() => {
+    const byKey = (a: ShowcaseTask, b: ShowcaseTask) => compareText(a.key, b.key);
+    return [...tasks].sort((a, b) => {
+      if (sortBy === 'type') return compareText(a.type, b.type) || byKey(a, b);
+      if (sortBy === 'dev') return compareText(a.evidence.dev, b.evidence.dev) || byKey(a, b);
+      if (sortBy === 'qa') return compareText(a.evidence.qa, b.evidence.qa) || byKey(a, b);
+      return byKey(a, b);
+    });
+  }, [tasks, sortBy]);
+  orderedTasksRef.current = orderedTasks;
 
-    // Search
+  const filteredTasks = React.useMemo(() => {
+    let result = orderedTasks;
+
     if (search) {
       const s = search.toLowerCase();
-      result = result.filter(t => 
-        t.key.toLowerCase().includes(s) || 
-        t.title.toLowerCase().includes(s) || 
+      result = result.filter(t =>
+        t.key.toLowerCase().includes(s) ||
+        t.title.toLowerCase().includes(s) ||
         t.evidence.dev.toLowerCase().includes(s) ||
         t.evidence.qa.toLowerCase().includes(s)
       );
     }
-
-    // Filter Dev
-    if (filterDev !== 'all') {
-      result = result.filter(t => t.evidence.dev === filterDev);
-    }
-
-    // Filter QA
-    if (filterQa !== 'all') {
-      result = result.filter(t => t.evidence.qa === filterQa);
-    }
-
-    // Filter Type
-    if (filterType !== 'all') {
-      result = result.filter(t => t.type === filterType);
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'key') return a.key.localeCompare(b.key);
-      if (sortBy === 'type') return a.type.localeCompare(b.type);
-      if (sortBy === 'dev') return a.evidence.dev.localeCompare(b.evidence.dev);
-      if (sortBy === 'qa') return a.evidence.qa.localeCompare(b.evidence.qa);
-      return 0;
-    });
+    if (filterDev !== 'all') result = result.filter(t => t.evidence.dev === filterDev);
+    if (filterQa !== 'all') result = result.filter(t => t.evidence.qa === filterQa);
+    if (filterType !== 'all') result = result.filter(t => t.type === filterType);
 
     return result;
-  }, [tasks, search, filterDev, filterQa, filterType, sortBy]);
+  }, [orderedTasks, search, filterDev, filterQa, filterType]);
+
+  // Se o card em foco mudou de posição (ou saiu da Review) enquanto se apresenta, o slide o acompanha.
+  useEffect(() => {
+    if (!isPresenting || currentIndex < 0) return;
+    const wantedId = currentTaskIdRef.current;
+    if (!wantedId || orderedTasks[currentIndex]?.id === wantedId) return;
+    const movedTo = orderedTasks.findIndex(t => t.id === wantedId);
+    if (movedTo >= 0) {
+      setCurrentIndexState(movedTo);
+      return;
+    }
+    const clamped = Math.min(currentIndex, orderedTasks.length - 1);
+    setCurrentIndexState(clamped);
+    currentTaskIdRef.current = clamped >= 0 ? orderedTasks[clamped].id : null;
+    toast({ title: 'O card em foco saiu da Review', description: 'Mostrando o card que ocupa o lugar dele.' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderedTasks, isPresenting, currentIndex]);
 
   // Filtro/busca mudou o resultado — volta pra primeira página em vez de
   // manter um visibleCount alto que não corresponde mais ao que faz sentido
@@ -511,7 +628,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
   const handleDecision = async (taskId: string, decision: Decision, feedback = '') => {
     const now = new Date().toISOString();
-    await updateTask(taskId, {
+    const ok = await updateTask(taskId, {
       decision,
       feedback,
       approvedAt: decision === 'approved' ? now : undefined,
@@ -519,12 +636,27 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       decidedBy: authSession?.id || '',
       decidedByName: userProfile?.name || authSession?.name || authSession?.email || '',
     });
-    if (currentIndex < filteredTasks.length - 1) {
+    if (!ok) {
+      // Não avança: quem apresenta precisa saber que a decisão não foi gravada.
+      toast({ title: 'A decisão não foi gravada', description: 'Confira a conexão e decida de novo neste card.', variant: 'destructive' });
+      return;
+    }
+    const decidedIndex = orderedTasksRef.current.findIndex(t => t.id === taskId);
+    if (decidedIndex >= 0 && decidedIndex < orderedTasksRef.current.length - 1) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
-        if (isMounted.current) setCurrentIndex(currentIndex + 1);
+        // Só avança se a pessoa não navegou para outro card nesse meio-tempo.
+        if (isMounted.current && currentTaskIdRef.current === taskId) goToIndex(decidedIndex + 1);
       }, 600);
     }
+  };
+
+  const handleFinish = () => {
+    const open = orderedTasksRef.current.filter(t => t.decision === 'open').length;
+    if (open > 0 && !window.confirm(`Ainda há ${open} card${open > 1 ? 's' : ''} sem decisão. Finalizar a Review mesmo assim?`)) return;
+    setIsPresenting(false);
+    void persist({ status: 'finished' });
+    setIsSummaryOpen(true);
   };
 
   if (loading) return (
@@ -532,6 +664,30 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       <div className="flex flex-col items-center gap-4 text-slate-400 dark:text-slate-400">
         <Loader2 className="h-10 w-10 animate-spin" />
         <p className="text-[11px] font-black uppercase tracking-widest italic">Sincronizando Showcase...</p>
+      </div>
+    </div>
+  );
+
+  if (!session) return (
+    <div className="flex-1 w-full flex items-center justify-center bg-[#fafafa] dark:bg-slate-950 p-6">
+      <div className="max-w-md text-center space-y-4">
+        <AlertTriangle className="h-10 w-10 mx-auto text-amber-500" />
+        <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
+          {loadError === 'notfound' ? 'Review não encontrada' : 'Não foi possível carregar a Review'}
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          {loadError === 'notfound'
+            ? 'O link pode estar incompleto ou a Review foi removida. Confira o endereço ou volte para a lista.'
+            : 'Houve um problema de conexão com o servidor. Tente de novo em instantes.'}
+        </p>
+        <div className="flex items-center justify-center gap-2">
+          {loadError !== 'notfound' && (
+            <Button onClick={() => { setLoading(true); void reloadSession(); }} className="gap-2">
+              <RefreshCw className="h-4 w-4" /> Tentar de novo
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => router.push('/showcase')}>Voltar para as Reviews</Button>
+        </div>
       </div>
     </div>
   );
@@ -549,9 +705,19 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
             (
               <input
                 value={nameDraft}
+                aria-label="Nome da Sprint Review"
+                onFocus={() => { nameFocusedRef.current = true; }}
                 onChange={(e) => {
-                  setNameDraft(e.target.value);
-                  if (e.target.value.trim()) persist({ name: e.target.value });
+                  const value = e.target.value;
+                  setNameDraft(value);
+                  if (nameTimerRef.current) clearTimeout(nameTimerRef.current);
+                  nameTimerRef.current = setTimeout(() => commitName(value), 700);
+                }}
+                onBlur={() => {
+                  nameFocusedRef.current = false;
+                  if (nameTimerRef.current) clearTimeout(nameTimerRef.current);
+                  if (nameDraft.trim()) commitName(nameDraft);
+                  else setNameDraft(sessionRef.current?.name || '');
                 }}
                 placeholder="Nome da Sprint Review..."
                 className="font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 text-xs bg-transparent border-none outline-none w-[11rem] sm:w-[16rem] truncate focus:text-violet-600 dark:focus:text-violet-400 transition-colors"
@@ -590,7 +756,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
                   setIsSettingsOpen(true);
                   return;
                 }
-                setIsPresenting(true); setCurrentIndex(-1);
+                setIsPresenting(true); goToIndex(-1);
               }}
             />
           }
@@ -834,18 +1000,18 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         )}
       </motion.div>
 
-      <PrintSlidesView session={session ? { ...session, tasks: filteredTasks } : null} />
+      <PrintSlidesView session={session ? { ...session, tasks: orderedTasks } : null} />
 
       <AnimatePresence>
         {isPresenting && (
           <TeatroMode 
-            session={{ ...session!, tasks: filteredTasks }} 
+            session={{ ...session, tasks: orderedTasks }} 
             currentIndex={currentIndex} 
             sortBy={sortBy}
-            onIndexChange={(i) => setCurrentIndex(i)}
+            onIndexChange={goToIndex}
             onDecision={handleDecision}
             onClose={() => setIsPresenting(false)}
-            onFinish={() => { setIsPresenting(false); persist({ status: 'finished' }); setIsSummaryOpen(true); }}
+            onFinish={handleFinish}
           />
         )}
       </AnimatePresence>
@@ -870,7 +1036,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           setSettingsWarningActive(false);
           setIsSettingsOpen(false);
           setIsPresenting(true);
-          setCurrentIndex(-1);
+          goToIndex(-1);
         }}
       />
 

@@ -5,6 +5,7 @@ import { BookOpen, Camera, ExternalLink, FileText, GitBranch, User, Video } from
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { ShowcaseTask } from './types';
+import { openSafeUrl, toSafeUrl } from './utils';
 import { FieldLabel } from './TaskCardFields';
 import { ControlledInput } from './ControlledFields';
 import { TaskCardAttachments } from './TaskCardAttachments';
@@ -20,7 +21,7 @@ interface TaskCardExecutionDetailsProps {
 
 export function TaskCardExecutionDetails({ task, onUpdate, sessionId, onUploadFile, onDeleteFile }: TaskCardExecutionDetailsProps) {
   return (
-    <div className="grid grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-100 dark:border-slate-800/60">
       {/* Responsáveis */}
       <div className="space-y-3">
         <FieldLabel icon={User} label="Time Executor" color="text-slate-500 dark:text-slate-400" />
@@ -57,7 +58,7 @@ export function TaskCardExecutionDetails({ task, onUpdate, sessionId, onUploadFi
       </div>
 
       {/* Deploy & Versões */}
-      <div className="space-y-3 border-x border-slate-200/50 dark:border-slate-800/60 px-4">
+      <div className="space-y-3 md:border-x border-slate-200/50 dark:border-slate-800/60 md:px-4">
         <FieldLabel icon={GitBranch} label="CI/CD & Versões" color="text-slate-500 dark:text-slate-400" />
         <div className="space-y-2">
           <div className="space-y-1">
@@ -119,8 +120,10 @@ export function TaskCardExecutionDetails({ task, onUpdate, sessionId, onUploadFi
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => window.open(task.evidence.screenshot, '_blank')}
-              disabled={!task.evidence.screenshot}
+              onClick={() => openSafeUrl(task.evidence.screenshot)}
+              disabled={!toSafeUrl(task.evidence.screenshot)}
+              aria-label="Abrir print em nova aba"
+              title="Abrir print em nova aba"
               className="h-8 w-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shrink-0 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <ExternalLink className="h-3 w-3" />
@@ -136,8 +139,10 @@ export function TaskCardExecutionDetails({ task, onUpdate, sessionId, onUploadFi
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => window.open(task.evidence.video, '_blank')}
-              disabled={!task.evidence.video}
+              onClick={() => openSafeUrl(task.evidence.video)}
+              disabled={!toSafeUrl(task.evidence.video)}
+              aria-label="Abrir vídeo em nova aba"
+              title="Abrir vídeo em nova aba"
               className="h-8 w-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shrink-0 dark:text-slate-400 dark:hover:bg-slate-800"
             >
               <Video className="h-3 w-3" />
@@ -157,9 +162,10 @@ export function TaskCardExecutionDetails({ task, onUpdate, sessionId, onUploadFi
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => window.open(task.evidence[field], '_blank')}
-                disabled={!task.evidence[field]}
+                onClick={() => openSafeUrl(task.evidence[field])}
+                disabled={!toSafeUrl(task.evidence[field])}
                 title={`Abrir ${placeholder.toLowerCase().replace('link do ', '')}`}
+                aria-label={`Abrir ${placeholder.toLowerCase().replace('link do ', '')} em nova aba`}
                 className="h-8 w-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shrink-0 dark:text-slate-400 dark:hover:bg-slate-800"
               >
                 <Icon className="h-3 w-3" />

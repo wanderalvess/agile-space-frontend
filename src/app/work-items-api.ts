@@ -28,6 +28,7 @@ export const workItemsApi = {
       method: 'PUT',
       body: JSON.stringify({ status, feedback }),
     });
+    if (!res.ok) throw new Error('Falha ao registrar a decisão da Review');
   },
 
   async estimateWorkItem(squadId: string, jiraKey: string, points: number): Promise<void> {

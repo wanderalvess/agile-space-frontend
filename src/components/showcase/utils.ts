@@ -34,9 +34,38 @@ export const isLightBackground = (bg?: string): boolean => {
  * sala contava `preparationStatus` (dropdown manual, esquecível) e o card
  * calculava isReady por conta própria, podendo discordar sem aviso nenhum.
  */
-export const isTaskContentComplete = (task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics' | 'attachments'>): boolean => {
+/**
+ * Link digitado por uma pessoa e aberto por outra (window.open, iframe, href): só http/https passa.
+ * Sem esquema ("tdn.totvs.com/x") vira https://; esquemas que executam código (javascript:, data:...) viram ''.
+ */
+export const toSafeUrl = (raw?: string | null): string => {
+  const value = (raw ?? '').trim();
+  if (!value) return '';
+  // eslint-disable-next-line no-control-regex
+  const compact = value.replace(/[\u0000- \u007f]/g, '');
+  if (/^[a-z][a-z0-9+.-]*:/i.test(compact)) {
+    return /^https?:/i.test(compact) ? value : '';
+  }
+  if (value.startsWith('//')) return `https:${value}`;
+  if (value.startsWith('/')) return value;
+  return `https://${value}`;
+};
+
+/** Abre um link já validado sem dar acesso à janela de origem. */
+export const openSafeUrl = (raw?: string | null): boolean => {
+  const url = toSafeUrl(raw);
+  if (!url) return false;
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return true;
+};
+
+/** Ordem natural: PROJ-2 vem antes de PROJ-10. */
+export const compareText = (a?: string | null, b?: string | null): number =>
+  (a ?? '').localeCompare(b ?? '', 'pt-BR', { numeric: true, sensitivity: 'base' });
+
+export const isTaskContentComplete =(task: Pick<ShowcaseTask, 'cardKind' | 'evidence' | 'metrics' | 'attachments'>): boolean => {
   if (task.cardKind === 'metrics') {
-    return (task.metrics || []).some(m => m.field.trim() && m.value);
+    return (task.metrics || []).some(m => (m.field || '').trim() && m.value);
   }
   // Arquivo anexado no card vale como evidência, igual a print ou vídeo.
   const hasEvidence = !!(task.evidence.screenshot || task.evidence.video || (task.attachments?.length ?? 0) > 0);
@@ -67,15 +96,17 @@ export const getEmbedUrl = (url: string) => {
     if (match) cleanUrl = decodeURIComponent(match[1]);
   }
 
-  // Google Drive
-  const driveMatch = cleanUrl.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/) || cleanUrl.match(/id=([^\/\?&]+)/);
-  if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
-
-  const loomMatch = cleanUrl.match(/loom\.com\/share\/([^\/\?]+)/);
+  // Loom e YouTube primeiro: o link de compartilhamento do Loom traz "?sid=", e o "id=" do Drive casava dentro dele.
+  const loomMatch = cleanUrl.match(/loom\.com\/(?:share|embed)\/([^\/\?#]+)/);
   if (loomMatch) return `https://www.loom.com/embed/${loomMatch[1]}`;
 
-  const ytMatch = cleanUrl.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([^\/\?&]+)/);
+  const ytMatch = cleanUrl.match(/youtu\.be\/([^\/\?#&]+)/)
+    || cleanUrl.match(/youtube\.com\/(?:shorts|live|embed)\/([^\/\?#&]+)/)
+    || cleanUrl.match(/youtube\.com\/watch\?(?:[^#]*&)?v=([^&#]+)/);
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+
+  const driveId = getDriveFileId(cleanUrl);
+  if (driveId) return `https://drive.google.com/file/d/${driveId}/preview`;
 
   // PDFs Genéricos ou Google Drive (preview já tratado acima se for link drive)
   if (isPdfUrl(cleanUrl) && !cleanUrl.includes('drive.google.com')) {
@@ -85,32 +116,42 @@ export const getEmbedUrl = (url: string) => {
   return cleanUrl;
 };
 
+/** Id de arquivo do Google Drive, só quando o host é o do Drive (um "id=" qualquer na query não conta). */
+export const getDriveFileId = (url: string): string | null => {
+  if (!/^(?:https?:\/\/)?drive\.google\.com\//i.test(url.trim())) return null;
+  const match = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#]*&)?id=)([^\/\?&#]+)/)
+    || url.match(/drive\.google\.com\/[^#]*[?&]id=([^\/\?&#]+)/);
+  return match ? match[1] : null;
+};
+
 export const isPdfUrl = (url: string) => {
   if (!url) return false;
   const cleanUrl = url.split('?')[0].split('#')[0].toLowerCase();
-  return cleanUrl.endsWith('.pdf') || url.includes('drive.google.com') && (url.includes('/file/d/') || url.includes('id='));
+  return cleanUrl.endsWith('.pdf') || !!getDriveFileId(url);
 };
+
+/** Extensão de imagem na URL (não em qualquer pedaço do host: "app.gifted.com" não é imagem). */
+export const isImageUrl = (url: string): boolean =>
+  /\.(?:jpe?g|gif|png|webp|svg)(?:$|[/?#])/i.test(url) || url.includes('images.unsplash.com');
 
 /**
  * Fundo da apresentação é imagem (vira `url(...)`) ou CSS puro (cor/gradiente). Além de links
  * http, aceita arquivos do próprio app em `public/` (ex.: `/showcase/fundo-totvs.webp`).
  */
 export const isImageBackground = (value?: string): boolean =>
-  !!value && (value.startsWith('http') || value.startsWith('/'));
+  !!value && (/^https?:\/\//i.test(value) || (value.startsWith('/') && !value.startsWith('//')));
 
 /** Véu sobre fundo de imagem: escurece o bastante para ler o card sem esconder a foto. */
 export const imageBackgroundCss = (url: string) =>
-  `linear-gradient(rgba(5, 5, 16, 0.55), rgba(5, 5, 16, 0.8)), url(${url})`;
+  `linear-gradient(rgba(5, 5, 16, 0.55), rgba(5, 5, 16, 0.8)), url(${JSON.stringify(url)})`;
 
 export const getDirectImageUrl = (url: string) => {
   if (!url) return '';
   
-  // Google Drive
-  const driveMatch = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([^\/\?&]+)/) || url.match(/id=([^\/\?&]+)/);
-  if (driveMatch) {
-    // Usando endpoint lh3 que é mais direto e performático para o navegador
-    // Aceita parâmetros de redimensionamento de forma muito eficiente
-    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}=w1600`;
+  // Google Drive (só links do próprio Drive; o endpoint lh3 é mais direto e aceita redimensionamento)
+  const driveId = getDriveFileId(url);
+  if (driveId) {
+    return `https://lh3.googleusercontent.com/d/${driveId}=w1600`;
   }
 
   // Dropbox
@@ -147,7 +188,15 @@ export const stripWikiMarkup = (text?: string): string => {
  */
 export const stripNonLatin1ForPdf = (text?: string): string => {
   if (!text) return text || '';
-  return Array.from(text).filter(ch => ch.codePointAt(0)! <= 0xFF).join('');
+  // Pontuação tipográfica comum (colada do Word/Jira) vira o equivalente ASCII em vez de sumir.
+  const typographic = text
+    .replace(/[‘’‚′]/g, "'")
+    .replace(/[“”„″]/g, '"')
+    .replace(/[–—−]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/[•●▪]/g, '-')
+    .replace(/[  ]/g, ' ');
+  return Array.from(typographic).filter(ch => ch.codePointAt(0)! <= 0xFF).join('');
 };
 
 /**
@@ -162,7 +211,7 @@ export const getEvidenceUrls = (evidence: Pick<Evidence, 'screenshot' | 'video' 
   const ordered = preferScreenshot ? [evidence.screenshot, evidence.video] : [evidence.video, evidence.screenshot];
   // Filtra também na exibição: sessões importadas antes da correção já têm o
   // ícone salvo como evidência.
-  return ordered.filter((u): u is string => !!u && !isJiraDecorativeImage(u));
+  return ordered.map(u => toSafeUrl(u)).filter((u): u is string => !!u && !isJiraDecorativeImage(u));
 };
 
 /**
@@ -176,7 +225,10 @@ export const isJiraDecorativeImage = (url: string): boolean =>
 export const extractMediaUrl = (text: string) => {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s"']+)/g;
-  const matches = text.match(urlRegex)?.filter(u => !isJiraDecorativeImage(u));
+  // A marcação wiki do Jira cola "!", "|" e "]" no fim do link: "!https://x/a.png!" -> "https://x/a.png".
+  const matches = text.match(urlRegex)
+    ?.map(u => u.split('|')[0].replace(/[!\])},.;:]+$/, ''))
+    .filter(u => u && !isJiraDecorativeImage(u));
   if (!matches || matches.length === 0) return null;
   
   // Prioritiza PDF, depois Vídeo (Loom/YT), depois Imagens
@@ -186,7 +238,7 @@ export const extractMediaUrl = (text: string) => {
   const video = matches.find(u => u.includes('loom.com') || u.includes('youtube.com') || u.includes('youtu.be'));
   if (video) return video;
   
-  const img = matches.find(u => u.match(/\.(jpeg|jpg|gif|png|webp|svg)/i));
+  const img = matches.find(u => isImageUrl(u));
   if (img) return img;
   
   return matches[0]; // Retorna a primeira URL se não der match em nada específico

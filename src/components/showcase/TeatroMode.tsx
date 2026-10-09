@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
 import { ChartRenderer } from './ChartRenderer';
 import { getCategoryColor } from './chartPresets';
-import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls, isImageBackground, imageBackgroundCss } from './utils';
+import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, isImageUrl, toSafeUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls, isImageBackground, imageBackgroundCss } from './utils';
 import { TeatroHeader } from './TeatroHeader';
 import { TaskFileEvidence } from './TaskFileEvidence';
 import { ShowcaseCover } from './ShowcaseCover';
@@ -51,6 +51,9 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [pendingDecision, setPendingDecision] = useState<Decision>('needs_adjustment');
+  // Card ao qual o feedback se aplica: fixado ao abrir o modal, não o que estiver na posição quando se confirma.
+  const [feedbackTaskId, setFeedbackTaskId] = useState<string | null>(null);
+  const feedbackTask = feedbackTaskId ? session.tasks.find(t => t.id === feedbackTaskId) : undefined;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [sessionTime, setSessionTime] = useState(0);
   // Colapsar a sidebar dá mais espaço pra evidência (foto/vídeo) na tela —
@@ -76,7 +79,10 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   // Navegação por Teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showFeedback) return;
+      if (showFeedback) {
+        if (e.key === 'Escape') setShowFeedback(false);
+        return;
+      }
       if (e.key === 'ArrowRight' && currentIndex < session.tasks.length - 1) {
         onIndexChange(currentIndex + 1);
       } else if (e.key === 'ArrowLeft' && currentIndex > -1) {
@@ -106,6 +112,11 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
     setShowFeedback(false);
     setFeedbackText('');
   }, [currentIndex]);
+
+  // O card do feedback saiu da Review enquanto o modal estava aberto: fecha em vez de decidir no card errado.
+  useEffect(() => {
+    if (showFeedback && !feedbackTask) setShowFeedback(false);
+  }, [showFeedback, feedbackTask]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -155,7 +166,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
         onClose={onClose}
         onFinish={onFinish}
         onApprove={(taskId) => onDecision(taskId, 'approved')}
-        onRequestFeedback={(d) => { setPendingDecision(d); setFeedbackText(''); setShowFeedback(true); }}
+        onRequestFeedback={(d) => { setPendingDecision(d); setFeedbackText(''); setFeedbackTaskId(task?.id ?? null); setShowFeedback(true); }}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -218,7 +229,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                   {pendingDecision === 'rejected' ? 'Rejeitar Entrega' : 'Solicitar Ajuste'}
                 </h3>
                 <p className={cn("text-[11px] font-black uppercase tracking-[0.3em]", isLight ? "text-slate-400" : "text-white/60")}>
-                  {task ? `${task.key} — ${task.title}` : 'Detalhamento da Revisão Técnica'}
+                  {feedbackTask ? `${feedbackTask.key} — ${feedbackTask.title}` : 'Detalhamento da Revisão Técnica'}
                 </p>
               </div>
               <div className="space-y-4">
@@ -246,7 +257,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
                 >
                   Descartar
                 </Button>
-                <Button onClick={() => { onDecision(task!.id, pendingDecision, feedbackText); setShowFeedback(false); }} className={cn("flex-1 h-14 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-2xl", pendingDecision === 'rejected' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700')}>Confirmar Decisão</Button>
+                <Button disabled={!feedbackTask} onClick={() => { if (!feedbackTask) return; onDecision(feedbackTask.id, pendingDecision, feedbackText); setShowFeedback(false); }} className={cn("flex-1 h-14 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-2xl", pendingDecision === 'rejected' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700')}>Confirmar Decisão</Button>
               </div>
             </motion.div>
           </motion.div>
@@ -351,11 +362,13 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-      className="flex-1 flex overflow-hidden"
+      className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0"
     >
       <div className={cn(
         "border-r flex flex-col shrink-0 z-20 transition-all duration-300 overflow-hidden",
-        sidebarCollapsed ? "w-0 min-w-0 border-r-0" : "w-full md:w-[30%] lg:w-[26%] min-w-[380px] max-w-[560px]",
+        sidebarCollapsed
+          ? "h-0 w-0 min-w-0 border-r-0 md:h-auto"
+          : "w-full max-h-[50%] md:max-h-none md:w-[30%] lg:w-[26%] md:min-w-[380px] md:max-w-[560px] border-b md:border-b-0",
         isLight
           ? "bg-[#fff] border-slate-200 shadow-[40px_0_100px_rgba(0,0,0,0.05)]"
           : cn(
@@ -384,7 +397,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                 )}
               </div>
               <h2 className={cn("text-2xl font-semibold leading-tight tracking-tight", isLight ? "text-slate-900" : "text-white")}>{task?.title}</h2>
-              <p className={cn("text-[13px] leading-relaxed", isLight ? "text-slate-500" : "text-white/60")}>
+              <p className={cn("text-[13px] leading-relaxed whitespace-pre-wrap break-words", isLight ? "text-slate-500" : "text-white/60")}>
                 {isMetricsCard
                   ? (stripWikiMarkup(task?.description) || "Sem contexto descrito.")
                   : (stripWikiMarkup(task?.evidence.problem) || "Sem problema/motivação descrita.")}
@@ -403,7 +416,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                       )}
                     >
                       <TrendingUp className="h-3 w-3 opacity-70" />
-                      {m.field}: {m.value.toLocaleString('pt-BR')}
+                      {m.field}: {(m.value ?? 0).toLocaleString('pt-BR')}
                     </span>
                   ))}
                 </div>
@@ -422,8 +435,8 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                 </span>
               )}
               {([
-                { url: task?.evidence.techDocUrl, label: 'Doc. técnico' },
-                { url: task?.evidence.tdnUrl, label: 'TDN' },
+                { url: toSafeUrl(task?.evidence.techDocUrl), label: 'Doc. técnico' },
+                { url: toSafeUrl(task?.evidence.tdnUrl), label: 'TDN' },
               ]).filter(l => l.url).map(l => (
                 <a
                   key={l.label}
@@ -541,7 +554,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             : "bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.15),transparent_70%)]"
         )} aria-hidden="true" />
 
-        <div className="flex-1 flex items-center justify-center p-12 relative z-10">
+        <div className="flex-1 flex items-center justify-center p-3 sm:p-6 md:p-12 relative z-10 min-h-0">
           <AnimatePresence mode="wait">
             {(() => {
               if (!task) return null;
@@ -569,7 +582,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                       <div className="flex flex-wrap justify-center gap-4">
                         {metrics.map((m, i) => (
                           <div key={i} className="text-center px-6">
-                            <p className={cn("text-4xl font-black tracking-tight", isLight ? "text-violet-700" : "text-violet-300")}>{m.value.toLocaleString('pt-BR')}</p>
+                            <p className={cn("text-4xl font-black tracking-tight", isLight ? "text-violet-700" : "text-violet-300")}>{(m.value ?? 0).toLocaleString('pt-BR')}</p>
                             <p className={cn("text-[11px] font-bold uppercase tracking-widest mt-1", isLight ? "text-slate-500" : "text-white/40")}>{m.field}</p>
                           </div>
                         ))}
@@ -607,7 +620,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                 </motion.div>
               );
 
-              const isImage = url.match(/\.(jpeg|jpg|gif|png|webp|svg)/i) || url.includes('images.unsplash.com');
+              const isImage = isImageUrl(url);
               const isPdf = isPdfUrl(url);
               const embedUrl = getEmbedUrl(url);
               const isEmbed = (embedUrl !== url || isPdf || url.includes('loom.com'));

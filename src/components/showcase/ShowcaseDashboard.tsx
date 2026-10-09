@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ShowcaseSession, ShowcaseTask } from './types';
 import { showcaseApi } from '@/app/showcase/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface ShowcaseDashboardProps {
   sessions: ShowcaseSession[];
@@ -47,6 +48,7 @@ export function ShowcaseDashboard({
   isCreating
 }: ShowcaseDashboardProps) {
   const router = useRouter();
+  const { toast } = useToast();
 
   // Local state for join room ID
   const [joinId, setJoinId] = useState('');
@@ -55,22 +57,41 @@ export function ShowcaseDashboard({
   // (não localStorage), pra refletir o preparo real do squad e não só de
   // quem tá com aquele navegador aberto.
   const lastSessionForChecklist = sessions.length > 0 ? sessions[0] : null;
-  const checklist = lastSessionForChecklist?.readinessChecklist
-    || Array(CHECKLIST_LENGTH).fill(false);
+  const serverChecklist = Array.from({ length: CHECKLIST_LENGTH }, (_, i) => !!lastSessionForChecklist?.readinessChecklist?.[i]);
+  // Marcação otimista: a lista vem de uma carga única, então sem estado local o checkbox não mudava na tela.
+  const [localChecklist, setLocalChecklist] = useState<boolean[] | null>(null);
+  const checklist = localChecklist ?? serverChecklist;
+  const checklistSessionId = lastSessionForChecklist?.id;
 
-  const toggleChecklistItem = (index: number) => {
-    if (!lastSessionForChecklist) return;
+  React.useEffect(() => {
+    setLocalChecklist(null);
+  }, [checklistSessionId]);
+
+  const toggleChecklistItem = async (index: number) => {
+    if (!checklistSessionId) return;
     const updated = [...checklist];
     updated[index] = !updated[index];
-    showcaseApi.saveSession({ ...lastSessionForChecklist, readinessChecklist: updated }).catch(e => {
+    const previous = checklist;
+    setLocalChecklist(updated);
+    try {
+      // Busca a Review atual e grava só o checklist por cima dela: a cópia da lista pode estar velha
+      // e regravá-la inteira desfaria decisões e edições feitas na sala depois da carga.
+      const latest = await showcaseApi.getSession(checklistSessionId);
+      if (!latest) throw new Error('Review não encontrada');
+      await showcaseApi.saveSession({ ...latest, readinessChecklist: updated });
+    } catch (e) {
       console.error('Error saving checklist state', e);
-    });
+      setLocalChecklist(previous);
+      toast({ title: 'Não foi possível salvar o checklist', description: 'Tente de novo.', variant: 'destructive' });
+    }
   };
 
   const handleJoinClick = () => {
-    if (joinId.trim()) {
-      onJoinSession(joinId.trim().toUpperCase());
-    }
+    // Aceita o ID puro ou o link inteiro colado; o ID é sensível a maiúsculas e minúsculas.
+    const typed = joinId.trim();
+    if (!typed) return;
+    const fromLink = typed.match(/showcase\/([^/?#\s]+)/i);
+    onJoinSession((fromLink ? fromLink[1] : typed).trim());
   };
 
   // Calculations
@@ -196,10 +217,11 @@ export function ShowcaseDashboard({
             <div className="relative group flex-1">
               <Input
                 value={joinId}
-                onChange={(e) => setJoinId(e.target.value.toUpperCase())}
+                onChange={(e) => setJoinId(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleJoinClick()}
-                placeholder="ENTRAR COM ID DA SALA"
-                className="h-14 pl-6 pr-14 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800/80 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-bold text-xs text-slate-900 dark:text-slate-100 rounded-2xl focus-visible:ring-offset-0 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 transition-all uppercase tracking-wider"
+                placeholder="Entrar com o ID ou link da sala"
+                aria-label="ID ou link da sala"
+                className="h-14 pl-6 pr-14 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800/80 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-bold text-xs text-slate-900 dark:text-slate-100 rounded-2xl focus-visible:ring-offset-0 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 transition-all tracking-wide"
               />
               <button
                 onClick={handleJoinClick}
@@ -415,6 +437,10 @@ export function ShowcaseDashboard({
                 <div 
                   key={idx} 
                   onClick={() => toggleChecklistItem(idx)}
+                  role="checkbox"
+                  aria-checked={!!checklist[idx]}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); toggleChecklistItem(idx); } }}
                   className="flex items-start gap-3 cursor-pointer group/item select-none"
                 >
                   <div className={`mt-0.5 w-4.5 h-4.5 rounded-md border-2 shrink-0 flex items-center justify-center transition-all ${

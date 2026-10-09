@@ -2,7 +2,16 @@
 
 import React from 'react';
 import { DECISION, ShowcaseSession, ImpactMetric, ChartType } from './types';
-import { formatTime, getDirectImageUrl } from './utils';
+import { formatTime, getDirectImageUrl, stripWikiMarkup, toSafeUrl } from './utils';
+
+/** Texto longo encolhe a fonte para caber no slide fixo em vez de ser cortado no PDF. */
+const printTextSize = (text?: string) => {
+  const length = (text || '').length;
+  if (length > 1400) return 7;
+  if (length > 900) return 8;
+  if (length > 500) return 9.5;
+  return 11;
+};
 import { getCategoryColor } from './chartPresets';
 
 const decisionHex = (d: keyof typeof DECISION) =>
@@ -262,17 +271,17 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                 {isMetricsCard ? (
                   <div>
                     <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#a78bfa', marginBottom: '6px' }}>Contexto</p>
-                    <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.description || 'Não informado'}"</p>
+                    <p style={{ fontSize: `${printTextSize(task.description)}px`, lineHeight: 1.5, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>"{stripWikiMarkup(task.description) || 'Não informado'}"</p>
                   </div>
                 ) : (
                   <>
                     <div>
                       <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#f87171', marginBottom: '6px' }}>O Problema</p>
-                      <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.evidence.problem || 'Não informado'}"</p>
+                      <p style={{ fontSize: `${printTextSize(task.evidence.problem)}px`, lineHeight: 1.5, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>"{stripWikiMarkup(task.evidence.problem) || 'Não informado'}"</p>
                     </div>
                     <div>
                       <p style={{ fontSize: '7px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '3px', color: '#34d399', marginBottom: '6px' }}>A Solução</p>
-                      <p style={{ fontSize: '11px', lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0 }}>"{task.evidence.solution || 'Não informado'}"</p>
+                      <p style={{ fontSize: `${printTextSize(task.evidence.solution)}px`, lineHeight: 1.5, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>"{stripWikiMarkup(task.evidence.solution) || 'Não informado'}"</p>
                     </div>
                   </>
                 )}

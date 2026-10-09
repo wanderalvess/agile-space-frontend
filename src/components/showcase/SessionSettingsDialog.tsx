@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShowcaseSession, ShowcaseTask, CardKind, PRESETS, PRESENTATION_PRESETS, PresentationPreset } from './types';
-import { getDirectImageUrl, isLightBackground, isImageBackground, imageBackgroundCss } from './utils';
+import { getDirectImageUrl, isLightBackground, isImageBackground, imageBackgroundCss, toSafeUrl } from './utils';
 
 interface SessionSettingsDialogProps {
   open: boolean;
@@ -184,15 +184,27 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   // Grava só o que mudou no modal. Mandar a sessão inteira regravava `tasks`
   // com a cópia de quando o modal abriu (apagando edições feitas nos cards
   // nesse meio-tempo) e o Firestore recusava campos `undefined` dos cards.
-  const handleSave = () => {
+  const getChanged = () => {
     const original = (openedSessionRef.current || {}) as Record<string, unknown>;
-    const changed = Object.fromEntries(
+    return Object.fromEntries(
       Object.entries(session).filter(([k, v]) =>
         !['id', 'tasks', 'createdAt'].includes(k) && v !== undefined && v !== original[k]
       )
     ) as Partial<ShowcaseSession>;
+  };
+
+  const handleSave = () => {
+    const changed = getChanged();
     if (Object.keys(changed).length > 0) {
       onCommit(changed);
+    }
+    onClose();
+  };
+
+  // Clicar fora ou apertar Esc fecha o modal: sem aviso, as alterações digitadas se perdiam.
+  const handleDismiss = () => {
+    if (Object.keys(getChanged()).length > 0 && !window.confirm('Descartar as alterações que ainda não foram salvas?')) {
+      return;
     }
     onClose();
   };
@@ -245,7 +257,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
               placeholder="Ex: Squad Phoenix"
               className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
             />
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium ml-1">Aparece no topo do showcase e nos relatórios.</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium ml-1">Aparece no topo do showcase e nos relatórios. A lista de Reviews do painel é filtrada por este nome: se mudar, confira se é o nome exato da squad.</p>
           </div>
 
           <div className="space-y-1.5">
@@ -463,7 +475,11 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                 className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all flex-1"
               />
               <Button 
-                onClick={() => onUpdate({ coverImage: coverUrl })}
+                onClick={() => {
+                  const safe = toSafeUrl(coverUrl);
+                  setCoverUrl(safe);
+                  onUpdate({ coverImage: safe });
+                }}
                 disabled={!coverUrl}
                 className="h-10 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold uppercase tracking-wider text-[11px] shrink-0"
               >
@@ -793,7 +809,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleDismiss(); }}>
       <DialogContent className="sm:max-w-[1440px] w-[96vw] h-[92vh] sm:h-[860px] max-h-[94vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden bg-card text-card-foreground flex flex-col gap-0 focus:outline-none">
         {/* Cabeçalho: mesmo padrão dos modais do Poker (título, explicação, abas) */}
         <div className="px-6 pt-6 pb-0 shrink-0">
@@ -876,7 +892,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             Vai apresentar em projetor ou sala com muita luz? Em <strong className="font-semibold text-foreground">Apresentação</strong>, escolha o fundo Branco Puro.
           </p>
           <div className="flex items-center gap-3 ml-auto">
-            <Button onClick={onClose} variant="ghost" className="rounded-xl font-bold text-sm text-muted-foreground hover:text-foreground">
+            <Button onClick={handleDismiss} variant="ghost" className="rounded-xl font-bold text-sm text-muted-foreground hover:text-foreground">
               Cancelar
             </Button>
             <Button onClick={handleSave} className="h-10 px-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-600/25 transition-all active:scale-95">

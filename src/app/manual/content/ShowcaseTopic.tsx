@@ -15,7 +15,7 @@ export function ShowcaseTopic() {
 
   const origem = [
     { title: 'Automático (Jira)', desc: 'Chave, título, tipo, prioridade, pontos, responsável e Critérios de Aceite. Problema e Solução são extraídos da descrição — ou do comentário da subtarefa de codificação quando a demanda pai não tem — de forma tolerante a formatação inconsistente do time.', icon: Wand2 },
-    { title: 'Manual (squad)', desc: 'Evidência (print ou link de vídeo) e, em cards de Métricas, os valores de impacto que geram o gráfico. Problema/Solução também podem ser corrigidos à mão quando o Jira não tiver o texto certo.', icon: PencilLine },
+    { title: 'Manual (squad)', desc: 'Evidência (link de print ou vídeo, ou arquivos PNG, JPEG e PDF anexados ao card — até 5 por card, 10 MB cada), links do documento técnico e do TDN e, em cards de Métricas, os valores de impacto que geram o gráfico. Problema/Solução também podem ser corrigidos à mão quando o Jira não tiver o texto certo.', icon: PencilLine },
   ];
 
   return (

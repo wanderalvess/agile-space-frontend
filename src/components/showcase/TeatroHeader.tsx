@@ -115,6 +115,8 @@ export function TeatroHeader({
                   <button
                     key={t.id || i}
                     onClick={() => onIndexChange(i)}
+                    aria-label={`Ir para o card ${i + 1} de ${total}: ${t.key}`}
+                    aria-current={isActive ? 'step' : undefined}
                     title={`${t.key}: ${t.title}${t.preparationStatus === 'done' ? '' : ' (preparação pendente)'}`}
                     className={cn(
                       'h-1.5 flex-1 min-w-[4px] rounded-full transition-all duration-300',

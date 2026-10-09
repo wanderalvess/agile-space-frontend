@@ -1,5 +1,22 @@
 [
   {
+    "tag": "v4.19.0",
+    "date": "9 de Outubro, 2026",
+    "title": "Review mais confiável: edições não se perdem e a decisão do PO é garantida",
+    "description": "Correções de uma revisão completa da Review: salvamento sem sobrescrever o trabalho dos colegas, conexão em tempo real que se recupera sozinha e links de evidência que funcionam.",
+    "changes": [
+      "As edições dos cards agora aparecem na hora e são gravadas em fila, sempre por cima da versão mais recente do servidor. Duas pessoas editando ao mesmo tempo, ou você mudando dois campos em sequência, não apagam mais o trabalho uma da outra. O texto digitado nos últimos instantes também não se perde quando o card recolhe.",
+      "A decisão do PO no Modo Teatro só avança para o próximo card depois de gravada. Se falhar, a tela avisa e fica no mesmo card. O servidor passa a registrar quem decidiu a partir do login, e não do que o navegador enviou.",
+      "O tempo real reconecta sozinho depois de uma queda de rede ou de um deploy e ressincroniza a Review. Review inexistente ou sem acesso mostra uma mensagem clara em vez de uma tela vazia.",
+      "Links do Loom com \"?sid=\" voltaram a abrir o vídeo (eram tratados como Drive). Links sem https:// (como os do TDN) abrem normalmente, e links com esquemas perigosos como javascript: são descartados no navegador e no servidor.",
+      "Entrar pelo ID da sala funciona de novo (o ID era convertido para maiúsculas) e aceita o link inteiro colado. O checklist de prontidão do painel agora marca na tela e não desfaz as edições da sala.",
+      "Modo Teatro: o card em foco acompanha a lista quando alguém adiciona, remove ou reordena cards, o feedback é gravado no card em que foi aberto e a apresentação e o PDF de impressão usam todos os cards, não só os filtrados. Texto longo no PDF encolhe em vez de ser cortado.",
+      "Ordem das chaves em ordem natural (PROJ-2 antes de PROJ-10), numeração de cards manuais sem repetir, confirmação ao remover um card (que apaga os anexos) e ao finalizar com cards sem decisão. Relatório em Markdown inclui os cards sem decisão e os anexos; o PDF mantém travessão e aspas e usa imagem anexada quando não há print.",
+      "Servidor: capa com link longo não derruba mais o salvamento, saves simultâneos da mesma Review são serializados, o aviso em tempo real sai só depois de gravar, o card de outra Review não pode ser sobrescrito por ID e a lista do painel tem limite.",
+      "Celular: o Modo Teatro e os campos dos cards empilham em telas estreitas."
+    ]
+  },
+  {
     "tag": "v4.18.0",
     "date": "9 de Outubro, 2026",
     "title": "Biblioteca de IA mais segura e sem erros pequenos",

@@ -114,7 +114,7 @@ export function MetricsEditor({
     onChange(metrics.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
   };
   const removeRow = (i: number) => onChange(metrics.filter((_, idx) => idx !== i));
-  const chartData = metrics.filter(m => m.field.trim()).map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }));
+  const chartData = metrics.filter(m => (m.field || '').trim()).map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }));
 
   return (
     <div className="space-y-3">
@@ -146,6 +146,8 @@ export function MetricsEditor({
             />
             <Button
               variant="ghost" size="icon" onClick={() => removeRow(i)}
+              aria-label="Remover métrica"
+              title="Remover métrica"
               className="h-8 w-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all shrink-0"
             >
               <Trash2 className="h-3.5 w-3.5" />

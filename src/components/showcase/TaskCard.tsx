@@ -65,15 +65,20 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
   // um card fora do critério de recolher. Sem o `prev` isso brigaria com
   // reabrir manualmente um card já pronto pra reconferir algo.
   const prevCanCollapseRef = React.useRef(canCollapse);
+  const cardRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     const prev = prevCanCollapseRef.current;
     prevCanCollapseRef.current = canCollapse;
-    if (canCollapse && !prev) setCollapsed(true);
-    else if (!canCollapse && collapsed) setCollapsed(false);
+    if (canCollapse && !prev) {
+      // Outra pessoa marcou "Pronta" enquanto alguém digita neste card: não recolhe debaixo do cursor.
+      if (cardRef.current?.contains(document.activeElement) && document.activeElement !== document.body) return;
+      setCollapsed(true);
+    } else if (!canCollapse && collapsed) setCollapsed(false);
   }, [canCollapse, collapsed]);
 
   return (
     <motion.div
+      ref={cardRef}
       // "position" e não `layout` inteiro: animar o tamanho escalava o card (texto esticado e
       // um vão vazio) durante a transição de recolher/expandir. Agora só a posição anima.
       layout="position"

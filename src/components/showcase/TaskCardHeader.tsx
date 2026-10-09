@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { Trash2, TrendingUp, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ShowcaseTask, PreparationStatus, DECISION, ISSUE_TYPES, PREPARATION_STATUS } from './types';
 import { ControlledInput } from './ControlledFields';
+import { toSafeUrl } from './utils';
 
 interface TaskCardHeaderProps {
   task: ShowcaseTask;
@@ -31,6 +33,9 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
   const decided = task.decision && task.decision !== 'open';
   // A chave cresce com o texto: chaves do Jira como DDWMISSI-5622 eram cortadas em w-20.
   const keyWidthCh = Math.max(8, (task.key || '').length + 1);
+  // Remover apaga o card, as métricas e os arquivos anexados: pede confirmação antes.
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const jiraUrl = toSafeUrl(task.url);
 
   return (
     <div className="space-y-2">
@@ -56,9 +61,9 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
             style={{ width: `${keyWidthCh}ch` }}
             className="bg-transparent border-none outline-none text-[11px] font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600"
           />
-          {task.url && (
+          {jiraUrl && (
             <a
-              href={task.url}
+              href={jiraUrl}
               target="_blank"
               rel="noopener noreferrer"
               title="Abrir no Jira"
@@ -136,14 +141,33 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
           >
             {collapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
           </Button>
-          <Button
-            variant="ghost" size="icon" onClick={onRemove}
-            title="Remover card"
-            aria-label="Remover card"
-            className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          {confirmingRemove ? (
+            <span className="flex items-center gap-1.5 pl-1" role="group" aria-label="Confirmar remoção do card">
+              <button
+                type="button"
+                onClick={() => { setConfirmingRemove(false); onRemove(); }}
+                className="text-[11px] font-bold text-rose-600 hover:underline"
+              >
+                Remover card e anexos
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingRemove(false)}
+                className="text-[11px] font-bold text-slate-400 hover:underline"
+              >
+                Manter
+              </button>
+            </span>
+          ) : (
+            <Button
+              variant="ghost" size="icon" onClick={() => setConfirmingRemove(true)}
+              title="Remover card"
+              aria-label="Remover card"
+              className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 

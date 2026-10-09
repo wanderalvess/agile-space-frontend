@@ -14,6 +14,21 @@ import { cn } from '@/lib/utils';
 import { ShowcaseSession, ShowcaseTask, Decision, DECISION } from './types';
 import { formatTime, getDirectImageUrl, stripWikiMarkup, stripNonLatin1ForPdf, getEvidenceUrls } from './utils';
 import { useToast } from '@/hooks/use-toast';
+import { showcaseApi } from '@/app/showcase/api';
+
+/** Nome de arquivo seguro: sem acento, barra ou dois-pontos. */
+const fileSlug = (name: string, fallback: string) =>
+  name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || fallback;
+
+/** Célula de tabela markdown: "|" e quebra de linha quebrariam a tabela. */
+const mdCell = (value?: string) => (value || '—').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
+
+const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result as string);
+  reader.onerror = reject;
+  reader.readAsDataURL(blob);
+});
 
 interface SummaryDialogProps {
   open: boolean;
@@ -82,7 +97,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
   const approved = tasks.filter(t => t.decision === 'approved');
   const adjustments = tasks.filter(t => t.decision === 'needs_adjustment');
   const rejected = tasks.filter(t => t.decision === 'rejected');
-  const pending = tasks.filter(t => t.decision === 'open');
+  const pending = tasks.filter(t => !t.decision || t.decision === 'open');
 
   // Mesma fórmula do ShowcaseDashboard (acceptanceRate): só sobre o que já
   // foi revisado — task ainda pendente não deve puxar a taxa pra baixo. Antes
@@ -113,6 +128,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         `**Time:** Dev: ${t.evidence.dev} / QA: ${t.evidence.qa}`,
         versionsText(t) ? `**Projeto & Versões:** ${versionsText(t)}` : '',
         `**Evidência${getEvidenceUrls(t.evidence).length > 1 ? 's' : ''}:** ${getEvidenceUrls(t.evidence).join(' | ') || 'Sem link'}`,
+        t.attachments && t.attachments.length > 0 ? `**Arquivos anexados:** ${t.attachments.map(a => a.name).join(', ')}` : '',
         t.decidedByName ? `**Aprovado por:** ${t.decidedByName}${decidedWhen(t.decidedAt) ? ` em ${decidedWhen(t.decidedAt)}` : ''}` : '',
         `---`
       ].filter(Boolean).join('\n')),
@@ -122,13 +138,17 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         versionsText(t) ? `  → Projeto & Versões: ${versionsText(t)}` : '',
         `  → Motivo: ${t.feedback || 'Sem feedback registrado'}`,
         t.decidedByName ? `  → Decidido por: ${t.decidedByName}${decidedWhen(t.decidedAt) ? ` em ${decidedWhen(t.decidedAt)}` : ''}` : ''
-      ].filter(Boolean).join('\n'))
+      ].filter(Boolean).join('\n')),
+      `\n## 🕓 Sem decisão (${pending.length})`,
+      ...pending.map(t => `- [${t.key}] ${t.title}`)
     ].join('\n');
 
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([lines], { type: 'text/markdown' }));
-    a.download = `review-log-${sessionName.replace(/\s+/g, '-').toLowerCase()}.md`;
+    const href = URL.createObjectURL(new Blob([lines], { type: 'text/markdown' }));
+    a.href = href;
+    a.download = `review-log-${fileSlug(sessionName, 'review')}.md`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(href), 10_000);
   };
 
   const generateApprovalsSummary = () => {
@@ -140,7 +160,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     ];
 
     const tableRows = approved.map(t =>
-      `| ${t.key} | ${t.url || '—'} | ${t.evidence.dev || '—'} | ${t.evidence.qa || '—'} | ${t.project || '—'} | ${t.versionSuporte || '—'} | ${t.versionMaster || '—'} | ${t.versionRelease || '—'} | ${t.versionDevelop || '—'} |`
+      `| ${mdCell(t.key)} | ${mdCell(t.url)} | ${mdCell(t.evidence.dev)} | ${mdCell(t.evidence.qa)} | ${mdCell(t.project)} | ${mdCell(t.versionSuporte)} | ${mdCell(t.versionMaster)} | ${mdCell(t.versionRelease)} | ${mdCell(t.versionDevelop)} |`
     );
 
     const lines = [...tableHeader, ...tableRows].join('\n');
@@ -172,8 +192,24 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
     try {
       const images = new Map<string, LoadedImage>();
       await Promise.all(tasks.map(async t => {
-        if (!t.evidence.screenshot) return;
-        const loaded = await loadImageForPdf(t.evidence.screenshot);
+        let loaded = t.evidence.screenshot ? await loadImageForPdf(t.evidence.screenshot) : null;
+        // Sem print por link que carregue: usa a primeira imagem anexada ao card (PNG/JPEG enviados na Review).
+        const attached = t.attachments?.find(a => a.contentType === 'image/png' || a.contentType === 'image/jpeg');
+        if (!loaded && attached && session?.id) {
+          try {
+            const blob = await showcaseApi.fetchTaskFileBlob(session.id, attached.id);
+            const dataUrl = await blobToDataUrl(blob);
+            const size = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => resolve({ width: img.naturalWidth || 1, height: img.naturalHeight || 1 });
+              img.onerror = reject;
+              img.src = dataUrl;
+            });
+            loaded = { dataUrl, ...size, format: attached.contentType === 'image/png' ? 'PNG' : 'JPEG' };
+          } catch {
+            loaded = null;
+          }
+        }
         if (loaded) images.set(t.id, loaded);
       }));
 
@@ -271,9 +307,9 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         doc.setFillColor(124, 58, 237);
         doc.roundedRect(M, y, 26, 7, 1.5, 1.5, 'F');
         setFont(8, 'bold', [255, 255, 255]);
-        doc.text(task.key, M + 13, y + 4.8, { align: 'center' });
+        doc.text(forPdf(task.key || ''), M + 13, y + 4.8, { align: 'center' });
         setFont(8, 'bold', [148, 163, 184]);
-        doc.text(forPdf(task.type.toUpperCase()), M + 30, y + 4.8);
+        doc.text(forPdf((task.type || '').toUpperCase()), M + 30, y + 4.8);
 
         const dColor = decisionRGB(task.decision);
         const dLabel = DECISION[task.decision]?.label.toUpperCase() || 'ABERTA';
@@ -292,7 +328,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         y += 6;
 
         const isMetricsCard = task.cardKind === 'metrics';
-        const metrics = task.metrics?.filter(m => m.field.trim()) || [];
+        const metrics = task.metrics?.filter(m => (m.field || '').trim()) || [];
 
         if (isMetricsCard) {
           wrapped('CONTEXTO', M, textW, 8, 'bold', [124, 58, 237]);
@@ -346,9 +382,9 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
             let cy = imgTop + 12;
             metrics.forEach(m => {
               setFont(8.5, 'bold', [51, 65, 85]);
-              doc.text(m.field, chartX, cy);
+              doc.text(forPdf(m.field || ''), chartX, cy);
               setFont(9, 'bold', [124, 58, 237]);
-              doc.text(m.value.toLocaleString('pt-BR'), chartX + chartW, cy, { align: 'right' });
+              doc.text((m.value ?? 0).toLocaleString('pt-BR'), chartX + chartW, cy, { align: 'right' });
               const barY = cy + 2.5;
               doc.setFillColor(241, 245, 249);
               doc.roundedRect(chartX, barY, chartW, 3, 1.5, 1.5, 'F');
@@ -390,7 +426,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session }: Su
         }
       });
 
-      doc.save(`sprint-review-${sessionName.replace(/\s+/g, '-').toLowerCase() || 'showcase'}.pdf`);
+      doc.save(`sprint-review-${fileSlug(sessionName, 'showcase')}.pdf`);
       toast({ title: 'PDF Baixado!', description: 'Slides exportados com sucesso.' });
     } catch (e) {
       console.error('Erro ao gerar PDF:', e);
