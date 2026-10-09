@@ -1,5 +1,17 @@
 [
   {
+    "tag": "v4.22.4",
+    "date": "9 de Outubro, 2026",
+    "title": "Gestão de usuários e cadastro para colaboradores externos",
+    "description": "O painel de administração ganhou uma gestão de usuários de verdade, e quem tem e-mail @ext.totvs.com.br já pode se cadastrar.",
+    "changes": [
+      "Cadastro: além de @totvs.com.br, e-mails @ext.totvs.com.br também podem criar conta. Domínios parecidos (como evil-totvs.com.br) continuam barrados.",
+      "Administração > Usuários & Acesso: agora mostra status (ativo/inativo), último acesso e equipes de cada pessoa, busca por nome, e-mail ou id do Jira, ativa e desativa contas e redefine senhas com um clique (a senha temporária fica visível por 1 hora).",
+      "Proteções: o administrador não consegue rebaixar nem desativar a si mesmo, e o último administrador ativo não pode ser removido. Toda mudança de acesso fica no registro de auditoria.",
+      "Administradores agora encontram o item \"Administração\" no menu da conta, no cabeçalho, no Painel e na tela inicial."
+    ]
+  },
+  {
     "tag": "v4.22.3",
     "date": "9 de Outubro, 2026",
     "title": "Retrospectiva: assumir o controle só com o facilitador ausente",

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
-import { Zap, User, LogOut, Settings } from 'lucide-react';
+import { Zap, User, LogOut, Settings, ShieldCheck } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { motion } from 'framer-motion';
 import {
@@ -91,6 +91,12 @@ export function GreetingWidget() {
                       <Settings className="mr-2 h-4 w-4" />
                       <span>Configurações</span>
                     </DropdownMenuItem>
+                    {userProfile?.role?.toLowerCase() === 'admin' && (
+                      <DropdownMenuItem onClick={() => { window.location.href = '/admin'; }} className="cursor-pointer rounded-lg">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        <span>Administração</span>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={logout} className="cursor-pointer rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950 dark:focus:text-red-400">
                       <LogOut className="mr-2 h-4 w-4" />

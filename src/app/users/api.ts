@@ -74,6 +74,20 @@ export const userApi = {
     }
   },
 
+  /**
+   * Alteração feita pelo admin no painel. Diferente de saveUser, NÃO engole erro: a tela precisa mostrar
+   * "último admin", "não pode se rebaixar" etc. Manda só os campos alterados (o servidor só mexe em
+   * papel/ativo quando o corpo traz esses campos).
+   */
+  async adminPatchUser(id: string, patch: { role?: string; active?: boolean; jobTitle?: string }): Promise<UserProfile> {
+    return req<UserProfile>('/users', { method: 'POST', body: JSON.stringify({ id, ...patch }) });
+  },
+
+  /** Vínculos de squad da conta (dono ou admin). */
+  async getUserSquads(userId: string): Promise<Array<{ squadId: string; role?: string; displayName?: string }>> {
+    return req(`/users/${encodeURIComponent(userId)}/squads`);
+  },
+
   async getJiraConfig(userId: string): Promise<UserJiraConfig | null> {
     try {
       return await req<UserJiraConfig>(`/users/${userId}/jira-config`, {

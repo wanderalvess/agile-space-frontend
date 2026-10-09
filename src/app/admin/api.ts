@@ -135,6 +135,13 @@ export const adminApi = {
     });
   },
 
+  /** Redefinição iniciada pelo admin: gera e aprova de uma vez e devolve a senha temporária. */
+  async resetUserPassword(userId: string): Promise<PasswordResetRequest> {
+    return req<PasswordResetRequest>(`/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+      method: 'POST'
+    });
+  },
+
   async getApiKeys(): Promise<ApiKeyData[]> {
     return req<ApiKeyData[]>('/admin/api-keys');
   },

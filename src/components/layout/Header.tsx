@@ -17,7 +17,8 @@ import {
   LayoutGrid,
   Sparkles,
   Rocket,
-  Headphones
+  Headphones,
+  ShieldCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
@@ -171,6 +172,14 @@ export function Header() {
                         Meu Workspace
                       </Link>
                     </DropdownMenuItem>
+                    {userProfile?.role?.toLowerCase() === 'admin' && (
+                      <DropdownMenuItem asChild className="text-xs font-bold gap-2 py-3 cursor-pointer group">
+                        <Link href="/admin" className="flex items-center w-full">
+                          <ShieldCheck className="h-4 w-4 text-primary mr-2" />
+                          Administração
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator className="opacity-50" />
                     <DropdownMenuItem
                       onClick={logout}

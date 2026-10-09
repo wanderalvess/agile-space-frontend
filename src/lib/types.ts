@@ -293,6 +293,10 @@ export interface UserProfile {
   dailyHours?: number; // Carga horária individual
   googleAccessToken?: string; // Cache de sincronização
   jiraAccountId?: string; // vem de users.jira_account_id (Postgres) — vincula ao assignee/worklog do Jira
+  /** Só na listagem admin (entidade crua). */
+  active?: boolean;
+  createdAt?: string;
+  lastLoginAt?: string | null;
 }
 
 export type IssueStatus = 'pending' | 'active' | 'completed';

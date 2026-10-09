@@ -11,7 +11,8 @@ import {
   Home,
   LayoutGrid,
   MessageSquareHeart,
-  Building2
+  Building2,
+  ShieldCheck,
 } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
 import { Button } from '@/components/ui/button';
@@ -189,6 +190,11 @@ export function RoomHeader({
                 <DropdownMenuItem onClick={() => router.push('/manual')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
                   <BookOpen className="h-4 w-4 text-primary" aria-hidden="true" /> Manual de Uso
                 </DropdownMenuItem>
+                {userProfile?.role?.toLowerCase() === 'admin' && (
+                  <DropdownMenuItem onClick={() => router.push('/admin')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
+                    <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" /> Administração
+                  </DropdownMenuItem>
+                )}
                 <div className="h-px bg-slate-100 my-2 mx-2" aria-hidden="true" />
                 <DropdownMenuItem onClick={() => { logout(); router.push('/login'); }} className="rounded-xl font-bold text-xs p-3 text-red-500 hover:bg-red-50 cursor-pointer gap-2">
                   <LogOut className="h-4 w-4" aria-hidden="true" /> Sair da Conta

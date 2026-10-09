@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Settings, LogOut, User } from 'lucide-react';
+import { Settings, LogOut, User, ShieldCheck } from 'lucide-react';
 
 const DAILY_TIPS = [
   "Revise suas pendências antes de iniciar blocos de foco intensos.",
@@ -104,6 +104,12 @@ export function HeroWidget() {
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Configurações</span>
                       </DropdownMenuItem>
+                    {userProfile?.role?.toLowerCase() === 'admin' && (
+                      <DropdownMenuItem onClick={() => { window.location.href = '/admin'; }} className="cursor-pointer rounded-lg">
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        <span>Administração</span>
+                      </DropdownMenuItem>
+                    )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={logout} className="cursor-pointer rounded-lg text-red-600 focus:bg-red-50 focus:text-red-700 dark:focus:bg-red-950 dark:focus:text-red-400">
                         <LogOut className="mr-2 h-4 w-4" />

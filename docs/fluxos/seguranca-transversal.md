@@ -40,7 +40,7 @@ Tudo o que está fora desta tabela e começa com `/api/` exige JWT. O prefixo s�
 | Rota | Método | Por que é pública | Risco / observação |
 |---|---|---|---|
 | `/api/auth/login` | POST | Entrar | Limite de 10/min por IP **só** em `login`, `register` e `forgot-password` (faixa apertada); mesma resposta para e-mail inexistente e senha errada. `/api/auth/me` e `/api/auth/switch-project` ficam na faixa geral (300/min por IP): antes, poucas navegações seguidas, ou um escritório inteiro atrás do mesmo IP, recebiam 429 e eram mandadas ao login (achado no teste ao vivo de 2026-10-09) |
-| `/api/auth/register` | POST | Cadastro | Restrito ao domínio corporativo; **sem verificação de e-mail** (risco alto aceito, ver abaixo). Pode ser fechado com `APP_REGISTRATION_ENABLED=false` |
+| `/api/auth/register` | POST | Cadastro | Restrito a `@totvs.com.br` e `@ext.totvs.com.br` (domínio exato); **sem verificação de e-mail** (risco alto aceito pelo produto, ver abaixo). Pode ser fechado com `APP_REGISTRATION_ENABLED=false` |
 | `/api/auth/forgot-password` | POST | Pedir reset sem estar logado | Resposta sempre genérica; 1 pedido pendente por e-mail |
 | `/api/public/system-config` | GET | Marca/cor/logo/manutenção antes do login | Lê só 5 chaves fixas (`companyName`, `primaryColor`, `logoUrl`, `allowAnonymous`, `maintenanceMode`) |
 | `/api/public/announcements` | GET | Aviso global antes do login | Qualquer pessoa na internet lê os anúncios; **não colocar dado interno em anúncio** |
@@ -82,7 +82,7 @@ Não se aplica: autenticação por cabeçalho `Authorization` em `localStorage`,
 | Assinatura do JWT | `APP_JWT_SECRET` | Mínimo 32 bytes; em produção o boot **falha** se faltar ou for um valor de dev conhecido (`ProductionSecretsValidator`) |
 | Criptografia de tokens pessoais (Jira, TDN, IA) | `APP_ENCRYPTION_SECRET` | AES-256-GCM (IV aleatório de 12 bytes); chave = SHA-256 do segredo; boot de produção falha se faltar |
 | Chave admin da listagem de usuários | `APP_ADMIN_KEY` | Opcional; vazia desliga; só vale **junto com** login; comparação em tempo constante |
-| Domínio permitido no cadastro | `ALLOWED_EMAIL_DOMAIN` | Produção: obrigatório e não vazio |
+| Domínios permitidos no cadastro | `ALLOWED_EMAIL_DOMAIN` | Lista separada por vírgula, sem `@`; produção: obrigatória e válida (o boot falha se vazia ou malformada) |
 
 Cuidados:
 
@@ -98,7 +98,7 @@ Cuidados:
 
 | # | Risco | Gravidade | Por que não foi mudado |
 |---|---|---|---|
-| 1 | Cadastro sem verificação de e-mail permite assumir um e-mail corporativo ainda sem senha (e as equipes/cargos ligados a ele) | **Alta** | Exige SSO ou serviço de e-mail; fechar cadastro muda o comportamento de quem usa. Mitigação opt-in entregue (`APP_REGISTRATION_ENABLED`) |
+| 1 | Cadastro aberto (`totvs.com.br` e `ext.totvs.com.br`) sem verificação de e-mail permite assumir um e-mail ainda sem senha (e as equipes/cargos ligados a ele) | **Alta (aceito pelo produto)** | Exige SSO ou serviço de e-mail; fechar cadastro muda o comportamento de quem usa. Mitigação opt-in entregue (`APP_REGISTRATION_ENABLED`) |
 | 2 | Token de 24 h sem revogação individual (mitigado por desativar a conta: 30 s) | Média | Refresh/lista de revogação é projeto à parte |
 | 3 | Token e dados de sessão em `localStorage` | Média | Padrão atual do app; troca para cookie httpOnly muda toda a autenticação |
 | 4 | Token do WebSocket na URL | Baixa | Navegador não envia cabeçalho no handshake; alternativa é ticket de curta duração (mudança de contrato com o frontend) |
@@ -133,3 +133,7 @@ Cuidados:
 - `config/`: `WebCorsConfig`, `WebSocketConfig`, `ProductionSecretsValidator`, `SecurityAuditInterceptor`.
 - `application.yml` e `application-prod.yml` (segredos, CORS, springdoc), `Caddyfile` e `docker-compose.yml` (proxy, portas).
 - Testes: `JwtAuthenticationFilterSessionTest`, `JwtAuthenticationFilterPublicPathTest`, `RateLimitFilterTest`, `AccessControlsHardeningTest`, `AccessHardeningTest`.
+
+## Mensagens de erro do servidor em produção
+
+`server.error.include-message` é `never` em produção: o corpo do erro **não traz** o texto de `ResponseStatusException`. O frontend só enxerga o status (400/401/403/409). Por isso as telas de administração antecipam as regras no cliente (botões desabilitados para o próprio admin e para o último admin) e traduzem o status em texto (`apiErrorMessage`). Qualquer tela nova que dependa do texto do servidor precisa tratar o status.

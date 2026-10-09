@@ -10,10 +10,10 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 | Acesso à Review | A Review é da squad, mas **quem recebe o link acessa**; sem trava por squad |
 | Biblioteca de IA sem login | Só para itens **públicos** (`/api/public/prompt-hub`); coleções e escrita exigem login |
 | Novidades em salas e cerimônias | Opt-in do facilitador; o comportamento padrão não muda |
+| Cadastro | **Autocadastro aberto**, só para e-mails `@totvs.com.br` e `@ext.totvs.com.br` (correspondência exata do domínio). Sem verificação de e-mail: risco aceito pelo produto. `APP_REGISTRATION_ENABLED=false` fecha o cadastro se for preciso (padrão `true`) |
 
 ## Segurança e acesso (`seguranca-transversal.md`, `autenticacao-e-sessao.md`)
 
-1. **Cadastro sem verificação de e-mail (alto).** Quem usa um e-mail `@totvs.com.br` ainda sem senha cria a conta como aquela pessoa e herda equipes e liderança. Opções: SSO corporativo (planejado), confirmação por e-mail (falta serviço de e-mail) ou fechar o autocadastro depois que todos entraram (`APP_REGISTRATION_ENABLED=false`, já disponível, padrão `true`).
 2. **Chaves de API sem expiração e com papel congelado na criação** (as legadas e as do painel têm acesso total). Revogar e recriar quebra integrações.
 3. **Admin lê os tokens de Jira e TDN de qualquer pessoa.** Os tokens ficam em texto claro no `localStorage` do navegador e continuam lá depois do logout.
 4. **`SquadAccessService` casa o nome da conta (editável) com o nome do membro da squad** para dar acesso à squad.

@@ -74,6 +74,26 @@ Detalhes:
 3. O admin aprova: o servidor gera uma **senha temporária de 16 caracteres**, troca o hash da conta e mostra a senha ao admin, que a repassa à pessoa **fora do sistema**.
 4. A senha temporária fica legível na lista por **1 hora**; depois é apagada do registro (o hash na conta continua valendo). Aprovar duas vezes é recusado.
 
+## Gestão de usuários no painel (`/admin` → Usuários & Acesso)
+
+Tudo é **só ADMIN no servidor**; a tela espelha as regras para desabilitar o que seria recusado.
+
+| O que | Como | Regra / auditoria |
+|---|---|---|
+| Ver e-mail, status, criado em, **último acesso** | Tabela e janela de detalhes | Último acesso é gravado no login por senha (`last_login_at`, migration V55); contas que não entraram desde então mostram "Sem registro" |
+| Buscar | Nome (sem acento), e-mail ou id do Jira; filtros por status e por cargo/admin | Filtro no cliente (a listagem vem inteira) |
+| Ativar / desativar | Chave na coluna Status, com confirmação ao desativar | Desativar derruba a sessão em até 30 s, invalida as chaves de API da pessoa e bloqueia o login. Auditoria `USER_DEACTIVATED` / `USER_ACTIVATED` com o e-mail do admin |
+| Alterar nível de acesso (ADMIN/LEAD/MEMBER) | Seletor | Auditoria `USER_ROLE_CHANGED` (de → para). **Guardas:** o admin não rebaixa nem desativa a si mesmo, e o **último admin ativo** não é rebaixado nem desativado (409) |
+| Alterar cargo | Seletor | Auditoria `USER_JOBTITLE_CHANGED` |
+| Redefinir senha | Botão de chave na linha (e a fila "Esqueci a senha" no topo) | `POST /api/admin/users/{id}/reset-password` gera e aprova de uma vez; senha temporária de 16 caracteres mostrada ao admin, apagada do registro após 1 h; auditoria `PASSWORD_RESET_REQUESTED/APPROVED` |
+| Ver equipes da pessoa | Janela de detalhes (`GET /api/users/{id}/squads`) | Dono ou admin |
+
+Detalhe importante do servidor: **papel e ativo só mudam se o corpo da requisição os trouxe de fato** (o JSON não-informado vira "MEMBER"/ativo por padrão, e sem esse cuidado um admin salvando só o nome rebaixaria e reativaria a conta). A tela manda só o campo alterado.
+
+**Fora do escopo de propósito:** excluir ou anonimizar contas. O `users.id` é referenciado por dezenas de tabelas (votos, cards, sessões, chaves, auditoria) sem cascata definida, e apagar quebraria históricos; **desativar** cumpre o papel de revogar o acesso sem perder dados. Anonimizar (LGPD) é decisão de produto e exige mapear cada tabela.
+
+**Acesso ao painel:** o item **Administração** aparece no menu da pessoa (cabeçalho, Painel/salas, home) só para quem tem `role` ADMIN. Antes não havia nenhum link para `/admin`; só digitando o endereço.
+
 ## Permissões: servidor x cliente
 
 | Ação | Servidor | Cliente |
