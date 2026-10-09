@@ -35,13 +35,13 @@ export function ExportActionPlanDialog({
     };
 
     tasks.forEach((task, index) => {
-      md += `### ${index + 1}. ${task.what}\n`;
-      md += `- **Por que:** ${task.why}\n`;
-      md += `- **Como:** ${task.how}\n`;
-      if (task.howMuch) md += `- **Custo/Esforço:** ${task.howMuch}\n`;
-      md += `- **Onde:** ${task.where}\n`;
-      md += `- **Quando:** ${task.when}\n`;
-      md += `- **Quem:** ${task.who}\n`;
+      md += `### ${index + 1}. ${task.what ?? ''}\n`;
+      md += `- **Por que:** ${task.why ?? ''}\n`;
+      md += `- **Como:** ${task.how ?? ''}\n`;
+      if (task.howMuch) md += `- **Custo/Esforço:** ${task.howMuch ?? ''}\n`;
+      md += `- **Onde:** ${task.where ?? ''}\n`;
+      md += `- **Quando:** ${task.when ?? ''}\n`;
+      md += `- **Quem:** ${task.who ?? ''}\n`;
       md += `- **Status:** ${statuses[task.status]}\n\n`;
     });
 

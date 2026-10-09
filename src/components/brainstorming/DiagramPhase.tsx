@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useMemo, useEffect, useRef } from 'react';
+import { ideaSignature } from '@/lib/brainstorming-utils';
 import {
   ReactFlow,
   MiniMap,
@@ -25,11 +26,13 @@ import { Button } from '@/components/ui/button';
 import { Maximize2, ZoomIn, ZoomOut, Download } from 'lucide-react';
 
 // --- Custom Node Component ---
-const IdeaNode = ({ data }: { data: { 
-  idea: BrainstormingIdea, 
-  isAnonymous: boolean, 
+const IdeaNode = ({ data }: { data: {
+  idea: BrainstormingIdea,
+  isAnonymous: boolean,
+  isRevealed?: boolean,
+  currentUserId?: string,
   onVote: (id: string) => void,
-  onUpdate: (id: string, content: string) => void 
+  onUpdate: (id: string, content: string) => Promise<boolean | void> | boolean | void
 } }) => {
   return (
     <div className="w-[300px] group">
@@ -41,8 +44,10 @@ const IdeaNode = ({ data }: { data: {
       />
       
       <IdeaCard 
-        idea={data.idea} 
-        isAnonymous={data.isAnonymous} 
+        idea={data.idea}
+        isAnonymous={data.isAnonymous}
+        isRevealed={data.isRevealed}
+        currentUserId={data.currentUserId}
         onVote={data.onVote}
         onUpdate={data.onUpdate}
         className="shadow-2xl" 
@@ -68,12 +73,12 @@ const nodeTypes = {
 interface DiagramPhaseProps {
   ideas: BrainstormingIdea[];
   boardId: string;
+  /** Quem está logado: sem isso o card nunca mostrava "você votou" nem "Você" como autor. */
+  currentUserId?: string;
   isAnonymous: boolean;
-  // Aceito para compatibilidade com o call site (brainstorming/[id]/page.tsx). Atualmente não é
-  // repassado ao IdeaCard (que assume isRevealed=true) para preservar o comportamento existente.
   isRevealed?: boolean;
   onVoteIdea: (id: string) => void;
-  onUpdateIdea: (id: string, content: string) => void;
+  onUpdateIdea: (id: string, content: string) => Promise<boolean | void> | boolean | void;
   onUpdatePosition: (id: string, x: number, y: number) => void;
   onConnectIdeas: (sourceId: string, targetId: string) => void;
   onDisconnectIdea: (id: string) => void;
@@ -84,7 +89,9 @@ interface DiagramPhaseProps {
 export function DiagramPhase({
   ideas,
   boardId,
+  currentUserId,
   isAnonymous,
+  isRevealed,
   onVoteIdea,
   onUpdateIdea,
   onUpdatePosition,
@@ -96,6 +103,10 @@ export function DiagramPhase({
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const rfInstance = useRef<ReactFlowInstance | null>(null);
+
+  // Muda quando qualquer coisa visível das ideias muda (posição, texto, ligação, votos), não só a contagem:
+  // antes, ligações, votos e textos de outras pessoas não apareciam na teia.
+  const signature = useMemo(() => ideaSignature(ideas), [ideas]);
 
   // Sync Nodes and Edges from ideas
   useEffect(() => {
@@ -113,17 +124,23 @@ export function DiagramPhase({
       };
     };
 
-    const newNodes: Node[] = ideas.map((idea, index) => ({
-      id: idea.id,
-      type: 'ideaNode',
-      data: { 
-        idea, 
-        isAnonymous, 
-        onVote: onVoteIdea,
-        onUpdate: onUpdateIdea
-      },
-      position: getInitialPosition(index, idea.position),
-    }));
+    setNodes(prev => {
+      // o card que a própria pessoa está arrastando agora não pode pular de volta para a posição salva
+      const dragging = new Map(prev.filter(n => n.dragging).map(n => [n.id, n.position]));
+      return ideas.map((idea, index) => ({
+        id: idea.id,
+        type: 'ideaNode',
+        data: {
+          idea,
+          isAnonymous,
+          isRevealed,
+          currentUserId,
+          onVote: onVoteIdea,
+          onUpdate: onUpdateIdea
+        },
+        position: dragging.get(idea.id) ?? getInitialPosition(index, idea.position),
+      }));
+    });
 
     const newEdges: Edge[] = ideas
       .filter((idea) => idea.parentId)
@@ -135,9 +152,9 @@ export function DiagramPhase({
         style: { stroke: '#f59e0b', strokeWidth: 3 },
       }));
 
-    setNodes(newNodes);
     setEdges(newEdges);
-  }, [ideas.length, isAnonymous, onVoteIdea, setNodes, setEdges]); // Sincroniza apenas quando o número de ideias muda ou configurações globais
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature, isAnonymous, isRevealed, currentUserId, onVoteIdea, onUpdateIdea, setNodes, setEdges]);
 
   // Handler para persistir arrasto
   const onNodeDragStop = useCallback((event: any, node: Node) => {

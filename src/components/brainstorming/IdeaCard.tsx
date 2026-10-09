@@ -13,7 +13,8 @@ interface IdeaCardProps {
   isRevealed?: boolean;
   isHot?: boolean;
   onDelete?: (id: string) => void;
-  onUpdate?: (id: string, content: string) => void;
+  /** Pode devolver false para avisar que não salvou: o card continua em edição e o texto digitado não se perde. */
+  onUpdate?: (id: string, content: string) => Promise<boolean | void> | boolean | void;
   onVote?: (id: string) => void;
   onMerge?: (id: string) => void;
   onStartMerge?: (id: string) => void;
@@ -47,11 +48,27 @@ export function IdeaCard({
   const ideaChildren = (idea as { children?: BrainstormingIdea[] }).children;
   const hasChildren = ideaChildren && ideaChildren.length > 0;
 
-  const handleSave = () => {
-    if (editedContent.trim() && editedContent !== idea.content) {
-      onUpdate?.(idea.id, editedContent.trim());
+  const [isSaving, setIsSaving] = useState(false);
+
+  const startEditing = () => {
+    // sempre parte do texto atual (outra pessoa pode ter editado desde que o card foi montado)
+    setEditedContent(idea.content);
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    const text = editedContent.trim();
+    if (!text || text === idea.content) {
+      setIsEditing(false);
+      return;
     }
-    setIsEditing(false);
+    setIsSaving(true);
+    try {
+      const saved = await onUpdate?.(idea.id, text);
+      if (saved !== false) setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isEditing) {
@@ -62,12 +79,14 @@ export function IdeaCard({
           onChange={(e) => setEditedContent(e.target.value)}
           className="min-h-[100px] text-xs font-bold bg-slate-50 border-amber-100 rounded-xl focus-visible:ring-amber-500/20"
           autoFocus
+          aria-label="Texto da ideia"
+          maxLength={5000}
         />
         <div className="flex justify-end gap-2">
-           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-lg text-slate-400" onClick={() => setIsEditing(false)}>
+           <Button variant="ghost" size="sm" aria-label="Cancelar edição" className="h-8 w-8 p-0 rounded-lg text-slate-400" onClick={() => setIsEditing(false)}>
               <XCircle className="h-4 w-4" />
            </Button>
-           <Button variant="secondary" size="sm" className="h-8 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[9px] uppercase tracking-widest" onClick={handleSave}>
+           <Button variant="secondary" size="sm" className="h-8 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-black text-[9px] uppercase tracking-widest" onClick={handleSave} disabled={isSaving}>
               <CheckCircle2 className="h-4 w-4 mr-1.5" /> Salvar
            </Button>
         </div>
@@ -94,7 +113,7 @@ export function IdeaCard({
       isMergingSource={isMergingSource}
       canMergeTarget={canMerge}
       onDelete={onDelete}
-      onEdit={() => setIsEditing(true)}
+      onEdit={startEditing}
       allowAnyEdit={true}
       onStartMerge={onStartMerge}
       onMerge={onMerge}

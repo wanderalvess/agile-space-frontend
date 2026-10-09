@@ -1,29 +1,52 @@
 import { BrainstormingBoard, BrainstormingIdea, BrainstormingGroup, Participant } from '@/lib/types';
 import { authFetch } from '@/lib/auth-client';
+import { ensureOk } from '@/lib/ceremony-api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+
+/** Campos que o facilitador pode mudar de uma vez; as configurações são mescladas chave a chave no servidor. */
+export type BrainstormingBoardPatch = {
+  title?: string;
+  phase?: BrainstormingBoard['phase'];
+  timer?: BrainstormingBoard['timer'];
+  settings?: Partial<BrainstormingBoard['settings']>;
+};
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 export const brainstormingApi = {
   // --- Boards ---
   async getBoard(id: string): Promise<BrainstormingBoard> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}`);
-    if (!res.ok) throw new Error('Falha ao obter dados do mural de Brainstorming');
+    await ensureOk(res, 'Falha ao obter dados do mural de Brainstorming');
     return res.json();
   },
 
+  /** Cria o mural. Mudanças em mural existente usam patchBoard: gravar o mural inteiro desfaz o que outra pessoa mudou. */
   async saveOrUpdateBoard(board: Partial<BrainstormingBoard>): Promise<BrainstormingBoard> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_HEADERS,
       body: JSON.stringify(board),
     });
-    if (!res.ok) throw new Error('Falha ao salvar mural');
+    await ensureOk(res, 'Falha ao salvar mural');
+    return res.json();
+  },
+
+  /** Atualização parcial (só facilitador): fase, timer, título e configurações (mescladas chave a chave). */
+  async patchBoard(id: string, patch: BrainstormingBoardPatch): Promise<BrainstormingBoard> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}`, {
+      method: 'PATCH',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(patch),
+    });
+    await ensureOk(res, 'Não foi possível salvar a alteração da sessão');
     return res.json();
   },
 
   async listBoards(squadId: string): Promise<BrainstormingBoard[]> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings?squadId=${encodeURIComponent(squadId)}`);
-    if (!res.ok) throw new Error('Falha ao listar murais');
+    await ensureOk(res, 'Falha ao listar murais');
     return res.json();
   },
 
@@ -31,23 +54,23 @@ export const brainstormingApi = {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao deletar mural');
+    await ensureOk(res, 'Falha ao deletar mural');
   },
 
   // --- Participants ---
   async getParticipants(boardId: string): Promise<Participant[]> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/participants`);
-    if (!res.ok) throw new Error('Falha ao obter participantes');
+    await ensureOk(res, 'Falha ao obter participantes');
     return res.json();
   },
 
   async joinBoard(boardId: string, participant: Partial<Participant>): Promise<Participant> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/participants`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_HEADERS,
       body: JSON.stringify(participant),
     });
-    if (!res.ok) throw new Error('Falha ao entrar no mural');
+    await ensureOk(res, 'Falha ao entrar no mural');
     return res.json();
   },
 
@@ -55,23 +78,60 @@ export const brainstormingApi = {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/participants/${userId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao sair do mural');
+    await ensureOk(res, 'Falha ao sair do mural');
   },
 
   // --- Ideas ---
   async getIdeas(boardId: string): Promise<BrainstormingIdea[]> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas`);
-    if (!res.ok) throw new Error('Falha ao obter ideias');
+    await ensureOk(res, 'Falha ao obter ideias');
     return res.json();
   },
 
+  /** Cria uma ideia (autor e votos são definidos pelo servidor). */
   async saveOrUpdateIdea(boardId: string, idea: Partial<BrainstormingIdea>): Promise<BrainstormingIdea> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_HEADERS,
       body: JSON.stringify(idea),
     });
-    if (!res.ok) throw new Error('Falha ao salvar ideia');
+    await ensureOk(res, 'Não foi possível salvar a ideia');
+    return res.json();
+  },
+
+  /**
+   * Edição parcial: só os campos enviados mudam (texto, posição, grupo, ligação, qualificadores).
+   * `groupId: null` / `parentId: null` limpam; campo ausente não é tocado. Votos nunca passam por aqui.
+   */
+  async patchIdea(
+    boardId: string,
+    ideaId: string,
+    patch: Partial<Pick<BrainstormingIdea, 'content' | 'position' | 'qualifiers' | 'groupId' | 'parentId' | 'color'>>,
+  ): Promise<BrainstormingIdea> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas/${ideaId}`, {
+      method: 'PATCH',
+      headers: JSON_HEADERS,
+      body: JSON.stringify(patch),
+    });
+    await ensureOk(res, 'Não foi possível salvar a alteração da ideia');
+    return res.json();
+  },
+
+  /** Liga/desliga o voto de quem está logado (atômico no servidor). */
+  async toggleVote(boardId: string, ideaId: string): Promise<BrainstormingIdea> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas/${ideaId}/vote`, {
+      method: 'POST',
+    });
+    await ensureOk(res, 'Não foi possível registrar o voto');
+    return res.json();
+  },
+
+  /** Funde a ideia de origem na de destino (texto, votos e ligações) numa só operação. */
+  async mergeIdeas(boardId: string, targetId: string, sourceId: string): Promise<BrainstormingIdea> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas/${targetId}/merge/${sourceId}`, {
+      method: 'POST',
+    });
+    await ensureOk(res, 'Não foi possível fundir as ideias');
     return res.json();
   },
 
@@ -79,23 +139,23 @@ export const brainstormingApi = {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/ideas/${ideaId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao deletar ideia');
+    await ensureOk(res, 'Não foi possível apagar a ideia');
   },
 
   // --- Groups ---
   async getGroups(boardId: string): Promise<BrainstormingGroup[]> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/groups`);
-    if (!res.ok) throw new Error('Falha ao obter grupos');
+    await ensureOk(res, 'Falha ao obter grupos');
     return res.json();
   },
 
   async saveOrUpdateGroup(boardId: string, group: Partial<BrainstormingGroup>): Promise<BrainstormingGroup> {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/groups`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: JSON_HEADERS,
       body: JSON.stringify(group),
     });
-    if (!res.ok) throw new Error('Falha ao salvar grupo');
+    await ensureOk(res, 'Não foi possível salvar o grupo');
     return res.json();
   },
 
@@ -103,6 +163,6 @@ export const brainstormingApi = {
     const res = await authFetch(`${API_BASE_URL}/brainstormings/${boardId}/groups/${groupId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao deletar grupo');
+    await ensureOk(res, 'Não foi possível apagar o grupo');
   }
 };

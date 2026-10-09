@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { ExportBrainstormingDialog } from './ExportDialog';
 import { BrainstormingGuide } from './BrainstormingGuide';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
 
 interface ToolbarProps {
   boardData: BrainstormingBoard;
@@ -75,13 +76,14 @@ export function BrainstormingToolbar({
   const { toast } = useToast();
   const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
   const [isGuideOpen, setIsGuideOpen] = React.useState(false);
+  // Com as ideias ocultas pelo facilitador, exportar mostraria o texto de todo mundo: só o facilitador exporta.
+  const isExportBlocked = boardData.settings.isRevealed === false && !isCreator;
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Link Copiado!",
-      description: "Convide seu time para a sessão.",
-    });
+  const handleCopyLink = async () => {
+    const ok = await copyToClipboard(window.location.href);
+    toast(ok
+      ? { title: "Link copiado!", description: "Convide seu time para a sessão." }
+      : { title: "Não foi possível copiar o link", variant: "destructive" });
   };
 
   return (
@@ -93,7 +95,8 @@ export function BrainstormingToolbar({
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => router.push('/')} 
+            onClick={() => router.push('/')}
+            aria-label="Voltar para o início"
             className="h-9 w-9 text-slate-400 hover:text-slate-900 hover:bg-slate-100/50 rounded-xl shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -182,6 +185,22 @@ export function BrainstormingToolbar({
           </Button>
         </div>
 
+        {/* Fase no celular/tablet: a barra de fases só cabe em telas largas */}
+        {isCreator && (
+          <select
+            aria-label="Fase da sessão"
+            value={boardData.phase}
+            onChange={(e) => onPhaseChange(e.target.value as BrainstormingPhase)}
+            className="xl:hidden h-8 max-w-[130px] rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-widest text-slate-600"
+          >
+            <option value="ideation">Mural</option>
+            <option value="diagram">Teia</option>
+            <option value="grouping">Grupos</option>
+            <option value="prioritization">Matriz</option>
+            <option value="actions">Plano</option>
+          </select>
+        )}
+
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
           {timer && (
@@ -209,6 +228,7 @@ export function BrainstormingToolbar({
               onClick={() => setIsGuideOpen(true)}
               className="h-8 w-8 text-slate-400 hover:text-amber-500 rounded-lg"
               title="Guia Rápido"
+              aria-label="Guia rápido"
             >
               <HelpCircle className="h-4 w-4" />
             </Button>
@@ -224,6 +244,7 @@ export function BrainstormingToolbar({
                     boardData.settings.isAnonymous ? "bg-indigo-100 text-indigo-600" : "text-slate-400 hover:text-indigo-500"
                   )}
                   title={boardData.settings.isAnonymous ? "Desativar Anonimato" : "Ativar Anonimato"}
+                  aria-label={boardData.settings.isAnonymous ? "Desativar anonimato" : "Ativar anonimato"}
                 >
                   {boardData.settings.isAnonymous ? <Ghost className="h-4 w-4" /> : <User className="h-4 w-4" />}
                 </Button>
@@ -237,6 +258,7 @@ export function BrainstormingToolbar({
                     boardData.settings.isRevealed === false ? "bg-amber-100 text-amber-600" : "text-slate-400 hover:text-amber-500"
                   )}
                   title={boardData.settings.isRevealed === false ? "Revelar Ideias" : "Ocultar Ideias"}
+                  aria-label={boardData.settings.isRevealed === false ? "Revelar ideias" : "Ocultar ideias"}
                 >
                   {boardData.settings.isRevealed === false ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -250,6 +272,7 @@ export function BrainstormingToolbar({
                     boardData.settings.isPresentationMode ? "bg-amber-100 text-amber-600" : "text-slate-400 hover:text-amber-500"
                   )}
                   title={boardData.settings.isPresentationMode ? "Sair do Modo Apresentação" : "Modo Apresentação (Oculta Inputs)"}
+                  aria-label={boardData.settings.isPresentationMode ? "Sair do modo apresentação" : "Ativar modo apresentação"}
                 >
                   <Monitor className="h-4 w-4" />
                 </Button>
@@ -262,6 +285,7 @@ export function BrainstormingToolbar({
               onClick={handleCopyLink}
               className="h-8 w-8 text-slate-400 hover:text-indigo-600 rounded-lg"
               title="Convidar Time"
+              aria-label="Copiar link de convite"
             >
               <Share2 className="h-4 w-4" />
             </Button>
@@ -270,6 +294,8 @@ export function BrainstormingToolbar({
               variant={isParticipantsOpen ? "secondary" : "ghost"}
               size="icon"
               onClick={() => onToggleParticipants(!isParticipantsOpen)}
+              aria-label="Participantes"
+              aria-pressed={isParticipantsOpen}
               className={cn(
                 "h-8 w-8 rounded-lg",
                 isParticipantsOpen && "bg-amber-100 text-amber-600"
@@ -280,6 +306,8 @@ export function BrainstormingToolbar({
 
             <Button
               onClick={() => setIsExportModalOpen(true)}
+              disabled={isExportBlocked}
+              title={isExportBlocked ? "Disponível quando o facilitador revelar as ideias" : "Exportar"}
               className="h-9 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-amber-200 shrink-0"
             >
               <Download className="h-4 w-4 mr-2" />

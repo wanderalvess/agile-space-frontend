@@ -5,6 +5,7 @@ import { ActionPlanTask, ActionPlanTaskStatus } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '@/app/action-plan/api';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/ceremony-api';
 import {
   Dialog,
   DialogContent,
@@ -47,14 +48,14 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
   useEffect(() => {
     if (task) {
       setFormData({
-        what: task.what,
-        why: task.why,
-        where: task.where,
-        when: task.when,
-        who: task.who,
-        how: task.how,
+        what: task.what ?? '',
+        why: task.why ?? '',
+        where: task.where ?? '',
+        when: task.when ?? '',
+        who: task.who ?? '',
+        how: task.how ?? '',
         howMuch: task.howMuch || '',
-        status: task.status
+        status: task.status || 'todo'
       });
     } else {
       setFormData({
@@ -93,7 +94,8 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
       onClose();
     } catch (e) {
       console.error("Erro ao salvar tarefa", e);
-      toast({ title: "Erro", description: "Não foi possível salvar a tarefa.", variant: "destructive" });
+      // o diálogo continua aberto com o que foi digitado
+      toast({ title: "Não foi possível salvar", description: errorMessage(e, "Não foi possível salvar a tarefa. O que você digitou foi mantido."), variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -101,13 +103,14 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
 
   const handleDelete = async () => {
     if (!task) return;
+    if (!window.confirm("Excluir esta ação? Não dá para desfazer.")) return;
     setIsDeleting(true);
     try {
       await actionPlanApi.deleteTask(task.id);
       onSaveSuccess?.();
       onClose();
     } catch (e) {
-      toast({ title: "Erro", description: "Não foi possível excluir a tarefa.", variant: "destructive" });
+      toast({ title: "Não foi possível excluir", description: errorMessage(e, "Não foi possível excluir a tarefa."), variant: "destructive" });
     } finally {
       setIsDeleting(false);
     }
@@ -219,6 +222,8 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
                 {(['todo', 'doing', 'done', 'blocked'] as ActionPlanTaskStatus[]).map(status => (
                    <button
                      key={status}
+                     type="button"
+                     aria-pressed={formData.status === status}
                      onClick={() => setFormData({...formData, status})}
                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                        formData.status === status 

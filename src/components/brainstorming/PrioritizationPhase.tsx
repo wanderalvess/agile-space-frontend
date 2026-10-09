@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Target, Zap, Rocket, Trash, MinusCircle, ChevronRight, AlertCircle, GripVertical } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { getQuadrant } from '@/lib/brainstorming-utils';
 
 interface PrioritizationPhaseProps {
   ideas: BrainstormingIdea[];
@@ -32,15 +33,8 @@ export function PrioritizationPhase({
   const [draggedIdeaId, setDraggedIdeaId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
 
-  const getColumnId = (idea: BrainstormingIdea) => {
-    const { roi = 50, effort = 50 } = idea.qualifiers || {};
-    if (roi === 50 && effort === 50) return 'unclassified';
-    if (roi > 50 && effort <= 50) return 'quick_wins';
-    if (roi > 50 && effort > 50) return 'strategic';
-    if (roi <= 50 && effort <= 50) return 'secondary';
-    if (roi <= 50 && effort > 50) return 'discard';
-    return 'unclassified';
-  };
+  // mesma regra do Plano (ver getQuadrant): as duas telas não podem discordar do quadrante de uma ideia
+  const getColumnId = (idea: BrainstormingIdea) => getQuadrant(idea.qualifiers);
 
   const moveToColumn = (ideaId: string, colId: string) => {
     const col = COLUMNS.find(c => c.id === colId);
@@ -191,6 +185,7 @@ export function PrioritizationPhase({
                                       className="h-6 w-6 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
                                       onClick={() => moveToColumn(idea.id, 'quick_wins')}
                                       title="Mover para Quick Wins"
+                                      aria-label="Mover para Quick Wins"
                                     >
                                       <Zap className="h-3 w-3" />
                                     </Button>
@@ -202,6 +197,7 @@ export function PrioritizationPhase({
                                       className="h-6 w-6 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                                       onClick={() => moveToColumn(idea.id, 'discard')}
                                       title="Mover para Descartar"
+                                      aria-label="Mover para Descartar"
                                     >
                                       <Trash className="h-3 w-3" />
                                     </Button>

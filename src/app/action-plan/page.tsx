@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { actionPlanApi } from './api';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/ceremony-api';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import {
@@ -111,7 +112,6 @@ export default function ActionPlanHubPage() {
     setIsCreating(true);
 
     const newPlan = {
-      creatorId: userProfile.id,
       title: title.trim(),
       team: team.trim() || 'Squad Geral',
       sprintId: sprintId || undefined,
@@ -133,7 +133,7 @@ export default function ActionPlanHubPage() {
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar a sessão no momento.",
+        description: errorMessage(error, "Não foi possível iniciar a sessão no momento."),
         variant: "destructive"
       });
     }

@@ -6,6 +6,8 @@ import { ActionTaskDialog } from './ActionTaskDialog';
 import { Badge } from '@/components/ui/badge';
 import { actionPlanApi } from '@/app/action-plan/api';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/ceremony-api';
 
 interface ActionPlanBoardProps {
   board: IActionPlanBoard;
@@ -14,6 +16,7 @@ interface ActionPlanBoardProps {
 }
 
 export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProps) {
+  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ActionPlanTask | null>(null);
 
@@ -27,18 +30,31 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
     setIsDialogOpen(true);
   };
 
-  const handleUpdateField = async (taskId: string, field: string, value: string) => {
-    await actionPlanApi.updateTask(taskId, { [field]: value });
-    onRefresh?.();
+  /** Devolve true quando salvou; a célula só sai da edição nesse caso (o texto digitado não se perde se falhar). */
+  const handleUpdateField = async (taskId: string, field: string, value: string): Promise<boolean> => {
+    try {
+      await actionPlanApi.updateTask(taskId, { [field]: value });
+      onRefresh?.();
+      return true;
+    } catch (e) {
+      console.error("Erro ao salvar o campo da ação", e);
+      toast({ title: "Não foi possível salvar", description: errorMessage(e, "A alteração não foi gravada. O texto continua na célula."), variant: "destructive" });
+      return false;
+    }
   };
 
   const handleUpdateStatus = async (taskId: string, currentStatus: ActionPlanTaskStatus) => {
     const statuses: ActionPlanTaskStatus[] = ['todo', 'doing', 'done', 'blocked'];
     const currentIndex = statuses.indexOf(currentStatus);
     const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-    
-    await actionPlanApi.updateTask(taskId, { status: nextStatus });
-    onRefresh?.();
+
+    try {
+      await actionPlanApi.updateTask(taskId, { status: nextStatus });
+      onRefresh?.();
+    } catch (e) {
+      console.error("Erro ao mudar o status da ação", e);
+      toast({ title: "Não foi possível mudar o status", description: errorMessage(e, "Tente novamente."), variant: "destructive" });
+    }
   };
 
   return (
@@ -175,7 +191,7 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
                   <td className="p-2 border-r border-slate-50">
                     <div className="flex items-center gap-2 px-1 group/who">
                       <div className="w-6 h-6 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center text-[9px] font-black shrink-0 shadow-sm border border-cyan-200">
-                         {task.who.substring(0, 2).toUpperCase() || '??'}
+                         {(task.who || '').substring(0, 2).toUpperCase() || '??'}
                       </div>
                       <InPlaceInput 
                         value={task.who} 
@@ -188,9 +204,10 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
 
                   {/* STATUS */}
                   <td className="p-2 text-center min-w-[120px]">
-                    <button 
+                    <button
                       onClick={() => handleUpdateStatus(task.id, task.status)}
                       className="w-full text-left"
+                      aria-label={`Status: ${STATUS_INFO[task.status]?.label ?? 'Indefinido'}. Clique para avançar para o próximo status`}
                     >
                       <StatusBadge status={task.status} interactive />
                     </button>
@@ -198,7 +215,7 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
                     {/* Tiny Edit Button for Modal Access */}
                     <button 
                       onClick={() => handleEdit(task)}
-                      className="mt-2 text-[8px] font-black text-slate-300 hover:text-fuchsia-500 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="mt-2 text-[8px] font-black text-slate-300 hover:text-fuchsia-500 uppercase tracking-tighter opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                     >
                       Editar Detalhes
                     </button>
@@ -224,15 +241,16 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
   );
 }
 
-function StatusBadge({ status, interactive = false }: { status: ActionPlanTask['status'], interactive?: boolean }) {
-  const map: Record<ActionPlanTask['status'], { label: string, color: string }> = {
-    todo: { label: 'A Fazer', color: 'bg-slate-100 text-slate-600 border-slate-200' },
-    doing: { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    done: { label: 'Concluído', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    blocked: { label: 'Impedido', color: 'bg-rose-100 text-rose-700 border-rose-200' },
-  };
+const STATUS_INFO: Record<ActionPlanTask['status'], { label: string, color: string }> = {
+  todo: { label: 'A Fazer', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+  doing: { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  done: { label: 'Concluído', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  blocked: { label: 'Impedido', color: 'bg-rose-100 text-rose-700 border-rose-200' },
+};
 
-  const info = map[status];
+function StatusBadge({ status, interactive = false }: { status: ActionPlanTask['status'], interactive?: boolean }) {
+  // status desconhecido (dado antigo ou nulo) não pode derrubar a tabela inteira
+  const info = STATUS_INFO[status] ?? STATUS_INFO.todo;
   return (
     <div className={cn(
       "px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all flex items-center justify-between group/status",
@@ -245,14 +263,32 @@ function StatusBadge({ status, interactive = false }: { status: ActionPlanTask['
   );
 }
 
-function InPlaceInput({ value, onSave, className, placeholder }: { value: string, onSave: (val: string) => void, className?: string, placeholder?: string }) {
+function InPlaceInput({ value, onSave, className, placeholder }: { value: string | null | undefined, onSave: (val: string) => Promise<boolean | void> | boolean | void, className?: string, placeholder?: string }) {
+  const current = value ?? '';
   const [isEditing, setIsEditing] = useState(false);
-  const [currentValue, setCurrentValue] = useState(value);
+  const [currentValue, setCurrentValue] = useState(current);
+  const savingRef = React.useRef(false);
 
-  const handleBlur = () => {
-    setIsEditing(false);
-    if (currentValue !== value) {
-      onSave(currentValue);
+  const startEditing = () => {
+    // sempre parte do valor atual do servidor (outra pessoa pode ter editado desde a montagem da célula)
+    setCurrentValue(current);
+    setIsEditing(true);
+  };
+
+  const handleBlur = async () => {
+    // Enter e perda de foco disparam as duas: salva uma vez só
+    if (savingRef.current) return;
+    if (currentValue === current) {
+      setIsEditing(false);
+      return;
+    }
+    savingRef.current = true;
+    try {
+      const saved = await onSave(currentValue);
+      // se não salvou, continua em edição com o texto digitado
+      if (saved !== false) setIsEditing(false);
+    } finally {
+      savingRef.current = false;
     }
   };
 
@@ -261,7 +297,7 @@ function InPlaceInput({ value, onSave, className, placeholder }: { value: string
       handleBlur();
     }
     if (e.key === 'Escape') {
-      setCurrentValue(value);
+      setCurrentValue(current);
       setIsEditing(false);
     }
   };
@@ -275,6 +311,7 @@ function InPlaceInput({ value, onSave, className, placeholder }: { value: string
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        aria-label={placeholder}
         className={cn(
           "w-full bg-white border-b-2 border-fuchsia-500 outline-none px-1 py-0.5",
           className
@@ -284,15 +321,19 @@ function InPlaceInput({ value, onSave, className, placeholder }: { value: string
   }
 
   return (
-    <div 
-      onClick={() => setIsEditing(true)}
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${placeholder ?? 'Campo'}: ${current || 'vazio'}. Pressione Enter para editar`}
+      onClick={startEditing}
+      onKeyDown={(e) => { if (e.key === 'Enter') startEditing(); }}
       className={cn(
         "cursor-text hover:bg-slate-50 px-1 py-0.5 rounded transition-colors min-h-[1.5em] break-words overflow-hidden",
-        !value && "text-slate-300 italic",
+        !current && "text-slate-300 italic",
         className
       )}
     >
-      {value || placeholder}
+      {current || placeholder}
     </div>
   );
 }

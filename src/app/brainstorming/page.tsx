@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { brainstormingApi } from './api';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/ceremony-api';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import {
@@ -119,7 +120,7 @@ export default function BrainstormingHubPage() {
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar o brainstorming no momento.",
+        description: errorMessage(error, "Não foi possível iniciar o brainstorming no momento."),
         variant: "destructive"
       });
     }
@@ -148,25 +149,25 @@ export default function BrainstormingHubPage() {
     {
       title: "1. Ideação (Individual)",
       label: "Modo Mural",
-      description: "O time escreve ideias de forma anônima. Ninguém vê o que o outro escreveu até a revelação. Isso evita que ideias tímidas sejam perdidas.",
+      description: "O time lança ideias no mural. O facilitador pode ocultar o texto das ideias dos outros até a revelação e esconder os autores. Isso evita que ideias tímidas sejam perdidas.",
       icon: <BrainCircuit />
     },
     {
       title: "2. Agrupamento",
       label: "Organização",
-      description: "Arraste uma ideia sobre a outra para agrupá-las. O objetivo é reduzir a repetição e encontrar grandes temas estratégicos.",
+      description: "Crie grupos e arraste as ideias para dentro deles. Para juntar ideias repetidas, use o botão de fusão no card. O objetivo é reduzir a repetição e encontrar grandes temas.",
       icon: <Network />
     },
     {
       title: "3. Votação",
       label: "Decisão",
-      description: "Cada participante possui 5 votos para distribuir livremente entre ideias ou agrupamentos. A democracia aplicada à estratégia.",
+      description: "Cada pessoa pode votar em quantas ideias quiser (um voto por ideia; votar de novo remove o voto). A democracia aplicada à estratégia.",
       icon: <Target />
     },
     {
       title: "4. Priorização",
       label: "Estratégia",
-      description: "O facilitador posiciona as ideias mais votadas no gráfico de Impacto vs Esforço. Priorizamos o que dá 'Rápido Retorno'.",
+      description: "O time arrasta as ideias para os quadrantes de Impacto (ROI) vs Esforço. Priorizamos o que dá 'Rápido Retorno'.",
       icon: <BarChart3 />
     },
     {

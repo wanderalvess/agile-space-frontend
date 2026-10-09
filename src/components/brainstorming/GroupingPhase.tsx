@@ -24,15 +24,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface GroupingPhaseProps {
   ideas: BrainstormingIdea[];
   groups: BrainstormingGroup[];
-  onAddGroup: (title: string) => void;
+  /** Devolve true quando o grupo foi criado; o campo só é limpo nesse caso. */
+  onAddGroup: (title: string) => Promise<boolean> | boolean;
   onDeleteGroup: (id: string) => void;
   onMoveIdeaToGroup: (ideaId: string, groupId: string | null) => void;
   isAnonymous: boolean;
+  isRevealed?: boolean;
+  currentUserId?: string;
   onVoteIdea: (id: string) => void;
 }
 
 // --- Draggable Idea Item ---
-function DraggableIdea({ idea, isAnonymous, onVote }: { idea: BrainstormingIdea, isAnonymous: boolean, onVote: (id: string) => void }) {
+function DraggableIdea({ idea, isAnonymous, isRevealed, currentUserId, onVote }: { idea: BrainstormingIdea, isAnonymous: boolean, isRevealed?: boolean, currentUserId?: string, onVote: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: idea.id,
     data: { idea }
@@ -52,15 +55,18 @@ function DraggableIdea({ idea, isAnonymous, onVote }: { idea: BrainstormingIdea,
       )}
     >
       <div 
-        {...listeners} {...attributes} 
+        {...listeners} {...attributes}
+        aria-label="Arrastar ideia para outro grupo"
         className="absolute left-2 top-2 z-10 p-1 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 bg-white/50 backdrop-blur-sm rounded-md transition-all"
       >
         <GripVertical className="h-4 w-4" />
       </div>
       <IdeaCard 
-        idea={idea} 
-        isAnonymous={isAnonymous} 
-        onVote={onVote} 
+        idea={idea}
+        isAnonymous={isAnonymous}
+        isRevealed={isRevealed}
+        currentUserId={currentUserId}
+        onVote={onVote}
         className="scale-95 origin-top-left"
       />
     </div>
@@ -71,13 +77,17 @@ function DraggableIdea({ idea, isAnonymous, onVote }: { idea: BrainstormingIdea,
 function GroupColumn({ 
   group, 
   ideas, 
-  isAnonymous, 
-  onVote, 
-  onDelete 
-}: { 
-  group: BrainstormingGroup | null, 
-  ideas: BrainstormingIdea[], 
+  isAnonymous,
+  isRevealed,
+  currentUserId,
+  onVote,
+  onDelete
+}: {
+  group: BrainstormingGroup | null,
+  ideas: BrainstormingIdea[],
   isAnonymous: boolean,
+  isRevealed?: boolean,
+  currentUserId?: string,
   onVote: (id: string) => void,
   onDelete?: (id: string) => void
 }) {
@@ -111,7 +121,14 @@ function GroupColumn({
             variant="ghost" 
             size="icon" 
             className="h-8 w-8 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50"
-            onClick={() => onDelete(group.id)}
+            aria-label={`Apagar o grupo ${group.title}`}
+            title="Apagar grupo (as ideias voltam para Sem Grupo)"
+            onClick={() => {
+              const message = ideas.length > 0
+                ? `Apagar o grupo "${group.title}"? As ${ideas.length} ideias dele voltam para "Sem Grupo".`
+                : `Apagar o grupo "${group.title}"?`;
+              if (window.confirm(message)) onDelete(group.id);
+            }}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -128,7 +145,7 @@ function GroupColumn({
               exit={{ scale: 0.9, opacity: 0 }}
               layout
             >
-              <DraggableIdea idea={idea} isAnonymous={isAnonymous} onVote={onVote} />
+              <DraggableIdea idea={idea} isAnonymous={isAnonymous} isRevealed={isRevealed} currentUserId={currentUserId} onVote={onVote} />
             </motion.div>
           ))}
           {ideas.length === 0 && (
@@ -150,10 +167,20 @@ export function GroupingPhase({
   onDeleteGroup,
   onMoveIdeaToGroup,
   isAnonymous,
+  isRevealed,
+  currentUserId,
   onVoteIdea
 }: GroupingPhaseProps) {
   const [activeIdea, setActiveIdea] = useState<BrainstormingIdea | null>(null);
   const [newGroupTitle, setNewGroupTitle] = useState('');
+
+  const submitGroup = async () => {
+    const title = newGroupTitle.trim();
+    if (!title) return;
+    const saved = await onAddGroup(title);
+    // só limpa se criou: se falhar, o nome digitado continua no campo
+    if (saved !== false) setNewGroupTitle('');
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -205,22 +232,16 @@ export function GroupingPhase({
                 value={newGroupTitle}
                 onChange={(e) => setNewGroupTitle(e.target.value)}
                 className="w-64 border-none focus-visible:ring-0 shadow-none bg-transparent font-medium"
+                aria-label="Nome do novo grupo"
+                maxLength={255}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newGroupTitle.trim()) {
-                    onAddGroup(newGroupTitle);
-                    setNewGroupTitle('');
-                  }
+                  if (e.key === 'Enter') submitGroup();
                 }}
               />
               <Button 
                 size="sm"
                 className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-9"
-                onClick={() => {
-                  if (newGroupTitle.trim()) {
-                    onAddGroup(newGroupTitle);
-                    setNewGroupTitle('');
-                  }
-                }}
+                onClick={submitGroup}
               >
                 <FolderPlus className="mr-2 h-4 w-4" />
                 Criar Grupo
@@ -243,6 +264,8 @@ export function GroupingPhase({
                 group={group.id === 'unassigned' ? null : group as BrainstormingGroup}
                 ideas={group.ideas}
                 isAnonymous={isAnonymous}
+                isRevealed={isRevealed}
+                currentUserId={currentUserId}
                 onVote={onVoteIdea}
                 onDelete={group.id !== 'unassigned' ? onDeleteGroup : undefined}
               />
@@ -262,9 +285,11 @@ export function GroupingPhase({
           {activeIdea ? (
             <div className="opacity-90 scale-105 pointer-events-none rotate-3">
               <IdeaCard 
-                idea={activeIdea} 
-                isAnonymous={isAnonymous} 
-                onVote={() => {}} 
+                idea={activeIdea}
+                isAnonymous={isAnonymous}
+                isRevealed={isRevealed}
+                currentUserId={currentUserId}
+                onVote={() => {}}  
                 className="shadow-3xl border-2 border-amber-400"
               />
             </div>

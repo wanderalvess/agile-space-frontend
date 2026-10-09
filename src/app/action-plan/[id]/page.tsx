@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '../api';
@@ -13,6 +13,11 @@ import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
 import { ActionPlanGuide } from '@/components/action-plan/ActionPlanGuide';
 import { ExportActionPlanDialog } from '@/components/action-plan/ExportActionPlanDialog';
+import { CeremonyApiError } from '@/lib/ceremony-api';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
+
+/** Intervalo da atualização automática das ações (o plano não tem WebSocket: sem isso só se via a edição dos outros ao recarregar). */
+const POLL_MS = 15000;
 
 export default function ActionPlanSessionPage() {
   const params = useParams();
@@ -26,8 +31,10 @@ export default function ActionPlanSessionPage() {
   const [board, setBoard] = useState<ActionPlanBoard | null>(null);
   const [tasks, setTasks] = useState<ActionPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const loadSeq = useRef(0);
 
   // --- Auth & Identity Logic ---
   useEffect(() => {
@@ -40,30 +47,64 @@ export default function ActionPlanSessionPage() {
   }, [isLoading, isInitializing, userProfile, requestIdentity]);
 
   const fetchBoardAndTasks = React.useCallback(async () => {
+    const seq = ++loadSeq.current;
     try {
       const boardSnap = await actionPlanApi.getBoardById(id);
+      const tasksData = await actionPlanApi.listTasks(id);
+      if (seq !== loadSeq.current) return;
       setBoard(boardSnap);
-      
+      setTasks(tasksData);
+      setLoadError(null);
+    } catch (e) {
+      if (seq !== loadSeq.current) return;
+      console.error("Erro ao buscar plano", e);
+      // Só "não existe" e "sem acesso" mandam de volta ao início; queda de rede ou erro do servidor
+      // mostram a falha na tela com opção de tentar de novo (antes qualquer erro virava "Plano não encontrado").
+      if (e instanceof CeremonyApiError && (e.status === 404 || e.status === 403)) {
+        toast({
+          title: e.status === 404 ? "Plano não encontrado" : "Sem acesso a este plano",
+          description: e.status === 404 ? "Este plano de ação não existe ou foi excluído." : e.message,
+          variant: "destructive"
+        });
+        router.push('/action-plan');
+        return;
+      }
+      setLoadError("Não foi possível carregar o plano de ação agora.");
+    } finally {
+      if (seq === loadSeq.current) setLoading(false);
+    }
+  }, [id, router, toast]);
+
+  /** Atualização silenciosa só das ações; erro de rede aqui não atrapalha quem está editando. */
+  const refreshTasks = React.useCallback(async () => {
+    try {
       const tasksData = await actionPlanApi.listTasks(id);
       setTasks(tasksData);
     } catch (e) {
-      console.error("Erro ao buscar plano", e);
-      toast({
-        title: "Plano não encontrado",
-        description: "Este plano de ação não existe ou foi excluído.",
-        variant: "destructive"
-      });
-      router.push('/action-plan');
-    } finally {
-      setLoading(false);
+      console.warn("Falha ao atualizar as ações do plano", e);
     }
-  }, [id, router, toast]);
+  }, [id]);
 
   // --- Board & Tasks Data Logic ---
   useEffect(() => {
     if (!isAuthenticated || !userProfile) return;
+    setLoading(true);
     fetchBoardAndTasks();
   }, [isAuthenticated, userProfile, fetchBoardAndTasks]);
+
+  // Atualização automática: a cada 15 s com a aba visível e ao voltar para a aba.
+  useEffect(() => {
+    if (!isAuthenticated || !userProfile || !board) return;
+    const tick = () => {
+      if (!document.hidden) refreshTasks();
+    };
+    const timer = setInterval(tick, POLL_MS);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', tick);
+    };
+  }, [isAuthenticated, userProfile, board, refreshTasks]);
 
   if (loading) {
     return (
@@ -73,13 +114,23 @@ export default function ActionPlanSessionPage() {
     );
   }
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    toast({
-      title: "Link Copiado!",
-      description: "Você pode compartilhar o link deste plano de ação com sua equipe.",
-    });
+  const handleCopyLink = async () => {
+    const ok = await copyToClipboard(window.location.href);
+    toast(ok
+      ? { title: "Link copiado!", description: "Você pode compartilhar o link deste plano de ação com sua equipe." }
+      : { title: "Não foi possível copiar o link", variant: "destructive" });
   };
+
+  if (loadError && !board) {
+    return (
+      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center gap-4 text-center px-6">
+        <p className="text-sm font-bold text-slate-600">{loadError}</p>
+        <Button onClick={() => { setLoading(true); fetchBoardAndTasks(); }} className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-black uppercase text-xs tracking-widest rounded-xl">
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
 
   if (!board) return null;
 
@@ -100,6 +151,7 @@ export default function ActionPlanSessionPage() {
               onClick={() => setIsGuideOpen(true)}
               className="flex items-center justify-center h-8 w-8 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all"
               title="Como Usar"
+              aria-label="Como usar o plano de ação"
             >
               <HelpCircle className="h-4 w-4" />
             </button>
@@ -107,6 +159,7 @@ export default function ActionPlanSessionPage() {
               onClick={handleCopyLink}
               className="flex items-center justify-center h-8 w-8 text-slate-400 hover:text-fuchsia-600 hover:bg-fuchsia-50 rounded-xl transition-all"
               title="Compartilhar Sessão"
+              aria-label="Copiar link do plano"
             >
               <Share2 className="h-4 w-4" />
             </button>
@@ -123,11 +176,11 @@ export default function ActionPlanSessionPage() {
       />
 
       <div className="flex-1 relative overflow-hidden">
-         <ActionPlanBoardComponent board={board} tasks={tasks} onRefresh={fetchBoardAndTasks} />
+         <ActionPlanBoardComponent board={board} tasks={tasks} onRefresh={refreshTasks} />
       </div>
 
       <ActionPlanGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
-      
+
       <ExportActionPlanDialog
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}

@@ -25,9 +25,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 interface MuralPhaseProps {
   ideas: BrainstormingIdea[];
   currentUserId?: string;
-  onAddIdea: (content: string) => void;
+  /** Devolve true quando a ideia foi salva; o campo só é limpo nesse caso (se falhar, o texto digitado fica). */
+  onAddIdea: (content: string) => Promise<boolean> | boolean;
   onDeleteIdea: (id: string) => void;
-  onUpdateIdea: (id: string, content: string) => void;
+  onUpdateIdea: (id: string, content: string) => Promise<boolean | void> | boolean | void;
   onVoteIdea: (id: string) => void;
   onStartMerge: (id: string | null) => void;
   onExecuteMerge: (sourceId: string, targetId: string) => void;
@@ -60,11 +61,19 @@ export function MuralPhase({
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<'recent' | 'popular'>('recent');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newIdea.trim()) {
-      onAddIdea(newIdea.trim());
-      setNewIdea("");
+    const text = newIdea.trim();
+    if (!text || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const saved = await onAddIdea(text);
+      // só limpa se salvou: em caso de erro o texto continua no campo para tentar de novo
+      if (saved !== false) setNewIdea("");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -106,6 +115,7 @@ export function MuralPhase({
             <Input 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Pesquisar ideias"
               placeholder="Pesquisar ideias..." 
               className="pl-10 h-11 bg-white border-slate-200 rounded-xl focus-visible:ring-amber-500 font-medium"
             />
@@ -159,6 +169,8 @@ export function MuralPhase({
                  <Input 
                    value={newIdea}
                    onChange={(e) => setNewIdea(e.target.value)}
+                   aria-label="Escreva uma ideia"
+                   maxLength={5000}
                    placeholder="O que você está pensando? Digite aqui..." 
                    className="flex-1 border-none shadow-none focus-visible:ring-0 h-10 text-sm font-bold text-slate-800 placeholder:text-slate-300 px-3"
                  />

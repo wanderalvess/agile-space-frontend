@@ -9,13 +9,15 @@ import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '../../app/action-plan/api';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/ceremony-api';
 import { Button } from '@/components/ui/button';
+import { getQuadrant } from '@/lib/brainstorming-utils';
 
 interface ActionsPhaseProps {
   ideas: BrainstormingIdea[];
   groups: BrainstormingGroup[];
   boardData: BrainstormingBoard;
-  onUpdateIdea: (id: string, content: string) => void;
+  onUpdateIdea: (id: string, content: string) => Promise<boolean | void> | boolean | void;
   onMoveIdea: (id: string, groupId: string | null) => void;
 }
 
@@ -31,10 +33,12 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
     return votesB - votesA;
   });
 
-  const quickWins = sortedIdeas.filter(i => (i.qualifiers?.roi || 0) >= 50 && (i.qualifiers?.effort || 0) <= 50);
-  const strategic = sortedIdeas.filter(i => (i.qualifiers?.roi || 0) >= 50 && (i.qualifiers?.effort || 0) > 50);
+  // mesma classificação da fase "Matriz" (antes, uma ideia devolvida a "A Classificar" aparecia aqui como Quick Win)
+  const quickWins = sortedIdeas.filter(i => getQuadrant(i.qualifiers) === 'quick_wins');
+  const strategic = sortedIdeas.filter(i => getQuadrant(i.qualifiers) === 'strategic');
 
-  const topIdeas = sortedIdeas.slice(0, 5);
+  // o que foi descartado na matriz não vira ação no 5W2H
+  const topIdeas = sortedIdeas.filter(i => getQuadrant(i.qualifiers) !== 'discard').slice(0, 5);
 
   const handleExportTo5W2H = async () => {
     if (!session || isExporting) return;
@@ -44,51 +48,54 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
     try {
       const planTitle = `Plano de Ação: ${boardData.title}`;
 
+      // criador, id, datas e autor são definidos pelo servidor a partir do login
       const newPlan = await actionPlanApi.createBoard({
-        creatorId: session.id,
         title: planTitle,
         team: boardData.team || 'Squad Geral',
-        createdAt: new Date().toISOString(),
-        settings: { isPublic: true },
-        participantIds: [session.id]
       });
 
       if (!newPlan || !newPlan.id) {
         throw new Error('Falha ao criar o plano de ação.');
       }
 
+      let failed = 0;
       for (let i = 0; i < topIdeas.length; i++) {
         const idea = topIdeas[i];
         const group = groups.find(g => g.id === idea.groupId);
-        
-        await actionPlanApi.createTask(newPlan.id, {
-          boardId: newPlan.id,
-          what: idea.content,
-          why: `Idea priorizada no Brainstorming (ROI: ${idea.qualifiers?.roi || 0}%)`,
-          where: group?.title || 'Squad',
-          when: '',
-          who: '',
-          how: '',
-          howMuch: idea.qualifiers?.effort ? `Esforço: ${idea.qualifiers.effort}%` : '',
-          status: 'todo',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          authorId: session.id,
-          order: i
-        });
+
+        try {
+          await actionPlanApi.createTask(newPlan.id, {
+            what: idea.content,
+            why: `Ideia priorizada no Brainstorming (ROI: ${idea.qualifiers?.roi || 0}%)`,
+            where: group?.title || 'Squad',
+            when: '',
+            who: '',
+            how: '',
+            howMuch: idea.qualifiers?.effort ? `Esforço: ${idea.qualifiers.effort}%` : '',
+            status: 'todo',
+            order: i
+          });
+        } catch (taskError) {
+          failed += 1;
+          console.error("Erro ao criar ação do plano", taskError);
+        }
       }
 
-      toast({
-        title: "Sucesso!",
-        description: "Matriz 5W2H gerada com sucesso. Redirecionando...",
-      });
+      toast(failed === 0
+        ? { title: "Plano de ação criado!", description: "Matriz 5W2H gerada com sucesso. Redirecionando..." }
+        : {
+            title: "Plano criado, mas faltam ações",
+            description: `${failed} de ${topIdeas.length} ações não foram criadas. Adicione as que faltam no plano.`,
+            variant: "destructive",
+          });
 
+      // o plano já existe: leva para ele mesmo com falhas parciais (senão ficaria um plano órfão e sem link)
       router.push(`/action-plan/${newPlan.id}`);
     } catch (e) {
       console.error("Erro ao exportar", e);
       toast({
-        title: "Erro na Exportação",
-        description: "Não foi possível gerar a matriz 5W2H.",
+        title: "Erro na exportação",
+        description: errorMessage(e, "Não foi possível gerar a matriz 5W2H."),
         variant: "destructive"
       });
     } finally {
@@ -235,7 +242,7 @@ function ActionCard({
   groups: BrainstormingGroup[], 
   rank?: number, 
   isStrategic?: boolean,
-  onUpdate: (id: string, content: string) => void,
+  onUpdate: (id: string, content: string) => Promise<boolean | void> | boolean | void,
   onMove: (id: string, groupId: string | null) => void
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -243,11 +250,23 @@ function ActionCard({
   const [editedContent, setEditedContent] = useState(idea.content);
   const group = groups.find(g => g.id === idea.groupId);
 
-  const handleSave = () => {
-    if (editedContent.trim() && editedContent !== idea.content) {
-      onUpdate(idea.id, editedContent.trim());
+  const savingRef = React.useRef(false);
+
+  const handleSave = async () => {
+    // Enter e perda de foco disparam as duas: salva uma vez só
+    if (savingRef.current) return;
+    const text = editedContent.trim();
+    if (!text || text === idea.content) {
+      setIsEditing(false);
+      return;
     }
-    setIsEditing(false);
+    savingRef.current = true;
+    try {
+      const saved = await onUpdate(idea.id, text);
+      if (saved !== false) setIsEditing(false);
+    } finally {
+      savingRef.current = false;
+    }
   };
   
   return (
@@ -296,7 +315,7 @@ function ActionCard({
               </div>
             ) : (
               <div 
-                onClick={() => setIsEditing(true)}
+                onClick={() => { setEditedContent(idea.content); setIsEditing(true); }}
                 className="cursor-pointer hover:bg-slate-50 rounded-xl p-1 -m-1 transition-colors"
               >
                 <p className={cn(
@@ -324,6 +343,7 @@ function ActionCard({
           <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50 shrink-0">
              <div className="relative group/group">
                <select
+                 aria-label="Mover ideia para um grupo"
                  value={idea.groupId || ''}
                  onChange={(e) => onMove(idea.id, e.target.value || null)}
                  className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"

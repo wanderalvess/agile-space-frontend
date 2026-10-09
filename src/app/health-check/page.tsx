@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { healthCheckApi } from './api';
 import { useToast } from '@/hooks/use-toast';
+import { errorMessage } from '@/lib/ceremony-api';
 import { useUserContext } from '@/context/UserContext';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { CreateHealthCheckDialog } from '@/components/health-check/CreateHealthCheckDialog';
@@ -89,7 +90,7 @@ export default function HealthCheckHubPage() {
       setIsCreating(false);
       toast({
         title: "Erro na Criação",
-        description: "Não foi possível iniciar o radar no momento.",
+        description: errorMessage(error, "Não foi possível iniciar o radar no momento."),
         variant: "destructive"
       });
     }

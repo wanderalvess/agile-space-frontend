@@ -13,6 +13,7 @@ import { EliteExportDialog } from "@/components/shared/EliteExportDialog";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, FileText, DownloadCloud, Image as ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { votesOf } from "@/lib/brainstorming-utils";
 import type { BrainstormingIdea, BrainstormingBoard, BrainstormingGroup } from "@/lib/types";
 
 interface ExportBrainstormingDialogProps {
@@ -45,7 +46,7 @@ export function ExportBrainstormingDialog({
     const groupsWithIdeas = groups.map(group => ({
       ...group,
       ideas: ideas.filter(i => i.groupId === group.id)
-    })).sort((a, b) => a.order - b.order);
+    })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
     const unassignedIdeas = ideas.filter(i => !i.groupId);
 
@@ -54,11 +55,11 @@ export function ExportBrainstormingDialog({
       if (group.ideas.length === 0) return;
       md += `## 📁 ${group.title}\n\n`;
       
-      const sorted = [...group.ideas].sort((a, b) => b.votes.length - a.votes.length);
+      const sorted = [...group.ideas].sort((a, b) => votesOf(b).length - votesOf(a).length);
       sorted.forEach(idea => {
         const roi = idea.qualifiers?.roi !== undefined ? ` | ROI: ${idea.qualifiers.roi}%` : '';
         const effort = idea.qualifiers?.effort !== undefined ? ` | Esforço: ${idea.qualifiers.effort}%` : '';
-        md += `- [🔼 ${idea.votes.length} votos] ${idea.content.replace(/\n/g, ' ')}${roi}${effort}\n`;
+        md += `- [🔼 ${votesOf(idea).length} votos] ${idea.content.replace(/\n/g, ' ')}${roi}${effort}\n`;
       });
       md += '\n';
     });
@@ -66,11 +67,11 @@ export function ExportBrainstormingDialog({
     // Render unassigned
     if (unassignedIdeas.length > 0) {
       md += `## 📎 Sem Grupo\n\n`;
-      const sorted = [...unassignedIdeas].sort((a, b) => b.votes.length - a.votes.length);
+      const sorted = [...unassignedIdeas].sort((a, b) => votesOf(b).length - votesOf(a).length);
       sorted.forEach(idea => {
         const roi = idea.qualifiers?.roi !== undefined ? ` | ROI: ${idea.qualifiers.roi}%` : '';
         const effort = idea.qualifiers?.effort !== undefined ? ` | Esforço: ${idea.qualifiers.effort}%` : '';
-        md += `- [🔼 ${idea.votes.length} votos] ${idea.content.replace(/\n/g, ' ')}${roi}${effort}\n`;
+        md += `- [🔼 ${votesOf(idea).length} votos] ${idea.content.replace(/\n/g, ' ')}${roi}${effort}\n`;
       });
       md += '\n';
     }
@@ -106,7 +107,7 @@ export function ExportBrainstormingDialog({
     ideas.forEach(idea => {
       const row = [
         idea.groupId ? (groupMap.get(idea.groupId) || 'Desconhecido') : 'Sem Grupo',
-        idea.votes.length.toString(),
+        votesOf(idea).length.toString(),
         idea.content.replace(/"/g, '""'),
         idea.qualifiers?.roi?.toString() || '',
         idea.qualifiers?.effort?.toString() || '',

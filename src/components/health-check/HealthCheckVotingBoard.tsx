@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { type HealthCheckParticipant, type HealthCheckVote, type HealthCheckVoteValue, type HealthCheckDimension, type HealthCheckScaleType } from '@/lib/types';
@@ -46,7 +46,8 @@ interface HealthCheckVotingBoardProps {
   boardId: string;
   participants: HealthCheckParticipant[];
   userVotes: HealthCheckVote[];
-  onVote: (dimension: string, value: HealthCheckVoteValue, comment?: string) => void;
+  /** Devolve true quando o servidor gravou; o comentário digitado fica na tela de qualquer forma. */
+  onVote: (dimension: string, value: HealthCheckVoteValue, comment?: string) => Promise<boolean> | boolean | void;
   isCreator: boolean;
   onFinish: () => void;
   isFinishing: boolean;
@@ -93,24 +94,62 @@ export function HealthCheckVotingBoard({
     return new Map(userVotes.map(v => [v.dimensionKey, v.value]));
   }, [userVotes]);
 
+  // Sempre a versão mais recente das props/estado dentro dos timers do comentário (sem closure velha).
+  const latest = useRef({ onVote, userVotesMap });
+  latest.current = { onVote, userVotesMap };
+  const commentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingComments = useRef<Record<string, string>>({});
+
   const handleVoteClick = (dimensionKey: string, value: HealthCheckVoteValue) => {
+    // um clique já leva o comentário atual; o rascunho pendente dessa dimensão não precisa mais ser enviado
+    clearTimeout(commentTimers.current[dimensionKey]);
+    delete pendingComments.current[dimensionKey];
     onVote(dimensionKey, value, localComments[dimensionKey]);
   };
 
-  const handleCommentChange = (dimensionKey: string, comment: string) => {
-    setLocalComments(prev => ({ ...prev, [dimensionKey]: comment }));
-    const currentValue = userVotesMap.get(dimensionKey);
-    if (currentValue) {
-      onVote(dimensionKey, currentValue, comment);
+  /** Envia o comentário pendente de uma dimensão (ou de todas). Sem voto na dimensão não há onde guardar o comentário. */
+  const flushComments = async (onlyDimension?: string) => {
+    const keys = onlyDimension ? [onlyDimension] : Object.keys(pendingComments.current);
+    for (const key of keys) {
+      clearTimeout(commentTimers.current[key]);
+      const comment = pendingComments.current[key];
+      const value = latest.current.userVotesMap.get(key);
+      delete pendingComments.current[key];
+      if (comment !== undefined && value) {
+        await latest.current.onVote(key, value, comment);
+      }
     }
   };
 
-  const handleFinishConfirm = () => {
+  // Antes: um envio ao servidor por tecla digitada. Agora o comentário é enviado 700 ms depois da última tecla,
+  // ao sair do campo, ao encerrar e ao sair da tela.
+  const handleCommentChange = (dimensionKey: string, comment: string) => {
+    setLocalComments(prev => ({ ...prev, [dimensionKey]: comment }));
+    if (!userVotesMap.get(dimensionKey)) return;
+    pendingComments.current[dimensionKey] = comment;
+    clearTimeout(commentTimers.current[dimensionKey]);
+    commentTimers.current[dimensionKey] = setTimeout(() => { void flushComments(dimensionKey); }, 700);
+  };
+
+  useEffect(() => {
+    const timers = commentTimers.current;
+    return () => {
+      Object.values(timers).forEach(clearTimeout);
+      // sair da tela com comentário pendente não pode perder o texto
+      for (const [key, comment] of Object.entries(pendingComments.current)) {
+        const value = latest.current.userVotesMap.get(key);
+        if (value) void latest.current.onVote(key, value, comment);
+      }
+    };
+  }, []);
+
+  const handleFinishConfirm = async () => {
     setIsFinishDialogOpen(false);
+    await flushComments();
     onFinish();
   };
 
-  const progress = Math.round((userVotes.length / dimensions.length) * 100);
+  const progress = dimensions.length > 0 ? Math.round((userVotes.length / dimensions.length) * 100) : 0;
 
   const getVoteColor = (value: HealthCheckVoteValue) => {
     if (value === 'green' || value === 'happy' || value === '5' || value === '4') return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
@@ -127,6 +166,8 @@ export function HealthCheckVotingBoard({
                 key={val}
                 variant="ghost"
                 onClick={() => handleVoteClick(dimKey, val as HealthCheckVoteValue)}
+                aria-label={`Nota ${val} de 5`}
+                aria-pressed={currentVote === val}
                 className={cn(
                   "flex flex-col gap-1.5 h-auto py-3 border-2 transition-all rounded-xl",
                   currentVote === val 
@@ -154,6 +195,8 @@ export function HealthCheckVotingBoard({
                 key={opt.val}
                 variant="ghost"
                 onClick={() => handleVoteClick(dimKey, opt.val as HealthCheckVoteValue)}
+                aria-label={opt.label}
+                aria-pressed={currentVote === opt.val}
                 className={cn(
                   "flex flex-col gap-1 h-auto py-3 border-2 transition-all rounded-xl",
                   currentVote === opt.val 
@@ -182,6 +225,8 @@ export function HealthCheckVotingBoard({
             key={opt.val}
             variant="ghost"
             onClick={() => handleVoteClick(dimKey, opt.val as HealthCheckVoteValue)}
+            aria-label={opt.label}
+            aria-pressed={currentVote === opt.val}
             className={cn(
               "flex flex-col gap-1.5 h-auto py-2.5 border-2 transition-all group rounded-xl shadow-sm",
               currentVote === opt.val 
@@ -234,6 +279,7 @@ export function HealthCheckVotingBoard({
                 onClick={handleCopyLink}
                 className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                 title="Copiar Link"
+                aria-label="Copiar link do radar"
               >
                 <Copy className="h-4 w-4" />
               </Button>
@@ -264,6 +310,7 @@ export function HealthCheckVotingBoard({
               onClick={() => setIsGuideOpen(true)}
               className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all ml-1" 
               title="GUIA DO RADAR"
+              aria-label="Guia do radar"
             >
               <HelpCircle className="h-4 w-4" />
             </Button>
@@ -313,6 +360,9 @@ export function HealthCheckVotingBoard({
                         placeholder="Por que essa nota?..."
                         value={localComments[dim.key] || ''}
                         onChange={(e) => handleCommentChange(dim.key, e.target.value)}
+                        onBlur={() => { void flushComments(dim.key); }}
+                        aria-label={`Comentário sobre ${dim.title}`}
+                        maxLength={2000}
                         className="text-[10px] min-h-[60px] rounded-lg bg-slate-50/50 border-slate-100 focus:bg-white transition-all resize-none shadow-inner p-2"
                       />
                     </div>
