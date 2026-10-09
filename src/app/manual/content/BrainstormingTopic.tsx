@@ -11,7 +11,7 @@ export function BrainstormingTopic() {
     { 
       title: "1. Ideação Silenciosa (Mural Livre)", 
       icon: BrainCircuit, 
-      desc: "Cada participante escreve suas ideias em modo anônimo. Ninguém vê o conteúdo alheio até o momento da revelação coletiva, encorajando ideias arrojadas sem receio de julgamento precoce.",
+      desc: "Cada participante escreve suas ideias no mural. O facilitador pode ocultar o texto das ideias dos outros até a revelação coletiva e esconder os autores, encorajando ideias arrojadas sem receio de julgamento precoce.",
       label: "Criatividade Solo",
       badgeColor: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
     },
@@ -25,7 +25,7 @@ export function BrainstormingTopic() {
     { 
       title: "3. Votação Democrática (Dot-Voting)", 
       icon: Target, 
-      desc: "Cada membro da squad recebe 5 pontos/votos para distribuir livremente entre ideias isoladas ou clusters inteiros. Revela instantaneamente a prioridade orgânica do time.",
+      desc: "Cada membro da squad pode votar em quantas ideias quiser (um voto por ideia; votar de novo remove o voto). Revela instantaneamente a prioridade orgânica do time.",
       label: "Priorização",
       badgeColor: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
     },
