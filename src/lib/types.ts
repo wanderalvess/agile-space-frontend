@@ -428,6 +428,12 @@ export type Room = {
     suggestRevote?: boolean;
     // Barra de reações (emoji) efêmeras durante a votação. Default off.
     reactions?: boolean;
+    // Como a média dos votos vira o valor salvo: 'up' (padrão, para cima), 'nearest' (inteiro mais
+    // próximo), 'down' (para baixo) ou 'deck' (carta mais próxima do baralho). Ausente = 'up'.
+    roundingMode?: 'up' | 'nearest' | 'down' | 'deck';
+    // Votos às cegas: o servidor só entrega o valor dos votos dos outros depois da revelação
+    // (evita ver o número pelo DevTools/rede). Default off.
+    blindVotes?: boolean;
     // Equivalência numérica por tamanho no baralho de camisetas (ex:
     // PP = 4 horas, GG = 1 semana) definida pelo facilitador na criação da
     // sala. Quando presente, o resultado passa a ser calculado de verdade

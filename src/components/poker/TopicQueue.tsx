@@ -64,7 +64,7 @@ interface TopicQueueProps {
   activeIssueId: string | null;
   isFacilitator: boolean;
   onAddIssue: (title: string, jiraLink?: string, type?: Issue['type'], extraData?: Partial<Issue>) => void;
-  onBulkAddIssues: (items: Partial<Issue>[]) => void;
+  onBulkAddIssues: (items: Partial<Issue>[]) => number | void;
   onSelectIssue: (issueId: string, autoSavePoints?: { points: string; devPoints?: string; qaPoints?: string }) => void;
   onDeleteIssue: (id: string) => void;
   onUnskipIssue?: (id: string) => void;
@@ -186,9 +186,17 @@ export function TopicQueue({
       };
     });
 
-    onBulkAddIssues(items);
+    const added = onBulkAddIssues(items);
     setIsJiraImportOpen(false);
-    toast({ title: 'Importado com sucesso!', description: `${items.length} issues do Jira adicionadas à fila.` });
+    // O pai descarta o que já está na fila; o aviso conta só o que entrou de fato.
+    const count = typeof added === 'number' ? added : items.length;
+    const skipped = items.length - count;
+    toast({
+      title: count > 0 ? 'Importado com sucesso!' : 'Nada novo para importar',
+      description: count > 0
+        ? `${count} issue${count > 1 ? 's' : ''} do Jira adicionada${count > 1 ? 's' : ''} à fila${skipped > 0 ? ` (${skipped} já estava${skipped > 1 ? 'm' : ''} na fila)` : ''}.`
+        : 'Todas as issues selecionadas já estavam na fila.',
+    });
   };
 
   // Detecta o tipo da tarefa por palavras-chave (título/chave), para o preview
@@ -317,12 +325,18 @@ export function TopicQueue({
       }));
 
     if (selectedItems.length > 0) {
-      onBulkAddIssues(selectedItems);
+      const added = onBulkAddIssues(selectedItems);
       setIsBulkImportOpen(false);
       setBulkText('');
       setBulkPreviewItems([]);
       setIsBulkPreview(false);
-      toast({ title: 'Importado!', description: `${selectedItems.length} tarefas adicionadas.` });
+      const count = typeof added === 'number' ? added : selectedItems.length;
+      toast({
+        title: count > 0 ? 'Importado!' : 'Nada novo para importar',
+        description: count > 0
+          ? `${count} tarefa${count > 1 ? 's' : ''} adicionada${count > 1 ? 's' : ''}.`
+          : 'Todas as tarefas já estavam na fila.',
+      });
     }
   };
 

@@ -15,9 +15,9 @@ import { useUserContext } from '@/context/UserContext';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
-import { pokerApi, ROOM_CONFLICT_EVENT } from '../api';
+import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { workItemsApi } from '@/app/work-items-api';
 import { squadApi } from '@/app/squad/api';
@@ -65,10 +65,28 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const [isRoomLoading, setIsRoomLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
 
-  const onlineParticipants = useMemo(() => {
-    const now = Date.now();
-    return (participants || []).filter(p => isParticipantOnline(p, now));
-  }, [participants]);
+  // Relógio de presença: sem ele "online" só era recalculado quando a lista de participantes mudava.
+  const [presenceTick, setPresenceTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setPresenceTick(Date.now()), 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  const onlineParticipants = useMemo(
+    () => (participants || []).filter(p => isParticipantOnline(p, presenceTick)),
+    [participants, presenceTick]
+  );
+
+  // Falhas de ação aparecem para o usuário (antes só iam para o console). Conflito de versão já tem aviso próprio.
+  const notifyError = useStableCallback((err: unknown) => {
+    console.error(err);
+    if (err instanceof RoomConflictError) return;
+    toast({
+      title: 'Não foi possível concluir a ação',
+      description: err instanceof Error ? err.message : 'Tente novamente.',
+      variant: 'destructive',
+    });
+  });
 
   const hasActiveHost = useMemo(() => {
     if (!roomData) return false;
@@ -92,21 +110,6 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   const currentUserVote = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.value || null, [votes, currentUser]);
   const currentUserConfidence = useMemo(() => votes?.find(v => v.participantId === currentUser?.id)?.confidence || null, [votes, currentUser]);
-
-  // Desconexão instantânea ao fechar a aba/janela (beforeunload)
-  useEffect(() => {
-    if (!currentUser || !roomId) return;
-    const handleBeforeUnload = () => {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-      try {
-        navigator.sendBeacon(`${apiBase}/poker/${roomId}/participants/${currentUser.id}`);
-      } catch (e) {
-        // Fallback se sendBeacon não for suportado
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [currentUser, roomId]);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
@@ -136,10 +139,25 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
   }, [roomData?.team, roomData?.issuesQueue, roomData?.activeIssueId, userProfile?.squadId, session?.activeProjectId, router, toast]);
 
-  const [reconnectTrigger, setReconnectTrigger] = useState(0);
+  // Versão otimista da sala já aplicada: um eco do WebSocket ou um GET que chegam atrasados
+  // (versão menor) não podem desfazer um estado mais novo.
+  const roomVersionRef = useRef(-1);
+  const applyRoom = useCallback((next: Room) => {
+    const v = typeof next.version === 'number' ? next.version : null;
+    if (v !== null) {
+      if (v < roomVersionRef.current) return;
+      roomVersionRef.current = v;
+    }
+    setRoomData(next);
+  }, []);
+  const reloadSeqRef = useRef(0);
+  // Cartas do chat já carregadas por canal; limpo ao reconectar para ressincronizar o que se perdeu offline.
+  const loadedChannelsRef = useRef<Set<string>>(new Set());
+  const [chatReloadKey, setChatReloadKey] = useState(0);
 
   const reloadRoomData = useCallback(async () => {
     if (!session) return;
+    const seq = ++reloadSeqRef.current;
     try {
       const [room, partsList, votesList, roundsList] = await Promise.all([
         pokerApi.getRoom(roomId),
@@ -147,7 +165,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         pokerApi.getVotes(roomId),
         pokerApi.getRounds(roomId, 100)
       ]);
-      setRoomData(room);
+      // Uma recarga mais nova já saiu: esta resposta é velha.
+      if (seq !== reloadSeqRef.current) return;
+      applyRoom(room);
       setParticipants(partsList);
       setVotes(votesList);
       setVotingRounds(roundsList);
@@ -157,7 +177,31 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       setIsRoomLoading(false);
       setAreParticipantsLoading(false);
     }
+  }, [roomId, session, applyRoom]);
+
+  // Presença: o heartbeat grava no servidor mas não gera evento, então os `lastSeen` locais envelhecem
+  // e todo mundo parecia offline. Um GET leve a cada 20s mantém o estado fiel.
+  useEffect(() => {
+    if (!session) return;
+    const timer = setInterval(() => {
+      pokerApi.getParticipants(roomId).then(list => {
+        setParticipants(prev => {
+          const same = prev.length === list.length && prev.every((p, i) =>
+            p.id === list[i].id && p.lastSeen === list[i].lastSeen && p.role === list[i].role && p.nickname === list[i].nickname);
+          return same ? prev : list;
+        });
+      }).catch(() => { /* próxima volta tenta de novo */ });
+    }, 20000);
+    return () => clearInterval(timer);
   }, [roomId, session]);
+
+  // Votos às cegas: o servidor só entrega os valores depois da revelação, então busca de novo ao revelar.
+  const blindVotes = !!roomData?.settings?.blindVotes;
+  const revealedKey = `${roomData?.votesRevealed ? 1 : 0}:${(roomData?.revealedIssues || []).length}`;
+  useEffect(() => {
+    if (!session || !blindVotes || revealedKey === '0:0') return;
+    pokerApi.getVotes(roomId).then(setVotes).catch(notifyError);
+  }, [session, blindVotes, revealedKey, roomId]);
 
   // Conflito de gravação: duas ações partiram da mesma versão da sala e o backend recusou a mais
   // lenta (409). Recarrega o estado real e avisa, em vez de falhar em silêncio ou sobrescrever.
@@ -187,20 +231,35 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     reloadRoomData();
 
     const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-    const wsUrl = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId
-      + '?token=' + encodeURIComponent(getAuthToken() || '');
+    const wsBase = apiBase.replace(/^http/, 'ws').replace(/\/api$/, '/ws/poker/') + roomId;
 
-    console.log("Conectando ao WebSocket do Poker Room:", roomId);
-    let socket: WebSocket | null = new WebSocket(wsUrl);
-    let reconnectTimer: NodeJS.Timeout;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+    let attempt = 0;
 
-    socket.onmessage = (event) => {
+    const connect = () => {
+    // Token lido a cada tentativa: o de antes pode ter expirado durante a queda.
+    const ws = new WebSocket(wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''));
+    socket = ws;
+
+    ws.onopen = () => {
+      // Reconectou: o que aconteceu enquanto estava fora (votos, sala, chat) não chegou por evento.
+      if (attempt > 0) {
+        loadedChannelsRef.current.clear();
+        setChatReloadKey(k => k + 1);
+        reloadRoomData();
+      }
+      attempt = 0;
+    };
+
+    ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
         switch (data.type) {
           case 'ROOM_UPDATED':
             if (data.payload) {
-              setRoomData(data.payload);
+              applyRoom(data.payload);
             }
             break;
 
@@ -227,7 +286,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           case 'VOTE_SAVED':
             if (data.payload) {
               setVotes(prev => {
-                const idx = prev.findIndex(v => v.participantId === data.payload.participantId);
+                // Sala assíncrona guarda um voto por tarefa: a identidade é o id, não só o participante.
+                const idx = prev.findIndex(v => data.payload.id && v.id
+                  ? v.id === data.payload.id
+                  : v.participantId === data.payload.participantId);
                 if (idx >= 0) {
                   const updated = [...prev];
                   updated[idx] = data.payload;
@@ -240,7 +302,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
           case 'VOTE_REMOVED':
             if (data.payload?.userId) {
-              setVotes(prev => prev.filter(v => v.participantId !== data.payload.userId));
+              const { userId, issueId } = data.payload;
+              setVotes(prev => prev.filter(v => !(v.participantId === userId && (!issueId || v.issueId === issueId))));
             }
             break;
 
@@ -321,18 +384,25 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
     };
 
-    socket.onclose = () => {
-      console.warn("Conexão WebSocket fechada. Tentando reconectar em 3s...");
+    ws.onclose = () => {
+      if (disposed) return;
+      // Backoff exponencial (1s, 2s, 4s… até 30s) e ressincroniza a cada tentativa.
+      const delay = Math.min(30000, 1000 * 2 ** attempt);
+      attempt += 1;
+      console.warn(`Conexão WebSocket fechada. Reconectando em ${Math.round(delay / 1000)}s...`);
       reloadRoomData();
-      reconnectTimer = setTimeout(() => {
-        setReconnectTrigger(prev => prev + 1);
-      }, 3000);
+      reconnectTimer = setTimeout(connect, delay);
+    };
     };
 
+    connect();
+
     return () => {
-      socket.close();
+      disposed = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      socket?.close();
     };
-  }, [roomId, session, reloadRoomData]);
+  }, [roomId, session, reloadRoomData, applyRoom]);
 
   useEffect(() => {
     setHasJoined(false);
@@ -389,13 +459,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           await pokerApi.joinRoom(roomId, newParticipant);
         }
 
-        const currentParticipantIds = roomData.participantIds || [];
-        if (!currentParticipantIds.includes(session.id)) {
-          await pokerApi.saveOrUpdateRoom({
-            ...roomData,
-            participantIds: [...currentParticipantIds, session.id]
-          });
-        }
+        // participantIds é registrado pelo próprio backend no join (com a sala travada): gravar a sala
+        // inteira daqui dava 409 em entradas simultâneas.
         reloadRoomData();
       } catch (error) {
         console.error('Falha ao entrar na sala:', error);
@@ -439,7 +504,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         role: userProfile.role,
         email: userProfile.email || ''
       };
-      pokerApi.joinRoom(roomId, updates).catch(err => console.error(err));
+      pokerApi.joinRoom(roomId, updates).catch(err => {
+        // libera nova tentativa na próxima mudança de perfil/participante
+        lastSyncedProfileRef.current = null;
+        console.error(err);
+      });
     } else {
       lastSyncedProfileRef.current = { 
         name: userProfile.name, 
@@ -453,7 +522,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     setHasJoined(!!currentUser);
   }, [currentUser]);
 
-  // Carga inicial das mensagens do chat da sala (canal geral e canais relevantes)
+  // Carga das mensagens do chat da sala (canal geral e canais relevantes). Cada canal é buscado uma vez
+  // (e de novo após reconectar); a lista de participantes mudar não refaz tudo, e o que já chegou pelo
+  // WebSocket é mesclado em vez de sobrescrito.
+  const participantIdsKey = (participants || []).map(p => p.id).sort().join(',');
   useEffect(() => {
     if (!currentUser || !roomId) return;
     const channelsToLoad = ['geral'];
@@ -467,16 +539,24 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     });
 
     channelsToLoad.forEach(channelId => {
+      if (loadedChannelsRef.current.has(channelId)) return;
+      loadedChannelsRef.current.add(channelId);
       pokerApi.getChatMessages(roomId, channelId)
         .then(msgs => {
-          setMessagesByChannel(prev => ({
-            ...prev,
-            [channelId]: msgs || []
-          }));
+          setMessagesByChannel(prev => {
+            const byId = new Map<string, any>();
+            [...(msgs || []), ...(prev[channelId] || [])].forEach(m => byId.set(m.id, m));
+            const merged = [...byId.values()].sort((a, b) => String(a.ts).localeCompare(String(b.ts)));
+            return { ...prev, [channelId]: merged };
+          });
         })
-        .catch(err => console.error(`Erro ao carregar mensagens do canal ${channelId}:`, err));
+        .catch(err => {
+          loadedChannelsRef.current.delete(channelId);
+          console.error(`Erro ao carregar mensagens do canal ${channelId}:`, err);
+        });
     });
-  }, [currentUser?.id, participants, roomId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id, participantIdsKey, roomId, chatReloadKey]);
 
   // Heartbeat de presença: envia lastSeen silenciosamente via REST a cada 25s
   useEffect(() => {
@@ -503,7 +583,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue,
     }).then(() => {
       toast({ title: 'Refinamento iniciado!', description: 'O cronômetro da sessão começou agora.' });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, toast]);
 
   // Auto-início por quórum: o efeito abaixo já carimba o startedAt sozinho a
@@ -535,7 +615,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         title: 'Refinamento iniciado automaticamente',
         description: 'Quórum atingido (1 dev + 1 QA online) — o cronômetro começou.',
       });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [isCurrentUserFacilitator, roomData, participants, toast]);
 
   // Carimba startedAt da tarefa ativa de forma automática
@@ -551,7 +631,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: (roomData.issuesQueue || []).map(i =>
         i.id === roomData.activeIssueId ? { ...i, startedAt: now } : i
       ),
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [isCurrentUserFacilitator, roomData]);
 
   // Título Dinâmico da Aba
@@ -594,7 +674,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       settings: { ...roomData.settings, ...newSettings }
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [isCurrentUserFacilitator, roomData]);
 
   const handleUpdateParticipantRole = useCallback((participantId: string, newRole: Role) => {
@@ -604,15 +684,25 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.joinRoom(roomId, {
       ...target,
       role: newRole
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [isCurrentUserFacilitator, participants, roomId]);
 
+  // Atualização otimista: o voto aparece na hora (o eco do servidor só confirma) e volta ao valor anterior
+  // se a gravação falhar, em vez de a tela mostrar um voto que o servidor nunca recebeu.
   const handleVote = useCallback((voteValue: string) => {
     if (!currentUser || !roomData) return;
     if (!canParticipantVote(currentUser, roomData.settings?.allowManagementToVote)) return;
-    
+    if (roomData.votesRevealed) return;
+
+    const previous = votes.find(v => v.participantId === currentUser.id);
+    const restore = () => setVotes(prev => {
+      const rest = prev.filter(v => v.participantId !== currentUser.id);
+      return previous ? [...rest, previous] : rest;
+    });
+
     if (voteValue === currentUserVote) {
-      pokerApi.removeVote(roomId, currentUser.id).catch(err => console.error(err));
+      setVotes(prev => prev.filter(v => v.participantId !== currentUser.id));
+      pokerApi.removeVote(roomId, currentUser.id).catch(err => { restore(); notifyError(err); });
       return;
     }
 
@@ -625,25 +715,40 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       participantNickname: currentUser.nickname,
       participantRole: currentUser.role,
       participantGlobalRole: currentUser.globalRole,
-      issueId: roomData.activeIssueId || undefined
+      issueId: roomData.activeIssueId || undefined,
+      // trocar de carta mantém a confiança já marcada
+      confidence: previous?.confidence,
     };
-    pokerApi.saveVote(roomId, newVote).catch(err => console.error(err));
-  }, [currentUser, currentUserVote, roomId, roomData]);
+    setVotes(prev => [...prev.filter(v => v.participantId !== currentUser.id), newVote as Vote]);
+    pokerApi.saveVote(roomId, newVote)
+      .then(saved => setVotes(prev => prev.map(v => v.participantId === saved.participantId ? saved : v)))
+      .catch(err => { restore(); notifyError(err); });
+  }, [currentUser, currentUserVote, votes, roomId, roomData, notifyError]);
 
   const handleSetConfidence = useCallback((confidence: ConfidenceLevel) => {
     if (!currentUser || !currentUserVote) return;
-    
-    const voteId = roomId + "_" + currentUser.id;
+
+    const base = votes.find(v => v.participantId === currentUser.id);
     const updatedConfidence = confidence === currentUserConfidence ? undefined : confidence;
-    pokerApi.saveVote(roomId, {
-      id: voteId,
+    // Reenvia o voto completo (apelido, papel, tarefa): o servidor grava a linha inteira.
+    const next: Partial<Vote> = {
+      id: roomId + "_" + currentUser.id,
       participantId: currentUser.id,
       roomId: roomId,
       value: currentUserVote,
-      timestamp: new Date().toISOString(),
-      confidence: updatedConfidence
-    }).catch(err => console.error(err));
-  }, [currentUser, currentUserVote, currentUserConfidence, roomId]);
+      timestamp: base?.timestamp || new Date().toISOString(),
+      participantNickname: base?.participantNickname || currentUser.nickname,
+      participantRole: base?.participantRole || currentUser.role,
+      participantGlobalRole: base?.participantGlobalRole || currentUser.globalRole,
+      issueId: base?.issueId || roomData?.activeIssueId || undefined,
+      confidence: updatedConfidence,
+    };
+    setVotes(prev => prev.map(v => v.participantId === currentUser.id ? { ...v, confidence: updatedConfidence } : v));
+    pokerApi.saveVote(roomId, next).catch(err => {
+      setVotes(prev => prev.map(v => v.participantId === currentUser.id ? { ...v, confidence: base?.confidence } : v));
+      notifyError(err);
+    });
+  }, [currentUser, currentUserVote, currentUserConfidence, votes, roomData?.activeIssueId, roomId, notifyError]);
 
   // Envia reações flutuantes através da rota do proxy de WebSocket do Spring Boot
   const handleReact = useCallback((emoji: string) => {
@@ -664,7 +769,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       issuesQueue: newQueue
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator]);
 
   // Qualquer participante presente pode escrever. Vai por endpoint próprio (merge no servidor),
@@ -673,61 +778,89 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const handleUpdateRefinementNotes = useCallback((notes: { devNotes?: string; qaNotes?: string }) => {
     const issueId = roomData?.activeIssueId;
     if (!issueId || !currentUser) return;
-    pokerApi.updateIssueNotes(roomId, issueId, notes).catch(err => console.error(err));
+    pokerApi.updateIssueNotes(roomId, issueId, notes).catch(notifyError);
   }, [roomData?.activeIssueId, roomId, currentUser]);
 
-  const handleReveal = useCallback(() => {
+  // Revelar: primeiro vira a chave da sala (é isso que libera os votos para todos); só então busca os votos
+  // definitivos e grava a rodada, com id fixo por (tarefa, versão da sala) — clicar de novo, auto-reveal em
+  // vários navegadores ou retry não duplicam a rodada no histórico.
+  const revealingRef = useRef<string | null>(null);
+  const handleReveal = useCallback(async () => {
     if (!participants || !votes || votes.length === 0 || !roomData || !isCurrentUserFacilitator) return;
 
-    const statsVotes = getEligibleStatsVotes(votes, participants, roomData.settings?.allowManagementToVote);
-    const allVoteValues = statsVotes.map(v => v.value);
-    const numericVotes = allVoteValues.filter((v): v is string => v !== null && !isNaN(Number(v))).map(Number);
-    const stats: VotingRound['stats'] = { avg: 'N/A', min: 'N/A', max: 'N/A', consensus: false };
-    
-    if (allVoteValues.length > 0) {
-      stats.consensus = allVoteValues.length > 1 && new Set(allVoteValues).size === 1;
-      if (roomData.deckType === 'tshirt') {
-        const numericTshirtVotes = allVoteValues
-          .map(v => resolveTshirtHours(v, roomData.settings?.tshirtEquivalents))
-          .filter(n => !isNaN(n));
-        if (numericTshirtVotes.length > 0) {
-          const sum = numericTshirtVotes.reduce((acc, val) => acc + val, 0);
-          stats.avg = String(Math.ceil(sum / numericTshirtVotes.length));
-          stats.min = String(Math.min(...numericTshirtVotes));
-          stats.max = String(Math.max(...numericTshirtVotes));
-        } else {
-          const voteCounts = allVoteValues.reduce((acc, value) => { acc[value] = (acc[value] || 0) + 1; return acc; }, {} as Record<string, number>);
-          stats.avg = Object.keys(voteCounts).reduce((a, b) => voteCounts[a] > voteCounts[b] ? a : b);
-        }
-      } else if (numericVotes.length > 0) {
-        const sum = numericVotes.reduce((acc, val) => acc + val, 0);
-        stats.avg = String(Math.ceil(sum / numericVotes.length));
-        stats.min = String(Math.min(...numericVotes));
-        stats.max = String(Math.max(...numericVotes));
-      }
-    }
+    const revealKey = `${roomData.activeIssueId ?? 'topic'}:${roomData.version ?? 0}`;
+    if (revealingRef.current === revealKey) return;
+    revealingRef.current = revealKey;
 
-    const activeIssue = roomData.issuesQueue?.find(i => i.id === roomData.activeIssueId);
-    const topicName = activeIssue?.title || roomData.currentTopic || 'Tópico não definido';
-
-    const newRound: Partial<VotingRound> = {
-      roomId: roomId,
-      topic: topicName,
-      issueId: roomData.activeIssueId || undefined,
-      deckType: roomData.deckType,
-      votes: votes,
-      stats: stats,
-      timestamp: new Date().toISOString(),
-    };
-
-    pokerApi.saveRound(roomId, newRound).then(() => {
-      pokerApi.saveOrUpdateRoom({
+    try {
+      const savedRoom = await pokerApi.saveOrUpdateRoom({
         ...roomData,
         votesRevealed: true,
         selectiveRevotingRole: null
       });
-    }).catch(err => console.error(err));
-  }, [participants, votes, roomData, isCurrentUserFacilitator, roomId]);
+
+      // Votos definitivos do servidor (em salas às cegas só agora vêm com o valor real).
+      let finalVotes = votes;
+      try {
+        finalVotes = await pokerApi.getVotes(roomId);
+        setVotes(finalVotes);
+      } catch (e) {
+        console.error('Falha ao reler os votos na revelação; usando os da tela:', e);
+      }
+      // Voto de outra tarefa que sobrou (limpeza que falhou) não entra na conta desta.
+      const roundVotes = finalVotes.filter(v => !v.issueId || !roomData.activeIssueId || v.issueId === roomData.activeIssueId);
+
+      const rounding = resolveRoundingMode(roomData.settings?.roundingMode);
+      const statsVotes = getEligibleStatsVotes(roundVotes, participants, roomData.settings?.allowManagementToVote);
+      const allVoteValues = statsVotes.map(v => v.value);
+      const numericVotes = allVoteValues.filter((v): v is string => v !== null && !isNaN(Number(v))).map(Number);
+      const stats: VotingRound['stats'] = { avg: 'N/A', min: 'N/A', max: 'N/A', consensus: false };
+
+      if (allVoteValues.length > 0) {
+        stats.consensus = allVoteValues.length > 1 && new Set(allVoteValues).size === 1;
+        if (roomData.deckType === 'tshirt') {
+          const numericTshirtVotes = allVoteValues
+            .map(v => resolveTshirtHours(v, roomData.settings?.tshirtEquivalents))
+            .filter(n => !isNaN(n));
+          if (numericTshirtVotes.length > 0) {
+            const sum = numericTshirtVotes.reduce((acc, val) => acc + val, 0);
+            stats.avg = String(roundEstimate(sum / numericTshirtVotes.length, rounding, roomData.deckType));
+            stats.min = String(Math.min(...numericTshirtVotes));
+            stats.max = String(Math.max(...numericTshirtVotes));
+          } else {
+            const voteCounts = allVoteValues.reduce((acc, value) => { acc[value] = (acc[value] || 0) + 1; return acc; }, {} as Record<string, number>);
+            stats.avg = Object.keys(voteCounts).reduce((a, b) => voteCounts[a] > voteCounts[b] ? a : b);
+          }
+        } else if (numericVotes.length > 0) {
+          const sum = numericVotes.reduce((acc, val) => acc + val, 0);
+          stats.avg = String(roundEstimate(sum / numericVotes.length, rounding, roomData.deckType));
+          stats.min = String(Math.min(...numericVotes));
+          stats.max = String(Math.max(...numericVotes));
+        }
+      }
+
+      const activeIssue = roomData.issuesQueue?.find(i => i.id === roomData.activeIssueId);
+      const topicName = activeIssue?.title || roomData.currentTopic || 'Tópico não definido';
+
+      const newRound: Partial<VotingRound> = {
+        id: `${roomId}_${roomData.activeIssueId || 'topic'}_${savedRoom.version ?? Date.now()}`,
+        roomId: roomId,
+        topic: topicName,
+        issueId: roomData.activeIssueId || undefined,
+        deckType: roomData.deckType,
+        votes: roundVotes,
+        stats: stats,
+        timestamp: new Date().toISOString(),
+      };
+
+      await pokerApi.saveRound(roomId, newRound);
+    } catch (err) {
+      // Permite tentar de novo (409, rede). Se a sala já virou "revelada" e só a rodada falhou, a revelação
+      // vale e o aviso diz que o histórico não gravou.
+      revealingRef.current = null;
+      notifyError(err);
+    }
+  }, [participants, votes, roomData, isCurrentUserFacilitator, roomId, notifyError]);
 
   // Auto-revelar
   useEffect(() => {
@@ -735,14 +868,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     if (roomData.votesRevealed || !roomData.activeIssueId) return;
     if (!participants || !votes || votes.length === 0) return;
 
-    const eligible = participants.filter(p => canParticipantVote(p, roomData.settings?.allowManagementToVote));
+    // Quem está offline (aba fechada) não trava a revelação, e voto de outra tarefa não conta.
+    const onlineIds = new Set(onlineParticipants.map(p => p.id));
+    const eligible = participants.filter(p => canParticipantVote(p, roomData.settings?.allowManagementToVote) && onlineIds.has(p.id));
     if (eligible.length === 0) return;
 
-    const votedIds = new Set(votes.map(v => v.participantId));
+    const votedIds = new Set(
+      votes.filter(v => !v.issueId || v.issueId === roomData.activeIssueId).map(v => v.participantId)
+    );
     if (eligible.every(p => votedIds.has(p.id))) {
       handleReveal();
     }
-  }, [roomData, participants, votes, isCurrentUserFacilitator, handleReveal]);
+  }, [roomData, participants, onlineParticipants, votes, isCurrentUserFacilitator, handleReveal]);
 
   const handleClear = useCallback(() => {
     if (!roomData || !isCurrentUserFacilitator) return;
@@ -750,13 +887,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       ...roomData,
       votesRevealed: false,
       selectiveRevotingRole: null
-    }).then(() => {
-      pokerApi.clearVotes(roomId);
-    }).catch(error => {
+    }).then(() => pokerApi.clearVotes(roomId)).catch(error => {
       console.error('Erro ao limpar votos:', error);
+      if (error instanceof RoomConflictError) return;
       toast({
         title: 'Erro ao limpar votos',
-        description: 'Tente novamente.',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
         variant: 'destructive',
       });
     });
@@ -773,17 +909,19 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       ...roomData,
       votesRevealed: false,
       selectiveRevotingRole: targetCategory,
-    }).then(() => {
-      votes.forEach(vote => {
-        if (targetUserIds.has(vote.participantId)) {
-          pokerApi.removeVote(roomId, vote.participantId).catch(console.error);
-        }
-      });
+    }).then(async () => {
+      const targets = votes.filter(vote => targetUserIds.has(vote.participantId));
+      const results = await Promise.allSettled(targets.map(vote => pokerApi.removeVote(roomId, vote.participantId)));
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed > 0) {
+        throw new Error(`${failed} voto(s) não puderam ser removidos. Use "Revotar todos" ou tente novamente.`);
+      }
     }).catch(error => {
       console.error('Erro ao revotar seletivamente:', error);
+      if (error instanceof RoomConflictError) return;
       toast({
         title: 'Erro ao iniciar revotação',
-        description: 'Tente novamente.',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
         variant: 'destructive',
       });
     });
@@ -802,6 +940,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       ...(extraData || {})
     };
     const currentQueue = roomData.issuesQueue || [];
+    if (newIssue.key && currentQueue.some(i => (i.key || '').toUpperCase() === newIssue.key!.toUpperCase())) {
+      toast({ title: 'Tarefa já está na fila', description: `${newIssue.key} já foi adicionada.` });
+      return;
+    }
     const newQueue = [...currentQueue, newIssue];
     const updates: Partial<Room> = { ...roomData, issuesQueue: newQueue };
 
@@ -810,19 +952,25 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       updates.activeIssueId = newIssue.id;
     }
 
-    pokerApi.saveOrUpdateRoom(updates).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator]);
+    pokerApi.saveOrUpdateRoom(updates).catch(notifyError);
+  }, [roomData, isCurrentUserFacilitator, toast]);
 
-  const handleBulkAddIssues = useCallback((items: Partial<Issue>[]) => {
-    if (!roomData || !isCurrentUserFacilitator) return;
+  // Devolve quantas tarefas realmente entraram (duplicadas — na fila ou no próprio lote — ficam de fora),
+  // para o aviso de importação não contar o que foi descartado.
+  const handleBulkAddIssues = useCallback((items: Partial<Issue>[]): number => {
+    if (!roomData || !isCurrentUserFacilitator) return 0;
 
     const currentQueue = roomData.issuesQueue || [];
-    const existingKeys = new Set(currentQueue.map(i => i.key).filter(Boolean));
+    const seenKeys = new Set(currentQueue.map(i => (i.key || '').toUpperCase()).filter(Boolean));
 
     const newIssues: Issue[] = items
       .filter(item => {
         const key = item.key || (isValidJiraKey(item.title || '') ? item.title : null);
-        return !(key && existingKeys.has(key));
+        if (!key) return true;
+        const normalized = key.toUpperCase();
+        if (seenKeys.has(normalized)) return false;
+        seenKeys.add(normalized);
+        return true;
       })
       .map(item => ({
         id: generateId(),
@@ -843,7 +991,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         jiraPoints: item.jiraPoints || '',
       }));
 
-    if (newIssues.length === 0) return;
+    if (newIssues.length === 0) return 0;
 
     const newQueue = [...currentQueue, ...newIssues];
     const updates: Partial<Room> = { ...roomData, issuesQueue: newQueue };
@@ -855,8 +1003,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
     }
 
-    pokerApi.saveOrUpdateRoom(updates).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator]);
+    pokerApi.saveOrUpdateRoom(updates).catch(notifyError);
+    return newIssues.length;
+  }, [roomData, isCurrentUserFacilitator, notifyError]);
 
   const handleSelectIssue = useCallback((issueId: string, autoSavePoints?: { points: string; devPoints?: string; qaPoints?: string }) => {
     if (!roomData || !roomData.issuesQueue || !isCurrentUserFacilitator) return;
@@ -895,8 +1044,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
-    }).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const handleRevoteIssue = useCallback((issueId: string) => {
@@ -933,9 +1082,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
       toast({ title: "Tarefa reaberta para votação" });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleDeleteIssue = useCallback((issueId: string) => {
@@ -947,10 +1096,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     let nextActiveId = roomData.activeIssueId;
 
     if (isDeletingActive) {
-      const nextPending = newQueue.find(i => i.status === 'pending');
-      if (nextPending) {
-        nextPending.status = 'active';
-        nextActiveId = nextPending.id;
+      const nextPendingIdx = newQueue.findIndex(i => i.status === 'pending');
+      if (nextPendingIdx !== -1) {
+        // cópia: mutar o objeto de roomData deixava a tela diferente do servidor se o save falhasse
+        newQueue[nextPendingIdx] = { ...newQueue[nextPendingIdx], status: 'active' };
+        nextActiveId = newQueue[nextPendingIdx].id;
       } else {
         nextActiveId = null;
       }
@@ -968,8 +1118,8 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }).then(() => {
       // Votos saem depois da fila salvar: handleClear() aqui mandaria a sala
       // inteira do roomData da closure e ressuscitaria a tarefa apagada.
-      if (isDeletingActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
-    }).catch(err => console.error(err));
+      if (isDeletingActive) pokerApi.clearVotes(roomId).catch(notifyError);
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const buildSessionClosure = useCallback((newQueue: Issue[]): Partial<Room> => {
@@ -1040,6 +1190,34 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     };
   }, [roomData?.sessionStartedAt, votingRounds]);
 
+  // Grava a estimativa final no item de trabalho (Jira/backlog). Só valores numéricos (camiseta "M" ou "?"
+  // viraria null), com a falha avisada — antes o toast dizia que salvou mesmo quando não gravou.
+  const syncEstimateToWorkItem = useCallback(async (issueKey: string, points: string) => {
+    const value = Number(points);
+    if (!roomData || points.trim() === '' || !Number.isFinite(value)) return;
+    const issueProjectKey = issueKey.includes('-') ? issueKey.split('-')[0].toUpperCase() : '';
+    const targetSquad = (roomData.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
+      ? roomData.team
+      : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+    if (!targetSquad) return;
+    try {
+      const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(targetSquad)}/${encodeURIComponent(issueKey)}/estimate`;
+      const res = await authFetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ points_estimated: value })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.error('Erro ao salvar pontos no backend', err);
+      toast({
+        title: `Estimativa não gravada em ${issueKey}`,
+        description: 'A sala guardou o valor, mas o item de trabalho não foi atualizado. Ajuste manualmente.',
+        variant: 'destructive',
+      });
+    }
+  }, [roomData, userProfile?.squadId, session?.activeProjectId, toast]);
+
   const handleCompleteIssue = useCallback((points: string, devPoints?: string, qaPoints?: string, rolePoints?: Record<string, string>) => {
     if (!roomData || !roomData.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;
 
@@ -1064,7 +1242,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
 
     if (nextIndex !== -1) {
-      newQueue[nextIndex].status = 'active';
+      newQueue[nextIndex] = { ...newQueue[nextIndex], status: 'active' };
       nextIssueId = newQueue[nextIndex].id;
     }
 
@@ -1086,22 +1264,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom(updates).then(() => {
       const activeIssue = roomData.issuesQueue![currentIndex];
       if (activeIssue && activeIssue.key) {
-        const issueProjectKey = activeIssue.key.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
-        const targetSquad = (roomData.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
-          ? roomData.team
-          : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
-
-        if (targetSquad) {
-          const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(targetSquad)}/${encodeURIComponent(activeIssue.key)}/estimate`;
-          authFetch(url, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ points_estimated: Number(points) })
-          }).catch(err => console.error("Erro ao salvar pontos no backend", err));
-        }
+        syncEstimateToWorkItem(activeIssue.key, points);
       }
 
-      const lastRound = votingRounds.find(r => r.issueId === roomData.activeIssueId);
+      // A rodada de votação mais recente desta tarefa (pulada/cancelada não é rodada de estimativa).
+      const lastRound = votingRounds.find(r => r.issueId === roomData.activeIssueId && !r.skipped && !r.cancelled);
       if (lastRound) {
         pokerApi.saveRound(roomId, {
           ...lastRound,
@@ -1114,10 +1281,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           rolePoints: rolePoints as any
         }).catch(console.error);
       }
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
       toast({ title: "Estimativa Salva!" });
-    }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, votingRounds, roomId, buildSessionClosure, toast]);
+    }).catch(notifyError);
+  }, [roomData, isCurrentUserFacilitator, votingRounds, roomId, buildSessionClosure, toast, syncEstimateToWorkItem]);
 
   const handleFinishSession = useCallback(() => {
     if (!roomData || !isCurrentUserFacilitator) return;
@@ -1133,7 +1300,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       selectiveRevotingRole: null,
       ...buildSessionClosure(newQueue),
     }).then(() => {
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
       const pendentes = newQueue.filter(i => !i.skipped && i.status !== 'completed').length;
       toast({
         title: 'Refinamento encerrado',
@@ -1141,7 +1308,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
           ? `${pendentes} tarefa(s) ficaram como não abordadas no relatório.`
           : 'Relatório da sessão disponível.',
       });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, buildSessionClosure, toast]);
 
   const handleParkIssue = useCallback((note: string) => {
@@ -1195,9 +1362,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       // Limpa os votos pela API de votos, nao por handleClear(): ele reenviaria
       // a sala inteira a partir do roomData da closure (estado pre-adiamento) e
       // desfaria o update que acabou de ser salvo.
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
       toast({ title: 'Tarefa adiada', description: 'Volta pro fim da fila para revisitar.' });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleSkipIssue = useCallback((note: string) => {
@@ -1241,27 +1408,29 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       note: note.trim() || null,
     };
 
-    pokerApi.saveRound(roomId, skippedRound).then(() => {
-      let updates: Partial<Room> = {
-        ...roomData,
-        issuesQueue: newQueue,
-        activeIssueId: nextIssueId,
-        currentTopic: nextIssue?.title || roomData.currentTopic,
-        votesRevealed: false,
-        selectiveRevotingRole: null,
-      };
+    let updates: Partial<Room> = {
+      ...roomData,
+      issuesQueue: newQueue,
+      activeIssueId: nextIssueId,
+      currentTopic: nextIssue?.title || roomData.currentTopic,
+      votesRevealed: false,
+      selectiveRevotingRole: null,
+    };
 
-      if (!nextIssueId) {
-        updates = { ...updates, ...buildSessionClosure(newQueue) };
-      }
+    if (!nextIssueId) {
+      updates = { ...updates, ...buildSessionClosure(newQueue) };
+    }
 
-      pokerApi.saveOrUpdateRoom(updates).then(() => {
-        // Ver comentario em handleParkIssue: handleClear() aqui reverteria o
-        // update com o roomData velho da closure.
-        pokerApi.clearVotes(roomId).catch(err => console.error(err));
-        toast({ title: "Tópico Pulado", description: "O tópico foi removido da estimativa." });
+    // A sala é gravada primeiro: se ela falhar (409) nada fica pela metade, e a rodada pulada leva id fixo
+    // (tarefa + versão), então repetir a ação não duplica o histórico.
+    pokerApi.saveOrUpdateRoom(updates).then(async (savedRoom) => {
+      pokerApi.clearVotes(roomId).catch(notifyError);
+      toast({ title: "Tópico Pulado", description: "O tópico foi removido da estimativa." });
+      await pokerApi.saveRound(roomId, {
+        ...skippedRound,
+        id: `${roomId}_${skippedIssue.id}_skipped_${savedRoom.version ?? Date.now()}`,
       });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleUnskipIssue = useCallback((issueId: string) => {
@@ -1292,9 +1461,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       selectiveRevotingRole: null,
       sessionEndedAt: undefined,
     }).then(() => {
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
       toast({ title: "Tópico Retornado", description: "O tópico voltou para a mesa de votação." });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
   const handleCancelIssue = useCallback((issueId: string, note?: string) => {
@@ -1349,27 +1518,28 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       note: noteText.trim() || null,
     };
 
-    pokerApi.saveRound(roomId, cancelledRound).then(() => {
-      let updates: Partial<Room> = {
-        ...roomData,
-        issuesQueue: newQueue,
-        activeIssueId: nextIssueId,
-        currentTopic: nextIssue?.title || (isTargetActive ? '' : roomData.currentTopic),
-        votesRevealed: isTargetActive ? false : roomData.votesRevealed,
-        selectiveRevotingRole: isTargetActive ? null : roomData.selectiveRevotingRole,
-      };
+    let updates: Partial<Room> = {
+      ...roomData,
+      issuesQueue: newQueue,
+      activeIssueId: nextIssueId,
+      currentTopic: nextIssue?.title || (isTargetActive ? '' : roomData.currentTopic),
+      votesRevealed: isTargetActive ? false : roomData.votesRevealed,
+      selectiveRevotingRole: isTargetActive ? null : roomData.selectiveRevotingRole,
+    };
 
-      if (!nextIssueId) {
-        updates = { ...updates, ...buildSessionClosure(newQueue) };
-      }
+    if (!nextIssueId) {
+      updates = { ...updates, ...buildSessionClosure(newQueue) };
+    }
 
-      pokerApi.saveOrUpdateRoom(updates).then(() => {
-        // Ver comentario em handleParkIssue: handleClear() aqui reverteria o
-        // cancelamento com o roomData velho da closure.
-        if (isTargetActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
-        toast({ title: "Tarefa Cancelada", description: "A tarefa foi marcada como cancelada no refinamento." });
+    // Mesma ordem do pulo: sala primeiro, rodada com id fixo depois.
+    pokerApi.saveOrUpdateRoom(updates).then(async (savedRoom) => {
+      if (isTargetActive) pokerApi.clearVotes(roomId).catch(notifyError);
+      toast({ title: "Tarefa Cancelada", description: "A tarefa foi marcada como cancelada no refinamento." });
+      await pokerApi.saveRound(roomId, {
+        ...cancelledRound,
+        id: `${roomId}_${issueIdToCancel}_cancelled_${savedRoom.version ?? Date.now()}`,
       });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 
   const handleUncancelIssue = useCallback((issueId: string) => {
@@ -1404,33 +1574,46 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       selectiveRevotingRole: hasActive ? roomData.selectiveRevotingRole : null,
       sessionEndedAt: undefined,
     }).then(() => {
-      if (!hasActive) pokerApi.clearVotes(roomId).catch(err => console.error(err));
+      if (!hasActive) pokerApi.clearVotes(roomId).catch(notifyError);
       toast({ title: "Tarefa Reativada", description: "A tarefa voltou para o refinamento." });
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast]);
 
+  // Sala assíncrona: um voto por (participante, tarefa). O servidor monta o id room_participant_issue.
   const handleAsyncVote = useCallback((issueId: string, voteValue: string) => {
     if (!currentUser || !roomData) return;
     if (!canParticipantVote(currentUser, roomData.settings?.allowManagementToVote)) return;
-    
-    const voteId = `${currentUser.id}_${issueId}`;
-    const existingVote = votes?.find(v => v.id === voteId)?.value;
-    
-    if (voteValue === existingVote) {
-      pokerApi.removeVote(roomId, voteId).catch(console.error);
+    if ((roomData.revealedIssues || []).includes(issueId)) return;
+
+    const isMine = (v: Vote) => v.participantId === currentUser.id && v.issueId === issueId;
+    const previous = votes.find(isMine);
+    const restore = () => setVotes(prev => {
+      const rest = prev.filter(v => !isMine(v));
+      return previous ? [...rest, previous] : rest;
+    });
+
+    if (voteValue === previous?.value) {
+      setVotes(prev => prev.filter(v => !isMine(v)));
+      pokerApi.removeVote(roomId, currentUser.id, issueId).catch(err => { restore(); notifyError(err); });
       return;
     }
 
     const newVote: Partial<Vote> = {
-      id: voteId,
+      id: `${roomId}_${currentUser.id}_${issueId}`,
       participantId: currentUser.id,
       roomId: roomId,
       value: voteValue,
       timestamp: new Date().toISOString(),
       issueId: issueId,
+      participantNickname: currentUser.nickname,
+      participantRole: currentUser.role,
+      participantGlobalRole: currentUser.globalRole,
     };
-    pokerApi.saveVote(roomId, newVote).catch(console.error);
-  }, [currentUser, votes, roomId, roomData]);
+    setVotes(prev => [...prev.filter(v => !isMine(v)), newVote as Vote]);
+    pokerApi.saveVote(roomId, newVote)
+      .then(saved => setVotes(prev => prev.map(v => (v.id === saved.id ? saved : v))))
+      .catch(err => { restore(); notifyError(err); });
+  }, [currentUser, votes, roomId, roomData, notifyError]);
 
   const handleAsyncReveal = useCallback((issueId: string) => {
     if (!isCurrentUserFacilitator || !roomData) return;
@@ -1452,8 +1635,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       revealedIssues: newRevealed
     }).then(() => {
       const issueVotes = votes.filter(v => v.issueId === issueId);
-      issueVotes.forEach(vote => {
-        pokerApi.removeVote(roomId, vote.id).catch(console.error);
+      return Promise.allSettled(issueVotes.map(vote => pokerApi.removeVote(roomId, vote.participantId, issueId))).then(results => {
+        if (results.some(r => r.status === 'rejected')) {
+          throw new Error('Alguns votos não puderam ser removidos. Tente novamente.');
+        }
       });
     }).catch(error => {
       console.error('Erro ao limpar votos assíncronos:', error);
@@ -1486,19 +1671,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       issuesQueue: newQueue
     }).then(() => {
       const activeIssue = roomData.issuesQueue![currentIndex];
-      if (activeIssue && activeIssue.key && roomData.team) {
-        const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${roomData.team}/${activeIssue.key}/estimate`;
-        authFetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ points_estimated: Number(points) })
-        }).catch(err => console.error("Erro ao salvar pontos no backend", err));
+      if (activeIssue && activeIssue.key) {
+        syncEstimateToWorkItem(activeIssue.key, points);
       }
 
       handleAsyncClear(issueId);
       toast({ title: "Estimativa Consolidada!" });
-    }).catch(err => console.error(err));
-  }, [roomData, isCurrentUserFacilitator, handleAsyncClear, toast]);
+    }).catch(notifyError);
+  }, [roomData, isCurrentUserFacilitator, handleAsyncClear, toast, syncEstimateToWorkItem]);
 
   const handleSetTopic = useCallback((topic: string) => {
     if (!isCurrentUserFacilitator || !roomData) return;
@@ -1515,13 +1695,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       updates.votesRevealed = false;
     }
 
-    pokerApi.saveOrUpdateRoom(updates).then(() => {
-      if (votes) {
-        votes.forEach(vote => {
-          pokerApi.removeVote(roomId, vote.id).catch(console.error);
-        });
-      }
-    }).catch(error => {
+    pokerApi.saveOrUpdateRoom(updates).then(() => pokerApi.clearVotes(roomId)).catch(error => {
       console.error('Erro ao trocar de tópico:', error);
       toast({
         title: 'Erro ao trocar de tópico',
@@ -1529,7 +1703,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         variant: 'destructive',
       });
     });
-  }, [isCurrentUserFacilitator, votes, roomData, roomId, toast]);
+  }, [isCurrentUserFacilitator, roomData, roomId, toast]);
 
   const handleSetDeck = useCallback((newDeck: DeckType) => {
     if (!roomData || !isCurrentUserFacilitator) return;
@@ -1540,14 +1714,14 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       votesRevealed: false,
       selectiveRevotingRole: null
     }).then(() => {
-      pokerApi.clearVotes(roomId).catch(err => console.error(err));
-    }).catch(err => console.error(err));
+      pokerApi.clearVotes(roomId).catch(notifyError);
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId]);
 
   const handleSetReference = useCallback((issueId: string | null) => {
     if (!roomData || !isCurrentUserFacilitator) return;
     if (!issueId) {
-      pokerApi.saveOrUpdateRoom({ ...roomData, referenceBaseline: null }).catch(err => console.error(err));
+      pokerApi.saveOrUpdateRoom({ ...roomData, referenceBaseline: null }).catch(notifyError);
       return;
     }
     const issue = roomData.issuesQueue?.find(i => i.id === issueId);
@@ -1561,7 +1735,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         display: formatBaselineDisplay(issue.estimatedPoints, roomData.deckType),
         deckType: roomData.deckType,
       },
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator]);
 
   const handleRemoveParticipant = useCallback((participantId: string) => {
@@ -1569,15 +1743,19 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
     pokerApi.leaveRoom(roomId, participantId).then(() => {
       const currentParticipantIds = roomData.participantIds || [];
-      pokerApi.saveOrUpdateRoom({
+      return pokerApi.saveOrUpdateRoom({
         ...roomData,
         participantIds: currentParticipantIds.filter(id => id !== participantId)
       });
-    }).catch(console.error);
-  }, [isCurrentUserFacilitator, roomId, roomData]);
+    }).catch(notifyError);
+  }, [isCurrentUserFacilitator, roomId, roomData, notifyError]);
 
   const handleClaimFacilitator = useCallback(async () => {
     if (!roomData || !session || !participants) return;
+    if (currentUser?.role === 'spectator') {
+      toast({ title: 'Espectadores não podem assumir a sala', variant: 'destructive' });
+      return;
+    }
 
     try {
       await pokerApi.saveOrUpdateRoom({
@@ -1608,29 +1786,29 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       console.error("Erro ao assumir controle:", error);
       toast({
         title: "Erro ao assumir controle",
-        description: "Não foi possível completar a operação no banco de dados.",
+        description: error instanceof Error && !(error instanceof RoomConflictError)
+          ? error.message
+          : "Não foi possível completar a operação. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
         variant: "destructive"
       });
     }
-  }, [roomData, session, participants, userProfile, toast, reloadRoomData, roomId]);
+  }, [roomData, session, participants, userProfile, currentUser?.role, toast, reloadRoomData, roomId]);
 
   const handleLeaveRoom = useCallback(() => {
     if (!currentUser) return;
     pokerApi.leaveRoom(roomId, currentUser.id).then(() => {
-      pokerApi.removeVote(roomId, currentUser.id).catch(console.error);
-      (votes || [])
-        .filter(v => v.participantId === currentUser.id)
-        .forEach(v => pokerApi.removeVote(roomId, v.id).catch(console.error));
+      // sem o voto a pessoa não fica como "participante ausente" na rodada em andamento
+      pokerApi.removeVote(roomId, currentUser.id).catch(() => { /* já revelado: o voto fica como fato */ });
       router.push('/');
-    }).catch(console.error);
-  }, [currentUser, votes, roomId, router]);
+    }).catch(notifyError);
+  }, [currentUser, roomId, router, notifyError]);
 
   const handleSetTimerDuration = useCallback((duration: number) => {
     if (!roomData || !isCurrentUserFacilitator) return;
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       timer: { status: 'stopped', initialDuration: duration, remainingOnPause: duration, endTime: null }
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator]);
 
   const handleStartTimer = useCallback((duration: number) => {
@@ -1639,7 +1817,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       timer: { status: 'running', endTime: serverNow + duration * 1000, initialDuration: duration, remainingOnPause: duration }
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 
   const handlePauseTimer = useCallback(() => {
@@ -1649,7 +1827,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       timer: { ...roomData.timer, status: 'paused', remainingOnPause: remaining }
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 
   const handleResumeTimer = useCallback(() => {
@@ -1658,7 +1836,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       timer: { ...roomData.timer, status: 'running', endTime: serverNow + roomData.timer.remainingOnPause * 1000 }
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, clockOffset]);
 
   const handleResetTimer = useCallback(() => {
@@ -1666,14 +1844,21 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     pokerApi.saveOrUpdateRoom({
       ...roomData,
       timer: { ...roomData.timer, status: 'stopped', endTime: null, remainingOnPause: roomData.timer.initialDuration }
-    }).catch(err => console.error(err));
+    }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator]);
 
   // Auto-timer
-  const autoTimerRef = useRef<string | null>(null);
+  // O timer só reinicia quando a tarefa ativa MUDA durante esta sessão de tela. Na primeira leitura (abrir a
+  // sala, recarregar, reconectar, voltar a ser facilitador) apenas memoriza a tarefa atual: antes, todo F5 do
+  // facilitador zerava o cronômetro da tarefa em andamento.
+  const autoTimerRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
     if (!roomData?.settings?.autoTimer || !isCurrentUserFacilitator || !roomData.activeIssueId) {
-      if (!roomData?.settings?.autoTimer) autoTimerRef.current = null;
+      if (!roomData?.settings?.autoTimer) autoTimerRef.current = undefined;
+      return;
+    }
+    if (autoTimerRef.current === undefined) {
+      autoTimerRef.current = roomData.activeIssueId;
       return;
     }
     if (autoTimerRef.current === roomData.activeIssueId) return;
@@ -1764,7 +1949,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const mappedTimer = roomData.timer ? {
     status: roomData.timer.status,
     initialDuration: roomData.timer.initialDuration || 120,
-    remainingOnPause: roomData.timer.remainingOnPause || 120,
+    remainingOnPause: roomData.timer.remainingOnPause ?? 120,
     endTime: roomData.timer.endTime ? Number(roomData.timer.endTime) : null
   } : undefined;
 

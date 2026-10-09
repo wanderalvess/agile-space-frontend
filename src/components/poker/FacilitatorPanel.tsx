@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { LucideIcon } from 'lucide-react';
 
 type DivergenceThresholds = { warn: number; high: number };
-type FacilitatorSettings = { allowManagementToVote?: boolean; autoReveal?: boolean; divergenceThresholds?: DivergenceThresholds; outlierPrompt?: boolean; confidenceVote?: boolean; showVelocity?: boolean; anonymousReveal?: boolean; turnNotification?: boolean; showDistribution?: boolean; decisionNotes?: boolean; perTopicTime?: boolean; autoTimer?: boolean; groomingFlag?: boolean; autoConsensus?: boolean; suggestRevote?: boolean; reactions?: boolean; groupVotesByRole?: boolean; referenceStory?: boolean; roundNudge?: boolean; maxRounds?: number; refinementNotes?: boolean; parkTask?: boolean; cancelTask?: boolean };
+type FacilitatorSettings = { allowManagementToVote?: boolean; autoReveal?: boolean; divergenceThresholds?: DivergenceThresholds; outlierPrompt?: boolean; confidenceVote?: boolean; showVelocity?: boolean; anonymousReveal?: boolean; turnNotification?: boolean; showDistribution?: boolean; decisionNotes?: boolean; perTopicTime?: boolean; autoTimer?: boolean; groomingFlag?: boolean; autoConsensus?: boolean; suggestRevote?: boolean; reactions?: boolean; roundingMode?: 'up' | 'nearest' | 'down' | 'deck'; blindVotes?: boolean; groupVotesByRole?: boolean; referenceStory?: boolean; roundNudge?: boolean; maxRounds?: number; refinementNotes?: boolean; parkTask?: boolean; cancelTask?: boolean };
 
 interface FacilitatorPanelProps {
   deck: DeckType;
@@ -38,6 +38,8 @@ interface FacilitatorPanelProps {
   autoConsensus?: boolean;
   suggestRevote?: boolean;
   reactions?: boolean;
+  roundingMode?: 'up' | 'nearest' | 'down' | 'deck';
+  blindVotes?: boolean;
   groupVotesByRole?: boolean;
   referenceStory?: boolean;
   roundNudge?: boolean;
@@ -105,6 +107,8 @@ export function FacilitatorPanel({
   autoConsensus,
   suggestRevote,
   reactions,
+  roundingMode,
+  blindVotes,
   groupVotesByRole,
   referenceStory,
   roundNudge,
@@ -148,6 +152,7 @@ export function FacilitatorPanel({
     { id: 'cancel-task', icon: Ban, title: 'Cancelar tarefa', desc: 'Permite cancelar itens no refinamento', tab: 'votacao', value: !!cancelTask, key: 'cancelTask', visible: showRoundFeatures },
     { id: 'park-task', icon: Hourglass, title: 'Adiar tarefa', desc: 'Volta o item pro fim da fila', tab: 'votacao', value: !!parkTask, key: 'parkTask', visible: showRoundFeatures },
     { id: 'auto-reveal', icon: Eye, title: 'Revelar automaticamente', desc: 'Quando todos votarem', tab: 'revelacao', value: !!autoReveal, key: 'autoReveal', visible: showAutoReveal },
+    { id: 'blind-votes', icon: ShieldCheck, title: 'Votos às cegas', desc: 'Servidor só entrega os votos dos outros na revelação', tab: 'revelacao', value: !!blindVotes, key: 'blindVotes' },
     { id: 'anonymous-reveal', icon: Eye, title: 'Revelação anônima', desc: 'Esconde quem votou o quê', tab: 'revelacao', value: !!anonymousReveal, key: 'anonymousReveal' },
     { id: 'outlier-prompt', icon: AlertTriangle, title: 'Explicar votos extremos', desc: 'Destaca maior e menor', tab: 'revelacao', value: !!outlierPrompt, key: 'outlierPrompt' },
     { id: 'show-distribution', icon: BarChart3, title: 'Histograma de votos', desc: 'Distribuição por valor', tab: 'revelacao', value: !!showDistribution, key: 'showDistribution' },
@@ -273,6 +278,21 @@ export function FacilitatorPanel({
 
         <TabsContent value="revelacao" className={gridCls}>
           {visibleDefs.filter(d => d.tab === 'revelacao').map(renderToggle)}
+          <div className="md:col-span-2 p-3 rounded-2xl border border-slate-100 dark:border-border/40 bg-slate-50 dark:bg-slate-900/40 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <Label htmlFor="rounding-mode" className="text-[13px] font-bold text-slate-800 dark:text-foreground tracking-tight italic block">Arredondamento da média</Label>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Como a média dos votos vira o valor salvo</p>
+            </div>
+            <Select value={roundingMode ?? 'up'} onValueChange={(v) => onUpdateSettings({ roundingMode: v as 'up' | 'nearest' | 'down' | 'deck' })}>
+              <SelectTrigger id="rounding-mode" aria-label="Arredondamento da média" className="h-9 w-48 rounded-xl border-slate-200 dark:border-border bg-white dark:bg-card font-bold text-xs shrink-0"><SelectValue /></SelectTrigger>
+              <SelectContent className="rounded-xl font-bold">
+                <SelectItem value="up">Para cima (padrão)</SelectItem>
+                <SelectItem value="nearest">Mais próximo</SelectItem>
+                <SelectItem value="down">Para baixo</SelectItem>
+                <SelectItem value="deck">Carta mais próxima</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {deck === 'hours' && showDivergence && (
             <div className="md:col-span-2 p-3 rounded-2xl border border-slate-100 dark:border-border/40 bg-slate-50 dark:bg-slate-900/40 space-y-3">
               <div className="flex items-center gap-2.5">

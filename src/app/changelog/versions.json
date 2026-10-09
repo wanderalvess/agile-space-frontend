@@ -1,5 +1,26 @@
 [
   {
+    "tag": "v4.20.0",
+    "date": "9 de Outubro, 2026",
+    "title": "Scrum Poker mais confiável: sala que reconecta, votos que não se perdem e arredondamento configurável",
+    "description": "Correções de uma revisão completa do Scrum Poker, na tela e no servidor, mais duas opções novas para o facilitador.",
+    "changes": [
+      "A sala reconecta sozinha depois de uma queda de rede e se ressincroniza (sala, votos, participantes e chat). Antes ela ficava congelada até recarregar a página.",
+      "Presença corrigida: quem está online deixa de aparecer como ausente depois de um minuto, o contador \"X de Y votaram\" volta a ser fiel e quem fechou a aba não trava a revelação automática.",
+      "O voto aparece na hora e volta ao valor anterior, com aviso, se não for gravado. Mudar a confiança não apaga mais seu nome, papel nem a tarefa do voto, e não reverte a carta que você acabou de trocar.",
+      "Revelar não duplica mais a rodada no histórico (clicar de novo, revelação automática em vários navegadores ou nova tentativa). Pular e cancelar tarefa gravam a sala primeiro, e falhas agora aparecem na tela em vez de ficarem só no console.",
+      "O cronômetro automático não reinicia mais quando o facilitador recarrega ou reabre a sala.",
+      "Sala assíncrona: cada pessoa tem um voto por tarefa (antes votar na segunda tarefa apagava o voto da primeira) e limpar uma tarefa só limpa os votos dela.",
+      "Revotação seletiva, remover participante e trocar o tópico funcionam para qualquer facilitador, não só para administradores. Se algum voto não puder ser removido, a tela avisa.",
+      "Estimativa final: \"?\" e café sozinhos não salvam mais \"0\" nem mandam 0 para o Jira; camisetas (\"M\") deixam de enviar valor inválido ao Jira, e uma falha ao gravar o ponto no item agora é avisada em vez de dizer \"Estimativa Salva!\". Camisetas somam só votos elegíveis, como o resumo.",
+      "Nova opção do facilitador, \"Arredondamento da média\": para cima (padrão, igual ao de sempre), mais próximo, para baixo ou carta mais próxima do baralho. Salas existentes continuam arredondando para cima. Votos em tamanho de camiseta sem equivalência passam a ser sinalizados no resumo.",
+      "Nova opção do facilitador, \"Votos às cegas\" (desligada por padrão): o servidor só entrega o valor dos votos dos outros depois da revelação, o que impede ver o número pelas ferramentas do navegador.",
+      "Importação do Jira: o aviso conta só as tarefas que entraram de fato, duplicadas (inclusive em caixa diferente ou repetidas no próprio lote) são ignoradas, o tipo \"Build/Requirement\" deixa de virar Design e o campo de pontos do XML não pega mais as horas estimadas.",
+      "Chat da sala: não recarrega todos os canais a cada mudança de participante e não perde mensagens que chegaram durante a carga. Acessibilidade: botões de ícone e de confiança com rótulos, e as teclas de voto não disparam com um diálogo aberto.",
+      "Servidor: só participantes votam, reagem ou gravam rodadas; o voto precisa ser de uma carta do baralho e só vale antes da revelação; reações não podem ser forjadas em nome de outra pessoa; assumir o controle da sala só é possível se o organizador sumiu; a entrada na sala registra o participante sem conflito; os avisos em tempo real saem só depois da gravação e o envio por WebSocket não derruba os demais ouvintes."
+    ]
+  },
+  {
     "tag": "v4.19.0",
     "date": "9 de Outubro, 2026",
     "title": "Review mais confiável: edições não se perdem e a decisão do PO é garantida",

@@ -46,7 +46,7 @@ interface AsyncPokerRoomProps {
   roomTeam?: string;
   issuesQueue: Issue[];
   onAddIssue: (title: string, jiraLink?: string) => void;
-  onBulkAddIssues: (items: Partial<Issue>[]) => void;
+  onBulkAddIssues: (items: Partial<Issue>[]) => number | void;
   onDeleteIssue: (id: string) => void;
   onCompleteIssue: (issueId: string, points: string, devPoints?: string, qaPoints?: string, rolePoints?: Record<string, string>) => void;
   onLeaveRoom: () => void;

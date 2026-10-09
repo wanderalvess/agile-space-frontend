@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import type { Vote, Participant, DeckType, TshirtEquivalent } from '@/lib/types';
 import { TSHIRT_UNIT_LABELS } from '@/lib/types';
-import { getParticipantCategory, TECHNICAL_CATEGORIES, calculateRoleEfforts, TechnicalCategory, formatRoleForCopy, getEligibleStatsVotes, resolveTshirtHours } from '@/lib/poker-utils';
+import { getParticipantCategory, TECHNICAL_CATEGORIES, calculateRoleEfforts, TechnicalCategory, formatRoleForCopy, getEligibleStatsVotes, resolveTshirtHours, roundEstimate, type RoundingMode } from '@/lib/poker-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, Trophy, Copy, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ interface ResultsProps {
   // usada quando deck === 'tshirt'. Presente = resultado calculado de verdade
   // (média em horas). Ausente = comportamento histórico (moda).
   tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>;
+  // Como a média vira inteiro (configuração do facilitador). Padrão: para cima.
+  roundingMode?: RoundingMode;
 }
 
 // Estouro de partículas (uma vez) quando o time fecha em consenso pleno.
@@ -44,7 +46,7 @@ function ConsensusBurst() {
   );
 }
 
-export function Results({ votes, participants, deck, allowManagementToVote = false, tshirtEquivalents }: ResultsProps) {
+export function Results({ votes, participants, deck, allowManagementToVote = false, tshirtEquivalents, roundingMode = 'up' }: ResultsProps) {
   const { toast } = useToast();
 
   const stats = useMemo(() => {
@@ -61,7 +63,7 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
     let avg = 'N/A', min = 'N/A', max = 'N/A';
     let tshirtNumeric = false;
 
-    const efforts = calculateRoleEfforts(votes, participants, deck, tshirtEquivalents);
+    const efforts = calculateRoleEfforts(votes, participants, deck, tshirtEquivalents, roundingMode);
     const totalHours = efforts.totalPoints;
 
     const T_SHIRT_ORDER = ['PP', 'P', 'M', 'G', 'GG'];
@@ -77,7 +79,7 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
         if (numericTshirtVotes.length > 0) {
           tshirtNumeric = true;
           const sum = numericTshirtVotes.reduce((acc, val) => acc + val, 0);
-          avg = String(Math.ceil(sum / numericTshirtVotes.length));
+          avg = String(roundEstimate(sum / numericTshirtVotes.length, roundingMode, deck));
           min = String(Math.min(...numericTshirtVotes));
           max = String(Math.max(...numericTshirtVotes));
         } else {
@@ -102,15 +104,20 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
       } else {
         if (numericVotes.length > 0) {
           const sum = numericVotes.reduce((acc, val) => acc + val, 0);
-          avg = String(Math.ceil(sum / numericVotes.length));
+          avg = String(roundEstimate(sum / numericVotes.length, roundingMode, deck));
           min = String(Math.min(...numericVotes));
           max = String(Math.max(...numericVotes));
         }
       }
     }
 
-    return { consensus, avg, min, max, rolePoints: efforts.rolePoints, totalHours, tshirtNumeric };
-  }, [votes, deck, participants, allowManagementToVote, tshirtEquivalents]);
+    // Camisetas com equivalência parcial: votos em tamanho sem equivalência não entram na média.
+    const unmappedTshirt = deck === 'tshirt' && tshirtNumeric
+      ? allVoteValues.filter(v => v !== '?' && v !== '☕' && isNaN(resolveTshirtHours(v, tshirtEquivalents))).length
+      : 0;
+
+    return { consensus, avg, min, max, rolePoints: efforts.rolePoints, totalHours, tshirtNumeric, unmappedTshirt };
+  }, [votes, deck, participants, allowManagementToVote, tshirtEquivalents, roundingMode]);
 
   const votesByCategory = useMemo(() => {
     const participantMap = new Map(participants.map(p => [p.id, p]));
@@ -167,14 +174,14 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
         const vals = categoryData.votes;
         const nums = vals.map(Number).filter(n => !isNaN(n));
         if (nums.length > 0) {
-          categoryData.resultValue = String(Math.ceil(nums.reduce((a, b) => a + b, 0) / nums.length));
+          categoryData.resultValue = String(roundEstimate(nums.reduce((a, b) => a + b, 0) / nums.length, roundingMode, deck));
           categoryData.resultLabel = 'MÉDIA';
         }
       }
     });
 
     return result;
-  }, [votes, participants, deck, stats.rolePoints, stats.tshirtNumeric]);
+  }, [votes, participants, deck, stats.rolePoints, stats.tshirtNumeric, roundingMode]);
 
   const handleCopyResults = () => {
     const parts: string[] = [];
@@ -274,6 +281,16 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
             </div>
           </div>
 
+          {stats.unmappedTshirt > 0 && (
+            <p className="mt-2 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+              {stats.unmappedTshirt} voto{stats.unmappedTshirt > 1 ? 's' : ''} em tamanho sem equivalência ficou fora da média.
+            </p>
+          )}
+          {deck === 'fibonacci' && stats.totalHours !== '0' && stats.totalHours !== stats.avg && (
+            <p className="mt-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              Ao salvar, vale a soma das médias por papel: {stats.totalHours}.
+            </p>
+          )}
           {stats.consensus && (
             <div className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest">
               <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> Sincronia máxima atingida

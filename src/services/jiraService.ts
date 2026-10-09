@@ -531,7 +531,8 @@ export const parseJiraXml = (xmlText: string): JiraIssue[] => {
       let points = 0;
       item.querySelectorAll('customfield').forEach((cf) => {
         const cfName = cf.querySelector('customfieldname')?.textContent?.toLowerCase() || '';
-        if (cfName.includes('story point') || cfName.includes('pontos') || cfName.includes('estimate')) {
+        // "Original/Remaining Estimate" são horas, não pontos — só campos de pontos de história.
+        if (/story\s*points?|pontos?\b|\bestimate\b/.test(cfName) && !/original|remaining|restante|time|tempo/.test(cfName)) {
           const val = parseFloat(cf.querySelector('customfieldvalue')?.textContent || '0');
           if (!isNaN(val)) points = val;
         }

@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Participant, DeckType, Vote, VotingRound, TimerState, Role, Issue, Room } from '@/lib/types';
-import { calculateRoleEfforts, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming } from '@/lib/poker-utils';
+import { calculateRoleEfforts, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
 import { Logo } from '@/components/Logo';
 import { ParticipantList } from '@/components/poker/ParticipantList';
 import { Toolbar } from './Toolbar';
@@ -152,7 +152,7 @@ interface PokerRoomProps {
   sessionStartedAt?: string;
   sessionEndedAt?: string;
   onAddIssue: (title: string, jiraLink?: string, type?: Issue['type'], extraData?: Partial<Issue>) => void;
-  onBulkAddIssues: (items: Partial<Issue>[]) => void;
+  onBulkAddIssues: (items: Partial<Issue>[]) => number | void;
   onSelectIssue: (issueId: string, autoSavePoints?: { points: string; devPoints?: string; qaPoints?: string }) => void;
   onDeleteIssue: (issueId: string) => void;
   onCompleteIssue: (points: string, devPoints?: string, qaPoints?: string, rolePoints?: Record<string, string>) => void;
@@ -506,11 +506,13 @@ const PokerRoomComponent = ({
     }
   };
 
+  const roundingMode = resolveRoundingMode(settings?.roundingMode);
+
   const getCalculatedPoints = () => {
     if (votes.length === 0) return null;
 
     if (deck === 'hours' || deck === 'fibonacci' || !deck) {
-      const result = calculateRoleEfforts(votes, participants, deck || 'fibonacci');
+      const result = calculateRoleEfforts(votes, participants, deck || 'fibonacci', undefined, roundingMode);
       return {
         points: result.totalPoints,
         devPoints: result.devPoints,
@@ -522,14 +524,17 @@ const PokerRoomComponent = ({
       // FINAL salva na issue ficava presa na moda mesmo quando o card já
       // mostrava a média real em horas (inconsistência entre o que se vê e
       // o que se salva).
-      const numericVals = votes
+      // Só votos elegíveis (sem gestão/espectador), igual ao que o resumo da revelação mostra.
+      const eligible = getEligibleStatsVotes(votes, participants, settings?.allowManagementToVote);
+      const numericVals = eligible
         .map(v => resolveTshirtHours(v.value, settings?.tshirtEquivalents))
         .filter(n => !isNaN(n));
       if (numericVals.length > 0) {
-        const avg = Math.ceil(numericVals.reduce((a, b) => a + b, 0) / numericVals.length);
+        const avg = roundEstimate(numericVals.reduce((a, b) => a + b, 0) / numericVals.length, roundingMode, deck);
         return { points: String(avg) };
       }
-      const allVoteValues = votes.map(v => v.value);
+      const allVoteValues = eligible.map(v => v.value).filter(v => v !== '?' && v !== '☕');
+      if (allVoteValues.length === 0) return null;
       const voteCounts = allVoteValues.reduce((acc, value) => { acc[value] = (acc[value] || 0) + 1; return acc; }, {} as Record<string, number>);
       const points = Object.keys(voteCounts).reduce((a, b) => voteCounts[a] > voteCounts[b] ? a : b);
       return { points };
@@ -540,9 +545,17 @@ const PokerRoomComponent = ({
 
   const handleCalculateAndComplete = () => {
     const result = getCalculatedPoints() as any;
-    if (result) {
-      onCompleteIssue(result.points, result.devPoints, result.qaPoints, result.rolePoints);
+    // Só "?" / café (ou só gestão) não é estimativa: salvar "0" apagaria a informação de que ninguém estimou.
+    const hasNumericVote = votes.some(v => v.value !== '?' && v.value !== '☕');
+    if (!result || !hasNumericVote || (deck !== 'tshirt' && Number(result.points) === 0 && !votes.some(v => Number(v.value) === 0))) {
+      toast({
+        title: 'Sem estimativa para salvar',
+        description: 'Os votos são "?" ou café, ou só de gestão. Reabra a votação, pule ou adie a tarefa.',
+        variant: 'destructive',
+      });
+      return;
     }
+    onCompleteIssue(result.points, result.devPoints, result.qaPoints, result.rolePoints);
   };
 
   // Consenso pleno (todos os votos elegíveis iguais) e divergência crítica —
@@ -839,6 +852,8 @@ const PokerRoomComponent = ({
                 onClick={() => setIsQueueOpen(!isQueueOpen)}
                 className={cn("h-9 w-9 rounded-xl transition-all shrink-0", isQueueOpen ? "text-primary bg-primary/10 dark:text-primary dark:bg-primary/20" : "text-slate-400 dark:text-muted-foreground")}
                 title="Fila de Tarefas"
+                aria-label="Fila de tarefas"
+                aria-pressed={isQueueOpen}
               >
                 <ListChecks className="h-4 w-4" />
               </Button>
@@ -848,6 +863,8 @@ const PokerRoomComponent = ({
                 onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
                 className={cn("h-9 w-9 rounded-xl transition-all shrink-0", isParticipantsOpen ? "text-primary bg-primary/10 dark:text-primary dark:bg-primary/20" : "text-slate-400 dark:text-muted-foreground")}
                 title="Participantes"
+                aria-label="Participantes"
+                aria-pressed={isParticipantsOpen}
               >
                 <Users className="h-4 w-4" />
               </Button>
@@ -863,6 +880,7 @@ const PokerRoomComponent = ({
                     onClick={() => setIsTheaterMode(!isTheaterMode)}
                     className={cn("h-9 w-9 rounded-xl transition-all", isTheaterMode ? "text-pink-600 bg-pink-50 dark:text-pink-400 dark:bg-pink-950/20" : "text-slate-400 dark:text-muted-foreground")}
                     title={isTheaterMode ? "Sair do Modo Apresentação" : "Modo Apresentação"}
+                    aria-label={isTheaterMode ? "Sair do modo apresentação" : "Modo apresentação"}
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
@@ -875,6 +893,7 @@ const PokerRoomComponent = ({
                     onClick={() => setIsFacilitatorSettingsOpen(true)}
                     className={cn("h-9 w-9 rounded-xl transition-all", isFacilitatorSettingsOpen ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/20" : "text-slate-400 dark:text-muted-foreground")}
                     title="Configurações da Cerimônia"
+                    aria-label="Configurações da cerimônia"
                   >
                     <Settings className="h-4 w-4" />
                   </Button>
@@ -901,6 +920,7 @@ const PokerRoomComponent = ({
                   onClick={toggleKnowledgeChat}
                   className={cn("h-9 w-9 rounded-xl transition-all", isChatOpen ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/20" : "text-slate-400 dark:text-muted-foreground")}
                   title="Base de Conhecimento"
+                  aria-label="Base de conhecimento"
                 >
                   <Sparkles className="h-4 w-4" />
                 </Button>
@@ -1314,6 +1334,8 @@ const PokerRoomComponent = ({
                                 autoConsensus={settings?.autoConsensus}
                                 suggestRevote={settings?.suggestRevote}
                                 reactions={settings?.reactions}
+                                roundingMode={settings?.roundingMode}
+                                blindVotes={settings?.blindVotes}
                                 groupVotesByRole={settings?.groupVotesByRole}
                                 referenceStory={settings?.referenceStory}
                                 roundNudge={settings?.roundNudge}
@@ -1657,7 +1679,7 @@ const PokerRoomComponent = ({
                     </div>
                   )}
                   <div className="bg-card/90 backdrop-blur-xl p-4 md:p-6 rounded-[2rem] border border-white/20 shadow-xl">
-                    <Results votes={votes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} tshirtEquivalents={settings?.tshirtEquivalents} />
+                    <Results votes={votes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} tshirtEquivalents={settings?.tshirtEquivalents} roundingMode={roundingMode} />
                   </div>
                   {settings?.showDistribution && (
                     <VoteDistribution votes={votes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} />

@@ -1,4 +1,4 @@
-import { Participant, Vote, DeckType, Role, GlobalRole, IssueType, TshirtEquivalent, TSHIRT_UNIT_HOURS, VotingRound, Issue } from './types';
+import { DECKS, Participant, Vote, DeckType, Role, GlobalRole, IssueType, TshirtEquivalent, TSHIRT_UNIT_HOURS, VotingRound, Issue } from './types';
 
 /**
  * Configurações que uma sala NOVA já nasce com ligadas. Antes tudo nascia
@@ -28,6 +28,42 @@ export const DEFAULT_ROOM_SETTINGS = {
   confidenceVote: true,
   outlierPrompt: true,
 } as const;
+
+/**
+ * Como a média dos votos vira o valor salvo. 'up' (padrão, sempre foi assim) arredonda para cima;
+ * 'nearest' para o inteiro mais próximo; 'down' para baixo; 'deck' para a carta mais próxima do
+ * baralho da sala (empate vai para a carta maior). Opt-in do facilitador: sala sem a opção = 'up'.
+ */
+export type RoundingMode = 'up' | 'nearest' | 'down' | 'deck';
+export const ROUNDING_MODES: readonly RoundingMode[] = ['up', 'nearest', 'down', 'deck'];
+
+export function resolveRoundingMode(value?: string | null): RoundingMode {
+  return (ROUNDING_MODES as readonly string[]).includes(value || '') ? (value as RoundingMode) : 'up';
+}
+
+export function roundEstimate(value: number, mode: RoundingMode = 'up', deck?: DeckType): number {
+  if (!isFinite(value)) return value;
+  switch (mode) {
+    case 'nearest':
+      return Math.round(value);
+    case 'down':
+      return Math.floor(value);
+    case 'deck': {
+      const cards = (deck ? DECKS[deck] : [])
+        .map(Number)
+        .filter(n => !isNaN(n))
+        .sort((a, b) => a - b);
+      if (cards.length === 0) return Math.ceil(value);
+      let best = cards[0];
+      for (const c of cards) {
+        if (Math.abs(c - value) <= Math.abs(best - value)) best = c;
+      }
+      return best;
+    }
+    default:
+      return Math.ceil(value);
+  }
+}
 
 export type TopicTimingRow = {
   title: string;
@@ -204,7 +240,7 @@ export function resolveTshirtHours(
 export function mapJiraTypeToIssueType(jiraType?: string): IssueType {
   const t = (jiraType || '').toLowerCase();
   if (t.includes('bug') || t.includes('defect')) return 'qa';
-  if (t.includes('design') || t.includes('ux') || t.includes('ui')) return 'design';
+  if (t.includes('design') || /\b(ux|ui)\b/.test(t)) return 'design';
   if (t.includes('story') || t.includes('história') || t.includes('historia') || t.includes('task') || t.includes('tarefa') || t.includes('sub')) return 'dev';
   return 'other';
 }
@@ -325,7 +361,8 @@ export function calculateRoleEfforts(
   votes: Vote[],
   participants: Participant[],
   deck: DeckType,
-  tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>
+  tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>,
+  rounding: RoundingMode = 'up'
 ) {
   const participantMap = new Map(participants.map(p => [p.id, p]));
   const categoryVotes: Record<string, number[]> = {};
@@ -364,7 +401,7 @@ export function calculateRoleEfforts(
 
   Object.entries(categoryVotes).forEach(([category, values]) => {
     if (values.length > 0) {
-      const avg = Math.ceil(values.reduce((a, b) => a + b, 0) / values.length);
+      const avg = roundEstimate(values.reduce((a, b) => a + b, 0) / values.length, rounding, deck);
       rolePoints[category] = String(avg);
       totalSum += avg;
     }

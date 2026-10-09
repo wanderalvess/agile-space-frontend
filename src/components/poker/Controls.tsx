@@ -280,13 +280,15 @@ export function Controls({
     // isSessionNotStarted também bloqueia o atalho: sem isso dava pra votar
     // pelo teclado com o baralho escondido.
     if (!canVote || votesRevealed || isWaitingSelectiveRevote || isSessionNotStarted) return;
+    // Diálogos abertos (configurações, notas) não podem virar voto por tecla digitada.
+    const dialogOpen = () => !!document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]');
     const values = deckValues;
     let buffer = '';
     let timer: ReturnType<typeof setTimeout> | undefined;
     const reset = () => { buffer = ''; if (timer) clearTimeout(timer); };
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey || dialogOpen()) return;
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable) return;
@@ -552,6 +554,8 @@ export function Controls({
                 ] as const).map(opt => (
                   <button
                     key={opt.key}
+                    type="button"
+                    aria-pressed={currentUserConfidence === opt.key}
                     onClick={() => onSetConfidence(opt.key)}
                     className={cn(
                       'px-3 h-8 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
