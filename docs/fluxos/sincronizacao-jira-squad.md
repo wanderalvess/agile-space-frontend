@@ -57,7 +57,7 @@ Disparar: membro da squad (ou nova squad, primeiro uso). Configurar a JQL/domín
 
 ## Dados persistidos
 
-Squad (estado do sync, sprint ativa, histórico), issues, rollup, horas por pessoa, foto do dia, cache de worklog, roster semeado por responsável (pulando quem a liderança removeu à mão: tabela de exclusões, V46). Migrations: V13–V17 e V26–V29 (modelo), **V45** (índices), **V46** (exclusões do roster).
+Squad (estado do sync, sprint ativa, histórico), issues, rollup, horas por pessoa, foto do dia, cache de worklog, roster semeado por responsável (pulando quem a liderança removeu à mão: tabela de exclusões, V46; a mesma checagem vale na importação de quadro, na reimportação Profields e no join). Migrations: V13–V17 e V26–V29 (modelo), **V45** (índices), **V46** (exclusões do roster).
 
 ## Pontos frágeis e erros conhecidos
 

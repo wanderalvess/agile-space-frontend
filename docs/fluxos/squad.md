@@ -94,7 +94,7 @@ Na tela `/squad/roster`, os botões "Adicionar Integrante", a lixeira e o seleto
 
 - **Adicionar:** digitar o e-mail procura contas existentes (3+ letras); escolher uma já entra com acesso (a conta é vinculada à linha). Sem conta, é pré-cadastro por nome (e e-mail opcional) e vale quando a pessoa entrar com esse e-mail. Cria a linha do roster **e** o papel no cadastro do projeto (é o que dá ou não liderança). Pessoa já no time dá 409.
 - **Mudar o papel:** atualiza roster e cadastro do projeto juntos; liderança acompanha o papel (PO e Tech Lead são liderança; Developer/QA/Designer/UX/SME/Stakeholder não). O papel não muda mais pelo salvar genérico da linha.
-- **Remover:** apaga a linha e o papel no projeto, solta a conta da squad (`squadId`/projeto padrão) **sem apagar a conta** e grava uma *exclusão* (`squad_member_exclusions`, V46). O sync do Jira não recoloca no roster quem tem exclusão; adicionar de novo limpa a exclusão.
+- **Remover (exclusão):** apaga a linha e o papel no projeto, solta a conta da squad (`squadId`/projeto padrão) **sem apagar a conta** e grava uma *exclusão* (`squad_member_exclusions`, V46). O sync do Jira, a importação de quadro (`JiraAdminService`), a reimportação Profields e o "entrar na equipe" por conta própria não recolocam quem tem exclusão (a pessoa removida vê a mensagem para pedir ao AM/PL); adicionar de novo limpa a exclusão.
 - Nunca mexe em `User.role` (autorização global).
 
 ## Dados persistidos (negócio)
@@ -111,7 +111,7 @@ Corrigidos em 2026-10-09 (para contexto): escrita aberta a qualquer membro; auto
 - **Painéis JQL custom ficam só no navegador.** A opção "Toda a Squad" não compartilha nada, embora o backend (`/panels`) e `useSquadPanelsStore` existam sem uso. A tela agora avisa; ligar ao servidor é feature nova (opt-in).
 - **Dois modelos de capacidade** (horas/dia × papel/dias/horas produtivas) sem integração; horas registradas somam o worklog inteiro da issue, não só a janela da sprint.
 - **Issue em sprint futura sem datas cai em `UNMAPPED`**; só o sync completo (a cada ~6 h) apaga issues que saíram da sprint.
-- **Roster não remove sozinho** quem saiu do Jira (a liderança remove à mão e o sync respeita; o importador de quadro de `JiraAdminService` e a reimportação Profields não consultam as exclusões e podem recolocar a pessoa); "Hora real" volta para 1 quando o campo é apagado; `sprintHours` do roster assume 10 dias úteis.
+- **Roster não remove sozinho** quem saiu do Jira (a liderança remove à mão e todo caminho automático respeita: sync, importação de quadro, reimportação Profields e entrar por conta própria; adicionar de novo à mão, por convite ou por planilha limpa a exclusão); "Hora real" volta para 1 quando o campo é apagado; `sprintHours` do roster assume 10 dias úteis.
 - **Quadro Scrum usa `localStorage`** para filtros/raias/WIP (não compartilhado entre pessoas).
 - **Duas instâncias do hook de dados** na mesma página (painel + seção de JQL) duplicam as requisições.
 - **Pessoa vê "o próprio painel" por nome/ID:** quem tem nome diferente do Jira não vê tarefas; a tela avisa para conferir o nome.

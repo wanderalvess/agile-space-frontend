@@ -1,5 +1,14 @@
 [
   {
+    "tag": "v4.22.6",
+    "date": "9 de Outubro, 2026",
+    "title": "Quem foi removido do time não volta sozinho",
+    "description": "Importações do Jira e o entrar na equipe por conta própria respeitam as remoções feitas pela liderança.",
+    "changes": [
+      "Quem o Agile Master ou o People Lead removeu do time não é recolocado pela sincronização, pela importação do quadro ou pela reimportação do Jira, nem consegue voltar sozinho; para voltar, a liderança adiciona a pessoa de novo."
+    ]
+  },
+  {
     "tag": "v4.22.5",
     "date": "9 de Outubro, 2026",
     "title": "Agile Master e People Lead cuidam das pessoas da própria equipe",
