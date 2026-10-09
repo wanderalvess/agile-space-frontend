@@ -106,7 +106,7 @@ Os eventos saem **depois do commit**. Ao reconectar o cliente **recarrega** quad
 | Votar / remover voto | Participante, fase `active` |
 | Resetar votação, alterar fase/revelação/timer/colunas/configurações | Facilitador, admin (`PATCH /api/retros/{id}`) |
 | `participantIds` no PATCH | Qualquer participante (entrada); a lista real vem de `/participants` |
-| Assumir controle | Qualquer participante (a flag de facilitador passa a ser só dele) |
+| Assumir controle | Participante **só com o facilitador ausente** (sem conexão aberta no quadro, com 45 s de tolerância para reconexão); admin sempre; quem já é facilitador não muda nada. Com o facilitador conectado a API responde 409. A flag de facilitador passa a ser só de quem assumiu |
 | Remover participante | O próprio, o facilitador ou admin |
 | Apagar quadro | Facilitador, admin |
 

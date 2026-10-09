@@ -28,10 +28,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 11. **Expulsão não é permanente** (não há lista de banidos).
 12. **Timer usa o relógio de cada navegador**; falta um relógio do servidor.
 
-## Acesso por link (inconsistente entre módulos; achado no teste ao vivo de 2026-10-09)
-
-48. ~~Retro: quem é de outra squad levava 403 ao abrir o link.~~ **Decidido e implementado em 2026-10-09:** o link dá acesso (Retro alinhada com Review e Poker). Brainstorming e Radar de Saúde já seguiam essa regra. Efeito colateral a decidir: **"assumir controle" é permitido a qualquer participante**, o que agora inclui quem entrou pelo link vindo de outra squad (49b: restringir a assumir só quando o facilitador está ausente, ou a participantes da squad?).
-
 ## Poker (`poker.md`)
 
 13. Leitura de sala, participantes, votos e rodadas aberta a qualquer autenticado, e WebSocket sem checar membro: fechar exige mudar o fluxo de entrada. **Confirmado ao vivo:** quem não está na sala não grava nem limpa nada, mas quem entra como participante (o link basta) consegue revelar e limpar os votos pela API.

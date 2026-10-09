@@ -1,5 +1,14 @@
 [
   {
+    "tag": "v4.22.3",
+    "date": "9 de Outubro, 2026",
+    "title": "Retrospectiva: assumir o controle só com o facilitador ausente",
+    "description": "Quem entra pelo link não toma mais o quadro de um facilitador que está na sala.",
+    "changes": [
+      "Retrospectiva: \"Assumir controle\" só funciona quando o facilitador não está conectado ao quadro (há uma pequena tolerância para quedas rápidas de conexão). Com ele presente, a tentativa é recusada com um aviso. Administradores continuam podendo assumir sempre."
+    ]
+  },
+  {
     "tag": "v4.22.2",
     "date": "9 de Outubro, 2026",
     "title": "Link de reunião mais seguro",
