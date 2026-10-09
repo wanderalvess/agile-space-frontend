@@ -1,4 +1,15 @@
-const TOKEN_STORAGE_KEY = 'agileSpace_auth_token';
+export const TOKEN_STORAGE_KEY = 'agileSpace_auth_token';
+const LAST_USER_STORAGE_KEY = 'agileSpace_lastUserId';
+/** Chaves do localStorage que descrevem a sessão de UMA pessoa (equipe ativa, perfil em cache, fluxo de onboarding). */
+const USER_SCOPED_KEYS = [
+  'agileSpace_guest_profile',
+  'agileSpace_public_exploration',
+  'agileSpace_activeSquadId',
+  'agileSpace_justSignedUp',
+  'agileSpace_jiraSync_projectKey',
+  'agileSpace_projectEstimationUnit',
+];
+const USER_SCOPED_PREFIXES = ['favorites_', 'agileSpace_newSquad_', 'agileSpace_estimationUnit_'];
 export const UNAUTHORIZED_EVENT = 'agile-space:unauthorized';
 
 export interface AuthResponse {
@@ -30,6 +41,20 @@ export interface AuthResponse {
   }>;
 }
 
+/** Lê o `sub` (id da conta) do JWT só para comparar sessões entre abas; não valida assinatura. */
+export function tokenUserId(token: string | null | undefined): string | null {
+  if (!token) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const sub = JSON.parse(json)?.sub;
+    return typeof sub === 'string' ? sub : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -43,6 +68,39 @@ export function setAuthToken(token: string) {
 export function clearAuthToken() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(TOKEN_STORAGE_KEY);
+}
+
+/**
+ * Apaga o que o navegador guardou sobre a pessoa que estava logada (equipe ativa, perfil em cache...),
+ * para que a próxima conta no mesmo navegador não herde nada. Preferências do aparelho (tema, som) ficam.
+ */
+export function clearUserScopedStorage() {
+  if (typeof window === 'undefined') return;
+  try {
+    const toRemove: string[] = [...USER_SCOPED_KEYS, LAST_USER_STORAGE_KEY];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && USER_SCOPED_PREFIXES.some((prefix) => key.startsWith(prefix))) toRemove.push(key);
+    }
+    toRemove.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* storage indisponível (modo privado): nada a limpar */
+  }
+}
+
+/**
+ * Chamado depois de um login/cadastro: se quem entrou não é quem usou o navegador por último,
+ * descarta o que sobrou da conta anterior antes de a nova sessão ser montada.
+ */
+export function rememberSessionUser(userId: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    const previous = localStorage.getItem(LAST_USER_STORAGE_KEY);
+    if (previous && previous !== userId) clearUserScopedStorage();
+    localStorage.setItem(LAST_USER_STORAGE_KEY, userId);
+  } catch {
+    /* storage indisponível */
+  }
 }
 
 /**

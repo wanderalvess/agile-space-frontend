@@ -6,9 +6,16 @@ import {
   getAuthToken,
   setAuthToken,
   clearAuthToken,
+  clearUserScopedStorage,
+  rememberSessionUser,
+  TOKEN_STORAGE_KEY,
+  tokenUserId,
   UNAUTHORIZED_EVENT,
   type AuthResponse,
 } from '@/lib/auth-client';
+
+/** Tempo máximo esperando o backend responder na abertura do app; passado isso o spinner não pode ficar eterno. */
+const HYDRATE_TIMEOUT_MS = 15000;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SPRING_API_URL || 'http://localhost:8002/api';
 
@@ -56,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearAuthToken();
+    clearUserScopedStorage();
     setSession(null);
   }, []);
 
@@ -67,21 +75,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    authFetch(`${API_BASE_URL}/auth/me`)
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), HYDRATE_TIMEOUT_MS);
+
+    authFetch(`${API_BASE_URL}/auth/me`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) {
-          clearAuthToken();
+          // Só 401/403 significam "token inválido". Erro 5xx (deploy, banco fora) não pode derrubar a
+          // sessão: o token fica guardado e recarregar a página depois que o servidor voltar restaura a sessão.
+          if (res.status === 401 || res.status === 403) clearAuthToken();
           setSession(null);
           return;
         }
         const data: AuthResponse = await res.json();
+        rememberSessionUser(data.id);
         setSession(data);
       })
       .catch(() => {
-        clearAuthToken();
+        // Rede fora ou tempo esgotado: mantém o token, só não há sessão agora.
         setSession(null);
       })
-      .finally(() => setIsLoading(false));
+      .finally(() => {
+        clearTimeout(timer);
+        setIsLoading(false);
+      });
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, []);
+
+  // Outra aba entrou, saiu ou trocou de conta: esta aba não pode continuar mostrando (e enviando) como a
+  // pessoa anterior. Recarregar refaz a sessão a partir do token que está guardado agora.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== TOKEN_STORAGE_KEY) return;
+      if (event.newValue === event.oldValue) return;
+      // Mesma pessoa entrando de novo em outra aba: nada a refazer aqui (e não perde o que está sendo digitado).
+      if (event.newValue && event.oldValue && tokenUserId(event.newValue) === tokenUserId(event.oldValue)) return;
+      window.location.reload();
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   // Reage a 401s vindos de qualquer chamada autenticada (token expirado/inválido)
@@ -101,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(await parseErrorMessage(res, 'E-mail ou senha incorretos'));
     }
     const data: AuthResponse = await res.json();
+    rememberSessionUser(data.id);
     setAuthToken(data.token);
     setSession(data);
     return data;
@@ -116,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(await parseErrorMessage(res, 'Não foi possível concluir o cadastro'));
     }
     const data: AuthResponse = await res.json();
+    rememberSessionUser(data.id);
     setAuthToken(data.token);
     setSession(data);
     return data;

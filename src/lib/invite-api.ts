@@ -16,12 +16,28 @@ export interface Invite {
   acceptedByUserId?: string | null;
 }
 
+/** Mensagem em português para mostrar à pessoa; o corpo cru do Spring ({"status":400,...}) não serve para isso. */
+export async function inviteErrorMessage(res: Response): Promise<string> {
+  let serverMessage = '';
+  try {
+    const body = await res.json();
+    serverMessage = typeof body?.message === 'string' ? body.message : typeof body?.error === 'string' ? body.error : '';
+  } catch {
+    /* corpo vazio ou não-JSON */
+  }
+  if (serverMessage && !/^(Bad Request|Forbidden|Not Found|Unauthorized)$/i.test(serverMessage)) return serverMessage;
+  if (res.status === 404) return 'Convite não encontrado. Confira o link com quem te convidou.';
+  if (res.status === 403) return 'Você não tem permissão para esta ação de convite.';
+  if (res.status === 401) return 'Sua sessão expirou. Entre novamente.';
+  return `Não foi possível concluir (erro ${res.status}).`;
+}
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  if (!res.ok) throw new Error(`Invite API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(await inviteErrorMessage(res));
   if (res.status === 204) return undefined as T;
   return res.json();
 }

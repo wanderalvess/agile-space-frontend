@@ -30,6 +30,17 @@ export default function InviteAcceptPage() {
       .finally(() => setIsFetching(false));
   }, [authLoading, session, token]);
 
+  // Convite que não está mais pendente (usado, revogado ou vencido) não oferece o botão de aceitar.
+  const unavailableReason = (() => {
+    if (!invite) return null;
+    if (invite.status === 'ACCEPTED') return 'Este convite já foi usado.';
+    if (invite.status === 'REVOKED') return 'Este convite foi cancelado por quem o enviou.';
+    if (invite.status === 'EXPIRED' || new Date(invite.expiresAt).getTime() < Date.now()) {
+      return 'Este convite expirou. Peça um novo link a quem te convidou.';
+    }
+    return null;
+  })();
+
   const handleAccept = async () => {
     setIsAccepting(true);
     try {
@@ -44,7 +55,7 @@ export default function InviteAcceptPage() {
   };
 
   if (authLoading) {
-    return <div className="p-8 text-center text-xs font-bold text-slate-400">Carregando...</div>;
+    return <div className="p-8 text-center text-xs font-bold text-slate-400" role="status">Carregando...</div>;
   }
 
   if (!session) {
@@ -87,6 +98,12 @@ export default function InviteAcceptPage() {
               <CardTitle className="text-lg font-black uppercase tracking-tight">Convite inválido</CardTitle>
               <CardDescription className="text-xs">{loadError}</CardDescription>
             </>
+          ) : unavailableReason ? (
+            <>
+              <AlertCircle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
+              <CardTitle className="text-lg font-black uppercase tracking-tight">Convite indisponível</CardTitle>
+              <CardDescription className="text-xs">{unavailableReason}</CardDescription>
+            </>
           ) : isFetching || !invite ? (
             <>
               <Loader2 className="h-10 w-10 text-indigo-500 mx-auto mb-2 animate-spin" />
@@ -102,7 +119,7 @@ export default function InviteAcceptPage() {
             </>
           )}
         </CardHeader>
-        {invite && !loadError && !accepted && (
+        {invite && !loadError && !accepted && !unavailableReason && (
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-center justify-center gap-2">
               <Badge variant="outline" className="text-xs font-bold">Squad: {invite.squadId}</Badge>
