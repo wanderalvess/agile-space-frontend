@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
+import { normalizeHttpUrl, safeHref } from '@/lib/safe-url';
 interface QuickLinkData {
   id: string;
   name: string;
@@ -39,7 +40,8 @@ interface QuickLinkData {
 
 interface QuickLinksProps {
   links: QuickLinkData[];
-  onAddLink: (name: string, url: string, iconType: string, color: string) => void;
+  /** Devolve true quando salvou; em falha o diálogo continua aberto com o que foi digitado. */
+  onAddLink: (name: string, url: string, iconType: string, color: string) => Promise<boolean | void> | boolean | void;
   onDeleteLink: (id: string) => void;
 }
 
@@ -70,16 +72,28 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
   const [selectedIcon, setSelectedIcon] = useState('globe');
   const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0].class);
 
-  const handleAddLink = () => {
-    if (!newName || !newUrl) return;
-    
-    const url = newUrl.startsWith('http') ? newUrl : `https://${newUrl}`;
-    
-    onAddLink(newName, url, selectedIcon, selectedColor);
+  const [urlError, setUrlError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    setNewName('');
-    setNewUrl('');
-    setIsAddOpen(false);
+  const handleAddLink = async () => {
+    if (!newName.trim() || !newUrl.trim() || isSubmitting) return;
+
+    const url = normalizeHttpUrl(newUrl);
+    if (!url) {
+      setUrlError('Informe um endereço válido, como jira.suaempresa.com/board.');
+      return;
+    }
+    setUrlError('');
+    setIsSubmitting(true);
+    try {
+      const ok = await onAddLink(newName.trim(), url, selectedIcon, selectedColor);
+      if (ok === false) return;
+      setNewName('');
+      setNewUrl('');
+      setIsAddOpen(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
@@ -123,10 +137,12 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">URL (Endereço)</Label>
                   <Input 
                     value={newUrl} 
-                    onChange={(e) => setNewUrl(e.target.value)} 
+                    onChange={(e) => { setNewUrl(e.target.value); setUrlError(''); }} 
                     placeholder="Ex: jira.suaempresa.com/board" 
+                    aria-invalid={!!urlError}
                     className="h-11 rounded-xl font-medium border-border bg-background focus-visible:ring-primary/20" 
                   />
+                  {urlError && <p role="alert" className="text-xs font-medium text-destructive ml-1">{urlError}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -136,6 +152,8 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                       <button
                         key={key}
                         type="button"
+                        aria-label={`Ícone ${key}`}
+                        aria-pressed={selectedIcon === key}
                         onClick={() => setSelectedIcon(key)}
                         className={cn(
                           "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
@@ -155,6 +173,8 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                       <button
                         key={color.name}
                         type="button"
+                        aria-label={`Cor ${color.name}`}
+                        aria-pressed={selectedColor === color.class}
                         onClick={() => setSelectedColor(color.class)}
                         className={cn(
                           "w-7 h-7 rounded-full border-2 transition-all",
@@ -169,7 +189,7 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
               <DialogFooter>
                 <Button 
                   onClick={handleAddLink} 
-                  disabled={!newName.trim() || !newUrl.trim()}
+                  disabled={!newName.trim() || !newUrl.trim() || isSubmitting}
                   className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-xs uppercase tracking-wider shadow-md shadow-primary/20"
                 >
                   Salvar Atalho
@@ -187,7 +207,7 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
             return (
               <motion.a
                 key={link.id}
-                href={link.url}
+                href={safeHref(link.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ y: -2 }}
@@ -210,8 +230,9 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
                   variant="ghost"
                   size="icon"
                   onClick={(e) => handleDelete(e, link.id)}
-                  className="absolute top-3 right-3 h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-90"
+                  className="absolute top-3 right-3 h-7 w-7 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-90"
                   title="Excluir atalho"
+                  aria-label={`Excluir atalho ${link.name}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

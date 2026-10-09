@@ -89,7 +89,8 @@ export default function WorkspacePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
 
-  const effectiveUserId = userProfile?.id || userProfile?.email || session?.id || '';
+  // O servidor só aceita o próprio id do login na rota; ele vem primeiro.
+  const effectiveUserId = session?.id || userProfile?.id || userProfile?.email || '';
 
   // Authentication Guard & Page Title
   useEffect(() => {
@@ -118,7 +119,12 @@ export default function WorkspacePage() {
   const currentSquadId = session?.activeProjectId || userProfile?.squadId;
 
   useEffect(() => {
-    if (!effectiveUserId || !currentSquadId) return;
+    if (!effectiveUserId) return;
+    if (!currentSquadId) {
+      // Sem equipe não há o que buscar: sem isto a aba Histórico ficava carregando para sempre.
+      setIsLoadingHistory(false);
+      return;
+    }
     let cancelled = false;
 
     const fetchHistory = async () => {
@@ -136,6 +142,7 @@ export default function WorkspacePage() {
         setHealthHistory((healths || []).filter(isMine));
       } catch (e) {
         console.error(e);
+        if (!cancelled) toast({ title: 'Não foi possível carregar o histórico', description: 'Tente recarregar a página.', variant: 'destructive' });
       } finally {
         if (!cancelled) setIsLoadingHistory(false);
       }
@@ -168,6 +175,7 @@ export default function WorkspacePage() {
       setUserLinks(linksList || []);
     } catch (e) {
       console.error(e);
+      toast({ title: 'Não foi possível carregar o seu espaço', description: 'Verifique a conexão e recarregue a página.', variant: 'destructive' });
     } finally {
       setIsKanbanLoading(false);
       setIsNotesLoading(false);
@@ -216,15 +224,21 @@ export default function WorkspacePage() {
   }
 
   // Handlers Kanban
+  const reportError = (title: string, e: unknown) => {
+    console.error(e);
+    toast({ title, description: e instanceof Error ? e.message : 'Tente novamente.', variant: 'destructive' });
+  };
+
   const handleUpdateTaskStatus = async (id: string, newStatus: KanbanStatus) => {
     if (!effectiveUserId) return;
     triggerSavingIndicator();
     // Optimistic Update
     setCards(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
     try {
-      await workspaceApi.saveKanbanCard(effectiveUserId, { id, status: newStatus });
+      // Escrita parcial: só o status muda (antes ia um card incompleto e o servidor recusava).
+      await workspaceApi.patchKanbanCard(id, { status: newStatus });
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível mover a tarefa', e);
       loadWorkspaceData();
     }
   };
@@ -255,23 +269,30 @@ export default function WorkspacePage() {
   const handleSaveTask = async () => {
     if (!newTaskTitle.trim() || !effectiveUserId) return;
     triggerSavingIndicator();
-    const taskData = {
-      id: editingCardId || undefined,
-      title: newTaskTitle.trim(),
-      description: newTaskDescription.trim(),
-      status: newTaskStatus,
-      priority: newTaskPriority,
-      dueDate: newTaskDueDate ? newTaskDueDate : null,
-      tag: editingCardId ? 'Editado' : 'Manual',
-    };
-
     try {
-      await workspaceApi.saveKanbanCard(effectiveUserId, taskData as any);
+      if (editingCardId) {
+        // Edição parcial: preserva etiqueta, origem, prazo e exportação do card.
+        await workspaceApi.patchKanbanCard(editingCardId, {
+          title: newTaskTitle.trim(),
+          description: newTaskDescription.trim(),
+          status: newTaskStatus,
+          priority: newTaskPriority,
+        });
+      } else {
+        await workspaceApi.saveKanbanCard(effectiveUserId, {
+          title: newTaskTitle.trim(),
+          description: newTaskDescription.trim(),
+          status: newTaskStatus,
+          priority: newTaskPriority,
+          tag: 'Manual',
+        });
+      }
       loadWorkspaceData();
+      setIsTaskModalOpen(false);
     } catch (e) {
-      console.error(e);
+      // Mantém o diálogo aberto: o que foi digitado não se perde.
+      reportError('Não foi possível salvar a tarefa', e);
     }
-    setIsTaskModalOpen(false);
   };
 
   const handleDeleteTask = async () => {
@@ -280,10 +301,10 @@ export default function WorkspacePage() {
     try {
       await workspaceApi.deleteKanbanCard(editingCardId);
       loadWorkspaceData();
+      setIsTaskModalOpen(false);
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível excluir a tarefa', e);
     }
-    setIsTaskModalOpen(false);
   };
 
   // Handlers Sticky Notes
@@ -298,7 +319,7 @@ export default function WorkspacePage() {
       });
       loadWorkspaceData();
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível criar a nota', e);
     }
   };
 
@@ -308,9 +329,9 @@ export default function WorkspacePage() {
     // Optimistic Update
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
     try {
-      await workspaceApi.saveStickyNote(effectiveUserId, { id, ...updates });
+      await workspaceApi.patchStickyNote(id, updates);
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível salvar a nota', e);
       loadWorkspaceData();
     }
   };
@@ -322,7 +343,7 @@ export default function WorkspacePage() {
     try {
       await workspaceApi.deleteStickyNote(id);
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível excluir a nota', e);
       loadWorkspaceData();
     }
   };
@@ -346,7 +367,8 @@ export default function WorkspacePage() {
       loadWorkspaceData();
       toast({ title: "Nota promovida!", description: "Convertida em tarefa no Kanban." });
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível promover a nota', e);
+      loadWorkspaceData();
     }
   };
 
@@ -356,17 +378,21 @@ export default function WorkspacePage() {
     toast({ title: "Perfil atualizado!", description: "Suas permissões foram validadas." });
   };
 
-  const handleAddLink = async (name: string, url: string, iconType: string, color: string) => {
-    if (!effectiveUserId) return;
+  const handleAddLink = async (name: string, url: string, iconType: string, color: string): Promise<boolean> => {
+    if (!effectiveUserId) return false;
     triggerSavingIndicator();
     try {
       await workspaceApi.saveQuickLink(effectiveUserId, {
         title: name,
         url,
+        iconType,
+        color,
       });
       loadWorkspaceData();
+      return true;
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível salvar o atalho', e);
+      return false;
     }
   };
 
@@ -376,7 +402,7 @@ export default function WorkspacePage() {
       await workspaceApi.deleteQuickLink(id);
       loadWorkspaceData();
     } catch (e) {
-      console.error(e);
+      reportError('Não foi possível excluir o atalho', e);
     }
   };
 
@@ -553,7 +579,11 @@ export default function WorkspacePage() {
               </TabsContent>
 
               <TabsContent value="links" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">
-                <QuickLinks links={userLinks || []} onAddLink={handleAddLink} onDeleteLink={handleDeleteLink} />
+                <QuickLinks
+                  links={(userLinks || []).map((l: any) => ({ id: l.id, name: l.title, url: l.url, iconType: l.iconType || 'link', color: l.color || '' }))}
+                  onAddLink={handleAddLink}
+                  onDeleteLink={handleDeleteLink}
+                />
               </TabsContent>
 
               <TabsContent value="prompts" className="outline-none focus-visible:ring-0 animate-in fade-in duration-300">

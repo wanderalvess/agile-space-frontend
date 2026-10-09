@@ -6,6 +6,8 @@ export interface QuickLink {
   userId?: string;
   title: string;
   url: string;
+  iconType?: string;
+  color?: string;
   createdAt?: string;
 }
 
@@ -27,7 +29,15 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  if (!res.ok) throw new Error(`Workspace API error ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    // O servidor responde com { message } nas validações; mostra isso em vez do JSON cru.
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = body?.message || body?.error || '';
+    } catch { /* corpo vazio */ }
+    throw new Error(detail || `Não foi possível concluir a operação (erro ${res.status}).`);
+  }
   if (res.status === 204) return undefined as T;
   return res.json();
 }
@@ -57,6 +67,14 @@ export const workspaceApi = {
     });
   },
 
+  /** Escrita parcial: só os campos enviados mudam (null limpa descrição/etiqueta). */
+  async patchKanbanCard(id: string, changes: Partial<Pick<KanbanCardData, 'title' | 'description' | 'status' | 'priority' | 'tag'>>): Promise<KanbanCardData> {
+    return req<KanbanCardData>(`/workspace/kanban/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes)
+    });
+  },
+
   async deleteKanbanCard(id: string): Promise<void> {
     return req<void>(`/workspace/kanban/${id}`, { method: 'DELETE' });
   },
@@ -70,6 +88,13 @@ export const workspaceApi = {
     return req<StickyNote>(`/workspace/${userId}/notes`, {
       method: 'POST',
       body: JSON.stringify(note)
+    });
+  },
+
+  async patchStickyNote(id: string, changes: Partial<Pick<StickyNote, 'content' | 'color' | 'isPinned'>>): Promise<StickyNote> {
+    return req<StickyNote>(`/workspace/notes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes)
     });
   },
 

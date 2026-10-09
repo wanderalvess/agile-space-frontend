@@ -130,12 +130,27 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
     remoteContentRef.current = note.content;
   }, [note.content]);
 
+  const onUpdateRef = useRef(onUpdate);
+  useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+
   useEffect(() => {
     if (debouncedContent !== remoteContentRef.current) {
-      onUpdate(note.id, { content: debouncedContent });
+      onUpdateRef.current(note.id, { content: debouncedContent });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedContent, note.id, onUpdate]);
+  }, [debouncedContent, note.id]);
+
+  // Trocar de aba ou sair da página antes dos 2 s do debounce perdia o que foi digitado: grava ao desmontar.
+  const discardedRef = useRef(false); // nota excluída/promovida: não regravar o texto
+  const latestContentRef = useRef(localContent);
+  useEffect(() => { latestContentRef.current = localContent; }, [localContent]);
+  useEffect(() => {
+    const id = note.id;
+    return () => {
+      if (!discardedRef.current && latestContentRef.current !== remoteContentRef.current) {
+        onUpdateRef.current(id, { content: latestContentRef.current });
+      }
+    };
+  }, [note.id]);
 
   // Se a nota salva tiver a classe antiga (sem dark:), migramos dinamicamente
   const matchedColor = NOTE_COLORS.find(c => {
@@ -167,11 +182,12 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
           <div className={cn("w-2 h-2 rounded-full shadow-xs animate-pulse", matchedColor.dot)} />
           {note.isPinned && <span className="text-[9px] font-black uppercase tracking-widest text-primary">Destaque</span>}
         </div>
-        <div className={cn("flex items-center gap-1 transition-all duration-200", note.isPinned ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+        <div className={cn("flex items-center gap-1 transition-all duration-200", note.isPinned ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100")}>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => onUpdate(note.id, { isPinned: !note.isPinned })} 
+            aria-label={note.isPinned ? "Desafixar nota" : "Fixar nota no topo"}
             className={cn(
               "h-7 w-7 rounded-lg shadow-xs backdrop-blur-md transition-all", 
               note.isPinned ? "text-primary bg-background/90" : "text-muted-foreground bg-background/70 hover:bg-background"
@@ -183,7 +199,8 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => onConvertToTask(note)} 
+            onClick={() => { discardedRef.current = true; onConvertToTask(note); }} 
+            aria-label="Promover nota para o Kanban"
             className="h-7 w-7 bg-background/70 hover:bg-background backdrop-blur-md text-muted-foreground hover:text-primary rounded-lg shadow-xs transition-all"
             title="Promover para Kanban"
           >
@@ -192,7 +209,8 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => onDelete(note.id)} 
+            onClick={() => { discardedRef.current = true; onDelete(note.id); }} 
+            aria-label="Excluir nota"
             className="h-7 w-7 bg-background/70 hover:bg-background backdrop-blur-md text-muted-foreground hover:text-destructive rounded-lg shadow-xs transition-all"
             title="Excluir nota"
           >
@@ -204,6 +222,8 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
       <textarea 
         value={localContent} 
         onChange={(e) => setLocalContent(e.target.value)} 
+        aria-label="Texto da nota"
+        maxLength={20000}
         placeholder="Rascunhe seus insights..." 
         className={cn(
           "flex-1 w-full bg-transparent border-none focus:ring-0 outline-none resize-none text-xs font-semibold leading-relaxed min-h-[140px] placeholder:text-muted-foreground/50 text-inherit"
@@ -220,6 +240,7 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
             <button 
               key={c.name}
               title={c.name}
+              aria-label={`Cor ${c.name}`}
               onClick={() => onUpdate(note.id, { color: c.class })}
               className={cn("w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 transition-all hover:scale-150", c.dot)}
             />
