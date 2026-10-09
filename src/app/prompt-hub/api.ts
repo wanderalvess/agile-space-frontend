@@ -3,6 +3,36 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
+/** Erro de API que preserva o status HTTP para a tela decidir a mensagem (login, permissão, limite de tamanho). */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+const STATUS_MESSAGES: Record<number, string> = {
+  400: 'Algum campo está vazio ou passou do tamanho permitido.',
+  401: 'Entre na sua conta para continuar.',
+  403: 'Você não tem permissão para fazer isso.',
+  404: 'Item não encontrado, ou você não tem acesso a ele.',
+};
+
+/** Monta um erro legível: usa o motivo do servidor quando existe e cai numa frase por status. */
+async function apiError(res: Response, fallback: string): Promise<ApiError> {
+  let detail = '';
+  try {
+    const body = await res.clone().json();
+    detail = typeof body?.message === 'string' ? body.message : '';
+  } catch {
+    // corpo vazio ou não JSON
+  }
+  const reason = detail || STATUS_MESSAGES[res.status] || `Erro ${res.status}`;
+  return new ApiError(`${fallback}: ${reason}`, res.status);
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalPages: number;
@@ -20,13 +50,24 @@ export const promptApi = {
     params.append('size', size.toString());
 
     const res = await authFetch(`${API_BASE_URL}/prompts?${params.toString()}`);
-    if (!res.ok) throw new Error('Falha ao listar prompts');
+    if (!res.ok) throw await apiError(res, 'Falha ao listar prompts');
     return res.json();
+  },
+
+  /** Busca todas as páginas (até um teto) para o catálogo não ficar truncado no primeiro lote. */
+  async listAllPrompts(authorId?: string, pageSize = 200, maxPages = 10): Promise<PromptItem[]> {
+    const all: PromptItem[] = [];
+    for (let page = 0; page < maxPages; page += 1) {
+      const res = await promptApi.listPrompts(undefined, authorId, page, pageSize);
+      all.push(...res.content);
+      if (page + 1 >= res.totalPages) break;
+    }
+    return all;
   },
 
   async getPromptById(id: string): Promise<PromptItem> {
     const res = await authFetch(`${API_BASE_URL}/prompts/${id}`);
-    if (!res.ok) throw new Error('Falha ao carregar o prompt');
+    if (!res.ok) throw await apiError(res, 'Falha ao carregar o prompt');
     return res.json();
   },
 
@@ -36,7 +77,7 @@ export const promptApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prompt),
     });
-    if (!res.ok) throw new Error('Falha ao criar o prompt');
+    if (!res.ok) throw await apiError(res, 'Falha ao criar o prompt');
     return res.json();
   },
 
@@ -46,7 +87,7 @@ export const promptApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prompt),
     });
-    if (!res.ok) throw new Error(`Falha ao importar "${prompt.title || 'skill'}" (${res.status})`);
+    if (!res.ok) throw await apiError(res, `Falha ao importar "${prompt.title || 'skill'}"`);
     return res.json();
   },
 
@@ -94,7 +135,7 @@ export const promptApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prompt),
     });
-    if (!res.ok) throw new Error('Falha ao atualizar o prompt');
+    if (!res.ok) throw await apiError(res, 'Falha ao atualizar o prompt');
     return res.json();
   },
 
@@ -102,14 +143,14 @@ export const promptApi = {
     const res = await authFetch(`${API_BASE_URL}/prompts/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao deletar o prompt');
+    if (!res.ok) throw await apiError(res, 'Falha ao deletar o prompt');
   },
 
   async usePrompt(id: string): Promise<PromptItem> {
     const res = await authFetch(`${API_BASE_URL}/prompts/${id}/use`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Falha ao contabilizar uso');
+    if (!res.ok) throw await apiError(res, 'Falha ao contabilizar uso');
     return res.json();
   },
 
@@ -117,13 +158,31 @@ export const promptApi = {
     const res = await authFetch(`${API_BASE_URL}/prompts/${id}/fork`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Falha ao clonar o prompt');
+    if (!res.ok) throw await apiError(res, 'Falha ao clonar o prompt');
     return res.json();
+  },
+
+  /** Duplica para a biblioteca privada de quem chama e conta o clone, numa única operação no servidor. */
+  async clonePrompt(id: string, authorSnapshot: Partial<PromptItem>): Promise<PromptItem> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${id}/clone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(authorSnapshot),
+    });
+    if (!res.ok) throw await apiError(res, 'Falha ao duplicar o item');
+    return res.json();
+  },
+
+  async deleteComment(promptId: string, commentId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/prompts/${promptId}/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw await apiError(res, 'Falha ao remover o comentário');
   },
 
   async getComments(promptId: string): Promise<PromptComment[]> {
     const res = await authFetch(`${API_BASE_URL}/prompts/${promptId}/comments`);
-    if (!res.ok) throw new Error('Falha ao carregar comentários');
+    if (!res.ok) throw await apiError(res, 'Falha ao carregar comentários');
     return res.json();
   },
 
@@ -133,7 +192,7 @@ export const promptApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(comment),
     });
-    if (!res.ok) throw new Error('Falha ao adicionar comentário');
+    if (!res.ok) throw await apiError(res, 'Falha ao adicionar comentário');
     return res.json();
   }
 };
@@ -177,13 +236,24 @@ export const promptCollectionApi = {
     params.append('size', size.toString());
 
     const res = await authFetch(`${API_BASE_URL}/prompts/collections?${params.toString()}`);
-    if (!res.ok) throw new Error('Falha ao listar coleções');
+    if (!res.ok) throw await apiError(res, 'Falha ao listar coleções');
     return res.json();
+  },
+
+  /** Todas as páginas (até um teto), para a tela de coleções não ficar truncada. */
+  async listAllCollections(visibility?: string, ownerId?: string, pageSize = 200, maxPages = 10): Promise<PromptCollectionDTO[]> {
+    const all: PromptCollectionDTO[] = [];
+    for (let page = 0; page < maxPages; page += 1) {
+      const res = await promptCollectionApi.listCollections(visibility, ownerId, page, pageSize);
+      all.push(...res.content);
+      if (page + 1 >= res.totalPages) break;
+    }
+    return all;
   },
 
   async getCollection(id: string): Promise<PromptCollectionDTO> {
     const res = await authFetch(`${API_BASE_URL}/prompts/collections/${id}`);
-    if (!res.ok) throw new Error('Falha ao carregar a coleção');
+    if (!res.ok) throw await apiError(res, 'Falha ao carregar a coleção');
     return res.json();
   },
 
@@ -193,7 +263,7 @@ export const promptCollectionApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Falha ao criar a coleção');
+    if (!res.ok) throw await apiError(res, 'Falha ao criar a coleção');
     return res.json();
   },
 
@@ -203,7 +273,7 @@ export const promptCollectionApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error('Falha ao atualizar a coleção');
+    if (!res.ok) throw await apiError(res, 'Falha ao atualizar a coleção');
     return res.json();
   },
 
@@ -211,14 +281,14 @@ export const promptCollectionApi = {
     const res = await authFetch(`${API_BASE_URL}/prompts/collections/${id}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao remover a coleção');
+    if (!res.ok) throw await apiError(res, 'Falha ao remover a coleção');
   },
 
   async addItemToCollection(collectionId: string, promptId: string): Promise<PromptCollectionDTO> {
     const res = await authFetch(`${API_BASE_URL}/prompts/collections/${collectionId}/items/${promptId}`, {
       method: 'POST',
     });
-    if (!res.ok) throw new Error('Falha ao adicionar item à coleção');
+    if (!res.ok) throw await apiError(res, 'Falha ao adicionar item à coleção');
     return res.json();
   },
 
@@ -226,7 +296,7 @@ export const promptCollectionApi = {
     const res = await authFetch(`${API_BASE_URL}/prompts/collections/${collectionId}/items/${promptId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error('Falha ao remover item da coleção');
+    if (!res.ok) throw await apiError(res, 'Falha ao remover item da coleção');
     return res.json();
   }
 };

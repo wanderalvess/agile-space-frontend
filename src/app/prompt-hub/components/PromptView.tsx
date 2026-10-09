@@ -99,11 +99,15 @@ export function PromptView({
   const [comments, setComments] = React.useState<CommentItem[]>([]);
   const [newComment, setNewComment] = React.useState('');
   const [isPosting, setIsPosting] = React.useState(false);
+  const [commentsError, setCommentsError] = React.useState(false);
+  // Resposta de um item aberto antes não pode sobrescrever a discussão do item atual.
+  const activePromptId = React.useRef<string | undefined>(undefined);
+  activePromptId.current = prompt?.id;
 
   // Variáveis no formato {{nome}} viram campos preenchíveis antes de copiar.
   const variables = React.useMemo(() => {
     if (!prompt?.content) return [];
-    const regex = /\{\{([^}]+)\}\}/g;
+    const regex = /(?<!\$)\{\{([^}\n]{1,60})\}\}/g;
     const matches = new Set<string>();
     let match;
     while ((match = regex.exec(prompt.content)) !== null) {
@@ -114,28 +118,31 @@ export function PromptView({
 
   const processedContent = React.useMemo(() => {
     if (!prompt?.content) return '';
-    let text = prompt.content;
-    Object.entries(variableValues).forEach(([key, val]) => {
-      if (val) {
-        const escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const regex = new RegExp(`\\{\\{\\s*${escapedKey}\\s*\\}\\}`, 'g');
-        text = text.replace(regex, val);
-      }
+    // Uma passada só e com função: "$&" digitado num valor não é interpretado, e um valor que
+    // contenha {{outra}} não é substituído de novo.
+    return prompt.content.replace(/(?<!\$)\{\{([^}\n]{1,60})\}\}/g, (full, name: string) => {
+      const value = variableValues[name.trim()];
+      return value ? value : full;
     });
-    return text;
   }, [prompt?.content, variableValues]);
 
   const fetchComments = React.useCallback(async () => {
     if (!prompt?.id || !isOpen || !session) {
       setComments([]);
+      setCommentsError(false);
       return;
     }
+    const requestedId = prompt.id;
     try {
-      const data = await promptApi.getComments(prompt.id);
+      const data = await promptApi.getComments(requestedId);
+      if (activePromptId.current !== requestedId) return;
       setComments(data as any[]);
+      setCommentsError(false);
     } catch (err: any) {
       console.warn('Discussão indisponível para este item:', err.message);
+      if (activePromptId.current !== requestedId) return;
       setComments([]);
+      setCommentsError(true);
     }
   }, [prompt?.id, isOpen, session]);
 
@@ -164,17 +171,11 @@ export function PromptView({
   const safeDocLink = toSafeExternalUrl(prompt.architectureLink);
   const blockedToolLink = !!prompt.gemLink?.trim() && !safeToolLink;
 
-  const formattedDate = prompt.updatedAt
-    ? format(
-        (prompt.updatedAt as any) instanceof Date
-          ? (prompt.updatedAt as unknown as Date)
-          : typeof prompt.updatedAt === 'string'
-            ? new Date(prompt.updatedAt)
-            : (prompt.updatedAt as any).toDate?.() || new Date(),
-        "d 'de' MMMM 'de' yyyy",
-        { locale: ptBR }
-      )
-    : null;
+  const updatedDate = prompt.updatedAt ? new Date(prompt.updatedAt as any) : null;
+  const formattedDate =
+    updatedDate && !Number.isNaN(updatedDate.getTime())
+      ? format(updatedDate, "d 'de' MMMM 'de' yyyy", { locale: ptBR })
+      : null;
 
   const handleCopy = async () => {
     if (!hasContent) return;
@@ -224,7 +225,13 @@ export function PromptView({
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    toast.error('Remoção de comentários não suportada no momento.');
+    if (!prompt?.id || !confirm('Remover este comentário?')) return;
+    try {
+      await promptApi.deleteComment(prompt.id, commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+    } catch (err: any) {
+      toast.error('Erro ao remover o comentário', { description: err.message });
+    }
   };
 
   return (
@@ -282,28 +289,29 @@ export function PromptView({
               </Button>
             )}
 
-            {!isReadOnly && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onFork?.(prompt)}
-                  className="gap-2"
-                >
-                  <GitFork className="h-4 w-4" />
-                  Duplicar
-                </Button>
+            {!isReadOnly && onFork && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onFork(prompt)}
+                className="gap-2"
+              >
+                <GitFork className="h-4 w-4" />
+                Duplicar
+              </Button>
+            )}
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => onToggleFavorite?.(prompt.id)}
-                  title={prompt.isFavorited ? 'Remover dos favoritos' : 'Favoritar'}
-                  className={cn('h-9 w-9', prompt.isFavorited && 'text-amber-500')}
-                >
-                  <Star className={cn('h-4 w-4', prompt.isFavorited && 'fill-current')} />
-                </Button>
-              </>
+            {!isReadOnly && onToggleFavorite && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => onToggleFavorite(prompt.id)}
+                title={prompt.isFavorited ? 'Remover dos favoritos' : 'Favoritar'}
+                aria-label={prompt.isFavorited ? 'Remover dos favoritos' : 'Favoritar'}
+                className={cn('h-9 w-9', prompt.isFavorited && 'text-amber-500')}
+              >
+                <Star className={cn('h-4 w-4', prompt.isFavorited && 'fill-current')} />
+              </Button>
             )}
 
             <Button
@@ -311,32 +319,35 @@ export function PromptView({
               size="icon"
               onClick={handleShare}
               title="Copiar link"
+              aria-label="Copiar link"
               className="h-9 w-9"
             >
               <Share2 className="h-4 w-4" />
             </Button>
 
-            {isOwner && !isReadOnly && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onEdit?.(prompt)}
-                  title="Editar"
-                  className="h-9 w-9"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDelete?.(prompt.id)}
-                  title="Excluir"
-                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
+            {isOwner && !isReadOnly && onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onEdit(prompt)}
+                title="Editar"
+                aria-label="Editar"
+                className="h-9 w-9"
+              >
+                <Edit3 className="h-4 w-4" />
+              </Button>
+            )}
+            {isOwner && !isReadOnly && onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(prompt.id)}
+                title="Excluir"
+                aria-label="Excluir"
+                className="h-9 w-9 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             )}
           </div>
 
@@ -518,6 +529,8 @@ export function PromptView({
                     <form onSubmit={handleAddComment} className="flex items-center gap-2">
                       <Input
                         value={newComment}
+                        maxLength={4000}
+                        aria-label="Novo comentário"
                         onChange={e => setNewComment(e.target.value)}
                         placeholder="Deixe uma dica de uso ou resultado..."
                         className="h-9 text-xs"
@@ -533,7 +546,14 @@ export function PromptView({
                       </Button>
                     </form>
 
-                    {comments.length === 0 ? (
+                    {commentsError ? (
+                      <p className="text-xs text-destructive">
+                        Não foi possível carregar a discussão.{' '}
+                        <button type="button" onClick={fetchComments} className="underline underline-offset-2">
+                          Tentar de novo
+                        </button>
+                      </p>
+                    ) : comments.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
                         Nenhum comentário ainda. Seja a primeira pessoa a contar como usou.
                       </p>
@@ -551,11 +571,12 @@ export function PromptView({
                                   </span>
                                 ) : null}
                               </span>
-                              {comment.authorId === session.id && (
+                              {(comment.authorId === session.id || isOwner) && (
                                 <button
                                   onClick={() => handleDeleteComment(comment.id)}
                                   className="text-muted-foreground hover:text-destructive"
                                   title="Excluir comentário"
+                                  aria-label="Excluir comentário"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>

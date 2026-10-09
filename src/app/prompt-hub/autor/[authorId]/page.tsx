@@ -22,6 +22,8 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
 
   const [items, setItems] = useState<PromptItem[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // No próprio perfil trazemos tudo. No perfil de outra pessoa, o endpoint
   // /api/prompts?authorId= devolve todos os itens do autor independente da
@@ -31,18 +33,20 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
+    setLoadFailed(false);
 
-    promptApi.listPrompts(undefined, params.authorId, 0, 200)
-      .then(response => {
+    // O servidor já devolve só os públicos para quem não é a própria pessoa; o filtro aqui é uma segunda trava.
+    promptApi.listAllPrompts(params.authorId)
+      .then(all => {
         if (cancelled) return;
-        const content = isSelf
-          ? response.content
-          : response.content.filter(item => item.visibility === 'public');
-        setItems(content);
+        setItems(isSelf ? all : all.filter(item => item.visibility === 'public'));
       })
       .catch(err => {
         console.error('Erro ao carregar itens do autor', err);
-        if (!cancelled) setItems([]);
+        if (!cancelled) {
+          setItems([]);
+          setLoadFailed(true);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -51,7 +55,7 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
     return () => {
       cancelled = true;
     };
-  }, [params.authorId, isSelf]);
+  }, [params.authorId, isSelf, reloadKey]);
 
   const author = items?.[0];
   const totals = React.useMemo(() => {
@@ -153,7 +157,15 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
           </dl>
         </header>
 
-        {!items || items.length === 0 ? (
+        {loadFailed ? (
+          <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
+            <h2 className="text-base font-semibold text-foreground">Não foi possível carregar os itens</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Verifique a conexão e tente de novo.</p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => setReloadKey(k => k + 1)}>
+              Tentar de novo
+            </Button>
+          </div>
+        ) : !items || items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
             <h2 className="text-base font-semibold text-foreground">Nada publicado ainda</h2>
             <p className="mt-1 text-sm text-muted-foreground">

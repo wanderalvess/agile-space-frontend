@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { promptApi } from '../api';
+import { promptApi, ApiError } from '../api';
 import { PromptItem } from '../types';
 import { PromptView } from '../components/PromptView';
 import { useRouter } from 'next/navigation';
@@ -38,7 +38,13 @@ export default function SharedPromptPage(props: { params: Promise<{ id: string }
         }
       } catch (e: any) {
         console.error(e);
-        setError('Prompt não encontrado ou acesso restrito.');
+        if (e instanceof ApiError && e.status === 404) {
+          setError('Item não encontrado, ou ele não é público e só o autor pode abri-lo.');
+        } else if (e instanceof ApiError && e.status === 401) {
+          setError(deniedMessage(false));
+        } else {
+          setError('Não foi possível carregar o item agora. Tente de novo em instantes.');
+        }
       } finally {
         setLoading(false);
       }

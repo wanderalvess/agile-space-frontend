@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, GripVertical, ArrowUp, ArrowDown, Check } from 'lucide-react';
 import {
   Dialog,
@@ -24,11 +24,14 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { PromptCollection, PromptItem } from '../types';
 import { getTypeMeta } from '../constants';
+import { normalize } from '../findSimilar';
 
 interface CollectionEditorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Partial<PromptCollection>) => void;
+  /** Enquanto o envio não termina, os botões ficam travados (evita coleção duplicada por duplo clique). */
+  isSaving?: boolean;
   initialData?: PromptCollection | null;
   /** Itens que a pessoa pode incluir na trilha. */
   availableItems: PromptItem[];
@@ -45,16 +48,29 @@ export function CollectionEditor({
   isOpen,
   onClose,
   onSave,
+  isSaving = false,
   initialData,
   availableItems
 }: CollectionEditorProps) {
   const [formData, setFormData] = useState<Partial<PromptCollection>>(EMPTY);
   const [search, setSearch] = useState('');
+  const baseline = useRef('');
 
   useEffect(() => {
-    setFormData(initialData ? { ...initialData } : EMPTY);
+    const start = initialData ? { ...initialData } : EMPTY;
+    baseline.current = JSON.stringify(start);
+    setFormData(start);
     setSearch('');
   }, [initialData, isOpen]);
+
+  const isDirty = JSON.stringify(formData) !== baseline.current;
+
+  // Fechar descartaria o que foi montado: pede confirmação.
+  const requestClose = () => {
+    if (isSaving) return;
+    if (isDirty && !confirm('Descartar as alterações desta coleção?')) return;
+    onClose();
+  };
 
   const selectedIds = formData.itemIds || [];
 
@@ -71,16 +87,12 @@ export function CollectionEditor({
     .filter((item): item is PromptItem => !!item);
 
   const searchResults = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = normalize(search);
     return availableItems
       .filter(item => !selectedIds.includes(item.id))
       .filter(item => {
         if (!term) return true;
-        return [item.title, item.description, ...(item.tags || [])]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase()
-          .includes(term);
+        return normalize([item.title, item.description, ...(item.tags || [])].filter(Boolean).join(' ')).includes(term);
       })
       .slice(0, 8);
   }, [availableItems, selectedIds, search]);
@@ -100,6 +112,7 @@ export function CollectionEditor({
   };
 
   const handleSubmit = () => {
+    if (isSaving) return;
     if (!formData.name?.trim()) {
       toast.error('Dê um nome à coleção');
       return;
@@ -114,7 +127,7 @@ export function CollectionEditor({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) requestClose(); }}>
       <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl lg:max-w-3xl">
         <DialogHeader className="border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-lg font-semibold">
@@ -133,6 +146,7 @@ export function CollectionEditor({
             <Input
               id="collection-name"
               value={formData.name || ''}
+              maxLength={255}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               placeholder="Ex: Onboarding de pessoa desenvolvedora"
               className="h-10"
@@ -146,6 +160,7 @@ export function CollectionEditor({
             <Textarea
               id="collection-description"
               value={formData.description || ''}
+              maxLength={5000}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
               placeholder="Para quem é esta trilha e em que ordem usar."
               className="min-h-[64px] resize-y text-sm"
@@ -273,10 +288,12 @@ export function CollectionEditor({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={requestClose} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit}>{initialData ? 'Salvar alterações' : 'Criar coleção'}</Button>
+          <Button onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? 'Salvando...' : initialData ? 'Salvar alterações' : 'Criar coleção'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

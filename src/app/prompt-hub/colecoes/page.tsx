@@ -46,38 +46,41 @@ export default function CollectionsPage() {
   const [collectionsDto, setCollectionsDto] = useState<PromptCollectionDTO[]>([]);
   const [availableItems, setAvailableItems] = useState<PromptItem[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const hasLoadedOnce = React.useRef(false);
 
   const userId = userProfile?.id;
 
   const loadData = useCallback(async () => {
-    setIsLoadingData(true);
+    // Spinner de tela cheia só na primeira carga; depois a lista é atualizada por cima.
+    if (!hasLoadedOnce.current) setIsLoadingData(true);
     try {
-      const publicRes = await promptCollectionApi.listCollections('public', undefined, 0, 100);
-      let mineContent: PromptCollectionDTO[] = [];
-      if (userId) {
-        const mineRes = await promptCollectionApi.listCollections(undefined, userId, 0, 100);
-        mineContent = mineRes.content;
-      }
+      const [publicCollections, mineCollections] = await Promise.all([
+        promptCollectionApi.listAllCollections('public'),
+        userId ? promptCollectionApi.listAllCollections(undefined, userId) : Promise.resolve([] as PromptCollectionDTO[]),
+      ]);
 
       const map = new Map<string, PromptCollectionDTO>();
-      publicRes.content.forEach(c => map.set(c.id, c));
-      mineContent.forEach(c => map.set(c.id, c));
-      setCollectionsDto(Array.from(map.values()));
+      publicCollections.forEach(c => map.set(c.id, c));
+      mineCollections.forEach(c => map.set(c.id, c));
+      const collectionList = Array.from(map.values());
+      setCollectionsDto(collectionList);
 
-      // Itens disponíveis para montar a trilha: os públicos e os meus.
-      const publicItemsRes = await promptApi.listPrompts(undefined, undefined, 0, 100);
-      let myItemsContent: PromptItem[] = [];
-      if (userId) {
-        const myItemsRes = await promptApi.listPrompts(undefined, userId, 0, 100);
-        myItemsContent = myItemsRes.content;
-      }
+      // Itens disponíveis para montar a trilha: os públicos, os meus e os que já estão em coleções
+      // (assim um item da trilha que ficou fora do primeiro lote não some do editor).
+      const [publicItems, myItems] = await Promise.all([
+        promptApi.listAllPrompts(),
+        userId ? promptApi.listAllPrompts(userId) : Promise.resolve([] as PromptItem[]),
+      ]);
       const itemsMap = new Map<string, PromptItem>();
-      publicItemsRes.content.forEach(i => itemsMap.set(i.id, i));
-      myItemsContent.forEach(i => itemsMap.set(i.id, i));
+      collectionList.forEach(c => (c.items || []).forEach(i => itemsMap.set(i.id, i)));
+      publicItems.forEach(i => itemsMap.set(i.id, i));
+      myItems.forEach(i => itemsMap.set(i.id, i));
       setAvailableItems(Array.from(itemsMap.values()));
+      hasLoadedOnce.current = true;
     } catch (err: any) {
       console.error('Erro ao buscar coleções', err);
-      toast.error('Não foi possível carregar as coleções');
+      toast.error('Não foi possível carregar as coleções', { description: err?.message });
     } finally {
       setIsLoadingData(false);
     }
@@ -95,7 +98,12 @@ export default function CollectionsPage() {
   }, []);
 
   const handleSave = async (data: Partial<PromptCollection>) => {
-    if (!userProfile?.id) return;
+    if (!userProfile?.id) {
+      toast.error('Sua sessão expirou. Entre de novo para salvar.');
+      return;
+    }
+    if (isSaving) return;
+    setIsSaving(true);
     const loadingToast = toast.loading('Salvando coleção...');
     try {
       const payload = {
@@ -119,6 +127,8 @@ export default function CollectionsPage() {
       loadData();
     } catch (err: any) {
       toast.error('Erro ao salvar', { id: loadingToast, description: err.message });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -292,6 +302,7 @@ export default function CollectionsPage() {
           setEditing(null);
         }}
         onSave={handleSave}
+        isSaving={isSaving}
         initialData={editing}
         availableItems={availableItems}
       />

@@ -64,7 +64,7 @@ export function SkillImportDialog({
 }: SkillImportDialogProps) {
   const [step, setStep] = useState<'pick' | 'preview' | 'importing'>('pick');
   const [items, setItems] = useState<SkillImportItem[]>([]);
-  const [globalVisibility, setGlobalVisibility] = useState<PromptVisibility>('public');
+  const [globalVisibility, setGlobalVisibility] = useState<PromptVisibility>('private');
   const [isDragOver, setIsDragOver] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -115,6 +115,10 @@ export function SkillImportDialog({
         try {
           const content = await file.text();
           const validation = validateSkillFrontmatter(content);
+          // Limites do servidor: um arquivo acima deles derrubaria o lote inteiro.
+          if (content.length > 200000) {
+            validation.errors.push('Arquivo maior que 200.000 caracteres.');
+          }
 
           // Se não for SKILL.md exato e não tiver bloco de frontmatter, desconsidera
           if (file.name.toLowerCase() !== 'skill.md' && !validation.hasFrontmatter) {
@@ -143,12 +147,16 @@ export function SkillImportDialog({
               .forEach(w => tags.add(w));
           }
 
+          const title = (derivedName || 'Nova Skill').slice(0, 255);
+          if ((derivedName || '').length > 255) {
+            validation.warnings.push('Nome com mais de 255 caracteres foi cortado.');
+          }
           parsed.push({
             id: Math.random().toString(36).substring(2, 9),
             file,
             relativePath,
-            title: derivedName || 'Nova Skill',
-            description: validation.description || '',
+            title,
+            description: (validation.description || '').slice(0, 10000),
             content,
             tags: Array.from(tags),
             visibility: globalVisibility,

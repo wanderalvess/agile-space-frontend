@@ -112,13 +112,21 @@ Itens parecidos são sinalizados antes de publicar, sem bloquear.
 **Tutorial** — guia em português para criação de skills, com uma seção reservada
 para os padrões internos da empresa.
 
+## 5.1 Permissões (backend Spring, `PromptController`)
+
+Autoria, dono de coleção e autor de comentário vêm do JWT, nunca do corpo. Item
+não público (e coleção privada) só é visto pelo autor ou ADMIN; para os demais a
+API responde 404. Editar/excluir exige autor ou ADMIN (403). Favoritos continuam
+no `localStorage` do navegador (não sincronizam entre dispositivos). A leitura
+sem login não existe: `/api/prompts` exige token.
+
 ## 6. Limitações conhecidas
 
 - Visibilidade por **squad** e por **cargo** existe no tipo, mas nenhuma consulta
   as carrega. As opções não aparecem no editor.
 - Busca e filtros rodam **no cliente**: todo o acervo público é carregado. Não
   escala para centenas de itens sem paginação ou busca server-side.
-- Itens com status `arquivado` continuam aparecendo no catálogo.
+- Itens `arquivado` ficam escondidos por padrão; o filtro de status mostra todos ou só os arquivados.
 - Favoritos de terceiros apontando para item excluído ficam órfãos: limpá-los
   exige Cloud Function ou rotina administrativa.
 - Não há testes automatizados das regras — o emulador do Firestore exige Java,

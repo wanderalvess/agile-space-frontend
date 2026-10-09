@@ -75,6 +75,9 @@ export interface PromptComment {
 export interface PromptFilters {
   search: string;
   type: PromptType | 'all';
+  /** 'active' esconde os arquivados (padrão); 'all' mostra tudo. */
+  status: 'active' | 'all' | InitiativeStatus;
+  impact: 'all' | InitiativeImpact;
   visibility: PromptVisibility | 'all';
   tags: string[];
   onlyFavorites: boolean;

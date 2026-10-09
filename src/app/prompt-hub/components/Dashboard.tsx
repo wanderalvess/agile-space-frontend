@@ -29,7 +29,8 @@ import { PromptSpecimenCard } from './PromptSpecimenCard';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import { promptApi } from '../api';
+import { promptApi, ApiError } from '../api';
+import { normalize } from '../findSimilar';
 import { PromptEditor } from './PromptEditor';
 import { PromptView } from './PromptView';
 import { RoomHeader } from '@/components/layout/RoomHeader';
@@ -74,6 +75,8 @@ export function PromptDashboard({
   const [filters, setFilters] = useState<PromptFilters>({
     search: '',
     type: 'all',
+    status: 'active',
+    impact: 'all',
     visibility: isPublicView ? 'public' : 'all',
     tags: [],
     onlyFavorites: false
@@ -82,6 +85,8 @@ export function PromptDashboard({
 
   const [rawPrompts, setRawPrompts] = useState<PromptItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [loadError, setLoadError] = useState<{ message: string; needsLogin: boolean } | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   // Carrega favoritos do LocalStorage
@@ -100,24 +105,35 @@ export function PromptDashboard({
 
   const sessionId = session?.id;
 
+  // Spinner de tela cheia só na primeira carga: nas demais (salvar, excluir, duplicar) a lista
+  // continua na tela e é atualizada por cima, sem perder scroll nem foco da busca.
+  const hasLoadedOnce = React.useRef(false);
+
   const loadData = React.useCallback(async () => {
-    setIsLoading(true);
+    if (!hasLoadedOnce.current) setIsLoading(true);
     try {
-      const [publicResponse, myResponse] = await Promise.all([
-        promptApi.listPrompts(undefined, undefined, 0, 100),
-        sessionId && !isPublicView
-          ? promptApi.listPrompts(undefined, sessionId, 0, 100)
-          : Promise.resolve(null),
+      const [publicItems, myItems] = await Promise.all([
+        promptApi.listAllPrompts(),
+        sessionId && !isPublicView ? promptApi.listAllPrompts(sessionId) : Promise.resolve([] as PromptItem[]),
       ]);
 
       const map = new Map<string, PromptItem>();
-      publicResponse.content.forEach(item => map.set(item.id, item));
-      myResponse?.content.forEach(item => map.set(item.id, item));
+      publicItems.forEach(item => map.set(item.id, item));
+      myItems.forEach(item => map.set(item.id, item));
 
       setRawPrompts(Array.from(map.values()));
+      setLoadError(null);
+      hasLoadedOnce.current = true;
     } catch (err: any) {
       console.error('Erro ao buscar prompts', err);
-      toast.error('Não foi possível carregar os itens do Prompt Hub');
+      const needsLogin = err instanceof ApiError && err.status === 401;
+      setLoadError({
+        needsLogin,
+        message: needsLogin
+          ? 'Entre na sua conta para ver a biblioteca.'
+          : 'Não foi possível carregar os itens da biblioteca.'
+      });
+      if (hasLoadedOnce.current) toast.error('Não foi possível atualizar a lista');
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +153,7 @@ export function PromptDashboard({
   /** Itens que o usuário pode ver, já com escopo e favoritos aplicados — mas antes
    *  do filtro de tipo, para que a contagem de cada categoria não zere ao clicar. */
   const scopedPrompts = useMemo(() => {
-    const searchTerm = filters.search.trim().toLowerCase();
+    const searchTerm = normalize(filters.search);
 
     return prompts.filter(item => {
       const isOwner = item.authorId === session?.id;
@@ -148,29 +164,39 @@ export function PromptDashboard({
 
       if (filters.onlyFavorites && !item.isFavorited) return false;
 
+      const itemStatus = item.status || 'producao';
+      if (filters.status === 'active') {
+        if (itemStatus === 'arquivado') return false;
+      } else if (filters.status !== 'all' && itemStatus !== filters.status) {
+        return false;
+      }
+      if (filters.impact !== 'all' && (item.impact || 'medio') !== filters.impact) return false;
+
       if (filters.tags.length > 0) {
         const itemTags = item.tags?.map(t => t.toLowerCase()) ?? [];
         if (!filters.tags.every(tag => itemTags.includes(tag.toLowerCase()))) return false;
       }
 
       if (searchTerm) {
-        const haystack = [
-          item.title,
-          item.description,
-          item.content,
-          item.authorName,
-          item.businessGoal,
-          ...(item.tags ?? [])
-        ]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
+        const haystack = normalize(
+          [
+            item.title,
+            item.description,
+            item.content,
+            item.authorName,
+            item.businessGoal,
+            item.targetAudience,
+            ...(item.tags ?? [])
+          ]
+            .filter(Boolean)
+            .join(' ')
+        );
         if (!haystack.includes(searchTerm)) return false;
       }
 
       return true;
     });
-  }, [prompts, filters.visibility, filters.onlyFavorites, filters.tags, filters.search, session?.id]);
+  }, [prompts, filters.visibility, filters.onlyFavorites, filters.tags, filters.search, filters.status, filters.impact, session?.id]);
 
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -200,6 +226,8 @@ export function PromptDashboard({
   const hasActiveFilters =
     !!filters.search.trim() ||
     filters.type !== 'all' ||
+    filters.status !== 'active' ||
+    filters.impact !== 'all' ||
     filters.tags.length > 0 ||
     filters.onlyFavorites ||
     (!isPublicView && filters.visibility !== 'all');
@@ -222,7 +250,9 @@ export function PromptDashboard({
     const tagCount = new Map<string, number>();
     for (const prompt of rawPrompts) {
       if (prompt.tags) {
-        for (const tag of prompt.tags) {
+        for (const rawTag of prompt.tags) {
+          const tag = rawTag.trim().toLowerCase();
+          if (!tag) continue;
           tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
         }
       }
@@ -232,23 +262,38 @@ export function PromptDashboard({
       .slice(0, 10);
   }, [rawPrompts]);
 
+  // Conta só favoritos de itens que ainda existem (ids de itens excluídos ficam órfãos no navegador).
+  const favoriteCount = useMemo(
+    () => rawPrompts.filter(item => favoriteIds.has(item.id)).length,
+    [rawPrompts, favoriteIds]
+  );
+
   const clearFilters = () =>
     setFilters({
       search: '',
       type: 'all',
+      status: 'active',
+      impact: 'all',
       visibility: isPublicView ? 'public' : 'all',
       tags: [],
       onlyFavorites: false
     });
 
-  const toggleTag = (tag: string) =>
+  const toggleTag = (rawTag: string) => {
+    const tag = rawTag.trim().toLowerCase();
     setFilters(prev => ({
       ...prev,
       tags: prev.tags.includes(tag) ? prev.tags.filter(t => t !== tag) : [...prev.tags, tag]
     }));
+  };
 
   const handleSave = async (data: Partial<PromptItem>) => {
-    if (!session) return;
+    if (!session) {
+      toast.error('Sua sessão expirou. Entre de novo para salvar.');
+      return;
+    }
+    if (isSaving) return;
+    setIsSaving(true);
     const loadingToast = toast.loading('Salvando...');
     try {
       const { isFavorited: _ignored, ...promptData } = data;
@@ -275,6 +320,8 @@ export function PromptDashboard({
       loadData();
     } catch (err: any) {
       toast.error('Erro ao salvar', { id: loadingToast, description: err.message });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -336,26 +383,17 @@ export function PromptDashboard({
       requestIdentity?.();
       return;
     }
+    if (isSaving) return;
+    setIsSaving(true);
     const loadingToast = toast.loading('Duplicando...');
     try {
-      const payload: Partial<PromptItem> = {
-        ...source,
-        id: undefined,
-        title: `Cópia de ${source.title}`,
-        visibility: 'private',
-        authorId: session.id,
+      // Cópia e contagem do clone acontecem juntas no servidor: se falhar, nada fica pela metade.
+      const newPrompt = await promptApi.clonePrompt(source.id, {
         authorName: userProfile?.name || session.name || 'Membro',
         authorRole: userProfile?.role || 'Engenheiro',
         authorSquad: userProfile?.squadId || 'Squad Geral',
-        authorAvatar: userProfile?.avatarSeed || '',
-        status: source.status || 'producao',
-        impact: source.impact || 'medio',
-        useCount: 0,
-        forkCount: 0
-      };
-
-      const newPrompt = await promptApi.createPrompt(payload);
-      await promptApi.forkPrompt(source.id);
+        authorAvatar: userProfile?.avatarSeed || ''
+      });
 
       toast.success('Cópia criada na sua biblioteca privada', { id: loadingToast });
 
@@ -367,6 +405,8 @@ export function PromptDashboard({
       }, 250);
     } catch (err: any) {
       toast.error('Erro ao duplicar', { id: loadingToast, description: err.message });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -378,6 +418,31 @@ export function PromptDashboard({
     return (
       <div className="flex h-[80vh] flex-1 items-center justify-center bg-background">
         <AgileSpinner size="md" variant="indigo" />
+      </div>
+    );
+  }
+
+  // Falha na primeira carga: diz o que houve em vez de mostrar "biblioteca vazia".
+  if (loadError && rawPrompts.length === 0) {
+    return (
+      <div className="flex h-[80vh] flex-1 flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <Inbox className="h-10 w-10 text-muted-foreground" />
+        <p className="max-w-md text-base font-medium text-foreground">{loadError.message}</p>
+        <div className="flex gap-2">
+          {!loadError.needsLogin && (
+            <Button
+              onClick={() => {
+                setIsLoading(true);
+                loadData();
+              }}
+            >
+              Tentar de novo
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => router.push(loadError.needsLogin ? '/login' : '/')}>
+            {loadError.needsLogin ? 'Entrar' : 'Voltar ao início'}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -564,7 +629,7 @@ export function PromptDashboard({
                     <span>Apenas Favoritos</span>
                   </div>
                   <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-                    {favoriteIds.size}
+                    {favoriteCount}
                   </span>
                 </button>
               </div>
@@ -624,7 +689,7 @@ export function PromptDashboard({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {!isPublicView && (
                   <div className="xl:hidden">
                     <Select
@@ -643,8 +708,41 @@ export function PromptDashboard({
                   </div>
                 )}
 
+                <Select
+                  value={filters.status}
+                  onValueChange={(value: any) => setFilters({ ...filters, status: value })}
+                >
+                  <SelectTrigger className="h-11 w-[150px] text-sm" aria-label="Filtrar por status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Sem arquivados</SelectItem>
+                    <SelectItem value="all">Todos os status</SelectItem>
+                    <SelectItem value="ideacao">Ideação</SelectItem>
+                    <SelectItem value="planejamento">Planejamento</SelectItem>
+                    <SelectItem value="desenvolvimento">Em desenvolvimento</SelectItem>
+                    <SelectItem value="producao">Em produção</SelectItem>
+                    <SelectItem value="arquivado">Arquivados</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select
+                  value={filters.impact}
+                  onValueChange={(value: any) => setFilters({ ...filters, impact: value })}
+                >
+                  <SelectTrigger className="h-11 w-[140px] text-sm" aria-label="Filtrar por impacto">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Qualquer impacto</SelectItem>
+                    <SelectItem value="alto">Impacto alto</SelectItem>
+                    <SelectItem value="medio">Impacto médio</SelectItem>
+                    <SelectItem value="baixo">Impacto baixo</SelectItem>
+                  </SelectContent>
+                </Select>
+
                 <Select value={sort} onValueChange={(value: any) => setSort(value)}>
-                  <SelectTrigger className="h-11 w-[150px] text-sm">
+                  <SelectTrigger className="h-11 w-[150px] text-sm" aria-label="Ordenar por">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -899,6 +997,7 @@ export function PromptDashboard({
           setEditingPrompt(null);
         }}
         onSave={handleSave}
+        isSaving={isSaving}
         initialData={editingPrompt}
         existingItems={rawPrompts}
       />

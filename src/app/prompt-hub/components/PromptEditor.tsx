@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   X,
@@ -41,6 +41,8 @@ interface PromptEditorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Partial<PromptItem>) => void;
+  /** Enquanto o envio não termina, o botão fica travado (evita item duplicado por duplo clique). */
+  isSaving?: boolean;
   initialData?: PromptItem | null;
   /** Acervo visível, usado para avisar sobre itens parecidos antes de publicar. */
   existingItems?: PromptItem[];
@@ -63,6 +65,16 @@ const SUGGESTED_TAGS = [
   'qa'
 ];
 
+/** Limites iguais aos do servidor (colunas varchar(255), conteúdo até 200 mil caracteres). */
+const LIMITS = {
+  title: 255,
+  description: 10000,
+  content: 200000,
+  short: 255,
+  tag: 100,
+  maxTags: 30
+};
+
 const EMPTY_FORM: Partial<PromptItem> = {
   title: '',
   content: '',
@@ -82,6 +94,7 @@ export function PromptEditor({
   isOpen,
   onClose,
   onSave,
+  isSaving = false,
   initialData,
   existingItems = []
 }: PromptEditorProps) {
@@ -89,9 +102,13 @@ export function PromptEditor({
   const [formData, setFormData] = useState<Partial<PromptItem>>(EMPTY_FORM);
   const [tagInput, setTagInput] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  // Foto do formulário ao abrir: serve para saber se há algo a perder ao fechar.
+  const baseline = useRef('');
 
   useEffect(() => {
-    setFormData(initialData ? { ...initialData } : EMPTY_FORM);
+    const start = initialData ? { ...initialData } : EMPTY_FORM;
+    baseline.current = JSON.stringify(start);
+    setFormData(start);
     setTagInput('');
     // Detalhes adicionais só abrem sozinhos quando o item já usa algum deles.
     setShowAdvanced(
@@ -120,9 +137,24 @@ export function PromptEditor({
 
   const update = (patch: Partial<PromptItem>) => setFormData(prev => ({ ...prev, ...patch }));
 
+  const isDirty = JSON.stringify(formData) !== baseline.current || tagInput.trim() !== '';
+
+  // Fechar por Esc, clique fora ou Cancelar descartaria o que foi digitado: pede confirmação.
+  const requestClose = () => {
+    if (isSaving) return;
+    if (isDirty && !confirm('Descartar as alterações deste item?')) return;
+    onClose();
+  };
+
+  const normalizeTag = (tag: string) => tag.trim().replace(/#/g, '').toLowerCase().slice(0, LIMITS.tag);
+
   const handleAddTag = (tag: string) => {
-    const newTag = tag.trim().replace(/#/g, '').toLowerCase();
+    const newTag = normalizeTag(tag);
     if (newTag && !formData.tags?.includes(newTag)) {
+      if ((formData.tags?.length ?? 0) >= LIMITS.maxTags) {
+        toast.error(`Use no máximo ${LIMITS.maxTags} tags`);
+        return;
+      }
       update({ tags: [...(formData.tags || []), newTag] });
     }
     setTagInput('');
@@ -134,6 +166,7 @@ export function PromptEditor({
   // Normaliza os links antes de gravar: assim o banco só guarda http(s) e o
   // leitor não recebe um esquema perigoso para abrir.
   const handleSubmit = () => {
+    if (isSaving) return;
     if (!formData.title?.trim()) {
       toast.error('Dê um título ao item', {
         description: 'É por ele que as pessoas vão encontrar o que você publicou.'
@@ -162,12 +195,24 @@ export function PromptEditor({
       return;
     }
 
+    // O link da ferramenta só existe na tela de alguns tipos; um valor antigo escondido não pode travar o envio.
     const linkFields: Array<[keyof PromptItem, string]> = [
-      ['gemLink', 'Link da ferramenta'],
+      ...(typeMeta.linkFirst ? ([['gemLink', 'Link da ferramenta']] as Array<[keyof PromptItem, string]>) : []),
       ['architectureLink', 'Link de documentação']
     ];
 
     const normalized: Partial<PromptItem> = { ...formData };
+
+    // Tag digitada mas não confirmada com Enter também entra.
+    const pendingTag = normalizeTag(tagInput);
+    if (pendingTag && !normalized.tags?.includes(pendingTag)) {
+      if ((normalized.tags?.length ?? 0) >= LIMITS.maxTags) {
+        toast.error(`Use no máximo ${LIMITS.maxTags} tags`);
+        return;
+      }
+      normalized.tags = [...(normalized.tags || []), pendingTag];
+    }
+    if (!typeMeta.linkFirst) normalized.gemLink = '';
 
     for (const [field, label] of linkFields) {
       const raw = (formData[field] as string | undefined)?.trim();
@@ -185,7 +230,7 @@ export function PromptEditor({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={open => { if (!open) requestClose(); }}>
       <DialogContent className="flex max-h-[94vh] w-full max-w-4xl lg:max-w-5xl xl:max-w-6xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-6 py-4 text-left">
           <DialogTitle className="text-lg font-semibold">
@@ -240,6 +285,7 @@ export function PromptEditor({
                   <Input
                     id="prompt-title"
                     value={formData.title || ''}
+                    maxLength={LIMITS.title}
                     onChange={e => update({ title: e.target.value })}
                     placeholder="Ex: Gerador de critérios de aceite em Gherkin"
                     className="h-10"
@@ -253,6 +299,7 @@ export function PromptEditor({
                   <Textarea
                     id="prompt-description"
                     value={formData.description || ''}
+                    maxLength={LIMITS.description}
                     onChange={e => update({ description: e.target.value })}
                     placeholder="O que este item resolve e quando usar."
                     className="min-h-[64px] resize-y text-sm"
@@ -297,6 +344,7 @@ export function PromptEditor({
                 <Textarea
                   id="prompt-content"
                   value={formData.content || ''}
+                  maxLength={LIMITS.content}
                   onChange={e => update({ content: e.target.value })}
                   placeholder={typeMeta.contentPlaceholder}
                   className={cn(
@@ -359,6 +407,7 @@ export function PromptEditor({
                     <Input
                       id="prompt-link"
                       value={formData.gemLink || ''}
+                      maxLength={LIMITS.short}
                       onChange={e => update({ gemLink: e.target.value })}
                       placeholder="https://gemini.google.com/gems/..."
                       className="h-10 pl-9"
@@ -433,6 +482,7 @@ export function PromptEditor({
                   <Input
                     id="prompt-tags"
                     value={tagInput}
+                    maxLength={LIMITS.tag}
                     onChange={e => setTagInput(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
@@ -507,6 +557,7 @@ export function PromptEditor({
                       <Textarea
                         id="prompt-goal"
                         value={formData.businessGoal || ''}
+                        maxLength={LIMITS.short}
                         onChange={e => update({ businessGoal: e.target.value })}
                         placeholder="Que problema isso resolve e qual ganho é esperado."
                         className="min-h-[64px] resize-y text-sm"
@@ -553,6 +604,7 @@ export function PromptEditor({
                         <Input
                           id="prompt-audience"
                           value={formData.targetAudience || ''}
+                          maxLength={LIMITS.short}
                           onChange={e => update({ targetAudience: e.target.value })}
                           placeholder="Ex: devs, QA, produto"
                           className="h-10"
@@ -566,6 +618,7 @@ export function PromptEditor({
                         <Input
                           id="prompt-doc"
                           value={formData.architectureLink || ''}
+                          maxLength={LIMITS.short}
                           onChange={e => update({ architectureLink: e.target.value })}
                           placeholder="Miro, Confluence, Notion..."
                           className="h-10"
@@ -580,10 +633,12 @@ export function PromptEditor({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={requestClose} disabled={isSaving}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit}>{initialData ? 'Salvar alterações' : 'Publicar'}</Button>
+          <Button onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? 'Salvando...' : initialData ? 'Salvar alterações' : 'Publicar'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

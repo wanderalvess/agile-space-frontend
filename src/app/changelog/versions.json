@@ -1,5 +1,21 @@
 [
   {
+    "tag": "v4.18.0",
+    "date": "9 de Outubro, 2026",
+    "title": "Biblioteca de IA mais segura e sem erros pequenos",
+    "description": "Correções de uma revisão completa da Biblioteca de IA: permissões no servidor, exclusão que falhava, listas truncadas e vários detalhes do dia a dia.",
+    "changes": [
+      "Permissões de verdade: só quem publicou (ou um administrador) edita ou apaga um item, uma coleção ou um comentário, e o servidor confere isso. Itens e coleções privados deixam de aparecer para outras pessoas, inclusive pelo link, pela página do autor e dentro de coleções públicas. Autoria e dono vêm da sessão, não do que é enviado.",
+      "Excluir um item que estava numa coleção dava erro. Agora ele sai das coleções e é apagado junto com os comentários.",
+      "A lista não corta mais em 100 itens e vem do mais recente para o mais antigo. Duplicar cria a cópia e conta o clone numa operação só, e usar um item não o faz parecer \"recém-atualizado\".",
+      "Filtros por status (arquivados ficam escondidos por padrão) e por impacto. A busca ignora acentos e maiúsculas, e as tags populares não se repetem por diferença de caixa. O contador de favoritos conta só itens que ainda existem.",
+      "Publicar: o botão trava enquanto salva (acabou o item duplicado por duplo clique), a tag digitada sem Enter entra, os campos mostram o limite de caracteres e o servidor explica o motivo quando recusa. Fechar o editor com alterações pede confirmação.",
+      "Copiar com variáveis: valores com \"$\" não saem mais trocados, e textos como ${{ secrets.X }} não viram campos falsos. Comentários podem ser removidos pelo autor ou pelo dono do item.",
+      "Importar skills em lote começa como privado (antes começava público) e reimportar não torna pública uma skill privada. Arquivos grandes demais são sinalizados antes do envio.",
+      "A lista não vira tela de carregamento a cada salvar. Quando não carrega, aparece o motivo e \"Tentar de novo\" em vez de \"biblioteca vazia\". No link compartilhado, os botões que não funcionavam saíram, e o teclado volta a acionar favoritar e copiar dentro do card."
+    ]
+  },
+  {
     "tag": "v4.17.0",
     "date": "9 de Outubro, 2026",
     "title": "Retro mais estável: votos, timer, exportação e permissões",

@@ -41,7 +41,7 @@ interface PromptSpecimenCardProps {
   onSelectAuthor?: (authorId: string) => void;
 }
 
-const VARIABLE_REGEX = /\{\{([^}]+)\}\}/g;
+const VARIABLE_REGEX = /(?<!\$)\{\{([^}\n]{1,60})\}\}/g;
 const MAX_VISIBLE_TAGS = 3;
 
 function AuthorAvatar({ prompt }: { prompt: PromptItem }) {
@@ -152,6 +152,8 @@ export function PromptSpecimenCard({
       role="button"
       tabIndex={0}
       onKeyDown={e => {
+        // Enter/Espaço nos botões internos (copiar, favoritar, menu) são deles, não do card.
+        if (e.target !== e.currentTarget) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onView?.(prompt);
@@ -206,6 +208,7 @@ export function PromptSpecimenCard({
             size="icon"
             onClick={handleShare}
             title="Copiar link"
+            aria-label="Copiar link"
             className="h-7 w-7 text-muted-foreground hover:text-foreground"
           >
             <Share2 className="h-3.5 w-3.5" />
@@ -220,6 +223,7 @@ export function PromptSpecimenCard({
                 onToggleFavorite?.(prompt.id);
               }}
               title={prompt.isFavorited ? 'Remover dos favoritos' : 'Favoritar'}
+              aria-label={prompt.isFavorited ? 'Remover dos favoritos' : 'Favoritar'}
               className={cn(
                 'h-7 w-7',
                 prompt.isFavorited
@@ -238,6 +242,7 @@ export function PromptSpecimenCard({
                   variant="ghost"
                   size="icon"
                   title="Mais ações"
+                  aria-label="Mais ações"
                   className="h-7 w-7 text-muted-foreground hover:text-foreground"
                 >
                   <MoreVertical className="h-3.5 w-3.5" />
