@@ -127,7 +127,8 @@ async function handleMockRequest(
       }
 
       if (bestMatch.delay && bestMatch.delay > 0) {
-        await new Promise((resolve) => setTimeout(resolve, bestMatch.delay));
+        // Esta rota é pública: o atraso nunca passa de 10 s, mesmo que o mock tenha sido gravado com mais.
+        await new Promise((resolve) => setTimeout(resolve, Math.min(bestMatch.delay!, 10_000)));
       }
 
       return NextResponse.json(parsedPayload, {

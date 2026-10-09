@@ -30,6 +30,13 @@ declare global {
   var swaggerDocs: SwaggerDoc[] | undefined;
 }
 
+// Limites: o estado vive na memória do servidor e é compartilhado por todos; /api/mock/* é público.
+const MAX_MOCKS = 200;
+const MAX_SWAGGER_DOCS = 20;
+const MAX_PAYLOAD_CHARS = 200_000;
+const MAX_SWAGGER_CHARS = 1_000_000;
+const MAX_DELAY_MS = 10_000;
+
 function getMocks(): CustomMock[] {
   if (!global.customMocks) {
     global.customMocks = [];
@@ -105,7 +112,12 @@ export async function POST(req: NextRequest) {
       const docs = getSwaggerDocs();
       let parsedSpec = swagger.spec;
       if (typeof parsedSpec === 'string') {
+        if (parsedSpec.length > MAX_SWAGGER_CHARS) {
+          return NextResponse.json({ error: 'Contrato Swagger grande demais (máximo 1 MB).' }, { status: 413 });
+        }
         parsedSpec = JSON.parse(parsedSpec);
+      } else if (JSON.stringify(parsedSpec).length > MAX_SWAGGER_CHARS) {
+        return NextResponse.json({ error: 'Contrato Swagger grande demais (máximo 1 MB).' }, { status: 413 });
       }
 
       const newDoc: SwaggerDoc = {
@@ -118,6 +130,8 @@ export async function POST(req: NextRequest) {
       const existingIdx = docs.findIndex((d) => d.id === newDoc.id);
       if (existingIdx >= 0) {
         docs[existingIdx] = newDoc;
+      } else if (docs.length >= MAX_SWAGGER_DOCS) {
+        return NextResponse.json({ error: `Limite de ${MAX_SWAGGER_DOCS} contratos Swagger atingido. Remova algum antes de salvar outro.` }, { status: 409 });
       } else {
         docs.push(newDoc);
       }
@@ -140,6 +154,9 @@ export async function POST(req: NextRequest) {
 
     // Validate payload JSON
     let rawPayload = mock.payload || '{}';
+    if (typeof rawPayload === 'string' && rawPayload.length > MAX_PAYLOAD_CHARS) {
+      return NextResponse.json({ error: 'Payload de resposta grande demais (máximo 200 mil caracteres).' }, { status: 413 });
+    }
     if (typeof rawPayload === 'object') {
       rawPayload = JSON.stringify(rawPayload, null, 2);
     } else {
@@ -163,8 +180,8 @@ export async function POST(req: NextRequest) {
       cleanPath,
       queryParams,
       payload: rawPayload,
-      status: mock.status || 200,
-      delay: mock.delay || 0,
+      status: Number.isInteger(mock.status) && mock.status >= 100 && mock.status <= 599 ? mock.status : 200,
+      delay: Math.min(Math.max(Number(mock.delay) || 0, 0), MAX_DELAY_MS),
       createdAt: new Date().toISOString(),
     };
 
@@ -177,6 +194,8 @@ export async function POST(req: NextRequest) {
 
     if (existingIndex >= 0) {
       mocks[existingIndex] = newMock;
+    } else if (mocks.length >= MAX_MOCKS) {
+      return NextResponse.json({ error: `Limite de ${MAX_MOCKS} mocks atingido. Remova algum antes de salvar outro.` }, { status: 409 });
     } else {
       mocks.push(newMock);
     }
