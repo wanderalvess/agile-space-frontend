@@ -369,7 +369,7 @@ export function calculateRoleEfforts(
 
   votes.forEach(vote => {
     // 1. Tentar encontrar o participante atual na sala
-    let p = participantMap.get(vote.participantId);
+    const p = participantMap.get(vote.participantId);
     
     // 2. Se não encontrar (participante removido), usar os metadados embutidos no voto como fallback
     let category: TechnicalCategory | 'Management' | null = null;

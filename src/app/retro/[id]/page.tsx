@@ -438,7 +438,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
           console.error(`Erro ao carregar o canal ${channelId}:`, err);
         });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [boardId, chatChannelsKey]);
 
 

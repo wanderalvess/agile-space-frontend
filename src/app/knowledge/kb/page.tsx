@@ -162,7 +162,7 @@ function KBExplorerContent() {
       });
       
       // Atualizar o estado local
-      let cleanContent = parseConfluenceMacros(fullContent.content || '');
+      const cleanContent = parseConfluenceMacros(fullContent.content || '');
       const sourceInfo = `\n\n---\n*Documento importado do TDN (${fullContent.space || 'Wiki'})*\n*Link original: [${fullContent.link}](${fullContent.link})*`;
 
       const updated = {

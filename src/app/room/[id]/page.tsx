@@ -1339,7 +1339,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       rolePoints: null,
     };
 
-    let newQueue = rest.map(i => (nextPending && i.id === nextPending.id ? { ...i, status: 'active' as const } : i));
+    const newQueue = rest.map(i => (nextPending && i.id === nextPending.id ? { ...i, status: 'active' as const } : i));
     newQueue.push(parked);
 
     const nextActiveId = nextPending ? nextPending.id : null;
@@ -1683,7 +1683,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const handleSetTopic = useCallback((topic: string) => {
     if (!isCurrentUserFacilitator || !roomData) return;
     
-    let updates: Partial<Room> = { ...roomData };
+    const updates: Partial<Room> = { ...roomData };
     if (roomData.activeIssueId && roomData.issuesQueue) {
       const newQueue = roomData.issuesQueue.map(i => 
         i.id === roomData.activeIssueId ? { ...i, title: topic } : i

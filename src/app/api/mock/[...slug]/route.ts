@@ -152,7 +152,7 @@ async function handleMockRequest(
       if (!spec || !spec.paths) continue;
 
       for (const [pathKey, pathObj] of Object.entries(spec.paths)) {
-        let normalizedPathKey = pathKey.split('?')[0].trim().replace(/^\/+|\/+$/g, '').toLowerCase();
+        const normalizedPathKey = pathKey.split('?')[0].trim().replace(/^\/+|\/+$/g, '').toLowerCase();
 
         const isExactMatch = normalizedPathKey === targetCleanPath;
         const isRegexMatch = new RegExp(

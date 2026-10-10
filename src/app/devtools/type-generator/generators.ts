@@ -35,7 +35,7 @@ export function generateTypeScriptInterfaces(jsonString: string, rootName = 'Roo
       const interfaceName = capitalize(keyName);
       
       // Check interface deduplication briefly (ignoring exact structural match for simplicity, assuming unique keys name structures)
-      let uniqueName = interfaceName;
+      const uniqueName = interfaceName;
       while(interfaces.has(uniqueName)) {
          // Deep equality check bypass: in a simple engine, we just add suffix if name collision but different structure is a risk.
          // For now, let's just assume we overwrite it or it's the same type.
@@ -94,7 +94,7 @@ export function generateJavaClasses(jsonString: string, rootName = 'Root'): stri
     
     if (typeof value === 'object') {
       const className = capitalize(keyName);
-      let uniqueName = className;
+      const uniqueName = className;
       
       const fields: string[] = [];
       for (const [k, v] of Object.entries(value)) {
@@ -156,7 +156,7 @@ export function generateDelphiClasses(jsonString: string, rootName = 'Root'): st
     
     if (typeof value === 'object') {
       const className = 'T' + capitalize(keyName);
-      let uniqueName = className;
+      const uniqueName = className;
       
       const fields: string[] = [];
       const properties: string[] = [];

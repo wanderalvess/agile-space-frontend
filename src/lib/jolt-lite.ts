@@ -137,7 +137,7 @@ function evaluateJoltModifiers(data: any, originalInput: any): any {
       const toStringMatch = value.match(/^=toString(?:\(@\(\d+,([a-zA-Z0-9_]+)\)\))?$/);
       if (toStringMatch) {
         const targetField = toStringMatch[1];
-        let val = targetField 
+        const val = targetField 
           ? (data[targetField] !== undefined ? data[targetField] : findDeepValue(originalInput, targetField))
           : (data[key] !== undefined ? data[key] : findDeepValue(originalInput, key));
         if (val !== undefined) {
@@ -150,7 +150,7 @@ function evaluateJoltModifiers(data: any, originalInput: any): any {
       const toIntegerMatch = value.match(/^=toInteger(?:\(@\(\d+,([a-zA-Z0-9_]+)\)\))?$/);
       if (toIntegerMatch) {
         const targetField = toIntegerMatch[1];
-        let val = targetField 
+        const val = targetField 
           ? (data[targetField] !== undefined ? data[targetField] : findDeepValue(originalInput, targetField))
           : (data[key] !== undefined ? data[key] : findDeepValue(originalInput, key));
         if (val !== undefined) {
@@ -164,7 +164,7 @@ function evaluateJoltModifiers(data: any, originalInput: any): any {
       const toDoubleMatch = value.match(/^=toDouble(?:\(@\(\d+,([a-zA-Z0-9_]+)\)\))?$/);
       if (toDoubleMatch) {
         const targetField = toDoubleMatch[1];
-        let val = targetField 
+        const val = targetField 
           ? (data[targetField] !== undefined ? data[targetField] : findDeepValue(originalInput, targetField))
           : (data[key] !== undefined ? data[key] : findDeepValue(originalInput, key));
         if (val !== undefined) {
@@ -178,7 +178,7 @@ function evaluateJoltModifiers(data: any, originalInput: any): any {
       const toBooleanMatch = value.match(/^=toBoolean(?:\(@\(\d+,([a-zA-Z0-9_]+)\)\))?$/);
       if (toBooleanMatch) {
         const targetField = toBooleanMatch[1];
-        let val = targetField 
+        const val = targetField 
           ? (data[targetField] !== undefined ? data[targetField] : findDeepValue(originalInput, targetField))
           : (data[key] !== undefined ? data[key] : findDeepValue(originalInput, key));
         if (val !== undefined) {
@@ -195,7 +195,7 @@ function evaluateJoltModifiers(data: any, originalInput: any): any {
       const base64Match = value.match(/^=base64ToObject(?:\(@\(\d+,([a-zA-Z0-9_]+)\)\))?$/);
       if (base64Match) {
         const targetField = base64Match[1];
-        let val = targetField 
+        const val = targetField 
           ? (data[targetField] !== undefined ? data[targetField] : findDeepValue(originalInput, targetField))
           : (data[key] !== undefined ? data[key] : findDeepValue(originalInput, key));
         if (val !== undefined) {
@@ -355,7 +355,7 @@ function splitArgs(str: string, separator: string = ',') {
  */
 function createSplitRegex(pattern: string): RegExp | string {
   if (!pattern) return '';
-  let p = pattern;
+  const p = pattern;
   if (p === '//.' || p === '\\\\.' || p === '\\.') return /\./;
   if (p === '\\\\D' || p === '\\D') return /\D+/;
   if (p.startsWith('[') && p.endsWith(']')) {
@@ -717,7 +717,7 @@ function resolveValue(path: string, current: any, parents: any[], currentKey?: s
     const levels = complexMatch[1] !== undefined ? parseInt(complexMatch[1], 10) : 0;
     const keyPath = complexMatch[2].trim();
     
-    let baseObj = levels === 0 ? current : parents[levels - 1];
+    const baseObj = levels === 0 ? current : parents[levels - 1];
     if (!baseObj) return undefined;
     if (keyPath === '' || keyPath === '&') return safeClone(baseObj);
 
@@ -849,7 +849,7 @@ function applyShift(data: any, spec: any) {
         if (matchComplex) {
           const levels = matchComplex[1] !== undefined ? parseInt(matchComplex[1], 10) : 0;
           const keyPath = matchComplex[2].trim();
-          let baseObj = levels === 0 ? input : (inputValues[levels] ?? inputValues[inputValues.length - 1]);
+          const baseObj = levels === 0 ? input : (inputValues[levels] ?? inputValues[inputValues.length - 1]);
           if (baseObj && keyPath) {
             const parts = keyPath.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
             let v = baseObj;
@@ -978,8 +978,8 @@ function setDeep(obj: any, path: string, value: any, specKeys: string[]) {
         current[key] = clonedValue;
       }
     } else {
-      let nextKey = parts[i + 1];
-      let isNextNumeric = !isNaN(Number(nextKey)) || nextKey === '[+]';
+      const nextKey = parts[i + 1];
+      const isNextNumeric = !isNaN(Number(nextKey)) || nextKey === '[+]';
       
       if (current[key] === undefined) {
         current[key] = isNextNumeric ? [] : {};

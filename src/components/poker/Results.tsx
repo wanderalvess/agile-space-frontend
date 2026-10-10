@@ -124,7 +124,7 @@ export function Results({ votes, participants, deck, allowManagementToVote = fal
     const result: Record<string, { votes: string[]; resultValue: string; resultLabel: string }> = {};
 
     votes.forEach(vote => {
-      let participant = participantMap.get(vote.participantId);
+      const participant = participantMap.get(vote.participantId);
       
       let category: TechnicalCategory | 'Management' | null = null;
       

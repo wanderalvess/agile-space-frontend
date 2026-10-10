@@ -133,7 +133,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
       const content = fullContent.content || '';
       
       // Clean and structure Confluence macro contents
-      let cleanContent = parseConfluenceMacros(content);
+      const cleanContent = parseConfluenceMacros(content);
 
       const blob = new Blob([cleanContent], { type: 'text/markdown;charset=utf-8;' });
       const url = URL.createObjectURL(blob);

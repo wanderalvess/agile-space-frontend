@@ -225,7 +225,7 @@ export async function importTdnToKnowledgeBase(
   const tdnDoc = (arg3 ? arg3 : arg2) as TdnDocInput;
 
   // Clean and structure Confluence macro contents
-  let cleanContent = parseConfluenceMacros(tdnDoc.content);
+  const cleanContent = parseConfluenceMacros(tdnDoc.content);
 
   // Add source info to content
   const sourceInfo = `\n\n---\n*Documento importado do TDN (${tdnDoc.space})*\n*Link original: [${tdnDoc.link}](${tdnDoc.link})*`;

@@ -41,7 +41,7 @@ export const isLightBackground = (bg?: string): boolean => {
 export const toSafeUrl = (raw?: string | null): string => {
   const value = (raw ?? '').trim();
   if (!value) return '';
-  // eslint-disable-next-line no-control-regex
+   
   const compact = value.replace(/[\u0000- \u007f]/g, '');
   if (/^[a-z][a-z0-9+.-]*:/i.test(compact)) {
     return /^https?:/i.test(compact) ? value : '';

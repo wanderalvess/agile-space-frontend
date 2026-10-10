@@ -524,7 +524,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     } catch { return; }
     const t = setTimeout(() => setIsGuideOpen(true), 600);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [loading, tasks.length]);
 
   // Sessão recém-criada (?setup=1, posto pela tela de criação): abre a

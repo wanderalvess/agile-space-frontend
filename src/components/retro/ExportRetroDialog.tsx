@@ -517,7 +517,7 @@ export function ExportRetroDialog({
 
           // Cálculo da altura do card
           const cardContent = pdfSafe(card.content);
-          let contentH = measure(cardContent, cardTextW - 24, 9.5, 4.8, 'bold');
+          const contentH = measure(cardContent, cardTextW - 24, 9.5, 4.8, 'bold');
           let extraH = 0;
 
           if (isActionCol) {

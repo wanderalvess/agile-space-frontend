@@ -82,7 +82,7 @@ export function CeremonySettingsDialog({
       setDraftUnit(latestSavedRef.current.estimationUnit ?? '');
       setDraftCeremonies(latestSavedRef.current.ceremonies.length ? latestSavedRef.current.ceremonies : []);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open]);
 
   const updateCeremony = (id: string, patch: Partial<SquadCeremony>) => {

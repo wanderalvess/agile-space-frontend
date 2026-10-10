@@ -24,9 +24,9 @@ export interface SwaggerDoc {
 
 // Global declaration for Node environment
 declare global {
-  // eslint-disable-next-line no-var
+   
   var customMocks: CustomMock[] | undefined;
-  // eslint-disable-next-line no-var
+   
   var swaggerDocs: SwaggerDoc[] | undefined;
 }
 
