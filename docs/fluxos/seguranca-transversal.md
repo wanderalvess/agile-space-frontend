@@ -136,4 +136,15 @@ Cuidados:
 
 ## Mensagens de erro do servidor em produção
 
-`server.error.include-message` é `never` em produção: o corpo do erro **não traz** o texto de `ResponseStatusException`. O frontend só enxerga o status (400/401/403/409). Por isso as telas de administração antecipam as regras no cliente (botões desabilitados para o próprio admin e para o último admin) e traduzem o status em texto (`apiErrorMessage`). Qualquer tela nova que dependa do texto do servidor precisa tratar o status.
+`server.error.include-message` é `never` em produção (de propósito: evita vazar texto de exceção interna). Efeito colateral: o corpo padrão do Spring **não traz** o texto de `ResponseStatusException`, e as mensagens em português escritas pelo servidor ("A votação não está aberta.") nunca chegavam ao navegador.
+
+**Correção:** `config/ErrorMessageAdvice` (`@RestControllerAdvice`, ordem mais baixa) trata `ResponseStatusException` em toda a API:
+
+| Status | Corpo | Observação |
+|---|---|---|
+| 4xx | `{"error":"409 CONFLICT","message":"<texto do servidor>"}` | Sem texto, `message` = "Não foi possível concluir a operação." Todas as mensagens 4xx são escritas por nós (conferido: as que vêm de `e.getMessage()` em `JiraProfieldsService` e `PromptController` são validações nossas) |
+| 5xx | `{"error":"502 BAD_GATEWAY","message":"Erro interno. Tente novamente."}` | O `reason` **não** vai ao cliente (pode trazer detalhe de Jira/infra); fica só no log |
+
+Os `@ExceptionHandler` dentro de controllers (Brainstorming, Health Check, Plano de Ação, Retro, Poker, Jolt) continuam valendo e têm prioridade. `application-prod.yml` não mudou. Regra para código novo: mensagem de `ResponseStatusException` 4xx é texto **para a pessoa ler**; nunca concatenar `e.getMessage()` de exceção de biblioteca ou de chamada externa.
+
+Fora do alcance do advice: exceções que não são `ResponseStatusException` (ex.: `IllegalArgumentException` não tratada vira 500 sem texto) e respostas escritas direto por filtros (401/403/429 já trazem `error` próprio). As telas de administração ainda antecipam regras no cliente e traduzem o status (`apiErrorMessage`) como rede de segurança.
