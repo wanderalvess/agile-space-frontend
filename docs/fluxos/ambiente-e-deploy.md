@@ -33,7 +33,8 @@ Várias sessões de agentes podem trabalhar nos mesmos checkouts ao mesmo tempo.
    - `app.jira.allow-private-hosts` (padrão `false`): o backend agora bloqueia redes privadas como destino do Jira; quem tiver Jira em rede interna precisa ligar. Para o Jira público da TOTVS nada muda. `app.jira.allowed-domains` limita os domínios aceitos.
 9. **Variável de build `NEXT_PUBLIC_GEMINI_API_KEY`:** se tiver valor no `.env` da VM, a chave vai para o JavaScript público. Deve ficar vazia; `GEMINI_API_KEY` (sem `NEXT_PUBLIC_`) não expõe.
 10. **O login é do próprio Portal (e-mail e senha no Spring)**, não Firebase nem Google. Mensagens antigas e a memória de sessões falavam em Firebase; o frontend não depende dele. O SSO corporativo está só planejado (`DOCUMENTACAO_SSO.md` no backend).
-11. **Docker local pode não subir** (sockets antigos que o Docker não consegue apagar). Sem banco local, o backend local responde 500 e só os testes unitários rodam.
+11. **Fuso da JVM fixo em UTC:** o `Dockerfile` do backend define `TZ=UTC` e `-Duser.timezone=UTC`. As datas do servidor (`createdAt`, `updatedAt`, `lastLoginAt`) são `LocalDateTime` gravados com `now()` e a API as envia com `Z`; a JVM precisa estar em UTC para o navegador mostrar a hora certa. Rodando o backend fora do Docker (desenvolvimento), passe `-Duser.timezone=UTC` (por exemplo `-Dspring-boot.run.jvmArguments=-Duser.timezone=UTC`), senão as datas aparecem 3 h atrás em horário de Brasília.
+12. **Docker local pode não subir** (sockets antigos que o Docker não consegue apagar). Sem banco local, o backend local responde 500 e só os testes unitários rodam.
 
 ## Migrations recentes (o que fazem e o risco)
 
