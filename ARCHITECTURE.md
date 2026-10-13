@@ -36,10 +36,9 @@ O **Portal Tech V&D** é uma aplicação **Next.js 16 (App Router, Turbopack)** 
 - **Componentes Chave**: `src/components/planner/SprintPlannerContent.tsx`, `src/components/planner/PlannerGuide.tsx`.
 - **Responsabilidade**: Planejamento de capacidade da squad com suporte a modo simples (em massa) e detalhado (foco individual, férias e ausências), importação em lote inteligente de cards e tracking de sobrecarga em tempo real.
 
-### 📈 Squad Pulse & Jira Dashboards (Jiradash)
-- **Rotas Principais**: `src/app/jiradash/page.tsx` e `src/app/squad/page.tsx`
-- **Componentes Chave**: `src/components/jiradash/*`, radar da sprint integrado à Daily.
-- **Responsabilidade**: Monitoramento contínuo da saúde e entregas da squad. Inclui radar automático de progresso da sprint, capacidade planejada x realizada, burnup/burndown, worklogs, rollups consolidados e cache compartilhado no backend de consultas JQL para alta performance.
+### 📈 Squad Pulse
+- **Rotas Principais**: `src/app/squad/page.tsx` (o antigo JiraDash, `/jiradash`, foi removido em 2026-10-13).
+- **Responsabilidade**: Monitoramento contínuo da saúde e entregas da squad: radar da sprint integrado à Daily, capacidade planejada x realizada e rollups consolidados.
 
 ### ⚡ Daily Flow & Helper
 - **Rota Principal**: `src/app/daily-flow/page.tsx`

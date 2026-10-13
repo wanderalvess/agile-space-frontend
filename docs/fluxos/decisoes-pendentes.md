@@ -55,10 +55,8 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 50. Várias telas repetem as mesmas leituras ao abrir (a Retro busca quadro, cards e participantes 5 vezes seguidas): não quebra nada, mas pesa; vale deduplicar.
 
-## Painel, Governança, Jira (`painel.md`, `governanca-e-projetos.md`, `integracao-jira.md`, `jira-dash.md`)
+## Painel, Governança, Jira (`painel.md`, `governanca-e-projetos.md`, `integracao-jira.md`)
 
-25. **Proxy `/jira` do Jira Dash funciona sem login do Portal** (o iframe só conhece o token do Jira). Exigir login muda o desenho.
-27. **Snapshot compartilhado do Jira Dash é gravável por qualquer logado** (dá para envenenar o cache de uma consulta).
 28. **TLS tolerante como segundo caminho:** o ideal é instalar a CA corporativa no contêiner e desligar o fallback.
 29. **Gate do dashboard do PO só na interface:** o servidor devolve os mesmos dados a qualquer membro da squad.
 

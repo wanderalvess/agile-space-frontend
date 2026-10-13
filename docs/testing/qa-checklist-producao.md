@@ -115,7 +115,6 @@ no conector Jira, no fluxo de auth/onboarding, ou no `docker-compose.yml`/migrat
 - [ ] **Retrospectiva**: criar board, adicionar cards, reações, check-in de saúde, exportar.
 - [ ] **Review (Sprint Review/Showcase)**: criar sessão, apresentar itens, registrar feedback.
 - [ ] **Planejador**: Sprint Planner puxa itens da squad; Action Plan cria/edita tarefas 5W2H.
-- [ ] **JiraDash**: dashboard reflete dados reais da squad sincronizada.
 - [ ] **Base de Conhecimento**: upload de documento, busca, edição, lixeira.
 - [ ] **Biblioteca de IA (Prompt Hub)**: criar prompt, coleção, autor, tutorial.
 - [ ] **Admin**: com usuário ADMIN (passo 1), acessar configs globais, announcements, audit log,

@@ -118,10 +118,6 @@ const KNOWN_LIMITATIONS = [
     detail: "No servidor o token fica cifrado, mas é devolvido em texto claro ao dono e a qualquer administrador. No navegador ele fica em texto claro (localStorage) e não é apagado ao sair. Quem executar script na página consegue lê-lo."
   },
   {
-    title: "JiraDash",
-    detail: "O proxy do JiraDash não exige login do Portal (só o token do Jira, com limite de requisições por IP), e o cache compartilhado de consultas pode ser gravado por qualquer pessoa logada. Os números do Jira são os que o Jira devolve para o token de quem atualizou por último."
-  },
-  {
     title: "Acesso por cargo",
     detail: "Os painéis por cargo (ex.: Product Owner) escondem abas na interface, mas o servidor libera os mesmos dados a qualquer membro da squad. Só o cadastro de equipes (Agile Master, People Lead e admin) é imposto no servidor."
   },

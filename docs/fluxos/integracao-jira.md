@@ -4,13 +4,12 @@ Descreve o que o código faz **hoje** (`develop`, 2026-10-09). Sem teste ao vivo
 
 ## Objetivo e quem usa
 
-Trazer dados do Jira corporativo para o Portal sem que o servidor guarde credenciais em claro por conta própria. Quatro usos:
+Trazer dados do Jira corporativo para o Portal sem que o servidor guarde credenciais em claro por conta própria. Três usos:
 
 | Uso | Quem | O que faz |
 |---|---|---|
 | Importação de equipes (Profields) | Agile Master, People Lead, admin | Lê projeto + pessoas e cria a equipe (regras em `onboarding-e-papeis.md`) |
 | Proxy de leitura do backend (`/api/jira/*`) | qualquer pessoa logada | Busca issues, sprint, campos, boards, anexos, caso de teste (Poker, Review, Squad, Zephyr) |
-| Proxy do JiraDash (`/jira/*`, Next.js) | iframe do JiraDash | Leitura de issues/worklogs/sprint (ver `jira-dash.md`) |
 | Administração (`/api/admin/jira/*`) | só admin | Prévia/confirmação de squad e membros a partir do Jira |
 
 ## Token e domínio do Jira (PAT)
@@ -19,7 +18,7 @@ Trazer dados do Jira corporativo para o Portal sem que o servidor guarde credenc
 - **Onde fica:** (1) navegador, `localStorage` chave `agile_jira_config_<id>` com `{domínio, token}` **em texto claro**; (2) conta no servidor (`user_jira_configs`), token **cifrado em repouso** (AES-256-GCM, chave `APP_ENCRYPTION_SECRET`; em produção a variável é obrigatória, em dev há chave padrão pública).
 - **Leitura:** `GET /api/users/{id}/jira-config` devolve o token **decifrado**, só para o próprio dono ou admin (qualquer admin lê o token de qualquer pessoa). Outro usuário comum recebe 403. O token não aparece em perfil nem em listagens.
 - O navegador prefere a cópia local à do servidor: se o token for trocado/removido no servidor, aquele navegador continua usando o antigo.
-- **Saída do token:** vai no corpo do POST para `/api/jira/*`, no header `X-Jira-Token` nos endpoints de importação, e no header `x-jira-token` para o proxy `/jira`. Nunca em URL. Nos logs do backend não aparece.
+- **Saída do token:** vai no corpo do POST para `/api/jira/*`, no header `X-Jira-Token` nos endpoints de importação. Nunca em URL. Nos logs do backend não aparece.
 - Salvar o token na conta agora **avisa** quando falha (antes dizia "guardado na sua conta" mesmo com o servidor fora do ar).
 
 ## Proxy do backend (`JiraController` / `JiraService`)
@@ -104,7 +103,6 @@ Corrigidos nesta rodada: TLS trust-all **sempre** na importação e na administr
 - **DNS rebinding** no bloqueio de IPs: a checagem é antes da conexão. Fechar exige fixar o IP resolvido no cliente HTTP; fora do escopo.
 - **TLS tolerante como segundo caminho:** depende do certificado corporativo (ver acima). Decisão do usuário.
 - **Sem limite de bytes** na resposta do Jira.
-- **Proxy `/jira` (Next.js) sem login do Portal** — ver `jira-dash.md`; precisa de decisão de produto.
 - **Token em claro no `localStorage`** e **não apagado no logout** (`UserContext` é compartilhado com outras frentes). Qualquer script na página lê o token.
 - **Admin lê o token de qualquer pessoa** (`isOwnerOrAdmin`).
 - **Vazamento de token via squad:** `jiraDomain` da squad é editável por qualquer membro e o sync usa esse domínio com o token de quem sincroniza (`SquadService`/`SquadSyncService`, frente de Squad). Avisado à sessão responsável. Mitigação nova: o domínio passa por `cleanDomain`/`assertNotBlockedHost` quando chega ao proxy, mas **um domínio público do atacante continua permitido**.
@@ -115,5 +113,9 @@ Corrigidos nesta rodada: TLS trust-all **sempre** na importação e na administr
 ## Onde olhar no código
 
 - Backend: `service/JiraService` (proxy, domínio, bloqueio, redirect, TLS), `service/JiraProfieldsService` (importação, permissão, mescla), `service/JiraAdminService` (descoberta, cargos), `controller/JiraController`, `ProjectController`, `JiraAdminController`, `domain/UserJiraConfig`, `security/CryptoConverter`.
-- Frontend: `components/jira/JiraProfieldsImport` e `JiraImportPreview`, `services/projectService`, `hooks/useJiraSettings`, `app/users/api`, `app/jira/[...path]` (proxy do JiraDash), `lib/jira-proxy`.
-- Testes: `JiraServiceHardeningTest`, `JiraServiceTest`, `JiraAdminServiceTest`, `JiraProfieldsServiceTest`, `JiraProfieldsImportSafetyTest`, `ProjectAndDashAccessTest`; `lib/__tests__/jira-proxy.test.ts`.
+- Frontend: `components/jira/JiraProfieldsImport` e `JiraImportPreview`, `services/projectService`, `hooks/useJiraSettings`, `app/users/api`.
+- Testes: `JiraServiceHardeningTest`, `JiraServiceTest`, `JiraAdminServiceTest`, `JiraProfieldsServiceTest`, `JiraProfieldsImportSafetyTest`, `ProjectAndDashAccessTest`.
+
+## Removido: Jira Dash (2026-10-13)
+
+O painel Jira Dash (`/jiradash`), seu proxy de leitura do Next (`/jira/*`), a rota `/config`, o cache compartilhado de consultas (`/api/jiradash/snapshot`) e os controles/serviço do backend foram removidos por decisão do produto (era só para consulta). A tabela `jiradash_snapshots` **continua no banco, sem uso** (nenhuma migration destrutiva); pode ser apagada numa migration futura. As variáveis `JIRA_BASE` e `JIRA_TLS_INSECURE` deixaram de existir. O histórico do que havia (cálculos, riscos) está no git (`docs/fluxos/jira-dash.md` até o commit anterior à remoção).

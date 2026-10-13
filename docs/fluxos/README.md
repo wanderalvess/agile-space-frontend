@@ -35,7 +35,6 @@ Documentação de **como cada módulo funciona**, escrita para que um agente (ou
 | [painel.md](painel.md) | Painel (`/painel`) |
 | [governanca-e-projetos.md](governanca-e-projetos.md) | Governança, PO e projetos |
 | [integracao-jira.md](integracao-jira.md) | Proxy do Jira, importação Profields, tokens, segurança |
-| [jira-dash.md](jira-dash.md) | Jira Dash |
 
 ### Conhecimento e ferramentas
 | Documento | Assunto |

@@ -71,7 +71,6 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(isCollaborativeRoute('/brainstorming/ideacao-2026')).toBe(true);
       expect(isCollaborativeRoute('/health-check/squad-hc-1')).toBe(true);
       expect(isCollaborativeRoute('/action-plan/5w2h-plano')).toBe(true);
-      expect(isCollaborativeRoute('/jiradash')).toBe(true);
     });
 
     it('deve retornar falso para rotas individuais e administrativas', () => {

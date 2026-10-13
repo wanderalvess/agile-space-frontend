@@ -10,7 +10,6 @@ const MODULE_ROUTES: Array<{ name: string; path: string }> = [
   { name: 'Scrum Poker', path: '/room' },
   { name: 'Retrospectiva', path: '/retro' },
   { name: 'Review (Showcase)', path: '/showcase' },
-  { name: 'JiraDash', path: '/jiradash' },
   { name: 'Planejador (Sprint Planner)', path: '/sprint-planner' },
   { name: 'Plano de Ação', path: '/action-plan' },
   { name: 'Base de Conhecimento', path: '/knowledge' },

@@ -15,8 +15,7 @@ export const isCollaborativeRoute = (path: string) => {
     path.startsWith('/retro/') ||
     path.startsWith('/brainstorming/') ||
     path.startsWith('/health-check/') ||
-    path.startsWith('/action-plan/') ||
-    path.startsWith('/jiradash')
+    path.startsWith('/action-plan/')
   );
 };
 
