@@ -99,6 +99,8 @@ Os eventos saem **depois do commit**. Ao reconectar o cliente **recarrega** quad
 | Ação | Quem |
 |---|---|
 | Ler quadro, cards, participantes, abrir WebSocket, entrar como participante | **Qualquer pessoa logada que receba o link** (mesma regra da Review e do Poker), mesmo de outra squad. Listagens por sprint continuam filtradas por participação/squad |
+| Ver o texto de card não revelado | O autor (o próprio card), o facilitador e o admin. Os demais recebem o card redigido |
+| Ver quem escreveu | O próprio autor; todos só quando `isAuthorsRevealed` é verdadeiro. Facilitador e admin **não** veem a autoria antes disso |
 | Criar card | Participante (autor é sempre quem chama) |
 | Editar texto/responsável do card | Autor, facilitador, admin |
 | Mover, marcar feito, reagir | Qualquer participante (cada um altera só a própria reação) |
@@ -112,6 +114,21 @@ Os eventos saem **depois do commit**. Ao reconectar o cliente **recarrega** quad
 
 Gravar o card inteiro **não** altera votos nem autor de um card que já existe: o servidor mantém os persistidos. Votos só mudam por voto, fusão e reset.
 
+## Anonimato (decidido em 2026-10-13: o servidor esconde até revelar)
+
+A redação é feita **por destinatário** no servidor (`RetroCardRedactor`), em todas as saídas que carregam card: `GET /cards`, as respostas de `POST /cards`, `/vote` e `/merge`, e os eventos de WebSocket `CARD_SAVED` e `CARDS_IMPORTED` (o payload é montado por sessão, com o usuário do JWT do handshake). O card real no banco nunca é alterado.
+
+| Situação | Quem vê o quê |
+|---|---|
+| `isCardsRevealed = false`, card de outra pessoa | Participante comum: card **redigido** (`hidden: true`, `content` vazio, `authorId` nulo, sem votos, reações, histórico, responsável e prazo; mantém `id`, `columnKey`, `order`, `parentId`). Facilitador e admin: o texto, mas sem autor. Autor: o próprio card completo |
+| `isCardsRevealed = true`, `isAuthorsRevealed = false` | Texto para todos; `authorId` só para o autor do card |
+| `isAuthorsRevealed = true` | Texto e autoria para todos |
+| Coluna de ação (`theme: action`) | Nunca é redigida |
+
+- Votação, fusão, exclusão e moderação usam os dados reais no servidor; só a saída é filtrada.
+- Revelar cards/autores, ou trocar o facilitador antes da revelação, faz o servidor mandar `REFRESH_BOARD`: cada cliente refaz o `GET /cards` e passa a receber a visão nova. Até a recarga, o card `hidden` mantém o placeholder borrado.
+- A tela do facilitador continua desfocando cards alheios até a revelação (o texto dele fica só na rede); o export usa o que o cliente tem (o facilitador exporta antes da revelação, sem autoria).
+
 ## Endpoints principais
 
 `POST /api/retros` (criar), `GET/PATCH/DELETE /api/retros/{id}`, `POST …/votes/reset`, `POST …/transfer-control`, `GET/POST …/participants`, `DELETE …/participants/{userId}`, `GET/POST …/cards`, `DELETE …/cards/{cardId}`, `POST …/cards/{cardId}/vote`, `POST …/cards/{targetId}/merge/{sourceId}`, `POST …/cards/import`, `GET/POST …/chat`, `DELETE …/chat/{messageId}`.
@@ -124,7 +141,7 @@ Quadro (título, squad, sprint, criador, colunas, estado de revelação/votaçã
 
 ## Pontos frágeis e erros de fluxo conhecidos
 
-- **Anonimato é só visual.** O servidor ainda envia conteúdo e autor de cards **não revelados** a todos os participantes (REST e WebSocket); só a tela os esconde. Alguém com o navegador aberto pode ler. Corrigir exige o servidor mascarar até a revelação.
+- **Anonimato no servidor (desde 2026-10-13).** O texto de card não revelado só chega a quem pode vê-lo; ver a seção "Anonimato" acima. Pendência conhecida: o facilitador recebe o conteúdo (para conduzir) e a tela dele continua desfocando os cards até a revelação, então o texto aparece só na rede, não na tela.
 - **Quem foi removido volta ao recarregar.** Não há lista de banidos.
 - **Relógio do timer é o de cada navegador.** Diferença de relógio entre máquinas mostra segundos diferentes. Falta um relógio do servidor.
 - **`participantIds` não persiste** (não há coluna); vale a lista de `/participants`.

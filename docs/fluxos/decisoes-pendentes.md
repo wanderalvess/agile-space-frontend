@@ -24,7 +24,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Retro (`retro.md`)
 
-10. **Anonimato é só visual:** o servidor envia texto e autor de cards não revelados. Mascarar até a revelação muda o contrato do tempo real.
 11. **Expulsão não é permanente** (não há lista de banidos).
 12. **Timer usa o relógio de cada navegador**; falta um relógio do servidor.
 

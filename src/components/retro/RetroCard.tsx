@@ -1,5 +1,6 @@
 'use client';
 
+import { canShowCardContent } from './retro-card-visibility';
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -215,7 +216,7 @@ export function RetroCard({
   };
 
   const isActionPlan = theme === 'action' || card.columnKey === 'actionItems';
-  const showRealContent = isCardsRevealed || isAuthor || isActionPlan;
+  const showRealContent = canShowCardContent(card, { isCardsRevealed, isAuthor, isActionPlan });
   const showAuthorInfo = isAuthorsRevealed || isAuthor || isActionPlan;
   const showVotes = (votingStatus === 'active' || votingStatus === 'finished') && !isActionPlan;
   const canVote = votingStatus === 'active';
@@ -314,7 +315,7 @@ export function RetroCard({
         <AgileCard
           id={card.id}
           variant="retro"
-          content={card.content}
+          content={card.hidden ? '' : card.content}
           theme={theme || 'emerald'}
           authorId={card.authorId}
           authorName={participants.find(p => p.id === card.authorId)?.nickname}

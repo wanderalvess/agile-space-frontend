@@ -674,7 +674,8 @@ export type RetroCard = {
   boardId: string;
   columnKey: RetroColumnKey;
   content: string;
-  authorId: string;
+  authorId: string; // o servidor manda null/vazio quando a autoria não é sua (anonimato)
+  hidden?: boolean; // true: o servidor entregou o card redigido (sem texto/autor/votos) até a revelação
   votes: string[]; // Array of user UIDs
   reactions?: Partial<Record<RetroReactionType, string[]>>; // Array de UIDs por tipo de reação
   order: number;
