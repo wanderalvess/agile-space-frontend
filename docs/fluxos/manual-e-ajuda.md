@@ -42,7 +42,8 @@ Reescritos a partir do comportamento real (ver os documentos de fluxo correspond
 - **Review de Sprint (antes "Showcase"):** criação, importação do Jira, anexos, Modo Teatro, decisão do PO/SME, finalização e exportações; regra de acesso por link.
 - **Biblioteca de IA (antes "Hub de Prompts"):** oito tipos, skills (SKILL.md), iniciativas, coleções, variáveis, duplicar, leitura sem login só de itens públicos.
 - **Meu Espaço:** as nove abas reais. Removida a menção a "Apoio à Daily", que não existe.
-- **Base de Conhecimento:** a chave de IA **não** fica só no navegador (fica cifrada no servidor); respostas **não** são em streaming; a lixeira **não** tem purga em 30 dias; o editor é visual, não Markdown.
+- **Base de Conhecimento (regra de 2026-10-13):** só o autor, a liderança da squad do documento e administradores editam, apagam e restauram; há aba Histórico com restauração de versões.
+- **Base de Conhecimento (antes):** a chave de IA **não** fica só no navegador (fica cifrada no servidor); respostas **não** são em streaming; a lixeira **não** tem purga em 30 dias; o editor é visual, não Markdown.
 - **Novo:** Primeiros Passos & Papéis (onboarding, quem cadastra equipes, regra "ninguém se declara líder").
 
 ## 5. Pontos frágeis e o que **não** foi feito

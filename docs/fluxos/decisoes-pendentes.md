@@ -59,7 +59,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Workspace, Conhecimento, Manual (`workspace.md`, `base-de-conhecimento.md`, `manual-e-ajuda.md`)
 
-31. **Qualquer pessoa edita qualquer documento da Base**, sem versões: abre caminho para adulterar o que o Assistente lê. Versionamento ou aprovação é decisão de produto.
 32. **Kanban sem ordem manual** dentro da coluna (precisa de coluna de posição e migration).
 33. A busca da Base carrega todos os documentos na memória; para milhares precisa de busca vetorial no banco.
 34. OpenAI e Anthropic aparecem como "Em breve"; hoje só Gemini funciona.

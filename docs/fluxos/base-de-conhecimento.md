@@ -8,9 +8,10 @@ Wiki compartilhada da empresa para manuais técnicos e guias, com busca, importa
 
 | Quem | O que pode |
 |---|---|
-| Qualquer pessoa logada | Ler, criar, **editar qualquer documento**, restaurar da lixeira, conversar com o Assistente. A base é colaborativa e **não tem escopo por squad** |
-| Autor do documento | Apagar o próprio |
-| Administrador | Apagar qualquer documento |
+| Qualquer pessoa logada | **Ler** qualquer documento, **criar** documentos, ver o histórico de versões, conversar com o Assistente |
+| Autor do documento | Editar, mover para a lixeira, restaurar e restaurar versões do **próprio** documento |
+| Liderança da squad do documento | Mesmo que o autor, nos documentos da squad dela. Liderança = a mesma noção de `SquadAccessService` (cargo AM/SM/PL/PO/Tech Lead/Tribe Lead/Agile Coach/SME em membro da squad, ou linha de liderança no roster), **sem** a regra de "squad sem liderança, qualquer membro gerencia" |
+| Administrador (`ADMIN`) | Tudo, em qualquer documento |
 | Chave de API (`X-Api-Key`) | Ler (`KNOWLEDGE_READ`) e criar (`KNOWLEDGE_WRITE`) pela API v1 e pelo MCP |
 
 Sem login não há acesso a nada (nenhum conteúdo é público).
@@ -45,7 +46,9 @@ flowchart TD
 - O **embedding** (vetor de 384 números, modelo multilíngue rodando no servidor Next, sem LLM) é gerado a partir de título + até 2.000 caracteres. Se falhar, o documento salva **sem** embedding e fica de fora da busca semântica.
 - `/api/knowledge/ingest-pdf` (nome histórico) aceita PDF, DOCX e texto; **a tela só oferece `.docx`, `.txt`, `.md`, `.json`**. Regras: login, 10 chamadas/min por pessoa, arquivo até 20 MB, tipo conferido **pelo conteúdo** (PDF começa com `%PDF-`, DOCX é um zip, texto sem bytes nulos), tempo máximo de 60 s na leitura, texto extraído até 1,5 milhão de caracteres, mensagens de erro em português. PDF escaneado (sem texto) devolve 422.
 - Servidor (`POST/PUT /api/knowledge`): título obrigatório (até 255), conteúdo até 2 milhões de caracteres, campos de caminho até 255, até 50 tags de 100 caracteres, status só `indexed`/`published`/`deleted`. **POST ignora o `id` do corpo** (antes um POST com id existente sobrescrevia o documento e a autoria de outra pessoa). `authorId`/`updatedBy` vêm sempre do login.
-- Apagar: `DELETE` = só autor ou admin (marca `deleted`, `deletedAt`, `deletedBy`). O `PUT` com `status = deleted` agora segue a mesma regra (antes contornava). `PUT` sem status mantém o atual (antes zerava o status e o documento sumia das listas). Restaurar (`PUT` com status publicado) limpa as marcas de lixeira.
+- **Quem pode alterar:** editar (`PUT`), apagar (`DELETE`, marca `deleted`, `deletedAt`, `deletedBy`), restaurar da lixeira (`PUT` com status publicado, que limpa as marcas) e reimportar do TDN sobre um documento existente exigem **autor, liderança da squad do documento ou ADMIN**. Os demais recebem `403` com "Só o autor ou a liderança editam este documento." `PUT` sem status mantém o atual (antes zerava o status e o documento sumia das listas).
+- **Squad do documento:** gravada no servidor na criação, a partir da squad do perfil do autor (o corpo da requisição é ignorado). Documentos criados antes da V61 não têm squad: só o autor e ADMIN editam. Documento sem autor registrado: só ADMIN.
+- **`canEdit`:** toda resposta de documento (lista, leitura, criação, edição) traz `canEdit`, calculado para a pessoa logada (uma checagem de liderança por squad). A tela só mostra Editar, Excluir e Restaurar com `canEdit`; o servidor valida de novo em cada gravação.
 
 ### 3.2 Busca
 
@@ -90,6 +93,15 @@ sequenceDiagram
 - **Falha:** o motor tenta `gemini-2.5-flash` e, se falhar, `gemini-1.5-flash` (pode dobrar o custo em erro de cota). Em erro a tela mostra o motivo real e **devolve a pergunta à caixa de texto**; a pergunta só é gravada no histórico junto com a resposta.
 - **Tokens:** o navegador informa o total; o servidor ignora negativos e limita 200 mil por chamada. É referência de custo, não medição confiável.
 
+### 3.4 Histórico de versões
+
+- Toda gravação que muda **título, conteúdo ou tags** cria uma versão (número sequencial, quem alterou, data em UTC e foto de título, conteúdo, tags, categoria e caminho). Mudar só status, categoria ou tamanho não cria versão. Limite de **50 versões** por documento; as mais antigas são descartadas.
+- Documentos anteriores ao histórico ganham a versão inicial (o estado de antes) na primeira edição ou na primeira vez que alguém abre a aba Histórico.
+- Endpoints: `GET /api/knowledge/{id}/versions` (metadados, qualquer pessoa logada), `GET .../versions/{n}` (com conteúdo) e `POST .../versions/{n}/restore` (exige a permissão de edição). **Restaurar cria uma nova versão** com aquele conteúdo; o histórico só cresce.
+- **Busca e Assistente usam só a versão vigente.** Ao mudar o texto, o servidor descarta o vetor de busca antigo (se a tela mandou um vetor novo, usa esse). Depois de restaurar, a tela gera o vetor novo e regrava o mesmo texto (isso não cria outra versão). Sem vetor, o documento fica fora da busca semântica até ser reindexado; a busca por palavra continua achando.
+- API v1 e MCP leem só a versão vigente.
+- Na tela: leitor do documento > aba **Histórico**: lista (versão, quem, quando, "Atual"), pré-visualização sanitizada e botão "Restaurar esta versão" com confirmação (só com permissão).
+
 ## 4. Estados e transições
 
 - Documento: `published` / `indexed` → `deleted` (lixeira) → `published` (restaurar). Não existe exclusão definitiva e **não há purga automática** (a tela dizia "30 dias"; corrigido).
@@ -100,7 +112,8 @@ sequenceDiagram
 | Ação | Servidor | Cliente |
 |---|---|---|
 | Qualquer rota `/api/knowledge/**` | Exige JWT (filtro) | `authFetch` |
-| Apagar | Autor ou ADMIN (403 com mensagem) | Mostra a mensagem do servidor; apagar em lote conta sucessos e falhas |
+| Editar, apagar, restaurar, restaurar versão | Autor, liderança da squad do documento ou ADMIN (403 com mensagem) | Botões só com `canEdit`; mostra a mensagem do servidor; apagar em lote só habilita quando todos os selecionados são editáveis |
+| Ver histórico | Qualquer pessoa logada | Aba Histórico |
 | Conversas | Só a dona (404 para as dos outros) | — |
 | Rotas Next (`ai/chat`, `embed`, `ingest-pdf`, `tdn/*`, `sync-manuals`) | Exigem login (validado em `/auth/me`) | `authFetch` |
 | API v1 | `X-Api-Key` + escopo; **não devolve documento da lixeira** | — |
@@ -125,7 +138,11 @@ Conferência estática de **272 chamadas** do frontend contra os controladores S
 
 - **Chave BYOK sai do servidor para o navegador.** `GET /ai-settings` devolve a chave decifrada e o navegador a manda a cada pergunta. É a chave da própria pessoa, protegida por JWT e cifrada em repouso, mas qualquer XSS a leria. A correção real é o Spring chamar o provedor (mudança de arquitetura); mascarar só no GET não resolve porque a tela precisa da chave para usá-la. Decisão do dono do produto.
 - **`NEXT_PUBLIC_GEMINI_API_KEY`** é variável de **build** (`Dockerfile` e `docker-compose.yml`): se tiver valor na VM, a chave fica embutida no JavaScript público. Conferir o `.env` de produção e deixar vazia; o servidor aceita também `GEMINI_API_KEY`/`GOOGLE_API_KEY` (não públicas). Não alterei o fallback para não derrubar quem depende dele.
-- **Qualquer pessoa edita qualquer documento**, sem histórico de versões: um documento adulterado vira "verdade" para o Assistente. Mitigação parcial no prompt. Versionamento ou aprovação é decisão de produto.
+- **Adulteração por quem pode editar.** Agora só autor, liderança e ADMIN editam e há histórico, mas um documento adulterado ainda vira "verdade" para o Assistente até alguém restaurar. Mitigação no prompt. Não há aprovação antes de publicar.
+- **Documentos antigos sem squad** só são editados pelo autor e ADMIN: se o autor saiu, só ADMIN resolve (ou um ajuste de dados no banco para preencher `squad_id`).
+- **Quem muda de squad:** a squad do documento é a do autor na criação e não acompanha mudanças posteriores.
+- **Liderança "da squad do documento" depende do cadastro do usuário** (cargo e roster). Quem tem cargo de liderança mas não está vinculado à squad não edita.
+- **Versão só no servidor:** importação do TDN em lote cria uma versão por documento alterado (50 por documento; descarta as mais antigas).
 - **Busca semântica e fallback por palavras-chave carregam todos os documentos (com conteúdo) na memória** a cada consulta. Aceitável para algumas centenas de documentos; para milhares precisa de busca vetorial no banco (pgvector) ou ao menos carregar só id+embedding.
 - **Filtro por tags no servidor** fica após a paginação (total incorreto).
 - **A lista da Base carrega só os 200 primeiros** e a lixeira os 100 primeiros; não há paginação na tela.
@@ -142,4 +159,4 @@ Conferência estática de **272 chamadas** do frontend contra os controladores S
 
 - Frontend: `src/app/knowledge/**` (kb, chat, settings, trash, admin/new-asset, `api.ts`), `src/components/knowledge/*`, `src/services/tdnService.ts`, `src/lib/ai-chat-context.ts`, `src/lib/file-sniff.ts`, `src/lib/text-to-html.ts`, `src/lib/embeddings.ts`, `src/lib/verify-auth.ts`, `src/lib/ssrf-guard.ts`.
 - Rotas Next: `src/app/api/ai/chat`, `src/app/api/knowledge/{embed,ingest-pdf,sync-manuals}`, `src/app/api/tdn/{search,content}`, `src/app/api/v1/knowledge/docs/**`.
-- Backend: `KnowledgeController`, `KnowledgeApiV1Controller`, `KnowledgeService`, `McpKnowledgeTools`, entidades `KnowledgeDocument`, `KnowledgeConversation`, `KnowledgeUserAiSettings`, `KnowledgeTokenUsage`, `Caddyfile` (lista `@nextApi`), migration V60.
+- Backend: `KnowledgeController`, `KnowledgeApiV1Controller`, `KnowledgeService`, `McpKnowledgeTools`, entidades `KnowledgeDocument`, `KnowledgeConversation`, `KnowledgeUserAiSettings`, `KnowledgeTokenUsage`, `Caddyfile` (lista `@nextApi`), migrations V60 e V61 (squad do documento e tabela de versões).

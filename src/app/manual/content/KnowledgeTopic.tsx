@@ -24,12 +24,13 @@ export function KnowledgeTopic() {
           title: 'Wiki: criar e manter documentos',
           description: 'A Base de Conhecimento fica em Conhecimento > Base.',
           items: [
-            { title: 'Criar e editar', text: 'O editor é visual (negrito, listas, títulos, código), não Markdown. Título é obrigatório e o documento tem categoria e tags.' },
+            { title: 'Criar e editar', text: 'O editor é visual (negrito, listas, títulos, código), não Markdown. Título é obrigatório e o documento tem categoria e tags. Qualquer pessoa logada cria documentos; para editar um que já existe, veja “Quem pode editar”.' },
             { title: 'Importar arquivos', text: 'No editor, importe .docx, .txt, .md ou .json. O texto entra no editor para você revisar antes de salvar. PDFs ainda não são aceitos pela tela.' },
             { title: 'Importar do TDN', text: 'Com o token do TDN configurado em Meu Espaço > Conectividade, busque páginas, importe e depois sincronize para atualizar o conteúdo.' },
             { title: 'Ler e baixar', text: 'O leitor mostra um sumário lateral. Você pode baixar em Markdown, HTML ou texto e marcar favoritos (os favoritos ficam só no seu navegador).' },
-            { title: 'Quem pode apagar', text: 'Qualquer pessoa logada pode criar e editar. Apagar é só do autor do documento ou de um administrador.' },
-            { title: 'Lixeira', text: 'Documento apagado vai para a Lixeira e não aparece mais nas buscas. Qualquer pessoa logada pode restaurar. Hoje não existe exclusão definitiva automática: ele fica guardado até alguém restaurar.' },
+            { title: 'Quem pode editar', text: 'Todos leem. Editar, apagar e restaurar é do autor do documento, da liderança da squad do documento (Agile Master, People Lead, Product Owner, Tech Lead, Tribe Lead, Agile Coach, SME) e de administradores. Os botões só aparecem para quem pode; se tentar sem permissão, aparece “Só o autor ou a liderança editam este documento.”. Documentos antigos, de antes desta regra, são do autor e dos administradores.' },
+            { title: 'Histórico de versões', text: 'Cada mudança de título, conteúdo ou tags guarda uma versão (até 50 por documento). Abra o documento e vá na aba Histórico para ver quem alterou e quando. Quem pode editar restaura uma versão antiga: ela vira uma nova versão e a anterior continua no histórico. O Assistente e a busca usam sempre a versão atual.' },
+            { title: 'Lixeira', text: 'Documento apagado vai para a Lixeira e não aparece mais nas buscas. Quem pode editar o documento pode restaurá-lo. Hoje não existe exclusão definitiva automática: ele fica guardado até alguém restaurar.' },
           ],
         },
         {
