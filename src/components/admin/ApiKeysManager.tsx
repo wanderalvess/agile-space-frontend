@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { adminApi, ApiKeyData } from '@/app/admin/api';
-import { KeyRound, Plus, Ban, Copy, Check } from 'lucide-react';
+import { KeyRound, Plus, Ban, Copy, Check, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
 
 export function ApiKeysManager() {
   const { session } = useAuth();
@@ -23,6 +24,7 @@ export function ApiKeysManager() {
   const [newKeyName, setNewKeyName] = useState('');
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [expiresIn, setExpiresIn] = useState('90');
 
   const loadKeys = async () => {
     try {
@@ -40,7 +42,7 @@ export function ApiKeysManager() {
     if (!newKeyName.trim()) return;
     setCreating(true);
     try {
-      const created = await adminApi.createApiKey(newKeyName.trim());
+      const created = await adminApi.createApiKey(newKeyName.trim(), expiresIn);
 
       await logSystemEvent({
         content: `NOVA API KEY CRIADA: "${newKeyName.trim()}" (acesso à Base de Conhecimento via API).`,
@@ -77,6 +79,16 @@ export function ApiKeysManager() {
     }
   };
 
+  const handleRenew = async (id: string, name: string) => {
+    try {
+      await adminApi.renewApiKey(id);
+      toast({ title: 'Chave renovada', description: `"${name}" vale por mais 90 dias. O papel e os escopos foram reavaliados com o papel atual do dono.` });
+      await loadKeys();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Erro ao renovar chave' });
+    }
+  };
+
   const copyRevealedKey = () => {
     if (!revealedKey) return;
     navigator.clipboard.writeText(revealedKey);
@@ -95,6 +107,15 @@ export function ApiKeysManager() {
 
   return (
     <div className="space-y-6">
+      {keysNeedingAttention(keys).length > 0 && (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-[11px] font-bold leading-snug">
+            {keysNeedingAttention(keys).length === 1 ? '1 chave vence' : `${keysNeedingAttention(keys).length} chaves vencem`} em menos de {EXPIRY_WARNING_DAYS} dias
+            (ou já venceram). Renove antes do vencimento: a integração que usa a chave para de funcionar quando ela expira.
+          </p>
+        </div>
+      )}
       {revealedKey && (
         <Card className="border-emerald-200 rounded-[2rem] bg-emerald-50/50 shadow-xl shadow-emerald-100/50 overflow-hidden">
           <CardContent className="p-5 space-y-3">
@@ -130,6 +151,16 @@ export function ApiKeysManager() {
               placeholder="Nome da chave (ex: MCP Server, Integração X)"
               className="h-11 bg-slate-50 border-slate-200 rounded-xl font-bold flex-1"
             />
+            <select
+              value={expiresIn}
+              onChange={(e) => setExpiresIn(e.target.value)}
+              aria-label="Validade da chave"
+              className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold"
+            >
+              {EXPIRY_CHOICES.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
             <Button
               onClick={handleCreate}
               disabled={creating || !newKeyName.trim()}
@@ -138,6 +169,12 @@ export function ApiKeysManager() {
               <Plus className="h-4 w-4" /> Gerar
             </Button>
           </div>
+
+          {expiresIn === 'never' && (
+            <p role="note" className="text-[10px] font-bold text-amber-700">
+              Chave sem expiração continua valendo para sempre se vazar. Prefira 90 dias e renove.
+            </p>
+          )}
 
           <div className="space-y-2">
             {keys.length === 0 && (
@@ -159,6 +196,18 @@ export function ApiKeysManager() {
                     ) : (
                       <Badge className="bg-emerald-100 text-emerald-600 border-none text-[8px] font-black uppercase">Ativa</Badge>
                     )}
+                    {!k.revokedAt && (() => {
+                      const exp = describeExpiry(k.expiresAt);
+                      return (
+                        <Badge className={cn(
+                          'border-none text-[8px] font-black uppercase',
+                          exp.level === 'expired' && 'bg-rose-100 text-rose-600',
+                          exp.level === 'soon' && 'bg-amber-100 text-amber-700',
+                          exp.level === 'ok' && 'bg-slate-100 text-slate-500',
+                          exp.level === 'none' && 'bg-slate-100 text-slate-400',
+                        )}>{exp.label}</Badge>
+                      );
+                    })()}
                   </div>
                   <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">
                     Criada {formatDistanceToNow(new Date(k.createdAt), { addSuffix: true, locale: ptBR })}
@@ -169,6 +218,18 @@ export function ApiKeysManager() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`Renovar a chave ${k.name}`}
+                    onClick={() => handleRenew(k.id, k.name)}
+                    className="h-9 w-9 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5 shrink-0"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                )}
+                {!k.revokedAt && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Revogar a chave ${k.name}`}
                     onClick={() => handleRevoke(k.id, k.name)}
                     className="h-9 w-9 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 shrink-0"
                   >

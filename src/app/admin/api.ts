@@ -49,6 +49,7 @@ export interface ApiKeyData {
   createdAt: string;
   lastUsedAt?: string;
   revokedAt?: string;
+  expiresAt?: string | null;
 }
 
 export interface CreatedApiKey {
@@ -146,10 +147,20 @@ export const adminApi = {
     return req<ApiKeyData[]>('/admin/api-keys');
   },
 
-  async createApiKey(name: string): Promise<CreatedApiKey> {
+  /** expiresIn: '30' | '90' | '180' | 'never'. Omitido = 90 dias. */
+  async createApiKey(name: string, expiresIn?: string): Promise<CreatedApiKey> {
+    const expiry = !expiresIn ? {} : expiresIn === 'never' ? { neverExpires: 'true' } : { expiresInDays: expiresIn };
     return req<CreatedApiKey>('/admin/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...expiry }),
+    });
+  },
+
+  async renewApiKey(id: string, expiresIn?: string): Promise<ApiKeyData> {
+    const expiry = !expiresIn ? {} : expiresIn === 'never' ? { neverExpires: true } : { expiresInDays: Number(expiresIn) };
+    return req<ApiKeyData>(`/admin/api-keys/${encodeURIComponent(id)}/renew`, {
+      method: 'POST',
+      body: JSON.stringify(expiry),
     });
   },
 

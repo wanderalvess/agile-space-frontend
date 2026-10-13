@@ -8,8 +8,10 @@ const USER_SCOPED_KEYS = [
   'agileSpace_justSignedUp',
   'agileSpace_jiraSync_projectKey',
   'agileSpace_projectEstimationUnit',
+  // Token pessoal do Jira (PAT) em texto claro: tem que sair do navegador junto com a sessão.
+  'agileSpace_jira_config',
 ];
-const USER_SCOPED_PREFIXES = ['favorites_', 'agileSpace_newSquad_', 'agileSpace_estimationUnit_'];
+const USER_SCOPED_PREFIXES = ['favorites_', 'agileSpace_newSquad_', 'agileSpace_estimationUnit_', 'agile_jira_config_', 'agile_tdn_config_'];
 export const UNAUTHORIZED_EVENT = 'agile-space:unauthorized';
 
 export interface AuthResponse {

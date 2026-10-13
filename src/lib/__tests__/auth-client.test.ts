@@ -56,4 +56,25 @@ describe('auth-client - troca de usuário no mesmo navegador', () => {
     clearUserScopedStorage();
     expect(getAuthToken()).toBe('tok');
   });
+
+  it('apaga o token pessoal do Jira (PAT) no logout e na troca de conta, e preserva o token de sessão', () => {
+    localStorage.setItem('agile_jira_config_u1', JSON.stringify({ domain: 'jira.totvs.com.br', token: 'PAT-SECRETO' }));
+    localStorage.setItem('agileSpace_jira_config', JSON.stringify({ domain: 'x', token: 'PAT-LEGADO' }));
+    localStorage.setItem('agile_tdn_config_u1', '{}');
+    setAuthToken('sessao');
+
+    clearUserScopedStorage();
+
+    expect(localStorage.getItem('agile_jira_config_u1')).toBeNull();
+    expect(localStorage.getItem('agileSpace_jira_config')).toBeNull();
+    expect(localStorage.getItem('agile_tdn_config_u1')).toBeNull();
+    expect(getAuthToken()).toBe('sessao');
+  });
+
+  it('troca de conta no mesmo navegador não herda o PAT da conta anterior', () => {
+    rememberSessionUser('u1');
+    localStorage.setItem('agile_jira_config_u1', JSON.stringify({ domain: 'd', token: 'PAT-U1' }));
+    rememberSessionUser('u2');
+    expect(localStorage.getItem('agile_jira_config_u1')).toBeNull();
+  });
 });

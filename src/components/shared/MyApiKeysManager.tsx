@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { KeyRound, Plus, Ban, Copy, Check, ShieldAlert } from 'lucide-react';
+import { KeyRound, Plus, Ban, Copy, Check, ShieldAlert, RefreshCw, RotateCw, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
 import {
   API_KEY_SCOPES,
   myApiKeysApi,
@@ -49,6 +50,8 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
   const [selectedScopes, setSelectedScopes] = useState<string[]>([]);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [expiresIn, setExpiresIn] = useState('90');
+  const isAdmin = session?.role?.toUpperCase() === 'ADMIN';
 
   const allowedScopes = scopesAllowedForRole(session?.role);
   const mySquadId = session?.activeProjectId || userProfile?.squadId || '';
@@ -74,7 +77,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
     if (!newKeyName.trim() || selectedScopes.length === 0) return;
     setCreating(true);
     try {
-      const created = await myApiKeysApi.create(newKeyName.trim(), selectedScopes);
+      const created = await myApiKeysApi.create(newKeyName.trim(), selectedScopes, expiresIn);
       setRevealedKey(created.rawKey);
       setNewKeyName('');
       setSelectedScopes([]);
@@ -93,6 +96,27 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
       await loadKeys();
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Erro ao revogar chave', description: e?.message });
+    }
+  };
+
+  const handleRenew = async (id: string, name: string) => {
+    try {
+      await myApiKeysApi.renew(id);
+      toast({ title: 'Chave renovada', description: `"${name}" vale por mais 90 dias. Os escopos foram conferidos com o seu papel atual.` });
+      await loadKeys();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Erro ao renovar chave', description: e?.message });
+    }
+  };
+
+  const handleRotate = async (id: string, name: string) => {
+    if (!confirm(`Rotacionar "${name}"? Uma chave nova é gerada e a atual deixa de valer na hora: atualize a integração com a nova.`)) return;
+    try {
+      const created = await myApiKeysApi.rotate(id);
+      setRevealedKey(created.rawKey);
+      await loadKeys();
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Erro ao rotacionar chave', description: e?.message });
     }
   };
 
@@ -169,6 +193,20 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
           </p>
         )}
 
+        <div className="flex items-center gap-2">
+          <Label htmlFor="api-key-expiry" className="text-[9px] font-black uppercase tracking-widest text-slate-400">Validade</Label>
+          <select
+            id="api-key-expiry"
+            value={expiresIn}
+            onChange={(e) => setExpiresIn(e.target.value)}
+            className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold"
+          >
+            {EXPIRY_CHOICES.filter(c => !c.adminOnly || isAdmin).map(c => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
         <Button
           onClick={handleCreate}
           disabled={creating || !newKeyName.trim() || selectedScopes.length === 0 || (selectedScopes.includes('SQUAD_READ') && !hasSquad)}
@@ -177,6 +215,16 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
           {creating ? <AgileSpinner size="xs" /> : <Plus className="h-4 w-4" />} Gerar Chave
         </Button>
       </div>
+
+      {keysNeedingAttention(keys).length > 0 && (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-[11px] font-bold leading-snug">
+            {keysNeedingAttention(keys).length === 1 ? '1 chave vence' : `${keysNeedingAttention(keys).length} chaves vencem`} em menos de {EXPIRY_WARNING_DAYS} dias
+            (ou já venceram). Renove antes do vencimento: a integração que usa a chave para de funcionar quando ela expira.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         {loading ? (
@@ -200,6 +248,18 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
                   ) : (
                     <Badge className="bg-emerald-100 text-emerald-600 border-none text-[8px] font-black uppercase">Ativa</Badge>
                   )}
+                  {!k.revokedAt && (() => {
+                    const exp = describeExpiry(k.expiresAt);
+                    return (
+                      <Badge className={cn(
+                        'border-none text-[8px] font-black uppercase',
+                        exp.level === 'expired' && 'bg-rose-100 text-rose-600',
+                        exp.level === 'soon' && 'bg-amber-100 text-amber-700',
+                        exp.level === 'ok' && 'bg-slate-100 text-slate-500',
+                        exp.level === 'none' && 'bg-slate-100 text-slate-400',
+                      )}>{exp.label}</Badge>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-1 flex-wrap mt-1">
                   {k.scopes.map(s => (
@@ -214,9 +274,20 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
                 </p>
               </div>
               {!k.revokedAt && (
+                <div className="flex items-center shrink-0">
+                  <Button variant="ghost" size="icon" aria-label={`Renovar a chave ${k.name}`} onClick={() => handleRenew(k.id, k.name)} className="h-8 w-8 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" aria-label={`Rotacionar a chave ${k.name}`} onClick={() => handleRotate(k.id, k.name)} className="h-8 w-8 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5">
+                    <RotateCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {!k.revokedAt && (
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`Revogar a chave ${k.name}`}
                   onClick={() => handleRevoke(k.id, k.name)}
                   className="h-8 w-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 shrink-0"
                 >

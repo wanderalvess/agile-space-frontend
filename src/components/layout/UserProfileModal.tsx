@@ -56,7 +56,7 @@ import { authFetch } from '@/lib/auth-client';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 
 export function UserProfileModal() {
-  const { settings: jiraSettingsStore, saveSettings: saveJiraSettings } = useJiraSettings();
+  const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
   const {
     userProfile,
     userSquads,
@@ -97,6 +97,9 @@ export function UserProfileModal() {
   // Jira PAT Token & Domain
   const [jiraDomain, setJiraDomain] = useState('');
   const [jiraToken, setJiraToken] = useState('');
+  // O PAT guardado não volta para o campo: a tela mostra "configurado" e só pede o valor de novo ao trocar.
+  const [replacingToken, setReplacingToken] = useState(false);
+  const hasSavedToken = !!jiraSettingsStore?.token && !replacingToken;
   const [jiraAccountDetails, setJiraAccountDetails] = useState<any | null>(null);
   
   interface RawSquad {
@@ -258,7 +261,8 @@ export function UserProfileModal() {
   useEffect(() => {
     if (isOpen && jiraSettingsStore) {
       setJiraDomain(jiraSettingsStore.domain || '');
-      setJiraToken(jiraSettingsStore.token || '');
+      setJiraToken('');
+      setReplacingToken(false);
     }
   }, [isOpen, jiraSettingsStore]);
 
@@ -330,7 +334,8 @@ export function UserProfileModal() {
         // Salva credenciais na fonte única (useJiraSettings): localStorage escopado por
         // usuário + backend, mesmo slot usado em ConnectivitySettings/JiraImportDialog.
         saveJiraSettings({ domain: domainToUse, token: tokenToUse });
-        setJiraToken(tokenToUse);
+        setJiraToken('');
+        setReplacingToken(false);
         setJiraDomain(domainToUse);
         setJiraAccountDetails(jiraUser);
 
@@ -431,7 +436,7 @@ export function UserProfileModal() {
                     <DialogDescription className="text-slate-400 text-xs font-semibold tracking-wide font-body">
                       Gestão de Perfil & Integração Jira API
                     </DialogDescription>
-                    {jiraToken && (
+                    {(jiraToken || hasSavedToken) && (
                       <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
                         Jira Ativo
                       </Badge>
@@ -690,6 +695,31 @@ export function UserProfileModal() {
                       <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <Key className="h-3.5 w-3.5 text-primary" /> Token de Acesso (PAT)
                       </Label>
+                      {hasSavedToken ? (
+                        <div className="flex items-center justify-between gap-2 h-10 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3">
+                          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Token configurado
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-[10px] font-black uppercase tracking-wider" onClick={() => setReplacingToken(true)}>
+                              Trocar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[10px] font-black uppercase tracking-wider text-destructive"
+                              onClick={async () => {
+                                await removeJiraSettings();
+                                setJiraToken('');
+                                toast({ title: 'Token do Jira removido', description: 'Ele saiu deste navegador e da sua conta.' });
+                              }}
+                            >
+                              Remover
+                            </Button>
+                          </span>
+                        </div>
+                      ) : (
                       <Input
                         type="password"
                         name="jiraPersonalAccessToken"
@@ -701,6 +731,7 @@ export function UserProfileModal() {
                         placeholder="Cole seu token PAT"
                         className="h-10 rounded-xl text-sm bg-background/50 border-input text-foreground font-code focus-visible:ring-primary focus-visible:border-primary"
                       />
+                      )}
                     </div>
                   </div>
 
@@ -766,7 +797,7 @@ export function UserProfileModal() {
             ) : (
               <>
                 <p className="text-xs text-muted-foreground font-medium hidden sm:block">
-                  {jiraToken ? 'Credenciais do Jira ativas e salvas.' : 'Informe o PAT para sincronização com o Jira.'}
+                  {(jiraToken || hasSavedToken) ? 'Credenciais do Jira ativas e salvas.' : 'Informe o PAT para sincronização com o Jira.'}
                 </p>
                 <div className="flex gap-2 w-full sm:w-auto justify-end">
                   <Button

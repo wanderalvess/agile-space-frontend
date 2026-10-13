@@ -141,5 +141,21 @@ export function useJiraSettings() {
     }
   };
 
-  return { settings, loading, saveSettings };
+  /** Apaga a credencial do navegador e da conta (servidor). */
+  const removeSettings = async (): Promise<void> => {
+    if (!userId) return;
+    setSettings(null);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem(localKey(userId));
+      } catch {}
+    }
+    try {
+      await userApi.deleteJiraConfig(userId);
+    } catch (err) {
+      console.warn('Erro ao remover configurações do Jira no backend:', err);
+    }
+  };
+
+  return { settings, loading, saveSettings, removeSettings };
 }

@@ -14,8 +14,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Segurança e acesso (`seguranca-transversal.md`, `autenticacao-e-sessao.md`)
 
-2. **Chaves de API sem expiração e com papel congelado na criação** (as legadas e as do painel têm acesso total). Revogar e recriar quebra integrações.
-3. **Admin lê os tokens de Jira e TDN de qualquer pessoa.** Os tokens ficam em texto claro no `localStorage` do navegador e continuam lá depois do logout.
 4. **`SquadAccessService` casa o nome da conta (editável) com o nome do membro da squad** para dar acesso à squad.
 5. **Sem logout nem refresh no servidor:** o token vale 24 h; a única revogação é desativar a conta. Token do WebSocket na query string (cinco endpoints).
 6. **Rate limit em memória e por IP**, sem limite em `/mcp` e `/ws`. O Caddy não roteia `/mcp/*`: confirmar se o MCP está acessível em produção.

@@ -41,7 +41,7 @@ sequenceDiagram
   - **MEMBER** só pode gerar `KNOWLEDGE_READ` e `SQUAD_READ`; `SQUAD_READ` fica **travado na squad ativa da pessoa** (e exige ter uma).
   - **ADMIN/LEAD** geram qualquer escopo e podem restringir a uma squad (ou deixar sem restrição).
   - A chave criada no painel admin (`/api/admin/api-keys`) recebe **todos os escopos e nenhuma restrição de squad**, em nome do admin.
-- **Papel congelado:** o papel do dono é gravado na criação e não é reavaliado; rebaixar a pessoa **não** reduz os escopos de chaves já emitidas (revogar e recriar).
+- **Papel do dono:** gravado na criação e **reavaliado a cada renovação ou rotação** (ver abaixo). Entre uma renovação e outra, rebaixar a pessoa não reduz os escopos da chave.
 - **Chaves antigas (anteriores ao campo `ownerRole`)** são tratadas como acesso total ("grandfathered"), para não quebrar integrações em produção.
 - **Revogação:** `POST /{id}/revoke`; efeito imediato (a consulta da chave filtra revogadas). O dono só revoga as próprias; admin revoga qualquer uma.
 - **Dono desativado:** a chave deixa de valer (401) enquanto a conta estiver inativa.
@@ -59,6 +59,15 @@ sequenceDiagram
 
 O atributo de escopo é lido uma vez no filtro e repassado ao controller/tool; não há segunda consulta ao banco.
 
+## Validade, renovação e rotação
+
+- **Toda chave vence.** Padrão **90 dias** na criação; quem cria escolhe 30, 90 ou 180. **"Sem expiração" só o ADMIN** cria (a tela avisa que não é recomendado). A API recusa com 403 um não-admin que peça isso e com 400 qualquer outro valor.
+- **Chave vencida:** o filtro responde **401** com a mensagem "Chave de API expirada em dd/mm/aaaa. Renove a chave no Portal (Configurações > Chaves de API) ou gere uma nova." (REST e MCP).
+- **Chaves que já existiam** ganharam `expires_at` = data do deploy + 90 dias na migration **V56** (só as ativas e sem validade), para não quebrar integração no primeiro dia. Integrações em uso precisam de **renovação até lá**.
+- **Renovar** (`POST /api/api-keys/{id}/renew` para o dono; `POST /api/admin/api-keys/{id}/renew` para o admin): estende por 90 dias (ou 30/180) e **reavalia o dono**: o papel da chave passa a ser o papel ATUAL da pessoa e os escopos são limitados ao que esse papel permite (MEMBER: `KNOWLEDGE_READ` e `SQUAD_READ`, esta travada na squad dele). É aqui que o "acesso total" das chaves legadas e o papel congelado deixam de valer além da validade. Chave revogada ou de dono inativo/inexistente não renova.
+- **Rotacionar** (`POST /api/api-keys/{id}/rotate`): cria uma chave nova com o mesmo nome, escopos e squad (reavaliados como na renovação) e **revoga a antiga na hora**; a chave crua nova só aparece nessa resposta. Use quando suspeitar de vazamento.
+- **Aviso na tela:** as telas de chaves (minhas e do admin) mostram "expira em N dias" em cada chave e um alerta no topo quando alguma chave ativa vence em menos de **14 dias** ou já venceu.
+
 ## Dados guardados
 
 Chave (nome, hash, dono, papel do dono na criação, escopos, squad opcional, criada/último uso/revogada em). Nada da chave crua.
@@ -69,9 +78,8 @@ Chave (nome, hash, dono, papel do dono na criação, escopos, squad opcional, cr
 
 **Não corrigido / decisão:**
 
-1. **Chaves não expiram.** Sem validade, sem rotação automática. Opção: validade padrão (ex.: 1 ano) **opt-in** na criação.
-2. **Chave do painel admin tem todos os escopos sem restrição de squad**, e chaves legadas (sem `ownerRole`) também. São as mais perigosas se vazarem; recomenda-se revogá-las e recriar com escopos mínimos (mudança que **quebra integrações em uso**, por isso não foi feita sem aviso).
-3. **Papel congelado na criação** (acima): rebaixar não revoga.
+1. **Chave do painel admin tem todos os escopos sem restrição de squad** (enquanto o dono continuar admin), e chaves legadas também até a primeira renovação/rotação, que reavalia o papel do dono. Quem quiser acesso mínimo deve criar a chave pelo self-service com os escopos necessários.
+2. **Papel congelado até a renovação:** rebaixar uma pessoa não reduz na hora os escopos de uma chave que ela já tem; a redução acontece quando a chave é renovada/rotacionada (no máximo a cada 30/90/180 dias) ou revogada. Desativar a conta invalida as chaves na hora.
 4. **Sem limite de chaves por pessoa.**
 5. **`/mcp/**` sem limite de taxa** e a chave vai em cabeçalho (não em URL), o que é bom para logs. Como a chave tem 256 bits, força bruta não é viável; o risco é abuso por chave legítima.
 6. **O Caddy de produção não roteia `/mcp/*` para o backend** (só `/api`, `/ws`, `/actuator`, `/v3/api-docs`, `/swagger-ui`); a requisição cai no frontend. Ou o MCP está inacessível em produção, ou o roteamento é feito de outro jeito que não está no repositório. **Confirmar com quem operou o deploy** antes de documentar o MCP como disponível.

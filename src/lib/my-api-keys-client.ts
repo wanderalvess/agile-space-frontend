@@ -20,6 +20,8 @@ export interface MyApiKeyData {
   createdAt: string;
   lastUsedAt?: string;
   revokedAt?: string;
+  /** Null/ausente = sem expiração. */
+  expiresAt?: string | null;
 }
 
 export interface CreatedMyApiKey extends MyApiKeyData {
@@ -68,15 +70,37 @@ function safeJsonParse(text: string): any {
   }
 }
 
+function expiryBody(expiresIn?: string): Record<string, unknown> {
+  if (!expiresIn) return {};
+  return expiresIn === 'never' ? { neverExpires: true } : { expiresInDays: Number(expiresIn) };
+}
+
 export const myApiKeysApi = {
   async list(): Promise<MyApiKeyData[]> {
     return req<MyApiKeyData[]>('/api-keys');
   },
 
-  async create(name: string, scopes: string[]): Promise<CreatedMyApiKey> {
+  /** expiresIn: '30' | '90' | '180' | 'never' (só admin). Omitido = 90 dias. */
+  async create(name: string, scopes: string[], expiresIn?: string): Promise<CreatedMyApiKey> {
     return req<CreatedMyApiKey>('/api-keys', {
       method: 'POST',
-      body: JSON.stringify({ name, scopes }),
+      body: JSON.stringify({ name, scopes, ...expiryBody(expiresIn) }),
+    });
+  },
+
+  /** Estende a validade e reavalia o papel do dono. */
+  async renew(id: string, expiresIn?: string): Promise<MyApiKeyData> {
+    return req<MyApiKeyData>(`/api-keys/${encodeURIComponent(id)}/renew`, {
+      method: 'POST',
+      body: JSON.stringify(expiryBody(expiresIn)),
+    });
+  },
+
+  /** Cria uma chave nova igual e revoga a antiga; a chave crua nova só vem nesta resposta. */
+  async rotate(id: string, expiresIn?: string): Promise<CreatedMyApiKey> {
+    return req<CreatedMyApiKey>(`/api-keys/${encodeURIComponent(id)}/rotate`, {
+      method: 'POST',
+      body: JSON.stringify(expiryBody(expiresIn)),
     });
   },
 

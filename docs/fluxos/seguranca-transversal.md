@@ -102,9 +102,9 @@ Cuidados:
 | 2 | Token de 24 h sem revogação individual (mitigado por desativar a conta: 30 s) | Média | Refresh/lista de revogação é projeto à parte |
 | 3 | Token e dados de sessão em `localStorage` | Média | Padrão atual do app; troca para cookie httpOnly muda toda a autenticação |
 | 4 | Token do WebSocket na URL | Baixa | Navegador não envia cabeçalho no handshake; alternativa é ticket de curta duração (mudança de contrato com o frontend) |
-| 5 | Chaves de API sem expiração, papel congelado, chaves legadas com acesso total | Média | Revogar/recriar quebra integrações em uso; decisão do usuário |
+| 5 | Chaves do painel admin e legadas com acesso total até a primeira renovação; papel só reavaliado na renovação/rotação | Baixa | Chaves vencem (padrão 90 dias) e a renovação reavalia o dono; reduzir antes quebraria integrações em uso |
 | 6 | `/api/jolt/**` público | Baixa | Funcionalidade pública pedida; protegido por limite de taxa e (outra frente) tamanho |
-| 7 | Admin lê tokens de Jira/TDN de qualquer pessoa | Média | O frontend depende da leitura pelo dono; mascarar para o admin exige separar os endpoints |
+| 7 | PAT do Jira em texto claro no `localStorage` enquanto a pessoa está logada | Média | O navegador chama o Jira com ele; apagado no logout e na troca de conta. Admin não lê mais o token de outra pessoa |
 | 8 | Limite de taxa em memória, por IP, forjável se a porta do backend for exposta | Baixa | Instância única atrás do Caddy |
 | 9 | Sem política de senha além de 8 a 128 caracteres; senha temporária sem troca obrigatória | Baixa | Decisão de produto |
 
