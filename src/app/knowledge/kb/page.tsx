@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sanitizeHtml } from '@/lib/sanitize-html';
+import { DocumentHistory } from '@/components/knowledge/DocumentHistory';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Dialog,
@@ -67,6 +68,7 @@ function KBExplorerContent() {
   const [selectedFormat, setSelectedFormat] = useState<'md' | 'html' | 'txt'>('md');
   const [isSyncingDoc, setIsSyncingDoc] = useState(false);
   const [readingProgress, setReadingProgress] = useState(0);
+  const [readerTab, setReaderTab] = useState<'document' | 'history'>('document');
   const readerRootRef = useRef<HTMLDivElement | null>(null);
   const readerViewportRef = useRef<HTMLDivElement | null>(null);
   const [favorites, setFavorites] = useState<string[]>(() => {
@@ -333,6 +335,7 @@ function KBExplorerContent() {
   };
 
   const handleOpenDoc = (docItem: KnowledgeDocument) => {
+    setReaderTab('document');
     setSelectedFile(docItem);
     router.push(`/knowledge/kb?id=${docItem.id}`);
   };
@@ -560,15 +563,46 @@ function KBExplorerContent() {
                   >
                     Exportar <Download className="h-3.5 w-3.5" />
                   </Button>
+                  {selectedFile.canEdit && (
                   <Button variant="outline" size="sm" onClick={() => router.push(`/knowledge/admin/new-asset?id=${selectedFile.id}`)} className="h-9 px-4 rounded-xl border-slate-300 dark:border-slate-800 text-[9px] font-black uppercase tracking-widest gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900">
                     Editar <FileText className="h-3.5 w-3.5" />
                   </Button>
+                  )}
                 </div>
               </header>
               <div className="h-[3px] bg-slate-100 dark:bg-slate-900 shrink-0">
                 <div className="h-full bg-cyan-600 transition-[width] duration-150" style={{ width: `${readingProgress}%` }} />
               </div>
 
+              <div className="flex gap-1 px-6 md:px-12 pt-3 border-b border-slate-100 dark:border-slate-900 shrink-0" role="tablist" aria-label="Seções do documento">
+                {([['document', 'Documento'], ['history', 'Histórico']] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="tab"
+                    aria-selected={readerTab === key}
+                    onClick={() => setReaderTab(key)}
+                    className={cn(
+                      "px-4 py-2 text-[10px] font-black uppercase tracking-widest border-b-2 -mb-px transition-colors",
+                      readerTab === key ? "border-cyan-600 text-cyan-700 dark:text-cyan-400" : "border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {readerTab === 'history' ? (
+                <ScrollArea className="flex-1">
+                  <div className="max-w-[1300px] mx-auto px-6 md:px-12 py-6">
+                    <DocumentHistory
+                      documentId={selectedFile.id}
+                      canEdit={!!selectedFile.canEdit}
+                      onRestored={(doc) => { setSelectedFile(doc); setReaderTab('document'); fetchDocuments(); }}
+                    />
+                  </div>
+                </ScrollArea>
+              ) : (
               <ScrollArea className="flex-1" ref={readerRootRef}>
                 <div className={cn("max-w-[1300px] mx-auto px-6 md:px-12 pt-6 pb-32 min-h-screen", tocItems.length > 0 && "grid grid-cols-[180px_minmax(0,1fr)] gap-12 max-w-[1300px]")}>
                 {tocItems.length > 0 && (
@@ -633,6 +667,7 @@ function KBExplorerContent() {
                 </article>
                 </div>
               </ScrollArea>
+              )}
             </div>
           ) : (
             /* ========================================================================= */
@@ -897,7 +932,9 @@ function KBExplorerContent() {
                               <Button size="sm" variant="outline" className="gap-2" onClick={handleDownloadMultiple}>
                                 <Download className="h-4 w-4" /> Baixar ({selectedIds.size})
                               </Button>
-                              <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={handleDeleteMultiple}>
+                              <Button size="sm" variant="outline" className="gap-2 text-destructive hover:text-destructive" onClick={handleDeleteMultiple}
+                                disabled={Array.from(selectedIds).some(id => !documents.find(d => d.id === id)?.canEdit)}
+                                title={Array.from(selectedIds).some(id => !documents.find(d => d.id === id)?.canEdit) ? 'Você só pode excluir documentos que editaria (autor ou liderança)' : undefined}>
                                 <Trash2 className="h-4 w-4" /> Excluir ({selectedIds.size})
                               </Button>
                             </div>
@@ -1015,12 +1052,16 @@ function KBExplorerContent() {
                                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDownload(docItem)} title="Baixar documento">
                                             <Download className="h-4 w-4" />
                                           </Button>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar">
-                                            <Edit className="h-4 w-4" />
-                                          </Button>
-                                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(docItem.id)} title="Excluir">
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
+                                          {docItem.canEdit ? (
+                                            <>
+                                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/knowledge/admin/new-asset?id=${docItem.id}`)} title="Editar" aria-label={`Editar ${docItem.title}`}>
+                                                <Edit className="h-4 w-4" />
+                                              </Button>
+                                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(docItem.id)} title="Excluir" aria-label={`Excluir ${docItem.title}`}>
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </>
+                                          ) : null}
                                         </div>
                                       </td>
                                     </tr>

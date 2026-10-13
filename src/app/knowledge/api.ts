@@ -1,4 +1,4 @@
-import { KnowledgeDocument } from '@/lib/knowledge-types';
+import { KnowledgeDocument, KnowledgeVersion } from '@/lib/knowledge-types';
 import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
@@ -87,9 +87,42 @@ export const knowledgeApi = {
     const res = await authFetch(`${API_BASE_URL}/knowledge/${id}`, {
       method: 'DELETE',
     });
-    if (res.status === 403) throw new Error('Só o autor do documento ou um administrador pode apagá-lo.');
+    if (res.status === 403) throw new Error(await errorMessage(res, 'Só o autor ou a liderança editam este documento.'));
     if (res.status === 404) throw new Error('Documento não encontrado.');
     if (!res.ok) throw new Error('Falha ao apagar o documento');
+  },
+
+  async listVersions(id: string): Promise<KnowledgeVersion[]> {
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}/versions`);
+    if (!res.ok) throw new Error(await errorMessage(res, 'Falha ao carregar o histórico'));
+    return res.json();
+  },
+
+  async getVersion(id: string, versionNumber: number): Promise<KnowledgeVersion> {
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}/versions/${versionNumber}`);
+    if (!res.ok) throw new Error(await errorMessage(res, 'Falha ao carregar a versão'));
+    return res.json();
+  },
+
+  /**
+   * Restaura uma versão (o servidor cria uma nova versão com aquele conteúdo e descarta o vetor de busca).
+   * Em seguida reindexamos: salvar o mesmo texto com o vetor novo não cria outra versão.
+   */
+  async restoreVersion(id: string, versionNumber: number): Promise<KnowledgeDocument> {
+    const res = await authFetch(`${API_BASE_URL}/knowledge/${id}/versions/${versionNumber}/restore`, { method: 'POST' });
+    if (!res.ok) throw new Error(await errorMessage(res, 'Falha ao restaurar a versão'));
+    const restored: KnowledgeDocument = await res.json();
+    const embedding = restored.content ? await tryEmbed(`${restored.title ?? ''}
+
+${restored.content}`) : undefined;
+    if (embedding) {
+      const reindex = await authFetch(`${API_BASE_URL}/knowledge/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...restored, embedding }),
+      });
+      if (reindex.ok) return reindex.json();
+    }
+    return restored;
   },
 
   async incrementViews(id: string): Promise<KnowledgeDocument> {

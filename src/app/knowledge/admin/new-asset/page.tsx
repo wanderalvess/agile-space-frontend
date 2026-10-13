@@ -221,6 +221,11 @@ function NewAssetContent() {
       const loadAsset = async () => {
         try {
           const data = await knowledgeApi.getDocumentById(assetId);
+          if (data.canEdit === false) {
+            toast.error('Só o autor ou a liderança editam este documento.');
+            router.replace(`/knowledge/kb?id=${assetId}`);
+            return;
+          }
           const loadedData = {
             title: data.title || '',
             category: data.category || 'Processo',

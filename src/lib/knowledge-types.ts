@@ -26,6 +26,20 @@ export interface KnowledgeDocument {
   // Embedding local (transformers.js) para busca semântica — write-only no backend,
   // nunca vem preenchido em respostas de listagem/GET.
   embedding?: number[];
+  // Squad do autor na criação e permissão de edição do usuário atual (calculadas pelo servidor).
+  squadId?: string;
+  canEdit?: boolean;
+}
+
+export interface KnowledgeVersion {
+  versionNumber: number;
+  title: string;
+  changedBy?: string;
+  changedByName?: string;
+  changedAt: string;
+  current: boolean;
+  content?: string;
+  tags?: string[];
 }
 
 export interface ChatMessage {

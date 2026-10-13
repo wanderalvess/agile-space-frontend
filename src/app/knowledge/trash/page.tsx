@@ -75,8 +75,8 @@ export default function TrashPage() {
       });
       setTrashDocs(prev => prev.filter(d => d.id !== docItem.id));
       toast.success("Documento restaurado com sucesso!");
-    } catch (error) {
-      toast.error("Erro ao restaurar.");
+    } catch (error: any) {
+      toast.error(error?.message || "Erro ao restaurar.");
     }
   };
 
@@ -163,14 +163,14 @@ export default function TrashPage() {
                         </div>
                      </div>
 
-                     <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                         <Button
+                     <div className="flex items-center gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                         {docItem.canEdit && <Button
                            variant="outline"
                            onClick={() => handleRestore(docItem)}
                            className="h-9 px-4 rounded-xl border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-300 font-black uppercase text-[8px] tracking-wider gap-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-500/20 shadow-none transition-all"
                          >
                             <RotateCcw className="h-3.5 w-3.5" /> Restaurar
-                         </Button>
+                         </Button>}
                          <Button
                            variant="ghost"
                            onClick={() => handlePermanentDelete(docItem.id)}
@@ -192,7 +192,7 @@ export default function TrashPage() {
              </div>
              <h4 className="text-sm font-black uppercase italic tracking-tighter text-rose-600 dark:text-rose-500 leading-none">Aviso Estrutural</h4>
              <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 max-w-4xl leading-relaxed uppercase tracking-wider">
-                Documentos na lixeira continuam guardados e podem ser restaurados por qualquer pessoa logada. Hoje não existe exclusão definitiva automática.
+                Documentos na lixeira continuam guardados e podem ser restaurados pelo autor, pela liderança da squad ou por administradores. Hoje não existe exclusão definitiva automática.
                 A restauração recupera todos os metadados técnicos originais.
              </p>
           </div>
