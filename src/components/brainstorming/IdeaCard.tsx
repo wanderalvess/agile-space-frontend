@@ -110,12 +110,13 @@ export function IdeaCard({
       isHot={isHot}
       votes={idea.votes || []}
       onVote={onVote}
+      canVote={!idea.hidden}
       isMergingSource={isMergingSource}
       canMergeTarget={canMerge}
       onDelete={onDelete}
       onEdit={startEditing}
       allowAnyEdit={true}
-      onStartMerge={onStartMerge}
+      onStartMerge={idea.hidden ? undefined : onStartMerge}
       onMerge={onMerge}
       isTruncated={isLongContent}
       isExpanded={isExpanded}

@@ -36,7 +36,7 @@ flowchart TD
 1. **Criar.** O hub cria o mural na fase Mural, com timer parado de 10 min, anonimato desligado e ideias reveladas. O criador é gravado pelo servidor a partir do login.
 2. **Entrar.** Ao abrir a sala a pessoa vira participante automaticamente (uma vez por sala; o apelido vem do perfil).
 3. **Mural.** Cada ideia é um card. Quem escreveu pode apagar; qualquer participante pode editar o texto, votar e iniciar uma fusão. Busca por texto e ordenação (recentes/populares) são locais.
-   - *Ocultar ideias* (facilitador): enquanto está oculto, cada pessoa só lê as **próprias** ideias; as demais aparecem borradas. *Anonimato* troca o autor por "Anônimo". Os dois são **só visuais** (ver pontos frágeis).
+   - *Ocultar ideias* (facilitador): enquanto está oculto, o **servidor** só entrega o texto das ideias ao próprio autor, ao facilitador e a ADMIN; para as demais pessoas a ideia chega **redigida** (texto vazio, sem autor nem votos, `hidden: true`) e a tela mostra um card borrado. *Anonimato* (autores ocultos): o servidor omite o autor de todos, menos do próprio autor (nem o facilitador nem ADMIN veem). As duas chaves são independentes e podem estar ligadas juntas. Ver "Anonimato no servidor" abaixo.
    - *Modo apresentação*: esconde o campo de nova ideia.
 4. **Voto.** Alterna: um voto por pessoa e ideia, sem limite de ideias votadas e em qualquer fase em que o card tem botão de voto (Mural, Teia, Grupos). A operação é atômica no servidor.
 5. **Fusão.** Botão de fusão no card de origem, depois clique no card de destino. O servidor junta o texto (destino + linha "- origem"), une os votos sem repetir quem votou nas duas, passa as ideias ligadas à origem para o destino e apaga a origem. Texto fundido acima de 5000 caracteres é recusado.
@@ -56,6 +56,18 @@ flowchart TD
 
 O servidor **guarda** o timer e **não conta tempo**: cada navegador calcula o que falta com o relógio local, e o `endTime` é calculado pelo navegador do facilitador. Ao zerar só toca o alarme (se o som da pessoa estiver ligado); nada muda sozinho.
 
+## Anonimato no servidor (ideias ocultas e autores ocultos)
+
+Decisão do produto: o servidor esconde até a revelação, **por destinatário**. Vale para `GET …/ideas`, para as respostas de `POST/PATCH …/ideas`, `…/vote` e `…/merge` e para o evento `IDEA_SAVED` do WebSocket (o servidor monta um payload por sessão, usando o `userId` e o papel do login).
+
+| Situação | Autor da ideia | Facilitador / ADMIN | Demais |
+|---|---|---|---|
+| Ideias ocultas | Texto, autor e votos | Texto e votos (autor só se os autores estiverem abertos) | Ideia redigida: texto `""`, `authorId` nulo, votos `[]`, `hidden: true`; mantém id, grupo, posição, ligação e datas |
+| Reveladas, autores ocultos | Tudo | Texto e votos, **sem** autor | Texto e votos, sem autor |
+| Reveladas, autores abertos (padrão) | Tudo | Tudo | Tudo |
+
+Matriz, Plano, votos e fusão continuam usando os dados reais no servidor; só a **saída** é filtrada (a entidade gravada nunca é alterada). Ao ligar/desligar qualquer uma das duas chaves o cliente recarrega as ideias de uma vez (troca a lista inteira, sem piscar). Com ideias ocultas, quem não pode lê-las não consegue exportar nem criar o Plano 5W2H (botões desabilitados); a Matriz e o Plano mostram "Ideia oculta pelo facilitador" no lugar do texto.
+
 ## Tempo real (WebSocket `/ws/brainstorming/{id}?token=`)
 
 O servidor exige login e que o mural exista. Depois de **cada gravação confirmada** (commit) ele envia:
@@ -65,7 +77,7 @@ O servidor exige login e que o mural exista. Depois de **cada gravação confirm
 | `BOARD_UPDATED` | Mural criado/alterado (fase, timer, configurações) | Substitui os dados do mural |
 | `BOARD_DELETED` | Facilitador apagou | Avisa e volta ao hub |
 | `PARTICIPANT_JOINED` / `PARTICIPANT_LEFT` | Entrada/remoção | Atualiza a lista |
-| `IDEA_SAVED` | Ideia criada/alterada (inclui voto, fusão, ligação, grupo) | Insere/substitui |
+| `IDEA_SAVED` | Ideia criada/alterada (inclui voto, fusão, ligação, grupo); payload **por sessão** (ver Anonimato no servidor) | Insere/substitui |
 | `IDEA_DELETED` | Ideia apagada | Remove e solta a ligação das filhas |
 | `GROUP_SAVED` / `GROUP_DELETED` | Grupo criado/alterado/apagado | Atualiza; no apagar, as ideias do grupo voltam a "Sem Grupo" (o servidor também publica cada ideia solta) |
 | `REFRESH_BOARD` e desconhecidos | — | Recarrega tudo |
@@ -107,7 +119,8 @@ Corrigidos em 2026-10-09 (para quem comparar com o comportamento anterior): voto
 
 Ainda abertos:
 
-- **Ocultar ideias e anonimato são só visuais.** O servidor continua enviando texto e autor de todas as ideias a todos os participantes (REST e WebSocket). Quem abrir as ferramentas do navegador lê tudo. Corrigir exige o servidor mascarar até a revelação (mudança de comportamento do mural, não feita).
+- **Quem foi autor ou facilitador lembra do que já viu.** Ao ocultar de novo depois de revelar, o navegador de quem já recebeu o texto ainda o tem na memória até recarregar (a lista é recarregada na troca da chave, mas o que já foi lido não se desfaz).
+- **Votos de ideias ocultas:** para quem não pode ler, a ideia chega com votos vazios, então a contagem some enquanto ocultas; o voto em si continua válido no servidor (a tela desabilita votar e fundir numa ideia oculta).
 - **Votação sem limite e sem fase.** A tela de apresentação do módulo e o manual falavam em "5 votos"; o código nunca limitou (textos corrigidos). Se o produto quiser limite, deve ser opção do facilitador (opt-in).
 - **Facilitador único e intransferível.** Se o criador sair, ninguém troca a fase; ADMIN consegue.
 - **Facilitador não apaga ideia de outra pessoa pela tela**, embora o servidor permita (a tela mostra o botão só ao autor). Decisão em aberto.
