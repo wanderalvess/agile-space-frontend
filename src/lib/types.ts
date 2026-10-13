@@ -813,7 +813,10 @@ export type BrainstormingIdea = {
   id: string;
   boardId: string;
   content: string;
-  authorId: string;
+  /** Nulo quando os autores estão ocultos (o servidor só envia o autor ao próprio autor). */
+  authorId: string | null;
+  /** O servidor redige a ideia (texto vazio, sem autor nem votos) enquanto as ideias estão ocultas para quem não pode lê-las. */
+  hidden?: boolean;
   votes: string[]; // Array de UIDs de usuários
   position: { x: number; y: number };
   parentId: string | null;

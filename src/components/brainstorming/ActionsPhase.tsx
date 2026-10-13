@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/ceremony-api';
 import { Button } from '@/components/ui/button';
-import { getQuadrant } from '@/lib/brainstorming-utils';
+import { getQuadrant, ideaText } from '@/lib/brainstorming-utils';
 
 interface ActionsPhaseProps {
   ideas: BrainstormingIdea[];
@@ -38,10 +38,12 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
   const strategic = sortedIdeas.filter(i => getQuadrant(i.qualifiers) === 'strategic');
 
   // o que foi descartado na matriz não vira ação no 5W2H
-  const topIdeas = sortedIdeas.filter(i => getQuadrant(i.qualifiers) !== 'discard').slice(0, 5);
+  // ideias que o servidor ainda não revelou a esta pessoa não têm texto: não dá para exportá-las
+  const hasHiddenIdeas = ideas.some(i => i.hidden);
+  const topIdeas = sortedIdeas.filter(i => !i.hidden && getQuadrant(i.qualifiers) !== 'discard').slice(0, 5);
 
   const handleExportTo5W2H = async () => {
-    if (!session || isExporting) return;
+    if (!session || isExporting || hasHiddenIdeas) return;
 
     setIsExporting(true);
 
@@ -113,7 +115,8 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
 
         <Button
           onClick={handleExportTo5W2H}
-          disabled={isExporting}
+          disabled={isExporting || hasHiddenIdeas}
+          title={hasHiddenIdeas ? "Disponível quando o facilitador revelar as ideias" : undefined}
           className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-2xl shadow-xl shadow-fuchsia-600/20 gap-3"
         >
           {isExporting ? (
@@ -207,7 +210,7 @@ export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIde
                     {sortedIdeas.slice(0, 10).map((idea, idx) => (
                       <tr key={idea.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-black text-slate-300">#{idx + 1}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-700 max-w-md truncate">{idea.content}</td>
+                        <td className="px-6 py-4 text-xs font-bold text-slate-700 max-w-md truncate">{ideaText(idea)}</td>
                         <td className="px-6 py-4">
                            {idea.groupId ? (
                              <Badge variant="outline" className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 border-amber-100">
@@ -315,19 +318,19 @@ function ActionCard({
               </div>
             ) : (
               <div 
-                onClick={() => { setEditedContent(idea.content); setIsEditing(true); }}
+                onClick={() => { if (idea.hidden) return; setEditedContent(idea.content); setIsEditing(true); }}
                 className="cursor-pointer hover:bg-slate-50 rounded-xl p-1 -m-1 transition-colors"
               >
                 <p className={cn(
                   "text-[12px] font-bold text-slate-800 leading-snug",
                   !isExpanded && "line-clamp-4"
                 )}>
-                  {idea.content}
+                  {ideaText(idea)}
                 </p>
               </div>
             )}
             
-            {idea.content.length > 100 && !isEditing && (
+            {!idea.hidden && idea.content.length > 100 && !isEditing && (
               <button 
                 onClick={(e) => {
                   e.stopPropagation();

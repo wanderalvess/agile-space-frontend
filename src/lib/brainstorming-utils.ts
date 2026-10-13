@@ -17,6 +17,14 @@ export function getQuadrant(qualifiers?: { roi?: number; effort?: number } | nul
   return 'discard';
 }
 
+/** Texto mostrado no lugar de uma ideia que o servidor redigiu (ideias ocultas pelo facilitador). */
+export const HIDDEN_IDEA_TEXT = 'Ideia oculta pelo facilitador';
+
+/** Texto para exibir: o da ideia, ou o aviso quando o servidor a redigiu. */
+export function ideaText(idea: Pick<BrainstormingIdea, 'content' | 'hidden'>): string {
+  return idea.hidden ? HIDDEN_IDEA_TEXT : idea.content;
+}
+
 /** Insere ou substitui pelo id, mantendo a ordem. */
 export function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
   const idx = list.findIndex(x => x.id === item.id);
@@ -53,6 +61,6 @@ export function votesOf(idea: Pick<BrainstormingIdea, 'votes'>): string[] {
 /** Chave que muda quando algo visível da ideia muda (posição, texto, ligação, votos): dispara a re-sincronização da teia. */
 export function ideaSignature(ideas: BrainstormingIdea[]): string {
   return ideas
-    .map(i => [i.id, i.parentId ?? '', i.groupId ?? '', i.position?.x ?? '', i.position?.y ?? '', i.content, votesOf(i).join(',')].join('|'))
+    .map(i => [i.id, i.hidden ? 'h' : '', i.parentId ?? '', i.groupId ?? '', i.position?.x ?? '', i.position?.y ?? '', i.content, votesOf(i).join(',')].join('|'))
     .join('\n');
 }

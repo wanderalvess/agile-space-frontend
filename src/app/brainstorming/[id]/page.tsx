@@ -75,6 +75,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     setAreGroupsLoading(true);
     setAreParticipantsLoading(true);
     joinAttempted.current = false;
+    lastVisibilityKey.current = null;
   }, [boardId]);
 
   useEffect(() => {
@@ -201,6 +202,18 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
       toast({ title: 'Não foi possível entrar na lista de participantes', description: errorMessage(e, 'Recarregue a página para tentar de novo.'), variant: 'destructive' });
     });
   }, [isAuthenticated, boardData, userProfile, participants, areParticipantsLoading, boardId, toast]);
+
+  // Revelar/ocultar ideias ou autores muda o que o servidor envia a cada pessoa: recarrega só as ideias, trocando a
+  // lista inteira de uma vez (sem piscar). Não roda na primeira carga.
+  const visibilityKey = boardData ? `${boardData.settings.isRevealed === false}|${!!boardData.settings.isAnonymous}` : null;
+  const lastVisibilityKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isAuthenticated || visibilityKey === null) return;
+    const previous = lastVisibilityKey.current;
+    lastVisibilityKey.current = visibilityKey;
+    if (previous === null || previous === visibilityKey) return;
+    brainstormingApi.getIdeas(boardId).then(setIdeas).catch(e => console.error("Erro ao recarregar as ideias:", e));
+  }, [visibilityKey, isAuthenticated, boardId]);
 
   // Título Dinâmico da Aba
   useEffect(() => {

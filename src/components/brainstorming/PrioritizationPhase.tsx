@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Target, Zap, Rocket, Trash, MinusCircle, ChevronRight, AlertCircle, GripVertical } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { getQuadrant } from '@/lib/brainstorming-utils';
+import { getQuadrant, ideaText } from '@/lib/brainstorming-utils';
 
 interface PrioritizationPhaseProps {
   ideas: BrainstormingIdea[];
@@ -163,7 +163,7 @@ export function PrioritizationPhase({
                             </div>
                             <div className="flex-1 flex flex-col gap-1.5">
                               <p className="text-[11px] font-semibold text-slate-700 leading-tight">
-                                {idea.content}
+                                <span className={idea.hidden ? 'blur-[3px] select-none' : undefined}>{ideaText(idea)}</span>
                               </p>
                               
                               <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-50">

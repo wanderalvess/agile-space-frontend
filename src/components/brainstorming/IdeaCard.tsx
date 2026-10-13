@@ -103,10 +103,10 @@ export function IdeaCard({
       variant="brainstorm"
       content={idea.content}
       theme="amber"
-      authorId={idea.authorId}
+      authorId={idea.authorId ?? undefined}
       currentUserId={currentUserId}
       isAnonymous={isAnonymous}
-      isRevealed={isRevealed}
+      isRevealed={isRevealed && !idea.hidden}
       isHot={isHot}
       votes={idea.votes || []}
       onVote={onVote}
