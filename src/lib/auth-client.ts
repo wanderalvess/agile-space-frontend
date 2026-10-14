@@ -57,6 +57,29 @@ export function tokenUserId(token: string | null | undefined): string | null {
   }
 }
 
+/** Lê `iat` e `exp` (epoch, s) do JWT só para decidir quando renovar; não valida assinatura. */
+export function tokenLifetime(token: string | null | undefined): { iat: number; exp: number } | null {
+  if (!token) return null;
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    const iat = Number(json?.iat);
+    const exp = Number(json?.exp);
+    return Number.isFinite(iat) && Number.isFinite(exp) && exp > iat ? { iat, exp } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Passou da metade da validade do token: hora de renovar a sessão. */
+export function shouldRefreshToken(token: string | null | undefined, nowMs: number = Date.now()): boolean {
+  const life = tokenLifetime(token);
+  if (!life) return false;
+  const now = nowMs / 1000;
+  return now >= life.iat + (life.exp - life.iat) / 2;
+}
+
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(TOKEN_STORAGE_KEY);

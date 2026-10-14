@@ -15,6 +15,7 @@ vi.mock('../../lib/auth-client', () => ({
   clearUserScopedStorage: vi.fn(),
   rememberSessionUser: vi.fn(),
   tokenUserId: () => 'u1',
+  shouldRefreshToken: () => false,
   TOKEN_STORAGE_KEY: 'agileSpace_auth_token',
   UNAUTHORIZED_EVENT: 'agilespace:unauthorized',
 }));

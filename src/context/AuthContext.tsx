@@ -6,6 +6,7 @@ import {
   getAuthToken,
   setAuthToken,
   clearAuthToken,
+  shouldRefreshToken,
   clearUserScopedStorage,
   rememberSessionUser,
   TOKEN_STORAGE_KEY,
@@ -63,11 +64,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const logout = useCallback(() => {
+  // Limpa só o que é local. Usado também quando o servidor já recusou o token (401): chamar o servidor
+  // de novo aqui geraria outro 401 e outro evento.
+  const clearSessionLocally = useCallback(() => {
     clearAuthToken();
     clearUserScopedStorage();
     setSession(null);
   }, []);
+
+  // Saída pedida pela pessoa: avisa o servidor (best-effort) para invalidar o token, inclusive em outros
+  // aparelhos, e limpa o local de qualquer jeito. fetch puro, não authFetch, para um 401 não virar evento.
+  const logout = useCallback(() => {
+    const token = getAuthToken();
+    if (token) {
+      void fetch(`${API_BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        keepalive: true,
+      }).catch(() => {});
+    }
+    clearSessionLocally();
+  }, [clearSessionLocally]);
 
   // Hidrata a sessão a partir do token salvo, validando-o contra o backend
   useEffect(() => {
@@ -145,10 +162,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Reage a 401s vindos de qualquer chamada autenticada (token expirado/inválido)
   useEffect(() => {
-    const handleUnauthorized = () => logout();
+    const handleUnauthorized = () => clearSessionLocally();
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
-  }, [logout]);
+  }, [clearSessionLocally]);
+
+  // Renovação deslizante: com a sessão aberta, passada a metade da validade o token é trocado por um novo
+  // (o servidor limita a sessão a 7 dias desde o login). Falha de rede não derruba a sessão; 401 sim,
+  // via authFetch. Também confere ao voltar para a aba, que pode ter ficado dormindo.
+  const hasSession = session !== null;
+  useEffect(() => {
+    if (!hasSession) return;
+    let running = false;
+    const tick = async () => {
+      if (running || !shouldRefreshToken(getAuthToken())) return;
+      running = true;
+      try {
+        const res = await authFetch(`${API_BASE_URL}/auth/refresh`, { method: 'POST' });
+        if (res.ok) {
+          const data: AuthResponse = await res.json();
+          if (data?.token) setAuthToken(data.token);
+        }
+      } catch {
+        /* sem rede agora: tenta de novo no próximo ciclo */
+      } finally {
+        running = false;
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void tick();
+    };
+    const timer = setInterval(() => void tick(), 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', onVisible);
+    void tick();
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [hasSession]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
