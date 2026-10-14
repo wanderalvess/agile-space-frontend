@@ -10,6 +10,7 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 | Acesso à Review | A Review é da squad, mas **quem recebe o link acessa**; sem trava por squad |
 | Biblioteca de IA sem login | Só para itens **públicos** (`/api/public/prompt-hub`); coleções e escrita exigem login |
 | Novidades em salas e cerimônias | Opt-in do facilitador; o comportamento padrão não muda |
+| Jolt (`/api/jolt/transform`) | **Continua público**, como as ferramentas do DevTools: transformar não exige senha, só salvar o projeto exige login. Mitigado por limites (10 s, 300 req/min por IP) |
 | Cadastro | **Autocadastro aberto**, só para e-mails `@totvs.com.br` e `@ext.totvs.com.br` (correspondência exata do domínio). Sem verificação de e-mail: risco aceito pelo produto. `APP_REGISTRATION_ENABLED=false` fecha o cadastro se for preciso (padrão `true`) |
 
 ## Segurança e acesso (`seguranca-transversal.md`, `autenticacao-e-sessao.md`)
@@ -65,7 +66,6 @@ Reunião, em 2026-10-09, do que as auditorias dos módulos deixaram **sem corrig
 
 ## Jolt e DevTools (`jolt.md`, `devtools.md`)
 
-35. **`POST /api/jolt/transform` continua sem login** (execução pública, mitigada por limites, 10 s e 300 req/min por IP). Exigir login muda o contrato de quem chama de fora.
 36. **Cliente HTTP do DevTools:** o CSP só libera alguns destinos. Manter, liberar hosts específicos ou abrir `https:` inteiro (enfraquece a proteção contra XSS)?
 37. Expor na tela o compartilhamento de projeto Jolt (o servidor já suporta público e squad).
 38. O hub do DevTools promete que o conteúdo não sai da máquina, mas CEP, IP, Zephyr e o Gerador JUnit avançado enviam dados a terceiros; o PAT do Jira e a chave do Gemini ficam em texto puro no `localStorage`.
