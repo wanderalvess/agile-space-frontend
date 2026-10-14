@@ -66,7 +66,7 @@ const GROUPS: ModuleGroup[] = [
       {
         title: 'Jolt',
         tag: 'JSON',
-        description: 'Transforme payloads JSON: escreva a spec na Sandbox ou desenhe o mapeamento no Mapeador Visual.',
+        description: 'Transforme payloads JSON: escreva a spec na Sandbox ou gere a partir de um exemplo de entrada e saída.',
         icon: Terminal,
         accent: 'blue',
         route: '/jolt',

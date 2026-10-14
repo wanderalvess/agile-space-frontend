@@ -1,4 +1,4 @@
-# Jolt (Sandbox e Mapeador Visual)
+# Jolt (Sandbox e Gerador de spec)
 
 ## Objetivo e quem usa
 
@@ -11,9 +11,9 @@ Ferramenta para **transformar um JSON em outro** usando uma especificação Jolt
 
 | Tela | Caminho | O que é |
 |---|---|---|
-| Hub | `/jolt` | Explica os dois modos e o fluxo recomendado (desenhar, gerar a spec, refinar, confirmar no Java) |
+| Hub | `/jolt` | Explica os dois modos e o fluxo recomendado (dar o exemplo, confirmar, refinar, confirmar no Java) |
 | Sandbox | `/jolt/sandbox` | Dois editores (JSON de entrada e spec), saída ao lado, três motores, layouts salvos, GitHub, manutenção de layout existente |
-| Mapeador Visual | `/jolt/visual` | Quadro com campos de origem (esquerda) e destino (direita); a pessoa liga os campos e o sistema gera a spec |
+| Gerador de spec | `/jolt/gerador` | A pessoa cola a entrada e a saída esperada; o sistema infere as regras, gera a spec e valida no motor Java |
 
 ### Sandbox
 
@@ -22,18 +22,36 @@ Ferramenta para **transformar um JSON em outro** usando uma especificação Jolt
 - **Layouts salvos**: ficam no `localStorage` do navegador, por usuário (`agileSpace_jolt_layouts_{id}`). Não vão ao servidor.
 - **Barra do GitHub**: escolhe Integração → Rota → Versão no repositório de layouts (padrão `totvs/winthor-smart-hub-layouts`) e carrega o arquivo na hora. Usa a API pública do GitHub sem token (limite de ~60 consultas por hora por IP; a tela avisa).
 - **Manutenção de layout existente** (v4.15.0): com um layout completo (`tabela.campos`) carregado, o painel de manutenção acrescenta/troca/remove só ligações do `shift`; o resto da spec (modify, default...) volta exatamente como entrou. "Copiar/baixar layout completo" devolve o arquivo inteiro com a spec editada.
-- **Abrir no Mapeador Visual**: leva o JSON de entrada (e, se há `shift`, o layout para o modo manutenção) pelo `localStorage`.
+- **Gerador de spec**: leva o JSON de entrada ao Gerador pelo `localStorage` (`jolt_generator_input`).
 
-### Mapeador Visual
+### Gerador de spec (`/jolt/gerador`, desde 2026-10-14; substituiu o Mapeador Visual)
 
-1. Cola o **JSON de origem** e um **JSON de destino de exemplo**; "Analisar JSON" transforma cada caminho folha em um nó (listas de objetos contam só o **primeiro item**, como `itens[*].id`).
-2. Liga origem→destino arrastando, ou usa **Auto-Mapear** (nome igual ou sinônimo conhecido).
-3. **Ver spec** gera a spec; a prévia pode ser executada no motor JavaScript ou Java.
-4. **Gerar Spec Jolt** grava a spec no `localStorage` e abre a Sandbox.
-5. Opções: modo **SmartHub** (envelope com `idExterno`, `idInterno`, `tipoIdInterno`, `_attr_access`...) ou **Direto** (array puro); nome da entidade; **template de envelope** (`PCINTEGRACAOROTASERVICO` com o marcador `_JOLT_SPEC_`).
-6. **Modo manutenção** ("Layout existente"): parte de um layout pronto; as ligações dele aparecem tracejadas, só o que é novo entra.
+A pessoa entrega um **exemplo**: a resposta da API de origem e a saída que a API de destino espera. O backend
+(`POST /api/jolt/generate`, exige login, até 50 mil campos por JSON) descobre de onde vem cada campo, monta a spec e
+**prova** o resultado rodando-a no motor Java e comparando com a saída esperada, campo a campo.
 
-## Projetos salvos
+1. **Exemplos**: dois editores (entrada e saída esperada). Vindo da Sandbox, a entrada já chega preenchida.
+2. **Regras**: uma linha por campo da saída: de onde vem, a regra (Copiar, Como texto, Só dígitos, Concatenar,
+   De-para, Fixo, Variável da rota) e o valor de exemplo. **A confirmar** (em laranja, no topo) traz o que o exemplo
+   não prova sozinho: mais de uma origem com o mesmo valor (ex.: endereço de entrega x cobrança), de-para com um só
+   valor visto, valor comum (0, 1, false, sigla) escolhido pelo nome. **Ajustar** troca a origem (lista de todos os
+   campos da entrada daquela lista), a regra, o valor fixo, ou completa o de-para (com "qualquer outro").
+3. **Spec e validação**: diz se a saída gerada bate com a esperada (ou lista as diferenças), resume os passos da spec,
+   e mostra a spec (`LAYOUTTRANSFORMACAO`) ou o **registro completo da rota** (`PCINTEGRACAOROTASERVICO`), montado com o
+   formulário "Rota de integração" (serviço, empresa, tipo de processo, requisição, cabeçalhos, parâmetros, flags).
+   **Carregar registro** preenche o formulário com um arquivo de rota existente e troca só a spec. **Abrir na Sandbox**
+   leva spec e entrada pelo `localStorage`.
+
+Como a inferência decide (`JoltSpecGenerator`, backend): a regra tem que valer para **todos** os itens das listas
+alinhadas; listas da saída são ligadas à lista da entrada de mesmo tamanho que mais explica os campos (e nome
+parecido); concatenação acha os pedaços na entrada, inclusive em campos do item pai; valor comum só vira cópia se o
+nome do campo também bate; o que um exemplo só não mostra (condições, filtros, o resto de um de-para) fica pendente.
+Casos reais de teste: `agile-space-backend/src/test/resources/jolt-generator/`.
+
+## Projetos salvos (do antigo Mapeador Visual)
+
+O Mapeador Visual foi removido em 2026-10-14. A API de projetos (`/api/jolt/projects`, tabela de projetos Jolt) continua
+no backend, mas hoje **nenhuma tela** salva ou abre projetos; o que segue descreve como ela funcionava.
 
 Dois lugares, escolhidos no diálogo "Salvar projeto":
 

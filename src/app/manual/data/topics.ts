@@ -158,7 +158,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     id: 'jolt',
     title: 'Hub Jolt',
     subtitle: 'Motor de Transformação JSON',
-    description: 'A suíte definitiva para manipulações estruturais JSON complexas utilizando a engine Apache Jolt e mapeador visual.',
+    description: 'A suíte definitiva para manipulações estruturais JSON complexas utilizando a engine Apache Jolt e o gerador de spec a partir de exemplos.',
     category: 'engineering',
     icon: FileJson,
     color: 'text-blue-500 dark:text-blue-400',

@@ -43,7 +43,7 @@ Documentação de **como cada módulo funciona**, escrita para que um agente (ou
 | [base-de-conhecimento.md](base-de-conhecimento.md) | Wiki, ingestão de PDF/Word, busca, assistente de IA |
 | [workspace.md](workspace.md) | Meu Espaço: kanban, notas, atalhos |
 | [manual-e-ajuda.md](manual-e-ajuda.md) | Manual e ajuda |
-| [jolt.md](jolt.md) | Jolt: sandbox, mapeador visual, projetos salvos |
+| [jolt.md](jolt.md) | Jolt: sandbox, gerador de spec, execução no motor Java |
 | [devtools.md](devtools.md) | Ferramentas de desenvolvimento |
 | [central-de-qualidade.md](central-de-qualidade.md) | Central de Qualidade |
 | [ferramentas-ageis.md](ferramentas-ageis.md) | Ferramentas ágeis avulsas e arquitetura |
