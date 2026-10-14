@@ -64,7 +64,7 @@ import { SandboxPane } from './SandboxPane';
 import { GithubIntegrationBar } from '@/components/jolt/GithubIntegrationBar';
 import { useGithubLayouts, type LoadedGithubLayout } from '@/components/jolt/useGithubLayouts';
 import { JoltMaintenancePanel } from '@/components/jolt/JoltMaintenancePanel';
-import { parseLayoutData, parseLayoutText, listShiftMappings } from '@/lib/jolt-maintenance';
+import { parseLayoutData, parseLayoutText } from '@/lib/jolt-maintenance';
 import { diffJson, describeValue, type JsonDiff } from '@/lib/jolt-compare';
 import Link from 'next/link';
 
@@ -169,7 +169,7 @@ export default function JoltSandboxPage() {
 
       toast({ 
         title: "Layout Carregado!", 
-        description: "A especificação gerada no Mapeador Visual foi carregada com sucesso." 
+        description: "A especificação gerada foi carregada com sucesso." 
       });
     }
   }, []);
@@ -584,46 +584,22 @@ export default function JoltSandboxPage() {
     }
   };
 
-  const handleOpenInVisualMapper = () => {
+  // Leva a entrada atual para o Gerador de spec; lá a pessoa cola a saída esperada e o gerador monta a spec.
+  const handleOpenInGenerator = () => {
     if (!inputJson.trim()) {
       toast({
         title: "Entrada vazia",
-        description: "Preencha o JSON de entrada para transferir ao Mapeador Visual.",
+        description: "Preencha o JSON de entrada para levar ao Gerador de spec.",
         variant: "destructive"
       });
       return;
     }
-
     try {
-      localStorage.setItem('jolt_visual_input_json', inputJson);
-      localStorage.setItem('jolt_visual_imported_from_sandbox', 'true');
-
-      // Com um layout que já tem shift no editor, o mapeador abre em modo manutenção (só liga o que é novo).
-      let layoutForMapper: string | null = null;
-      const current = parseLayoutText(joltSpec);
-      if (current.ok && listShiftMappings(current.parts.spec).length > 0) {
-        const base = loadedDocument ? parseLayoutData(loadedDocument) : null;
-        layoutForMapper = current.parts.kind === 'envelope'
-          ? JSON.stringify(JSON.parse(joltSpec), null, 2)
-          : base?.ok ? JSON.stringify(base.parts.rebuild(current.parts.spec), null, 2) : JSON.stringify(current.parts.spec, null, 2);
-      }
-      if (layoutForMapper) localStorage.setItem('jolt_visual_base_layout', layoutForMapper);
-      else localStorage.removeItem('jolt_visual_base_layout');
-
-      toast({
-        title: "Transferindo para o Visual...",
-        description: layoutForMapper
-          ? "Abrindo o Mapeador Visual em modo manutenção, com o layout atual."
-          : "Abrindo o Mapeador Visual com os dados da Sandbox."
-      });
-      router.push('/jolt/visual');
-    } catch (e: any) {
-      toast({
-        title: "Erro ao transferir",
-        description: e.message,
-        variant: "destructive"
-      });
+      localStorage.setItem('jolt_generator_input', inputJson); // o Gerador lê e só apaga ao gerar
+    } catch {
+      /* sem storage: o Gerador abre vazio */
     }
+    router.push('/jolt/gerador');
   };
 
 
@@ -644,13 +620,13 @@ export default function JoltSandboxPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleOpenInVisualMapper}
+                onClick={handleOpenInGenerator}
                 className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
-                title="Leva o JSON de entrada para o Mapeador Visual, onde você desenha o mapa em vez de escrever a spec"
-                aria-label="Abrir no Mapeador Visual"
+                title="Leva o JSON de entrada para o Gerador de spec: cole a saída esperada e a spec é montada para você"
+                aria-label="Abrir no Gerador de spec"
               >
                 <Workflow className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">Mapeador Visual</span>
+                <span className="hidden lg:inline">Gerador de spec</span>
               </Button>
               <Button
                 variant="ghost"

@@ -8,10 +8,10 @@ import {
   Check,
   Code2,
   FileJson,
-  Network,
   PenLine,
   Terminal,
   Workflow,
+  Wand2,
 } from 'lucide-react';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
@@ -52,29 +52,29 @@ const MODES: Mode[] = [
     cta: 'Abrir Sandbox',
   },
   {
-    href: '/jolt/visual',
-    icon: <Network className="h-5 w-5 text-primary" />,
-    tag: 'Você desenha o mapa',
-    title: 'Mapeador Visual',
-    summary: 'Ligue campos de origem a campos de destino num quadro e a spec Jolt é gerada para você. Sem decorar sintaxe.',
+    href: '/jolt/gerador',
+    icon: <Wand2 className="h-5 w-5 text-primary" />,
+    tag: 'Você dá o exemplo',
+    title: 'Gerador de Spec',
+    summary: 'Cole a entrada da API de origem e a saída que a API de destino espera. O gerador descobre de onde vem cada campo e monta a spec, validada no motor Java.',
     useWhen: [
-      'Você não domina a sintaxe do Jolt ou quer começar sem escrever nada.',
-      'O mapeamento é grande, campo a campo, e vale documentar o de-para.',
-      'Quer um ponto de partida para depois refinar na Sandbox.',
+      'Você tem um registro de exemplo e sabe como ele deve chegar no destino.',
+      'Quer começar uma rota nova sem escrever spec à mão.',
+      'Quer provar que a spec gera exatamente a saída do contrato.',
     ],
-    input: 'JSON de origem + JSON de destino de exemplo',
-    output: 'Spec Jolt pronta (abre na Sandbox)',
+    input: 'JSON de entrada + saída esperada',
+    output: 'Spec Jolt validada (abre na Sandbox)',
     extras: [
-      'Projetos salvos no navegador ou na nuvem, com histórico de versões e restauração.',
-      'Executa a spec gerada em JavaScript ou Java para conferir o resultado.',
+      'Mostra a regra de cada campo (cópia, só dígitos, concatenação, de-para, fixo) e pede confirmação só do que é ambíguo.',
+      'Roda a spec gerada no motor Java e compara campo a campo com a saída esperada.',
     ],
-    cta: 'Abrir Mapeador',
+    cta: 'Abrir Gerador',
   },
 ];
 
 const FLOW = [
-  { title: 'Desenhe', text: 'No Mapeador Visual, ligue os campos de origem aos de destino.' },
-  { title: 'Gere a spec', text: 'A spec Jolt é montada e aberta na Sandbox.' },
+  { title: 'Dê o exemplo', text: 'No Gerador, cole a entrada e a saída esperada.' },
+  { title: 'Confirme', text: 'Ajuste só os campos ambíguos; a spec é gerada e validada no Java.' },
   { title: 'Refine', text: 'Na Sandbox, ajuste regras e teste com JSONs reais.' },
   { title: 'Confirme no Java', text: 'Use o modo Comparar para garantir que produção terá o mesmo resultado.' },
 ];
