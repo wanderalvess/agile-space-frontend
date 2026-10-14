@@ -54,6 +54,7 @@ export function Header() {
   const isMinimalLayout =
     pathname === '/' ||
     pathname === '/login' ||
+    pathname === '/reset-password' ||
     pathname.startsWith('/jolt') ||
     pathname.startsWith('/manual') ||
     pathname.startsWith('/room') ||

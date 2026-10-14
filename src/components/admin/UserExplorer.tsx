@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { buildResetLink } from '@/lib/password-api';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -84,7 +85,7 @@ export function UserExplorer() {
   const [detailSquads, setDetailSquads] = useState<Array<{ squadId: string; role?: string }> | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<UserProfile | null>(null);
   const [confirmReset, setConfirmReset] = useState<UserProfile | null>(null);
-  const [tempPassword, setTempPassword] = useState<{ email: string; pass: string } | null>(null);
+  const [resetLink, setResetLink] = useState<{ email: string; url: string; expiresAt?: string } | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -143,8 +144,10 @@ export function UserExplorer() {
     setUpdatingId(u.id);
     try {
       const result = await adminApi.resetUserPassword(u.id);
-      if (result.tempPassword) setTempPassword({ email: u.email || u.name, pass: result.tempPassword });
-      toast({ title: 'Senha temporária gerada', description: 'Repasse à pessoa fora do sistema. Ela fica visível por 1 hora.' });
+      if (result.resetToken) {
+        setResetLink({ email: u.email || u.name, url: buildResetLink(result.resetToken, window.location.origin), expiresAt: result.tokenExpiresAt });
+      }
+      toast({ title: 'Link de redefinição gerado', description: 'Repasse à pessoa fora do sistema. Ele vale uma vez só.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Não foi possível redefinir a senha', description: apiErrorMessage(error) });
     } finally {
@@ -391,25 +394,28 @@ export function UserExplorer() {
           <AlertDialogHeader>
             <AlertDialogTitle>Redefinir a senha de {confirmReset?.name || confirmReset?.email}?</AlertDialogTitle>
             <AlertDialogDescription>
-              A senha atual deixa de valer e será gerada uma senha temporária, que você repassa à pessoa fora do sistema.
+              Será gerado um link de uso único (vale 2 horas), que você repassa à pessoa fora do sistema. Ela define a própria senha; a atual continua valendo até o link ser usado.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmReset && handleResetPassword(confirmReset)}>Gerar senha temporária</AlertDialogAction>
+            <AlertDialogAction onClick={() => confirmReset && handleResetPassword(confirmReset)}>Gerar link de redefinição</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={!!tempPassword} onOpenChange={(open) => !open && setTempPassword(null)}>
+      <Dialog open={!!resetLink} onOpenChange={(open) => !open && setResetLink(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Senha temporária de {tempPassword?.email}</DialogTitle>
-            <DialogDescription>Copie agora e repasse à pessoa. Ela fica visível por 1 hora e depois é apagada.</DialogDescription>
+            <DialogTitle>Link de redefinição de {resetLink?.email}</DialogTitle>
+            <DialogDescription>
+              Copie agora e repasse à pessoa: é a única vez que o link aparece e ele vale uma vez só
+              {resetLink?.expiresAt ? `, até ${new Date(resetLink.expiresAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2">
-            <code className="flex-1 rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2 text-sm font-bold tracking-wider">{tempPassword?.pass}</code>
-            <Button variant="outline" size="icon" aria-label="Copiar senha" onClick={() => tempPassword && navigator.clipboard.writeText(tempPassword.pass)}>
+            <code className="min-w-0 flex-1 break-all rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2 text-xs font-bold">{resetLink?.url}</code>
+            <Button variant="outline" size="icon" aria-label="Copiar link" onClick={() => resetLink && navigator.clipboard.writeText(resetLink.url)}>
               <Copy className="h-4 w-4" />
             </Button>
           </div>

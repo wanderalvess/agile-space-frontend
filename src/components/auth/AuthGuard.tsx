@@ -10,9 +10,10 @@ const PUBLIC_ROUTES = ['/login'];
 
 /**
  * Rotas abertas a quem não está logado, mas que também servem a quem está (não redirecionam).
- * Só páginas cujo dado vem de endpoint público do servidor: hoje o changelog (`GET /api/changelog`).
+ * Só páginas cujo dado vem de endpoint público do servidor: o changelog (`GET /api/changelog`) e a
+ * redefinição de senha pelo link (`POST /api/auth/reset-password`, a pessoa não tem sessão).
  */
-const OPEN_ROUTES = ['/changelog'];
+const OPEN_ROUTES = ['/changelog', '/reset-password'];
 
 export function isOpenRoute(path: string): boolean {
   return OPEN_ROUTES.some((route) => path === route || path.startsWith(route + '/'));

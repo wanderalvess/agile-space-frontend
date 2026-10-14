@@ -35,8 +35,11 @@ export interface PasswordResetRequest {
   id: string;
   userEmail: string;
   userName?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  tempPassword?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  /** Token do link de redefinição: só vem na resposta que gera o link (o servidor guarda apenas o hash). */
+  resetToken?: string;
+  tokenExpiresAt?: string;
+  usedAt?: string;
   requestedAt: string;
   approvedAt?: string;
   approvedBy?: string;
@@ -136,7 +139,7 @@ export const adminApi = {
     });
   },
 
-  /** Redefinição iniciada pelo admin: gera e aprova de uma vez e devolve a senha temporária. */
+  /** Redefinição iniciada pelo admin: gera e aprova de uma vez e devolve o link (resetToken) de uso único. */
   async resetUserPassword(userId: string): Promise<PasswordResetRequest> {
     return req<PasswordResetRequest>(`/admin/users/${encodeURIComponent(userId)}/reset-password`, {
       method: 'POST'

@@ -6,7 +6,7 @@ import { useUserContext } from '@/context/UserContext';
 import { UserProfileModal } from '@/components/layout/UserProfileModal';
 import { cn } from '@/lib/utils';
 
-export const ONBOARDING_EXEMPT_ROUTES = ['/onboarding', '/login'];
+export const ONBOARDING_EXEMPT_ROUTES = ['/onboarding', '/login', '/reset-password'];
 
 export const isCollaborativeRoute = (path: string) => {
   return (

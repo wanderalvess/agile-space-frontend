@@ -54,6 +54,7 @@ import { userApi } from '@/app/users/api';
 import { Badge } from '@/components/ui/badge';
 import { authFetch } from '@/lib/auth-client';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
+import { ChangePasswordSection } from '@/components/layout/ChangePasswordSection';
 
 export function UserProfileModal() {
   const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
@@ -774,6 +775,8 @@ export function UserProfileModal() {
                     </div>
                   </div>
                 )}
+
+                <ChangePasswordSection />
               </div>
             </TabsContent>
           </div>

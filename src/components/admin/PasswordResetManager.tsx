@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { KeyRound, CheckCircle2, Copy, ShieldAlert, Clock, RefreshCw, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { buildResetLink } from '@/lib/password-api';
 import { AgileSpinner } from '../ui/AgileSpinner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -16,7 +17,7 @@ export function PasswordResetManager() {
   const [requests, setRequests] = useState<PasswordResetRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
-  const [generatedPassword, setGeneratedPassword] = useState<{ email: string; pass: string } | null>(null);
+  const [generatedLink, setGeneratedLink] = useState<{ email: string; url: string; expiresAt?: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const loadRequests = async () => {
@@ -40,11 +41,15 @@ export function PasswordResetManager() {
     try {
       const updated = await adminApi.approvePasswordReset(req.id);
       toast({
-        title: 'Senha temporária gerada!',
-        description: `Reset aprovado para ${req.userEmail}.`,
+        title: 'Link de redefinição gerado!',
+        description: `Repasse o link a ${req.userEmail}. A senha atual continua valendo até ele ser usado.`,
       });
-      if (updated.tempPassword) {
-        setGeneratedPassword({ email: req.userEmail, pass: updated.tempPassword });
+      if (updated.resetToken) {
+        setGeneratedLink({
+          email: req.userEmail,
+          url: buildResetLink(updated.resetToken, window.location.origin),
+          expiresAt: updated.tokenExpiresAt,
+        });
       }
       loadRequests();
     } catch (e: any) {
@@ -61,7 +66,7 @@ export function PasswordResetManager() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast({ title: 'Copiado!', description: 'Senha copiada para a área de transferência.' });
+    toast({ title: 'Copiado!', description: 'Link copiado para a área de transferência.' });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -104,37 +109,40 @@ export function PasswordResetManager() {
       </CardHeader>
 
       <CardContent className="pt-4 space-y-4">
-        {/* MODAL / BANNER DE SENHA GERADA COM SUCESSO */}
-        {generatedPassword && (
+        {/* BANNER DO LINK GERADO COM SUCESSO */}
+        {generatedLink && (
           <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-900 dark:text-emerald-200 animate-in fade-in zoom-in duration-300">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Senha Temporária Criada para {generatedPassword.email}</span>
+                <span>Link de redefinição gerado para {generatedLink.email}</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setGeneratedPassword(null)}
+                onClick={() => setGeneratedLink(null)}
                 className="h-6 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20"
               >
                 Fechar
               </Button>
             </div>
             <div className="mt-3 flex items-center gap-3">
-              <div className="px-4 py-2 bg-emerald-950 text-emerald-300 font-code text-lg font-black tracking-wider rounded-xl border border-emerald-500/40 select-all">
-                {generatedPassword.pass}
+              <div className="min-w-0 flex-1 px-4 py-2 bg-emerald-950 text-emerald-300 font-code text-xs font-bold rounded-xl border border-emerald-500/40 select-all break-all">
+                {generatedLink.url}
               </div>
               <Button
-                onClick={() => copyToClipboard(generatedPassword.pass)}
+                onClick={() => copyToClipboard(generatedLink.url)}
                 className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl gap-2 shadow-sm"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copiado!' : 'Copiar Senha'}
+                {copied ? 'Copiado!' : 'Copiar Link'}
               </Button>
             </div>
             <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-              Repasse esta senha ao usuário (pessoalmente ou via chat corporativo seguro). Ela já está ativa para login.
+              Repasse este link à pessoa (pessoalmente ou por chat corporativo seguro). Ele vale uma vez só
+              {generatedLink.expiresAt ? `, até ${format(new Date(generatedLink.expiresAt), "dd/MM 'às' HH:mm", { locale: ptBR })}` : ''}
+              . Ela define a própria senha; a atual continua valendo até lá. Esta é a única vez que o link aparece: se perder, gere outro.
+
             </p>
           </div>
         )}
@@ -179,7 +187,7 @@ export function PasswordResetManager() {
                   ) : (
                     <ShieldAlert className="w-3.5 h-3.5" />
                   )}
-                  Aprovar & Gerar Senha
+                  Aprovar & Gerar Link
                 </Button>
               </div>
             ))}
@@ -197,6 +205,9 @@ export function PasswordResetManager() {
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                         <span className="font-medium text-slate-700 dark:text-slate-300">{req.userEmail}</span>
+                        <Badge variant="outline" className="text-[9px] font-bold uppercase">
+                          {req.status === 'COMPLETED' ? 'Senha redefinida' : 'Link gerado'}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-2 text-[10px] text-slate-400">
                         <span>Aprovado por: <strong>{req.approvedBy || 'Admin'}</strong></span>
