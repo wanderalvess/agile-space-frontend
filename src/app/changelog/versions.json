@@ -1,5 +1,34 @@
 [
   {
+    "tag": "v4.24.0",
+    "date": "14 de Outubro, 2026",
+    "title": "Gerador de spec Jolt, sessão que se renova e senha pelo link",
+    "description": "O Jolt ganhou o Gerador de spec, que monta a transformação a partir de um exemplo de entrada e saída. A sessão não cai mais no meio de uma cerimônia e a senha passa a ser redefinida por um link de uso único.",
+    "changes": [
+      "Gerador de spec (Jolt): cole a resposta da API de origem e a saída esperada; o gerador mostra a regra de cada campo, pede confirmação só do que é ambíguo e confere a spec no motor Java, campo a campo.",
+      "O Gerador também monta o registro completo da rota e pode partir de um registro existente, trocando só a spec. Ele substitui o Mapeador Visual, que foi removido.",
+      "A sessão se renova sozinha enquanto você usa o sistema (até 7 dias desde o login). Sair encerra a sessão em todos os aparelhos.",
+      "Esqueceu a senha? O administrador gera um link de uso único, válido por 2 horas, e você mesmo define a nova senha. Não existe mais senha temporária.",
+      "Agora dá para trocar a própria senha pelo perfil, na aba Jira & Segurança.",
+      "Planning Poker: só o facilitador revela e limpa os votos.",
+      "Ter o mesmo nome de alguém do time não dá mais acesso à squad nem os poderes dessa pessoa; vale o vínculo pelo e-mail, pela conta do Jira ou pelo \"Sou eu\".",
+      "Mensagens de erro de login e de acesso voltam a mostrar os acentos corretamente."
+    ]
+  },
+  {
+    "tag": "v4.23.0",
+    "date": "13 de Outubro, 2026",
+    "title": "Anonimato garantido pelo servidor e chaves de API com validade",
+    "description": "Cards da Retro e ideias do Brainstorming ocultos ficam realmente ocultos até a revelação, e as chaves de API passam a vencer.",
+    "changes": [
+      "Retro e Brainstorming: enquanto estão ocultos, o texto e o autor de cards e ideias não saem do servidor para quem não deve vê-los.",
+      "Chaves de API valem 90 dias; as telas avisam quando faltam menos de 14 dias e permitem renovar ou trocar a chave.",
+      "Base de Conhecimento: só o autor, a liderança da squad e o administrador editam um documento, com histórico de versões e restauração.",
+      "O administrador não vê mais o token do Jira ou do TDN de outras pessoas.",
+      "O Jira Dash foi removido."
+    ]
+  },
+  {
     "tag": "v4.22.9",
     "date": "10 de Outubro, 2026",
     "title": "Mensagens de erro claras em toda a plataforma",
