@@ -24,6 +24,8 @@ import {
   type GeneratorRule,
   type RuleDraft,
 } from '@/lib/jolt-generator';
+import { RouteRecordPanel } from '@/components/jolt/RouteRecordPanel';
+import { buildRouteRecord, defaultRouteForm, routeProblems, routeVariables, type RouteForm } from '@/lib/jolt-route-record';
 
 type Step = 'exemplos' | 'regras' | 'spec';
 
@@ -275,6 +277,8 @@ export default function JoltGeneratorPage() {
   const [filter, setFilter] = useState<Filter>('todos');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [routeForm, setRouteForm] = useState<RouteForm>(defaultRouteForm);
+  const [codeTab, setCodeTab] = useState<'spec' | 'registro'>('spec');
 
   useEffect(() => {
     document.title = 'Gerador de spec | Jolt | Portal Tech V&D';
@@ -329,6 +333,9 @@ export default function JoltGeneratorPage() {
   const unresolved = rules.filter((r) => r.kind === 'UNRESOLVED').length;
   const resolved = rules.length - rules.filter((r) => r.pending).length;
   const specText = result ? JSON.stringify(result.spec, null, 2) : '';
+  const routeRecord = useMemo(() => (result ? buildRouteRecord(routeForm, result.spec) : null), [routeForm, result]);
+  const recordText = routeRecord ? JSON.stringify(routeRecord, null, 2) : '';
+  const shownText = codeTab === 'spec' ? specText : recordText;
 
   const toggleEdit = (rule: GeneratorRule) => {
     if (editing === rule.output) {
@@ -358,8 +365,10 @@ export default function JoltGeneratorPage() {
 
   const copySpec = async () => {
     try {
-      await navigator.clipboard.writeText(specText);
-      toast({ title: 'Spec copiada', description: 'Cole em LAYOUTTRANSFORMACAO.' });
+      await navigator.clipboard.writeText(shownText);
+      toast(codeTab === 'spec'
+        ? { title: 'Spec copiada', description: 'Cole em LAYOUTTRANSFORMACAO.' }
+        : { title: 'Registro da rota copiado', description: 'É o arquivo completo de PCINTEGRACAOROTASERVICO.' });
     } catch {
       toast({ variant: 'destructive', title: 'Não foi possível copiar' });
     }
@@ -538,18 +547,48 @@ export default function JoltGeneratorPage() {
               })}
             </div>
 
-            <section className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2.5">
-                <h2 className="font-code text-[13px] font-semibold">LAYOUTTRANSFORMACAO</h2>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={copySpec}>
-                    <Copy className="mr-1.5 h-3.5 w-3.5" /> Copiar
-                  </Button>
-                  <Button type="button" size="sm" onClick={openSandbox}>Abrir na Sandbox</Button>
+            <div className="flex flex-wrap items-start gap-4">
+              <section className="min-w-0 flex-[999_1_560px] overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+                  <div role="tablist" aria-label="Formato" className="inline-flex gap-1 rounded-lg bg-muted p-1">
+                    {([
+                      ['spec', 'LAYOUTTRANSFORMACAO'],
+                      ['registro', 'Registro completo da rota'],
+                    ] as ['spec' | 'registro', string][]).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={codeTab === id}
+                        onClick={() => setCodeTab(id)}
+                        className={cn('h-8 rounded-md px-3 font-code text-xs', codeTab === id ? 'bg-background font-semibold text-foreground shadow-sm' : 'text-muted-foreground')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={copySpec}>
+                      <Copy className="mr-1.5 h-3.5 w-3.5" /> Copiar
+                    </Button>
+                    <Button type="button" size="sm" onClick={openSandbox}>Abrir na Sandbox</Button>
+                  </div>
                 </div>
+                <pre className="max-h-[640px] overflow-auto bg-slate-950 p-4 font-code text-xs leading-relaxed text-slate-100">{shownText}</pre>
+              </section>
+              <div className="min-w-0 flex-[1_1_320px] lg:max-w-[440px]">
+                <RouteRecordPanel
+                  form={routeForm}
+                  onChange={setRouteForm}
+                  variables={routeRecord ? routeVariables(routeRecord) : []}
+                  problems={routeProblems(routeForm)}
+                  onLoadedSpec={() => {
+                    setCodeTab('registro');
+                    toast({ title: 'Registro carregado', description: 'Serviço, requisição e flags vieram do registro; a spec é a gerada aqui.' });
+                  }}
+                />
               </div>
-              <pre className="max-h-[560px] overflow-auto bg-slate-950 p-4 font-code text-xs leading-relaxed text-slate-100">{specText}</pre>
-            </section>
+            </div>
           </section>
         )}
       </main>
