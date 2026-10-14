@@ -293,7 +293,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   // O motor de sync (full/delta, parsing de sprint, métricas por pessoa, freios
   // de segurança contra apagar em massa) roda inteiro no backend agora
   // (SquadSyncService) — este action só dispara e refaz fetch do que mudou.
-  // Ver plano de unificação Squad Pulse + jiradash, Fase 2.
+  // Ver plano de unificação Squad Pulse, Fase 2.
   syncSquad: async (uid, squadId, forceFull) => {
     set({ isSyncing: true, syncError: null });
     try {
