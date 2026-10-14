@@ -52,6 +52,7 @@ Documentação de **como cada módulo funciona**, escrita para que um agente (ou
 | Documento | Assunto |
 |---|---|
 | [ambiente-e-deploy.md](ambiente-e-deploy.md) | Repositórios, migrations, deploy, armadilhas |
+| [teste-ao-vivo.md](teste-ao-vivo.md) | **Roteiro para validar ao vivo** (subir Docker, backend, frontend, scripts de regressão e o que testar nas mudanças de 2026-10-13) |
 | [decisoes-pendentes.md](decisoes-pendentes.md) | **O que depende de decisão sua**, por módulo, e riscos aceitos |
 
 ## Visão geral do sistema
