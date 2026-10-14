@@ -3,7 +3,7 @@ import { authFetch } from '@/lib/auth-client';
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SPRING_API_URL || 'http://localhost:8002/api';
 
-export type RuleKind = 'COPY' | 'AS_TEXT' | 'DIGITS' | 'CONCAT' | 'VALUE_MAP' | 'CONSTANT' | 'VARIABLE' | 'LIST' | 'UNRESOLVED';
+export type RuleKind = 'COPY' | 'AS_TEXT' | 'AS_NUMBER' | 'DIGITS' | 'CONCAT' | 'VALUE_MAP' | 'CONSTANT' | 'VARIABLE' | 'LIST' | 'UNRESOLVED';
 export type Confidence = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
 
 /** Regra inferida pelo backend (POST /api/jolt/generate). `scope`: "" = raiz, "items[]", "items[].produtoEmbalagens[]". */
@@ -31,12 +31,14 @@ export interface GeneratorResult {
   rules: GeneratorRule[];
   pending: number;
   sources: Record<string, string[]>;
+  /** VALORES: a saída traz os valores do registro; CONTRATO: valores genéricos ("string", 0), regras pelo nome. */
+  mode: 'VALORES' | 'CONTRATO';
   validation: { ran: boolean; matches: boolean; error: string | null; differences: GeneratorDifference[]; checkedFields: number };
 }
 
 /** Escolha da pessoa para um campo, no formato do backend (JoltSpecGenerator.Override). */
 export interface GeneratorOverride {
-  kind: 'COPY' | 'AS_TEXT' | 'DIGITS' | 'VALUE_MAP' | 'CONSTANT';
+  kind: 'COPY' | 'AS_TEXT' | 'AS_NUMBER' | 'DIGITS' | 'VALUE_MAP' | 'CONSTANT';
   source?: string;
   value?: unknown;
   map?: Record<string, unknown>;
@@ -55,6 +57,7 @@ export interface RuleDraft {
 export const KIND_LABEL: Record<RuleKind, string> = {
   COPY: 'Copiar',
   AS_TEXT: 'Como texto',
+  AS_NUMBER: 'Como número',
   DIGITS: 'Só dígitos',
   CONCAT: 'Concatenar',
   VALUE_MAP: 'De-para',
@@ -65,16 +68,18 @@ export const KIND_LABEL: Record<RuleKind, string> = {
 };
 
 /** Tipos que a pessoa pode escolher ao ajustar um campo. */
-export const EDITABLE_KINDS: GeneratorOverride['kind'][] = ['COPY', 'AS_TEXT', 'DIGITS', 'VALUE_MAP', 'CONSTANT'];
+export const EDITABLE_KINDS: GeneratorOverride['kind'][] = ['COPY', 'AS_TEXT', 'AS_NUMBER', 'DIGITS', 'VALUE_MAP', 'CONSTANT'];
 
 export async function generateSpec(
   input: unknown,
   output: unknown,
   overrides: Record<string, GeneratorOverride> = {},
+  /** Grava no glossário da equipe as origens escolhidas, se a spec cumprir a saída (só no "Gerar spec" final). */
+  learn = false,
 ): Promise<GeneratorResult> {
   const res = await authFetch(`${API_BASE_URL}/jolt/generate`, {
     method: 'POST',
-    body: JSON.stringify({ input, output, overrides }),
+    body: JSON.stringify({ input, output, overrides, learn }),
   });
   if (!res.ok) {
     let message = 'Não foi possível gerar a spec.';

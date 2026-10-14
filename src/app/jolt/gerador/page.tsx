@@ -36,6 +36,7 @@ type Filter = 'todos' | 'pendentes' | 'calculados' | 'fixos';
 const KIND_TONE: Record<string, string> = {
   COPY: 'bg-muted text-foreground',
   AS_TEXT: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
+  AS_NUMBER: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
   DIGITS: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
   CONCAT: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
   VALUE_MAP: 'bg-violet-500/10 text-violet-700 dark:text-violet-300',
@@ -46,7 +47,7 @@ const KIND_TONE: Record<string, string> = {
 
 function matchesFilter(rule: GeneratorRule, filter: Filter): boolean {
   if (filter === 'pendentes') return rule.pending;
-  if (filter === 'calculados') return ['AS_TEXT', 'DIGITS', 'CONCAT', 'VALUE_MAP'].includes(rule.kind);
+  if (filter === 'calculados') return ['AS_TEXT', 'AS_NUMBER', 'DIGITS', 'CONCAT', 'VALUE_MAP'].includes(rule.kind);
   if (filter === 'fixos') return rule.kind === 'CONSTANT' || rule.kind === 'VARIABLE';
   return true;
 }
@@ -306,7 +307,7 @@ export default function JoltGeneratorPage() {
     setBusy(true);
     setError(null);
     try {
-      const r = await generateSpec(parsedInput.value, parsedOutput.value, overrides);
+      const r = await generateSpec(parsedInput.value, parsedOutput.value, overrides, next === 'spec');
       setResult(r);
       setStep(next);
       setEditing(null);
@@ -448,7 +449,11 @@ export default function JoltGeneratorPage() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <h1 id="regras-titulo" className="font-headline text-2xl font-black tracking-tight">Como cada campo da saída é montado</h1>
-                <p className="mt-1 text-sm text-muted-foreground">Inferido comparando a entrada com a saída. Confirme ou ajuste o que está em laranja.</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {result.mode === 'CONTRATO'
+                    ? 'A saída é o exemplo do contrato, sem valores: cada origem foi sugerida pelo nome do campo e a regra pelo tipo. Confirme ou escolha o que está em laranja.'
+                    : 'Inferido comparando a entrada com a saída. Confirme ou ajuste o que está em laranja.'}
+                </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-extrabold">
                 <span className="rounded-full bg-emerald-500/10 px-3 py-1.5 text-emerald-800 dark:text-emerald-300">{resolved} resolvidos</span>
@@ -511,15 +516,28 @@ export default function JoltGeneratorPage() {
               <div className="flex flex-wrap items-center gap-4 rounded-2xl border-[1.5px] border-emerald-300 bg-card p-5 dark:border-emerald-500/40">
                 <CheckCircle2 className="h-8 w-8 text-emerald-600" aria-hidden />
                 <div>
-                  <h1 id="spec-titulo" className="text-xl font-extrabold">A saída gerada bate com a esperada</h1>
+                  <h1 id="spec-titulo" className="text-xl font-extrabold">
+                    {result.mode === 'CONTRATO' ? 'A saída gerada cumpre o contrato' : 'A saída gerada bate com a esperada'}
+                  </h1>
                   <p className="text-sm text-muted-foreground">
-                    A spec foi rodada no motor Java com a sua entrada: <strong className="text-foreground">{result.validation.checkedFields} campos iguais</strong>, nenhum a mais.
+                    A spec foi rodada no motor Java com a sua entrada:{' '}
+                    <strong className="text-foreground">
+                      {result.validation.checkedFields} {result.mode === 'CONTRATO' ? 'campos presentes e com o tipo do contrato' : 'campos iguais'}
+                    </strong>
+                    , nenhum a mais.
                   </p>
+                  {Object.keys(drafts).length > 0 && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      As origens que você escolheu entraram no glossário da equipe: na próxima rota, esses campos já vêm ligados.
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="rounded-2xl border-[1.5px] border-orange-300 bg-card p-5 dark:border-orange-500/40">
-                <h1 id="spec-titulo" className="text-xl font-extrabold">A saída gerada ainda não bate</h1>
+                <h1 id="spec-titulo" className="text-xl font-extrabold">
+                  {result.mode === 'CONTRATO' ? 'A saída gerada ainda não cumpre o contrato' : 'A saída gerada ainda não bate'}
+                </h1>
                 {result.validation.error ? (
                   <p className="mt-1 text-sm text-destructive">O motor recusou a spec: {result.validation.error}</p>
                 ) : (
