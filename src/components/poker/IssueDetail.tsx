@@ -1,30 +1,17 @@
 'use client';
 
-import React from 'react';
-import { sanitizeHtml } from '@/lib/sanitize-html';
+import React, { useMemo } from 'react';
+import { renderIssueRichText, type IssueDetailData } from '@/lib/poker-issue-detail';
 import { Bookmark, Bug as BugIcon, CheckSquare, ExternalLink, FileText, Hash, Zap, type LucideIcon } from 'lucide-react';
 import { Modal, ModalButton, PersonAvatar, StatusChip, FOCUS_RING } from '@/components/room-kit';
-import { cn } from '@/lib/utils';
-
-interface JiraIssue {
-  key: string;
-  summary: string;
-  description: string;
-  type?: string;
-  status?: string;
-  priority?: string;
-  assignee?: string;
-  updated?: string;
-  labels?: string[];
-  points?: number;
-  link?: string;
-  acceptanceCriteria?: string;
-}
+import { cn, toSafeExternalUrl } from '@/lib/utils';
 
 interface IssueDetailProps {
-  issue: JiraIssue | null;
+  issue: IssueDetailData | null;
   isOpen: boolean;
   onClose: () => void;
+  /** Texto do botão de fechar (padrão "Fechar"). */
+  closeLabel?: string;
 }
 
 function typeIconOf(type?: string): LucideIcon {
@@ -36,12 +23,23 @@ function typeIconOf(type?: string): LucideIcon {
   return Hash;
 }
 
-const asHtml = (value: string) => sanitizeHtml(value.includes('<') ? value : `<p>${value}</p>`);
-
-/** Detalhe da tarefa em destaque na mesa: descrição e critérios à esquerda, metadados do Jira à direita. */
-export function IssueDetail({ issue, isOpen, onClose }: IssueDetailProps) {
+/** Detalhe de uma tarefa (mesa, fila ou histórico): descrição e critérios à esquerda, metadados do Jira à direita. */
+export function IssueDetail({ issue, isOpen, onClose, closeLabel = 'Fechar' }: IssueDetailProps) {
+  // Hooks antes do retorno antecipado: o HTML só é montado com o modal aberto.
+  const description = issue?.description;
+  const criteria = issue?.acceptanceCriteria;
+  const link = issue?.link;
+  const descriptionHtml = useMemo(
+    () => (isOpen && description ? renderIssueRichText(description, toSafeExternalUrl(link) ?? undefined) : ''),
+    [isOpen, description, link]
+  );
+  const criteriaHtml = useMemo(
+    () => (isOpen && criteria ? renderIssueRichText(criteria, toSafeExternalUrl(link) ?? undefined) : ''),
+    [isOpen, criteria, link]
+  );
   if (!issue) return null;
 
+  const jiraHref = toSafeExternalUrl(issue.link);
   const updated = issue.updated ? new Date(issue.updated) : null;
   const updatedLabel = updated && !isNaN(updated.getTime()) ? updated.toLocaleDateString('pt-BR') : 'Sem data';
 
@@ -63,9 +61,9 @@ export function IssueDetail({ issue, isOpen, onClose }: IssueDetailProps) {
         </div>
       }
       footerStart={
-        issue.link ? (
+        jiraHref ? (
           <a
-            href={issue.link}
+            href={jiraHref}
             target="_blank"
             rel="noopener noreferrer"
             className={cn('inline-flex h-10 items-center gap-2 rounded-[10px] px-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground', FOCUS_RING)}
@@ -75,7 +73,7 @@ export function IssueDetail({ issue, isOpen, onClose }: IssueDetailProps) {
           </a>
         ) : undefined
       }
-      footer={<ModalButton variant="primary" onClick={onClose}>Voltar à votação</ModalButton>}
+      footer={<ModalButton variant="primary" onClick={onClose}>{closeLabel}</ModalButton>}
     >
       <div className="flex min-h-0 flex-col border-t border-border md:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-6 px-6 py-5">
@@ -83,24 +81,24 @@ export function IssueDetail({ issue, isOpen, onClose }: IssueDetailProps) {
             <h3 className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
               <FileText className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Descrição
             </h3>
-            {issue.description ? (
+            {descriptionHtml ? (
               <div
-                className="prose prose-sm max-w-none text-sm leading-relaxed text-foreground dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: asHtml(issue.description) }}
+                className="prose prose-sm max-w-none break-words text-sm leading-relaxed text-foreground dark:prose-invert prose-p:my-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0 prose-img:max-w-full prose-code:before:content-none prose-code:after:content-none prose-pre:overflow-x-auto [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto"
+                dangerouslySetInnerHTML={{ __html: descriptionHtml }}
               />
             ) : (
-              <p className="text-sm text-muted-foreground">Sem descrição no Jira.</p>
+              <p className="text-sm text-muted-foreground">Sem descrição.</p>
             )}
           </section>
 
-          {issue.acceptanceCriteria && (
+          {criteriaHtml && (
             <section className="flex flex-col gap-2">
               <h3 className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
                 <CheckSquare className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Critérios de aceite
               </h3>
               <div
-                className="prose prose-sm max-w-none rounded-xl border border-border bg-muted/40 p-3.5 text-sm leading-relaxed text-foreground dark:prose-invert"
-                dangerouslySetInnerHTML={{ __html: asHtml(issue.acceptanceCriteria) }}
+                className="prose prose-sm max-w-none break-words rounded-xl border border-border bg-muted/40 p-3.5 text-sm leading-relaxed text-foreground dark:prose-invert prose-p:my-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0"
+                dangerouslySetInnerHTML={{ __html: criteriaHtml }}
               />
             </section>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { VotingRound, Participant, Role, Issue } from '@/lib/types';
 import {
   Accordion,
@@ -19,12 +19,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Ban,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatEstimateCopy, formatRoleForCopy } from '@/lib/poker-utils';
 import { PersonAvatar, RoleChip, StatusChip } from '@/components/room-kit';
+import { issueToDetail } from '@/lib/poker-issue-detail';
+import { IssueDetail } from './IssueDetail';
 
 interface HistoryProps {
   roomId: string;
@@ -61,6 +64,10 @@ function formatDuration(ms: number) {
 export function History({ roomId, rounds, participants, issues }: HistoryProps) {
   const { toast } = useToast();
   const participantMap = new Map(participants.map(p => [p.id, p]));
+  const [detailIssue, setDetailIssue] = useState<Issue | null>(null);
+  // A tarefa da rodada na fila da sessão (pelo id; rodadas antigas só guardam o título).
+  const issueOfRound = (round: VotingRound) =>
+    issues?.find(i => i.id === round.issueId) ?? issues?.find(i => i.title === round.topic);
 
   /**
    * Métricas por rodada que já estavam gravadas e nunca apareciam: duração da
@@ -278,6 +285,11 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                             “{round.note}”
                           </p>
                         )}
+                        {issueOfRound(round) && (
+                          <Button variant="outline" size="sm" onClick={() => setDetailIssue(issueOfRound(round)!)} className="h-9 gap-2 self-start rounded-lg text-[13px]">
+                            <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> Ver detalhes
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <div className="flex flex-col gap-3.5">
@@ -355,9 +367,16 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
                           </div>
                         </div>
 
-                        <Button variant="outline" size="sm" onClick={() => handleCopyRound(round)} className="h-9 gap-2 self-start rounded-lg text-[13px]">
-                          <Copy className="h-3.5 w-3.5" strokeWidth={1.5} /> Copiar estimativa
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleCopyRound(round)} className="h-9 gap-2 rounded-lg text-[13px]">
+                            <Copy className="h-3.5 w-3.5" strokeWidth={1.5} /> Copiar estimativa
+                          </Button>
+                          {issueOfRound(round) && (
+                            <Button variant="outline" size="sm" onClick={() => setDetailIssue(issueOfRound(round)!)} className="h-9 gap-2 rounded-lg text-[13px]">
+                              <FileText className="h-3.5 w-3.5" strokeWidth={1.5} /> Ver detalhes
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </AccordionContent>
@@ -367,6 +386,11 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
           </Accordion>
         </div>
       )}
+      <IssueDetail
+        issue={detailIssue ? issueToDetail(detailIssue) : null}
+        isOpen={!!detailIssue}
+        onClose={() => setDetailIssue(null)}
+      />
     </section>
   );
 }
