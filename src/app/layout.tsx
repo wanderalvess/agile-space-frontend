@@ -101,9 +101,9 @@ export default function RootLayout({
                 <UserProvider>
                   <BackendHealthGatekeeper>
                     <IdentityGatekeeper>
-                      <div className="relative flex min-h-dvh flex-col overflow-x-hidden">
+                      <div className="relative flex min-h-dvh flex-col overflow-x-clip">
                         <Header />
-                        <main className="flex flex-col flex-1 w-full overflow-x-hidden">{children}</main>
+                        <main className="flex flex-col flex-1 w-full overflow-x-clip">{children}</main>
                         <GlobalAnnouncementListener />
                         <Calmaria />
                       </div>

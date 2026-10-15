@@ -23,7 +23,7 @@ interface Props {
 /** Cabeçalho da Home. A marca é só texto: o portal não tem logo nem mascote. */
 export function HomeHeader({ squads, scope, isMulti, switchingTo, onPickSquad, query, onQueryChange }: Props) {
   return (
-    <header className="relative z-40 border-b border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-3.5 gap-y-2.5 px-4 py-3 sm:px-8">
         <Link href="/" className={cn('order-1 flex flex-col rounded-md leading-tight', FOCUS_RING)}>
           <span className="text-[15px] font-bold">
