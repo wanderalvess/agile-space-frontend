@@ -93,7 +93,7 @@ describe('Ao vivo agora', () => {
     );
     expect(screen.getByText('Nenhuma sessão acontecendo agora')).toBeTruthy();
     expect(screen.getByText(/Refinamento · /)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Preparar o refinamento' }).getAttribute('href')).toBe('/room');
+    expect(screen.getByRole('link', { name: 'Preparar o refinamento' }).getAttribute('href')).toBe('/room?nova=1');
   });
 
   it('sem sessões e sem cerimônias: só a mensagem', () => {

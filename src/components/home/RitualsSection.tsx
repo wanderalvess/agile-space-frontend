@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
-import { historyMeta, isLive, ritualFacts, statusLabel, toolListHref } from '@/hooks/home/derive';
+import { historyMeta, isLive, ritualFacts, statusLabel, toolCreateHref, toolListHref } from '@/hooks/home/derive';
 import type { RitualKey, SessionStatus, ToolSession } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
 import { CARD, FOCUS_RING, IconTile, LIFT, ORB, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
@@ -108,7 +108,7 @@ export function RitualsSection({ history, loading, showSquad, scopeLabel, now }:
               </div>
               <div className="flex gap-2 border-b border-border px-5 py-4">
                 <Link
-                  href={toolListHref(open.key)}
+                  href={toolCreateHref(open.key)}
                   className={cn(
                     'inline-flex h-[42px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90',
                     FOCUS_RING,

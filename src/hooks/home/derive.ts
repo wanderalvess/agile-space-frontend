@@ -239,6 +239,11 @@ export function sessionHref(tool: RitualKey, id: string): string {
   return `${TOOL_ROUTE[tool]}/${encodeURIComponent(id)}`;
 }
 
+/** Rota que abre direto o diálogo de criar (retro e poker aceitam ?nova=1); nos demais é a lista. */
+export function toolCreateHref(tool: RitualKey): string {
+  return tool === 'poker' || tool === 'retro' ? `${TOOL_ROUTE[tool]}?nova=1` : TOOL_ROUTE[tool];
+}
+
 export function toolListHref(tool: RitualKey): string {
   return TOOL_ROUTE[tool];
 }

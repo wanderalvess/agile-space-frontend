@@ -78,7 +78,7 @@ export function LiveNow({ sessions, showSquad, upcoming, now }: Props) {
             )}
           </div>
           <Link
-            href="/room"
+            href="/room?nova=1"
             className={cn(
               'inline-flex h-[42px] items-center justify-center rounded-[10px] border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60',
               FOCUS_RING,

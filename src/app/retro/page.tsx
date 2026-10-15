@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -42,6 +42,19 @@ export default function RetroHubPage() {
   const [setupSettings, setSetupSettings] = useState<SetupSettings>(DEFAULT_SETUP_SETTINGS);
   const [healthCheckQuestion, setHealthCheckQuestion] = useState('');
   const [sprintId, setSprintId] = useState('');
+
+  // ?nova=1 (atalho da Home): abre o diálogo de criar assim que o perfil carrega e tira o parâmetro da URL.
+  const novaHandled = useRef(false);
+  useEffect(() => {
+    if (novaHandled.current || !userProfile) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('nova') !== '1') return;
+    novaHandled.current = true;
+    setIsSetupOpen(true);
+    params.delete('nova');
+    const qs = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  }, [userProfile]);
 
   // Preenche o squad com o time do usuário assim que o perfil carregar (chega
   // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma

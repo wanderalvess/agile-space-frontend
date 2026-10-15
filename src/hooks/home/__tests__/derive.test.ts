@@ -30,6 +30,7 @@ import {
   squadRefsFromSession,
   statusLabel,
   toHomeAnnouncement,
+  toolCreateHref,
   unreadByTab,
   upcomingCeremonies,
 } from '../derive';
@@ -322,5 +323,14 @@ describe('chips da saudação', () => {
 
   it('sem dados não inventa chip', () => {
     expect(heroChips({ squadCount: 0, liveCount: 0 })).toEqual([]);
+  });
+});
+
+describe('rotas de criação', () => {
+  it('retro e poker abrem o diálogo (?nova=1); os demais vão para a lista', () => {
+    expect(toolCreateHref('poker')).toBe('/room?nova=1');
+    expect(toolCreateHref('retro')).toBe('/retro?nova=1');
+    expect(toolCreateHref('showcase')).toBe('/showcase');
+    expect(toolCreateHref('health')).toBe('/health-check');
   });
 });
