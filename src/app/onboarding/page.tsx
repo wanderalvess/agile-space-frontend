@@ -27,7 +27,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Rocket,
   RefreshCw,
   Loader2,
   ArrowRight,
@@ -772,7 +771,6 @@ function Header({ title, subtitle, badge }: { title: string; subtitle?: React.Re
         <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest">{badge}</Badge>
       )}
       <h1 className="text-3xl sm:text-4xl font-black tracking-tight font-headline flex items-center justify-center gap-2.5">
-        <Rocket className="w-7 h-7 text-primary hidden sm:block" aria-hidden="true" />
         {title}
       </h1>
       {!!subtitle && <p className="text-sm text-muted-foreground leading-relaxed">{subtitle}</p>}

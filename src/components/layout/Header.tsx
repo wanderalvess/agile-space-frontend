@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Logo } from '@/components/Logo';
+import { BrandWordmark } from './BrandWordmark';
 import { Button } from '@/components/ui/button';
 import {
   BookOpenText,
@@ -16,7 +16,6 @@ import {
   User,
   LayoutGrid,
   Sparkles,
-  Rocket,
   Headphones,
   ShieldCheck
 } from 'lucide-react';
@@ -86,13 +85,8 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/40 shadow-sm">
         <div className="flex h-16 w-full items-center px-6 md:px-10">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-3 group transition-transform">
-              <div className="relative flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 shadow-inner group-hover:scale-105 transition-transform">
-                <Rocket className="h-5 w-5 text-primary drop-shadow-md" />
-              </div>
-              <span className="text-xl font-black tracking-tighter italic font-headline uppercase bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent group-hover:opacity-80 transition-opacity">
-                Portal Tech <span className="text-primary not-italic">V&D</span>
-              </span>
+            <Link href="/" className="rounded-md transition-opacity hover:opacity-80" aria-label="Portal Tech V&D, página inicial">
+              <BrandWordmark />
             </Link>
           </div>
 

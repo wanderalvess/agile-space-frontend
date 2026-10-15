@@ -10,7 +10,6 @@ import html2canvas from 'html2canvas';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Logo } from '@/components/Logo';
 import { Loader2 } from 'lucide-react';
 
 interface ExportHealthCheckDialogProps {
@@ -183,9 +182,6 @@ export function ExportHealthCheckDialog({ roomTitle, dimensions, votes, results,
         <div ref={pdfRef} className="w-[800px] bg-slate-50 text-slate-800 p-12 overflow-hidden shadow-none box-border" style={{ fontFamily: 'sans-serif' }}>
           <div className="flex items-center justify-between border-b-2 border-slate-200 pb-8 mb-8">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-600 rounded-2xl flex items-center justify-center w-14 h-14">
-                <Logo className="h-8 w-8 text-white" />
-              </div>
               <div className="flex flex-col flex-1 min-w-0">
                 <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 leading-none">Portal Tech V&D</h1>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Radar de Saúde (Health Check)</span>

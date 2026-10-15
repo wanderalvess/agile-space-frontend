@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Rocket, MessageSquareHeart, ChevronRight } from 'lucide-react';
+import { MessageSquareHeart, ChevronRight } from 'lucide-react';
+import { BrandWordmark } from './BrandWordmark';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -22,28 +23,21 @@ export function Footer({ className, onOpenFeedback, subtitle, badge }: FooterPro
       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 dark:bg-primary/10 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-700" />
       <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
 
-      {/* Brand Logo info */}
-      <div className="flex items-center gap-2.5 md:gap-3 relative z-10">
-        <div className="w-8 h-8 md:w-9 md:h-9 bg-primary/10 rounded-xl flex items-center justify-center shrink-0 border border-primary/20 shadow-sm transition-transform duration-300 group-hover:scale-105" aria-hidden="true">
-          <Rocket className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-800 dark:text-slate-200">
-            Portal Tech V&D
-          </p>
-          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 leading-none mt-0.5">
-            {subtitle ? (
-              <span>{subtitle}</span>
-            ) : (
-              <>
-                <a href="https://espacoagil.com.br" className="hover:text-primary transition-colors" aria-label="Acesse o site oficial do Portal Tech V&D">espacoagil.com.br</a>
-                <span className="ml-1 text-[8px] opacity-70">© 2026</span>
-              </>
-            )}
-          </p>
-        </div>
+      {/* Assinatura em texto */}
+      <div className="relative z-10">
+        <BrandWordmark />
+        <p className="mt-1 text-[9px] font-bold leading-none text-slate-400 dark:text-slate-500">
+          {subtitle ? (
+            <span>{subtitle}</span>
+          ) : (
+            <>
+              <a href="https://espacoagil.com.br" className="hover:text-primary transition-colors" aria-label="Acesse o site oficial do Portal Tech V&D">espacoagil.com.br</a>
+              <span className="ml-1 text-[8px] opacity-70">© 2026</span>
+            </>
+          )}
+        </p>
       </div>
-      
+
       {/* Navigation links & optional badge */}
       <div className="flex flex-wrap items-center justify-center gap-2 md:gap-3 relative z-10">
         {badge && (

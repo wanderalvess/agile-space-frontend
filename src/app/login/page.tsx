@@ -7,7 +7,6 @@ import {
   User as UserIcon,
   Sparkles,
   CheckCircle2,
-  Rocket,
   Eye,
   EyeOff,
   Loader2,
@@ -307,9 +306,6 @@ export default function LoginPage() {
               {/* Logo & Header */}
               <div className="relative z-10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-colors duration-300">
-                    <Rocket className="h-4 w-4" />
-                  </div>
                   <span className="text-xl font-black tracking-tighter italic font-headline uppercase text-white">
                     Portal Tech <span className="text-primary not-italic transition-colors duration-300">V&D</span>
                   </span>
@@ -379,9 +375,6 @@ export default function LoginPage() {
               <div className="w-full max-w-sm mx-auto space-y-4 flex flex-col justify-center min-h-[420px]">
                 {/* Cabecalho Mobile */}
                 <div className="flex lg:hidden items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground">
-                    <Rocket className="h-4 w-4" />
-                  </div>
                   <span className="text-lg font-black tracking-tight italic font-headline uppercase text-foreground">
                     Portal Tech <span className="text-primary not-italic">V&D</span>
                   </span>

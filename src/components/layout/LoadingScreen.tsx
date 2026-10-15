@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Logo } from '@/components/Logo';
+import { BrandWordmark } from './BrandWordmark';
 import { Loader2 } from 'lucide-react';
 
 interface LoadingScreenProps {
@@ -27,7 +27,7 @@ export function LoadingScreen({
         <div className="relative group">
           <div className="absolute inset-0 bg-primary/30 blur-3xl rounded-full scale-150 animate-pulse transition-all duration-1000" />
           <div className="relative z-10 p-6 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl rounded-[2.5rem] border border-white dark:border-slate-800 shadow-2xl shadow-primary/10">
-            <Logo className="h-24 w-24 animate-[bounce_2s_infinite_ease-in-out]" />
+            <BrandWordmark className='items-center text-center [&>span:first-child]:text-3xl' />
           </div>
         </div>
 
