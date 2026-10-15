@@ -239,6 +239,9 @@ describe('criticalDivergence', () => {
     const round = R('x', '2026-10-14T13:00:00Z', [['d1', '3'], ['d2', '8']]);
     expect(criticalDivergence(round, people, 'fibonacci')?.role).toBe('Developer');
     expect(criticalDivergence(R('x', 'a', [['d1', '3'], ['d2', '3']]), people, 'fibonacci')).toBeNull();
+    // menor e maior em ordem de valor, não de votação
+    expect(criticalDivergence(R('x', 'a', [['d1', '8'], ['d2', '3'], ['d3', '5']]), [...people, P('d3', 'dev', 'Developer')], 'fibonacci')?.text).toBe('Divergência crítica no DEV · 3 a 8');
+    expect(criticalDivergence(R('x', 'a', [['d1', 'G'], ['d2', 'P']]), people, 'tshirt')?.text).toBe('Divergência crítica no DEV · P a G');
   });
 
   it('voto de quem saiu da sala usa a identidade congelada', () => {

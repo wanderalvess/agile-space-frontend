@@ -239,6 +239,8 @@ export interface SessionReportData {
   breakdown: SessionBreakdown;
   topicTiming: TopicTimingRow[];
   activeMins: number;
+  /** Critérios usados nos indicadores (aparecem no rodapé do documento impresso). */
+  criteria: { divergenceHigh: number };
 }
 
 export interface ReportInput {
@@ -337,7 +339,11 @@ export function criticalDivergence(
         worst = { role, spread: hi - lo, low: formatHours(lo), high: formatHours(hi) };
       }
     } else if (new Set(values).size > 1) {
-      const sorted = [...new Set(values)];
+      const distinct = [...new Set(values)];
+      const allNumeric = distinct.every((v) => parseNum(v) !== null);
+      const sorted = distinct.sort((a, b) =>
+        allNumeric ? (parseNum(a) as number) - (parseNum(b) as number) : SIZES.indexOf(a) - SIZES.indexOf(b)
+      );
       const spread = sorted.length;
       if (!worst || spread > worst.spread) worst = { role, spread, low: sorted[0], high: sorted[sorted.length - 1] };
     }
@@ -550,7 +556,10 @@ export function buildSessionReport(input: ReportInput): SessionReportData {
 
   const topicTiming = input.perTopicTime ? timing : [];
 
-  return { header, roles, tasks, kpis, totals, highlights, breakdown, topicTiming, activeMins };
+  return {
+    header, roles, tasks, kpis, totals, highlights, breakdown, topicTiming, activeMins,
+    criteria: { divergenceHigh: input.divergenceThresholds?.high ?? 5 },
+  };
 }
 
 // ---------------------------------------------------------------------------
