@@ -59,9 +59,11 @@ export function ProfileMenu() {
           <User className="h-4 w-4" strokeWidth={1.5} />
           Meu perfil
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
-          <Settings className="h-4 w-4" strokeWidth={1.5} />
-          Configurações
+        <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
+          <Link href="/configuracoes">
+            <Settings className="h-4 w-4" strokeWidth={1.5} />
+            Configurações
+          </Link>
         </DropdownMenuItem>
         {isAdmin && (
           <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, SunMoon, Palette, Rocket, Sparkles, Terminal, Leaf, Zap, Check, BookOpen, Hexagon } from 'lucide-react';
+import { Sun, Moon, SunMoon, Palette, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useTheme, ThemeVariant, ThemeMode } from '@/context/ThemeContext';
+import { useTheme } from '@/context/ThemeContext';
+import { THEME_MODES, THEME_VARIANTS } from '@/lib/theme-options';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,21 +34,8 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     );
   }
 
-  const colorModes: { id: ThemeMode; name: string; icon: any; activeColor: string }[] = [
-    { id: 'light', name: 'Claro', icon: Sun, activeColor: 'text-amber-500' },
-    { id: 'dark', name: 'Escuro', icon: Moon, activeColor: 'text-blue-500' },
-    { id: 'system', name: 'Sistema', icon: Monitor, activeColor: 'text-primary' },
-  ];
-
-  const themes: { id: ThemeVariant; name: string; icon: any; color: string }[] = [
-    { id: 'midnight', name: 'Midnight Tech', icon: Terminal, color: 'text-blue-500' },
-    { id: 'totvs', name: 'TOTVS', icon: Hexagon, color: 'text-cyan-500' },
-    { id: 'leitura', name: 'Leitura confortável', icon: BookOpen, color: 'text-slate-500' },
-    { id: 'default', name: 'Espaço Clássico', icon: Rocket, color: 'text-orange-500' },
-    { id: 'nebula', name: 'Nebulosa Cósmica', icon: Sparkles, color: 'text-violet-500' },
-    { id: 'cyberpunk', name: 'Cyberpunk Neon', icon: Zap, color: 'text-pink-500' },
-    { id: 'nordic', name: 'Floresta Nórdica', icon: Leaf, color: 'text-emerald-500' },
-  ];
+  const colorModes = THEME_MODES;
+  const themes = THEME_VARIANTS;
 
   return (
     <DropdownMenu>
