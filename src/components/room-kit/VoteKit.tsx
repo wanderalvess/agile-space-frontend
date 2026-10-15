@@ -24,7 +24,7 @@ export const CONFIDENCE_LABEL = { low: 'Baixa', medium: 'Média', high: 'Alta' }
 
 const SIZE: Record<'sm' | 'md' | 'lg' | 'xl', string> = {
   sm: 'h-[68px] w-[50px] rounded-lg text-lg',
-  md: 'h-20 w-[58px] rounded-[9px] text-xl',
+  md: 'h-14 w-10 rounded-[7px] text-sm sm:h-20 sm:w-[58px] sm:rounded-[9px] sm:text-xl',
   lg: 'h-[104px] w-[76px] rounded-xl text-3xl',
   xl: 'h-32 w-24 rounded-2xl text-4xl',
 };

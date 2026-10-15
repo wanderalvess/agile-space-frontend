@@ -100,7 +100,7 @@ export const IconButton = React.forwardRef<
     className={cn(
       'relative inline-flex shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-fast',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
-      size === 'sm' ? 'h-8 w-8' : 'h-9 w-9',
+      size === 'sm' ? 'h-8 w-8' : 'h-9 w-9 max-sm:h-11 max-sm:w-11',
       pressed
         ? 'border-primary/60 bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground'
         : 'border-border bg-transparent text-foreground hover:bg-accent',

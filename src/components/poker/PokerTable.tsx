@@ -107,7 +107,7 @@ export function PokerTable({
     );
   };
 
-  const rowCls = 'relative m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fit,minmax(110px,1fr))]';
+  const rowCls = 'relative m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fit,minmax(72px,1fr))] sm:[grid-template-columns:repeat(auto-fit,minmax(110px,1fr))]';
 
   return (
     <section aria-label="Mesa" className="relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-card px-4 pb-4 pt-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-6">
@@ -118,7 +118,7 @@ export function PokerTable({
 
       <div
         className={cn(
-          'relative z-[1] flex min-h-[96px] items-center justify-center gap-5 self-center rounded-[999px] border border-border bg-background px-8 py-4 sm:w-[82%]',
+          'relative z-[1] flex min-h-[96px] items-center justify-center gap-5 self-center rounded-3xl border border-border bg-background px-4 py-3 sm:w-[82%] sm:rounded-[999px] sm:px-8 sm:py-4',
           'shadow-[inset_0_2px_14px_rgba(0,0,0,0.06),0_0_0_6px_hsl(var(--muted)/0.5)] dark:shadow-[inset_0_2px_14px_rgba(0,0,0,0.55),0_0_0_6px_hsl(var(--muted)/0.5),0_0_40px_hsl(var(--primary)/0.15)] [.theme-leitura_&]:shadow-[0_0_0_6px_hsl(var(--muted)/0.5)]',
           large && 'min-h-[128px]'
         )}

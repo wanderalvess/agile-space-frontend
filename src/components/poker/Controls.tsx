@@ -290,7 +290,7 @@ export function Controls({
   const selected = (v: string) => !hideVote && currentUserVote === v;
 
   return (
-    <section aria-label="Seu voto" className="flex flex-wrap items-end gap-x-8 gap-y-5 rounded-2xl border border-border bg-card px-4 pb-5 pt-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-6">
+    <section aria-label="Seu voto" className="flex flex-wrap items-end gap-x-8 gap-y-5 rounded-2xl border border-border bg-card px-4 pb-5 pt-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-6 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-3 max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0">
       <div className="flex min-w-0 flex-1 basis-[560px] flex-col gap-3">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-[15px] font-semibold">Seu baralho</h2>
@@ -310,7 +310,7 @@ export function Controls({
             )}
           </span>
         </div>
-        <div role="radiogroup" aria-label="Cartas" className="flex flex-wrap gap-2.5 pt-3.5">
+        <div role="radiogroup" aria-label="Cartas" className="flex flex-wrap gap-2.5 pt-3.5 max-sm:-mx-4 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-1 max-sm:[scrollbar-width:none]">
           {numberCards.map((v) => (
             <DeckCard key={v} value={v} dense={isDenseDeck} selected={selected(v)} onSelect={() => onVote(v)} />
           ))}
