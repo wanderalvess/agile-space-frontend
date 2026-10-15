@@ -6,7 +6,8 @@ import { DECKS, DeckType, Participant } from '@/lib/types';
 import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { DeckCard, FOCUS_RING, Segmented } from '@/components/room-kit';
+import { DECK_CARD_MAX, DECK_CARD_MAX_SHORT, deckLayout } from '@/lib/poker-table';
+import { DeckCard, FOCUS_RING, Segmented, useBelowBreakpoint, useElementSize, useMediaQuery } from '@/components/room-kit';
 
 /** `?` (indefinido) e `☕` (pausa) não são estimativas — recebem tratamento à parte. */
 const isSpecialCard = (v: string) => v === '?' || v === '☕';
@@ -100,11 +101,14 @@ export const POKER_PHRASES = {
   ]
 };
 
+/** Faixa de baixo da sala (baralho, avisos): encostada nas bordas, separada do miolo por um filete. */
+const BAR = 'border-t border-border bg-card px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2.5 sm:px-5 shadow-[0_-8px_24px_rgba(15,23,42,0.05)] dark:shadow-[0_-8px_24px_rgba(0,0,0,0.3)]';
+
 function DeckNotice({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; title: string; children?: React.ReactNode }) {
   return (
-    <section aria-label="Seu baralho" className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <Icon className="h-5 w-5" strokeWidth={1.5} />
+    <section aria-label="Seu baralho" className={cn(BAR, 'flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-center')}>
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
       </span>
       <span className="text-sm font-semibold text-foreground">{title}</span>
       {children}
@@ -128,10 +132,16 @@ export function Controls({
   currentUserConfidence = null,
 }: ControlsProps) {
   const deckValues = DECKS[deck];
-  const isDenseDeck = deckValues.length > 14;
   const numberCards = useMemo(() => deckValues.filter((v) => !isSpecialCard(v)), [deckValues]);
   const specialCards = useMemo(() => deckValues.filter(isSpecialCard), [deckValues]);
   const hasVoted = currentUserVote !== null;
+
+  // Cartas do maior tamanho que cabe numa fileira (até 72 x 96); no celular o baralho rola de lado.
+  const [rowRef, { width: rowWidth }] = useElementSize<HTMLDivElement>();
+  const isPhone = useBelowBreakpoint(640);
+  const hasSeparator = numberCards.length > 0 && specialCards.length > 0;
+  const isShort = useMediaQuery('(max-height: 820px)');
+  const layout = isPhone ? { cardWidth: 56, rows: 1 } : deckLayout(deckValues.length, rowWidth, hasSeparator ? 17 : 0, isShort ? DECK_CARD_MAX_SHORT : DECK_CARD_MAX);
 
   const [activePhrase, setActivePhrase] = useState('');
 
@@ -290,50 +300,52 @@ export function Controls({
   const selected = (v: string) => !hideVote && currentUserVote === v;
 
   return (
-    <section aria-label="Seu voto" className="flex flex-wrap items-end gap-x-8 gap-y-5 rounded-2xl border border-border bg-card px-4 pb-5 pt-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-6 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:-mx-3 max-sm:rounded-b-none max-sm:rounded-t-3xl max-sm:border-x-0 max-sm:border-b-0">
-      <div className="flex min-w-0 flex-1 basis-[560px] flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[15px] font-semibold">Seu baralho</h2>
-          <span className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="hidden items-center gap-1.5 sm:flex"><Keyboard className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Digite o valor{specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido</span>
-            {hasVoted && (
-              <button
-                type="button"
-                onClick={toggleHideVote}
-                aria-pressed={hideVote}
-                aria-label={hideVote ? 'Mostrar meu voto' : 'Ocultar meu voto'}
-                title={hideVote ? 'Mostrar meu voto' : 'Ocultar meu voto (ao apresentar a tela)'}
-                className={cn('inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground', FOCUS_RING)}
-              >
-                {hideVote ? <Eye className="h-3.5 w-3.5" strokeWidth={1.5} /> : <EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} />}
-              </button>
-            )}
-          </span>
+    <section aria-label="Seu voto" className={cn(BAR, 'flex flex-col gap-1')}>
+      <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-center justify-between gap-x-6 gap-y-1">
+        <div className="flex min-w-0 flex-1 items-center gap-x-4">
+          <h2 className="m-0 shrink-0 text-[15px] font-semibold">Seu baralho</h2>
+          {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] italic text-muted-foreground md:block">{activePhrase}</p>}
         </div>
-        <div role="radiogroup" aria-label="Cartas" className="flex flex-wrap gap-2.5 pt-3.5 max-sm:-mx-4 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-1 max-sm:[scrollbar-width:none]">
-          {numberCards.map((v) => (
-            <DeckCard key={v} value={v} dense={isDenseDeck} selected={selected(v)} onSelect={() => onVote(v)} />
-          ))}
-          {specialCards.length > 0 && <span aria-hidden="true" className="mx-1 hidden h-12 w-px self-center bg-border sm:block" />}
-          {specialCards.map((v) => (
-            <DeckCard key={v} value={v} dense={isDenseDeck} selected={selected(v)} onSelect={() => onVote(v)} />
-          ))}
+        <div className="flex shrink-0 items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+          <span className="hidden items-center gap-1.5 lg:flex"><Keyboard className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Digite o valor{specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido</span>
+          {confidenceEnabled && onSetConfidence && (
+            <fieldset title={hasVoted ? undefined : "Disponível depois do voto"} className="m-0 flex items-center gap-2 border-0 p-0 [&_button]:h-7">
+              <legend className="sr-only">Confiança (opcional)</legend>
+              <span aria-hidden="true" className="hidden sm:inline">Confiança</span>
+              <Segmented
+                label="Confiança"
+                options={CONFIDENCE_OPTIONS}
+                value={hasVoted ? currentUserConfidence : null}
+                onChange={(id) => { if (hasVoted) onSetConfidence(id); }}
+                className={cn(!hasVoted && 'opacity-50')}
+              />
+            </fieldset>
+          )}
+          {hasVoted && (
+            <button
+              type="button"
+              onClick={toggleHideVote}
+              aria-pressed={hideVote}
+              aria-label={hideVote ? 'Mostrar meu voto' : 'Ocultar meu voto'}
+              title={hideVote ? 'Mostrar meu voto' : 'Ocultar meu voto (ao apresentar a tela)'}
+              className={cn('inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground', FOCUS_RING)}
+            >
+              {hideVote ? <Eye className="h-4 w-4" strokeWidth={1.5} /> : <EyeOff className="h-4 w-4" strokeWidth={1.5} />}
+            </button>
+          )}
         </div>
-        {hasVoted && activePhrase && <p className="m-0 text-xs italic text-muted-foreground">{activePhrase}</p>}
       </div>
-
-      {confidenceEnabled && onSetConfidence && (
-        <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
-          <legend className="mb-2.5 p-0 text-[13px] font-medium">Confiança <span className="font-normal text-muted-foreground">(opcional)</span></legend>
-          <Segmented
-            label="Confiança"
-            options={CONFIDENCE_OPTIONS}
-            value={hasVoted ? currentUserConfidence : null}
-            onChange={(id) => { if (hasVoted) onSetConfidence(id); }}
-          />
-          {!hasVoted && <span className="text-xs text-muted-foreground">Disponível depois do voto.</span>}
-        </fieldset>
-      )}
+      <div ref={rowRef} className="mx-auto w-full max-w-[1500px]">
+        <div role="radiogroup" aria-label="Cartas" className="flex items-end justify-center gap-2 pb-1 pt-3 max-sm:pt-6 max-sm:-mx-3 max-sm:justify-start max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none] sm:flex-wrap">
+          {numberCards.map((v) => (
+            <DeckCard key={v} value={v} width={layout.cardWidth} selected={selected(v)} onSelect={() => onVote(v)} />
+          ))}
+          {hasSeparator && <span aria-hidden="true" className="mx-1 hidden h-10 w-px self-center bg-border sm:block" />}
+          {specialCards.map((v) => (
+            <DeckCard key={v} value={v} width={layout.cardWidth} selected={selected(v)} onSelect={() => onVote(v)} />
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
