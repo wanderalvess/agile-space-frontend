@@ -67,7 +67,8 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
 export const squadApi = {
   // ----- Squad Config -----
   async getSquad(squadId: string): Promise<SquadConfig | null> {
-    try { return await req<SquadConfig>(`/squads/${encodeURIComponent(squadId)}`); }
+    // 204 = squad ainda não sincronizada (o 404 antigo continua aceito para servidor desatualizado).
+    try { return (await req<SquadConfig | undefined>(`/squads/${encodeURIComponent(squadId)}`)) ?? null; }
     catch (e) { if (isNotFound(e)) return null; throw e; }
   },
 
@@ -100,7 +101,7 @@ export const squadApi = {
   // Sem sprintId: o rollup da sprint ativa (ou o mais recente). Com sprintId: o daquela sprint (null se não existe).
   async getRollup(squadId: string, sprintId?: string): Promise<SquadMetricsRollup | null> {
     const qs = sprintId ? `?sprintId=${encodeURIComponent(sprintId)}` : '';
-    try { return await req<SquadMetricsRollup>(`/squads/${encodeURIComponent(squadId)}/rollup${qs}`); }
+    try { return (await req<SquadMetricsRollup | undefined>(`/squads/${encodeURIComponent(squadId)}/rollup${qs}`)) ?? null; }
     catch (e) { if (isNotFound(e)) return null; throw e; }
   },
 
