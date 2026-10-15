@@ -14,16 +14,15 @@ interface RitualDef {
   title: string;
   description: string;
   cta: string;
-  span: string;
   highlight?: boolean;
 }
 
 const RITUALS: RitualDef[] = [
-  { key: 'poker', title: 'Planning Poker', description: 'Estimativa em horas por papel, ao vivo ou assíncrona.', cta: 'Nova sessão de poker', span: 'sm:col-span-2 lg:col-span-6', highlight: true },
-  { key: 'retro', title: 'Retrospectiva', description: 'Correu bem, melhorar e ações, com votação por pontos.', cta: 'Nova retro', span: 'sm:col-span-2 lg:col-span-6' },
-  { key: 'showcase', title: 'Showcase', description: 'Review da sprint com evidências e modo Teatro.', cta: 'Novo showcase', span: 'lg:col-span-4' },
-  { key: 'health', title: 'Radar de clima', description: 'Health check anônimo do time.', cta: 'Novo radar', span: 'lg:col-span-4' },
-  { key: 'brainstorming', title: 'Brainstorming', description: 'Mural, grupos, matriz e plano em 5 fases.', cta: 'Novo brainstorming', span: 'sm:col-span-2 lg:col-span-4' },
+  { key: 'poker', title: 'Planning Poker', description: 'Estimativa em horas por papel, ao vivo ou assíncrona.', cta: 'Nova sessão de poker', highlight: true },
+  { key: 'retro', title: 'Retrospectiva', description: 'Correu bem, melhorar e ações, com votação por pontos.', cta: 'Nova retro' },
+  { key: 'showcase', title: 'Showcase', description: 'Review da sprint com evidências e modo Teatro.', cta: 'Novo showcase' },
+  { key: 'health', title: 'Radar de clima', description: 'Health check anônimo do time.', cta: 'Novo radar' },
+  { key: 'brainstorming', title: 'Brainstorming', description: 'Mural, grupos, matriz e plano em 5 fases.', cta: 'Novo brainstorming' },
 ];
 
 const MAX_HISTORY_ITEMS = 12;
@@ -52,28 +51,28 @@ export function RitualsSection({ history, loading, showSquad, scopeLabel, now }:
     <section aria-labelledby="home-rituals" className="flex flex-col gap-3">
       <SectionHeading id="home-rituals">Rituais do time</SectionHeading>
 
-      <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-12">
+      <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {RITUALS.map((r) => {
           const facts = loading ? [] : ritualFacts(history[r.key], now);
           const liveNow = history[r.key].some(isLive);
           return (
-            <li key={r.key} className={r.span}>
+            <li key={r.key} className={cn(r.key === 'brainstorming' && 'sm:col-span-2 lg:col-span-1')}>
               <button
                 type="button"
                 onClick={() => setOpenKey(r.key)}
                 aria-haspopup="dialog"
                 className={cn(
                   CARD,
-                  'relative flex min-h-[170px] w-full flex-col gap-2.5 overflow-hidden rounded-[18px] p-5 text-left transition-colors hover:border-primary/40',
+                  'relative flex h-full min-h-[190px] w-full flex-col gap-3 overflow-hidden rounded-[18px] p-5 text-left transition-colors hover:border-primary/40',
                   r.highlight && 'border-primary/40',
                   LIFT,
                   FOCUS_RING,
                 )}
               >
                 <span aria-hidden="true" className={cn('pointer-events-none absolute -right-16 -top-16 h-60 w-60 rounded-full', ORB)} />
-                <span className="relative flex items-center gap-2.5">
-                  <IconTile icon={TOOL_ICON[r.key]} />
-                  <span className="text-lg font-bold">{r.title}</span>
+                <span className="relative flex flex-col items-start gap-3">
+                  <IconTile icon={TOOL_ICON[r.key]} size="lg" />
+                  <span className="text-lg font-bold leading-tight">{r.title}</span>
                 </span>
                 <span className="relative text-[13px] leading-relaxed text-muted-foreground">{r.description}</span>
                 <span className="relative mt-auto flex flex-wrap gap-1.5">

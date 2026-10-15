@@ -13,7 +13,7 @@ export function HomeFooter({ onOpenFeedback }: { onOpenFeedback: () => void }) {
   );
   return (
     <footer className="relative mt-auto border-t border-border">
-      <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8">
+      <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8 2xl:px-12">
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">Portal Tech V&amp;D</span> · TOTVS · © 2026
         </p>

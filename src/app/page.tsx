@@ -107,7 +107,7 @@ export default function Home() {
         onQueryChange={setQuery}
       />
 
-      <main className="relative mx-auto flex w-full max-w-[1280px] flex-col gap-7 px-4 pb-12 pt-7 sm:px-8">
+      <main className="relative mx-auto flex w-full max-w-[1680px] flex-col gap-7 px-4 pb-12 pt-7 sm:px-8 2xl:px-12">
         <AnnouncementBanner />
         <LinkedTeamWelcome />
         <NewSquadWelcome />
