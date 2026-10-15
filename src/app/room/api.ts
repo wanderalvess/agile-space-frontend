@@ -142,6 +142,12 @@ export const pokerApi = {
     return res.json();
   },
 
+  /** Exclui a sala com votos, rodadas e chat. Só quem criou a sala (ou admin); o servidor recusa os demais. */
+  async deleteRoom(roomId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/poker/${encodeURIComponent(roomId)}`, { method: 'DELETE' });
+    if (!res.ok) throw await httpError(res, 'Falha ao excluir a sala');
+  },
+
   async clearRounds(roomId: string): Promise<void> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}/rounds`, {
       method: 'DELETE',

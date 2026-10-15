@@ -70,8 +70,19 @@ import {
   ListPlus,
   Shield,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Trash2
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/context/AuthContext';
 import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
@@ -108,6 +119,8 @@ function SessionListCard({
   rooms,
   emptyLabel,
   onOpen,
+  canDelete,
+  onDelete,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -115,6 +128,9 @@ function SessionListCard({
   rooms: any[];
   emptyLabel: string;
   onOpen: (id: string) => void;
+  /** Quem pode excluir a sala (quem a criou); o servidor confere de novo. */
+  canDelete?: (room: any) => boolean;
+  onDelete?: (room: any) => void;
 }) {
   return (
     <Card className="relative border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col overflow-hidden min-h-[320px]">
@@ -155,6 +171,17 @@ function SessionListCard({
                   {r.createdAt ? ` · ${formatDistanceToNow(new Date(r.createdAt), { addSuffix: true, locale: ptBR })}` : ''}
                 </p>
               </div>
+              {onDelete && canDelete?.(r) && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onDelete(r); }}
+                  className="mr-1 shrink-0 rounded-lg p-1.5 text-slate-300 opacity-0 transition hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover/item:opacity-100"
+                  title="Excluir sala"
+                  aria-label={`Excluir a sala ${r.title || 'sem título'}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
               <ChevronRight className="h-4 w-4 text-slate-300 group-item-hover:text-slate-600 dark:group-item-hover:text-slate-400 group-item-hover:translate-x-0.5 transition-all shrink-0" />
             </div>
           ))
@@ -176,6 +203,8 @@ export default function PokerHubPage() {
   
   const [rooms, setRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
+  const [roomToDelete, setRoomToDelete] = useState<any | null>(null);
+  const [deletingRoom, setDeletingRoom] = useState(false);
 
   // Setup State
   const [title, setTitle] = useState('');
@@ -234,6 +263,23 @@ export default function PokerHubPage() {
 
   // Backend já devolve só as salas da squad atual — rooms É a lista "da minha squad".
   const myParticipatedRooms = rooms.filter(r => session?.id && (r.participantIds?.includes(session.id) || r.creatorId === session.id));
+
+  const canDeleteRoom = (r: any) => !!session?.id && r.creatorId === session.id;
+
+  const confirmDeleteRoom = async () => {
+    if (!roomToDelete) return;
+    setDeletingRoom(true);
+    try {
+      await pokerApi.deleteRoom(roomToDelete.id);
+      setRooms((prev) => prev.filter((r) => r.id !== roomToDelete.id));
+      toast({ title: 'Sala excluída', description: `"${roomToDelete.title || 'Sem título'}" e o histórico dela foram apagados.` });
+      setRoomToDelete(null);
+    } catch (err: any) {
+      toast({ title: 'Não foi possível excluir a sala', description: err?.message, variant: 'destructive' });
+    } finally {
+      setDeletingRoom(false);
+    }
+  };
 
   const genId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2));
 
@@ -424,6 +470,8 @@ export default function PokerHubPage() {
             rooms={rooms}
             emptyLabel="Nenhuma sessão da squad ainda"
             onOpen={(id) => router.push(`/room/${id}`)}
+            canDelete={canDeleteRoom}
+            onDelete={setRoomToDelete}
           />
           <SessionListCard
             icon={<UserCheck className="h-4 w-4" />}
@@ -432,8 +480,31 @@ export default function PokerHubPage() {
             rooms={myParticipatedRooms}
             emptyLabel="Você ainda não participou de nenhuma sessão"
             onOpen={(id) => router.push(`/room/${id}`)}
+            canDelete={canDeleteRoom}
+            onDelete={setRoomToDelete}
           />
         </div>
+
+        <AlertDialog open={!!roomToDelete} onOpenChange={(open) => { if (!open && !deletingRoom) setRoomToDelete(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir a sala?</AlertDialogTitle>
+              <AlertDialogDescription>
+                A sala <strong>{roomToDelete?.title || 'Sem título'}</strong> sai para todos, com os votos, o histórico de rodadas e o chat. Não dá para desfazer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRoom}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); void confirmDeleteRoom(); }}
+                disabled={deletingRoom}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingRoom ? 'Excluindo…' : 'Excluir sala'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </ToolHubLayout>
 
       <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>

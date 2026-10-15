@@ -327,6 +327,12 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
             setVotingRounds([]);
             break;
 
+          case 'ROOM_DELETED':
+            // Quem criou a sala a excluiu: não há mais o que mostrar aqui.
+            toast({ title: 'Sala excluída', description: 'Quem criou a sala a excluiu. Voltando para o Poker.' });
+            router.push('/room');
+            break;
+
           case 'REACTION':
             setReactions(prev => {
               const updated = [...prev, {
