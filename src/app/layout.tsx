@@ -40,6 +40,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // Cor da barra do navegador no celular: o fundo do tema padrão, claro e escuro.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8fafc' },
+    { media: '(prefers-color-scheme: dark)', color: '#020617' },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -60,7 +65,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Portal Tech V&D" />
-        <link rel="apple-touch-icon" href="/icon.png" />
         <Script
           id="theme-init"
           strategy="beforeInteractive"
