@@ -87,8 +87,8 @@ function DeckFan({ sample, selected }: { sample: readonly string[]; selected: bo
         <span
           key={v}
           className={cn(
-            'absolute top-0 flex h-[50px] w-9 items-center justify-center rounded-md border text-[13px] font-bold tabular-nums',
-            selected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-card-foreground'
+            'absolute top-0 flex h-[50px] w-9 items-start justify-start rounded-md border bg-card p-1.5 text-[13px] font-bold leading-none tabular-nums shadow-sm',
+            selected ? 'border-primary text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-card-foreground'
           )}
           style={{ left: i * 26, top: Math.abs(i - (sample.length - 1) / 2) * 2, transform: `rotate(${(i - (sample.length - 1) / 2) * 6}deg)` }}
         >
