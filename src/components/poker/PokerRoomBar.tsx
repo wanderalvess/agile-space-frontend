@@ -4,6 +4,7 @@ import React from 'react';
 import {
   Eye,
   HelpCircle,
+  History,
   Link2,
   ListChecks,
   MessageSquareText,
@@ -54,6 +55,9 @@ export interface PokerRoomBarProps {
   onToggleTeamChat: () => void;
   isKnowledgeOpen: boolean;
   onToggleKnowledge: () => void;
+  isHistoryOpen: boolean;
+  historyCount: number;
+  onToggleHistory: () => void;
   // Ações
   onShare: () => void;
   onOpenSettings: () => void;
@@ -106,6 +110,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
 
         <IconButton label="Fila de tarefas" icon={ListChecks} pressed={p.isQueueOpen} onClick={p.onToggleQueue} />
         <IconButton label="Participantes" icon={Users} pressed={p.isParticipantsOpen} onClick={p.onToggleParticipants} />
+        {p.historyCount > 0 && <IconButton label="Histórico da sessão" icon={History} pressed={p.isHistoryOpen} onClick={p.onToggleHistory} />}
         <IconButton label="Chat da sala" icon={MessagesSquare} pressed={p.isTeamChatOpen} badge={p.isTeamChatOpen ? 0 : p.teamChatUnread} onClick={p.onToggleTeamChat} />
         <IconButton label="Compartilhar sala" icon={Link2} onClick={p.onShare} className="hidden sm:inline-flex" />
         {p.isFacilitator && <IconButton label="Configurações da cerimônia" icon={SlidersHorizontal} onClick={p.onOpenSettings} className="hidden sm:inline-flex" />}

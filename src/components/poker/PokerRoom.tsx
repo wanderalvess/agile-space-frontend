@@ -10,7 +10,7 @@ import { ParticipantList } from '@/components/poker/ParticipantList';
 import { Controls } from '@/components/poker/Controls';
 import { RoundCenter, RoleBreakdown, CopyEstimateCard } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Clock, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, WalletCards, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TopicDisplay } from './TopicDisplay';
 import { RefinementNotes } from './RefinementNotes';
@@ -200,20 +200,30 @@ const PokerRoomComponent = ({
   const toggleKnowledgeChat = () => {
     setIsTeamChatOpen(false);
     setIsParticipantsOpen(false);
+    setIsHistoryOpen(false);
     setIsChatOpen(v => !v);
   };
   const toggleTeamChat = () => {
     setIsChatOpen(false);
     setIsParticipantsOpen(false);
+    setIsHistoryOpen(false);
     setIsTeamChatOpen(v => !v);
   };
   const toggleParticipants = () => {
     setIsChatOpen(false);
     setIsTeamChatOpen(false);
+    setIsHistoryOpen(false);
     setIsParticipantsOpen(v => !v);
+  };
+  const toggleHistory = () => {
+    setIsChatOpen(false);
+    setIsTeamChatOpen(false);
+    setIsParticipantsOpen(false);
+    setIsHistoryOpen(v => !v);
   };
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   // Ajuste manual das horas finais por papel (baralho de horas). Vale ao salvar e ao copiar; zera a cada rodada.
   const [adjusted, setAdjusted] = useState<Record<string, string>>({});
   const [pendingIssueId, setPendingIssueId] = useState<string | null>(null);
@@ -795,6 +805,9 @@ const PokerRoomComponent = ({
             onToggleTeamChat={toggleTeamChat}
             isKnowledgeOpen={isChatOpen}
             onToggleKnowledge={toggleKnowledgeChat}
+            isHistoryOpen={isHistoryOpen}
+            historyCount={(votingRounds || []).length}
+            onToggleHistory={toggleHistory}
             onShare={handleCopyLink}
             onOpenSettings={() => setIsFacilitatorSettingsOpen(true)}
             onOpenGuide={() => setIsGuideOpen(true)}
@@ -1004,9 +1017,6 @@ const PokerRoomComponent = ({
                 </>
               )}
 
-              {votingRounds && votingRounds.length > 0 && !isTheaterMode && (
-                <History roomId={roomId} rounds={votingRounds} participants={participants} issues={issuesQueue} />
-              )}
             </>
           )}
         </main>
@@ -1028,6 +1038,21 @@ const PokerRoomComponent = ({
             }
           >
             {participantsPanel}
+          </ResponsivePanel>
+        )}
+
+        {!isTheaterMode && (
+          <ResponsivePanel
+            side="right"
+            open={isHistoryOpen}
+            onOpenChange={setIsHistoryOpen}
+            sheetBelow={1024}
+            widthClass="w-[22rem]"
+            title="Histórico da sessão"
+            icon={HistoryIcon}
+            count={(votingRounds || []).length}
+          >
+            <History roomId={roomId} rounds={votingRounds || []} participants={participants} issues={issuesQueue} />
           </ResponsivePanel>
         )}
       </div>
