@@ -22,21 +22,24 @@ export type VoteCardTone = 'plain' | 'mode' | 'warn' | 'critical';
 
 export const CONFIDENCE_LABEL = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
 
-const SIZE: Record<'xs' | 'sm' | 'md' | 'lg' | 'xl', string> = {
-  xs: 'h-14 w-10 rounded-md',
-  sm: 'h-[66px] w-12 rounded-lg',
+/** Cartas da mesa, na proporção 3:4 do baralho antigo (72 x 96). `md` é a carta compacta da lista da sessão assíncrona. */
+const SIZE: Record<'xs' | 'sm' | 'md' | 'mid' | 'lg' | 'xl', string> = {
+  xs: 'h-14 w-[42px] rounded-md',
+  sm: 'h-[72px] w-[54px] rounded-lg',
   md: 'h-14 w-10 rounded-[7px] sm:h-20 sm:w-[58px] sm:rounded-[9px]',
-  lg: 'h-[104px] w-[76px] rounded-xl',
-  xl: 'h-32 w-24 rounded-2xl',
+  mid: 'h-[88px] w-[66px] rounded-[10px]',
+  lg: 'h-28 w-[84px] rounded-xl',
+  xl: 'h-36 w-[108px] rounded-2xl',
 };
 
-/** Tamanho do valor na carta virada: número grande e em negrito, para ler de longe. */
-const GLYPH: Record<keyof typeof SIZE, string> = {
-  xs: 'text-lg',
-  sm: 'text-xl',
-  md: 'text-xl sm:text-2xl',
-  lg: 'text-4xl',
-  xl: 'text-5xl',
+/** Tamanho do valor na carta virada: número grande e em negrito, para ler de longe (valores de 3 caracteres ou mais, como "100", descem um degrau). */
+const GLYPH: Record<keyof typeof SIZE, readonly [string, string]> = {
+  xs: ['text-xl', 'text-base'],
+  sm: ['text-2xl', 'text-lg'],
+  md: ['text-xl sm:text-2xl', 'text-base sm:text-lg'],
+  mid: ['text-3xl', 'text-xl'],
+  lg: ['text-5xl', 'text-3xl'],
+  xl: ['text-6xl', 'text-4xl'],
 };
 
 export type VoteCardSize = keyof typeof SIZE;
@@ -77,7 +80,7 @@ export function VoteCard({
   className?: string;
 }) {
   const base = cn('relative box-border flex shrink-0 items-center justify-center font-bold tabular-nums', SIZE[size]);
-  const showCorner = size === 'md' || size === 'lg' || size === 'xl';
+  const showCorner = size === 'md' || size === 'mid' || size === 'lg' || size === 'xl';
 
   if (state === 'observer') {
     return (
@@ -135,7 +138,7 @@ export function VoteCard({
       {isCoffee ? (
         <Coffee className="h-[38%] w-[38%]" strokeWidth={1.75} aria-label="Pausa" />
       ) : (
-        <span className={cn('font-black italic leading-none tracking-tighter', GLYPH[size])}>
+        <span className={cn('font-black italic leading-none tracking-tighter', GLYPH[size][(value?.length ?? 0) > 2 ? 1 : 0])}>
           {value}
           {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="ml-px text-[0.5em] font-bold not-italic opacity-80">{unit}</span>}
         </span>
@@ -253,9 +256,9 @@ export function ProgressRing({ value, total, size = 56, label }: { value: number
  * escolhida sobe, ganha a cor do tema e um halo. As especiais (? e pausa) têm
  * cor própria (violeta e âmbar) e dispensam os cantos.
  *
- * `width` (px) vem do baralho, que calcula o maior tamanho em que tudo cabe numa
- * fileira; a altura é 4/3 da largura (72 x 96 no tamanho cheio). Sem `width`,
- * `dense` escolhe entre 52 e 68 px.
+ * Tamanho fixo, o mesmo do baralho antigo (nunca encolhe para caber): 72 x 96 px
+ * (celular 50 x 64); no baralho grande (`dense`, Horas) 56 x 72 (celular 42 x 56).
+ * Quem usa decide o que fazer com a sobra: quebrar em fileiras ou rolar de lado.
  */
 export function DeckCard({
   value,
@@ -263,25 +266,19 @@ export function DeckCard({
   onSelect,
   disabled = false,
   dense = false,
-  width,
 }: {
   value: string;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
-  /** Baralhos grandes (Horas, 24 cartas): cartas menores quando não há `width`. */
+  /** Baralhos grandes (Horas, 24 cartas): cartas menores, sem os cantos. */
   dense?: boolean;
-  width?: number;
 }) {
   const isCoffee = value === '☕';
   const isUnknown = value === '?';
   const special = isCoffee || isUnknown;
   const aria = isCoffee ? 'Preciso de uma pausa' : isUnknown ? 'Não sei estimar' : `Votar ${value}`;
-  const w = width ?? (dense ? 52 : 68);
-  const h = Math.round((w * 4) / 3);
-  const glyph = Math.round(w * (isUnknown ? 0.52 : value.length > 2 ? 0.3 : value.length === 2 ? 0.4 : 0.46));
-  const pip = Math.max(9, Math.round(w * 0.15));
-  const showPips = !isCoffee && w >= 58;
+  const showPips = !isCoffee && !dense;
   return (
     <button
       type="button"
@@ -290,40 +287,40 @@ export function DeckCard({
       role="radio"
       aria-checked={selected}
       aria-label={aria}
-      style={{ width: w, height: h }}
       className={cn(
         'group/card relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-xl border-2 sm:rounded-2xl',
+        dense ? 'h-14 w-[2.6rem] sm:h-[4.5rem] sm:w-14' : 'h-16 w-[3.1rem] sm:h-24 sm:w-[4.5rem]',
         'transition-[transform,box-shadow,border-color,color] duration-base ease-room motion-reduce:transition-none',
         FOCUS_RING,
         disabled && 'pointer-events-none opacity-40 grayscale',
         selected
           ? cn(
               'z-10 border-primary-foreground/30 bg-gradient-to-br from-primary via-primary to-primary/75 text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground',
-              'shadow-xl shadow-primary/45 ring-4 ring-primary/25 motion-safe:-translate-y-3 motion-safe:scale-110',
+              'shadow-xl shadow-primary/45 ring-4 ring-primary/25 motion-safe:-translate-y-5 motion-safe:scale-110',
               '[.theme-leitura_&]:bg-none [.theme-leitura_&]:bg-primary [.theme-leitura_&]:shadow-none [.theme-leitura_&]:ring-0'
             )
           : special
             ? isCoffee
-              ? 'border-amber-300/90 bg-gradient-to-b from-card to-amber-500/15 text-amber-700 shadow-sm hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/20 dark:border-amber-700/60 dark:text-amber-400 motion-safe:hover:-translate-y-3 motion-safe:hover:scale-105'
-              : 'border-violet-300/90 bg-gradient-to-b from-card to-violet-500/15 text-violet-700 shadow-sm hover:border-violet-500 hover:shadow-xl hover:shadow-violet-500/20 dark:border-violet-700/60 dark:text-violet-300 motion-safe:hover:-translate-y-3 motion-safe:hover:scale-105'
+              ? 'border-amber-300/90 bg-gradient-to-b from-card to-amber-500/15 text-amber-700 shadow-sm hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/20 dark:border-amber-700/60 dark:text-amber-400 motion-safe:hover:-translate-y-4 motion-safe:hover:scale-105'
+              : 'border-violet-300/90 bg-gradient-to-b from-card to-violet-500/15 text-violet-700 shadow-sm hover:border-violet-500 hover:shadow-xl hover:shadow-violet-500/20 dark:border-violet-700/60 dark:text-violet-300 motion-safe:hover:-translate-y-4 motion-safe:hover:scale-105'
             : cn(
                 'border-foreground/25 bg-gradient-to-b from-card to-muted text-foreground shadow-sm',
                 'hover:border-primary hover:shadow-xl hover:shadow-primary/25',
-                'motion-safe:hover:-translate-y-3 motion-safe:hover:rotate-2 motion-safe:hover:scale-105'
+                'motion-safe:hover:-translate-y-4 motion-safe:hover:rotate-2 motion-safe:hover:scale-105'
               )
       )}
     >
       {showPips && (
         <>
-          <span aria-hidden="true" style={{ fontSize: pip }} className="pointer-events-none absolute left-1.5 top-1 font-black leading-none opacity-60">{value}</span>
-          <span aria-hidden="true" style={{ fontSize: pip }} className="pointer-events-none absolute bottom-1 right-1.5 rotate-180 font-black leading-none opacity-60">{value}</span>
+          <span aria-hidden="true" className="pointer-events-none absolute left-1.5 top-1 hidden text-[10px] font-black leading-none opacity-60 sm:block">{value}</span>
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-1 right-1.5 hidden rotate-180 text-[10px] font-black leading-none opacity-60 sm:block">{value}</span>
         </>
       )}
       {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 opacity-70 [.theme-leitura_&]:hidden" />}
       {isCoffee ? (
-        <Coffee style={{ width: Math.round(w * 0.44), height: Math.round(w * 0.44) }} strokeWidth={1.75} />
+        <Coffee className="h-6 w-6 sm:h-8 sm:w-8" strokeWidth={1.75} />
       ) : (
-        <span style={{ fontSize: glyph }} className="font-black italic leading-none tracking-tighter drop-shadow-sm">{value}</span>
+        <span className={cn('font-black italic leading-none tracking-tighter drop-shadow-sm', isUnknown ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl')}>{value}</span>
       )}
     </button>
   );

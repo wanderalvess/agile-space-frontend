@@ -6,8 +6,8 @@ import { DECKS, DeckType, Participant } from '@/lib/types';
 import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { DECK_CARD_MAX, DECK_CARD_MAX_SHORT, deckLayout } from '@/lib/poker-table';
-import { DeckCard, FOCUS_RING, Segmented, useBelowBreakpoint, useElementSize, useMediaQuery } from '@/components/room-kit';
+import { DECK_CARD_DENSE, DECK_CARD_FULL, DECK_DENSE_THRESHOLD, deckRows } from '@/lib/poker-table';
+import { DeckCard, FOCUS_RING, Segmented, useBelowBreakpoint, useElementSize } from '@/components/room-kit';
 
 /** `?` (indefinido) e `☕` (pausa) não são estimativas — recebem tratamento à parte. */
 const isSpecialCard = (v: string) => v === '?' || v === '☕';
@@ -136,12 +136,16 @@ export function Controls({
   const specialCards = useMemo(() => deckValues.filter(isSpecialCard), [deckValues]);
   const hasVoted = currentUserVote !== null;
 
-  // Cartas do maior tamanho que cabe numa fileira (até 72 x 96); no celular o baralho rola de lado.
+  // Cartas no tamanho do baralho antigo (72 x 96; no baralho grande, 56 x 72), sem encolher: o que não cabe quebra em fileiras iguais e centralizadas; no celular a fileira única rola de lado.
+  const isDenseDeck = deckValues.length > DECK_DENSE_THRESHOLD;
   const [rowRef, { width: rowWidth }] = useElementSize<HTMLDivElement>();
   const isPhone = useBelowBreakpoint(640);
+  const isWide = !useBelowBreakpoint(768);
+  const cardW = (isDenseDeck ? DECK_CARD_DENSE : DECK_CARD_FULL).w;
+  const gap = isWide ? 12 : 8;
   const hasSeparator = numberCards.length > 0 && specialCards.length > 0;
-  const isShort = useMediaQuery('(max-height: 820px)');
-  const layout = isPhone ? { cardWidth: 56, rows: 1 } : deckLayout(deckValues.length, rowWidth, hasSeparator ? 17 : 0, isShort ? DECK_CARD_MAX_SHORT : DECK_CARD_MAX);
+  const deckGrid = deckRows(deckValues.length, rowWidth, cardW, gap, hasSeparator ? 2 * gap + 1 : 0);
+  const showSeparator = hasSeparator && !isPhone && deckGrid.rows === 1;
 
   const [activePhrase, setActivePhrase] = useState('');
 
@@ -335,14 +339,19 @@ export function Controls({
           )}
         </div>
       </div>
-      <div ref={rowRef} className="mx-auto w-full max-w-[1500px]">
-        <div role="radiogroup" aria-label="Cartas" className="flex items-end justify-center gap-2 pb-1 pt-3 max-sm:pt-6 max-sm:-mx-3 max-sm:justify-start max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none] sm:flex-wrap">
+      <div ref={rowRef} className="mx-auto w-full">
+        <div
+          role="radiogroup"
+          aria-label="Cartas"
+          style={isPhone ? undefined : { maxWidth: deckGrid.width || undefined }}
+          className="mx-auto flex items-end gap-x-2 gap-y-4 pb-1.5 pt-7 md:gap-x-3 max-sm:-mx-3 max-sm:justify-start max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none] sm:flex-wrap sm:justify-center"
+        >
           {numberCards.map((v) => (
-            <DeckCard key={v} value={v} width={layout.cardWidth} selected={selected(v)} onSelect={() => onVote(v)} />
+            <DeckCard key={v} value={v} dense={isDenseDeck} selected={selected(v)} onSelect={() => onVote(v)} />
           ))}
-          {hasSeparator && <span aria-hidden="true" className="mx-1 hidden h-10 w-px self-center bg-border sm:block" />}
+          {showSeparator && <span aria-hidden="true" className={cn('self-center bg-border', isDenseDeck ? 'h-10' : 'h-12', 'w-px')} />}
           {specialCards.map((v) => (
-            <DeckCard key={v} value={v} width={layout.cardWidth} selected={selected(v)} onSelect={() => onVote(v)} />
+            <DeckCard key={v} value={v} dense={isDenseDeck} selected={selected(v)} onSelect={() => onVote(v)} />
           ))}
         </div>
       </div>

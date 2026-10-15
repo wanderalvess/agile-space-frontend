@@ -60,41 +60,40 @@ export function plainSnippet(html: string | null | undefined, max = 220): string
 // Geometria da mesa e do baralho (tudo em px; o componente só mede e desenha)
 // ---------------------------------------------------------------------------
 
-export interface DeckLayout {
-  /** Largura da carta; a altura é 4/3 dela. */
-  cardWidth: number;
+export interface DeckRows {
   /** Quantas fileiras o baralho ocupa (1 sempre que couber). */
   rows: number;
+  /** Cartas por fileira (a última pode ter menos). */
+  perRow: number;
+  /** Largura (px) da fileira: o container limita nela para as fileiras saírem equilibradas. */
+  width: number;
 }
 
-export const DECK_CARD_MAX = 72;
-/** Teto das cartas em telas baixas (<= 820 px de altura), para o baralho não comer a mesa. */
-export const DECK_CARD_MAX_SHORT = 60;
-export const DECK_CARD_MIN = 46;
-const DECK_GAP = 8;
+/** Cartas do baralho antigo, fixas (px): nunca encolhem para caber; o que sobra quebra em fileiras. */
+export const DECK_CARD_FULL = { w: 72, h: 96 } as const;
+/** Baralho grande (Horas, 24 cartas). */
+export const DECK_CARD_DENSE = { w: 56, h: 72 } as const;
+/** Mais que isso e o baralho usa as cartas pequenas. */
+export const DECK_DENSE_THRESHOLD = 14;
 
 /**
- * Tamanho das cartas do baralho para caberem na largura disponível: grande
- * (até 72 px, como o baralho antigo) quando sobra espaço e menor, em uma só
- * fileira, quando o baralho tem muitas cartas (Horas, 24). Só passa para duas
- * ou três fileiras se a carta ficaria menor que o mínimo legível.
- * `extra` é o espaço de separadores (ex.: o traço antes das cartas especiais).
- * Sem largura medida (primeiro render) devolve um tamanho médio.
+ * Fileiras do baralho para cartas de largura fixa `cardW`, em `avail` px: cabendo
+ * tudo, uma fileira; senão o menor número de fileiras, com as cartas repartidas
+ * por igual (24 cartas em 2 fileiras de 12, não 16 + 8). `extra` é o espaço de
+ * separadores que só existem com uma fileira. Sem largura medida (primeiro
+ * render) devolve uma fileira.
  */
-export function deckLayout(count: number, width: number, extra = 0, maxCard = DECK_CARD_MAX): DeckLayout {
-  if (count <= 0 || width <= 0) return { cardWidth: 64, rows: 1 };
-  for (let rows = 1; rows <= 3; rows++) {
-    const perRow = Math.ceil(count / rows);
-    const free = width - 2 - (perRow - 1) * DECK_GAP - (rows === 1 ? extra : 0);
-    const cardWidth = Math.floor(free / perRow);
-    if (cardWidth >= DECK_CARD_MIN || rows === 3) {
-      return { cardWidth: Math.max(36, Math.min(maxCard, cardWidth)), rows };
-    }
-  }
-  return { cardWidth: DECK_CARD_MIN, rows: 3 };
+export function deckRows(count: number, avail: number, cardW: number, gap: number, extra = 0): DeckRows {
+  if (count <= 0) return { rows: 1, perRow: 0, width: 0 };
+  const single = count * cardW + (count - 1) * gap + extra;
+  if (avail <= 0 || single <= avail) return { rows: 1, perRow: count, width: single };
+  const maxPerRow = Math.max(1, Math.floor((avail + gap) / (cardW + gap)));
+  const rows = Math.ceil(count / maxPerRow);
+  const perRow = Math.ceil(count / rows);
+  return { rows, perRow, width: perRow * cardW + (perRow - 1) * gap };
 }
 
-export type SeatCardSize = 'xs' | 'sm' | 'md' | 'lg';
+export type SeatCardSize = 'xs' | 'sm' | 'mid' | 'lg' | 'xl';
 
 export interface TableTier {
   size: SeatCardSize;
@@ -105,11 +104,13 @@ export interface TableTier {
 
 /** Do maior para o menor: a mesa usa o maior que cabe sem assentos se tocando. */
 const TIERS: readonly TableTier[] = [
-  { size: 'lg', seatW: 152, seatH: 144 },
-  { size: 'md', seatW: 140, seatH: 120 },
-  { size: 'sm', seatW: 132, seatH: 106 },
+  { size: 'lg', seatW: 152, seatH: 152 },
+  { size: 'mid', seatW: 140, seatH: 128 },
+  { size: 'sm', seatW: 132, seatH: 110 },
   { size: 'xs', seatW: 124, seatH: 94 },
 ];
+/** Modo apresentação: a carta cresce um degrau, com o assento acompanhando. */
+const XL_TIER: TableTier = { size: 'xl', seatW: 176, seatH: 192 };
 
 export interface RingSeat {
   /** Centro do assento, em px dentro do palco. */
@@ -213,7 +214,7 @@ export function tableGeometry(count: number, width: number, height: number, larg
   const w = Math.min(width, Math.round(h * RING_MAX_ASPECT));
   if (w < RING_MIN_WIDTH) return fallback;
   const dx = (width - w) / 2;
-  const tiers = large || h >= 500 ? TIERS : TIERS.slice(1);
+  const tiers = large ? [XL_TIER, ...TIERS] : h >= 500 ? TIERS : TIERS.slice(1);
   for (const tier of tiers) {
     const ring = ringAt(count, w, h, tier);
     if (ring) {

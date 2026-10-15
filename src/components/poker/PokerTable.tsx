@@ -93,7 +93,7 @@ export function PokerTable({
     [ring, seats.length, stage.width, stage.height, large, minH]
   );
   const unit = deck === 'hours' ? 'h' : undefined;
-  const cardSize = geo?.tier.size ?? (large ? 'md' : 'sm');
+  const cardSize = geo?.tier.size ?? (large ? 'lg' : 'mid');
 
   const renderSeat = (p: Participant, index: number, place?: { x: number; y: number; width: number; flipped: boolean }) => {
     const vote = voteByPerson.get(p.id);

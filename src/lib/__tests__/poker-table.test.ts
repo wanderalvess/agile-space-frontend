@@ -45,10 +45,9 @@ describe('plainSnippet', () => {
 
 import {
   CENTER_BOX,
-  DECK_CARD_MAX,
-  DECK_CARD_MAX_SHORT,
-  DECK_CARD_MIN,
-  deckLayout,
+  DECK_CARD_DENSE,
+  DECK_CARD_FULL,
+  deckRows,
   ellipsePerimeter,
   ellipsePoints,
   ringFits,
@@ -56,36 +55,43 @@ import {
   tableGeometry,
 } from '../poker-table';
 
-describe('baralho: tamanho das cartas', () => {
-  it('Fibonacci cabe numa fileira no tamanho cheio (72 px) em tela larga', () => {
-    expect(deckLayout(10, 1300, 17)).toEqual({ cardWidth: DECK_CARD_MAX, rows: 1 });
+describe('baralho: fileiras com cartas de tamanho fixo', () => {
+  it('as cartas seguem o baralho antigo: 72 x 96 e 56 x 72 (3:4 e ~0,78)', () => {
+    expect(DECK_CARD_FULL).toEqual({ w: 72, h: 96 });
+    expect(DECK_CARD_FULL.w / DECK_CARD_FULL.h).toBeCloseTo(0.75, 5);
+    expect(DECK_CARD_DENSE).toEqual({ w: 56, h: 72 });
   });
 
-  it('Horas (24 cartas) fica numa fileira com cartas legíveis em 1366 e em 1920', () => {
-    const a = deckLayout(24, 1326, 17);
-    expect(a.rows).toBe(1);
-    expect(a.cardWidth).toBeGreaterThanOrEqual(DECK_CARD_MIN);
-    const b = deckLayout(24, 1500, 17);
-    expect(b.rows).toBe(1);
-    expect(b.cardWidth).toBeGreaterThanOrEqual(a.cardWidth);
+  it('Fibonacci cabe numa fileira em tela larga', () => {
+    const r = deckRows(10, 1300, DECK_CARD_FULL.w, 12, 25);
+    expect(r.rows).toBe(1);
+    expect(r.width).toBe(10 * 72 + 9 * 12 + 25);
   });
 
-  it('largura apertada quebra em fileiras em vez de espremer a carta', () => {
-    const l = deckLayout(24, 900, 17);
-    expect(l.rows).toBeGreaterThan(1);
-    expect(l.cardWidth).toBeGreaterThanOrEqual(DECK_CARD_MIN);
+  it('Horas (24 cartas de 56 px) quebra em 2 fileiras iguais em 1100 px, sem encolher a carta', () => {
+    const r = deckRows(24, 1100, DECK_CARD_DENSE.w, 12);
+    expect(r.rows).toBe(2);
+    expect(r.perRow).toBe(12);
+    expect(r.width).toBe(12 * 56 + 11 * 12);
+    expect(r.width).toBeLessThanOrEqual(1100);
   });
 
-  it('tela baixa limita o teto da carta; sem medida devolve um tamanho médio', () => {
-    expect(deckLayout(10, 1300, 17, DECK_CARD_MAX_SHORT).cardWidth).toBe(DECK_CARD_MAX_SHORT);
-    expect(deckLayout(10, 0)).toEqual({ cardWidth: 64, rows: 1 });
+  it('em tela larga o Horas cabe em uma fileira', () => {
+    expect(deckRows(24, 1920, 56, 12, 25).rows).toBe(1);
   });
 
-  it('as cartas somadas nunca passam da largura (1 fileira)', () => {
-    for (const w of [900, 1100, 1326, 1500]) {
-      const l = deckLayout(24, w, 17);
-      if (l.rows === 1) expect(l.cardWidth * 24 + 23 * 8 + 17).toBeLessThanOrEqual(w);
+  it('largura apertada ganha mais fileiras, nunca cartas menores; a fileira nunca passa da largura', () => {
+    for (const w of [300, 420, 640, 900, 1100, 1326]) {
+      const r = deckRows(24, w, 56, 8);
+      expect(r.rows * r.perRow).toBeGreaterThanOrEqual(24);
+      expect(r.width).toBeLessThanOrEqual(Math.max(w, 56));
     }
+    expect(deckRows(24, 640, 56, 8).rows).toBeGreaterThan(deckRows(24, 1100, 56, 8).rows);
+  });
+
+  it('sem largura medida (primeiro render) devolve uma fileira', () => {
+    expect(deckRows(10, 0, 72, 12).rows).toBe(1);
+    expect(deckRows(0, 500, 72, 12)).toEqual({ rows: 1, perRow: 0, width: 0 });
   });
 });
 
