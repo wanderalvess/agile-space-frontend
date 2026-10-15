@@ -45,7 +45,7 @@ export function StatusChip({
   return (
     <span
       className={cn(
-        'inline-flex h-5 items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-[11px] font-semibold',
+        'inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full px-2 text-xs font-semibold',
         TONES[tone].chip,
         className
       )}
@@ -70,7 +70,7 @@ export function RoleChip({
   return (
     <span
       className={cn(
-        'inline-flex h-[22px] items-center rounded-md px-2 text-[11px] font-bold tabular-nums',
+        'inline-flex h-6 items-center rounded-md px-2 text-xs font-bold tabular-nums',
         ROLE_STYLES[tone].chip,
         className
       )}

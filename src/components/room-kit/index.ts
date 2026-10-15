@@ -10,6 +10,7 @@ export * from './Modal';
 export * from './ConfirmDialog';
 export * from './SidePanel';
 export * from './useBelowBreakpoint';
+export * from './useElementSize';
 export * from './RoomTimer';
 export * from './timer-utils';
 export * from './PresenceList';

@@ -18,3 +18,19 @@ export function useBelowBreakpoint(px: number): boolean {
   }, [px]);
   return below;
 }
+
+/**
+ * Verdadeiro enquanto a media query casar (ex.: `(max-height: 820px)` para telas
+ * baixas). Falso no servidor e no primeiro render.
+ */
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const update = () => setMatches(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, [query]);
+  return matches;
+}
