@@ -4,7 +4,10 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedThemeMode = 'light' | 'dark';
-export type ThemeVariant = 'default' | 'nebula' | 'cyberpunk' | 'midnight' | 'nordic';
+export type ThemeVariant = 'default' | 'nebula' | 'cyberpunk' | 'midnight' | 'nordic' | 'totvs' | 'leitura';
+
+/** Tema padrão do portal para quem ainda não escolheu um (cada pessoa troca depois de logar). */
+export const DEFAULT_THEME_VARIANT: ThemeVariant = 'midnight';
 
 interface ThemeContextType {
   mode: ThemeMode;
@@ -25,7 +28,7 @@ const getSystemPreference = (): ResolvedThemeMode =>
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>('system');
   const [resolvedMode, setResolvedMode] = useState<ResolvedThemeMode>('light');
-  const [variant, setVariantState] = useState<ThemeVariant>('default');
+  const [variant, setVariantState] = useState<ThemeVariant>(DEFAULT_THEME_VARIANT);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -82,7 +85,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     // List of all variants to clean up
-    const variants: ThemeVariant[] = ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic'];
+    const variants: ThemeVariant[] = ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic', 'totvs', 'leitura'];
     
     // Remove all variant classes
     variants.forEach((v) => {

@@ -209,6 +209,92 @@ html, body {
   --input: 217 35% 89%;
 }
 
+/* 5. TOTVS (marca oficial: azul escuro #002233 + azul #00DBFF) */
+.theme-totvs {
+  --primary: 189 100% 50%; /* Azul TOTVS #00DBFF */
+  --primary-foreground: 200 100% 10%; /* texto escuro sobre o azul */
+  --ring: 189 100% 50%;
+}
+.theme-totvs:not(.dark) {
+  --background: 200 28% 96%;
+  --foreground: 200 100% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 200 100% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 200 100% 10%;
+  --secondary: 200 28% 93%;
+  --secondary-foreground: 200 100% 10%;
+  --muted: 200 28% 93%;
+  --muted-foreground: 199 21% 36%;
+  --accent: 195 70% 90%;
+  --accent-foreground: 200 100% 10%;
+  --border: 199 25% 86%;
+  --input: 199 25% 86%;
+}
+.dark.theme-totvs {
+  --background: 200 100% 10%; /* Azul escuro #002233 */
+  --foreground: 195 80% 97%;
+  --card: 203 75% 16%;
+  --card-foreground: 195 80% 97%;
+  --popover: 203 75% 16%;
+  --popover-foreground: 195 80% 97%;
+  --secondary: 201 60% 20%;
+  --secondary-foreground: 195 80% 97%;
+  --muted: 201 60% 20%;
+  --muted-foreground: 199 30% 66%;
+  --accent: 201 60% 22%;
+  --accent-foreground: 195 80% 97%;
+  --border: 201 55% 25%;
+  --input: 201 55% 25%;
+}
+
+/* 6. Leitura confortável (contraste alto, sem brilho) */
+.theme-leitura {
+  --primary: 224 76% 48%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 224 76% 48%;
+}
+.theme-leitura:not(.dark) {
+  --background: 214 22% 96%;
+  --foreground: 221 39% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 221 39% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 221 39% 11%;
+  --secondary: 214 22% 92%;
+  --secondary-foreground: 221 39% 11%;
+  --muted: 214 22% 92%;
+  --muted-foreground: 215 19% 27%;
+  --accent: 214 30% 90%;
+  --accent-foreground: 221 39% 11%;
+  --border: 212 12% 65%;
+  --input: 212 12% 65%;
+}
+.dark.theme-leitura {
+  --primary: 213 94% 78%;
+  --primary-foreground: 220 52% 8%;
+  --ring: 213 94% 78%;
+  --background: 214 18% 8%;
+  --foreground: 210 20% 98%;
+  --card: 215 18% 13%;
+  --card-foreground: 210 20% 98%;
+  --popover: 215 18% 13%;
+  --popover-foreground: 210 20% 98%;
+  --secondary: 215 16% 18%;
+  --secondary-foreground: 210 20% 98%;
+  --muted: 215 16% 18%;
+  --muted-foreground: 216 12% 84%;
+  --accent: 215 16% 20%;
+  --accent-foreground: 210 20% 98%;
+  --border: 215 14% 33%;
+  --input: 215 14% 33%;
+}
+.theme-leitura .shadow-2xl,
+.theme-leitura .shadow-xl,
+.theme-leitura .shadow-lg {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18) !important;
+}
+
 /* Nordic light palette already defined above (.theme-nordic:not(.dark)) */
 
 /* Dark Mode Utility Overrides for Premium Aesthetic - Universal for all themes */
@@ -438,42 +524,42 @@ html, body {
    Mirrors the .dark remapping block so hardcoded neutral surfaces inherit the variant palette. */
 
 /* White surfaces -> variant card color */
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/95,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/90,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/80,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/75,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/70,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/60,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/50,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-white\/40,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fbfdff\],
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fbfdff\]\/50,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fbfdff\]\/80 {
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/95,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/90,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/80,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/75,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/70,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/60,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-white\/40,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#fbfdff\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#fbfdff\]\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#fbfdff\]\/80 {
   background-color: hsl(var(--card) / var(--tw-bg-opacity, 1)) !important;
 }
 
 /* Off-white / slate page surfaces -> variant background color */
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fafafa\],
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#fcfcfc\],
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#f8fafc\],
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-\[\#F8FAFC\],
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50\/30,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50\/50,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-50\/55,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-100,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-100\/50,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .bg-slate-100\/60 {
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#fafafa\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#fcfcfc\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#f8fafc\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-\[\#F8FAFC\],
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-50\/30,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-50\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-50\/55,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-100,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-100\/50,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .bg-slate-100\/60 {
   background-color: hsl(var(--background) / var(--tw-bg-opacity, 1)) !important;
 }
 
 /* Neutral slate borders -> variant border color */
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-100,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-200,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-200\/60,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-200\/40,
-:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic):not(.dark) .border-slate-300 {
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .border-slate-100,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .border-slate-200,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .border-slate-200\/60,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .border-slate-200\/40,
+:is(.theme-nebula, .theme-cyberpunk, .theme-midnight, .theme-nordic, .theme-totvs, .theme-leitura):not(.dark) .border-slate-300 {
   border-color: hsl(var(--border) / var(--tw-border-opacity, 1)) !important;
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Monitor, SunMoon, Palette, Rocket, Sparkles, Terminal, Leaf, Zap, Check } from 'lucide-react';
+import { Sun, Moon, Monitor, SunMoon, Palette, Rocket, Sparkles, Terminal, Leaf, Zap, Check, BookOpen, Hexagon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -40,10 +40,12 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   ];
 
   const themes: { id: ThemeVariant; name: string; icon: any; color: string }[] = [
+    { id: 'midnight', name: 'Midnight Tech', icon: Terminal, color: 'text-blue-500' },
+    { id: 'totvs', name: 'TOTVS', icon: Hexagon, color: 'text-cyan-500' },
+    { id: 'leitura', name: 'Leitura confortável', icon: BookOpen, color: 'text-slate-500' },
     { id: 'default', name: 'Espaço Clássico', icon: Rocket, color: 'text-orange-500' },
     { id: 'nebula', name: 'Nebulosa Cósmica', icon: Sparkles, color: 'text-violet-500' },
     { id: 'cyberpunk', name: 'Cyberpunk Neon', icon: Zap, color: 'text-pink-500' },
-    { id: 'midnight', name: 'Midnight Tech', icon: Terminal, color: 'text-blue-500' },
     { id: 'nordic', name: 'Floresta Nórdica', icon: Leaf, color: 'text-emerald-500' },
   ];
 
