@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { ArrowUpRight, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { historyMeta, isLive, ritualFacts, statusLabel, toolCreateHref, toolListHref } from '@/hooks/home/derive';
 import type { RitualKey, SessionStatus, ToolSession } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
-import { CARD, FOCUS_RING, IconTile, LIFT, ORB, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
+import { CARD, FOCUS_RING, IconTile, ORB, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
+import { RitualArt } from './RitualArt';
 
 interface RitualDef {
   key: RitualKey;
@@ -57,38 +59,46 @@ export function RitualsSection({ history, loading, showSquad, scopeLabel, now }:
           const liveNow = history[r.key].some(isLive);
           return (
             <li key={r.key} className={cn(r.key === 'brainstorming' && 'sm:col-span-2 lg:col-span-1')}>
-              <button
+              <motion.button
                 type="button"
+                whileHover="hover"
                 onClick={() => setOpenKey(r.key)}
                 aria-haspopup="dialog"
                 className={cn(
                   CARD,
-                  'relative flex h-full min-h-[190px] w-full flex-col gap-3 overflow-hidden rounded-[18px] p-5 text-left transition-colors hover:border-primary/40',
+                  'group relative flex h-full min-h-[300px] w-full flex-col gap-3 overflow-hidden rounded-[24px] p-6 text-left shadow-lg transition-[border-color,box-shadow] duration-300 hover:border-primary/50 hover:shadow-2xl dark:shadow-none',
                   r.highlight && 'border-primary/40',
-                  LIFT,
                   FOCUS_RING,
                 )}
               >
-                <span aria-hidden="true" className={cn('pointer-events-none absolute -right-16 -top-16 h-60 w-60 rounded-full', ORB)} />
-                <span className="relative flex flex-col items-start gap-3">
-                  <IconTile icon={TOOL_ICON[r.key]} size="lg" />
-                  <span className="text-lg font-bold leading-tight">{r.title}</span>
+                <span aria-hidden="true" className={cn('pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full transition-transform duration-700 group-hover:scale-125', ORB)} />
+                <span className="relative flex items-center justify-between">
+                  <span className="transition-transform duration-300 group-hover:scale-110">
+                    <IconTile icon={TOOL_ICON[r.key]} size="lg" />
+                  </span>
+                  {liveNow && (
+                    <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/15 px-2.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">Ao vivo</span>
+                  )}
                 </span>
-                <span className="relative text-[13px] leading-relaxed text-muted-foreground">{r.description}</span>
+                <span className="relative flex flex-col gap-1.5">
+                  <span className="flex items-center gap-1.5 text-xl font-bold leading-tight transition-colors group-hover:text-primary [.theme-totvs:not(.dark)_&]:group-hover:text-foreground">
+                    {r.title}
+                    <ArrowUpRight aria-hidden="true" className="h-4 w-4 -translate-x-0.5 translate-y-0.5 text-primary opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:translate-y-0 group-hover:opacity-100" strokeWidth={1.75} />
+                  </span>
+                  <span className="text-[13px] leading-relaxed text-muted-foreground">{r.description}</span>
+                </span>
+                <RitualArt ritual={r.key} />
                 <span className="relative mt-auto flex flex-wrap gap-1.5">
-                  {facts.map((f, i) => (
-                    <span
-                      key={f}
-                      className={cn(
-                        'inline-flex h-6 items-center rounded-full border border-border bg-muted/40 px-2.5 text-xs',
-                        i === 0 && liveNow && 'border-transparent bg-emerald-500/15 font-semibold text-emerald-600 dark:text-emerald-400',
-                      )}
-                    >
+                  {facts.map((f) => (
+                    <span key={f} className="inline-flex h-6 items-center rounded-full border border-border bg-muted/40 px-2.5 text-xs">
                       {f}
                     </span>
                   ))}
                 </span>
-              </button>
+                <span className="relative inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground transition-opacity group-hover:opacity-90 [.theme-totvs:not(.dark)_&]:text-foreground">
+                  Abrir {r.title.toLowerCase()}
+                </span>
+              </motion.button>
             </li>
           );
         })}
