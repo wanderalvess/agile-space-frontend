@@ -66,6 +66,7 @@ import { useGithubLayouts, type LoadedGithubLayout } from '@/components/jolt/use
 import { JoltMaintenancePanel } from '@/components/jolt/JoltMaintenancePanel';
 import { parseLayoutData, parseLayoutText } from '@/lib/jolt-maintenance';
 import { diffJson, describeValue, type JsonDiff } from '@/lib/jolt-compare';
+import { routeFormFromRecord } from '@/lib/jolt-route-record';
 import Link from 'next/link';
 
 const LAYOUTS_STORAGE_KEY_PREFIX = 'agileSpace_jolt_layouts';
@@ -132,6 +133,8 @@ export default function JoltSandboxPage() {
     setLoadedDocument(parsed.ok && parsed.parts.kind === 'envelope' ? layout.document : null);
     setSelectedLayoutId(null);
     setCurrentTitle(layout.title);
+    const route = routeFormFromRecord(layout.document);
+    if (route.ok && route.form.url.trim()) setApiUrl(route.form.url.trim());
     toast({
       title: 'Layout carregado!',
       description: `"${layout.title}" na versão ${layout.tag}.`,
@@ -143,7 +146,7 @@ export default function JoltSandboxPage() {
     onNotify: n => toast(n),
   });
 
-  // Sync data from Visual Mapper if it exists in localStorage
+  // Spec vinda do Gerador ("Abrir na Sandbox"): as chaves mantêm o nome antigo do Mapeador Visual.
   useEffect(() => {
     setIsHydrated(true);
     document.title = `Jolt Sandbox | Portal Tech V&D`;
@@ -152,6 +155,7 @@ export default function JoltSandboxPage() {
     const inputFromVisual = localStorage.getItem('jolt_visual_input_json');
     if (specFromVisual) {
       localStorage.removeItem('jolt_visual_generated_spec');
+      localStorage.removeItem('jolt_visual_input_json');
       // Vindo do modo manutenção: o editor mostra a transformação e o arquivo completo fica guardado para exportar.
       const fromMaintenance = localStorage.getItem('jolt_visual_from_maintenance') === 'true';
       localStorage.removeItem('jolt_visual_from_maintenance');
@@ -228,39 +232,26 @@ export default function JoltSandboxPage() {
     });
   };
 
-  // AUTO-FILL ENGINE
+  // Registro de rota inteiro colado na spec: nome e URL vêm dele (ID/SERVICO e LAYOUTCOMUNICACAO), só se estiverem
+  // vazios. Nunca da entrada: lá "name" é dado do registro (ex.: nome do cliente), não o nome do layout.
   useEffect(() => {
-    if (!joltSpec && !inputJson) return;
-
+    if (!joltSpec.includes('"tabela"')) return;
+    let record: unknown;
     try {
-      let foundMeta = false;
-      const scanTextForMeta = (text: string) => {
-        const regexLayout = /"(?:layout|layoutName|nomeLayout|title|name)"\s*:\s*"([^"]+)"/i;
-        const regexUrl = /"(?:url|endpoint|origem|apiUrl|source|raw)"\s*:\s*"([^"]+)"/i;
-        
-        const layoutMatch = text.match(regexLayout);
-        const urlMatch = text.match(regexUrl);
-
-        if (layoutMatch && layoutMatch[1] && !currentTitle) {
-          setCurrentTitle(layoutMatch[1]);
-          foundMeta = true;
-        }
-        if (urlMatch && urlMatch[1] && !apiUrl) {
-          setApiUrl(urlMatch[1]);
-          foundMeta = true;
-        }
-      };
-
-      scanTextForMeta(joltSpec);
-      scanTextForMeta(inputJson);
-
-      if (foundMeta) {
-        toast({ title: "Mágica!", description: "Metadados preenchidos automaticamente." });
-      }
-    } catch (e) {
-      // Silencioso
+      record = JSON.parse(joltSpec);
+    } catch {
+      return;
     }
-  }, [joltSpec, inputJson]);
+    const route = routeFormFromRecord(record);
+    if (!route.ok) return;
+    const name = (route.form.id || route.form.servico || route.form.nomeComunicacao).trim();
+    const url = route.form.url.trim();
+    const fillName = !!name && !currentTitle.trim();
+    const fillUrl = !!url && !apiUrl.trim();
+    if (fillName) setCurrentTitle(name);
+    if (fillUrl) setApiUrl(url);
+    if (fillName || fillUrl) toast({ title: 'Registro de rota reconhecido', description: 'Nome e URL preenchidos a partir do registro.' });
+  }, [joltSpec]);
 
   const [savedLayouts, setSavedLayouts] = useState<any[]>([]);
 
@@ -461,7 +452,14 @@ export default function JoltSandboxPage() {
   };
 
   const runTransformation = async (inputText: string, specText: string) => {
-    if (!inputText.trim() || !specText.trim()) return;
+    if (!inputText.trim() || !specText.trim()) {
+      toast({
+        title: 'Falta conteúdo',
+        description: !inputText.trim() ? 'Cole o JSON de entrada para executar.' : 'Escreva ou cole a spec Jolt para executar.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const parsedInput = validateJSON(inputText, 'Entrada (Input)', editorInputRef);
     if (!parsedInput) return;
@@ -531,7 +529,10 @@ export default function JoltSandboxPage() {
   };
 
   const handleCompareEngines = async () => {
-    if (!inputJson.trim() || !joltSpec.trim()) return;
+    if (!inputJson.trim() || !joltSpec.trim()) {
+      toast({ title: 'Falta conteúdo', description: 'Preencha a entrada e a spec para comparar os motores.', variant: 'destructive' });
+      return;
+    }
 
     const parsedInput = validateJSON(inputJson, 'Entrada (Input)', editorInputRef);
     if (!parsedInput) return;

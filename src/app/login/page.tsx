@@ -263,7 +263,7 @@ export default function LoginPage() {
   };
 
   return (
-      <div className="relative min-h-screen w-full flex items-center justify-center p-4 sm:p-8 overflow-hidden bg-slate-950">
+      <div className="relative min-h-dvh w-full flex items-center justify-center p-4 sm:p-8 [@media(max-height:760px)]:sm:p-4 overflow-hidden bg-slate-950">
         {/* BACKGROUND ATMOSFÉRICO: aurora em CSS puro (sem dependência de imagem externa) */}
         {/* overflow-hidden aqui evita que os blobs com offset negativo criem uma região de
             scroll no container externo (o navegador rola pra focar a aba ao trocar de tab) */}
@@ -286,10 +286,10 @@ export default function LoginPage() {
         <div className="relative z-10 w-full max-w-[1000px] rounded-[2.6rem] p-[1px] bg-gradient-to-b from-white/10 via-white/5 to-white/5 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in-95 slide-in-from-bottom-6 duration-700">
 
           {/* CENTRAL CARD */}
-          <div className="w-full flex flex-col lg:flex-row backdrop-blur-2xl rounded-[2.5rem] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] overflow-hidden lg:min-h-[600px]">
+          <div className="w-full flex flex-col lg:flex-row backdrop-blur-2xl rounded-[2.5rem] border border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] overflow-hidden lg:min-h-[min(600px,calc(100dvh-4rem))]">
 
             {/* LADO ESQUERDO: INFORMAÇÕES SINTETIZADAS (SEMPRE ESCURO COM ACENTOS DO TEMA) */}
-            <div className="hidden lg:flex lg:w-5/12 bg-slate-950/40 backdrop-blur-xl p-10 flex-col justify-between relative overflow-hidden text-slate-50 border-r border-white/10">
+            <div className="hidden lg:flex lg:w-5/12 bg-slate-950/40 backdrop-blur-xl p-10 [@media(max-height:820px)]:p-8 flex-col justify-between relative overflow-hidden text-slate-50 border-r border-white/10">
               {/* Starfield temático (Portal Tech V&D) */}
               <div className="starfield-sm absolute inset-0 opacity-50 animate-twinkle pointer-events-none" />
               <div className="starfield-lg absolute inset-0 opacity-30 animate-twinkle pointer-events-none" style={{ animationDelay: '-2.5s' }} />
@@ -311,7 +311,7 @@ export default function LoginPage() {
               </div>
 
               {/* Textos Sintetizados */}
-              <div className="relative z-10 space-y-6 my-auto">
+              <div className="relative z-10 space-y-6 [@media(max-height:820px)]:space-y-4 my-auto">
                 <h2 className="text-3xl font-black tracking-tight text-white leading-tight font-headline">
                   Acelerando o fluxo da sua squad.
                 </h2>
@@ -319,9 +319,12 @@ export default function LoginPage() {
                   Sincronize projetos, assuma seu papel e conduza cerimônias ágeis em tempo real sem burocracia.
                 </p>
 
-                <PokerPreview />
+                {/* Zero-Scroll: em tela baixa (notebook 1366x768) a vitrine sai antes de o card passar da tela */}
+                <div className="[@media(max-height:720px)]:hidden">
+                  <PokerPreview />
+                </div>
 
-                <div className="space-y-2.5 pt-2">
+                <div className="space-y-2.5 pt-2 [@media(max-height:900px)]:hidden">
                   <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm transition-all hover:bg-white/10 hover:border-white/10 hover:-translate-y-0.5">
                     <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
                       <CheckCircle2 className="w-4 h-4" />
@@ -362,7 +365,7 @@ export default function LoginPage() {
             </div>
 
             {/* LADO DIREITO: FORMULÁRIOS (RESPONDE AO TEMA CLARO/ESCURO E ESTILO VISUAL) */}
-            <div className="w-full lg:w-7/12 p-6 sm:p-10 flex flex-col relative justify-center bg-card/95 dark:bg-card/50 text-card-foreground backdrop-blur-xl transition-colors duration-300">
+            <div className="w-full lg:w-7/12 p-6 sm:p-10 [@media(max-height:820px)]:sm:p-8 flex flex-col relative justify-center bg-card/95 dark:bg-card/50 text-card-foreground backdrop-blur-xl transition-colors duration-300">
               <div className="absolute top-5 right-5 lg:top-6 lg:right-6">
                 <ThemeToggle />
               </div>
