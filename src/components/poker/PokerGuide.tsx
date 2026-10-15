@@ -43,6 +43,14 @@ const KEY_GROUPS: { label: string; items: { keys: string[]; desc: string }[] }[]
     ],
   },
   {
+    label: 'Facilitador, com a fila vazia',
+    items: [
+      { keys: ['I'], desc: 'Importar do Jira' },
+      { keys: ['N'], desc: 'Adicionar tarefa' },
+      { keys: ['S'], desc: 'Compartilhar a sala' },
+    ],
+  },
+  {
     label: 'Chat',
     items: [
       { keys: ['Enter'], desc: 'Enviar' },

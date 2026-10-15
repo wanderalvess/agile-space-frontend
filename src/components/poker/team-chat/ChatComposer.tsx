@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Code2, Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { FIELD } from '@/components/room-kit';
 import { MAX_MESSAGE_LENGTH, type ChatMessageKind } from './chatChannels';
 
 export function ChatComposer({
@@ -44,26 +44,27 @@ export function ChatComposer({
   };
 
   return (
-    <div className="p-3 bg-slate-50/80 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800">
-      <div className={cn(
-        'flex items-end gap-2 rounded-2xl border bg-white dark:bg-slate-900 p-1.5 transition-colors',
-        isCodeMode ? 'border-indigo-300 dark:border-indigo-700' : 'border-slate-200 dark:border-slate-700'
-      )}>
-        <Button
+    <form
+      onSubmit={(e) => { e.preventDefault(); send(); }}
+      className="flex flex-col gap-1.5 border-t border-border p-3"
+    >
+      <div className="flex items-end gap-2">
+        <button
           type="button"
-          variant="ghost"
-          size="icon"
           onClick={() => { setIsCodeMode(v => !v); textareaRef.current?.focus(); }}
           className={cn(
-            'h-9 w-9 shrink-0 rounded-xl',
-            isCodeMode ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400' : 'text-slate-400'
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            isCodeMode ? 'border-primary/60 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-accent'
           )}
           title={isCodeMode ? 'Sair do modo código' : 'Enviar trecho de código'}
+          aria-label={isCodeMode ? 'Sair do modo código' : 'Enviar trecho de código'}
           aria-pressed={isCodeMode}
         >
-          <Code2 className="h-4 w-4" />
-        </Button>
+          <Code2 className="h-4 w-4" strokeWidth={1.5} />
+        </button>
+        <label htmlFor="chat-input" className="sr-only">Mensagem</label>
         <textarea
+          id="chat-input"
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -72,25 +73,20 @@ export function ChatComposer({
           maxLength={MAX_MESSAGE_LENGTH}
           spellCheck={!isCodeMode}
           placeholder={isCodeMode ? 'Cole o trecho de código…' : placeholder}
-          className={cn(
-            'flex-1 min-w-0 resize-none bg-transparent py-2 text-[12px] text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none',
-            isCodeMode && 'font-mono text-[11px] whitespace-pre overflow-x-auto'
-          )}
+          className={cn(FIELD, 'min-h-10 min-w-0 flex-1 resize-none py-2.5 text-sm', isCodeMode && 'overflow-x-auto whitespace-pre font-mono text-xs')}
         />
-        <Button
-          type="button"
-          size="icon"
+        <button
+          type="submit"
           disabled={!canSend}
-          onClick={send}
-          className="h-9 w-9 shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 active:scale-90"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground room-glow transition-[opacity,background-color] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:shadow-none"
           aria-label="Enviar mensagem"
         >
-          <Send className="h-4 w-4" />
-        </Button>
+          <Send className="h-4 w-4" strokeWidth={1.5} />
+        </button>
       </div>
-      <p className="mt-1.5 px-1 text-[9px] font-bold uppercase tracking-widest text-slate-400">
+      <p className="m-0 px-1 text-[11px] text-muted-foreground">
         {isCodeMode ? 'Ctrl+Enter envia · Enter quebra linha' : 'Enter envia · Shift+Enter quebra linha · ``` para código'}
       </p>
-    </div>
+    </form>
   );
 }
