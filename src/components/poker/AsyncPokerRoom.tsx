@@ -107,7 +107,7 @@ const AsyncPokerRoomComponent = ({
     <>
       <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
         <RoomHeader
-          title={roomTitle || 'Planning Poker assíncrono'}
+          title={roomTitle || 'Scrum Poker assíncrono'}
           toolIcon={<Rocket className="h-4 w-4" />}
           toolColorClass="text-primary"
           onOpenFeedback={onOpenFeedback}
@@ -116,7 +116,7 @@ const AsyncPokerRoomComponent = ({
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-3 md:px-6">
           <div className="flex min-w-[200px] flex-1 flex-col gap-0.5">
             {roomTeam && <span className="truncate text-xs text-muted-foreground">{roomTeam}</span>}
-            <span className="truncate text-base font-semibold">{roomTitle || 'Planning Poker assíncrono'}</span>
+            <span className="truncate text-base font-semibold">{roomTitle || 'Scrum Poker assíncrono'}</span>
           </div>
           <IconButton label="Fila de tarefas" icon={ListChecks} pressed={isQueueOpen} onClick={() => setIsQueueOpen(v => !v)} />
           <IconButton label="Participantes" icon={Users} pressed={isParticipantsOpen} onClick={() => setIsParticipantsOpen(v => !v)} />
@@ -124,7 +124,7 @@ const AsyncPokerRoomComponent = ({
           <IconButton label="Compartilhar sala" icon={Link2} onClick={() => setIsShareDialogOpen(true)} />
           {onOpenRetro && <IconButton label="Abrir retro desta sprint" icon={MessageSquareText} onClick={onOpenRetro} />}
           <ExportDialog
-            roomTitle={roomTitle || 'Planning Poker assíncrono'}
+            roomTitle={roomTitle || 'Scrum Poker assíncrono'}
             roomTeam={roomTeam}
             issues={issuesQueue}
             participants={participants}

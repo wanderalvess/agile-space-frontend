@@ -35,7 +35,7 @@ export const API_KEY_SCOPES: { value: string; label: string; description: string
   { value: 'PROMPTHUB_READ', label: 'Prompt Hub · leitura', description: 'Prompts e coleções públicas.' },
   { value: 'PROMPTHUB_WRITE', label: 'Prompt Hub · escrita', description: 'Criar e importar prompts e skills.' },
   { value: 'POKER_READ', label: 'Scrum Poker · leitura', description: 'Buscar estimativas de rodadas já feitas.' },
-  { value: 'POKER_WRITE', label: 'Scrum Poker · escrita', description: 'Criar sessão de planning poker.' },
+  { value: 'POKER_WRITE', label: 'Scrum Poker · escrita', description: 'Criar sessão de Scrum Poker.' },
 ];
 
 /** Espelha ApiKeyController.allowedScopesFor — só pra UI, a checagem real é no backend. */

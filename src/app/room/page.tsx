@@ -209,7 +209,7 @@ export default function PokerHubPage() {
   return (
     <div className="relative flex min-h-dvh w-full flex-1 flex-col bg-background">
       <RoomHeader
-        title="Planning Poker"
+        title="Scrum Poker"
         toolIcon={<WalletCards className="h-4 w-4" />}
         toolColorClass="text-primary"
         onOpenFeedback={() => setFeedbackSignal(Date.now())}
@@ -217,9 +217,9 @@ export default function PokerHubPage() {
       />
 
       <main className="mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-6 px-4 pb-10 pt-8 sm:px-8 2xl:px-12">
-        <section aria-label="Planning Poker" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <section aria-label="Scrum Poker" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
           <div className="flex flex-col gap-2">
-            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl">Planning Poker</h1>
+            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl">Scrum Poker</h1>
             <p className="text-[15px] text-muted-foreground">Estimativas em horas por papel, com votação às cegas.</p>
           </div>
 
@@ -348,8 +348,8 @@ export default function PokerHubPage() {
         </div>
       </main>
 
-      <Footer className="shrink-0" subtitle="Portal Tech V&D • Planning Poker" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Portal Tech V&D - Planning Poker" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
+      <Footer className="shrink-0" subtitle="Portal Tech V&D • Scrum Poker" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
+      <FeedbackWidget toolName="Portal Tech V&D - Scrum Poker" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
 
       <ConfirmDialog
         open={!!roomToDelete}

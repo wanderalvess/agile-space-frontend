@@ -325,7 +325,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
   {
     id: 'poker',
     label: 'Scrum Poker',
-    tagline: 'Abrir uma sala de planning poker, e buscar estimativas de rodadas já feitas.',
+    tagline: 'Abrir uma sala de Scrum Poker, e buscar estimativas de rodadas já feitas.',
     rest: [
       {
         method: 'GET',
@@ -339,7 +339,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
     mcp: [
       {
         name: 'createPokerSession',
-        summary: 'Cria uma sala de planning poker e devolve o id dela.',
+        summary: 'Cria uma sala de Scrum Poker e devolve o id dela.',
         params: 'title, deckType? (padrão "fibonacci"), mode? ("sync" padrão | "async")',
         write: true,
         scope: 'POKER_WRITE',
