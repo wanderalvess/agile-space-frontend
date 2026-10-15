@@ -2,9 +2,10 @@
 
 import { useMemo } from 'react';
 import type { Vote, Participant, DeckType, TshirtEquivalent } from '@/lib/types';
-import { getParticipantCategory, TECHNICAL_CATEGORIES, resolveTshirtHours } from '@/lib/poker-utils';
-import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, MessageSquareQuote } from 'lucide-react';
+import { getParticipantCategory, TECHNICAL_CATEGORIES, resolveTshirtHours, formatRoleForCopy } from '@/lib/poker-utils';
+import { MessageSquareQuote } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ROLE_STYLES, roleToneOf } from '@/components/room-kit';
 
 interface OutlierPromptProps {
   votes: Vote[];
@@ -58,36 +59,32 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: 
   const suffix = deck === 'hours' || tshirtCalculating ? 'h' : '';
 
   return (
-    <Card className="border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 rounded-2xl">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <MessageSquareQuote className="h-4 w-4 text-amber-600" />
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">
-            Explique os extremos
-          </h3>
-          <span className="text-[9px] font-bold text-amber-600/60 uppercase tracking-widest">quem votou mais alto e mais baixo, em 1 frase</span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {outliers.map(o => (
-            <div key={o.category} className="p-3 rounded-xl bg-white/70 dark:bg-card/60 border border-amber-100/60 dark:border-amber-900/30">
-              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">{o.category}</p>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <TrendingDown className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{o.min.name}</span>
-                  <span className="text-[10px] font-black text-blue-600">{o.min.value}{suffix}</span>
-                </div>
-                <span className="text-slate-300">·</span>
-                <div className="flex items-center gap-1.5 min-w-0 justify-end">
-                  <span className="text-[10px] font-black text-rose-600">{o.max.value}{suffix}</span>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{o.max.name}</span>
-                  <TrendingUp className="h-3.5 w-3.5 text-rose-500 shrink-0" />
-                </div>
+    <section aria-label="Ouça os extremos" className="room-rise flex flex-col gap-3 rounded-[14px] border border-border bg-card p-[18px] shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+          <MessageSquareQuote className="h-4 w-4 text-amber-600 dark:text-amber-300" strokeWidth={1.5} aria-hidden="true" />
+          Ouça os extremos
+        </h2>
+        <p className="m-0 text-[13px] text-muted-foreground">Quem votou mais alto e mais baixo explica em uma frase.</p>
+      </div>
+      <div className="flex flex-col gap-3">
+        {outliers.map(o => (
+          <div key={o.category} className="flex flex-col gap-2">
+            <span className={cn('text-[11px] font-bold', ROLE_STYLES[roleToneOf(o.category)].text)}>{formatRoleForCopy(o.category)}</span>
+            {[o.min, o.max].map((x, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/40 px-3 py-2.5">
+                <span className="flex h-12 w-10 shrink-0 items-center justify-center rounded-md border-[1.5px] border-amber-500/60 bg-amber-500/10 text-[15px] font-bold tabular-nums text-amber-800 dark:text-amber-200">
+                  {x.value}{suffix}
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate text-[13px] font-semibold">{x.name}</span>
+                  <span className="text-xs text-muted-foreground">{i === 0 ? 'Votou mais baixo' : 'Votou mais alto'}</span>
+                </span>
               </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

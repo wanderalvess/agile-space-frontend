@@ -1,142 +1,166 @@
 "use client";
 
 import React from 'react';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { 
-  Sparkles, 
-  WalletCards, 
-  BrainCircuit, 
-  Trophy, 
-  Eye, 
-  ListPlus,
-  Zap,
-  Info,
-  ShieldCheck
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
+import { HelpCircle } from 'lucide-react';
+import { DECKS } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { GuideSheet, Kbd, type GuideTab } from '@/components/room-kit';
 
 interface PokerGuideProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function PokerGuide({ open, onOpenChange }: PokerGuideProps) {
-  const steps = [
-    {
-      title: "Votos Sem Influência",
-      icon: Eye,
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-      description: "Os votos ficam ocultos para que ninguém se sinta pressionado. Isso revela o que cada membro do time realmente pensa sobre o esforço técnico."
-    },
-    {
-      title: "Debate de Divergências",
-      icon: BrainCircuit,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-      description: "Diferenças grandes de votos (ex: 3h vs 13h) são sinais de riscos ocultos. É o momento perfeito para o time alinhar a complexidade."
-    },
-    {
-      title: "Consenso & Exportação",
-      icon: ListPlus,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-      description: "O facilitador salva o consenso e pronto. Os dados estarão disponíveis para importação automática no Sprint Planner depois."
-    }
-  ];
+const FLOW = [
+  { title: 'Discutir', desc: 'Tarefa, critérios de aceite e notas de DEV e QA na mesa.' },
+  { title: 'Votar às cegas', desc: 'Cada pessoa vota as horas do seu papel. Os votos ficam ocultos até a revelação.' },
+  { title: 'Revelar', desc: 'Média por papel, arredondada conforme a configuração da sala. Quem votou nos extremos explica primeiro.' },
+  { title: 'Decidir e copiar', desc: 'Salve as horas por papel e copie a estimativa para a issue pai.', code: '(DEV 10h / QA 4h)' },
+] as const;
 
+const RULES = [
+  { title: 'Consenso por papel', desc: 'Todo mundo do mesmo papel votou igual: a mesa marca o consenso.', dot: 'bg-emerald-500' },
+  { title: 'Divergência', desc: 'Diferença por papel acima do limite de aviso ou crítico configurado.', dot: 'bg-amber-500' },
+  { title: 'Teto de rodadas', desc: 'Passou do teto sem consenso: tirar da mesa ou adiar.', dot: 'bg-primary' },
+  { title: 'Depois da sessão', desc: 'Relatório, exportação e dados disponíveis no Sprint Planner.', dot: 'bg-blue-500' },
+] as const;
+
+const DECK_INFO = [
+  { id: 'hours', name: 'Horas reais', use: 'subtarefas e esforço técnico', mark: '8', rule: 'Resultado é a média por papel. A cópia sai como (DEV xh / QA yh / …).' },
+  { id: 'fibonacci', name: 'Fibonacci', use: 'histórias de usuário', mark: '5', rule: 'Complexidade relativa. Resultado é a média por papel.' },
+  { id: 'tshirt', name: 'Camisetas', use: 'tamanho relativo', mark: 'M', rule: 'Sem equivalência vale o mais votado. Com equivalência (hora, dia, semana, sprint…) calcula em horas.' },
+] as const;
+
+const KEY_GROUPS: { label: string; items: { keys: string[]; desc: string }[] }[] = [
+  {
+    label: 'Votar',
+    items: [
+      { keys: ['0–9'], desc: 'Digite o valor da carta (1 e 6 em seguida dá 16)' },
+      { keys: ['P', 'M', 'G'], desc: 'Camisetas: digite o tamanho (PP, GG)' },
+      { keys: ['?'], desc: 'Não sei estimar' },
+      { keys: ['C'], desc: 'Pausa para o café' },
+      { keys: ['Esc'], desc: 'Cancela a digitação' },
+    ],
+  },
+  {
+    label: 'Facilitador, com a fila vazia',
+    items: [
+      { keys: ['I'], desc: 'Importar do Jira' },
+      { keys: ['N'], desc: 'Adicionar tarefa' },
+      { keys: ['S'], desc: 'Compartilhar a sala' },
+    ],
+  },
+  {
+    label: 'Chat',
+    items: [
+      { keys: ['Enter'], desc: 'Enviar' },
+      { keys: ['Shift', 'Enter'], desc: 'Quebrar linha' },
+      { keys: ['```'], desc: 'Modo código' },
+      { keys: ['Ctrl', 'Enter'], desc: 'Enviar no modo código' },
+    ],
+  },
+  { label: 'Sala', items: [{ keys: ['Esc'], desc: 'Sair do modo apresentação' }] },
+];
+
+function FlowTab() {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col p-0 border-none shadow-3xl bg-slate-50 dark:bg-slate-950">
-        {/* HEADER ELITE */}
-        <SheetHeader className="shrink-0 p-8 bg-slate-900 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
-             <WalletCards className="h-32 w-32" />
+    <div className="flex flex-col gap-5">
+      <ol className="m-0 flex list-none flex-col p-0">
+        {FLOW.map((s, i) => (
+          <li key={s.title} className="flex gap-3.5">
+            <div className="flex flex-col items-center">
+              <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-primary text-[13px] font-bold text-primary-foreground room-glow-ring">{i + 1}</span>
+              {i < FLOW.length - 1 && <span aria-hidden="true" className="min-h-4 w-0.5 flex-1 bg-border" />}
+            </div>
+            <div className="flex flex-col gap-1 pb-[18px]">
+              <span className="text-[15px] font-bold">{s.title}</span>
+              <span className="text-[13px] leading-relaxed text-muted-foreground">{s.desc}</span>
+              {'code' in s && (
+                <code className="mt-1 self-start rounded-lg border border-border bg-muted px-2.5 py-1 text-[13px] font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{s.code}</code>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        {RULES.map((r) => (
+          <div key={r.title} className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+            <span className="flex items-center gap-2 text-[13px] font-bold">
+              <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', r.dot)} />
+              {r.title}
+            </span>
+            <span className="text-xs leading-relaxed text-muted-foreground">{r.desc}</span>
           </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-               <Badge variant="outline" className="border-blue-500/50 text-blue-400 bg-blue-500/10 uppercase text-[9px] font-black tracking-widest px-3 py-1">
-                  Ritual de Refinamento
-               </Badge>
-            </div>
-            <SheetTitle className="text-3xl font-black uppercase tracking-tighter italic text-white flex items-center gap-3">
-               <WalletCards className="h-6 w-6 text-blue-400" />
-               Guia do Scrum Poker
-            </SheetTitle>
-            <SheetDescription className="text-slate-400 font-medium text-xs mt-2">
-               Estimativas precisas e sem viés para sua próxima sprint.
-            </SheetDescription>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DecksTab() {
+  return (
+    <div className="flex flex-col gap-3.5">
+      {DECK_INFO.map((d) => (
+        <div key={d.id} className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-muted/40 p-3.5">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[15px] font-bold">{d.name}</span>
+            <span className="text-xs text-muted-foreground">{d.use}</span>
           </div>
-        </SheetHeader>
-
-        <ScrollArea className="flex-1">
-          <div className="p-8 space-y-10">
-            <div className="space-y-6">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">Fundamentos da Estimativa</h3>
-               <div className="grid grid-cols-1 gap-4">
-                  {steps.map((step, idx) => (
-                    <div key={idx} className="flex gap-5 p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 transition-all group">
-                       <div className={`w-12 h-12 ${step.bg} rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
-                          <step.icon className={`h-6 w-6 ${step.color}`} />
-                       </div>
-                       <div className="space-y-1">
-                          <p className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">{step.title}</p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{step.description}</p>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </div>
-
-            <div className="space-y-6">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">Decks Disponíveis</h3>
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
-                     <p className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">Fibonacci</p>
-                     <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Ideal para User Stories e complexidade relativa.</p>
-                  </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-2">
-                     <p className="text-[10px] font-black uppercase text-slate-900 dark:text-slate-100">Horas</p>
-                     <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">Ideal para sub-tarefas e esforço técnico direto.</p>
-                  </div>
-               </div>
-            </div>
-
-            {/* ALERT BOX */}
-            <div className="p-6 bg-emerald-600 rounded-[2rem] text-white shadow-xl shadow-emerald-500/20 flex gap-4 items-center">
-               <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-                  <Trophy className="h-6 w-6 text-emerald-200" />
-               </div>
-               <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-200">Consenso Inteligente</p>
-                  <p className="text-[10px] font-medium leading-relaxed opacity-90 italic">
-                     "O sistema celebra quando papéis do mesmo tipo (ex: todos os Devs) entram em acordo unânime."
-                  </p>
-               </div>
-            </div>
-
-            <div className="pt-4 pb-12">
-               <Button 
-                 variant="outline" 
-                 className="w-full h-14 rounded-2xl border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all gap-3"
-                 asChild
-               >
-                 <a href="/manual#poker">
-                   <Zap className="h-4 w-4 text-blue-600" /> Acessar Manual Completo
-                 </a>
-               </Button>
-            </div>
+          <div className="flex flex-wrap gap-[5px]">
+            {DECKS[d.id].map((v) => (
+              <span
+                key={v}
+                className={cn(
+                  'flex h-9 min-w-[26px] items-center justify-center rounded-md border px-1 text-xs font-bold tabular-nums',
+                  v === d.mark ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card'
+                )}
+              >
+                {v === '☕' ? 'café' : v}
+              </span>
+            ))}
           </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+          <span className="text-xs leading-relaxed text-muted-foreground">{d.rule}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function KeysTab() {
+  return (
+    <div className="flex flex-col gap-5">
+      {KEY_GROUPS.map((g) => (
+        <section key={g.label} className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-bold text-muted-foreground">{g.label}</h3>
+          {g.items.map((k) => (
+            <div key={k.desc} className="flex items-center gap-3 border-b border-border py-2">
+              <span className="flex min-w-[150px] gap-1">
+                {k.keys.map((kk) => <Kbd key={kk}>{kk}</Kbd>)}
+              </span>
+              <span className="text-[13px]">{k.desc}</span>
+            </div>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+export function PokerGuide({ open, onOpenChange }: PokerGuideProps) {
+  const tabs: GuideTab[] = [
+    { id: 'flow', label: 'Como funciona', content: <FlowTab /> },
+    { id: 'decks', label: 'Baralhos', content: <DecksTab /> },
+    { id: 'keys', label: 'Atalhos', content: <KeysTab /> },
+  ];
+  return (
+    <GuideSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Guia do poker"
+      description="Referência rápida da sala."
+      icon={HelpCircle}
+      tabs={tabs}
+      manualHref="/manual#poker"
+    />
   );
 }

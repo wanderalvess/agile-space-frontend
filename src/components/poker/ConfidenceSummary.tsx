@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import type { Vote, Participant } from '@/lib/types';
 import { getEligibleStatsVotes } from '@/lib/poker-utils';
-import { Card, CardContent } from '@/components/ui/card';
 import { ShieldCheck, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,9 +13,9 @@ interface ConfidenceSummaryProps {
 }
 
 const LEVELS = [
-  { key: 'high', label: 'Alta', weight: 1, color: 'bg-emerald-500', text: 'text-emerald-600' },
-  { key: 'medium', label: 'Média', weight: 0.5, color: 'bg-amber-500', text: 'text-amber-600' },
-  { key: 'low', label: 'Baixa', weight: 0, color: 'bg-rose-500', text: 'text-rose-600' },
+  { key: 'high', label: 'Alta', weight: 1, color: 'bg-emerald-500' },
+  { key: 'medium', label: 'Média', weight: 0.5, color: 'bg-amber-500' },
+  { key: 'low', label: 'Baixa', weight: 0, color: 'bg-red-500' },
 ] as const;
 
 /**
@@ -43,37 +42,38 @@ export function ConfidenceSummary({ votes, participants, allowManagementToVote =
   const risky = summary.score < 0.5;
 
   return (
-    <Card className={cn(
-      "rounded-2xl border",
-      risky ? "border-rose-200/70 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/10" : "border-emerald-200/60 dark:border-emerald-900/30 bg-emerald-50/30 dark:bg-emerald-950/10"
-    )}>
-      <CardContent className="p-5 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {risky ? <ShieldAlert className="h-4 w-4 text-rose-600" /> : <ShieldCheck className="h-4 w-4 text-emerald-600" />}
-            <h3 className={cn("text-[10px] font-black uppercase tracking-[0.2em]", risky ? "text-rose-700 dark:text-rose-400" : "text-emerald-700 dark:text-emerald-400")}>
-              Confiança do time
-            </h3>
-          </div>
-          <span className={cn("text-lg font-black tracking-tighter italic", risky ? "text-rose-600" : "text-emerald-600")}>{pct}%</span>
-        </div>
-        <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-100 dark:bg-slate-900">
-          {LEVELS.map(l => {
-            const w = Math.round((summary.counts[l.key] / summary.total) * 100);
-            if (w === 0) return null;
-            return <div key={l.key} className={l.color} style={{ width: `${w}%` }} title={`${l.label}: ${summary.counts[l.key]}`} />;
-          })}
-        </div>
-        <div className="flex items-center gap-4">
-          {LEVELS.map(l => (
-            <div key={l.key} className="flex items-center gap-1.5">
-              <span className={cn("w-2 h-2 rounded-full", l.color)} />
-              <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{l.label} {summary.counts[l.key]}</span>
-            </div>
-          ))}
-          {risky && <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest ml-auto">Item arriscado — revisar</span>}
-        </div>
-      </CardContent>
-    </Card>
+    <section
+      aria-label="Confiança do time"
+      className={cn(
+        'room-rise flex flex-col gap-3 rounded-[14px] border bg-card p-[18px]',
+        risky ? 'border-red-500/40' : 'border-border'
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+          {risky
+            ? <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-300" strokeWidth={1.5} aria-hidden="true" />
+            : <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-300" strokeWidth={1.5} aria-hidden="true" />}
+          Confiança do time
+        </h2>
+        <span className={cn('text-lg font-bold tabular-nums', risky ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300')}>{pct}%</span>
+      </div>
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        {LEVELS.map(l => {
+          const w = Math.round((summary.counts[l.key] / summary.total) * 100);
+          if (w === 0) return null;
+          return <div key={l.key} className={l.color} style={{ width: `${w}%` }} title={`${l.label}: ${summary.counts[l.key]}`} />;
+        })}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        {LEVELS.map(l => (
+          <span key={l.key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', l.color)} />
+            {l.label} <span className="tabular-nums">{summary.counts[l.key]}</span>
+          </span>
+        ))}
+        {risky && <span className="ml-auto text-xs font-semibold text-red-700 dark:text-red-300">Item arriscado, vale revisar</span>}
+      </div>
+    </section>
   );
 }

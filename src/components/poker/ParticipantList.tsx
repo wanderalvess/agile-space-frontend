@@ -1,20 +1,12 @@
 "use client";
 
+import { useMemo, useState } from 'react';
+import { Crown, UserX } from 'lucide-react';
 import type { Participant, Vote, Role } from '@/lib/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { canParticipantVote, formatRoleForCopy, getParticipantCategory } from '@/lib/poker-utils';
+import { ConfirmDialog, PresenceList, type PresenceItem, type PresenceStatus } from '@/components/room-kit';
 import { Button } from '@/components/ui/button';
-import { Crown, UserX, Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useMemo } from 'react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Badge } from '../ui/badge';
-import { EliteParticipantList } from '../shared/EliteParticipantList';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ParticipantListProps {
   participants: Participant[];
@@ -25,6 +17,8 @@ interface ParticipantListProps {
   onUpdateParticipantRole: (id: string, newRole: Role) => void;
   onClaimFacilitator?: () => void;
   onlineIds?: Set<string>;
+  /** Gestão que não vota não fica "pensando": sem estado ao lado do nome. */
+  allowManagementToVote?: boolean;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -34,82 +28,136 @@ const ROLE_LABELS: Record<Role, string> = {
   spectator: 'Espectador',
 };
 
+const GROUP_ORDER = [
+  { id: 'Developer', label: 'DEV' },
+  { id: 'QA', label: 'QA' },
+  { id: 'UX', label: 'UX' },
+  { id: 'Designer', label: 'Designer' },
+  { id: 'Management', label: 'Gestão' },
+] as const;
+
+/** Texto do papel ao lado do nome: sigla do papel técnico ou o cargo/papel da sala. */
+function roleLabelOf(p: Pick<Participant, 'role' | 'globalRole'>, category: string | null): string {
+  if (category && category !== 'Management') return formatRoleForCopy(category);
+  return p.globalRole || ROLE_LABELS[p.role] || 'Participante';
+}
+
 export function ParticipantList({
   participants,
   currentUserId,
   isFacilitator,
   onRemoveParticipant,
-  onUpdateParticipantRole,
   onClaimFacilitator,
   votes,
-  onlineIds
+  onlineIds,
+  allowManagementToVote = false,
 }: ParticipantListProps) {
-  const votedParticipantIds = useMemo(() => new Set(votes.map(v => v.participantId)), [votes]);
+  const [toRemove, setToRemove] = useState<Participant | null>(null);
+  const [claimOpen, setClaimOpen] = useState(false);
+  const votedIds = useMemo(() => new Set(votes.map((v) => v.participantId)), [votes]);
 
-  const renderIndicator = (id: string) => {
+  const items = useMemo<PresenceItem[]>(() => {
+    const live = participants.map((p): PresenceItem => {
+      const category = getParticipantCategory(p);
+      const online = onlineIds ? onlineIds.has(p.id) : true;
+      let status: PresenceStatus = 'idle';
+      if (p.role === 'spectator') status = 'spectator';
+      else if (!canParticipantVote(p, allowManagementToVote)) status = 'idle';
+      else if (votedIds.has(p.id)) status = 'voted';
+      else status = online ? 'thinking' : 'away';
+      return {
+        id: p.id,
+        name: p.nickname,
+        roleLabel: roleLabelOf(p, category),
+        category,
+        online,
+        status,
+        isYou: p.id === currentUserId,
+        isHost: !!p.isFacilitator,
+      };
+    });
+    // Votos de quem saiu da sala continuam contando: aparecem esmaecidos.
+    const ghosts = votes
+      .filter((v) => !participants.some((p) => p.id === v.participantId))
+      .map((v): PresenceItem => {
+        const category = v.participantRole
+          ? getParticipantCategory({ role: v.participantRole, globalRole: v.participantGlobalRole })
+          : null;
+        return {
+          id: `ghost-${v.participantId}`,
+          name: v.participantNickname || 'Participante',
+          roleLabel: v.participantGlobalRole || (v.participantRole ? ROLE_LABELS[v.participantRole] : 'Ausente'),
+          category,
+          online: false,
+          status: 'voted',
+          ghost: true,
+        };
+      });
+    return [...live, ...ghosts];
+  }, [participants, votes, votedIds, onlineIds, currentUserId, allowManagementToVote]);
+
+  const renderActions = (item: PresenceItem) => {
+    if (item.ghost) return null;
+    const person = participants.find((p) => p.id === item.id);
+    if (!person) return null;
     return (
       <TooltipProvider>
-        {votedParticipantIds.has(id) ? (
+        {!isFacilitator && item.isYou && onClaimFacilitator && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center h-7 w-7 bg-emerald-500 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] ring-2 ring-white animate-in zoom-in-50 duration-300">
-                <Check className="h-4 w-4 text-white" strokeWidth={3} />
-              </div>
+              <Button variant="ghost" size="icon" aria-label="Assumir o controle da sala" onClick={() => setClaimOpen(true)} className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-300">
+                <Crown className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 border-none rounded-lg p-2 text-[10px] font-black uppercase tracking-widest text-emerald-400"><p>Voto Registrado</p></TooltipContent>
+            <TooltipContent>Assumir controle</TooltipContent>
           </Tooltip>
-        ) : (
+        )}
+        {isFacilitator && !item.isYou && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="flex items-center justify-center h-7 w-7 bg-indigo-50 rounded-xl border border-indigo-100 transition-all">
-                 <div className="flex gap-1 items-center">
-                   <div className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse [animation-delay:-0.3s]" />
-                   <div className="w-1 h-1 bg-indigo-300 rounded-full animate-pulse [animation-delay:-0.15s]" />
-                   <div className="w-1 h-1 bg-indigo-200 rounded-full animate-pulse" />
-                 </div>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Remover ${item.name} da sala`}
+                onClick={() => setToRemove(person)}
+                className="h-7 w-7 shrink-0 text-muted-foreground opacity-0 hover:text-red-600 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:text-red-300"
+              >
+                <UserX className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </Button>
             </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 border-none rounded-lg p-2 text-[10px] font-black uppercase tracking-widest text-indigo-300"><p>Pensando...</p></TooltipContent>
+            <TooltipContent>Remover da sala</TooltipContent>
           </Tooltip>
         )}
       </TooltipProvider>
     );
   };
-  const ghostParticipants = votes
-    .filter(v => !participants.some(p => p.id === v.participantId))
-    .map(v => ({
-      id: v.participantId,
-      nickname: v.participantNickname || 'Participante',
-      role: v.participantGlobalRole || (v.participantRole ? ROLE_LABELS[v.participantRole] : 'Ausente'),
-      indicator: (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center justify-center h-7 w-7 bg-slate-200 dark:bg-slate-700 rounded-xl opacity-60">
-                <Check className="h-4 w-4 text-slate-500 dark:text-slate-400" strokeWidth={3} />
-              </div>
-            </TooltipTrigger>
-            <TooltipContent className="bg-slate-900 border-none rounded-lg p-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-              <p>Voto de Participante Ausente</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )
-    }));
 
   return (
-    <EliteParticipantList
-      participants={participants.map(p => ({
-        ...p,
-        role: ROLE_LABELS[p.role] || p.role,
-        isOnline: onlineIds ? onlineIds.has(p.id) : true
-      }))}
-      currentUserId={currentUserId}
-      isFacilitator={isFacilitator}
-      onRemoveParticipant={onRemoveParticipant}
-      onClaimFacilitator={onClaimFacilitator}
-      renderIndicator={renderIndicator}
-      ghostParticipants={ghostParticipants}
-    />
+    <>
+      <PresenceList items={items} groupOrder={GROUP_ORDER} renderActions={renderActions} />
+
+      <ConfirmDialog
+        open={!!toRemove}
+        onOpenChange={(open) => { if (!open) setToRemove(null); }}
+        tone="danger"
+        icon={UserX}
+        title="Remover da sala?"
+        description={<><strong className="text-foreground">{toRemove?.nickname}</strong> perde o acesso a esta sala na hora.</>}
+        cancelLabel="Manter"
+        confirmLabel="Remover"
+        onConfirm={() => { if (toRemove) onRemoveParticipant(toRemove.id); setToRemove(null); }}
+      />
+
+      <ConfirmDialog
+        open={claimOpen}
+        onOpenChange={setClaimOpen}
+        tone="warn"
+        icon={Crown}
+        title="Assumir o controle da sala?"
+        description="Você vira o organizador desta sessão e os controles do atual deixam de valer. Use só se o organizador original estiver ausente ou desconectado."
+        confirmLabel="Assumir controle"
+        onConfirm={() => onClaimFacilitator?.()}
+      />
+    </>
   );
 }

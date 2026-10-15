@@ -1,108 +1,48 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import type { Participant, DeckType, Vote, VotingRound, TimerState, Role, Issue, Room } from '@/lib/types';
-import { calculateRoleEfforts, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
-import { Logo } from '@/components/Logo';
+import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
+import { summarizeRound, divergenceLabel } from '@/lib/poker-results';
+import { plainSnippet } from '@/lib/poker-table';
 import { ParticipantList } from '@/components/poker/ParticipantList';
-import { Toolbar } from './Toolbar';
 import { Controls } from '@/components/poker/Controls';
-import { VotingArea } from '@/components/poker/VotingArea';
-import { Results } from '@/components/poker/Results';
+import { RoundCenter, RoleBreakdown, CopyEstimateCard } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import { Copy, Eye, EyeOff, RotateCcw, Volume2, Sparkles, HelpCircle, Info, WalletCards, BrainCircuit, Trophy, Users, ArrowLeft, LayoutGrid, CheckCircle2, PanelLeftClose, PanelRightClose, Clock, ListChecks, Target, AlertTriangle, TrendingUp, Award, Plus, ChevronDown, Code, Bug, SkipForward, FileText, ListPlus, Hourglass, Download, ClipboardCopy, Kanban, MessageSquare, RefreshCcw, RotateCw, ExternalLink, Pin, Layers, X, Settings, Flag, Play, MoreHorizontal, CloudDownload, Bot, Ban, MessageSquareText, MessagesSquare } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel
-} from '@/components/ui/dropdown-menu';
+import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, WalletCards, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TopicDisplay } from './TopicDisplay';
 import { RefinementNotes } from './RefinementNotes';
 import { History } from './History';
-import { EliteTimer } from '../shared/EliteTimer';
-import { ExportDialog } from './ExportDialog';
 import { FacilitatorPanel } from './FacilitatorPanel';
-import { Card, CardContent } from '../ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Badge } from '../ui/badge';
 import { pokerApi } from '../../app/room/api';
 import { TopicQueue } from './TopicQueue';
 import { cn } from '@/lib/utils';
 import { RoomHeader } from '@/components/layout/RoomHeader';
-import { EliteSidebar } from '../shared/EliteSidebar';
 import { PokerGuide } from './PokerGuide';
 import { PokerChat } from './PokerChat';
 import { TeamChat } from './team-chat/TeamChat';
 import { IssueDetail } from './IssueDetail';
 import { OutlierPrompt } from './OutlierPrompt';
-import { SessionVelocity } from './SessionVelocity';
-import { VoteDistribution } from './VoteDistribution';
 import { ConfidenceSummary } from './ConfidenceSummary';
-import { TopicTiming } from './TopicTiming';
 import { saveTemplate } from '@/lib/poker-templates';
-import { ReactionOverlay, type RoomReaction } from './ReactionOverlay';
+import { ReactionBar, ReactionBubbles, type RoomReaction } from './ReactionOverlay';
 import { ShareRoomDialog } from './ShareRoomDialog';
 import { RoomWelcome, RoomWaiting } from './RoomWelcome';
-
-// Retorna true enquanto a viewport for menor que `px`. Usado para trocar as
-// sidebars fixas (desktop) por drawers (Sheet) no mobile/tablet.
-function useBelowBreakpoint(px: number): boolean {
-  const [below, setBelow] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${px - 1}px)`);
-    const update = () => setBelow(mql.matches);
-    update();
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
-  }, [px]);
-  return below;
-}
+import { SwitchIssueDialog, OffTableDialog, CancelIssueDialog, FinishSessionDialog, CeremonySettingsDialog } from './PokerDialogs';
+import { PokerRoomBar } from './PokerRoomBar';
+import { PokerTable } from './PokerTable';
+import { DecisionPanel } from './DecisionPanel';
+import { TaskActionsMenu } from './TaskActionsMenu';
+import { PokerSessionReport } from './PokerSessionReport';
+import { Modal, ModalButton, pokerPhase, ResponsivePanel, RoomTimer, StatusChip } from '@/components/room-kit';
 
 const WELCOME_DECK_LABELS: Record<string, string> = {
   fibonacci: 'Fibonacci',
-  hours: 'Horas Reais',
+  hours: 'Horas reais',
   tshirt: 'Camisetas',
 };
-
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map(part => part[0])
-    .join('')
-    .toUpperCase() || '?';
-}
 
 interface PokerRoomProps {
   roomId: string;
@@ -242,6 +182,7 @@ const PokerRoomComponent = ({
   onDeleteMessage = () => {},
 }: PokerRoomProps) => {
   const { toast } = useToast();
+  const router = useRouter();
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
@@ -258,26 +199,43 @@ const PokerRoomComponent = ({
   // fecha o outro para não empilhar dois painéis no mesmo lugar.
   const toggleKnowledgeChat = () => {
     setIsTeamChatOpen(false);
+    setIsParticipantsOpen(false);
+    setIsHistoryOpen(false);
     setIsChatOpen(v => !v);
   };
   const toggleTeamChat = () => {
     setIsChatOpen(false);
+    setIsParticipantsOpen(false);
+    setIsHistoryOpen(false);
     setIsTeamChatOpen(v => !v);
   };
+  const toggleParticipants = () => {
+    setIsChatOpen(false);
+    setIsTeamChatOpen(false);
+    setIsHistoryOpen(false);
+    setIsParticipantsOpen(v => !v);
+  };
+  const toggleHistory = () => {
+    setIsChatOpen(false);
+    setIsTeamChatOpen(false);
+    setIsParticipantsOpen(false);
+    setIsHistoryOpen(v => !v);
+  };
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // Ajuste manual das horas finais por papel (baralho de horas). Vale ao salvar e ao copiar; zera a cada rodada.
+  const [adjusted, setAdjusted] = useState<Record<string, string>>({});
   const [pendingIssueId, setPendingIssueId] = useState<string | null>(null);
   // Pular e Adiar dividem um botao so ("Tirar da mesa") e um modal so: o modo
   // escolhido dentro do modal decide qual handler roda. Economiza espaco numa
   // toolbar que ja disputa largura com Revelar/Cancelar/Encerrar.
-  const [offTableNote, setOffTableNote] = useState('');
   const canParkTask = (settings?.parkTask ?? true) && !!onParkIssue;
   const openOffTableDialog = (mode: 'skip' | 'park') => {
     setOffTableMode(canParkTask ? mode : 'skip');
-    setOffTableNote('');
     setIsOffTableDialogOpen(true);
   };
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [cancelNote, setCancelNote] = useState('');
   const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
 
   // Esc sai da apresentação: é o gesto que todo mundo tenta primeiro quando
@@ -513,6 +471,16 @@ const PokerRoomComponent = ({
 
     if (deck === 'hours' || deck === 'fibonacci' || !deck) {
       const result = calculateRoleEfforts(votes, participants, deck || 'fibonacci', undefined, roundingMode);
+      if (deck === 'hours' && Object.keys(adjusted).length > 0) {
+        const rolePoints = { ...result.rolePoints, ...adjusted };
+        const total = Object.values(rolePoints).reduce((acc, v) => acc + (Number(v) || 0), 0);
+        return {
+          points: String(total),
+          devPoints: rolePoints['Developer'] || '0',
+          qaPoints: rolePoints['QA'] || '0',
+          rolePoints,
+        };
+      }
       return {
         points: result.totalPoints,
         devPoints: result.devPoints,
@@ -565,6 +533,27 @@ const PokerRoomComponent = ({
     return eligible.length > 1 && new Set(eligible.map(v => v.value)).size === 1;
   }, [votes, participants, settings?.allowManagementToVote]);
   const hasHighDivergence = useMemo(() => [...divergences.values()].some(d => d === 'destructive'), [divergences]);
+
+  // Resultado da rodada revelada (mesma conta do salvar): alimenta o centro da mesa, os cartões por papel e o "Copiar estimativa".
+  const summary = useMemo(
+    () => (votesRevealed
+      ? summarizeRound(votes, participants, deck, { allowManagementToVote: settings?.allowManagementToVote, tshirtEquivalents: settings?.tshirtEquivalents, roundingMode })
+      : null),
+    [votesRevealed, votes, participants, deck, settings?.allowManagementToVote, settings?.tshirtEquivalents, roundingMode]
+  );
+  const roundDivergenceLabel = useMemo(() => {
+    if (!summary) return undefined;
+    const levels: Partial<Record<string, 'warning' | 'destructive'>> = {};
+    participants.forEach(p => {
+      const level = divergences.get(p.id);
+      const cat = getParticipantCategory(p);
+      if (cat && (level === 'warning' || level === 'destructive')) levels[cat] = level;
+    });
+    return divergenceLabel(summary, levels, deck);
+  }, [summary, participants, divergences, deck]);
+
+  // Ajuste manual vale só para a rodada atual: nova tarefa ou nova votação zera.
+  useEffect(() => { setAdjusted({}); }, [activeIssueId, votesRevealed]);
 
   // Contador de rodadas do item ativo: cada REVELAR grava um round com o
   // issueId (rounds pulados não contam). Alimenta o badge e o aviso opt-in
@@ -633,24 +622,12 @@ const PokerRoomComponent = ({
   // "FALTAM N" pra sempre. Alimenta o aviso antes da revelação.
   const eligibleVoters = participants.filter(p => canParticipantVote(p, settings?.allowManagementToVote) && onlineIds.has(p.id));
   const votedIds = new Set(votes.map(v => v.participantId));
-  const pendingVoters = eligibleVoters.filter(p => !votedIds.has(p.id)).length;
 
   // Categorias técnicas realmente presentes na sala — alimentam o revote
   // seletivo genérico (antes só Dev/QA fixos).
   const presentCategories = TECHNICAL_CATEGORIES.filter(cat =>
     participants.some(p => getParticipantCategory(p) === cat)
   );
-  const CATEGORY_ICON: Record<string, typeof Code> = {
-    Developer: Code,
-    QA: Bug,
-    UX: Users,
-    Designer: Users,
-  };
-
-  // No mobile/tablet as sidebars fixas somem (aside da fila é lg+, a de
-  // participantes é md+); abaixo desses limites usamos drawers (Sheet).
-  const queueIsDrawer = useBelowBreakpoint(1024);
-  const participantsIsDrawer = useBelowBreakpoint(768);
 
   const queueContent = (
     <TopicQueue
@@ -686,1403 +663,512 @@ const PokerRoomComponent = ({
       onUpdateParticipantRole={onUpdateParticipantRole}
       onClaimFacilitator={onClaimFacilitator}
       onlineIds={onlineIds}
+      allowManagementToVote={settings?.allowManagementToVote}
     />
   );
 
-  return (
-    <div className="flex h-dvh w-full bg-background overflow-hidden relative text-foreground">
-      {/* BARRA LATERAL ESQUERDA: TAREFAS */}
-      <aside
-        className={cn(
-          "hidden lg:flex flex-col border-r shadow-sm bg-card transition-all duration-300 ease-in-out overflow-hidden relative",
-          isQueueOpen && !isTheaterMode ? "w-72 opacity-100" : "w-0 opacity-0 border-none"
-        )}
-      >
-        <div className="w-72 flex flex-col h-full shrink-0">
-          <header className='p-4 border-b shrink-0 flex items-center justify-between'>
-            <div className="flex items-center gap-3">
-              <LayoutGrid className="h-3.5 w-3.5 text-primary" />
-              <h2 className="text-xs font-black tracking-widest uppercase">Tarefas</h2>
-              <span className="bg-primary/10 text-primary text-[10px] px-2.5 py-0.5 rounded-full">{issuesQueue.length}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsQueueOpen(false)}
-              className="h-7 w-7 text-muted-foreground hover:text-primary rounded-lg"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </Button>
-          </header>
-          <div className='p-0 bg-muted/5 flex-1 flex flex-col min-h-0'>
-            {queueContent}
-          </div>
-        </div>
-      </aside>
+  const phase = pokerPhase({ hasActiveIssue: !!activeIssueId && !isSessionFinished, sessionStarted: !!sessionStartedAt, revealed: votesRevealed });
+  const deckLabel = WELCOME_DECK_LABELS[deck] || deck;
+  const showRevealButton = !!activeIssueId && !isSessionFinished && !votesRevealed;
+  const timerVisible = !!timer && (timer.initialDuration > 0 || timer.status !== 'stopped');
 
-      {/* DRAWER MOBILE/TABLET: TAREFAS (a aside acima é lg+) */}
-      {queueIsDrawer && (
-        <Sheet open={isQueueOpen} onOpenChange={setIsQueueOpen}>
-          <SheetContent side="left" className="w-[88vw] max-w-sm p-0 flex flex-col">
-            <SheetHeader className="p-4 border-b shrink-0 text-left">
-              <SheetTitle className="text-xs font-black tracking-widest uppercase flex items-center gap-2">
-                <LayoutGrid className="h-3.5 w-3.5 text-primary" /> Tarefas
-                <span className="bg-primary/10 text-primary text-[10px] px-2.5 py-0.5 rounded-full">{issuesQueue.length}</span>
-              </SheetTitle>
-              <SheetDescription className="sr-only">Fila de tarefas da sessão</SheetDescription>
-            </SheetHeader>
-            <div className="flex-1 min-h-0 flex flex-col bg-muted/5">
-              {queueContent}
-            </div>
-          </SheetContent>
-        </Sheet>
+  const taskMenu = isCurrentUserFacilitator && activeIssueId && !isSessionFinished ? (
+    <TaskActionsMenu
+      canTakeOffTable={!votesRevealed}
+      canPark={canParkTask}
+      onTakeOffTable={() => openOffTableDialog('skip')}
+      canCancel={!votesRevealed && (settings?.cancelTask ?? true) && !!onCancelIssue}
+      onCancel={() => setIsCancelDialogOpen(true)}
+      canFinish={!!onFinishSession && !!sessionStartedAt}
+      onFinish={() => setIsFinishDialogOpen(true)}
+    />
+  ) : null;
+
+  const hasNotes = !!(activeIssue?.devNotes?.trim() || activeIssue?.qaNotes?.trim());
+
+  const tableFooter = (
+    <>
+      {settings?.referenceStory && referenceBaseline && !votesRevealed ? (
+        <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-muted/50 py-1 pl-3 pr-1.5 text-xs text-muted-foreground">
+          <Pin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+          <span className="truncate">Régua: <strong className="font-semibold text-foreground">{referenceBaseline.key ? `${referenceBaseline.key} = ` : ''}{referenceBaseline.display}</strong> · {referenceBaseline.title}</span>
+          {isCurrentUserFacilitator && onSetReference && (
+            <button type="button" onClick={() => onSetReference(null)} aria-label="Remover referência" className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <X className="h-3 w-3" strokeWidth={1.5} />
+            </button>
+          )}
+        </span>
+      ) : <span />}
+      {reactionsEnabled && onReact && <ReactionBar onReact={onReact} />}
+    </>
+  );
+
+  const theaterBar = (
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5 md:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <StatusChip tone="danger" dot className="uppercase tracking-wide">Apresentando</StatusChip>
+        <span className="truncate text-sm font-semibold">{roomTitle || 'Planning Poker'}</span>
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        {timerVisible && timer && (
+          <RoomTimer
+            timer={timer}
+            isFacilitator={isCurrentUserFacilitator}
+            onStart={onStartTimer}
+            onPause={onPauseTimer}
+            onResume={onResumeTimer}
+            onReset={onResetTimer}
+            onSetDuration={onSetTimerDuration}
+            isSoundEnabled={isSoundEnabled}
+            serverOffset={serverTimeOffset}
+          />
+        )}
+        <Button variant="outline" size="sm" onClick={() => setIsTheaterMode(false)} className="h-9 gap-2 rounded-lg">
+          <X className="h-4 w-4" strokeWidth={1.5} /> Sair da apresentação <kbd className="hidden rounded border border-border px-1 text-[11px] md:inline">Esc</kbd>
+        </Button>
+      </div>
+    </header>
+  );
+
+  const banners: React.ReactNode[] = [];
+  if (votesRevealed && settings?.suggestRevote && hasHighDivergence) {
+    banners.push(
+      <div key="revote" className="flex flex-col justify-between gap-3 rounded-xl border border-red-500/40 bg-red-500/5 p-3.5 sm:flex-row sm:items-center">
+        <span className="flex items-center gap-2 text-sm text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.5} /> Divergência crítica entre os votos. Vale discutir e revotar.</span>
+        {isCurrentUserFacilitator && <Button size="sm" variant="outline" onClick={onClear} className="h-9 gap-2 whitespace-nowrap rounded-lg"><RotateCcw className="h-4 w-4" strokeWidth={1.5} /> Revotar todos</Button>}
+      </div>
+    );
+  }
+  if (showRoundNudge) {
+    banners.push(
+      <div key="nudge" className="flex flex-col justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3.5 sm:flex-row sm:items-center">
+        <span className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300"><Layers className="h-4 w-4 shrink-0" strokeWidth={1.5} /> {activeRoundCount} rodadas sem consenso. Considere quebrar a história em partes menores ou adiá-la.</span>
+        {isCurrentUserFacilitator && (
+          <Button size="sm" variant="outline" onClick={() => openOffTableDialog('park')} className="h-9 gap-2 whitespace-nowrap rounded-lg">
+            {canParkTask ? <><Hourglass className="h-4 w-4" strokeWidth={1.5} /> Adiar</> : <><SkipForward className="h-4 w-4" strokeWidth={1.5} /> Pular</>}
+          </Button>
+        )}
+      </div>
+    );
+  }
+  if (votesRevealed && settings?.groomingFlag && votes.some(v => v.value === '?')) {
+    banners.push(
+      <div key="grooming" className="flex flex-col justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-3.5 sm:flex-row sm:items-center">
+        <span className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300"><HelpCircle className="h-4 w-4 shrink-0" strokeWidth={1.5} /> {votes.filter(v => v.value === '?').length} pessoa(s) pediram mais informação (voto &quot;?&quot;).</span>
+        {isCurrentUserFacilitator && (
+          <Button size="sm" variant="outline" onClick={() => onSkipIssue('Enviado para grooming — faltou informação para estimar.')} className="h-9 gap-2 whitespace-nowrap rounded-lg">
+            <SkipForward className="h-4 w-4" strokeWidth={1.5} /> Enviar para grooming
+          </Button>
+        )}
+      </div>
+    );
+  }
+  if (activeIssueId && !isSessionFinished && settings?.roundNudge) {
+    banners.push(
+      <div key="rounds" className={cn('inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 text-xs', activeRoundCount >= maxRounds ? 'border-amber-500/50 text-amber-700 dark:text-amber-300' : 'border-border text-muted-foreground')}>
+        <RotateCw className="h-3 w-3" strokeWidth={1.5} /> Rodada {currentRoundNumber} de {maxRounds}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
+      {isTheaterMode ? theaterBar : (
+        <>
+          <RoomHeader
+            title={roomTitle || 'Planning Poker'}
+            toolIcon={<WalletCards className="h-4 w-4" />}
+            toolColorClass="text-primary"
+            onOpenFeedback={onOpenFeedback}
+          />
+          <PokerRoomBar
+            roomTitle={roomTitle || 'Planning Poker'}
+            roomTeam={roomTeam}
+            deckLabel={deckLabel}
+            phase={phase}
+            isFacilitator={isCurrentUserFacilitator}
+            timer={timer}
+            serverTimeOffset={serverTimeOffset}
+            isSoundEnabled={isSoundEnabled}
+            onSetIsSoundEnabled={onSetIsSoundEnabled}
+            onStartTimer={onStartTimer}
+            onPauseTimer={onPauseTimer}
+            onResumeTimer={onResumeTimer}
+            onResetTimer={onResetTimer}
+            onSetTimerDuration={onSetTimerDuration}
+            isQueueOpen={isQueueOpen}
+            onToggleQueue={() => setIsQueueOpen(v => !v)}
+            isParticipantsOpen={isParticipantsOpen}
+            onToggleParticipants={toggleParticipants}
+            isTeamChatOpen={isTeamChatOpen}
+            teamChatUnread={teamChatUnread}
+            onToggleTeamChat={toggleTeamChat}
+            isKnowledgeOpen={isChatOpen}
+            onToggleKnowledge={toggleKnowledgeChat}
+            isHistoryOpen={isHistoryOpen}
+            historyCount={(votingRounds || []).length}
+            onToggleHistory={toggleHistory}
+            onShare={handleCopyLink}
+            onOpenSettings={() => setIsFacilitatorSettingsOpen(true)}
+            onOpenGuide={() => setIsGuideOpen(true)}
+            onTheater={() => setIsTheaterMode(true)}
+            onOpenRetro={onOpenRetro}
+            canReveal={votes.length > 0}
+            showReveal={showRevealButton}
+            votedCount={votes.length}
+            voterTotal={Math.max(eligibleVoters.length, votes.length)}
+            onReveal={handleReveal}
+          />
+        </>
       )}
 
-      {/* MESH GRADIENT DECORATION */}
-      <div className="fixed top-0 left-0 w-full h-full -z-10 opacity-30 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 rounded-full blur-[160px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-violet-400/10 rounded-full blur-[140px]"></div>
-      </div>
-
-      {/* ÁREA CENTRAL: MESA DE VOTAÇÃO */}
-      <div className="bg-transparent h-dvh overflow-hidden flex flex-col flex-1 relative min-w-0 transition-all duration-300">
-        {/*
-          Modo apresentação: antes só trocava max-w-7xl por max-w-none e dava
-          um scale de 1.02 — com a barra lateral já fechada, não mudava nada
-          visível, daí a sensação de "não funciona". Agora a barra completa sai
-          de cena e entra uma faixa mínima com o essencial e a saída explícita
-          (Esc também sai).
-        */}
-        {isTheaterMode ? (
-          <header className="sticky top-0 z-50 w-full shrink-0">
-            <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-white/60 dark:border-slate-800/60 h-12 flex items-center justify-between gap-3 px-4 md:px-6">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[9px] font-black uppercase tracking-widest shrink-0">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-500 opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-rose-500" />
-                  </span>
-                  Apresentando
-                </span>
-                <span className="text-xs font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100 truncate">
-                  {roomTitle || 'Scrum Poker'}
-                </span>
-              </div>
-              {/* Andamento da rodada: quem apresenta enxerga o quórum sem sair do modo. */}
-              {activeIssueId && !isSessionFinished && (
-                <div className="hidden md:flex items-center gap-3 min-w-0" aria-live="polite">
-                  <div className="h-1.5 w-40 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
-                    <div
-                      className={cn('h-full rounded-full transition-all duration-700', votesRevealed ? 'bg-emerald-500' : 'bg-indigo-500')}
-                      style={{ width: `${votesRevealed ? 100 : Math.min(100, (votes.length / Math.max(1, eligibleVoters.length, votes.length)) * 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest tabular-nums text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                    {votesRevealed ? 'Votos revelados' : `${votes.length} de ${Math.max(eligibleVoters.length, votes.length)} votaram`}
-                  </span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 shrink-0">
-                {timer && (timer.initialDuration > 0 || timer.status !== 'stopped') && (
-                  <div className="hidden sm:block">
-                    <EliteTimer
-                      timer={timer}
-                      onStart={onStartTimer}
-                      onPause={onPauseTimer}
-                      onResume={onResumeTimer}
-                      onReset={onResetTimer}
-                      onSetDuration={onSetTimerDuration}
-                      isSoundEnabled={isSoundEnabled}
-                      onToggleSound={(enabled) => onSetIsSoundEnabled(enabled)}
-                      isFacilitator={isCurrentUserFacilitator}
-                      serverOffset={serverTimeOffset}
-                      compact
-                    />
-                  </div>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setIsTheaterMode(false)}
-                  className="h-9 px-4 rounded-xl border-2 border-rose-400/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 font-black uppercase text-[9px] tracking-widest gap-2"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Sair <span className="hidden sm:inline">da apresentação</span>
-                  <kbd className="hidden md:inline text-[8px] font-bold opacity-60 border border-current rounded px-1 ml-1">Esc</kbd>
-                </Button>
-              </div>
-            </div>
-          </header>
-        ) : (
-        <RoomHeader
-          title={roomTitle || "Scrum Poker"}
-          toolIcon={<WalletCards className="h-4 w-4" />}
-          toolColorClass="text-blue-600 bg-blue-50"
-          onOpenFeedback={onOpenFeedback}
-          actions={
-            /*
-              A barra tinha 19 controles sempre visíveis e transbordava bem
-              antes do mobile (a 768px pedia ~1080px, empurrando o perfil para
-              fora e colando o botão de home no cronômetro). Agora só o que se
-              usa a toda hora fica fixo — fila, participantes e o timer — e o
-              resto vai para um menu "mais opções" abaixo de lg.
-            */
-            <div className="flex items-center gap-1.5 min-w-0">
-              {timer && (timer.initialDuration > 0 || timer.status !== 'stopped') && (
-                <div className="mr-1 hidden sm:block">
-                  <EliteTimer
-                    timer={timer}
-                    onStart={onStartTimer}
-                    onPause={onPauseTimer}
-                    onResume={onResumeTimer}
-                    onReset={onResetTimer}
-                    onSetDuration={onSetTimerDuration}
-                    isSoundEnabled={isSoundEnabled}
-                    onToggleSound={(enabled) => onSetIsSoundEnabled(enabled)}
-                    isFacilitator={isCurrentUserFacilitator}
-                    serverOffset={serverTimeOffset}
-                    compact
-                  />
-                </div>
-              )}
-              <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50 shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsQueueOpen(!isQueueOpen)}
-                className={cn("h-9 w-9 rounded-xl transition-all shrink-0", isQueueOpen ? "text-primary bg-primary/10 dark:text-primary dark:bg-primary/20" : "text-slate-400 dark:text-muted-foreground")}
-                title="Fila de Tarefas"
-                aria-label="Fila de tarefas"
-                aria-pressed={isQueueOpen}
-              >
-                <ListChecks className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
-                className={cn("h-9 w-9 rounded-xl transition-all shrink-0", isParticipantsOpen ? "text-primary bg-primary/10 dark:text-primary dark:bg-primary/20" : "text-slate-400 dark:text-muted-foreground")}
-                title="Participantes"
-                aria-label="Participantes"
-                aria-pressed={isParticipantsOpen}
-              >
-                <Users className="h-4 w-4" />
-              </Button>
-              </div>
-
-              {/* Ações secundárias: soltas em telas largas, agrupadas abaixo de lg. */}
-              <div className={cn("hidden items-center gap-1.5", isQueueOpen ? "2xl:flex" : "lg:flex")}>
-                <div className="flex items-center gap-0.5 p-0.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/50">
-                {isCurrentUserFacilitator && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsTheaterMode(!isTheaterMode)}
-                    className={cn("h-9 w-9 rounded-xl transition-all", isTheaterMode ? "text-pink-600 bg-pink-50 dark:text-pink-400 dark:bg-pink-950/20" : "text-slate-400 dark:text-muted-foreground")}
-                    title={isTheaterMode ? "Sair do Modo Apresentação" : "Modo Apresentação"}
-                    aria-label={isTheaterMode ? "Sair do modo apresentação" : "Modo apresentação"}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
-
-                {isCurrentUserFacilitator && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsFacilitatorSettingsOpen(true)}
-                    className={cn("h-9 w-9 rounded-xl transition-all", isFacilitatorSettingsOpen ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/20" : "text-slate-400 dark:text-muted-foreground")}
-                    title="Configurações da Cerimônia"
-                    aria-label="Configurações da cerimônia"
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                )}
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleTeamChat}
-                  className={cn("relative h-9 w-9 rounded-xl transition-all", isTeamChatOpen ? "text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/20" : "text-slate-400 dark:text-muted-foreground")}
-                  title="Chat da sala"
-                >
-                  <MessagesSquare className="h-4 w-4" />
-                  {teamChatUnread > 0 && !isTeamChatOpen && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
-                      {teamChatUnread > 99 ? '99+' : teamChatUnread}
-                    </span>
-                  )}
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleKnowledgeChat}
-                  className={cn("h-9 w-9 rounded-xl transition-all", isChatOpen ? "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/20" : "text-slate-400 dark:text-muted-foreground")}
-                  title="Base de Conhecimento"
-                  aria-label="Base de conhecimento"
-                >
-                  <Sparkles className="h-4 w-4" />
-                </Button>
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyLink}
-                  className="h-9 px-3 rounded-xl border-slate-200 dark:border-border text-slate-600 dark:text-foreground font-bold uppercase text-[9px] tracking-widest gap-2 hover:bg-slate-50 dark:hover:bg-muted transition-all"
-                >
-                  <Copy className="h-3.5 w-3.5" /> Link
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setIsGuideOpen(true)}
-                  className="h-8 w-8 p-0 font-bold text-[9px] uppercase tracking-widest border-slate-200 dark:border-border text-slate-500 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted rounded-lg"
-                  title="GUIA DO POKER"
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                </Button>
-
-                {onOpenRetro && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={onOpenRetro}
-                    className="h-8 w-8 p-0 font-bold text-[9px] uppercase tracking-widest border-slate-200 dark:border-border text-slate-500 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted rounded-lg"
-                    title="Abrir Retro desta Sprint"
-                  >
-                    <MessageSquareText className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn("h-9 w-9 rounded-xl text-slate-400 dark:text-muted-foreground shrink-0", isQueueOpen ? "2xl:hidden" : "lg:hidden")}
-                    title="Mais opções"
-                    aria-label="Mais opções da sala"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {isCurrentUserFacilitator && (
-                    <DropdownMenuItem onClick={() => setIsTheaterMode(!isTheaterMode)} className="gap-2 text-xs font-bold">
-                      <Eye className="h-4 w-4" />
-                      {isTheaterMode ? 'Sair da apresentação' : 'Modo apresentação'}
-                    </DropdownMenuItem>
-                  )}
-                  {isCurrentUserFacilitator && (
-                    <DropdownMenuItem onClick={() => setIsFacilitatorSettingsOpen(true)} className="gap-2 text-xs font-bold">
-                      <Settings className="h-4 w-4" />
-                      Configurações da cerimônia
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={toggleTeamChat} className="gap-2 text-xs font-bold">
-                    <MessagesSquare className="h-4 w-4" />
-                    Chat da sala
-                    {teamChatUnread > 0 && (
-                      <span className="ml-auto min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center">
-                        {teamChatUnread > 99 ? '99+' : teamChatUnread}
-                      </span>
-                    )}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={toggleKnowledgeChat} className="gap-2 text-xs font-bold">
-                    <Sparkles className="h-4 w-4" />
-                    Base de conhecimento
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleCopyLink} className="gap-2 text-xs font-bold">
-                    <Copy className="h-4 w-4" />
-                    Copiar link da sala
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setIsGuideOpen(true)} className="gap-2 text-xs font-bold">
-                    <HelpCircle className="h-4 w-4" />
-                    Guia do poker
-                  </DropdownMenuItem>
-                  {onOpenRetro && (
-                    <DropdownMenuItem onClick={onOpenRetro} className="gap-2 text-xs font-bold">
-                      <MessageSquareText className="h-4 w-4" />
-                      Abrir retro desta sprint
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <PokerGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
-            </div>
-          }
-        />
+      <div className="relative flex min-h-0 flex-1">
+        {!isTheaterMode && (
+          <ResponsivePanel
+            side="left"
+            open={isQueueOpen}
+            onOpenChange={setIsQueueOpen}
+            sheetBelow={1024}
+            widthClass="w-80"
+            title="Fila"
+            icon={ListChecks}
+            count={issuesQueue.length}
+            flush
+          >
+            {queueContent}
+          </ResponsivePanel>
         )}
 
-        {/* ALERTA DE VOTOS NÃO SALVOS AO TROCAR TAREFA */}
-        <AlertDialog open={!!pendingIssueId} onOpenChange={(open) => !open && setPendingIssueId(null)}>
-          <AlertDialogContent className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl bg-white/90 dark:bg-card/90 backdrop-blur-xl max-w-md">
-            <AlertDialogHeader>
-              <div className="mx-auto w-16 h-16 bg-amber-100 dark:bg-amber-950/40 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4 animate-pulse">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <AlertDialogTitle className="text-xl font-black uppercase tracking-tight text-center text-slate-900 dark:text-white">Votos em andamento!</AlertDialogTitle>
-              <AlertDialogDescription className="text-center font-medium text-slate-500 dark:text-slate-400">
-                Existem votos computados para a tarefa atual. Ao mudar de tarefa agora, esses votos serão <span className="text-destructive font-bold uppercase underline">descartados</span>.
-                Deseja prosseguir mesmo assim?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-              <AlertDialogCancel className="rounded-2xl h-12 flex-1 font-bold uppercase tracking-widest text-[10px] border-slate-200">
-                Voltar e Salvar
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmIssueSwitch}
-                className="rounded-2xl h-12 flex-1 font-black uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all"
-              >
-                Sim, descartar votos
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <main className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-3 sm:p-5">
+          <div aria-hidden="true" className="room-halo pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]" />
 
-
-
-
-        <div className="relative flex-1 flex flex-col p-3 sm:p-5 overflow-y-auto">
-
-          <div className={cn(
-            "mx-auto w-full space-y-6 transition-all duration-500",
-            isTheaterMode ? "max-w-none px-6 lg:px-16 xl:px-24 text-[1.06rem]" : "max-w-7xl"
-          )}>
-
-            {/* Action Bar / Header Unificado */}
-            {/*
-              Empilha abaixo de sm: numa única linha o título disputava espaço
-              com 3 botões e era espremido até quebrar letra por letra
-              ("V O A G"), enquanto os botões vazavam da tela.
-            */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between w-full p-2.5 lg:p-3 bg-white/90 dark:bg-card/90 backdrop-blur-md rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.05)] border border-white/60 dark:border-border/40 mb-2 gap-2 shrink-0 overflow-hidden">
-              <div className="flex flex-1 min-w-0 overflow-hidden items-center gap-4">
-                <TopicDisplay
-                  topic={isSessionFinished ? "" : String(activeIssue?.title || currentTopic || "")}
-                  jiraLink={isSessionFinished ? undefined : activeIssue?.jiraLink || undefined}
-                  hasDetail={!isSessionFinished && !!(activeIssue?.jiraLink || activeIssue?.description || activeIssue?.acceptanceCriteria)}
-                  onSetTopic={onSetTopic}
-                  isFacilitator={isCurrentUserFacilitator}
-                  isSessionFinished={isSessionFinished}
-                  untouchedCount={isSessionFinished ? issuesQueue.filter(i => !i.skipped && i.status !== 'completed').length : 0}
-                  isTheaterMode={isTheaterMode}
-                  onShowDetail={() => setIsDetailOpen(true)}
-                  votedCount={votes.length}
-                  totalVoters={Math.max(eligibleVoters.length, votes.length)}
-                  round={activeIssueId && !settings?.roundNudge ? currentRoundNumber : undefined}
-                  revealed={votesRevealed}
+          {isInitialState ? (
+            <div className="flex flex-1 items-start justify-center py-4">
+              {isCurrentUserFacilitator ? (
+                <RoomWelcome
+                  deck={deck}
+                  deckLabel={deckLabel}
+                  roomTeam={roomTeam}
+                  participants={participants}
+                  onlineIds={onlineIds}
+                  roomUrl={typeof window !== 'undefined' ? `${window.location.origin}/room/${roomId}` : ''}
+                  onShare={handleCopyLink}
+                  onImportJira={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
+                  onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
                 />
-
-
-              </div>
-
-              {isCurrentUserFacilitator && activeIssueId && (
-                <div className="flex flex-row flex-wrap gap-1.5 lg:gap-2 shrink-0 items-center justify-end">
-                  {!votesRevealed ? (
-                    <>
-                      <Button
-                        size="sm"
-                        onClick={handleReveal}
-                        disabled={votesRevealed || votes.length === 0}
-                        className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-slate-100 dark:disabled:bg-slate-800/50 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:opacity-100 font-black h-8 px-2.5 lg:h-9 lg:px-4 text-[9px] lg:text-[10px] shadow-sm rounded-xl group transition-all active:scale-95 uppercase tracking-wider whitespace-nowrap"
-                      >
-                        <Eye className="mr-1 lg:mr-1.5 h-3.5 w-3.5 transition-transform group-hover:scale-110" />
-                        REVELAR VOTOS
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex relative inline-flex rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all shadow-sm overflow-hidden shrink-0">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => { onClear(); }}
-                          className="font-black h-8 px-2.5 lg:h-9 lg:px-3.5 text-[9px] lg:text-[10px] text-slate-700 dark:text-slate-300 rounded-none rounded-l-xl focus:ring-0 uppercase tracking-wider whitespace-nowrap border-r border-slate-300/50 dark:border-slate-800 hover:bg-transparent"
-                        >
-                          <RotateCcw className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">REVOTAR TODOS</span>
-                          <span className="inline sm:hidden">REVOTAR</span>
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="font-black h-8 w-7 lg:h-9 lg:w-8 text-slate-700 dark:text-slate-300 px-0 rounded-none rounded-r-xl focus:ring-0 hover:bg-slate-300 dark:hover:bg-slate-800 shrink-0"
-                            >
-                              <ChevronDown className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 font-medium rounded-xl p-2 border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-950">
-                            <DropdownMenuLabel className="text-xs uppercase text-slate-400 font-bold tracking-widest px-2 py-1.5">
-                              Revotar Parcial
-                            </DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-800" />
-                            {presentCategories.length === 0 && (
-                              <div className="px-2 py-2 text-[11px] font-medium text-slate-400 italic">
-                                Nenhum papel técnico presente
-                              </div>
-                            )}
-                            {presentCategories.map(cat => {
-                              const Icon = CATEGORY_ICON[cat] || Users;
-                              return (
-                                <DropdownMenuItem
-                                  key={cat}
-                                  onClick={() => onSelectiveRevote && onSelectiveRevote(cat)}
-                                  className="rounded-lg cursor-pointer py-2 focus:bg-indigo-50 dark:focus:bg-indigo-950/40 focus:text-indigo-700 dark:focus:text-indigo-400 transition-colors group"
-                                >
-                                  <Icon className="mr-2 h-4 w-4 opacity-50 group-focus:opacity-100 group-focus:text-indigo-600" />
-                                  <span className="font-bold">Apenas {cat}</span>
-                                </DropdownMenuItem>
-                              );
-                            })}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleCalculateAndComplete}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-8 px-2.5 lg:h-9 lg:px-4 text-[9px] lg:text-[10px] shadow-sm rounded-xl transition-all active:scale-95 uppercase tracking-wider whitespace-nowrap"
-                      >
-                        <CheckCircle2 className="mr-1 lg:mr-1.5 h-3.5 w-3.5" />
-                        {hasNextPending ? 'SALVAR E PRÓX.' : 'SALVAR FINAL'}
-                      </Button>
-                    </>
-                  )}
-                  {/*
-                    Encerrar com fila cheia: o tempo estourou e o time só chegou
-                    em parte dos itens. Fica fora do ternário de propósito — o
-                    estouro de tempo pode acontecer tanto votando quanto com os
-                    votos já revelados.
-                  */}
-                  {(!votesRevealed || (onFinishSession && sessionStartedAt)) && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          title="Mais ações da tarefa"
-                          aria-label="Mais ações da tarefa"
-                          className="h-8 w-8 lg:h-9 lg:w-9 p-0 rounded-xl border-slate-200 dark:border-border text-slate-500 dark:text-muted-foreground hover:bg-slate-50 dark:hover:bg-muted shrink-0"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-64 rounded-xl p-2">
-                        {!votesRevealed && (
-                          <DropdownMenuItem onClick={() => openOffTableDialog('skip')} className="gap-2 rounded-lg py-2 text-xs font-bold text-amber-700 dark:text-amber-400 focus:bg-amber-50 dark:focus:bg-amber-950/30">
-                            <SkipForward className="h-4 w-4" />
-                            <span className="flex flex-col">
-                              {canParkTask ? 'Tirar da mesa' : 'Pular tarefa'}
-                              <span className="text-[10px] font-medium text-slate-400">{canParkTask ? 'Pular de vez ou adiar para o fim da fila' : 'Sai da estimativa desta sessão'}</span>
-                            </span>
-                          </DropdownMenuItem>
-                        )}
-                        {!votesRevealed && (settings?.cancelTask ?? true) && onCancelIssue && (
-                          <DropdownMenuItem onClick={() => { setCancelNote(''); setIsCancelDialogOpen(true); }} className="gap-2 rounded-lg py-2 text-xs font-bold text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-950/30">
-                            <Ban className="h-4 w-4" />
-                            <span className="flex flex-col">
-                              Cancelar tarefa
-                              <span className="text-[10px] font-medium text-slate-400">Descartada no refinamento</span>
-                            </span>
-                          </DropdownMenuItem>
-                        )}
-                        {/*
-                          Encerrar com fila cheia: o tempo estourou e o time só chegou
-                          em parte dos itens. Vale tanto votando quanto com os votos
-                          já revelados.
-                        */}
-                        {onFinishSession && sessionStartedAt && (
-                          <>
-                            {!votesRevealed && <DropdownMenuSeparator />}
-                            <DropdownMenuItem onClick={() => setIsFinishDialogOpen(true)} className="gap-2 rounded-lg py-2 text-xs font-bold text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-950/30">
-                              <Flag className="h-4 w-4" />
-                              <span className="flex flex-col">
-                                Encerrar sessão
-                                <span className="text-[10px] font-medium text-slate-400">Gera o relatório; o que sobrar entra como não abordado</span>
-                              </span>
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
+              ) : (
+                <RoomWaiting deck={deck} deckLabel={deckLabel} roomTeam={roomTeam} participants={participants} onlineIds={onlineIds} />
               )}
             </div>
+          ) : isSessionFinished && stats ? (
+            <PokerSessionReport
+              roomId={roomId}
+              roomTitle={roomTitle}
+              roomTeam={roomTeam}
+              deck={deck}
+              stats={stats}
+              issues={issuesQueue}
+              participants={participants}
+              rounds={votingRounds || []}
+              sessionStartedAt={sessionStartedAt}
+              sessionEndedAt={sessionEndedAt}
+              settings={settings}
+              onRefreshHistory={handleExportTasksToWorkspace}
+              onOpenRetro={onOpenRetro}
+              onNewSession={() => router.push('/room?nova=1')}
+            />
+          ) : (
+            <>
+              <TopicDisplay
+                topic={String(activeIssue?.title || currentTopic || '')}
+                jiraLink={activeIssue?.jiraLink || undefined}
+                issueKey={activeIssue?.key}
+                issueType={activeIssue?.jiraType}
+                snippet={plainSnippet(activeIssue?.description)}
+                hasDetail={!!(activeIssue?.jiraLink || activeIssue?.description || activeIssue?.acceptanceCriteria)}
+                onSetTopic={onSetTopic}
+                isFacilitator={isCurrentUserFacilitator}
+                isTheaterMode={isTheaterMode}
+                onShowDetail={() => setIsDetailOpen(true)}
+                onShowNotes={settings?.refinementNotes && activeIssueId ? () => setIsNotesOpen(true) : undefined}
+                hasNotes={hasNotes}
+                menu={taskMenu}
+                round={activeIssueId ? currentRoundNumber : undefined}
+                maxRounds={settings?.roundNudge ? maxRounds : undefined}
+                revealed={votesRevealed}
+              />
 
-            {/* Faixa de contexto: régua de referência + contador de rodadas
-                (ambos opt-in). Fora do card de ações pra não competir com os
-                botões nem cobrir o baralho. */}
-            {((settings?.referenceStory && referenceBaseline && !votesRevealed) ||
-              (settings?.roundNudge && activeIssueId && !isSessionFinished)) && (
-              <div className="flex flex-wrap items-center gap-2 -mt-1 px-1 shrink-0">
-                {settings?.referenceStory && referenceBaseline && !votesRevealed && (
-                  <div className="flex items-center gap-2 max-w-full rounded-full border border-indigo-200/70 dark:border-indigo-900/40 bg-indigo-50/60 dark:bg-indigo-950/20 pl-3 pr-1.5 py-1">
-                    <Pin className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 shrink-0">Referência</span>
-                    <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate min-w-0">
-                      {referenceBaseline.key ? `${referenceBaseline.key} · ` : ''}{referenceBaseline.title}
-                    </span>
-                    <span className="text-[11px] font-black text-indigo-700 dark:text-indigo-300 bg-white dark:bg-slate-900 rounded-full px-2 py-0.5 shrink-0">
-                      {referenceBaseline.display}
-                    </span>
-                    {isCurrentUserFacilitator && onSetReference && (
-                      <button
-                        type="button"
-                        onClick={() => onSetReference(null)}
-                        className="h-5 w-5 flex items-center justify-center rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors shrink-0"
-                        title="Remover referência"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                )}
-                {settings?.roundNudge && activeIssueId && !isSessionFinished && (
-                  <div className={cn(
-                    "flex items-center gap-1.5 rounded-full border px-3 py-1 shrink-0",
-                    activeRoundCount >= maxRounds
-                      ? "border-orange-300/70 dark:border-orange-900/50 bg-orange-50/60 dark:bg-orange-950/20 text-orange-700 dark:text-orange-400"
-                      : "border-slate-200/70 dark:border-border/50 bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400"
-                  )}>
-                    <RotateCw className="h-3 w-3" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Rodada {currentRoundNumber}/{maxRounds}</span>
-                  </div>
-                )}
-              </div>
-            )}
+              {banners.length > 0 && <div className="flex flex-col gap-2.5">{banners}</div>}
 
-            {/*
-              Início explícito da cerimônia. O relógio da sessão (e o tempo do
-              primeiro item) passa a contar daqui — não da importação da fila,
-              que costuma acontecer horas antes. Enquanto ninguém inicia, o
-              primeiro voto ainda serve de rede de segurança.
-            */}
-            {activeIssueId && !sessionStartedAt && !isSessionFinished && (
-              <div className="relative flex flex-col sm:flex-row items-center justify-between gap-4 overflow-hidden rounded-3xl border border-indigo-200/70 dark:border-indigo-900/50 bg-gradient-to-br from-indigo-50 via-white to-violet-50 dark:from-indigo-950/40 dark:via-card dark:to-violet-950/30 px-5 py-4 mb-4 shrink-0 shadow-[0_20px_50px_-28px_rgba(79,70,229,0.5)] animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-indigo-500/15 blur-3xl" aria-hidden />
-                <div className="relative flex items-center gap-4 text-center sm:text-left">
-                  <div className="relative shrink-0">
-                    <span className="absolute inset-0 rounded-2xl bg-indigo-500/30 animate-ping" aria-hidden />
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/30 -rotate-3">
-                      <Clock className="h-6 w-6" />
+              {/* Início explícito da cerimônia: o relógio da sessão e o tempo de cada tarefa contam daqui. */}
+              {activeIssueId && !sessionStartedAt && (
+                <section className="room-rise flex flex-col items-center justify-between gap-4 rounded-[14px] border border-primary/40 bg-primary/5 px-5 py-4 sm:flex-row">
+                  <div className="flex items-center gap-4 text-center sm:text-left">
+                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+                      <Clock className="h-5 w-5" strokeWidth={1.5} />
+                    </span>
+                    <div>
+                      <h2 className="m-0 text-[15px] font-semibold">{isCurrentUserFacilitator ? 'Tudo pronto para começar' : 'Aguardando o facilitador'}</h2>
+                      <p className="m-0 mt-0.5 max-w-md text-sm text-muted-foreground">
+                        {isCurrentUserFacilitator
+                          ? 'O timer e o tempo de cada tarefa contam a partir daqui, e o baralho abre para todos.'
+                          : 'Assim que ele iniciar o refinamento, o baralho abre e a votação começa.'}
+                      </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">
-                      {isCurrentUserFacilitator ? 'Tudo pronto para começar' : 'Aguardando o facilitador'}
-                    </p>
-                    <p className="mt-0.5 max-w-md text-[11px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">
-                      {isCurrentUserFacilitator
-                        ? 'Inicie quando o time estiver reunido — o cronômetro e o tempo de cada tarefa contam a partir daí, e o baralho é liberado para todos.'
-                        : 'Assim que ele iniciar o refinamento, o baralho é liberado e a votação começa.'}
-                    </p>
-                  </div>
-                </div>
-                {isCurrentUserFacilitator && onStartSession && (
-                  <Button
-                    onClick={onStartSession}
-                    className="relative h-11 w-full sm:w-auto shrink-0 gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-7 text-[10px] font-black uppercase tracking-widest text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-700 hover:to-violet-700 active:scale-95 transition-all"
-                  >
-                    <Play className="h-4 w-4" /> Iniciar refinamento
-                  </Button>
-                )}
-              </div>
-            )}
+                  {isCurrentUserFacilitator && onStartSession && (
+                    <ModalButton variant="primary" onClick={onStartSession} className="h-11 w-full gap-2 px-6 sm:w-auto">
+                      <Play className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Iniciar refinamento
+                    </ModalButton>
+                  )}
+                </section>
+              )}
 
-            {isCurrentUserFacilitator && (
-              <Dialog open={isFacilitatorSettingsOpen} onOpenChange={setIsFacilitatorSettingsOpen}>
-                <DialogContent className="flex max-h-[88vh] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-0 shadow-2xl dark:border-border dark:bg-card sm:rounded-3xl">
-                  <DialogHeader className="shrink-0 space-y-1.5 border-b border-slate-100 px-6 pb-4 pt-6 text-left dark:border-border/60">
-                    <div className="flex items-center gap-3 pr-8">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/25">
-                        <Settings className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <DialogTitle className="text-lg font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">Configurações da cerimônia</DialogTitle>
-                        <DialogDescription className="text-[11px] font-medium text-slate-500 dark:text-muted-foreground">
-                          Ajuste como a votação funciona nesta sala. Cada mudança vale na hora para todo o time.
-                        </DialogDescription>
-                      </div>
-                    </div>
-                  </DialogHeader>
-                  <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
-                    <FacilitatorPanel
-                                deck={deck}
-                                onUpdateSettings={onUpdateSettings}
-                                allowManagementToVote={settings?.allowManagementToVote}
-                                autoReveal={settings?.autoReveal}
-                                outlierPrompt={settings?.outlierPrompt}
-                                confidenceVote={settings?.confidenceVote}
-                                showVelocity={settings?.showVelocity}
-                                anonymousReveal={settings?.anonymousReveal}
-                                turnNotification={settings?.turnNotification}
-                                showDistribution={settings?.showDistribution}
-                                decisionNotes={settings?.decisionNotes}
-                                perTopicTime={settings?.perTopicTime !== false}
-                                autoTimer={settings?.autoTimer}
-                                groomingFlag={settings?.groomingFlag}
-                                autoConsensus={settings?.autoConsensus}
-                                suggestRevote={settings?.suggestRevote}
-                                reactions={settings?.reactions}
-                                roundingMode={settings?.roundingMode}
-                                blindVotes={settings?.blindVotes}
-                                groupVotesByRole={settings?.groupVotesByRole}
-                                referenceStory={settings?.referenceStory}
-                                roundNudge={settings?.roundNudge}
-                                maxRounds={settings?.maxRounds}
-                                refinementNotes={settings?.refinementNotes}
-                                parkTask={settings?.parkTask}
-                                cancelTask={settings?.cancelTask}
-                                divergenceThresholds={settings?.divergenceThresholds}
-                                onSetDeck={onSetDeck}
-                                onSaveTemplate={handleSaveTemplate}
-                                isEmbeddedInSheet={true}
-                              />
-                  </div>
-                  <DialogFooter className="shrink-0 flex-row items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-3 dark:border-border/60 dark:bg-slate-900/40 sm:justify-between">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Salvo automaticamente
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => setIsFacilitatorSettingsOpen(false)}
-                      className="h-9 rounded-xl bg-indigo-600 px-6 text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-700"
-                    >
-                      Concluir
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            {settings?.refinementNotes && activeIssueId && !isSessionFinished && (
-              <div className="bg-white/60 dark:bg-card/60 backdrop-blur rounded-2xl border border-white/60 dark:border-border/40 p-4 shrink-0">
-                <RefinementNotes
-                  devNotes={activeIssue?.devNotes || ''}
-                  qaNotes={activeIssue?.qaNotes || ''}
-                  onUpdateNotes={onUpdateRefinementNotes}
-                  activeIssueId={activeIssueId}
-                  isTheaterMode={isTheaterMode}
-                />
-              </div>
-            )}
-
-            <div className="py-2 min-h-0 flex-1 overflow-visible">
-              {isInitialState ? (
-                <div className="flex flex-col items-center justify-center py-3 sm:py-5 text-center animate-in fade-in zoom-in-95 duration-700">
-                  {isCurrentUserFacilitator ? (
-                    <RoomWelcome
-                      deck={deck}
-                      deckLabel={WELCOME_DECK_LABELS[deck] || deck}
-                      roomTeam={roomTeam}
+              {votesRevealed && summary ? (
+                <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+                  <div className="flex min-w-0 flex-col gap-4">
+                    <PokerTable
                       participants={participants}
-                      onlineIds={onlineIds}
-                      roomUrl={typeof window !== 'undefined' ? `${window.location.origin}/room/${roomId}` : ''}
-                      onShare={handleCopyLink}
-                      onImportJira={() => { setIsQueueOpen(true); setJiraImportSignal(s => s + 1); }}
-                      onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
-                    />
-                  ) : (
-                    <RoomWaiting
+                      votes={votes}
+                      votesRevealed
                       deck={deck}
-                      deckLabel={WELCOME_DECK_LABELS[deck] || deck}
-                      roomTeam={roomTeam}
-                      participants={participants}
+                      currentUserId={currentUser.id}
+                      allowManagementToVote={settings?.allowManagementToVote}
+                      divergences={divergences}
+                      groupByRole={!!settings?.groupVotesByRole}
+                      anonymousReveal={!!settings?.anonymousReveal}
                       onlineIds={onlineIds}
+                      large={isTheaterMode}
+                      revealedCenter={
+                        settings?.anonymousReveal ? (
+                          <span className="flex items-center gap-2 text-sm text-muted-foreground"><EyeOff className="h-4 w-4" strokeWidth={1.5} /> Revelação anônima: só o resultado aparece</span>
+                        ) : (
+                          <RoundCenter summary={summary} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} divergenceLabel={roundDivergenceLabel} large={isTheaterMode} />
+                        )
+                      }
                     />
-                  )}
-                </div>
-              ) : isSessionFinished && stats ? (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700">
-                  <div className="relative text-center space-y-3 mb-10 pt-2">
-                    <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-40 w-96 -translate-x-1/2 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden />
-                    <motion.div
-                      initial={{ scale: 0.4, rotate: -12, opacity: 0 }}
-                      animate={{ scale: 1, rotate: 3, opacity: 1 }}
-                      transition={{ type: 'spring', stiffness: 160, damping: 12 }}
-                      className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-xl shadow-emerald-600/30"
-                    >
-                      <Award className="h-8 w-8" />
-                    </motion.div>
-                    <h2 className="inline-block px-2 pb-1.5 pt-1 bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-600 bg-clip-text text-4xl sm:text-5xl font-black italic tracking-tighter uppercase text-transparent leading-tight dark:from-emerald-300 dark:via-teal-300 dark:to-indigo-300">Cerimônia concluída</h2>
-                    <p className="text-slate-500 dark:text-muted-foreground text-sm font-medium">
-                      {stats.breakdown.estimated} tarefa{stats.breakdown.estimated !== 1 ? 's' : ''} estimada{stats.breakdown.estimated !== 1 ? 's' : ''} em {stats.durationStr} — resultados consolidados abaixo.
-                    </p>
+                    <RoleBreakdown summary={summary} deck={deck} showBars={!!settings?.showDistribution} />
+                    {summary.unmappedTshirt > 0 && (
+                      <p className="m-0 text-xs text-amber-700 dark:text-amber-300">{summary.unmappedTshirt} voto{summary.unmappedTshirt > 1 ? 's' : ''} em tamanho sem equivalência ficou fora da média.</p>
+                    )}
+                    {deck === 'fibonacci' && summary.totalHours !== '0' && summary.totalHours !== summary.avg && (
+                      <p className="m-0 text-xs text-muted-foreground">Ao salvar, vale a soma das médias por papel: {summary.totalHours}.</p>
+                    )}
+                    {settings?.confidenceVote && <ConfidenceSummary votes={votes} participants={participants} allowManagementToVote={settings?.allowManagementToVote} />}
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                    <StatCard
-                      icon={Clock}
-                      label="Tempo Gasto"
-                      value={stats.durationStr}
-                      sub={stats.idleMins > 0 ? `Tempo ativo (${stats.idleMins} min de pausa fora)` : 'Duração total'}
-                      color="text-indigo-600 bg-indigo-500/10"
-                    />
-                    <StatCard
-                      icon={ListChecks}
-                      label="Tarefas Debatidas"
-                      value={String(stats.breakdown.discussed)}
-                      sub={`${stats.totalTopics} estimada${stats.totalTopics !== 1 ? 's' : ''} de ${stats.breakdown.total} na fila`}
-                      color="text-violet-600 bg-violet-500/10"
-                    />
-                    <StatCard
-                      icon={Target}
-                      label={deck === 'hours' ? 'Total de Horas' : 'Total Story Points'}
-                      value={String(stats.totalPoints)}
-                      sub="Esforço estimado"
-                      color="text-emerald-600 bg-emerald-500/10"
-                    />
-                    <StatCard
-                      icon={TrendingUp}
-                      label="Eficiência Média"
-                      value={stats.avgTimePerTopic}
-                      sub="Tempo por item"
-                      color="text-amber-600 bg-amber-500/10"
-                    />
-                  </div>
-
-                  {/* Leitura honesta do que aconteceu: debate ≠ fila. */}
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
-                    <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
-                      {stats.breakdown.estimated} estimada{stats.breakdown.estimated !== 1 ? 's' : ''}
-                    </span>
-                    {stats.breakdown.skipped > 0 && (
-                      <span className="px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-700 text-[10px] font-black uppercase tracking-widest border border-amber-500/20">
-                        {stats.breakdown.skipped} pulada{stats.breakdown.skipped !== 1 ? 's' : ''}
-                      </span>
+                  <aside className="flex min-w-0 flex-col gap-4" aria-label="Resultado da rodada">
+                    <CopyEstimateCard summary={summary} deck={deck} values={deck === 'hours' ? adjusted : undefined} />
+                    {settings?.outlierPrompt && !settings?.anonymousReveal && (
+                      <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
                     )}
-                    {stats.breakdown.cancelled > 0 && (
-                      <span className="px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-700 text-[10px] font-black uppercase tracking-widest border border-rose-500/20">
-                        {stats.breakdown.cancelled} cancelada{stats.breakdown.cancelled !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {stats.breakdown.parked > 0 && (
-                      <span className="px-3 py-1.5 rounded-full bg-sky-500/10 text-sky-700 text-[10px] font-black uppercase tracking-widest border border-sky-500/20">
-                        {stats.breakdown.parked} adiada{stats.breakdown.parked !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {stats.breakdown.untouched > 0 && (
-                      <span className="px-3 py-1.5 rounded-full bg-slate-500/10 text-slate-600 text-[10px] font-black uppercase tracking-widest border border-slate-500/20">
-                        {stats.breakdown.untouched} não abordada{stats.breakdown.untouched !== 1 ? 's' : ''}
-                      </span>
-                    )}
-                  </div>
-
-                  {deck === 'hours' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-5">
-                      <StatCard
-                        icon={Code}
-                        label="Esforço Dev"
-                        value={`${stats.totalDevHours}h`}
-                        sub="Total Desenvolvedores"
-                        color="text-indigo-600 bg-indigo-500/10"
+                    {isCurrentUserFacilitator && (
+                      <DecisionPanel
+                        deck={deck}
+                        summary={summary}
+                        adjusted={adjusted}
+                        onAdjust={(role, value) => setAdjusted(prev => ({ ...prev, [role]: value }))}
+                        presentCategories={presentCategories}
+                        onClear={onClear}
+                        onSelectiveRevote={onSelectiveRevote}
+                        onSave={handleCalculateAndComplete}
+                        hasNextPending={hasNextPending}
+                        decisionNote={settings?.decisionNotes && onSetDecisionNote ? { key: activeIssueId || 'none', value: activeIssue?.decisionNote || '', onSave: onSetDecisionNote } : null}
                       />
-                      <StatCard
-                        icon={Bug}
-                        label="Esforço QA"
-                        value={`${stats.totalQaHours}h`}
-                        sub="Total Qualidade"
-                        color="text-pink-600 bg-pink-500/10"
-                      />
-                    </div>
-                  )}
-
-                  {settings?.perTopicTime !== false && (
-                    <div className="mt-6">
-                      <TopicTiming rounds={votingRounds || []} issues={issuesQueue} sessionStartedAt={sessionStartedAt} />
-                    </div>
-                  )}
-
-                  {settings?.showVelocity && (
-                    <div className="mt-6">
-                      <SessionVelocity currentRoomId={roomId} />
-                    </div>
-                  )}
-
-                  {stats.skippedIssues && stats.skippedIssues.length > 0 && (
-                    <div className="mt-12 space-y-5">
-                      <div className="flex items-center gap-4 px-2">
-                        <span className="text-[10px] font-black uppercase text-amber-600 tracking-[0.2em] whitespace-nowrap">Tarefas não Estimadas (Puladas)</span>
-                        <Separator className="flex-1 opacity-10 bg-amber-500" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {stats.skippedIssues.map(issue => (
-                          <div key={issue.id} className="group bg-white/50 backdrop-blur-sm border border-amber-200/50 rounded-2xl p-5 flex flex-col justify-between hover:bg-white hover:border-amber-300 transition-all shadow-sm">
-                            <div>
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
-                                  <SkipForward className="h-4 w-4" />
-                                </div>
-                                <span className="text-[10px] font-black text-amber-600/70 tracking-widest uppercase truncate">{issue.key || 'Tarefa'}</span>
-                              </div>
-                              <h4 className="text-sm font-bold text-slate-800 leading-snug">{issue.title}</h4>
-                            </div>
-                            {issue.note && (
-                              <p className="mt-4 p-3 bg-amber-50 rounded-xl text-[11px] text-amber-700/70 font-medium italic border border-amber-100/50">
-                                "{issue.note}"
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.cancelledIssues && stats.cancelledIssues.length > 0 && (
-                    <div className="mt-12 space-y-5">
-                      <div className="flex items-center gap-4 px-2">
-                        <span className="text-[10px] font-black uppercase text-rose-600 tracking-[0.2em] whitespace-nowrap">Tarefas Canceladas no Refinamento</span>
-                        <Separator className="flex-1 opacity-10 bg-rose-500" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {stats.cancelledIssues.map(issue => (
-                          <div key={issue.id} className="group bg-white/50 backdrop-blur-sm border border-rose-200/50 rounded-2xl p-5 flex flex-col justify-between hover:bg-white hover:border-rose-300 transition-all shadow-sm">
-                            <div>
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="p-1.5 bg-rose-100 rounded-lg text-rose-600">
-                                  <Ban className="h-4 w-4" />
-                                </div>
-                                <span className="text-[10px] font-black text-rose-600/70 tracking-widest uppercase truncate">{issue.key || 'Tarefa'}</span>
-                              </div>
-                              <h4 className="text-sm font-bold text-slate-800 leading-snug line-through opacity-80">{issue.title}</h4>
-                            </div>
-                            {issue.note && (
-                              <p className="mt-4 p-3 bg-rose-50 rounded-xl text-[11px] text-rose-700/70 font-medium italic border border-rose-100/50">
-                                "{issue.note}"
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.parkedIssues && stats.parkedIssues.length > 0 && (
-                    <div className="mt-12 space-y-5">
-                      <div className="flex items-center gap-4 px-2">
-                        <span className="text-[10px] font-black uppercase text-sky-600 tracking-[0.2em] whitespace-nowrap">Tarefas Adiadas na Sessão</span>
-                        <Separator className="flex-1 opacity-10 bg-sky-500" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {stats.parkedIssues.map(issue => (
-                          <div key={issue.id} className="bg-white/50 backdrop-blur-sm border border-sky-200/50 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-                            <div>
-                              <div className="flex items-center gap-2 mb-3">
-                                <div className="p-1.5 bg-sky-100 rounded-lg text-sky-600">
-                                  <Hourglass className="h-4 w-4" />
-                                </div>
-                                <span className="text-[10px] font-black text-sky-600/70 tracking-widest uppercase truncate">
-                                  {issue.key || 'Tarefa'} · adiada {issue.parkCount || 1}x
-                                </span>
-                              </div>
-                              <h4 className="text-sm font-bold text-slate-800 leading-snug">{issue.title}</h4>
-                              <p className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                {issue.skipped ? 'Terminou pulada' : issue.status === 'completed' ? 'Retomada e estimada' : 'Ficou pendente'}
-                              </p>
-                            </div>
-                            {issue.parkedNote && (
-                              <p className="mt-4 p-3 bg-sky-50 rounded-xl text-[11px] text-sky-700/70 font-medium italic border border-sky-100/50">
-                                "{issue.parkedNote}"
-                              </p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {stats.untouchedIssues && stats.untouchedIssues.length > 0 && (
-                    <div className="mt-12 space-y-5">
-                      <div className="flex items-center gap-4 px-2">
-                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] whitespace-nowrap">Tarefas não Abordadas</span>
-                        <Separator className="flex-1 opacity-10 bg-slate-500" />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {stats.untouchedIssues.map(issue => (
-                          <div key={issue.id} className="bg-white/40 border border-slate-200 rounded-2xl p-5 shadow-sm">
-                            <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase truncate">{issue.key || 'Tarefa'}</span>
-                            <h4 className="text-sm font-bold text-slate-700 leading-snug mt-2">{issue.title}</h4>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="relative group mt-12">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-violet-500 rounded-[2.5rem] blur opacity-10 group-hover:opacity-20 transition duration-1000"></div>
-                    <Card className="relative bg-white/80 backdrop-blur-xl border-white border shadow-2xl rounded-[2.5rem] overflow-hidden">
-                      <CardContent className="p-8 flex flex-col lg:flex-row items-center justify-between gap-8">
-                        <div className="flex items-center gap-6 text-center lg:text-left">
-                          <div className="p-5 bg-indigo-600 rounded-3xl text-white shadow-2xl shadow-indigo-600/20 rotate-3 group-hover:rotate-0 transition-transform duration-500">
-                            <CheckCircle2 className="h-8 w-8" />
-                          </div>
-                          <div className="space-y-1">
-                            <h3 className="font-black uppercase text-sm tracking-widest text-indigo-600">TUDO PRONTO! HISTÓRICO SALVO</h3>
-                            <p className="text-xs text-slate-500 font-medium">Os resultados foram salvos automaticamente no seu workspace.</p>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-center gap-4 w-full lg:w-auto">
-                          <Button
-                            variant="outline"
-                            onClick={handleExportTasksToWorkspace}
-                            className="h-14 px-8 font-black uppercase tracking-widest text-[10px] border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all active:scale-95 flex-1 lg:flex-initial"
-                          >
-                            <RefreshCcw className="mr-2 h-4 w-4" />
-                            Atualizar Histórico
-                          </Button>
-                          <ExportDialog
-                            roomTitle={roomTitle || "Scrum Poker"}
-                            roomTeam={roomTeam}
-                            issues={issuesQueue}
-                            participants={participants}
-                            deck={deck}
-                            rounds={votingRounds || undefined}
-                            sessionStartedAt={sessionStartedAt}
-                            perTopicTime={settings?.perTopicTime !== false}
-                            triggerNode={
-                              <Button variant="default" className="h-14 px-10 font-black uppercase tracking-widest text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-600/20 rounded-2xl transition-all active:scale-95 flex-1 lg:flex-initial">
-                                <Download className="mr-2 h-4 w-4" />
-                                EXPORTAR RESULTADOS
-                              </Button>
-                            }
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              ) : votesRevealed ? (
-                <div className="space-y-5 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                  {/* A mesa vem primeiro: virar as cartas é o momento da cerimônia; as métricas vêm logo abaixo. */}
-                  {settings?.anonymousReveal ? (
-                    <div className="flex items-center justify-center gap-2 py-4 text-muted-foreground">
-                      <EyeOff className="h-4 w-4 opacity-50" />
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Revelação anônima — só a distribuição é exibida</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4 px-2">
-                        <Separator className="flex-1 opacity-20" />
-                        <h3 className="text-center text-[9px] font-black text-muted-foreground uppercase tracking-[0.4em]">Detalhamento de Votos</h3>
-                        <Separator className="flex-1 opacity-20" />
-                      </div>
-                      <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} groupByRole={!!settings?.groupVotesByRole} large={isTheaterMode} />
-                    </div>
-                  )}
-                  <div className="bg-card/90 backdrop-blur-xl p-4 md:p-6 rounded-[2rem] border border-white/20 shadow-xl">
-                    <Results votes={votes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} tshirtEquivalents={settings?.tshirtEquivalents} roundingMode={roundingMode} />
-                  </div>
-                  {settings?.showDistribution && (
-                    <VoteDistribution votes={votes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} />
-                  )}
-                  {settings?.confidenceVote && (
-                    <ConfidenceSummary votes={votes} participants={participants} allowManagementToVote={settings?.allowManagementToVote} />
-                  )}
-                  {settings?.suggestRevote && hasHighDivergence && (
-                    <Card className="rounded-2xl border border-rose-200/70 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/10">
-                      <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-rose-700 dark:text-rose-400">
-                          <AlertTriangle className="h-4 w-4" />
-                          <span className="text-[11px] font-bold">Divergência crítica entre os votos — vale discutir e revotar.</span>
-                        </div>
-                        {isCurrentUserFacilitator && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={onClear}
-                            className="h-9 px-4 rounded-xl border-rose-400/50 text-rose-700 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 font-black uppercase text-[10px] tracking-widest whitespace-nowrap"
-                          >
-                            <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Revotar todos
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-                  {showRoundNudge && (
-                    <Card className="rounded-2xl border border-orange-200/70 dark:border-orange-900/40 bg-orange-50/40 dark:bg-orange-950/10">
-                      <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
-                          <Layers className="h-4 w-4" />
-                          <span className="text-[11px] font-bold">
-                            {activeRoundCount} rodadas sem consenso — considere quebrar a história em partes menores ou adiá-la.
-                          </span>
-                        </div>
-                        {isCurrentUserFacilitator && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openOffTableDialog('park')}
-                            className="h-9 px-4 rounded-xl border-orange-400/50 text-orange-700 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-950/40 font-black uppercase text-[10px] tracking-widest whitespace-nowrap"
-                          >
-                            {canParkTask
-                              ? <><Hourglass className="h-3.5 w-3.5 mr-1.5" /> Adiar</>
-                              : <><SkipForward className="h-3.5 w-3.5 mr-1.5" /> Pular</>}
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-                  {settings?.groomingFlag && votes.filter(v => v.value === '?').length > 0 && (
-                    <Card className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10">
-                      <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                          <HelpCircle className="h-4 w-4" />
-                          <span className="text-[11px] font-bold">
-                            {votes.filter(v => v.value === '?').length} pessoa(s) pediram mais informação (voto "?").
-                          </span>
-                        </div>
-                        {isCurrentUserFacilitator && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onSkipIssue('Enviado para grooming — faltou informação para estimar.')}
-                            className="h-9 px-4 rounded-xl border-amber-400/50 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 font-black uppercase text-[10px] tracking-widest whitespace-nowrap"
-                          >
-                            <SkipForward className="h-3.5 w-3.5 mr-1.5" /> Enviar para grooming
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  )}
-                  {settings?.decisionNotes && isCurrentUserFacilitator && onSetDecisionNote && (
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Nota de decisão — por que essa estimativa?</label>
-                      <Textarea
-                        key={activeIssueId || 'none'}
-                        defaultValue={activeIssue?.decisionNote || ''}
-                        onBlur={(e) => onSetDecisionNote(e.target.value)}
-                        placeholder="Ex: alto por depender de integração externa ainda instável..."
-                        className="resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border min-h-[70px]"
-                      />
-                    </div>
-                  )}
-                  {/* Outlier expõe nomes; some no modo anônimo. */}
-                  {settings?.outlierPrompt && !settings?.anonymousReveal && (
-                    <OutlierPrompt votes={votes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
-                  )}
+                    )}
+                  </aside>
                 </div>
               ) : (
-                <div className="space-y-6 transition-all duration-500">
-                  <VotingArea participants={participants} votes={votes} votesRevealed={votesRevealed} divergences={divergences} large={isTheaterMode} />
-                </div>
-              )}
-            </div>
-
-            <div className="pt-4 space-y-8 pb-12 shrink-0">
-              {activeIssueId && currentUser.role !== 'spectator' ? (
-                votesRevealed ? null : (
-                <div className="relative">
-                  <div className="absolute inset-x-0 -top-3 flex justify-center z-10 pointer-events-none">
-                    <div className="px-4 py-0.5 bg-primary text-[9px] font-black text-primary-foreground rounded-full tracking-[0.2em] uppercase shadow-md border-2 border-background flex items-center justify-center gap-2">
-                      <span>Seu baralho</span>
-                    </div>
-                  </div>
-                  <Controls
+                <>
+                  <PokerTable
+                    participants={participants}
+                    votes={votes}
+                    votesRevealed={false}
                     deck={deck}
-                    currentUserVote={currentUserVote}
-                    onVote={onVote}
-                    votesRevealed={votesRevealed}
-                    currentUser={currentUser}
+                    currentUserId={currentUser.id}
                     allowManagementToVote={settings?.allowManagementToVote}
-                    selectiveRevotingRole={selectiveRevotingRole}
-                    isTheaterMode={isTheaterMode}
-                    isSessionNotStarted={!!activeIssueId && !sessionStartedAt && !isSessionFinished}
-                    confidenceEnabled={!!settings?.confidenceVote}
-                    onSetConfidence={onSetConfidence}
-                    currentUserConfidence={currentUserConfidence}
-                    onAllowManagementVote={isCurrentUserFacilitator ? () => onUpdateSettings({ allowManagementToVote: true }) : undefined}
+                    groupByRole={!!settings?.groupVotesByRole}
+                    onlineIds={onlineIds}
+                    large={isTheaterMode}
+                    footer={tableFooter}
+                    overlay={reactionsEnabled ? <ReactionBubbles reactions={reactions || []} /> : undefined}
                   />
-                </div>
-                )
-              ) : (!isSessionFinished && !isInitialState) ? (
-                <Card className="bg-muted/20 border-2 border-dashed border-muted-foreground/10 rounded-2xl">
-                  <CardContent className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-                    <div className="p-3 bg-muted/50 rounded-full">
-                      <Eye className="h-6 w-6 opacity-40" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">
-                      {!activeIssueId ? 'Sessão Finalizada' : 'Modo Espectador Ativo'}
-                    </span>
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {votingRounds && votingRounds.length > 0 && !isTheaterMode && (
-                <History roomId={roomId} rounds={votingRounds} participants={participants} issues={issuesQueue} />
+                  {activeIssueId && currentUser.role !== 'spectator' ? (
+                    <Controls
+                      deck={deck}
+                      currentUserVote={currentUserVote}
+                      onVote={onVote}
+                      votesRevealed={votesRevealed}
+                      currentUser={currentUser}
+                      allowManagementToVote={settings?.allowManagementToVote}
+                      selectiveRevotingRole={selectiveRevotingRole}
+                      isTheaterMode={isTheaterMode}
+                      isSessionNotStarted={!!activeIssueId && !sessionStartedAt}
+                      confidenceEnabled={!!settings?.confidenceVote}
+                      onSetConfidence={onSetConfidence}
+                      currentUserConfidence={currentUserConfidence}
+                      onAllowManagementVote={isCurrentUserFacilitator ? () => onUpdateSettings({ allowManagementToVote: true }) : undefined}
+                    />
+                  ) : (
+                    <section className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
+                      <Users className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                      <span className="text-sm font-semibold">{!activeIssueId ? 'Sessão finalizada' : 'Você acompanha como espectador'}</span>
+                    </section>
+                  )}
+                </>
               )}
-            </div>
-          </div>
-        </div>
+
+            </>
+          )}
+        </main>
+
+        {!isTheaterMode && (
+          <ResponsivePanel
+            side="right"
+            open={isParticipantsOpen}
+            onOpenChange={setIsParticipantsOpen}
+            sheetBelow={1024}
+            widthClass="w-80"
+            title="Participantes"
+            icon={Users}
+            count={participants.length}
+            footer={
+              <Button variant="outline" size="sm" onClick={handleCopyLink} className="h-9 w-full gap-2 rounded-lg">
+                Convidar o time
+              </Button>
+            }
+          >
+            {participantsPanel}
+          </ResponsivePanel>
+        )}
+
+        {!isTheaterMode && (
+          <ResponsivePanel
+            side="right"
+            open={isHistoryOpen}
+            onOpenChange={setIsHistoryOpen}
+            sheetBelow={1024}
+            widthClass="w-[22rem]"
+            title="Histórico da sessão"
+            icon={HistoryIcon}
+            count={(votingRounds || []).length}
+          >
+            <History roomId={roomId} rounds={votingRounds || []} participants={participants} issues={issuesQueue} />
+          </ResponsivePanel>
+        )}
       </div>
 
-      {/* BARRA LATERAL DIREITA: PARTICIPANTES */}
-      <EliteSidebar
-        isOpen={isParticipantsOpen}
-        onClose={() => setIsParticipantsOpen(false)}
-        participantsCount={participants.length}
-        onCopyLink={handleCopyLink}
-        isTheaterMode={isTheaterMode}
+      {/* Votos em andamento ao trocar a tarefa */}
+      <SwitchIssueDialog
+        open={!!pendingIssueId}
+        onOpenChange={(open) => { if (!open) setPendingIssueId(null); }}
+        votesCount={votes.length}
+        onConfirm={confirmIssueSwitch}
+      />
+
+      {isCurrentUserFacilitator && (
+        <CeremonySettingsDialog
+          open={isFacilitatorSettingsOpen}
+          onOpenChange={setIsFacilitatorSettingsOpen}
+          onRestoreDefaults={() => onUpdateSettings(buildDefaultSettingsPatch())}
+        >
+          <FacilitatorPanel
+            deck={deck}
+            onUpdateSettings={onUpdateSettings}
+            allowManagementToVote={settings?.allowManagementToVote}
+            autoReveal={settings?.autoReveal}
+            outlierPrompt={settings?.outlierPrompt}
+            confidenceVote={settings?.confidenceVote}
+            showVelocity={settings?.showVelocity}
+            anonymousReveal={settings?.anonymousReveal}
+            turnNotification={settings?.turnNotification}
+            showDistribution={settings?.showDistribution}
+            decisionNotes={settings?.decisionNotes}
+            perTopicTime={settings?.perTopicTime !== false}
+            autoTimer={settings?.autoTimer}
+            groomingFlag={settings?.groomingFlag}
+            autoConsensus={settings?.autoConsensus}
+            suggestRevote={settings?.suggestRevote}
+            reactions={settings?.reactions}
+            roundingMode={settings?.roundingMode}
+            blindVotes={settings?.blindVotes}
+            groupVotesByRole={settings?.groupVotesByRole}
+            referenceStory={settings?.referenceStory}
+            roundNudge={settings?.roundNudge}
+            maxRounds={settings?.maxRounds}
+            refinementNotes={settings?.refinementNotes}
+            parkTask={settings?.parkTask}
+            cancelTask={settings?.cancelTask}
+            divergenceThresholds={settings?.divergenceThresholds}
+            tshirtEquivalents={settings?.tshirtEquivalents}
+            onSetDeck={onSetDeck}
+            onSaveTemplate={handleSaveTemplate}
+          />
+        </CeremonySettingsDialog>
+      )}
+
+      <OffTableDialog
+        open={isOffTableDialogOpen}
+        onOpenChange={setIsOffTableDialogOpen}
+        initialMode={offTableMode}
+        canPark={canParkTask}
+        issueLabel={activeIssue?.key || undefined}
+        onSkip={onSkipIssue}
+        onPark={onParkIssue}
+      />
+      <CancelIssueDialog
+        open={isCancelDialogOpen}
+        onOpenChange={setIsCancelDialogOpen}
+        onConfirm={(note) => { if (activeIssueId && onCancelIssue) onCancelIssue(activeIssueId, note); }}
+      />
+      <FinishSessionDialog
+        open={isFinishDialogOpen}
+        onOpenChange={setIsFinishDialogOpen}
+        issues={issuesQueue}
+        rounds={votingRounds || []}
+        onConfirm={() => { onFinishSession && onFinishSession(); }}
+      />
+
+      {/* Notas de refinamento: DEV e QA em campos separados */}
+      <Modal
+        open={isNotesOpen}
+        onOpenChange={setIsNotesOpen}
+        size="lg"
+        icon={StickyNote}
+        title="Notas de refinamento"
+        description={activeIssue ? `${activeIssue.key ? `${activeIssue.key} · ` : ''}${activeIssue.title}` : undefined}
+        footer={<ModalButton variant="primary" onClick={() => setIsNotesOpen(false)}>Concluir</ModalButton>}
       >
-        {participantsPanel}
-      </EliteSidebar>
-
-      {/* DRAWER MOBILE: PARTICIPANTES (a EliteSidebar acima é md+) */}
-      {participantsIsDrawer && (
-        <Sheet open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen}>
-          <SheetContent side="right" className="w-[88vw] max-w-sm p-0 flex flex-col">
-            <SheetHeader className="p-4 border-b shrink-0 text-left">
-              <SheetTitle className="text-xs font-black tracking-widest uppercase flex items-center gap-2">
-                <Users className="h-3.5 w-3.5 text-primary" /> Time Ativo
-                <span className="bg-primary/10 text-primary text-[10px] px-2.5 py-0.5 rounded-full">{participants.length}</span>
-              </SheetTitle>
-              <SheetDescription className="sr-only">Participantes da sala</SheetDescription>
-            </SheetHeader>
-            <div className="flex-1 min-h-0 flex flex-col bg-muted/5">
-              {participantsPanel}
-            </div>
-          </SheetContent>
-        </Sheet>
-      )}
-
-      {/* Off-table Dialog: pular ou adiar a tarefa da mesa */}
-      <AlertDialog open={isOffTableDialogOpen} onOpenChange={setIsOffTableDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-amber-600 dark:text-amber-500 flex items-center gap-2">
-              <SkipForward className="h-5 w-5" />
-              {canParkTask ? 'Tirar da mesa' : 'Pular Tarefa'}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                {canParkTask && (
-                  <div role="radiogroup" aria-label="O que fazer com a tarefa" className="grid gap-2">
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={offTableMode === 'skip'}
-                      onClick={() => setOffTableMode('skip')}
-                      className={cn(
-                        'text-left rounded-xl border p-3 transition-all',
-                        offTableMode === 'skip'
-                          ? 'border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-950/30'
-                          : 'border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-slate-900/40'
-                      )}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                        <SkipForward className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                        Pular
-                      </span>
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        Sai da estimativa e entra no relatório como pulada.
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={offTableMode === 'park'}
-                      onClick={() => setOffTableMode('park')}
-                      className={cn(
-                        'text-left rounded-xl border p-3 transition-all',
-                        offTableMode === 'park'
-                          ? 'border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-slate-900/60'
-                          : 'border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-slate-900/40'
-                      )}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                        <Hourglass className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                        Adiar
-                      </span>
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        Volta pro fim da fila para revisitar ainda nesta sessão.
-                      </span>
-                    </button>
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground font-medium">
-                  {offTableMode === 'park'
-                    ? <>Por que está adiando? <span className="opacity-60 text-xs">(Ex: aguardando alinhamento, quebrar antes)</span></>
-                    : <>Por que esta tarefa não será estimada agora? <span className="opacity-60 text-xs">(Ex: Bloqueado, Falta Info, Fora do Escopo)</span></>}
-                </p>
-                <Textarea
-                  value={offTableNote}
-                  onChange={(e) => setOffTableNote(e.target.value)}
-                  placeholder="Motivo opcional..."
-                  className={cn(
-                    'resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border text-slate-900 dark:text-foreground min-h-[90px]',
-                    offTableMode === 'park'
-                      ? 'focus:border-indigo-400 dark:focus:border-indigo-500'
-                      : 'focus:border-amber-400 dark:focus:border-amber-500'
-                  )}
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (offTableMode === 'park' && onParkIssue) {
-                  onParkIssue(offTableNote);
-                } else {
-                  onSkipIssue(offTableNote);
-                }
-                setIsOffTableDialogOpen(false);
-              }}
-              className={cn(
-                'text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg',
-                offTableMode === 'park'
-                  ? 'bg-slate-700 hover:bg-slate-800'
-                  : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
-              )}
-            >
-              {offTableMode === 'park' ? 'Adiar e Avançar' : 'Pular e Avançar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Cancel Task Dialog */}
-      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-rose-600 dark:text-rose-500 flex items-center gap-2">
-              <Ban className="h-5 w-5" />
-              Cancelar Tarefa
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground font-medium">
-                  Por que esta tarefa foi cancelada no refinamento? <span className="opacity-60 text-xs">(Ex: Descartada pelo PO, Escopo duplicado, Descontinuada)</span>
-                </p>
-                <Textarea
-                  value={cancelNote}
-                  onChange={(e) => setCancelNote(e.target.value)}
-                  placeholder="Motivo do cancelamento (opcional)..."
-                  className="resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border focus:border-rose-400 dark:focus:border-rose-500 text-slate-900 dark:text-foreground min-h-[90px]"
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { activeIssueId && onCancelIssue && onCancelIssue(activeIssueId, cancelNote); setIsCancelDialogOpen(false); }}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-rose-600/20"
-            >
-              Confirmar Cancelamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Finish Session Dialog */}
-      <AlertDialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-rose-600 dark:text-rose-400 flex items-center gap-2">
-              <Flag className="h-5 w-5" />
-              Encerrar Refinamento
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground font-medium">
-                  Fecha a sessão agora e gera o relatório. {(() => {
-                    const restantes = issuesQueue.filter(i => !i.skipped && i.status !== 'completed').length;
-                    return restantes > 0
-                      ? `${restantes} tarefa${restantes !== 1 ? 's' : ''} sem estimativa ${restantes !== 1 ? 'entram' : 'entra'} no relatório como não abordada${restantes !== 1 ? 's' : ''} — sem precisar pular uma a uma.`
-                      : 'Todas as tarefas da fila já foram tratadas.';
-                  })()}
-                </p>
-                <p className="text-xs text-muted-foreground/80">
-                  O tempo contabilizado é só o das tarefas que foram votadas.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { onFinishSession && onFinishSession(); setIsFinishDialogOpen(false); }}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
-            >
-              Encerrar e ver relatório
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* FLOATING TEAM CHAT BUTTON */}
-      <AnimatePresence>
-        {!isTeamChatOpen && !isFacilitatorSettingsOpen && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="fixed bottom-6 right-6 z-[60]"
-          >
-            <button
-              type="button"
-              onClick={toggleTeamChat}
-              className="group relative flex h-14 items-center gap-0 rounded-full bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-600 pl-[1.1rem] pr-[1.1rem] text-white shadow-2xl shadow-indigo-600/40 ring-1 ring-white/20 transition-all duration-300 hover:gap-2 hover:pr-5 hover:shadow-indigo-500/60 hover:-translate-y-0.5 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
-              title="Chat da sala"
-              aria-label={teamChatUnread > 0 ? `Chat da sala, ${teamChatUnread} mensagens não lidas` : 'Chat da sala'}
-            >
-              {teamChatUnread > 0 && (
-                <span className="pointer-events-none absolute inset-0 animate-ping rounded-full bg-indigo-400/30" aria-hidden />
-              )}
-              <MessagesSquare className="relative h-6 w-6 shrink-0 transition-transform duration-300 group-hover:scale-110" />
-              <span className="relative max-w-0 overflow-hidden whitespace-nowrap text-[10px] font-black uppercase tracking-widest opacity-0 transition-all duration-300 group-hover:max-w-[7rem] group-hover:opacity-100">
-                Chat da sala
-              </span>
-              {teamChatUnread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-[22px] min-w-[22px] items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-black text-white dark:border-slate-900">
-                  {teamChatUnread > 99 ? '99+' : teamChatUnread}
-                </span>
-              )}
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* REACTIONS OVERLAY (opt-in) */}
-      {reactionsEnabled && onReact && (
-        <ReactionOverlay reactions={reactions || []} onReact={onReact} />
-      )}
-
-      {currentUser && (
-        <TeamChat
-          roomId={roomId}
-          currentUser={currentUser}
-          participants={participants}
-          canModerate={isCurrentUserFacilitator}
-          isOpen={isTeamChatOpen}
-          onClose={() => setIsTeamChatOpen(false)}
-          onUnreadChange={setTeamChatUnread}
-          messagesByChannel={messagesByChannel}
-          onSendMessage={onSendMessage}
-          onDeleteMessage={onDeleteMessage}
+        <RefinementNotes
+          devNotes={activeIssue?.devNotes || ''}
+          qaNotes={activeIssue?.qaNotes || ''}
+          onUpdateNotes={onUpdateRefinementNotes}
+          activeIssueId={activeIssueId}
         />
-      )}
+      </Modal>
 
-      {/* POKER CHAT SIDEBAR (Base de Conhecimento) */}
+      <PokerGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
+
+      <TeamChat
+        roomId={roomId}
+        currentUser={currentUser}
+        participants={participants}
+        canModerate={isCurrentUserFacilitator}
+        isOpen={isTeamChatOpen}
+        onClose={() => setIsTeamChatOpen(false)}
+        onUnreadChange={setTeamChatUnread}
+        messagesByChannel={messagesByChannel}
+        onSendMessage={onSendMessage}
+        onDeleteMessage={onDeleteMessage}
+      />
+
       <PokerChat
-        roomId={roomId} 
-        isOpen={isChatOpen} 
-        onClose={() => setIsChatOpen(false)} 
+        roomId={roomId}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
         activeTopic={activeIssue?.title || currentTopic}
         activeIssue={activeIssue}
       />
 
-      {/* ISSUE DETAIL OVERLAY */}
       <IssueDetail
         issue={activeIssue ? {
           key: activeIssue.key || '',
@@ -2095,13 +1181,12 @@ const PokerRoomComponent = ({
           updated: activeIssue.jiraUpdated,
           labels: activeIssue.jiraLabels,
           link: activeIssue.jiraLink || undefined,
-          acceptanceCriteria: activeIssue.acceptanceCriteria
+          acceptanceCriteria: activeIssue.acceptanceCriteria,
         } : null}
         isOpen={isDetailOpen}
         onClose={() => setIsDetailOpen(false)}
       />
 
-      {/* SHARE / REFINEMENT EXPORT DIALOG */}
       <ShareRoomDialog
         isOpen={isShareDialogOpen}
         onClose={() => setIsShareDialogOpen(false)}
@@ -2114,22 +1199,3 @@ const PokerRoomComponent = ({
 };
 
 export const PokerRoom = React.memo(PokerRoomComponent);
-
-function StatCard({ icon: Icon, label, value, sub, color }: any) {
-  return (
-    <Card className="border-none shadow-sm rounded-2xl overflow-hidden bg-card">
-      <CardContent className="p-6">
-        <div className="flex flex-col gap-4">
-          <div className={cn("p-2.5 rounded-xl w-fit", color)}>
-            <Icon className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
-            <p className="text-2xl font-black tracking-tighter">{value}</p>
-            <p className="text-[9px] font-bold text-muted-foreground/60 uppercase">{sub}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

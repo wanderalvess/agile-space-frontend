@@ -898,3 +898,105 @@ html, body {
 .dark .react-flow__attribution a {
   color: rgb(71 85 105) !important;
 }
+
+/* ── Room kit: movimento, brilho e halo das salas ao vivo ─────────────────
+   Tokens de movimento do design (Animacoes): 140 / 220 / 320 / 460 / 520 ms.
+   Brilho e halo saem do --primary do tema; no tema Leitura confortável não há
+   brilho. Com "reduzir movimento" do sistema tudo vira fade de 1 ms. */
+:root {
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 320ms;
+  --motion-land: 460ms;
+  --motion-reveal: 520ms;
+  --ease-std: cubic-bezier(0.2, 0, 0, 1);
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-emph: cubic-bezier(0.2, 0.8, 0.2, 1.2);
+}
+
+@keyframes room-land {
+  0% { transform: translateY(-36px) rotate(-14deg) scale(1.12); opacity: 0; }
+  70% { transform: translateY(3px) rotate(2deg) scale(1); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes room-flip {
+  0% { transform: perspective(500px) rotateY(90deg) scale(0.96); opacity: 0; }
+  100% { transform: perspective(500px) rotateY(0) scale(1); opacity: 1; }
+}
+@keyframes room-rise {
+  0% { transform: translateY(8px); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+@keyframes room-grow {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+@keyframes room-grow-y {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+@keyframes room-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  55% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes room-dots {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+@keyframes room-float {
+  0% { transform: translateY(0) scale(0.6); opacity: 0; }
+  15% { transform: translateY(-14px) scale(1.05); opacity: 1; }
+  100% { transform: translateY(-150px) scale(1); opacity: 0; }
+}
+@keyframes room-alarm {
+  0% { box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.45); }
+  100% { box-shadow: 0 0 0 14px hsl(var(--destructive) / 0); }
+}
+@keyframes room-breathe {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.room-land { animation: room-land var(--motion-land) var(--ease-emph) both; }
+.room-flip { animation: room-flip var(--motion-reveal) var(--ease-emph) both; }
+.room-rise { animation: room-rise var(--motion-base) var(--ease-enter) both; }
+.room-grow { transform-origin: left center; animation: room-grow var(--motion-slow) var(--ease-std) both; }
+.room-grow-y { transform-origin: bottom center; animation: room-grow-y var(--motion-land) var(--ease-std) both; }
+.room-pop { animation: room-pop var(--motion-land) var(--ease-emph) both; }
+.room-float { animation: room-float 2200ms var(--ease-enter) forwards; }
+.room-alarm { animation: room-alarm 1s infinite; }
+.room-breathe { animation: room-breathe 5s ease-in-out infinite; }
+.room-dot-1 { animation: room-dots 1.2s infinite; }
+.room-dot-2 { animation: room-dots 1.2s 0.2s infinite; }
+.room-dot-3 { animation: room-dots 1.2s 0.4s infinite; }
+
+/* Brilho de botão principal e halo de fundo, a partir do --primary. */
+.room-glow { box-shadow: 0 8px 24px hsl(var(--primary) / 0.3); }
+.dark .room-glow { box-shadow: 0 8px 24px hsl(var(--primary) / 0.4); }
+.room-glow-ring { box-shadow: 0 0 14px hsl(var(--primary) / 0.35); }
+.room-halo {
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, hsl(var(--primary) / 0.1) 0%, transparent 72%);
+}
+.dark .room-halo {
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, hsl(var(--primary) / 0.22) 0%, hsl(var(--primary) / 0.06) 50%, transparent 75%);
+}
+.room-dots-bg {
+  background-image: radial-gradient(hsl(var(--foreground) / 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, #000, transparent 80%);
+}
+.theme-leitura .room-glow,
+.theme-leitura .room-glow-ring { box-shadow: none; }
+.theme-leitura .room-halo,
+.theme-leitura .room-dots-bg { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .room-land, .room-flip, .room-rise, .room-grow, .room-grow-y, .room-pop, .room-float,
+  .room-alarm, .room-breathe, .room-dot-1, .room-dot-2, .room-dot-3 {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

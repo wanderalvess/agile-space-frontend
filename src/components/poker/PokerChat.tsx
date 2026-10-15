@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Sparkles,
   Send,
@@ -22,7 +22,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import { FIELD, IconTile, StatusChip } from '@/components/room-kit';
+import { plainSnippet } from '@/lib/poker-table';
 
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -65,6 +66,7 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
   const [useContext, setUseContext] = useState(true);
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const { toast } = useToast();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -261,108 +263,83 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ x: 400, opacity: 0 }}
+        <motion.aside
+          aria-label="Base de conhecimento"
+          initial={{ x: reduceMotion ? 0 : 400, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: 400, opacity: 0 }}
-          className="fixed right-4 left-4 sm:left-auto top-24 bottom-4 w-auto sm:w-[420px] sm:max-w-[calc(100vw-2rem)] z-[100] flex flex-col overflow-x-hidden"
+          exit={{ x: reduceMotion ? 0 : 400, opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0.001 : 0.32, ease: [0.2, 0, 0, 1] }}
+          className="fixed bottom-4 left-4 right-4 top-24 z-[100] flex w-auto flex-col overflow-x-hidden sm:left-auto sm:w-[420px] sm:max-w-[calc(100vw-2rem)]"
         >
-          <div className="flex-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] flex flex-col overflow-hidden relative">
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[0_30px_80px_rgba(15,23,42,0.18)] dark:shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+            <div aria-hidden="true" className="h-0.5 shrink-0 bg-gradient-to-r from-primary to-primary/40 [.theme-totvs_&]:bg-none [.theme-totvs_&]:bg-primary [.theme-leitura_&]:bg-none [.theme-leitura_&]:bg-primary" />
 
-            {/* BACKGROUND GLOWS */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-cyan-500/5 blur-3xl pointer-events-none" />
-
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-500 border border-indigo-600 flex items-center justify-center text-white shadow-sm overflow-hidden group">
-                  <Sparkles className="h-5 w-5 group-hover:scale-110 transition-all duration-300" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 dark:text-indigo-400 opacity-60">Assistente Local</span>
-                    {tdnSettings?.token && (
-                      <Badge variant="secondary" className="text-[8px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900 uppercase font-black tracking-tighter h-4 px-1.5">
-                        Motor Ativo
-                      </Badge>
-                    )}
-                  </div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 italic">Base de Conhecimento</h3>
-                </div>
+            <header className="flex items-center gap-3 border-b border-border px-4 py-3.5">
+              <IconTile icon={Sparkles} />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <h2 className="m-0 text-[15px] font-semibold">Base de conhecimento</h2>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  Assistente local
+                  {tdnSettings?.token && <StatusChip tone="success">Motor ativo</StatusChip>}
+                </span>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
-                <X className="h-4 w-4" />
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-lg text-muted-foreground" aria-label="Fechar base de conhecimento">
+                <X className="h-4 w-4" strokeWidth={1.5} />
               </Button>
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="p-4 space-y-6 overflow-x-hidden">
-                {/* Issue Context (Opcional) */}
+            </header>
+
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="flex flex-col gap-4 overflow-x-hidden p-4">
                 {activeIssue && (
-                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-3 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="p-1.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-                        <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Contexto da Tarefa</span>
-                    </div>
-                    <h4 className="text-[11px] font-black text-slate-900 dark:text-white uppercase mb-1 truncate">{activeIssue.title}</h4>
+                  <div className="room-rise rounded-xl border border-border bg-muted/40 p-3">
+                    <span className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                      <FileText className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Contexto da tarefa
+                    </span>
+                    <h3 className="m-0 truncate text-[13px] font-semibold">{activeIssue.title}</h3>
                     {activeIssue.description && (
-                      <p className="text-[9px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                        {activeIssue.description}
-                      </p>
+                      <p className="m-0 mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{plainSnippet(activeIssue.description, 180)}</p>
                     )}
                   </div>
                 )}
 
                 {messages.map((msg) => (
-                  <div key={msg.id} className={cn(
-                    "flex w-full mb-6",
-                    msg.role === 'user' ? "justify-end" : "justify-start"
-                  )}>
-                    <div className={cn(
-                      "flex flex-col gap-2 min-w-0",
-                      msg.role === 'user' ? "max-w-[80%] items-end" : "max-w-[95%] items-start"
-                    )}>
-                      <div className={cn(
-                        "p-3 rounded-[1.25rem] text-[12px] font-medium leading-relaxed shadow-sm whitespace-pre-wrap break-words max-w-full min-w-0",
-                        msg.role === 'user'
-                          ? "bg-indigo-600 text-white rounded-tr-none"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-tl-none"
-                      )}>
+                  <div key={msg.id} className={cn('flex w-full', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+                    <div className={cn('flex min-w-0 flex-col gap-2', msg.role === 'user' ? 'max-w-[85%] items-end' : 'max-w-[95%] items-start')}>
+                      <div
+                        className={cn(
+                          'min-w-0 max-w-full whitespace-pre-wrap break-words rounded-xl px-3 py-2 text-[13px] leading-[1.5]',
+                          msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'border border-border bg-muted/50 text-foreground'
+                        )}
+                      >
                         {msg.content}
                       </div>
 
-                      {/* Badges de Endpoints e Tabelas extraídos */}
                       {((msg.extractedEndpoints && msg.extractedEndpoints.length > 0) || (msg.extractedTables && msg.extractedTables.length > 0)) && (
-                        <div className="flex flex-col gap-1.5 w-full mt-1 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 p-2.5 rounded-xl">
+                        <div className="flex w-full flex-col gap-2 rounded-xl border border-border bg-muted/40 p-2.5">
                           {msg.extractedEndpoints && msg.extractedEndpoints.length > 0 && (
                             <div>
-                              <span className="text-[8px] font-black uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block mb-1">Endpoints Identificados:</span>
+                              <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">Endpoints identificados</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedEndpoints.map((ep, idx) => (
                                   <button
                                     key={idx}
                                     onClick={() => copyToClipboard(ep, 'Endpoint')}
-                                    className="flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 px-2 py-1 rounded-lg text-[9px] font-code font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-xs group max-w-full break-all"
+                                    className="group flex max-w-full items-center gap-1.5 break-all rounded-md border border-border bg-card px-2 py-1 font-code text-[11px] font-semibold transition-colors duration-fast hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     title="Clique para copiar"
                                   >
                                     <span>{ep}</span>
-                                    {copiedEndpoint === ep ? <Check className="h-2.5 w-2.5 text-emerald-500" /> : <Copy className="h-2.5 w-2.5 opacity-60 group-hover:opacity-100" />}
+                                    {copiedEndpoint === ep ? <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} /> : <Copy className="h-3 w-3 opacity-60 group-hover:opacity-100" strokeWidth={1.5} />}
                                   </button>
                                 ))}
                               </div>
                             </div>
                           )}
-
                           {msg.extractedTables && msg.extractedTables.length > 0 && (
-                            <div className="mt-1">
-                              <span className="text-[8px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider block mb-1">Tabelas Relacionadas:</span>
+                            <div>
+                              <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">Tabelas relacionadas</span>
                               <div className="flex flex-wrap gap-1">
                                 {msg.extractedTables.map((tbl, idx) => (
-                                  <span key={idx} className="bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-code text-[8.5px] font-bold px-1.5 py-0.5 rounded-md">
-                                    {tbl}
-                                  </span>
+                                  <span key={idx} className="rounded-md bg-muted px-1.5 py-0.5 font-code text-[11px] font-semibold">{tbl}</span>
                                 ))}
                               </div>
                             </div>
@@ -371,63 +348,50 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
                       )}
 
                       {msg.docs && msg.docs.length > 0 && (
-                        <div className="flex flex-col gap-2 w-full mt-1 min-w-0">
+                        <ul className="m-0 flex w-full min-w-0 list-none flex-col gap-2 p-0">
                           {msg.docs.map((doc) => (
-                            <div
-                              key={doc.id}
-                              onClick={() => window.open(`/knowledge/kb?id=${doc.id}`, '_blank')}
-                              className="bg-white/70 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all cursor-pointer group overflow-hidden w-full min-w-0 shadow-xs"
-                            >
-                              <div className="flex items-center justify-between mb-0.5">
-                                <span className="text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1">
-                                  <BookOpen className="h-2 w-2" /> Wiki Local • {doc.category || 'Geral'}
+                            <li key={doc.id}>
+                              <button
+                                type="button"
+                                onClick={() => window.open(`/knowledge/kb?id=${doc.id}`, '_blank')}
+                                className="group w-full min-w-0 overflow-hidden rounded-xl border border-border bg-card p-2.5 text-left transition-colors duration-fast hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                <span className="mb-0.5 flex items-center justify-between text-[11px] font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+                                  <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Wiki local · {doc.category || 'Geral'}</span>
+                                  <ChevronRight className="h-3 w-3 transition-transform duration-fast group-hover:translate-x-0.5" strokeWidth={1.5} aria-hidden="true" />
                                 </span>
-                                <ChevronRight className="h-2.5 w-2.5 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                              </div>
-                              <h4 className="text-[10px] font-bold text-slate-900 dark:text-white block truncate max-w-full" title={doc.title}>{doc.title}</h4>
-                              <p className="text-[8.5px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5 leading-tight">
-                                {doc.tech?.bestSnippet || doc.content.replace(/<[^>]*>?/gm, '')}
-                              </p>
-                            </div>
+                                <span className="block max-w-full truncate text-[13px] font-semibold" title={doc.title}>{doc.title}</span>
+                                <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted-foreground">
+                                  {doc.tech?.bestSnippet || doc.content.replace(/<[^>]*>?/gm, '')}
+                                </span>
+                              </button>
+                            </li>
                           ))}
-                        </div>
+                        </ul>
                       )}
 
                       {msg.tdnResults && msg.tdnResults.length > 0 && (
-                        <div className="flex flex-col gap-2 w-full mt-1">
-                          <div className="flex items-center gap-2 px-1">
-                            <Globe className="h-2 w-2 text-cyan-600 dark:text-cyan-400" />
-                            <span className="text-[8px] font-black uppercase text-cyan-600 dark:text-cyan-400 tracking-[0.2em]">TDN (Confluence)</span>
-                          </div>
+                        <div className="flex w-full flex-col gap-2">
+                          <span className="flex items-center gap-1.5 px-1 text-[11px] font-semibold text-muted-foreground">
+                            <Globe className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> TDN (Confluence)
+                          </span>
                           {msg.tdnResults.map((tdn) => (
-                            <div
-                              key={tdn.id}
-                              className="bg-cyan-50/50 dark:bg-cyan-950/30 border border-cyan-100 dark:border-cyan-900 p-2.5 rounded-xl hover:bg-cyan-50 dark:hover:bg-cyan-950/50 transition-all group overflow-hidden w-full"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div
-                                  className="flex-1 cursor-pointer min-w-0"
-                                  onClick={() => window.open(tdn.link, '_blank')}
-                                >
-                                  <h4 className="text-[10px] font-bold text-slate-900 dark:text-slate-100 block truncate max-w-full group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors" title={tdn.title}>{tdn.title}</h4>
-                                  <div className="flex items-center gap-2 mt-0.5 overflow-hidden">
-                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter truncate">{tdn.space || 'Wiki'}</span>
-                                  </div>
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-6 w-6 rounded-lg hover:bg-cyan-100/50 dark:hover:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 shrink-0 ml-2"
-                                  onClick={(e) => { e.stopPropagation(); handleImport(tdn); }}
-                                  disabled={isImporting === tdn.id}
-                                >
-                                  {isImporting === tdn.id ? (
-                                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                  ) : (
-                                    <Download className="h-2.5 w-2.5" />
-                                  )}
-                                </Button>
-                              </div>
+                            <div key={tdn.id} className="flex w-full items-center gap-2 overflow-hidden rounded-xl border border-border bg-card p-2.5">
+                              <button type="button" className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => window.open(tdn.link, '_blank')}>
+                                <span className="block max-w-full truncate text-[13px] font-semibold" title={tdn.title}>{tdn.title}</span>
+                                <span className="block truncate text-xs text-muted-foreground">{tdn.space || 'Wiki'}</span>
+                              </button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 shrink-0 rounded-lg"
+                                aria-label="Importar para a base local"
+                                title="Importar para a base local"
+                                onClick={(e) => { e.stopPropagation(); handleImport(tdn); }}
+                                disabled={isImporting === tdn.id}
+                              >
+                                {isImporting === tdn.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" strokeWidth={1.5} />}
+                              </Button>
                             </div>
                           ))}
                         </div>
@@ -435,13 +399,14 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
                     </div>
                   </div>
                 ))}
+
                 {messages.length === 1 && (
-                  <div className="flex flex-wrap gap-2 mt-4 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-300">
+                  <div className="room-rise flex flex-wrap gap-2">
                     {['Quais os critérios de aceite?', 'Como testar essa funcionalidade?', 'Existe algum débito técnico?'].map((q, i) => (
                       <button
                         key={i}
                         onClick={() => { setInput(q); }}
-                        className="px-3 py-1.5 rounded-full bg-white/50 dark:bg-slate-900/50 border border-indigo-100 dark:border-indigo-900 text-[9px] font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                        className="rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs transition-colors duration-fast hover:border-primary/50 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         {q}
                       </button>
@@ -449,73 +414,53 @@ export function PokerChat({ isOpen, onClose, activeTopic, activeIssue }: PokerCh
                   </div>
                 )}
                 {isLoading && (
-                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 animate-pulse mt-4">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Consultando...</span>
+                  <div role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Consultando…
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
 
-            {/* Knowledge Base Link when empty results */}
             {messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.docs?.length === 0 && (
-              <div className="px-6 pb-2">
-                <Button
-                  variant="outline"
-                  className="w-full h-10 rounded-xl border-dashed border-indigo-200 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-[10px] font-black uppercase tracking-widest gap-2"
-                  onClick={() => window.open('/knowledge', '_blank')}
-                >
-                  <Database className="h-3.5 w-3.5" /> Acessar Wiki Completa do Projeto
+              <div className="px-4 pb-2">
+                <Button variant="outline" className="h-10 w-full gap-2 rounded-[10px] border-dashed text-[13px]" onClick={() => window.open('/knowledge', '_blank')}>
+                  <Database className="h-3.5 w-3.5" strokeWidth={1.5} /> Abrir a wiki completa
                 </Button>
               </div>
             )}
 
-            {/* Input Area */}
-            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800">
+            <div className="border-t border-border p-3">
               {activeIssue && (
-                <div className="flex items-center justify-between mb-4 px-1">
-                  <div className="flex items-center gap-2">
-                    <div className={cn(
-                      "h-2 w-2 rounded-full",
-                      useContext ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"
-                    )} />
-                    <Label htmlFor="use-context" className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 cursor-pointer">
-                      Analisar Issue em Votação
-                    </Label>
-                  </div>
-                  <Switch
-                    id="use-context"
-                    checked={useContext}
-                    onCheckedChange={setUseContext}
-                    className="data-[state=checked]:bg-emerald-500 scale-75 origin-right"
-                  />
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <Label htmlFor="use-context" className="flex cursor-pointer items-center gap-2 text-[13px] font-medium">
+                    <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', useContext ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
+                    Analisar a tarefa em votação
+                  </Label>
+                  <Switch id="use-context" checked={useContext} onCheckedChange={setUseContext} />
                 </div>
               )}
-
-              <div className="relative group">
-                <Input
-                  placeholder="Pergunte algo sobre o projeto..."
+              <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex items-center gap-2">
+                <label htmlFor="kb-input" className="sr-only">Pergunta</label>
+                <input
+                  id="kb-input"
+                  placeholder="Pergunte algo sobre o projeto…"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  className="pr-12 h-14 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-inner focus-visible:ring-indigo-500/20 text-sm font-medium text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className={cn(FIELD, 'h-10 min-w-0 flex-1 text-sm')}
                 />
-                <Button
-                  size="icon"
+                <button
+                  type="submit"
                   disabled={!input.trim() || isLoading}
-                  onClick={handleSend}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-all active:scale-90"
+                  aria-label="Enviar pergunta"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground room-glow transition-[opacity,background-color] duration-fast hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:shadow-none"
                 >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-[9px] text-center text-slate-400 mt-4 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-                <Sparkles className="h-3 w-3 text-indigo-400" /> Suportado pela Base de Conhecimento
-              </p>
+                  <Send className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              </form>
             </div>
           </div>
-        </motion.div>
+        </motion.aside>
       )}
     </AnimatePresence>
   );

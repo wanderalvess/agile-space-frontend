@@ -30,6 +30,29 @@ export const DEFAULT_ROOM_SETTINGS = {
 } as const;
 
 /**
+ * Todos os ajustes de liga/desliga que o facilitador enxerga em "Configurações
+ * da cerimônia". Usado por "Restaurar padrão": o que está em DEFAULT_ROOM_SETTINGS
+ * volta ligado; o resto volta desligado.
+ */
+export const CEREMONY_TOGGLE_KEYS = [
+  'allowManagementToVote', 'confidenceVote', 'groomingFlag', 'autoConsensus', 'reactions', 'referenceStory',
+  'roundNudge', 'cancelTask', 'parkTask', 'autoReveal', 'blindVotes', 'anonymousReveal', 'outlierPrompt',
+  'showDistribution', 'suggestRevote', 'groupVotesByRole', 'autoTimer', 'turnNotification', 'decisionNotes',
+  'refinementNotes', 'perTopicTime', 'showVelocity',
+] as const;
+
+/** Patch de configurações que devolve a sala ao padrão (não mexe em escala nem equivalência de camisetas). */
+export function buildDefaultSettingsPatch(): Record<string, boolean | number | string | { warn: number; high: number }> {
+  const defaults = DEFAULT_ROOM_SETTINGS as Record<string, boolean>;
+  const patch: Record<string, boolean | number | string | { warn: number; high: number }> = {};
+  for (const key of CEREMONY_TOGGLE_KEYS) patch[key] = !!defaults[key];
+  patch.maxRounds = 3;
+  patch.roundingMode = 'up';
+  patch.divergenceThresholds = { warn: 2, high: 5 };
+  return patch;
+}
+
+/**
  * Como a média dos votos vira o valor salvo. 'up' (padrão, sempre foi assim) arredonda para cima;
  * 'nearest' para o inteiro mais próximo; 'down' para baixo; 'deck' para a carta mais próxima do
  * baralho da sala (empate vai para a carta maior). Opt-in do facilitador: sala sem a opção = 'up'.
@@ -435,6 +458,30 @@ export function formatBaselineDisplay(points: string, deck: DeckType): string {
   if (deck === 'hours') return `${v}h`;
   if (deck === 'tshirt') return v;
   return `${v} SP`;
+}
+
+/**
+ * Texto de "Copiar estimativa" para colar na issue pai do Jira, por papel:
+ * "(DEV 10h / QA 4h / UX 2h)". Papéis na ordem canônica (DEV, QA, UX, Designer,
+ * depois os demais, na ordem recebida); valores vazios ou "N/A" ficam de fora e
+ * `skipZero` também descarta "0". Devolve '' se não sobrar nenhum papel.
+ * Fonte única: o card de resultados da rodada e o relatório da fila usam esta função.
+ */
+export function formatEstimateCopy(
+  entries: ReadonlyArray<{ role: string; value: string | null | undefined }>,
+  suffix = 'h',
+  options: { skipZero?: boolean } = {}
+): string {
+  const order = (r: string) => {
+    const i = (TECHNICAL_CATEGORIES as readonly string[]).indexOf(r);
+    return i === -1 ? TECHNICAL_CATEGORIES.length : i;
+  };
+  const parts = entries
+    .map((e, idx) => ({ ...e, idx }))
+    .filter(e => e.value && e.value !== 'N/A' && !(options.skipZero && Number(e.value) === 0))
+    .sort((a, b) => order(a.role) - order(b.role) || a.idx - b.idx)
+    .map(e => `${formatRoleForCopy(e.role)} ${e.value}${suffix}`);
+  return parts.length > 0 ? `(${parts.join(' / ')})` : '';
 }
 
 /**

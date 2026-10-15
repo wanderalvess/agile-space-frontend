@@ -2,31 +2,24 @@
 
 import React, { useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
-import { calculateRoleEfforts, canParticipantVote } from '@/lib/poker-utils';
+import { DECKS } from '@/lib/types';
+import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy } from '@/lib/poker-utils';
+import { summarizeRound } from '@/lib/poker-results';
 import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
-import { DECKS } from '@/lib/types';
+import { CopyEstimateCard } from './Results';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Logo } from '@/components/Logo';
+import { Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink } from 'lucide-react';
 import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
-import { 
-  ArrowLeft, Copy, Eye, Play, StopCircle, RefreshCcw,
-  HelpCircle, MoreVertical, Plus, CheckCircle2, ListChecks,
-  LayoutGrid, PanelLeftClose, Users, Rocket, Sparkles, MessageSquareText
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { formatExternalUrl, cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { TopicQueue } from './TopicQueue';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { ShareRoomDialog } from './ShareRoomDialog';
-
+import { CeremonySettingsDialog } from './PokerDialogs';
+import { Rocket } from 'lucide-react';
+import { DeckCard, FIELD, IconButton, Modal, ModalButton, ResponsivePanel, StatusChip, VoteCard } from '@/components/room-kit';
 
 interface AsyncPokerRoomProps {
   roomId: string;
@@ -60,6 +53,8 @@ interface AsyncPokerRoomProps {
   creatorId: string;
 }
 
+const CARD = 'rounded-[14px] border border-border bg-card shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
+
 const AsyncPokerRoomComponent = ({
   roomId,
   currentUser,
@@ -70,7 +65,6 @@ const AsyncPokerRoomComponent = ({
   onAsyncVote,
   onAsyncReveal,
   onAsyncClear,
-  onSetDeck,
   onRemoveParticipant,
   onUpdateParticipantRole,
   isCurrentUserFacilitator,
@@ -81,33 +75,25 @@ const AsyncPokerRoomComponent = ({
   onBulkAddIssues,
   onDeleteIssue,
   onCompleteIssue,
-  onLeaveRoom,
-  isSoundEnabled,
-  onSetIsSoundEnabled,
   onClaimFacilitator,
   settings,
   onUpdateSettings,
   onOpenFeedback,
   onOpenRetro,
-  creatorId
+  onSetDeck,
 }: AsyncPokerRoomProps) => {
-  const { toast } = useToast();
   const [expandedIssues, setExpandedIssues] = useState<string[]>([]);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const deckValues = DECKS[deck];
+  const isDense = deckValues.length > 14;
 
   // Mesmo gate de room/[id]/page.tsx e Controls.tsx (poker-utils.canParticipantVote) —
   // a lista local antiga (MANAGEMENT_ROLES) divergia da centralizada, deixando o botão
   // de voto habilitado pra papéis (ex: People Lead) que o write-path já bloqueava.
   const canVote = canParticipantVote(currentUser, settings?.allowManagementToVote);
-
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-
-  const handleCopyLink = () => {
-    setIsShareDialogOpen(true);
-  };
-
 
   const toggleExpand = (id: string) => {
     setExpandedIssues(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -115,41 +101,39 @@ const AsyncPokerRoomComponent = ({
 
   const pendingIssues = issuesQueue.filter(i => i.status !== 'completed');
   const completedIssues = issuesQueue.filter(i => i.status === 'completed');
+  const unit = deck === 'hours' ? 'h' : deck === 'tshirt' ? '' : ' SP';
 
   return (
     <>
-      <div className="flex h-screen w-full bg-slate-50 dark:bg-slate-950 overflow-hidden">
-      {/* BARRA LATERAL ESQUERDA: TAREFAS */}
-      <aside
-        className={cn(
-          "hidden lg:flex flex-col border-r border-slate-200/60 dark:border-slate-800/60 shadow-sm bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl transition-all duration-500 ease-in-out overflow-hidden relative",
-          isQueueOpen ? "w-80 opacity-100" : "w-0 opacity-0 border-none"
-        )}
-      >
-        <div className="w-80 flex flex-col h-full shrink-0">
-          <header className='p-6 border-b border-slate-100 dark:border-slate-800 shrink-0 flex items-center justify-between bg-white/50 dark:bg-slate-900/50'>
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl">
-                <ListChecks className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div>
-                <h2 className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-400 dark:text-slate-500 leading-none mb-1">Backlog</h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">Fila de Tarefas</span>
-                  <span className="bg-indigo-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{issuesQueue.length}</span>
-                </div>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsQueueOpen(false)}
-              className="h-8 w-8 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-[0.8rem]"
-            >
-              <PanelLeftClose className="h-4.5 w-4.5" />
-            </Button>
-          </header>
-          <div className='p-0 flex-1 flex flex-col min-h-0'>
+      <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
+        <RoomHeader
+          title={roomTitle || 'Planning Poker assíncrono'}
+          toolIcon={<Rocket className="h-4 w-4" />}
+          toolColorClass="text-primary"
+          onOpenFeedback={onOpenFeedback}
+          badge={<StatusChip>Assíncrono</StatusChip>}
+        />
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-3 md:px-6">
+          <div className="flex min-w-[200px] flex-1 flex-col gap-0.5">
+            {roomTeam && <span className="truncate text-xs text-muted-foreground">{roomTeam}</span>}
+            <span className="truncate text-base font-semibold">{roomTitle || 'Planning Poker assíncrono'}</span>
+          </div>
+          <IconButton label="Fila de tarefas" icon={ListChecks} pressed={isQueueOpen} onClick={() => setIsQueueOpen(v => !v)} />
+          <IconButton label="Participantes" icon={Users} pressed={isParticipantsOpen} onClick={() => setIsParticipantsOpen(v => !v)} />
+          {isCurrentUserFacilitator && <IconButton label="Configurações da cerimônia" icon={SlidersHorizontal} onClick={() => setIsSettingsOpen(true)} />}
+          <IconButton label="Compartilhar sala" icon={Link2} onClick={() => setIsShareDialogOpen(true)} />
+          {onOpenRetro && <IconButton label="Abrir retro desta sprint" icon={MessageSquareText} onClick={onOpenRetro} />}
+          <ExportDialog
+            roomTitle={roomTitle || 'Planning Poker assíncrono'}
+            roomTeam={roomTeam}
+            issues={issuesQueue}
+            participants={participants}
+            deck={deck}
+          />
+        </div>
+
+        <div className="relative flex min-h-0 flex-1">
+          <ResponsivePanel side="left" open={isQueueOpen} onOpenChange={setIsQueueOpen} title="Fila" count={issuesQueue.length} icon={ListChecks} widthClass="w-80">
             <TopicQueue
               issues={issuesQueue}
               activeIssueId={null}
@@ -161,336 +145,172 @@ const AsyncPokerRoomComponent = ({
               deck={deck}
               hideSelectButton={true}
             />
-          </div>
-        </div>
-      </aside>
+          </ResponsivePanel>
 
-      <div className="flex flex-col flex-1 min-w-0 transition-all duration-300">
-        <div className="p-3 sm:p-5 pb-0 flex-1 flex flex-col h-full max-w-6xl mx-auto w-full">
-          {/* Room Header Unified */}
-          <div className="mb-4 delay-100 animate-in fade-in slide-in-from-top-4 duration-500">
-            <RoomHeader 
-              title={roomTitle || "Scrum Poker Assíncrono"} 
-              toolIcon={<Rocket className="h-4 w-4" />}
-              toolColorClass="text-indigo-600"
-              onOpenFeedback={onOpenFeedback}
-              badge={<Badge variant="outline" className="text-[8px] font-black uppercase tracking-[0.2em] bg-indigo-50 text-indigo-600 border-indigo-100 px-3 py-1 rounded-full shadow-sm">ASSÍNCRONO</Badge>}
-              actions={
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsQueueOpen(!isQueueOpen)}
-                    className={cn("h-10 w-10 rounded-[1rem] transition-all", isQueueOpen ? "text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 shadow-sm shadow-indigo-200/20 dark:shadow-none" : "text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800")}
-                    title="Fila de Tarefas"
-                  >
-                    <ListChecks className="h-5 w-5" />
-                  </Button>
+          <main className="mx-auto flex min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-3 sm:p-5">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-3">
+              {pendingIssues.length === 0 && completedIssues.length === 0 ? (
+                <section className="flex flex-col items-center gap-5 py-24 text-center">
+                  <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground">
+                    <Rocket className="h-8 w-8" strokeWidth={1.5} />
+                  </span>
+                  <h2 className="m-0 text-3xl font-bold tracking-tight">Nenhuma tarefa ainda</h2>
+                  <p className="m-0 max-w-md text-[15px] leading-relaxed text-muted-foreground">Cada pessoa vota no seu tempo. Comece adicionando as tarefas que o time deve estimar.</p>
+                  <ModalButton variant="primary" onClick={() => setIsQueueOpen(true)} className="h-11 px-6">Abrir a fila de tarefas</ModalButton>
+                </section>
+              ) : (
+                <>
+                  {pendingIssues.map(issue => {
+                    const isExpanded = expandedIssues.includes(issue.id);
+                    const isRevealed = revealedIssues.includes(issue.id);
+                    const issueVotes = votes.filter(v => v.issueId === issue.id);
+                    const myVoteValue = issueVotes.find(v => v.participantId === currentUser.id)?.value || null;
+                    const summary = isRevealed ? summarizeRound(issueVotes, participants, deck, { allowManagementToVote: settings?.allowManagementToVote, tshirtEquivalents: settings?.tshirtEquivalents }) : null;
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsParticipantsOpen(!isParticipantsOpen)}
-                    className={cn("h-10 w-10 rounded-[1rem] transition-all", isParticipantsOpen ? "text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-950/50 shadow-sm shadow-violet-200/20 dark:shadow-none" : "text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800")}
-                    title="Time Ativo"
-                  >
-                    <Users className="h-5 w-5" />
-                  </Button>
-
-                  <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
-
-                  <ExportDialog 
-                    roomTitle={roomTitle || "Scrum Poker Assíncrono"}
-                    roomTeam={roomTeam}
-                    issues={issuesQueue}
-                    participants={participants}
-                    deck={deck}
-                  />
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyLink}
-                    className="h-10 px-5 text-[10px] font-black uppercase tracking-[0.2em] border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-900 rounded-[1rem] gap-2 transition-all active:scale-95 shadow-sm"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    COPIAR LINK
-                  </Button>
-
-                  {onOpenRetro && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={onOpenRetro}
-                      className="h-10 w-10 rounded-[1rem] text-slate-400 dark:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"
-                      title="Abrir Retro desta Sprint"
-                    >
-                      <MessageSquareText className="h-5 w-5" />
-                    </Button>
-                  )}
-                </div>
-              }
-            />
-          </div>
-
-          <div className="flex-1 overflow-y-auto pr-3 pb-20 space-y-4 custom-scrollbar">
-             {/* Feed de Tarefas */}
-             {pendingIssues.length === 0 && completedIssues.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-32 text-center space-y-10 animate-in fade-in zoom-in-95 duration-700">
-                  <div className="w-32 h-32 bg-indigo-500/10 rounded-[3rem] flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-inner relative group">
-                    <Rocket className="w-16 h-16 group-hover:-translate-y-2 transition-transform duration-500" />
-                    <Sparkles className="absolute -top-2 -right-2 h-8 w-8 text-indigo-400 opacity-50 animate-pulse" />
-                  </div>
-                  <div className="max-w-md space-y-4">
-                    <h2 className="text-4xl font-black italic tracking-tighter uppercase text-slate-900 dark:text-slate-100 leading-none">Vazio & Planejado.</h2>
-                    <p className="text-slate-500 dark:text-slate-400 text-base font-medium leading-relaxed">
-                      Este é o ambiente assíncrono. Comece adicionando as tarefas que o time deve estimar no seu próprio tempo.
-                    </p>
-                  </div>
-                  <Button 
-                    size="lg"
-                    onClick={() => setIsQueueOpen(true)}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest px-10 h-14 rounded-[1.2rem] shadow-2xl shadow-indigo-600/30 transition-all active:scale-95"
-                  >
-                    Abrir Fila de Tarefas
-                  </Button>
-               </div>
-             ) : (
-               <>
-                 {pendingIssues.map(issue => {
-                   const isExpanded = expandedIssues.includes(issue.id);
-                   const isRevealed = revealedIssues.includes(issue.id);
-                   const issueVotes = votes.filter(v => v.issueId === issue.id);
-                   const myVoteObj = issueVotes.find(v => v.participantId === currentUser.id);
-                   const myVoteValue = myVoteObj?.value || null;
-
-                   return (
-                     <Card key={issue.id} className={`overflow-hidden transition-all duration-500 border rounded-[2rem] ${isExpanded ? 'border-indigo-500/30 bg-white dark:bg-slate-900 shadow-[0_32px_64px_-16px_rgba(79,70,229,0.15)] ring-1 ring-indigo-500/10' : 'border-slate-100 dark:border-slate-800 hover:border-indigo-500/20 bg-white dark:bg-slate-900 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]'}`}>
-                       <div className="p-5 sm:p-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 cursor-pointer group" onClick={() => toggleExpand(issue.id)}>
-                          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 leading-tight tracking-tight truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors italic">{issue.title}</h3>
-                              {myVoteValue && !isRevealed && <CheckCircle2 className="h-5 w-5 text-emerald-500 drop-shadow-[0_0_8px_rgba(16,185,129,0.4)]" />}
-                            </div>
-                            {issue.jiraLink && (
-                              <a href={formatExternalUrl(issue.jiraLink)} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black uppercase tracking-widest text-indigo-400 dark:text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 inline-flex items-center gap-1.5 w-fit" onClick={(e) => e.stopPropagation()}>
-                                <Plus className="h-3 w-3 rotate-45" /> {issue.jiraLink}
-                              </a>
-                            )}
-                            <div className="flex items-center gap-3 mt-3">
-                              <Badge variant="outline" className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 px-3 py-1">
-                                {issueVotes.length} {issueVotes.length === 1 ? 'voto' : 'votos'}
-                              </Badge>
-                              {isRevealed && (
-                                <Badge variant="outline" className="text-[9px] uppercase tracking-[0.2em] font-black text-white bg-red-500 border-none px-3 py-1 shadow-lg shadow-red-500/20">
-                                  REVELADO
-                                </Badge>
+                    return (
+                      <article key={issue.id} className={cn(CARD, 'overflow-hidden transition-[border-color,box-shadow] duration-slow', isExpanded && 'border-primary/40')}>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(issue.id)}
+                          aria-expanded={isExpanded}
+                          className="flex w-full flex-wrap items-center justify-between gap-4 px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                        >
+                          <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <span className="flex items-center gap-2">
+                              {issue.key && <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{issue.key}</span>}
+                              <span className="truncate text-base font-semibold">{issue.title}</span>
+                              {myVoteValue && !isRevealed && <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} aria-label="Você já votou" />}
+                            </span>
+                            <span className="flex flex-wrap items-center gap-2">
+                              <StatusChip tone="neutral">{issueVotes.length} {issueVotes.length === 1 ? 'voto' : 'votos'}</StatusChip>
+                              {isRevealed && <StatusChip tone="success">Revelado</StatusChip>}
+                              {issue.jiraLink && (
+                                <a
+                                  href={formatExternalUrl(issue.jiraLink)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                  <ExternalLink className="h-3 w-3" strokeWidth={1.5} /> No Jira
+                                </a>
                               )}
-                            </div>
-                          </div>
-                          <div className="shrink-0 flex items-center gap-3">
-                             <div className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all", isExpanded ? "bg-indigo-600 text-white" : "bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/50 group-hover:text-indigo-600 dark:group-hover:text-indigo-400")}>
-                               {isExpanded ? 'Recolher' : 'Votar Agora'}
-                             </div>
-                          </div>
-                       </div>
+                            </span>
+                          </span>
+                          <span className={cn('inline-flex h-9 items-center gap-2 rounded-lg px-4 text-sm font-semibold', isExpanded ? 'bg-primary text-primary-foreground' : 'border border-border')}>
+                            {isExpanded ? 'Recolher' : 'Votar agora'}
+                            <ChevronDown className={cn('h-4 w-4 transition-transform duration-base', isExpanded && 'rotate-180')} strokeWidth={1.5} />
+                          </span>
+                        </button>
 
-                       {/* Área Expandida (Cartas e Resultados) */}
-                       {isExpanded && (
-                         <div className="border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-5 sm:p-8 animate-in slide-in-from-top-2 duration-300">
-
-                            {/* Se não for espectador e a votação não estiver encerrada/revelada, mostra seu deck */}
+                        {isExpanded && (
+                          <div className="room-rise flex flex-col gap-6 border-t border-border bg-muted/30 p-5">
                             {!isRevealed && currentUser.role !== 'spectator' && (
-                              <div className="mb-10">
-                                {!canVote ? (
-                                  <div className="p-8 bg-indigo-50/50 dark:bg-indigo-950/30 border border-dashed border-indigo-200 dark:border-indigo-800 rounded-3xl text-center space-y-3">
-                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-500 dark:text-indigo-400 leading-tight inline-flex items-center justify-center gap-2">
-                                      <Eye className="h-3.5 w-3.5" /> Modo Observador Ativo
-                                    </p>
-                                    <p className="text-xs font-medium text-slate-400 dark:text-slate-500 italic leading-snug max-w-sm mx-auto">
-                                      Você é o facilitador e não está participando desta votação. (Altere isso no Painel de Controle)
-                                    </p>
+                              canVote ? (
+                                <section aria-label="Seu voto" className="flex flex-col gap-3">
+                                  <h3 className="m-0 text-[13px] font-semibold">Escolha sua estimativa</h3>
+                                  <div role="radiogroup" aria-label="Cartas" className="flex flex-wrap gap-2.5 pt-2">
+                                    {deckValues.map((val) => (
+                                      <DeckCard key={val} value={val} dense={isDense} selected={myVoteValue === val} onSelect={() => onAsyncVote(issue.id, val)} />
+                                    ))}
                                   </div>
-                                ) : (
-                                  <>
-                                    <div className="flex items-center gap-3 mb-5">
-                                      <div className="w-1 h-3.5 bg-indigo-500 rounded-full"></div>
-                                      <h4 className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 dark:text-slate-500">Escolha sua Estimativa</h4>
-                                    </div>
-                                    <div className="flex flex-wrap gap-3">
-                                      {deckValues.map((val) => {
-                                        const isSelected = myVoteValue === val;
-                                        return (
-                                          <button
-                                            key={val}
-                                            onClick={(e) => { e.stopPropagation(); onAsyncVote(issue.id, val); }}
-                                            className={cn(
-                                              "h-16 w-14 sm:h-20 sm:w-16 rounded-2xl font-black text-xl transition-all relative overflow-hidden italic",
-                                              isSelected
-                                                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30 ring-2 ring-indigo-400 ring-offset-2'
-                                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-md'
-                                            )}
-                                          >
-                                            {val}
-                                            {isSelected && (
-                                              <Sparkles className="absolute top-1 right-1 h-3 w-3 text-indigo-300 opacity-60" />
-                                            )}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </>
-                                )}
-                              </div>
+                                </section>
+                              ) : (
+                                <section className="flex flex-col items-center gap-1 rounded-xl border border-dashed border-border p-6 text-center">
+                                  <p className="m-0 flex items-center gap-2 text-sm font-semibold"><Eye className="h-4 w-4" strokeWidth={1.5} /> Você acompanha sem votar</p>
+                                  <p className="m-0 text-xs text-muted-foreground">Facilitador pode liberar o voto da gestão nas configurações.</p>
+                                </section>
+                              )
                             )}
 
-                            {/* Lista de Votos Renderizados */}
-                            <div className="space-y-5 mb-8">
-                              <div className="flex items-center gap-3">
-                                <div className="w-1 h-3.5 bg-violet-500 rounded-full"></div>
-                                <h4 className="text-[10px] uppercase font-black tracking-[0.2em] text-slate-400 dark:text-slate-500">Participação do Time</h4>
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                {participants.filter(p => !p.role || p.role !== 'spectator').map(p => {
+                            <section aria-label="Participação do time" className="flex flex-col gap-3">
+                              <h3 className="m-0 text-[13px] font-semibold">Participação do time</h3>
+                              <ul className="m-0 grid list-none grid-cols-3 gap-4 p-0 sm:grid-cols-4 md:grid-cols-6">
+                                {participants.filter(p => p.role !== 'spectator').map(p => {
                                   const pVote = issueVotes.find(v => v.participantId === p.id);
-                                  const hasVoted = !!pVote;
-                                  let displayContent = '-';
-                                  if (pVote) {
-                                    // Revelação anônima (opt-in): mantém o "✓" mesmo revelado,
-                                    // escondendo quem votou o quê (a distribuição fica acima).
-                                    displayContent = (isRevealed && !settings?.anonymousReveal) ? pVote.value : '✓';
-                                  }
-
+                                  // Revelação anônima (opt-in): mantém a carta virada mesmo revelado.
+                                  const showValue = !!pVote && isRevealed && !settings?.anonymousReveal;
                                   return (
-                                    <div key={p.id} className={cn(
-                                      "flex flex-col items-center justify-center p-4 rounded-[1.8rem] border transition-all",
-                                      hasVoted ? 'bg-white dark:bg-slate-800 border-indigo-200 dark:border-indigo-800 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 opacity-60'
-                                    )}>
-                                      <div className={cn(
-                                        "text-2xl font-black mb-1 italic",
-                                        isRevealed && hasVoted ? 'text-indigo-600 dark:text-indigo-400' : hasVoted ? 'text-emerald-500' : 'text-slate-300 dark:text-slate-600'
-                                      )}>
-                                        {displayContent}
-                                      </div>
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 truncate w-full text-center px-2">{p.nickname}</span>
-                                    </div>
+                                    <li key={p.id} className="flex min-w-0 flex-col items-center gap-2">
+                                      {!pVote ? (
+                                        <VoteCard state="thinking" size="md" label={`${p.nickname} ainda não votou`} />
+                                      ) : showValue ? (
+                                        <VoteCard state="revealed" size="md" value={pVote.value} unit={deck === 'hours' ? 'h' : undefined} tone="plain" label={`${p.nickname}: ${pVote.value}`} />
+                                      ) : (
+                                        <VoteCard state="hidden" size="md" label={`${p.nickname} votou`} />
+                                      )}
+                                      <span className="w-full truncate text-center text-xs font-semibold" title={p.nickname}>{p.nickname}</span>
+                                    </li>
                                   );
                                 })}
-                              </div>
-                            </div>
+                              </ul>
+                            </section>
 
-                            {/* Insights de revelação (paridade com o síncrono, opt-in) */}
-                            {isRevealed && (settings?.showDistribution || settings?.outlierPrompt) && (
-                              <div className="space-y-3 mb-4">
-                                {settings?.showDistribution && (
-                                  <VoteDistribution votes={issueVotes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} />
-                                )}
+                            {isRevealed && summary && (
+                              <div className="grid items-start gap-4 lg:grid-cols-2">
+                                <CopyEstimateCard summary={summary} deck={deck} />
                                 {settings?.outlierPrompt && (
                                   <OutlierPrompt votes={issueVotes} participants={participants} deck={deck} tshirtEquivalents={settings?.tshirtEquivalents} />
                                 )}
                               </div>
                             )}
+                            {isRevealed && settings?.showDistribution && (
+                              <VoteDistribution votes={issueVotes} participants={participants} deck={deck} allowManagementToVote={settings?.allowManagementToVote} />
+                            )}
 
-                            {/* Facilitator Controls for this Issue */}
                             {isCurrentUserFacilitator && (
-                              <div className="flex flex-wrap items-center gap-4 p-6 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2rem] shadow-sm">
-                                 {!isRevealed ? (
-                                   <Button size="lg" onClick={() => onAsyncReveal(issue.id)} className="h-12 px-8 font-black text-[11px] uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/30">
-                                     <Eye className="h-4 w-4 mr-2" /> Revelar Resultados
-                                   </Button>
-                                 ) : (
-                                   <Button size="lg" onClick={() => onAsyncClear(issue.id)} variant="outline" className="h-12 px-8 font-black text-[11px] uppercase tracking-widest rounded-xl border-2 border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-500 hover:border-red-200 dark:hover:border-red-800 transition-all">
-                                     <RefreshCcw className="h-4 w-4 mr-2" /> Reiniciar Rodada
-                                   </Button>
-                                 )}
-                                 <div className="flex-1" />
-                                 <CompleteAsyncIssueDialog issueId={issue.id} isRevealed={isRevealed} deck={deck} issueVotes={issueVotes} participants={participants} onCompleteIssue={onCompleteIssue} />
+                              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
+                                {!isRevealed ? (
+                                  <ModalButton variant="primary" onClick={() => onAsyncReveal(issue.id)} className="gap-2"><Eye className="h-4 w-4" strokeWidth={1.5} /> Revelar resultados</ModalButton>
+                                ) : (
+                                  <ModalButton onClick={() => onAsyncClear(issue.id)} className="gap-2"><RefreshCcw className="h-4 w-4" strokeWidth={1.5} /> Reiniciar rodada</ModalButton>
+                                )}
+                                <span className="flex-1" />
+                                <CompleteAsyncIssueDialog issueId={issue.id} isRevealed={isRevealed} deck={deck} issueVotes={issueVotes} participants={participants} onCompleteIssue={onCompleteIssue} />
                               </div>
                             )}
-                         </div>
-                       )}
-                     </Card>
-                   );
-                 })}
-
-                 {completedIssues.length > 0 && (
-                   <div className="mt-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="h-px flex-1 bg-emerald-500/20"></div>
-                        <h2 className="text-[11px] font-black uppercase tracking-[0.4em] text-emerald-500 italic">Votações Finalizadas</h2>
-                        <div className="h-px flex-1 bg-emerald-500/20"></div>
-                      </div>
-                      <div className="grid gap-3">
-                        {completedIssues.map(issue => (
-                          <div key={issue.id} className="group flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-900/50 rounded-[2rem] hover:shadow-lg hover:shadow-emerald-500/5 transition-all">
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                              <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-500">
-                                <CheckCircle2 className="h-5 w-5" />
-                              </div>
-                              <p className="font-bold text-base text-slate-800 dark:text-slate-100 italic opacity-60 line-through truncate">{issue.title}</p>
-                            </div>
-                            <div className="flex items-center gap-6 mt-4 sm:mt-0">
-                               {deck === 'hours' && (issue.devPoints || issue.qaPoints) && (
-                                  <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-600/50 tracking-widest italic">
-                                    {issue.devPoints && <span>Dev: {issue.devPoints}h</span>}
-                                    {issue.qaPoints && <span>QA: {issue.qaPoints}h</span>}
-                                  </div>
-                               )}
-                               <div className="flex flex-col items-end">
-                                 <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400 mb-1">CONCORDADO</span>
-                                 <span className="inline-flex items-center justify-center px-6 py-2 bg-emerald-500 text-white font-black text-sm rounded-xl uppercase tracking-widest shadow-lg shadow-emerald-500/20 italic">
-                                   {issue.estimatedPoints} {deck === 'hours' ? 'H' : deck === 'tshirt' ? '' : 'SP'}
-                                 </span>
-                               </div>
-                            </div>
                           </div>
-                        ))}
-                      </div>
-                   </div>
-                 )}
-               </>
-             )}
-          </div>
-        </div>
-      </div>
+                        )}
+                      </article>
+                    );
+                  })}
 
-      {/* SIDEBAR DIREITA: TIME */}
-      <div className={cn(
-        "hidden lg:flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200/60 dark:border-slate-800/60 transition-all duration-500 ease-in-out overflow-hidden relative z-10",
-        isParticipantsOpen ? "w-88 opacity-100 shadow-2xl" : "w-0 opacity-0 border-none"
-      )}>
-        <div className="w-88 flex flex-col h-full shrink-0">
-        <header className='p-6 border-b border-slate-100 dark:border-slate-800 shrink-0 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30'>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-violet-50 dark:bg-violet-950/50 rounded-xl">
-              <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  {completedIssues.length > 0 && (
+                    <section aria-label="Votações finalizadas" className="mt-6 flex flex-col gap-3">
+                      <h2 className="m-0 flex items-center gap-3 text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">
+                        <span className="h-px flex-1 bg-emerald-500/25" /> Votações finalizadas <span className="h-px flex-1 bg-emerald-500/25" />
+                      </h2>
+                      <ul className="m-0 grid list-none gap-2 p-0">
+                        {completedIssues.map(issue => {
+                          const rp = issue.rolePoints ?? { Developer: issue.devPoints ?? '', QA: issue.qaPoints ?? '' };
+                          const roles = deck === 'hours' ? Object.entries(rp).filter(([, v]) => v && v !== '0') : [];
+                          return (
+                            <li key={issue.id} className={cn(CARD, 'flex flex-wrap items-center justify-between gap-3 px-5 py-4')}>
+                              <span className="flex min-w-0 flex-1 items-center gap-3">
+                                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} aria-hidden="true" />
+                                <span className="truncate text-[15px] font-semibold text-muted-foreground line-through">{issue.title}</span>
+                              </span>
+                              <span className="flex items-center gap-3">
+                                {roles.length > 0 && (
+                                  <span className="text-xs tabular-nums text-muted-foreground">
+                                    {roles.map(([role, v]) => `${formatRoleForCopy(role)} ${v}h`).join(' · ')}
+                                  </span>
+                                )}
+                                <StatusChip tone="success" className="h-7 px-3 text-sm tabular-nums">{issue.estimatedPoints}{unit}</StatusChip>
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  )}
+                </>
+              )}
             </div>
-            <div>
-              <h2 className="text-[10px] font-black tracking-[0.2em] uppercase text-slate-400 dark:text-slate-500 leading-none mb-1">Squad</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">Time Ativo</span>
-                <span className="bg-violet-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{participants.length}</span>
-              </div>
-            </div>
-          </div>
-        </header>
+          </main>
 
-        {isCurrentUserFacilitator && (
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 shrink-0 bg-slate-50/50 dark:bg-slate-800/30">
-            <FacilitatorPanel
-               deck={deck}
-               allowManagementToVote={settings?.allowManagementToVote}
-               onUpdateSettings={onUpdateSettings || (() => {})}
-               showAutoReveal={false}
-               showDivergence={false}
-               showRoundFeatures={false}
-               isEmbeddedInSheet={true}
-            />
-          </div>
-        )}
-        
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
-          <ParticipantList
+          <ResponsivePanel side="right" open={isParticipantsOpen} onOpenChange={setIsParticipantsOpen} title="Participantes" count={participants.length} icon={Users} widthClass="w-80">
+            <ParticipantList
               participants={participants}
               votes={votes}
               currentUserId={currentUser.id}
@@ -498,20 +318,55 @@ const AsyncPokerRoomComponent = ({
               onRemoveParticipant={onRemoveParticipant}
               onUpdateParticipantRole={onUpdateParticipantRole}
               onClaimFacilitator={onClaimFacilitator}
-          />
+              allowManagementToVote={settings?.allowManagementToVote}
+            />
+          </ResponsivePanel>
         </div>
       </div>
-    </div>
-    </div>
-    <ShareRoomDialog
-      isOpen={isShareDialogOpen}
-      onClose={() => setIsShareDialogOpen(false)}
-      roomId={roomId}
-      roomTitle={roomTitle}
-      issues={issuesQueue}
-    />
-  </>
-);
+
+      {isCurrentUserFacilitator && (
+        <CeremonySettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} onRestoreDefaults={() => onUpdateSettings?.(buildDefaultSettingsPatch())}>
+          <FacilitatorPanel
+            deck={deck}
+            onSetDeck={onSetDeck}
+            allowManagementToVote={settings?.allowManagementToVote}
+            autoReveal={settings?.autoReveal}
+            outlierPrompt={settings?.outlierPrompt}
+            confidenceVote={settings?.confidenceVote}
+            showVelocity={settings?.showVelocity}
+            anonymousReveal={settings?.anonymousReveal}
+            turnNotification={settings?.turnNotification}
+            showDistribution={settings?.showDistribution}
+            decisionNotes={settings?.decisionNotes}
+            perTopicTime={settings?.perTopicTime !== false}
+            autoTimer={settings?.autoTimer}
+            groomingFlag={settings?.groomingFlag}
+            autoConsensus={settings?.autoConsensus}
+            suggestRevote={settings?.suggestRevote}
+            reactions={settings?.reactions}
+            roundingMode={settings?.roundingMode}
+            blindVotes={settings?.blindVotes}
+            groupVotesByRole={settings?.groupVotesByRole}
+            refinementNotes={settings?.refinementNotes}
+            divergenceThresholds={settings?.divergenceThresholds}
+            tshirtEquivalents={settings?.tshirtEquivalents}
+            onUpdateSettings={onUpdateSettings || (() => {})}
+            showAutoReveal={false}
+            showDivergence={false}
+            showRoundFeatures={false}
+          />
+        </CeremonySettingsDialog>
+      )}
+
+      <ShareRoomDialog
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
+        roomId={roomId}
+        roomTitle={roomTitle}
+        issues={issuesQueue}
+      />
+    </>
+  );
 };
 
 export const AsyncPokerRoom = React.memo(AsyncPokerRoomComponent);
@@ -570,59 +425,66 @@ function CompleteAsyncIssueDialog({ issueId, isRevealed, deck, issueVotes, parti
     setRolePoints({});
   };
 
+  const fieldCls = cn(FIELD, 'h-11 text-sm font-semibold tabular-nums');
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className={`h-9 px-6 font-black text-[10px] uppercase tracking-widest rounded-xl border-2 ${isRevealed ? 'text-emerald-500 hover:bg-emerald-500/10 hover:border-emerald-500/30' : ''}`}>
-           <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Finalizar Estimativa
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.2)] bg-card/60 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden p-0">
-        <DialogHeader className="p-8 pb-4">
-          <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500">Finalizar Tarefa</DialogTitle>
-          <DialogDescription className="font-semibold text-xs text-muted-foreground/80">
-            Consolide e salve as estimativas finais deste card na fila.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="px-8 py-4 space-y-4">
-           {deck === 'hours' ? (
-             <div className="space-y-4">
-               <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 dark:text-indigo-500 ml-1 mb-1.5 block">Estimativa Total (Horas)</label>
-                  <input value={points} onChange={(e) => setPoints(e.target.value)} type="number" placeholder="Total horas" className="flex h-12 w-full rounded-2xl border-2 border-indigo-500/20 bg-background/50 px-4 py-2 text-sm font-black shadow-inner focus-visible:outline-none focus-visible:border-indigo-500 transition-colors" />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                 {Object.keys(rolePoints).length > 0 ? (
-                   Object.keys(rolePoints).map(role => (
-                     <div key={role} className="space-y-1.5">
-                       <label className="text-[9px] font-black uppercase tracking-tight text-slate-400 dark:text-slate-500 ml-1 block">{role}</label>
-                       <input
-                         value={rolePoints[role] || ''}
-                         onChange={(e) => setRolePoints(prev => ({...prev, [role]: e.target.value}))}
-                         type="number"
-                         placeholder={`${role} h`}
-                         className="flex h-12 w-full rounded-2xl border border-input bg-background/50 px-4 py-2 text-sm font-black shadow-inner focus-visible:outline-none focus-visible:border-indigo-500 transition-colors"
-                       />
-                     </div>
-                   ))
-                 ) : (
-                   <p className="col-span-2 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase py-4">Nenhum voto técnico detectado</p>
-                 )}
-               </div>
-             </div>
-           ) : (
-             <div>
-               <input value={points} onChange={(e) => {setPoints(e.target.value); setIsSuggested(false);}} placeholder={`Estimativa final (${deck === 'fibonacci' ? 'Pontos' : 'Tamanho'})`} className="flex h-14 w-full rounded-2xl border-2 border-indigo-500/20 bg-background/50 px-4 py-2 text-base font-black shadow-inner focus-visible:outline-none focus-visible:border-indigo-500 transition-colors" />
-               {isSuggested && points && <p className="text-[10px] mt-2 ml-1 font-black uppercase tracking-widest text-emerald-500">✓ Valor sugerido pelo time</p>}
-             </div>
-           )}
-        </div>
-        <DialogFooter className="p-8 pt-4">
-          <Button onClick={submit} className="w-full h-14 font-black uppercase tracking-widest text-xs rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.98]">
-            Salvar & Fila de Concluídos
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-      </Dialog>
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => handleOpenChange(true)}
+        className={cn('h-9 gap-2 rounded-[10px] px-4 text-sm font-medium', isRevealed && 'border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300')}
+      >
+        <CheckCircle2 className="h-4 w-4" strokeWidth={1.5} /> Finalizar estimativa
+      </Button>
+      <Modal
+        open={open}
+        onOpenChange={handleOpenChange}
+        size="sm"
+        tone="success"
+        icon={CheckCircle2}
+        title="Finalizar tarefa"
+        description="Salve as estimativas finais deste card na fila."
+        footer={
+          <>
+            <ModalButton onClick={() => handleOpenChange(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={submit}>Salvar na fila</ModalButton>
+          </>
+        }
+      >
+        {deck === 'hours' ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="async-total" className="text-[13px] font-semibold">Estimativa total (horas)</label>
+              <input id="async-total" value={points} onChange={(e) => setPoints(e.target.value)} type="number" placeholder="Total de horas" className={fieldCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.keys(rolePoints).length > 0 ? (
+                Object.keys(rolePoints).map((role) => (
+                  <div key={role} className="flex flex-col gap-1.5">
+                    <label htmlFor={`async-role-${role}`} className="text-xs font-semibold text-muted-foreground">{formatRoleForCopy(role)}</label>
+                    <input
+                      id={`async-role-${role}`}
+                      value={rolePoints[role] || ''}
+                      onChange={(e) => setRolePoints((prev) => ({ ...prev, [role]: e.target.value }))}
+                      type="number"
+                      placeholder={`${formatRoleForCopy(role)} em horas`}
+                      className={fieldCls}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="col-span-2 py-4 text-center text-sm text-muted-foreground">Nenhum voto técnico detectado.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="async-final" className="text-[13px] font-semibold">Estimativa final ({deck === 'fibonacci' ? 'pontos' : 'tamanho'})</label>
+            <input id="async-final" value={points} onChange={(e) => { setPoints(e.target.value); setIsSuggested(false); }} className={fieldCls} />
+            {isSuggested && points && <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Valor sugerido pelo time</p>}
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

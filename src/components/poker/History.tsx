@@ -8,11 +8,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
-  History as HistoryIcon,
   Copy,
   SkipForward,
   MessageSquare,
@@ -20,13 +18,13 @@ import {
   Users as UsersIcon,
   CheckCircle2,
   AlertTriangle,
-  RotateCw,
   Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { formatEstimateCopy, formatRoleForCopy } from '@/lib/poker-utils';
+import { PersonAvatar, RoleChip, StatusChip } from '@/components/room-kit';
 
 interface HistoryProps {
   roomId: string;
@@ -38,11 +36,17 @@ interface HistoryProps {
 }
 
 const CONFIDENCE_LABEL: Record<string, string> = { low: 'baixa', medium: 'média', high: 'alta' };
-const CONFIDENCE_CLASS: Record<string, string> = {
-  low: 'text-rose-600 dark:text-rose-400',
-  medium: 'text-amber-600 dark:text-amber-400',
-  high: 'text-emerald-600 dark:text-emerald-400',
-};
+
+/** Estimativa final por papel salva na rodada (deck de horas). */
+function finalRoleEntries(round: VotingRound): Array<[string, string]> {
+  if (round.rolePoints) {
+    return Object.entries(round.rolePoints).filter(([, v]) => v && v !== '0');
+  }
+  const legacy: Array<[string, string]> = [];
+  if (round.devPoints && round.devPoints !== '0') legacy.push(['Developer', round.devPoints]);
+  if (round.qaPoints && round.qaPoints !== '0') legacy.push(['QA', round.qaPoints]);
+  return legacy;
+}
 
 /** "4 min" / "45s" — rodada curta em segundos evita um monte de "0 min". */
 function formatDuration(ms: number) {
@@ -117,6 +121,16 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
   }, [rounds, issues]);
 
   const handleCopyRound = (round: VotingRound) => {
+    // Com horas finais por papel salvas, copia no formato padrão da issue pai: (DEV 10h / QA 4h).
+    if (round.deckType === 'hours') {
+      const final = finalRoleEntries(round);
+      const text = formatEstimateCopy(final.map(([role, value]) => ({ role, value })), 'h');
+      if (text) {
+        navigator.clipboard.writeText(text);
+        toast({ title: 'Estimativa copiada', description: text });
+        return;
+      }
+    }
     const votesByRole: { [key in Role]?: string[] } = {};
 
     round.votes.forEach(vote => {
@@ -190,262 +204,168 @@ export function History({ roomId, rounds, participants, issues }: HistoryProps) 
     }
   };
 
-  /** Estimativa final por papel salva na rodada (deck de horas). */
-  const finalRoleEntries = (round: VotingRound): Array<[string, string]> => {
-    if (round.rolePoints) {
-      return Object.entries(round.rolePoints).filter(([, v]) => v && v !== '0');
-    }
-    const legacy: Array<[string, string]> = [];
-    if (round.devPoints && round.devPoints !== '0') legacy.push(['Developer', round.devPoints]);
-    if (round.qaPoints && round.qaPoints !== '0') legacy.push(['QA', round.qaPoints]);
-    return legacy;
-  };
-
   // Mais recente primeiro: quem abre o histórico quer ver a última rodada, não rolar até ela.
   const orderedRounds = useMemo(
     () => [...(rounds || [])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
     [rounds]
   );
 
-  // Cor de status da rodada (barra lateral + selo do resultado).
+  // Cor de status da rodada (barra lateral e cor do resultado).
   const statusOf = (round: VotingRound, voters: number) => {
-    if (round.cancelled) return { bar: 'bg-rose-500', tone: 'text-rose-600 dark:text-rose-400', tile: 'bg-rose-500/10' };
-    if (round.skipped) return { bar: 'bg-amber-500', tone: 'text-amber-600 dark:text-amber-400', tile: 'bg-amber-500/10' };
-    if (voters > 1 && round.stats.consensus) return { bar: 'bg-emerald-500', tone: 'text-emerald-600 dark:text-emerald-400', tile: 'bg-emerald-500/10' };
-    if (voters > 1) return { bar: 'bg-rose-400', tone: 'text-slate-900 dark:text-white', tile: 'bg-slate-100 dark:bg-slate-900' };
-    return { bar: 'bg-indigo-400', tone: 'text-slate-900 dark:text-white', tile: 'bg-slate-100 dark:bg-slate-900' };
+    if (round.cancelled) return { bar: 'bg-red-500', tone: 'text-red-700 dark:text-red-300' };
+    if (round.skipped) return { bar: 'bg-amber-500', tone: 'text-amber-700 dark:text-amber-300' };
+    if (voters > 1 && round.stats.consensus) return { bar: 'bg-emerald-500', tone: 'text-emerald-700 dark:text-emerald-300' };
+    if (voters > 1) return { bar: 'bg-red-400', tone: 'text-foreground' };
+    return { bar: 'bg-primary', tone: 'text-foreground' };
   };
 
-  return (
-    <section className="space-y-3" aria-label="Histórico de votação">
-      <div className="flex items-center gap-2.5 px-1">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-          <HistoryIcon className="h-4 w-4" />
-        </div>
-        <h3 className="text-sm font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">Histórico da sessão</h3>
-        {rounds && rounds.length > 0 && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black tabular-nums text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-            {rounds.length} rodada{rounds.length !== 1 ? 's' : ''}
-          </span>
-        )}
-        <span className="h-px flex-1 bg-slate-100 dark:bg-border/40" />
-      </div>
 
+  return (
+    <section className="flex min-h-0 flex-1 flex-col" aria-label="Histórico de votação">
       {(!rounds || rounds.length === 0) ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-xs font-medium text-muted-foreground dark:border-border">
-          Nenhuma rodada de votação foi concluída ainda.
+        <div className="m-3 rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Nenhuma rodada concluída ainda.
         </div>
       ) : (
-        <Accordion type="single" collapsible className="w-full space-y-2">
-          {orderedRounds.map(round => {
-            const m = meta.get(round.id);
-            const voters = m?.voters ?? round.votes.length;
-            const votingLabel = m?.votingMs !== null && m?.votingMs !== undefined ? formatDuration(m.votingMs) : null;
-            const topicLabel = m?.topicMs !== null && m?.topicMs !== undefined ? formatDuration(m.topicMs) : null;
-            const roleEntries = finalRoleEntries(round);
-            const st = statusOf(round, voters);
-            const unit = round.deckType === 'hours' && !isNaN(Number(round.stats.avg)) ? 'h' : '';
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+          <Accordion type="single" collapsible className="flex w-full flex-col gap-2">
+            {orderedRounds.map(round => {
+              const m = meta.get(round.id);
+              const voters = m?.voters ?? round.votes.length;
+              const votingLabel = m?.votingMs !== null && m?.votingMs !== undefined ? formatDuration(m.votingMs) : null;
+              const topicLabel = m?.topicMs !== null && m?.topicMs !== undefined ? formatDuration(m.topicMs) : null;
+              const roleEntries = finalRoleEntries(round);
+              const st = statusOf(round, voters);
+              const unit = round.deckType === 'hours' && !isNaN(Number(round.stats.avg)) ? 'h' : '';
 
-            return (
-            <AccordionItem
-              value={round.id}
-              key={round.id}
-              className="relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/80 px-5 shadow-sm backdrop-blur transition-shadow hover:shadow-md dark:border-border/60 dark:bg-card/70"
-            >
-              <span className={cn('absolute bottom-0 left-0 top-0 w-1.5', st.bar)} aria-hidden />
-              <AccordionTrigger className="py-4 hover:no-underline">
-                <div className="flex w-full items-center gap-4 pr-3 text-left">
-                  <div className={cn('flex h-12 min-w-[3.25rem] shrink-0 items-center justify-center rounded-xl px-2', st.tile)}>
-                    {round.cancelled ? (
-                      <Ban className="h-5 w-5 text-rose-500" />
-                    ) : round.skipped ? (
-                      <SkipForward className="h-5 w-5 text-amber-500" />
-                    ) : (
-                      <span className={cn('text-xl font-black italic leading-none tracking-tighter', st.tone)}>
-                        {round.stats.avg}{unit}
+              return (
+                <AccordionItem
+                  value={round.id}
+                  key={round.id}
+                  className="relative overflow-hidden rounded-xl border border-border bg-muted/30 transition-colors duration-base data-[state=open]:border-primary/40 data-[state=open]:bg-primary/5"
+                >
+                  <span className={cn('absolute bottom-0 left-0 top-0 w-1', st.bar)} aria-hidden="true" />
+                  <AccordionTrigger className="px-4 py-3 text-left hover:no-underline">
+                    <div className="flex w-full min-w-0 items-center gap-3 pr-2">
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-[13px] font-semibold">{round.topic}</span>
+                        <span
+                          className="text-[11px] font-normal text-muted-foreground"
+                          title={format(new Date(round.timestamp), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                        >
+                          {formatDistanceToNow(new Date(round.timestamp), { addSuffix: true, locale: ptBR })}
+                          {m && m.roundTotal > 1 ? ` · rodada ${m.roundNumber} de ${m.roundTotal}` : ''}
+                        </span>
                       </span>
-                    )}
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex items-start justify-between gap-4">
-                      <span className="truncate text-sm font-bold text-slate-900 dark:text-white">{round.topic}</span>
-                      <span
-                        className="whitespace-nowrap text-[11px] font-medium text-muted-foreground"
-                        title={format(new Date(round.timestamp), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
-                      >
-                        {formatDistanceToNow(new Date(round.timestamp), { addSuffix: true, locale: ptBR })}
-                      </span>
-                    </div>
-                    {/* Resumo da rodada: o que já era gravado mas ficava só no banco. */}
-                    <div className="flex flex-wrap items-center gap-1.5">
                       {round.cancelled ? (
-                        <Badge variant="outline" className="gap-1 text-[10px] font-bold border-rose-400/40 text-rose-600 dark:text-rose-400">
-                          <Ban className="h-3 w-3" /> cancelada
-                        </Badge>
+                        <Ban className="h-4 w-4 shrink-0 text-red-600 dark:text-red-300" strokeWidth={1.5} aria-label="Cancelada" />
                       ) : round.skipped ? (
-                        <Badge variant="outline" className="gap-1 text-[10px] font-bold border-amber-400/40 text-amber-600 dark:text-amber-400">
-                          <SkipForward className="h-3 w-3" /> pulada
-                        </Badge>
+                        <SkipForward className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" strokeWidth={1.5} aria-label="Pulada" />
                       ) : (
-                        <>
-                          {votingLabel && (
-                            <Badge variant="outline" className="gap-1 text-[10px] font-bold border-indigo-400/40 text-indigo-600 dark:text-indigo-400">
-                              <Clock className="h-3 w-3" /> {votingLabel} votando
-                            </Badge>
-                          )}
-                          {topicLabel && (
-                            <Badge variant="outline" className="gap-1 text-[10px] font-bold border-slate-300 dark:border-border text-muted-foreground">
-                              <Clock className="h-3 w-3" /> {topicLabel} no tópico
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="gap-1 text-[10px] font-bold border-slate-300 dark:border-border text-muted-foreground">
-                            <UsersIcon className="h-3 w-3" /> {voters} voto{voters !== 1 ? 's' : ''}
-                          </Badge>
-                          {/* Com um votante só não existe consenso nem divergência:
-                              o badge mentiria dos dois jeitos. */}
+                        <span className={cn('whitespace-nowrap text-[13px] font-bold tabular-nums', st.tone)}>{round.stats.avg}{unit}</span>
+                      )}
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    {round.cancelled || round.skipped ? (
+                      <div className="flex flex-col gap-2.5">
+                        <StatusChip tone={round.cancelled ? 'danger' : 'warn'} className="self-start">
+                          {round.cancelled ? 'Cancelada no refinamento' : 'Pulada, sem estimativa'}
+                        </StatusChip>
+                        {round.note && (
+                          <p className="m-0 flex items-start gap-2 rounded-[10px] bg-muted/50 p-3 text-sm italic text-muted-foreground">
+                            <MessageSquare className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} />
+                            “{round.note}”
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {votingLabel && <StatusChip tone="neutral"><Clock className="h-3 w-3" strokeWidth={1.5} /> {votingLabel} votando</StatusChip>}
+                          {topicLabel && <StatusChip tone="neutral"><Clock className="h-3 w-3" strokeWidth={1.5} /> {topicLabel} no tópico</StatusChip>}
+                          <StatusChip tone="neutral"><UsersIcon className="h-3 w-3" strokeWidth={1.5} /> {voters} voto{voters !== 1 ? 's' : ''}</StatusChip>
+                          {/* Com um votante só não existe consenso nem divergência: o selo mentiria dos dois jeitos. */}
                           {voters > 1 && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "gap-1 text-[10px] font-bold",
-                                round.stats.consensus
-                                  ? "border-emerald-400/40 text-emerald-600 dark:text-emerald-400"
-                                  : "border-rose-400/40 text-rose-600 dark:text-rose-400"
-                              )}
-                            >
-                              {round.stats.consensus ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
+                            <StatusChip tone={round.stats.consensus ? 'success' : 'danger'}>
+                              {round.stats.consensus ? <CheckCircle2 className="h-3 w-3" strokeWidth={1.5} /> : <AlertTriangle className="h-3 w-3" strokeWidth={1.5} />}
                               {round.stats.consensus ? 'consenso' : 'divergência'}
-                            </Badge>
+                            </StatusChip>
                           )}
-                        </>
-                      )}
-                      {m && m.roundTotal > 1 && (
-                        <Badge variant="outline" className="gap-1 text-[10px] font-bold border-violet-400/40 text-violet-600 dark:text-violet-400">
-                          <RotateCw className="h-3 w-3" /> rodada {m.roundNumber} de {m.roundTotal}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pb-5">
-                {round.cancelled ? (
-                  <div className="flex flex-col gap-3 py-1">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 rounded-full border border-rose-400/20 bg-rose-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-rose-600">
-                        <Ban className="h-3 w-3" />
-                        Tarefa cancelada no refinamento
-                      </div>
-                    </div>
-                    {round.note && (
-                      <div className="flex items-start gap-2 rounded-xl bg-muted/30 p-3 text-sm text-muted-foreground">
-                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-                        <p className="font-medium italic">"{round.note}"</p>
-                      </div>
-                    )}
-                  </div>
-                ) : round.skipped ? (
-                  <div className="flex flex-col gap-3 py-1">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 rounded-full border border-amber-400/20 bg-amber-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-amber-600">
-                        <SkipForward className="h-3 w-3" />
-                        Tarefa pulada / sem estimativa
-                      </div>
-                    </div>
-                    {round.note && (
-                      <div className="flex items-start gap-2 rounded-xl bg-muted/30 p-3 text-sm text-muted-foreground">
-                        <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
-                        <p className="font-medium italic">"{round.note}"</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { l: round.deckType === 'tshirt' ? 'Mais votado' : 'Média', v: round.stats.avg, strong: true },
-                        { l: 'Menor', v: round.stats.min },
-                        { l: 'Maior', v: round.stats.max },
-                      ].map(t => (
-                        <div key={t.l} className={cn('rounded-xl border p-2.5 text-center', t.strong ? 'border-indigo-200/70 bg-indigo-50/60 dark:border-indigo-900/40 dark:bg-indigo-950/20' : 'border-slate-100 bg-slate-50/70 dark:border-border/40 dark:bg-slate-900/40')}>
-                          <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{t.l}</p>
-                          <p className={cn('mt-0.5 text-xl font-black italic tracking-tighter', t.strong ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-800 dark:text-slate-100')}>{t.v}</p>
                         </div>
-                      ))}
-                    </div>
 
-                    {roleEntries.length > 0 && (
-                      <div>
-                        <h4 className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Estimativa final por papel</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {roleEntries.map(([role, value]) => (
-                            <div key={role} className="flex items-center gap-2 rounded-lg bg-muted/50 p-1.5 text-sm">
-                              <span className="text-muted-foreground">{role === 'Developer' ? 'Dev' : role}</span>
-                              <Badge variant="secondary" className="font-bold">{value}h</Badge>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { l: round.deckType === 'tshirt' ? 'Mais votado' : 'Média', v: round.stats.avg },
+                            { l: 'Menor', v: round.stats.min },
+                            { l: 'Maior', v: round.stats.max },
+                          ].map(t => (
+                            <div key={t.l} className="flex flex-col gap-0.5 rounded-lg border border-border bg-card p-2">
+                              <span className="text-[10px] text-muted-foreground">{t.l}</span>
+                              <span className="text-sm font-bold tabular-nums">{t.v}</span>
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
 
-                    {m && m.distribution.length > 1 && (
-                      <div>
-                        <h4 className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Distribuição</h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {m.distribution.map(([value, count]) => (
-                            <span key={value} className="rounded-lg bg-muted/50 px-2 py-1 text-[11px] font-bold text-muted-foreground">
-                              {value} <span className="opacity-60">× {count}</span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                        {roleEntries.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Estimativa final por papel</h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {roleEntries.map(([role, value]) => (
+                                <RoleChip key={role} category={role} label={`${formatRoleForCopy(role)} ${value}h`} className="h-[26px] px-2.5 text-[13px]" />
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
-                    <Separator />
-                    <div>
-                      <h4 className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Votos individuais</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {round.votes.map(vote => {
-                          const participant = participantMap.get(vote.participantId);
-                          // Metadados persistidos no voto ("votos são fatos"):
-                          // sobrevivem à saída do participante da sala.
-                          const nickname = participant?.nickname || vote.participantNickname || '...';
-                          const roleLabel = vote.participantGlobalRole || participant?.globalRole || null;
-                          return (
-                            <div key={vote.participantId} className="flex items-center gap-2 rounded-lg bg-muted/50 p-1.5 text-sm">
-                              <div className="flex flex-col leading-tight">
-                                <span>{nickname}</span>
-                                {roleLabel && (
-                                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70">{roleLabel}</span>
-                                )}
-                              </div>
-                              <Badge variant="secondary" className="font-bold">{vote.value}</Badge>
-                              {vote.confidence && (
-                                <span
-                                  className={cn("text-[9px] font-black uppercase tracking-widest", CONFIDENCE_CLASS[vote.confidence])}
-                                  title="Confiança declarada no voto"
-                                >
-                                  {CONFIDENCE_LABEL[vote.confidence]}
+                        {m && m.distribution.length > 1 && (
+                          <div className="flex flex-col gap-1.5">
+                            <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Distribuição</h4>
+                            <div className="flex flex-wrap gap-1.5">
+                              {m.distribution.map(([value, count]) => (
+                                <span key={value} className="rounded-md bg-card px-2 py-1 text-[11px] font-semibold tabular-nums text-muted-foreground ring-1 ring-inset ring-border">
+                                  {value} <span className="opacity-60">× {count}</span>
                                 </span>
-                              )}
+                              ))}
                             </div>
-                          );
-                        })}
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-1.5">
+                          <h4 className="m-0 text-[11px] font-bold text-muted-foreground">Votos individuais</h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {round.votes.map(vote => {
+                              const participant = participantMap.get(vote.participantId);
+                              // Metadados persistidos no voto ("votos são fatos"): sobrevivem à saída da sala.
+                              const nickname = participant?.nickname || vote.participantNickname || '…';
+                              return (
+                                <span
+                                  key={vote.participantId}
+                                  title={vote.confidence ? `Confiança ${CONFIDENCE_LABEL[vote.confidence]}` : undefined}
+                                  className="inline-flex h-[26px] items-center gap-1.5 rounded-full bg-card pl-1 pr-2 text-[11px] ring-1 ring-inset ring-border"
+                                >
+                                  <PersonAvatar name={nickname} size="sm" className="h-[18px] w-[18px] text-[8px]" />
+                                  <strong className="tabular-nums">{vote.value}</strong>
+                                  {vote.confidence && (
+                                    <span aria-hidden="true" className={cn('h-1.5 w-1.5 rounded-full', vote.confidence === 'high' ? 'bg-emerald-500' : vote.confidence === 'medium' ? 'bg-amber-500' : 'bg-red-500')} />
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <Button variant="outline" size="sm" onClick={() => handleCopyRound(round)} className="h-9 gap-2 self-start rounded-lg text-[13px]">
+                          <Copy className="h-3.5 w-3.5" strokeWidth={1.5} /> Copiar estimativa
+                        </Button>
                       </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button variant="outline" size="sm" onClick={() => handleCopyRound(round)} className="rounded-xl text-[10px] font-black uppercase tracking-widest">
-                        <Copy className="mr-2 h-3.5 w-3.5" />
-                        Copiar estimativas
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-            );
-          })}
-        </Accordion>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        </div>
       )}
     </section>
   );
