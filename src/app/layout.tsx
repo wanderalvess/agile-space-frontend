@@ -9,7 +9,6 @@ import { AuthProvider } from '@/context/AuthContext';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { IdentityGatekeeper } from '@/components/auth/IdentityGatekeeper';
 import { BackendHealthGatekeeper } from '@/components/layout/BackendHealthGatekeeper';
-import { GlobalAnnouncementListener } from '@/components/admin/GlobalAnnouncementListener';
 import { MonacoConfig } from '../components/layout/MonacoConfig';
 import { SystemConfigProvider } from '@/context/SystemConfigContext';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -104,7 +103,6 @@ export default function RootLayout({
                       <div className="relative flex min-h-dvh flex-col overflow-x-clip">
                         <Header />
                         <main className="flex flex-col flex-1 w-full overflow-x-clip">{children}</main>
-                        <GlobalAnnouncementListener />
                         <Calmaria />
                       </div>
                     </IdentityGatekeeper>

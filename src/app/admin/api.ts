@@ -169,7 +169,7 @@ export const adminApi = {
   }
 };
 
-// Lidos antes do login (branding) — sem JWT, isento do
+// Lidos antes do login (branding, banner de anúncio) — sem JWT, isento do
 // gate de role=ADMIN que protege /admin/*. Usa fetch puro (não authFetch)
 // porque essas telas rodam acima do AuthProvider na árvore de providers.
 export const publicApi = {
@@ -182,4 +182,14 @@ export const publicApi = {
       return {};
     }
   },
+
+  async getAnnouncements(): Promise<Announcement[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/public/announcements`);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
 };
