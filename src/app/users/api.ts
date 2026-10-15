@@ -41,6 +41,29 @@ function callerHeaders(userId: string): Record<string, string> {
   };
 }
 
+/**
+ * Várias telas montam os hooks de config ao mesmo tempo e cada uma pedia o mesmo recurso; pra quem ainda
+ * não configurou nada isso virava uma rajada de 404 repetidos. Junta as chamadas em voo e reaproveita o
+ * resultado por pouco tempo; salvar/apagar invalida na hora.
+ */
+const CONFIG_CACHE_TTL_MS = 15_000;
+const configCache = new Map<string, { at: number; value: Promise<any> }>();
+
+function cachedConfig<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const hit = configCache.get(key);
+  if (hit && Date.now() - hit.at < CONFIG_CACHE_TTL_MS) return hit.value;
+  const value = load().catch((e) => {
+    configCache.delete(key);
+    throw e;
+  });
+  configCache.set(key, { at: Date.now(), value });
+  return value;
+}
+
+function invalidateConfig(kind: 'jira' | 'tdn', userId: string) {
+  configCache.delete(`${kind}:${userId}`);
+}
+
 export const userApi = {
   async getAllUsers(): Promise<UserProfile[]> {
     try {
@@ -89,10 +112,15 @@ export const userApi = {
   },
 
   async getJiraConfig(userId: string): Promise<UserJiraConfig | null> {
+    return cachedConfig(`jira:${userId}`, () => userApi.fetchJiraConfig(userId));
+  },
+
+  async fetchJiraConfig(userId: string): Promise<UserJiraConfig | null> {
     try {
-      return await req<UserJiraConfig>(`/users/${userId}/jira-config`, {
+      // 204 = ainda não configurou.
+      return (await req<UserJiraConfig | undefined>(`/users/${userId}/jira-config`, {
         headers: callerHeaders(userId),
-      });
+      })) ?? null;
     } catch (e: any) {
       if (e.status === 404 || e.status === 403 || e.message?.includes('404') || e.message?.includes('403') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
         return null;
@@ -103,14 +131,19 @@ export const userApi = {
 
   async saveJiraConfig(userId: string, config: UserJiraConfig): Promise<UserJiraConfig> {
     // Falha sobe para quem chama: antes o erro era engolido e a tela dizia que o token estava guardado na conta.
-    return await req<UserJiraConfig>(`/users/${userId}/jira-config`, {
-      method: 'POST',
-      headers: callerHeaders(userId),
-      body: JSON.stringify(config)
-    });
+    try {
+      return await req<UserJiraConfig>(`/users/${userId}/jira-config`, {
+        method: 'POST',
+        headers: callerHeaders(userId),
+        body: JSON.stringify(config)
+      });
+    } finally {
+      invalidateConfig('jira', userId);
+    }
   },
 
   async deleteJiraConfig(userId: string): Promise<void> {
+    invalidateConfig('jira', userId);
     try {
       await req<void>(`/users/${userId}/jira-config`, {
         method: 'DELETE',
@@ -122,10 +155,14 @@ export const userApi = {
   },
 
   async getTdnConfig(userId: string): Promise<UserTdnConfig | null> {
+    return cachedConfig(`tdn:${userId}`, () => userApi.fetchTdnConfig(userId));
+  },
+
+  async fetchTdnConfig(userId: string): Promise<UserTdnConfig | null> {
     try {
-      return await req<UserTdnConfig>(`/users/${userId}/tdn-config`, {
+      return (await req<UserTdnConfig | undefined>(`/users/${userId}/tdn-config`, {
         headers: callerHeaders(userId),
-      });
+      })) ?? null;
     } catch (e: any) {
       if (e.status === 404 || e.status === 403 || e.message?.includes('404') || e.message?.includes('403') || e.name === 'TypeError' || e.message?.includes('Failed to fetch')) {
         return null;
@@ -135,6 +172,7 @@ export const userApi = {
   },
 
   async saveTdnConfig(userId: string, config: UserTdnConfig): Promise<UserTdnConfig> {
+    invalidateConfig('tdn', userId);
     try {
       return await req<UserTdnConfig>(`/users/${userId}/tdn-config`, {
         method: 'POST',
@@ -148,6 +186,7 @@ export const userApi = {
   },
 
   async deleteTdnConfig(userId: string): Promise<void> {
+    invalidateConfig('tdn', userId);
     try {
       await req<void>(`/users/${userId}/tdn-config`, {
         method: 'DELETE',
