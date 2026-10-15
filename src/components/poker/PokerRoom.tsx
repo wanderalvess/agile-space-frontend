@@ -740,8 +740,8 @@ const PokerRoomComponent = ({
 
       {/* MESH GRADIENT DECORATION */}
       <div className="fixed top-0 left-0 w-full h-full -z-10 opacity-30 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 rounded-full blur-[160px] animate-pulse"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-violet-400/10 rounded-full blur-[140px] animate-pulse"></div>
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-400/10 rounded-full blur-[160px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-violet-400/10 rounded-full blur-[140px]"></div>
       </div>
 
       {/* ÁREA CENTRAL: MESA DE VOTAÇÃO */}

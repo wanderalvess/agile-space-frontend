@@ -23,7 +23,7 @@ import { useToolHistory, RoomMeta } from '@/hooks/useToolHistory';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { Footer } from '@/components/layout/Footer';
@@ -140,20 +140,22 @@ export function ToolHubLayout({
     return maps[color] || maps.blue;
   };
 
-  // Framer Motion staggered animations
+  // Entrada curta: a mola com 80 ms entre cards levava ~1 s até o último card assentar, e em máquina fraca
+  // (sem GPU) parecia que a tela não respondia. Quem pede menos movimento no sistema não vê animação.
+  const reduceMotion = useReducedMotion();
   const containerVariants: Variants = {
-    hidden: { opacity: 0 },
+    hidden: { opacity: reduceMotion ? 1 : 0 },
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08,
+        staggerChildren: reduceMotion ? 0 : 0.035,
       },
     },
   };
 
   const itemVariants: Variants = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100, damping: 15 } },
+    hidden: reduceMotion ? { opacity: 1 } : { y: 8, opacity: 0 },
+    show: { y: 0, opacity: 1, transition: { duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' } },
   };
 
   return (
@@ -171,10 +173,10 @@ export function ToolHubLayout({
         badge={badge}
       />
 
-      {/* ELITE MESH GRADIENT BACKGROUND */}
+      {/* ELITE MESH GRADIENT BACKGROUND: estático de propósito (pulsar camadas com blur gigante custa a GPU a tela toda) */}
       <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className={cn("absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full blur-[160px] animate-pulse", getGlowClasses(themeColor).replace('/10', '/5'))} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-slate-200/5 dark:bg-slate-800/10 rounded-full blur-[140px] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className={cn("absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full blur-[160px]", getGlowClasses(themeColor).replace('/10', '/5'))} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-slate-200/5 dark:bg-slate-800/10 rounded-full blur-[140px]" />
       </div>
 
       <div className={cn(
