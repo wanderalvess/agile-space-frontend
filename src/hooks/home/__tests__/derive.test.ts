@@ -13,6 +13,7 @@ import {
   historyMeta,
   initialsOf,
   isLive,
+  isOpen,
   liveCountBySquad,
   liveMeta,
   liveSessionsOf,
@@ -216,6 +217,23 @@ describe('sessões dos rituais', () => {
   it('ao vivo: filtra, ordena do mais recente e conta por squad', () => {
     expect(liveSessionsOf(sessions).map((s) => s.id)).toEqual(['2', '1', '4']);
     expect(liveCountBySquad(sessions)).toEqual({ a: 2, b: 1 });
+  });
+
+  it('ao vivo: sala recém-criada (aguardando) entra na lista, depois das que estão rolando, e conta na squad', () => {
+    const waiting: ToolSession = { id: '5', tool: 'poker', squadId: 'a', squadName: 'A', title: 'Refinamento novo', createdAt: hoursAgo(0.1), status: 'planning', href: '/room/5' };
+    const list = liveSessionsOf([waiting, ...sessions]);
+    expect(list.map((s) => s.id)).toEqual(['2', '1', '4', '5']);
+    expect(isOpen(waiting)).toBe(true);
+    expect(isLive(waiting)).toBe(false);
+    expect(liveCountBySquad([waiting, ...sessions])).toEqual({ a: 3, b: 1 });
+    expect(statusLabel('planning', 'poker')).toBe('Aguardando');
+    expect(statusLabel('live', 'poker')).toBe('Ao vivo');
+  });
+
+  it('ao vivo, lista crua do servidor antigo: aguardando só vale por 24 h; encerrada nunca', () => {
+    const mk = (id: string, status: ToolSession['status'], age: number): ToolSession => ({ id, tool: 'poker', squadId: 'a', squadName: 'A', title: id, createdAt: hoursAgo(age), status, href: '/room/' + id });
+    const out = liveSessionsOf([mk('nova', 'planning', 2), mk('velha', 'planning', 30), mk('fim', 'done', 1), mk('brain', 'in_progress', 5)], NOW);
+    expect(out.map((s) => s.id)).toEqual(['brain', 'nova']);
   });
 
   it('textos de apoio e chips', () => {

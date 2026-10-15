@@ -264,6 +264,28 @@ describe('sessões ao vivo', () => {
     expect(live.find((s) => s.id === 'a1')?.squadName).toBe('Atlas');
   });
 
+  it('backend novo: sala recém-criada (PLANNING) e assíncrona entram; encerrada não; squad em outra caixa casa com a pedida', async () => {
+    serve('GET /live-sessions?squadId=phoenix', {
+      body: [
+        liveDto({ id: 'nova', status: 'PLANNING', startedAt: null, participantsCount: 1, squadId: 'PHOENIX' }),
+        liveDto({ id: 'rodando' }),
+        liveDto({ id: 'fim', status: 'FINISHED' }),
+      ],
+    });
+    const live = await fetchLiveSessions([squad], NOW);
+    expect(live.map((s) => [s.id, s.status])).toEqual([['rodando', 'live'], ['nova', 'planning']]);
+    expect(live.every((s) => s.squadId === 'phoenix' && s.squadName === 'Phoenix')).toBe(true);
+  });
+
+  it('servidor antigo: sala de poker recém-criada (sem início) aparece como aguardando', async () => {
+    mocks.listRooms.mockResolvedValue([
+      { id: 'nova', title: 'Refinamento', createdAt: iso(0.1), issuesQueue: [] },
+      { id: 'esquecida', title: 'Velha', createdAt: iso(40), issuesQueue: [] },
+    ]);
+    const live = await fetchLiveSessions([squad], NOW);
+    expect(live.map((s) => [s.id, s.status])).toEqual([['nova', 'planning']]);
+  });
+
   it('link inseguro do servidor é trocado pela rota da sessão', async () => {
     serve('GET /live-sessions?squadId=phoenix', { body: [liveDto({ link: 'javascript:alert(1)' })] });
     const live = await fetchLiveSessions([squad], NOW);

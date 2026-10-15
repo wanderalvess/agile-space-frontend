@@ -291,7 +291,7 @@ export async function markConversationRead(conversationId: string): Promise<void
 
 // ---------- sessões dos rituais ----------
 
-const TOOL_CACHE_TTL_MS = 15_000;
+const TOOL_CACHE_TTL_MS = 10_000;
 const toolCache = new Map<string, { at: number; promise: Promise<ToolSession[]> }>();
 
 async function loadToolSessions(tool: RitualKey, squad: SquadRef, now: Date): Promise<ToolSession[]> {
@@ -336,17 +336,24 @@ async function fetchAllToolsLegacy(squads: SquadRef[], now: Date): Promise<ToolS
 export async function fetchLiveSessions(squads: SquadRef[], now: Date = new Date()): Promise<ToolSession[]> {
   if (squads.length === 0) return [];
   const attempt = await viaContract('live-sessions', async () => {
+    // O servidor devolve o id da squad como está cadastrado na sala; comparamos sem diferenciar maiúsculas e
+    // devolvemos o id da squad pedida, que é a chave usada pela Home (contagem por squad, tag).
+    const bySquad = new Map(squads.map((s) => [s.id.toLowerCase(), s] as const));
     const names = new Map(squads.map((s) => [s.id, s.name] as const));
     // Uma squad só: o filtro vai na consulta. Várias: o servidor devolve todas as acessíveis e filtramos aqui.
     const path = squads.length === 1 ? `/live-sessions?squadId=${enc(squads[0].id)}` : '/live-sessions';
     const dtos = await http<LiveSessionDto[]>('GET', path);
     return (Array.isArray(dtos) ? dtos : [])
-      .filter((d) => names.has(d.squadId))
+      .flatMap((d) => {
+        const ref = bySquad.get(String(d.squadId ?? '').toLowerCase());
+        return ref ? [{ ...d, squadId: ref.id }] : [];
+      })
       .map((d) => mapLiveSessionDto(d, names))
       .filter((s): s is ToolSession => s !== null);
   });
+  // O servidor novo só devolve o que não foi encerrado (inclusive a sala aguardando o início): nada a filtrar além disso.
   if (attempt.ok) return liveSessionsOf(attempt.value);
-  return liveSessionsOf(await fetchAllToolsLegacy(squads, now));
+  return liveSessionsOf(await fetchAllToolsLegacy(squads, now), now);
 }
 
 const HISTORY_LIMIT = 10;

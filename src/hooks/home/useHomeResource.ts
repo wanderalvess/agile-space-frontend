@@ -8,6 +8,8 @@ interface Options {
   intervalMs?: number;
   /** false = não busca e devolve o estado vazio. */
   enabled?: boolean;
+  /** Busca de novo quando a aba volta a ficar visível ou a janela ganha foco (ex.: depois de criar uma sala em outra aba). */
+  refetchOnFocus?: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ interface Options {
  * `key` identifica a consulta; mudou, busca de novo.
  */
 export function useHomeResource<T>(load: () => Promise<T>, key: string, initial: T, options: Options = {}): HomeResource<T> {
-  const { intervalMs, enabled = true } = options;
+  const { intervalMs, enabled = true, refetchOnFocus = false } = options;
   const loadRef = useRef(load);
   const initialRef = useRef(initial);
   useEffect(() => {
@@ -49,11 +51,23 @@ export function useHomeResource<T>(load: () => Promise<T>, key: string, initial:
         }, intervalMs)
       : undefined;
 
+    const onVisible = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') void run(false);
+    };
+    if (refetchOnFocus && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisible);
+      window.addEventListener('focus', onVisible);
+    }
+
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
+      if (refetchOnFocus && typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisible);
+        window.removeEventListener('focus', onVisible);
+      }
     };
-  }, [key, enabled, intervalMs]);
+  }, [key, enabled, intervalMs, refetchOnFocus]);
 
   return state;
 }

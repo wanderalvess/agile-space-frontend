@@ -36,6 +36,8 @@ export const RETRO_LIVE_MAX_AGE_MS = 8 * HOUR;
 export const SHOWCASE_LIVE_MAX_AGE_MS = 12 * HOUR;
 export const HEALTH_OPEN_MAX_AGE_MS = 7 * DAY;
 export const BRAINSTORMING_OPEN_MAX_AGE_MS = 7 * DAY;
+/** Sala criada e ainda não iniciada ("aguardando") some de "Ao vivo agora" depois disso, como no servidor (24 h). */
+export const WAITING_MAX_AGE_MS = DAY;
 
 /** Máximo de squads consultadas de uma vez (ao vivo, histórico): quem lidera muitas não dispara centenas de chamadas. */
 export const MAX_QUERIED_SQUADS = 8;
@@ -383,13 +385,30 @@ export function sortByRecent(list: ToolSession[]): ToolSession[] {
   return [...list].sort((a, b) => (parseDate(b.createdAt)?.getTime() ?? 0) - (parseDate(a.createdAt)?.getTime() ?? 0));
 }
 
-export function liveSessionsOf(list: ToolSession[]): ToolSession[] {
-  return sortByRecent(list.filter(isLive));
+/** Sessão aberta e não encerrada: ao vivo, assíncrona ou aguardando o início (recém-criada). */
+export function isOpen(s: ToolSession): boolean {
+  return s.status !== 'done';
+}
+
+const LIVE_ORDER: Record<SessionStatus, number> = { live: 0, async: 1, in_progress: 2, planning: 3, done: 4 };
+
+/**
+ * Sessões de "Ao vivo agora": ao vivo primeiro, depois as assíncronas e as que aguardam o início; dentro de cada
+ * grupo, a mais recente. Com `now` (listas cruas do servidor antigo, que não filtram), a sala aguardando só vale
+ * por `WAITING_MAX_AGE_MS`; a resposta do servidor novo já vem filtrada e dispensa isso.
+ */
+export function liveSessionsOf(list: ToolSession[], now?: Date): ToolSession[] {
+  const open = list.filter((s) => {
+    if (!isOpen(s)) return false;
+    if (!now || isLive(s)) return true;
+    return ageMs(s.createdAt, now) <= WAITING_MAX_AGE_MS;
+  });
+  return sortByRecent(open).sort((a, b) => LIVE_ORDER[a.status] - LIVE_ORDER[b.status]);
 }
 
 export function liveCountBySquad(list: ToolSession[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const s of list) if (isLive(s)) out[s.squadId] = (out[s.squadId] ?? 0) + 1;
+  for (const s of list) if (isOpen(s)) out[s.squadId] = (out[s.squadId] ?? 0) + 1;
   return out;
 }
 
@@ -401,7 +420,7 @@ export function statusLabel(status: SessionStatus, tool: RitualKey): string {
     case 'async':
       return 'Assíncrona';
     case 'planning':
-      return 'Planejando';
+      return 'Aguardando';
     case 'in_progress':
       return 'Em andamento';
     default:

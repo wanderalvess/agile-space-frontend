@@ -5,17 +5,19 @@ import type { SquadRef, ToolSession } from './types';
 import { useHomeResource } from './useHomeResource';
 
 const NONE: ToolSession[] = [];
-const REFRESH_MS = 45_000;
+/** Uma sala criada agora precisa aparecer em poucos segundos; a consulta é leve (uma chamada por ritual no servidor). */
+const REFRESH_MS = 15_000;
 
 /**
- * Sessões acontecendo agora nas squads informadas. Hoje derivado das listas de cada ritual
- * (ver `sources.fetchLiveSessions`); quando existir o endpoint único de "ao vivo", só a fonte muda.
- * Falha de qualquer ritual/squad apenas some da lista.
+ * Sessões abertas agora (ao vivo, assíncronas ou aguardando o início) nas squads informadas: `GET /api/live-sessions`,
+ * com as listas de cada ritual como reserva (ver `sources.fetchLiveSessions`). Atualiza a cada 15 s e ao voltar para
+ * a aba. Falha de qualquer ritual/squad apenas some da lista.
  */
 export function useLiveSessions(squads: SquadRef[]) {
   const key = squads.map((s) => s.id).join(',');
   return useHomeResource(() => fetchLiveSessions(squads), `live:${key}`, NONE, {
     enabled: squads.length > 0,
     intervalMs: REFRESH_MS,
+    refetchOnFocus: true,
   });
 }

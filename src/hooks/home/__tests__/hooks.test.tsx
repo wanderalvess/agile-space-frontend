@@ -267,6 +267,20 @@ describe('useLiveSessions / useRitualHistory', () => {
     expect(bad.result.current.data).toEqual([]);
   });
 
+  it('volta a consultar quando a aba volta a ficar visível (sala criada em outra aba aparece sem esperar)', async () => {
+    mocks.fetchLiveSessions.mockResolvedValue([]);
+    const { result } = renderHook(() => useLiveSessions(squads));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mocks.fetchLiveSessions).toHaveBeenCalledTimes(1);
+
+    mocks.fetchLiveSessions.mockResolvedValue([{ id: 'nova' }]);
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await waitFor(() => expect(result.current.data).toHaveLength(1));
+    expect(mocks.fetchLiveSessions).toHaveBeenCalledTimes(2);
+  });
+
   it('sem squads não consulta', async () => {
     const { result } = renderHook(() => useLiveSessions([]));
     await waitFor(() => expect(result.current.loading).toBe(false));

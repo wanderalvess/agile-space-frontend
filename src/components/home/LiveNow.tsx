@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { CalendarDays } from 'lucide-react';
 import { formatCountdown } from '@/lib/ceremony-countdown';
-import { liveMeta, type UpcomingCeremony } from '@/hooks/home/derive';
+import { isLive, liveMeta, statusLabel, type UpcomingCeremony } from '@/hooks/home/derive';
 import type { ToolSession } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
-import { CARD, FOCUS_RING, IconTile, LIFT, LiveDot, SectionHeading, TOOL_ICON } from './home-ui';
+import { CARD, FOCUS_RING, IconTile, LIFT, LiveDot, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
 
 interface Props {
   sessions: ToolSession[];
@@ -23,11 +23,13 @@ function whenLabel(c: UpcomingCeremony, now: Date): string {
 
 export function LiveNow({ sessions, showSquad, upcoming, now }: Props) {
   const hasLive = sessions.length > 0;
+  // O ponto pulsante só quando há algo realmente rolando; sala que aguarda o início aparece na lista sem ele.
+  const anyRunning = sessions.some(isLive);
 
   return (
     <section aria-labelledby="home-live" className="flex flex-col gap-3">
       <SectionHeading id="home-live">
-        {hasLive && <LiveDot />}
+        {anyRunning && <LiveDot />}
         Ao vivo agora
       </SectionHeading>
 
@@ -49,7 +51,12 @@ export function LiveNow({ sessions, showSquad, upcoming, now }: Props) {
                       </span>
                     )}
                   </span>
-                  <span className="truncate text-xs text-muted-foreground">{liveMeta(s)}</span>
+                  <span className="flex items-center gap-2">
+                    {s.status !== 'async' && (
+                      <StatusChip tone={s.status === 'live' ? 'live' : 'neutral'}>{statusLabel(s.status, s.tool)}</StatusChip>
+                    )}
+                    <span className="truncate text-xs text-muted-foreground">{liveMeta(s)}</span>
+                  </span>
                 </span>
                 <span className="inline-flex h-8 shrink-0 items-center rounded-lg bg-primary px-3 text-[13px] font-bold text-primary-foreground">
                   Entrar
