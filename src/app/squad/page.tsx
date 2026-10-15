@@ -36,6 +36,7 @@ const SquadDashboardView = dynamic(() => import('@/components/squad/dashboards/S
 import { useTeamAvatars } from '@/hooks/useTeamAvatars';
 import { SquadDataState, deriveSquadDataState } from '@/components/squad/SquadDataState';
 import { SquadOverview } from '@/components/squad/SquadOverview';
+import { latestSyncAt, mergeTeamPeople } from '@/lib/team-people';
 const SquadPlansTimeline = dynamic(() => import('@/components/squad/SquadPlansTimeline').then(mod => mod.SquadPlansTimeline), { ssr: false });
 const SquadScrumBoard = dynamic(() => import('@/components/squad/SquadScrumBoard').then(mod => mod.SquadScrumBoard), { ssr: false });
 
@@ -340,6 +341,8 @@ function SquadHubContent() {
   };
 
   const displayRollup = viewingSprintId ? viewedRollup : rollup;
+  // Mesma data que o Painel mostra: última execução da sincronização ou a do cálculo das métricas, a mais recente.
+  const dataSyncedAt = latestSyncAt(config?.lastSyncAt, rollup?.computedAt);
   const displayIssuesSnapshot = viewingSprintId ? viewedIssuesSnapshot : issuesSnapshot;
   const displayMyIssues = viewingSprintId ? viewedMyIssues : myIssues;
 
@@ -473,8 +476,8 @@ function SquadHubContent() {
               config={config}
               rollup={displayRollup}
               members={members}
-              peopleCount={Math.max(members.length, projectTeamMembers.length)}
-              lastSyncLabel={config?.lastSyncAt ? `Sincronizado com o Jira ${timeAgo(config.lastSyncAt)}` : 'Ainda não sincronizado com o Jira'}
+              peopleCount={mergeTeamPeople(members, projectTeamMembers).length}
+              lastSyncLabel={dataSyncedAt ? `Sincronizado com o Jira ${timeAgo(dataSyncedAt)}` : 'Ainda não sincronizado com o Jira'}
               isSyncing={isSyncing}
               canSync={viewingSprintId === null}
               onSync={() => handleSync()}

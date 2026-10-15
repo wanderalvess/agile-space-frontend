@@ -34,6 +34,7 @@ import { Footer } from '@/components/layout/Footer';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { NextCeremonyCard } from '@/components/painel/NextCeremonyCard';
 import { PainelWelcome, type JiraSyncState } from '@/components/painel/PainelWelcome';
+import { latestSyncAt, mergeTeamPeople } from '@/lib/team-people';
 import { LinkedTeamWelcome } from '@/components/home/LinkedTeamWelcome';
 import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { useTeamAvatars, invalidateTeamAvatars } from '@/hooks/useTeamAvatars';
@@ -93,7 +94,9 @@ export default function PainelPage() {
     sprintName,
     refresh,
   } = useSquadDashboardData();
-  const { avatarFor } = useTeamAvatars(squadId);
+  const { avatarFor, members: rosterMembers } = useTeamAvatars(squadId);
+  // Uma única contagem de pessoas: Jira + cadastro do projeto, sem repetir ninguém (ver lib/team-people).
+  const people = useMemo(() => mergeTeamPeople(members, rosterMembers), [members, rosterMembers]);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -177,8 +180,7 @@ export default function PainelPage() {
   const movements = useMemo(() => [...issues].sort(byUpdatedDesc).slice(0, 5), [issues]);
 
   const lastSync = useMemo(() => {
-    const latest = issues.reduce<string>((acc, i) => (i.syncedAt > acc ? i.syncedAt : acc), '');
-    return latest || rollup?.computedAt || '';
+    return latestSyncAt(...issues.map(i => i.syncedAt), rollup?.computedAt);
   }, [issues, rollup]);
 
   const myRole = useMemo(() => {
@@ -317,6 +319,7 @@ export default function PainelPage() {
               syncState={syncState}
               syncError={syncError ?? error}
               myRole={myRole}
+              squadMembers={members}
               onRetry={runJiraSync}
               onConnectJira={() => setJiraImportOpen(true)}
             />
@@ -490,29 +493,29 @@ export default function PainelPage() {
                     <Users className="h-3.5 w-3.5" /> Seu time
                   </h3>
 
-                  {members.length === 0 ? (
+                  {people.length === 0 ? (
                     <p className="text-xs text-slate-500 dark:text-slate-400">
                       Nenhuma pessoa cadastrada na squad ainda.
                     </p>
                   ) : (
                     <div className="flex items-center gap-3">
                       <div className="flex items-center">
-                        {members.slice(0, 4).map(m => (
+                        {people.slice(0, 4).map(m => (
                           <MemberAvatar
-                            key={m.dbId || m.jiraAccountId}
+                            key={m.key}
                             name={m.displayName}
-                            src={avatarFor({ email: m.email, name: m.displayName, accountId: m.jiraAccountId })}
+                            src={m.avatarUrl || avatarFor({ email: m.email, name: m.displayName, accountId: m.jiraAccountId })}
                             className="-ml-2 first:ml-0 border-2 border-white dark:border-slate-900"
                           />
                         ))}
-                        {members.length > 4 && (
+                        {people.length > 4 && (
                           <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-900 border-2 border-white dark:border-slate-900 -ml-2 flex items-center justify-center text-[10px] font-black text-slate-500">
-                            +{members.length - 4}
+                            +{people.length - 4}
                           </div>
                         )}
                       </div>
                       <p className="text-xs text-slate-600 dark:text-slate-300 leading-snug">
-                        {members.length} pessoas
+                        {people.length} {people.length === 1 ? 'pessoa' : 'pessoas'}
                         {myRole ? (
                           <>
                             {' '}· você é <strong className="font-black">{myRole}</strong>

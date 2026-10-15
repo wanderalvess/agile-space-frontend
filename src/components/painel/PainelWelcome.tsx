@@ -13,7 +13,7 @@
  * Números reais de uso (pessoas, sessões de poker) vêm da API; nada é inventado.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -38,6 +38,7 @@ import { MemberAvatar } from '@/components/common/MemberAvatar';
 import { projectService, type ProjectDetail } from '@/services/projectService';
 import { pokerApi } from '@/app/room/api';
 import { cn } from '@/lib/utils';
+import { mergeTeamPeople, type TeamPersonSource } from '@/lib/team-people';
 
 export type JiraSyncState = 'idle' | 'syncing' | 'done' | 'no-jira' | 'error';
 
@@ -46,6 +47,8 @@ interface Props {
   syncState: JiraSyncState;
   syncError?: string | null;
   myRole?: string;
+  /** Pessoas já sincronizadas do Jira (squad_members); somam ao cadastro do projeto na contagem do time. */
+  squadMembers?: TeamPersonSource[];
   onRetry: () => void;
   onConnectJira: () => void;
 }
@@ -74,7 +77,7 @@ function Metric({ label, value, hint, loading }: { label: string; value: string;
   );
 }
 
-export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, onConnectJira }: Props) {
+export function PainelWelcome({ squadId, syncState, syncError, myRole, squadMembers, onRetry, onConnectJira }: Props) {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [pokerSessions, setPokerSessions] = useState<number | null | "erro">(null);
   const [projectFailed, setProjectFailed] = useState(false);
@@ -100,7 +103,7 @@ export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, 
   }, [syncState]);
 
   const teamName = project?.name && project.name.toUpperCase() !== squadId.toUpperCase() ? project.name : squadId;
-  const members = project?.members ?? [];
+  const members = useMemo(() => mergeTeamPeople(squadMembers ?? [], project?.members ?? []), [squadMembers, project?.members]);
   const meta = [project?.segmentName, project?.tribeName, project?.locality].filter(Boolean).join(' · ');
 
   return (
@@ -125,9 +128,9 @@ export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, 
           </div>
 
           <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
-            <div className="flex -space-x-2.5" aria-label={`${members.length} pessoas no time`}>
+            <div className="flex -space-x-2.5" aria-label={`${members.length} ${members.length === 1 ? 'pessoa' : 'pessoas'} no time`}>
               {members.slice(0, 6).map((m, i) => (
-                <MemberAvatar key={`${m.email || m.displayName}-${i}`} name={m.displayName} src={m.avatarUrl} className="h-9 w-9 border-2 border-background" />
+                <MemberAvatar key={`${m.key}-${i}`} name={m.displayName} src={m.avatarUrl} className="h-9 w-9 border-2 border-background" />
               ))}
               {members.length > 6 && (
                 <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-background bg-primary/10 text-[10px] font-black text-primary">
@@ -136,7 +139,7 @@ export function PainelWelcome({ squadId, syncState, syncError, myRole, onRetry, 
               )}
             </div>
             <span className="text-[11px] font-semibold text-muted-foreground">
-              {members.length > 0 ? `${members.length} pessoas no time` : 'Time recém-criado'}
+              {members.length > 0 ? `${members.length} ${members.length === 1 ? 'pessoa' : 'pessoas'} no time` : 'Time recém-criado'}
             </span>
           </div>
         </div>
