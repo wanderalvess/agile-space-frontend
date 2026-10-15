@@ -144,6 +144,9 @@ html, body {
   --popover-foreground: 155 50% 10%;
 }
 .dark.theme-nordic {
+  --primary: 156 51% 42%; /* verde mais claro: o pinho escuro não tinha contraste no escuro */
+  --primary-foreground: 155 30% 7%;
+  --ring: 156 51% 42%;
   --background: 155 20% 8%; /* Dark pine */
   --foreground: 140 20% 95%;
   --card: 155 15% 12%; /* Sage dark card */
