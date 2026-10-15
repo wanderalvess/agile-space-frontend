@@ -7,7 +7,7 @@ export type ResolvedThemeMode = 'light' | 'dark';
 export type ThemeVariant = 'default' | 'nebula' | 'cyberpunk' | 'midnight' | 'nordic' | 'totvs' | 'leitura';
 
 /** Tema padrão do portal para quem ainda não escolheu um (cada pessoa troca depois de logar). */
-export const DEFAULT_THEME_VARIANT: ThemeVariant = 'midnight';
+export const DEFAULT_THEME_VARIANT: ThemeVariant = 'default';
 
 interface ThemeContextType {
   mode: ThemeMode;

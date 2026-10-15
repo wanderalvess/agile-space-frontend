@@ -78,7 +78,7 @@ export default function RootLayout({
                   } else {
                     root.classList.remove('dark');
                   }
-                  ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic'].forEach(function(v) {
+                  ['default', 'nebula', 'cyberpunk', 'midnight', 'nordic', 'totvs', 'leitura'].forEach(function(v) {
                     root.classList.remove('theme-' + v);
                   });
                   root.classList.add('theme-' + variant);

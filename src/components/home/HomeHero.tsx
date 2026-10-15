@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { greetingFor, type HeroChip } from '@/hooks/home/derive';
 import { cn } from '@/lib/utils';
-import { FOCUS_RING, LIFT, TINT_BG, TINT_TEXT, TITLE_GRADIENT } from './home-ui';
+import { FOCUS_RING, LIFT, TINT_BG, TINT_TEXT } from './home-ui';
 
 const subscribeNever = () => () => {};
 
@@ -22,7 +22,7 @@ export function HomeHero({ firstName, chips }: Props) {
   return (
     <section aria-label="Saudação" className="flex flex-wrap items-end justify-between gap-5">
       <div className="flex flex-col gap-2.5">
-        <h1 className={cn('text-4xl font-bold leading-[1.1] tracking-tight sm:text-[44px]', TITLE_GRADIENT)}>
+        <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-[44px]">
           {greeting}
           {firstName ? `, ${firstName}` : ''}
         </h1>
