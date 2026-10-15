@@ -24,6 +24,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { clearJustSignedUp, markJustSignedUp } from '@/lib/team-welcome';
+import { loginContextFrom, signUpToastDescription, type LoginContext } from '@/lib/login-context';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import packageInfo from '../../../package.json';
 
@@ -132,6 +133,11 @@ export default function LoginPage() {
   const [shakeKey, setShakeKey] = useState(0);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const passwordRef = useRef<HTMLInputElement>(null);
+  // Chegou por um link (convite, sala): o card diz para onde a pessoa volta depois de entrar.
+  const [linkContext, setLinkContext] = useState<LoginContext>(null);
+  useEffect(() => {
+    setLinkContext(loginContextFrom(new URLSearchParams(window.location.search).get('returnUrl')));
+  }, []);
 
   // Lembra apenas o e-mail (nunca a senha) para não digitar a cada login.
   useEffect(() => {
@@ -212,7 +218,7 @@ export default function LoginPage() {
     try {
       // Gravado antes: o AuthGuard decide o destino assim que a sessão existe.
       markJustSignedUp();
-      await register({
+      const session = await register({
         email,
         name,
         password,
@@ -220,7 +226,7 @@ export default function LoginPage() {
       });
       toast({
         title: "Conta criada com sucesso!",
-        description: "Identidade corporativa vinculada aos seus projetos.",
+        description: signUpToastDescription(session.activeProjectName || session.activeProjectId, linkContext),
       });
     } catch (err: any) {
       clearJustSignedUp();
@@ -393,6 +399,16 @@ export default function LoginPage() {
                         : 'Insira suas credenciais corporativas para continuar.'}
                   </p>
                 </div>
+
+                {linkContext && activeTab !== 'forgot' && (
+                  <div role="note" className="flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <div className="min-w-0 text-xs">
+                      <p className="font-bold text-foreground">{linkContext.title}</p>
+                      <p className="text-muted-foreground [@media(max-height:700px)]:hidden">{linkContext.description}</p>
+                    </div>
+                  </div>
+                )}
 
                 <Tabs value={activeTab} onValueChange={(v) => switchTab(v as 'login' | 'register' | 'forgot')} className="w-full">
                   {activeTab !== 'forgot' && (
