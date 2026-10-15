@@ -343,7 +343,7 @@ export default function SupportPage() {
               <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-8 shadow-xl text-white">
                   <div className="space-y-2">
                      <p className="text-primary text-[10px] font-black uppercase tracking-widest">Governança Ágil</p>
-                     <h3 className="text-white text-lg font-black uppercase tracking-tight italic font-headline">Foco em Engenharia</h3>
+                     <h3 className="text-white text-lg font-black uppercase tracking-tight italic font-headline">Foco no seu fluxo</h3>
                      <p className="text-slate-400 text-xs leading-relaxed">Nossa prioridade é garantir que seu fluxo de trabalho nunca pare por problemas técnicos.</p>
                   </div>
               </Card>

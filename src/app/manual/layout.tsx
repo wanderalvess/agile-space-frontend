@@ -22,7 +22,7 @@ export default function ManualLayout({
     <div className="h-dvh flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden font-body selection:bg-primary/30">
       {/* ROOM HEADER (Standard across Agile Space) */}
       <RoomHeader
-        title="Manual de Engenharia & Agilidade"
+        title="Manual de Agilidade & Ferramentas"
         toolIcon={<BookOpen className="h-4 w-4" />}
         toolColorClass="text-primary"
         badge={<Badge className="bg-primary/10 text-primary border-none font-black uppercase text-[9px] tracking-widest px-2.5 py-0.5 rounded-md">GUIA TÁTICO</Badge>}

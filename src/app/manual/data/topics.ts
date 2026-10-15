@@ -46,13 +46,13 @@ export const MANUAL_CATEGORIES: ManualCategory[] = [
   },
   {
     id: 'engineering',
-    label: 'Engenharia & Toolkit',
+    label: 'Ferramentas & Utilitários',
     description: 'Suíte técnica para transformação de dados, utilitários e integração.'
   },
   {
     id: 'intelligence',
     label: 'Inteligência & Apresentação',
-    description: 'Bases de conhecimento, engenharia de prompt e demonstrações executivas.'
+    description: 'Bases de conhecimento, prompts e demonstrações executivas.'
   },
   {
     id: 'governance',
@@ -138,7 +138,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     actionUrl: '/health-check',
     actionLabel: 'Abrir Radar de Saúde'
   },
-  // Categoria Engenharia
+  // Categoria Ferramentas
   {
     id: 'workspace',
     title: 'Meu Espaço',

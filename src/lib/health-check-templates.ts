@@ -42,7 +42,7 @@ export const HEALTH_CHECK_TEMPLATES: HealthCheckTemplate[] = [
   {
     id: 'technical_excellence',
     name: 'Excelência Técnica',
-    description: 'Focado em engenharia de software, dívida técnica e automação.',
+    description: 'Focado em qualidade do código, dívida técnica e automação.',
     defaultScale: 'traffic_light',
     dimensions: [
       { key: 'tech_debt', title: 'Dívida Técnica', description: 'Conseguimos equilibrar novas features com a saúde do código?' },

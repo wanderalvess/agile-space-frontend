@@ -63,7 +63,7 @@ const AVAILABLE_ICONS = [
   { name: 'Rocket', label: 'Foguete (Major / Lançamento)', className: 'h-5 w-5 text-primary', defaultFor: 'major' },
   { name: 'ShieldCheck', label: 'Segurança & Validação', className: 'h-5 w-5 text-emerald-600' },
   { name: 'Layers', label: 'Arquitetura / Módulos', className: 'h-5 w-5 text-blue-500' },
-  { name: 'Code2', label: 'Engenharia de Código', className: 'h-5 w-5 text-amber-500' },
+  { name: 'Code2', label: 'Código', className: 'h-5 w-5 text-amber-500' },
   { name: 'Database', label: 'Banco de Dados', className: 'h-5 w-5 text-cyan-500' },
   { name: 'Cpu', label: 'Performance & Backend', className: 'h-5 w-5 text-rose-500' },
   { name: 'Globe', label: 'Integrações Web', className: 'h-5 w-5 text-teal-500' },
@@ -180,7 +180,7 @@ export function ChangelogManager() {
 
   // Open Dialog for Create
   const handleImportLegacy = async () => {
-    if (!confirm(`Deseja importar ${rawVersions.length} versões do histórico de engenharia para o banco de dados?`)) return;
+    if (!confirm(`Deseja importar ${rawVersions.length} versões do histórico para o banco de dados?`)) return;
     try {
       const res = await changelogApi.importLegacyReleases(rawVersions);
       toast({
@@ -378,11 +378,11 @@ export function ChangelogManager() {
               <GitBranch className="h-5 w-5" />
             </div>
             <h2 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white font-headline">
-              Changelog & <span className="text-primary">Engenharia de Versões</span>
+              Changelog & <span className="text-primary">Gestão de Versões</span>
             </h2>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Gerencie o histórico de lançamentos, builds e notas de engenharia armazenadas no banco de dados.
+            Gerencie o histórico de lançamentos, builds e notas de versão armazenadas no banco de dados.
           </p>
         </div>
 

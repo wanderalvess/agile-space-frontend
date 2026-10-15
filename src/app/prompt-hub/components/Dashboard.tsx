@@ -861,7 +861,7 @@ export function PromptDashboard({
                     <div className="max-w-2xl space-y-2.5">
                       <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-primary font-semibold">
                         <Sparkles className="h-3.5 w-3.5" />
-                        Ateliê de Engenharia de IA
+                        Ateliê de IA
                       </div>
                       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                         Acervo de Prompts, Skills e Agentes

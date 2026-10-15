@@ -60,7 +60,7 @@ interface ModuleGroup {
 
 const GROUPS: ModuleGroup[] = [
   {
-    title: 'Ferramentas de Engenharia',
+    title: 'Qualidade & Ferramentas',
     icon: Wrench,
     items: [
       {

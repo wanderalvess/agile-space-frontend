@@ -61,7 +61,7 @@ export default function ManualOverviewPage() {
 
         <div className="relative z-10 max-w-4xl space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest w-fit">
-            <Sparkles className="h-3 w-3" /> Manual de Engenharia & Agilidade
+            <Sparkles className="h-3 w-3" /> Manual de Agilidade & Ferramentas
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter italic leading-[0.95] text-white">

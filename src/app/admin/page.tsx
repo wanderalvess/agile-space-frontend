@@ -83,10 +83,10 @@ const TAB_GROUPS = [
   },
   {
     id: 'engineering-group',
-    label: 'Engenharia',
+    label: 'Plataforma',
     icon: GitBranch,
     items: [
-      { id: 'changelog', label: 'Engenharia & Releases', icon: GitBranch },
+      { id: 'changelog', label: 'Versões & Releases', icon: GitBranch },
       { id: 'intelligence', label: 'Motor AI & Conhecimento', icon: Brain },
     ],
   },

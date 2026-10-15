@@ -191,7 +191,7 @@ export default function ChangelogPage() {
             {loading ? (
               <div className="py-20 text-center text-slate-400 font-medium">
                 <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-3 text-primary" />
-                Carregando histórico de engenharia...
+                Carregando histórico de versões...
               </div>
             ) : filteredVersions.length === 0 ? (
               <div className="py-16 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm font-medium">
@@ -266,7 +266,7 @@ export default function ChangelogPage() {
               </div>
               
               <h3 className="text-xl md:text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white italic font-headline mb-2 max-w-2xl mx-auto leading-tight">
-                Acelerando o fluxo de engenharia <span className="text-primary not-italic">sem precedentes.</span>
+                Evoluindo o portal <span className="text-primary not-italic">a cada versão.</span>
               </h3>
               
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl mx-auto mb-6">

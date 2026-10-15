@@ -80,7 +80,7 @@ export default function TechLeadDashboard() {
         <div>
           <div className="flex items-center gap-2">
             <span className="bg-primary/15 text-primary font-semibold text-xs px-2.5 py-0.5 rounded-full">
-              Engenharia e qualidade
+              Entrega e qualidade
             </span>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground font-headline">
               Painel do Tech Lead
@@ -104,7 +104,7 @@ export default function TechLeadDashboard() {
         />
       </div>
 
-      {/* Grid de Métricas de Engenharia */}
+      {/* Grid de Métricas Técnicas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Distribuição de Esforço */}
         <WidgetCard title="Onde o esforço está" className="lg:col-span-1">

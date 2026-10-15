@@ -30,7 +30,7 @@ interface JoltGuideProps {
 export function JoltGuide({ open, onOpenChange }: JoltGuideProps) {
   const steps = [
     {
-      title: "Playground de Engenharia",
+      title: "Laboratório da Squad",
       icon: Terminal,
       color: "text-indigo-600",
       bg: "bg-indigo-50",
