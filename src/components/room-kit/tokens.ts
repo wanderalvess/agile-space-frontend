@@ -94,7 +94,7 @@ export const FOCUS_RING =
 /** Campo de texto do kit (input, textarea, select nativo). */
 export const FIELD =
   'w-full rounded-[10px] border border-border bg-muted/40 px-3 text-sm text-foreground placeholder:text-muted-foreground ' +
-  'transition-colors duration-[140ms] focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
+  'transition-colors duration-fast focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 /** Sombra de cartão do design (suave no claro, funda no escuro). */
 export const CARD_SHADOW = 'shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
 

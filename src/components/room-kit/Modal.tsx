@@ -23,12 +23,12 @@ export const MODAL_SURFACE =
   'fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-[calc(100vw-1.5rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden ' +
   'rounded-2xl border border-border bg-card text-card-foreground ' +
   'shadow-[0_30px_80px_rgba(15,23,42,0.18)] dark:shadow-[0_30px_80px_rgba(0,0,0,0.6)] ' +
-  'duration-[320ms] data-[state=open]:animate-in data-[state=closed]:animate-out ' +
+  'duration-slow data-[state=open]:animate-in data-[state=closed]:animate-out ' +
   'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 ' +
   'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 ' +
-  'motion-reduce:duration-[1ms]';
+  'motion-reduce:duration-instant';
 
-export const MODAL_OVERLAY = 'bg-black/55 backdrop-blur-sm motion-reduce:duration-[1ms]';
+export const MODAL_OVERLAY = 'bg-black/55 backdrop-blur-sm motion-reduce:duration-instant';
 
 export interface ModalProps {
   open: boolean;
@@ -80,12 +80,16 @@ export function Modal({
   bodyClassName,
   preventClose = false,
 }: ModalProps) {
+  const contentRef = React.useRef<HTMLDivElement>(null);
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next && preventClose) return; onOpenChange(next); }}>
       <DialogPortal>
         <DialogOverlay className={MODAL_OVERLAY} />
         <DialogPrimitive.Content
+          ref={contentRef}
           className={cn(MODAL_SURFACE, SIZE_CLASS[size], className)}
+          // Foco no próprio modal (não no X): o anel de foco só aparece quando a pessoa usa Tab.
+          onOpenAutoFocus={(e) => { e.preventDefault(); contentRef.current?.focus(); }}
         >
           <div aria-hidden="true" className={cn('h-0.5 shrink-0', TONES[tone].hairline)} />
           <header className="flex shrink-0 items-start gap-3.5 px-6 pb-4 pt-5">
@@ -106,7 +110,7 @@ export function Modal({
               <DialogPrimitive.Close
                 aria-label="Fechar"
                 className={cn(
-                  '-mr-1.5 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-[140ms] hover:bg-accent hover:text-accent-foreground',
+                  '-mr-1.5 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-accent-foreground',
                   FOCUS_RING
                 )}
               >

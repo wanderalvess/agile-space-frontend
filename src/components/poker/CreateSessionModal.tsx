@@ -318,7 +318,7 @@ export function CreateSessionModal({
                   aria-checked={selected}
                   onClick={() => setDeckType(opt.key)}
                   className={cn(
-                    'flex flex-col gap-3 rounded-[14px] border p-3.5 text-left transition-[transform,background-color,border-color,box-shadow] duration-[140ms] hover:-translate-y-0.5',
+                    'flex flex-col gap-3 rounded-[14px] border p-3.5 text-left transition-[transform,background-color,border-color,box-shadow] duration-fast hover:-translate-y-0.5',
                     FOCUS_RING,
                     selected ? 'border-primary bg-primary/10 shadow-[0_0_20px_hsl(var(--primary)/0.2)] dark:bg-primary/15 [.theme-leitura_&]:shadow-none' : 'border-border hover:bg-accent/40'
                   )}
@@ -384,7 +384,7 @@ export function CreateSessionModal({
                   aria-checked={selected}
                   onClick={() => setMode(opt.key)}
                   className={cn(
-                    'flex items-start gap-3.5 rounded-[14px] border px-4 py-3.5 text-left transition-[transform,background-color,border-color] duration-[140ms] hover:-translate-y-0.5',
+                    'flex items-start gap-3.5 rounded-[14px] border px-4 py-3.5 text-left transition-[transform,background-color,border-color] duration-fast hover:-translate-y-0.5',
                     FOCUS_RING,
                     selected ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40'
                   )}

@@ -57,7 +57,7 @@ export function GuideSheet({ open, onOpenChange, title, description, icon: Icon 
                 key={t.id}
                 value={t.id}
                 className={cn(
-                  '-mb-px h-10 border-b-2 border-transparent text-sm text-muted-foreground transition-colors duration-[220ms]',
+                  '-mb-px h-10 border-b-2 border-transparent text-sm text-muted-foreground transition-colors duration-base',
                   'data-[state=active]:border-primary data-[state=active]:font-semibold data-[state=active]:text-foreground',
                   FOCUS_RING
                 )}

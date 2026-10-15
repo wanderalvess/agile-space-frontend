@@ -254,7 +254,7 @@ export function FacilitatorPanel({
                   aria-current={on ? 'page' : undefined}
                   onClick={() => setTab(t.v)}
                   className={cn(
-                    'flex h-9 shrink-0 items-center justify-between gap-3 whitespace-nowrap rounded-lg px-3 text-left text-sm transition-colors duration-[220ms]',
+                    'flex h-9 shrink-0 items-center justify-between gap-3 whitespace-nowrap rounded-lg px-3 text-left text-sm transition-colors duration-base',
                     FOCUS_RING,
                     on ? 'bg-primary/10 font-semibold text-foreground dark:bg-primary/15' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                   )}

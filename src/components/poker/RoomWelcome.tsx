@@ -53,7 +53,7 @@ function CardFan({ deck }: { deck: DeckType }) {
         return (
           <div
             key={`${face}-${i}`}
-            className="absolute left-1/2 top-3 -ml-[47px] h-[132px] w-[94px] transition-transform duration-[320ms] ease-[cubic-bezier(.2,0,0,1)] motion-reduce:transition-none"
+            className="absolute left-1/2 top-3 -ml-[47px] h-[132px] w-[94px] transition-transform duration-slow ease-room motion-reduce:transition-none"
             style={{
               transform: `translate(${FAN_X[i]}px, ${FAN_Y[i]}px) rotate(${FAN_ROTATE[i]}deg)`,
               transformOrigin: '50% 140%',
@@ -84,7 +84,7 @@ function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked
   return (
     <span
       className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-[320ms]',
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-slow',
         state === 'done' && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
         state === 'active' && 'bg-primary text-primary-foreground room-glow-ring',
         state === 'locked' && 'border border-border bg-muted text-muted-foreground'
@@ -95,8 +95,8 @@ function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked
   );
 }
 
-const STEP_CARD = 'relative flex h-full flex-col gap-4 rounded-[14px] border p-[22px] transition-colors duration-[320ms]';
-const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-[140ms] hover:-translate-y-px motion-reduce:transform-none';
+const STEP_CARD = 'relative flex h-full flex-col gap-4 rounded-[14px] border p-[22px] transition-colors duration-slow';
+const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
 const KEY = 'rounded border border-current/30 px-1.5 py-px text-[11px] tabular-nums opacity-70';
 
 interface RoomWelcomeProps {

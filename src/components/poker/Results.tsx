@@ -199,7 +199,7 @@ export function CopyEstimateCard({
         type="button"
         onClick={copy}
         className={cn(
-          'flex h-11 items-center justify-center gap-2 rounded-[10px] text-[15px] font-bold transition-colors duration-[220ms]',
+          'flex h-11 items-center justify-center gap-2 rounded-[10px] text-[15px] font-bold transition-colors duration-base',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           copied
             ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'

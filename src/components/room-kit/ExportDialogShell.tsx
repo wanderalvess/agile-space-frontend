@@ -75,7 +75,7 @@ export function ExportDialogShell({
             <label
               key={f.id}
               className={cn(
-                'flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors duration-[220ms] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                'flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors duration-base has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
                 on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/50'
               )}
             >

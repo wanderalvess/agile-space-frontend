@@ -98,7 +98,7 @@ export const IconButton = React.forwardRef<
     title={label}
     aria-pressed={pressed}
     className={cn(
-      'relative inline-flex shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-[140ms]',
+      'relative inline-flex shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-fast',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
       size === 'sm' ? 'h-8 w-8' : 'h-9 w-9',
       pressed

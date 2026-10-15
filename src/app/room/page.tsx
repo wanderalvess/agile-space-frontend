@@ -71,7 +71,7 @@ function SessionListCard({
                   type="button"
                   onClick={() => onOpen(r.id)}
                   className={cn(
-                    'flex w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3 pr-12 text-left transition-[transform,background-color,border-color] duration-[140ms] hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/50',
+                    'flex w-full items-center gap-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3 pr-12 text-left transition-[transform,background-color,border-color] duration-fast hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/50',
                     FOCUS_RING
                   )}
                 >
@@ -83,14 +83,14 @@ function SessionListCard({
                     </span>
                   </span>
                   <StatusChip tone={STATUS_TONE[status]}>{ROOM_LOBBY_STATUS_LABEL[status]}</StatusChip>
-                  <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-[140ms] group-hover/item:translate-x-0.5" strokeWidth={1.5} />
+                  <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-fast group-hover/item:translate-x-0.5" strokeWidth={1.5} />
                 </button>
                 {onDelete && canDelete?.(r) && (
                   <button
                     type="button"
                     onClick={() => onDelete(r)}
                     className={cn(
-                      'absolute right-9 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity duration-[140ms] hover:bg-red-500/10 hover:text-red-700 focus-visible:opacity-100 group-hover/item:opacity-100 dark:hover:text-red-300',
+                      'absolute right-9 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-opacity duration-fast hover:bg-red-500/10 hover:text-red-700 focus-visible:opacity-100 group-hover/item:opacity-100 dark:hover:text-red-300',
                       FOCUS_RING
                     )}
                     title="Excluir sala"

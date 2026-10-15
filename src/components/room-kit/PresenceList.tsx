@@ -172,7 +172,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
               <li
                 key={p.id}
                 className={cn(
-                  'group flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors duration-[140ms] hover:bg-accent/60',
+                  'group flex items-center gap-3 rounded-[10px] px-2 py-2 transition-colors duration-fast hover:bg-accent/60',
                   p.ghost && 'opacity-60'
                 )}
               >

@@ -956,7 +956,7 @@ export function TopicQueue({
                   <li key={item.id}>
                     <label
                       className={cn(
-                        'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors duration-[140ms]',
+                        'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors duration-fast',
                         checked ? 'border-primary/40 bg-primary/5' : item.duplicate ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:bg-accent/40'
                       )}
                     >

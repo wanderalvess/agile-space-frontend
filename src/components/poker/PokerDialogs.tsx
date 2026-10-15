@@ -122,7 +122,7 @@ export function OffTableDialog({ open, onOpenChange, initialMode, canPark, issue
                   aria-checked={on}
                   onClick={() => setMode(m.id)}
                   className={cn(
-                    'flex flex-col gap-1 rounded-xl border p-3 text-left transition-[background-color,border-color] duration-[220ms] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    'flex flex-col gap-1 rounded-xl border p-3 text-left transition-[background-color,border-color] duration-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                     on ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/50'
                   )}
                 >

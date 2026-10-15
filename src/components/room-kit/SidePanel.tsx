@@ -65,7 +65,7 @@ export function SidePanel({
               type="button"
               onClick={onClose}
               aria-label="Fechar painel"
-              className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-[140ms] hover:bg-accent hover:text-accent-foreground', FOCUS_RING)}
+              className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-accent-foreground', FOCUS_RING)}
             >
               <X className="h-4 w-4" strokeWidth={1.5} />
             </button>
@@ -127,7 +127,7 @@ export function ResponsivePanel({
     <aside
       aria-hidden={!open || hidden}
       className={cn(
-        'relative shrink-0 overflow-hidden bg-card transition-[width,opacity] duration-[320ms] ease-[cubic-bezier(.2,0,0,1)] motion-reduce:transition-none',
+        'relative shrink-0 overflow-hidden bg-card transition-[width,opacity] duration-slow ease-room motion-reduce:transition-none',
         side === 'left' ? 'border-r' : 'border-l',
         open && !hidden ? cn(widthClass, 'border-border opacity-100') : 'w-0 border-transparent opacity-0'
       )}

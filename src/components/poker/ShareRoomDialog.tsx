@@ -282,7 +282,7 @@ export function ShareRoomDialog({
                     const isSelected = selectedIssueIds.includes(issue.id);
                     return (
                       <li key={issue.id}>
-                        <label className={cn('flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-[140ms]', isSelected ? 'bg-primary/10' : 'hover:bg-accent/50')}>
+                        <label className={cn('flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-fast', isSelected ? 'bg-primary/10' : 'hover:bg-accent/50')}>
                           <Checkbox checked={isSelected} onCheckedChange={() => toggleIssue(issue.id)} className="shrink-0" />
                           <span className="min-w-0 flex-1 truncate font-medium">{issue.title}</span>
                           <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-code text-[11px] text-muted-foreground">

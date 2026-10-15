@@ -40,7 +40,7 @@ export function PhaseStepper({
             key={step.id}
             aria-current={active ? 'step' : undefined}
             className={cn(
-              'flex items-center gap-2 whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] transition-[background-color,box-shadow,color] duration-[220ms]',
+              'flex items-center gap-2 whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] transition-[background-color,box-shadow,color] duration-base',
               active && 'bg-card font-semibold text-foreground shadow-[0_0_0_1px_hsl(var(--border))] dark:shadow-[0_0_0_1px_hsl(var(--border)),0_0_18px_hsl(var(--primary)/0.25)] [.theme-leitura_&]:shadow-[0_0_0_1px_hsl(var(--border))]',
               done && 'text-emerald-700 dark:text-emerald-300',
               !done && !active && 'text-muted-foreground'

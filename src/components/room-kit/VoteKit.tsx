@@ -187,7 +187,7 @@ export function ProgressRing({ value, total, size = 56, label }: { value: number
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - frac)}
-          className="stroke-primary transition-[stroke-dashoffset] duration-[420ms] ease-[cubic-bezier(.2,0,0,1)] [filter:drop-shadow(0_0_4px_hsl(var(--primary)/0.6))] [.theme-leitura_&]:[filter:none]"
+          className="stroke-primary transition-[stroke-dashoffset] duration-ring ease-room [filter:drop-shadow(0_0_4px_hsl(var(--primary)/0.6))] [.theme-leitura_&]:[filter:none]"
         />
       </svg>
       <span className="absolute inset-0 flex items-center justify-center text-sm font-bold tabular-nums">{label ?? `${value}/${total}`}</span>
@@ -226,7 +226,7 @@ export function DeckCard({
       aria-label={aria}
       className={cn(
         'relative flex shrink-0 select-none items-center justify-center rounded-[10px] font-bold tabular-nums',
-        'transition-[transform,box-shadow,background-color,border-color] duration-[140ms] ease-[cubic-bezier(.2,0,0,1)] motion-reduce:transition-none',
+        'transition-[transform,box-shadow,background-color,border-color] duration-fast ease-room motion-reduce:transition-none',
         dense ? 'h-[58px] w-[42px] text-base sm:h-[66px] sm:w-[46px]' : 'h-[68px] w-[50px] text-xl sm:h-[90px] sm:w-16 sm:text-2xl',
         FOCUS_RING,
         disabled && 'pointer-events-none opacity-40',
@@ -271,7 +271,7 @@ export function Segmented<T extends string>({
             aria-pressed={on}
             onClick={() => onChange(o.id)}
             className={cn(
-              'h-[34px] rounded-[7px] px-3.5 text-[13px] transition-[background-color,box-shadow,color] duration-[220ms]',
+              'h-[34px] rounded-[7px] px-3.5 text-[13px] transition-[background-color,box-shadow,color] duration-base',
               FOCUS_RING,
               on
                 ? 'bg-card font-semibold text-foreground shadow-[0_0_0_1px_hsl(var(--border)),0_0_14px_hsl(var(--primary)/0.25)] [.theme-leitura_&]:shadow-[0_0_0_1px_hsl(var(--border))]'
