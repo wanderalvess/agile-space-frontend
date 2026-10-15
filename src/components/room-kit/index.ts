@@ -17,3 +17,4 @@ export * from './PhaseStepper';
 export * from './GuideSheet';
 export * from './ExportDialogShell';
 export * from './VoteKit';
+export * from './TabBar';

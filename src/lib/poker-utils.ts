@@ -461,6 +461,30 @@ export function formatBaselineDisplay(points: string, deck: DeckType): string {
 }
 
 /**
+ * Texto de "Copiar estimativa" para colar na issue pai do Jira, por papel:
+ * "(DEV 10h / QA 4h / UX 2h)". Papéis na ordem canônica (DEV, QA, UX, Designer,
+ * depois os demais, na ordem recebida); valores vazios ou "N/A" ficam de fora e
+ * `skipZero` também descarta "0". Devolve '' se não sobrar nenhum papel.
+ * Fonte única: o card de resultados da rodada e o relatório da fila usam esta função.
+ */
+export function formatEstimateCopy(
+  entries: ReadonlyArray<{ role: string; value: string | null | undefined }>,
+  suffix = 'h',
+  options: { skipZero?: boolean } = {}
+): string {
+  const order = (r: string) => {
+    const i = (TECHNICAL_CATEGORIES as readonly string[]).indexOf(r);
+    return i === -1 ? TECHNICAL_CATEGORIES.length : i;
+  };
+  const parts = entries
+    .map((e, idx) => ({ ...e, idx }))
+    .filter(e => e.value && e.value !== 'N/A' && !(options.skipZero && Number(e.value) === 0))
+    .sort((a, b) => order(a.role) - order(b.role) || a.idx - b.idx)
+    .map(e => `${formatRoleForCopy(e.role)} ${e.value}${suffix}`);
+  return parts.length > 0 ? `(${parts.join(' / ')})` : '';
+}
+
+/**
  * Formata o nome do papel para exibição resumida em cópias (Jira).
  */
 export function formatRoleForCopy(role: string): string {

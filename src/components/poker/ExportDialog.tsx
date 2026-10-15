@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, FileText, ClipboardCopy, CheckCircle2 } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { ExportDialogShell, type ExportFormatOption } from '@/components/room-kit';
 import type { Issue, Participant, DeckType, VotingRound } from '@/lib/types';
 import { computeTopicTiming, computeSessionBreakdown } from '@/lib/poker-utils';
 import jsPDF from 'jspdf';
@@ -25,10 +25,19 @@ interface ExportDialogProps {
   perTopicTime?: boolean;
 }
 
+type ExportFormatId = 'markdown' | 'csv' | 'pdf';
+
+const EXPORT_FORMATS: ExportFormatOption[] = [
+  { id: 'markdown', name: 'Markdown para o Jira', desc: 'Tabela formatada pronta para colar', short: 'MD' },
+  { id: 'csv', name: 'Planilha (CSV)', desc: 'Uma linha por tarefa, com a situação', short: 'CSV' },
+  { id: 'pdf', name: 'Documento visual (PDF)', desc: 'Texto real e sem cortes, bom para anexar no Jira', short: 'PDF' },
+];
+
 export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, triggerNode, rounds, sessionStartedAt, perTopicTime }: ExportDialogProps) {
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormatId>('markdown');
 
   const topicTimingRows = useMemo(
     () => (perTopicTime ? computeTopicTiming(rounds || [], issues, sessionStartedAt) : []),
@@ -517,66 +526,42 @@ export function ExportDialog({ roomTitle, roomTeam, issues, participants, deck, 
   // também merece relatório (justamente para registrar o que não foi debatido).
   if (issues.length === 0) return null;
 
+  const runExport = () => {
+    if (exportFormat === 'markdown') { handleMarkdown(); setIsOpen(false); }
+    else if (exportFormat === 'csv') { handleCSV(); setIsOpen(false); }
+    else { void handlePDF().then(() => setIsOpen(false)); }
+  };
+
+  const summary = [
+    `${breakdown.discussed} ${breakdown.discussed === 1 ? 'debatida' : 'debatidas'}`,
+    breakdown.skipped > 0 && `${breakdown.skipped} ${breakdown.skipped === 1 ? 'pulada' : 'puladas'}`,
+    breakdown.cancelled > 0 && `${breakdown.cancelled} ${breakdown.cancelled === 1 ? 'cancelada' : 'canceladas'}`,
+    breakdown.parked > 0 && `${breakdown.parked} ${breakdown.parked === 1 ? 'adiada' : 'adiadas'}`,
+    breakdown.untouched > 0 && `${breakdown.untouched} não ${breakdown.untouched === 1 ? 'abordada' : 'abordadas'}`,
+  ].filter(Boolean).join(' · ');
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
+    <>
+      <span className="contents" onClick={() => setIsOpen(true)}>
         {triggerNode || (
-          <Button variant="outline" size="sm" className="hidden sm:flex h-8 px-3 font-black text-[9px] uppercase tracking-widest gap-2 bg-muted/50 border-primary/20 text-primary hover:bg-primary/5">
-            <Download className="h-3.5 w-3.5" />
-            EXPORTAR RESUMO
+          <Button variant="outline" size="sm" className="hidden h-9 gap-2 sm:flex">
+            <Download className="h-4 w-4" strokeWidth={1.5} />
+            Exportar resumo
           </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-card/90 backdrop-blur-2xl border-white/10 shadow-2xl rounded-3xl p-0 overflow-hidden">
-        <div className="p-6 border-b border-border/50 flex flex-col items-center gap-3 text-center">
-          <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary mb-2 shadow-inner">
-            <CheckCircle2 className="h-6 w-6" />
-          </div>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic">Exportar Estimativas</DialogTitle>
-          <p className="text-xs text-muted-foreground font-medium px-4">
-            {breakdown.discussed} tarefa{breakdown.discussed !== 1 ? 's' : ''} debatida{breakdown.discussed !== 1 ? 's' : ''}
-            {breakdown.skipped > 0 && `, ${breakdown.skipped} pulada${breakdown.skipped !== 1 ? 's' : ''}`}
-            {breakdown.cancelled > 0 && `, ${breakdown.cancelled} cancelada${breakdown.cancelled !== 1 ? 's' : ''}`}
-            {breakdown.parked > 0 && `, ${breakdown.parked} adiada${breakdown.parked !== 1 ? 's' : ''}`}
-            {breakdown.untouched > 0 && `, ${breakdown.untouched} não abordada${breakdown.untouched !== 1 ? 's' : ''}`}
-            . Escolha o formato ideal para relatar a cerimônia.
-          </p>
-        </div>
-
-        <div className="p-6 grid gap-3">
-          <Button onClick={handleMarkdown} variant="outline" className="h-14 justify-start px-4 border-2 hover:bg-primary/5 hover:border-primary/50 group transition-all rounded-xl">
-            <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-              <ClipboardCopy className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col items-start truncate text-left">
-              <span className="font-black uppercase tracking-widest text-[10px]">Jira Ready (Markdown)</span>
-              <span className="text-[10px] text-muted-foreground">Tabela formatada pronta para colar</span>
-            </div>
-          </Button>
-
-          <Button onClick={handleCSV} variant="outline" className="h-14 justify-start px-4 border-2 hover:bg-emerald-500/5 hover:border-emerald-500/50 group transition-all rounded-xl">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col items-start truncate text-left">
-              <span className="font-black uppercase tracking-widest text-[10px]">Excel / Planilha (CSV)</span>
-              <span className="text-[10px] text-muted-foreground">Uma linha por tarefa, com situação</span>
-            </div>
-          </Button>
-
-          <Button onClick={handlePDF} disabled={isExporting} variant="default" className="h-14 justify-start px-4 border-2 border-transparent hover:border-white/20 shadow-lg shadow-primary/20 group transition-all rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground">
-            <div className="h-8 w-8 rounded-lg bg-white/20 text-white flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
-              <Download className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col items-start truncate text-left">
-              <span className="font-black uppercase tracking-widest text-[10px]">
-                {isExporting ? 'Gerando relatório...' : 'Documento Visual (PDF)'}
-              </span>
-              <span className="text-[10px] opacity-80">Texto real, sem cortes (Ideal Anexo Jira)</span>
-            </div>
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+      </span>
+      <ExportDialogShell
+        open={isOpen}
+        onOpenChange={setIsOpen}
+        title="Exportar resultados"
+        summary={summary}
+        formats={EXPORT_FORMATS}
+        selected={exportFormat}
+        onSelect={(id) => setExportFormat(id as ExportFormatId)}
+        onExport={runExport}
+        exporting={isExporting}
+        ctaLabel={isExporting ? 'Gerando…' : `Exportar ${EXPORT_FORMATS.find((f) => f.id === exportFormat)?.short ?? ''}`}
+      />
+    </>
   );
 }
