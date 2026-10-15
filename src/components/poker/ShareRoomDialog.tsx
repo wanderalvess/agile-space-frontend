@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Share2, Copy, Check, MapPin, Calendar, ListTodo } from 'lucide-react';
 import type { Issue } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { FIELD, Modal, ModalButton, TabBar } from '@/components/room-kit';
+import { FIELD, Modal, ModalButton, RoomQr, TabBar } from '@/components/room-kit';
 
 interface ShareRoomDialogProps {
   isOpen: boolean;
@@ -30,7 +30,6 @@ export function ShareRoomDialog({
   const { toast } = useToast();
   const [copiedType, setCopiedType] = useState<'full' | 'link' | null>(null);
   const [activeTab, setActiveTab] = useState<ShareTab>('link');
-  const [qr, setQr] = useState<string | null>(null);
 
   // Saudação do convite
   const [greeting, setGreeting] = useState(
@@ -56,16 +55,6 @@ export function ShareRoomDialog({
     return `https://espacoagil.com.br/room/${roomId}`;
   }, [roomId]);
 
-  // QR code gerado no navegador só quando o modal abre.
-  useEffect(() => {
-    if (!isOpen) return;
-    let cancelled = false;
-    import('qrcode')
-      .then((m) => m.toDataURL(roomUrl, { margin: 1, width: 224, errorCorrectionLevel: 'M' }))
-      .then((url) => { if (!cancelled) setQr(url); })
-      .catch(() => { if (!cancelled) setQr(null); });
-    return () => { cancelled = true; };
-  }, [isOpen, roomUrl]);
 
   // Preferências salvas desta sala
   useEffect(() => {
@@ -209,14 +198,7 @@ export function ShareRoomDialog({
     >
       {activeTab === 'link' ? (
         <div role="tabpanel" id="share-panel-link" aria-labelledby="share-tab-link" className="flex flex-col items-center gap-5 sm:flex-row">
-          <div className="flex h-[132px] w-[132px] shrink-0 items-center justify-center rounded-xl bg-white p-2 shadow-[0_0_24px_hsl(var(--primary)/0.2)] [.theme-leitura_&]:shadow-none">
-            {qr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} alt="QR code do link da sala" className="h-full w-full" />
-            ) : (
-              <span className="text-center text-[11px] text-slate-500">QR code indisponível</span>
-            )}
-          </div>
+          <RoomQr url={roomUrl} size={132} />
           <div className="flex min-w-0 flex-1 flex-col gap-2.5 self-stretch">
             <label htmlFor="share-link" className="text-[13px] font-semibold">Link da sala</label>
             <input id="share-link" readOnly value={roomUrl} onFocus={(e) => e.currentTarget.select()} className={cn(FIELD, 'h-10 text-xs tabular-nums')} />
