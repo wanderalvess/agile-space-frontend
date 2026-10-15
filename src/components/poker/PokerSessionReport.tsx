@@ -107,7 +107,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, stats, i
           <ModalButton onClick={onNewSession} className="gap-2"><Plus className="h-[15px] w-[15px]" strokeWidth={1.5} /> Nova sessão</ModalButton>
           <ModalButton onClick={onRefreshHistory} className="gap-2"><RefreshCcw className="h-[15px] w-[15px]" strokeWidth={1.5} /> Atualizar histórico</ModalButton>
           <ExportDialog
-            roomTitle={roomTitle || 'Planning Poker'}
+            roomTitle={roomTitle || 'Scrum Poker'}
             roomTeam={roomTeam}
             issues={issues}
             participants={participants}

@@ -125,7 +125,7 @@ export function deriveSessionStatus(toolRaw: string, session: RawSessionLike, no
 
 /** Rótulo do ritual para listas mistas. */
 export const TOOL_LABELS: Record<SessionTool, string> = {
-  POKER: 'Planning Poker',
+  POKER: 'Scrum Poker',
   RETRO: 'Retrospectiva',
   SHOWCASE: 'Showcase',
   HEALTH_CHECK: 'Radar de clima',

@@ -20,7 +20,7 @@ interface RitualDef {
 }
 
 const RITUALS: RitualDef[] = [
-  { key: 'poker', title: 'Planning Poker', description: 'Estimativa em horas por papel, ao vivo ou assíncrona.', cta: 'Nova sessão de poker', highlight: true },
+  { key: 'poker', title: 'Scrum Poker', description: 'Estimativa em horas por papel, ao vivo ou assíncrona.', cta: 'Nova sessão de poker', highlight: true },
   { key: 'retro', title: 'Retrospectiva', description: 'Correu bem, melhorar e ações, com votação por pontos.', cta: 'Nova retro' },
   { key: 'showcase', title: 'Showcase', description: 'Review da sprint com evidências e modo Teatro.', cta: 'Novo showcase' },
   { key: 'health', title: 'Radar de clima', description: 'Health check anônimo do time.', cta: 'Novo radar' },
