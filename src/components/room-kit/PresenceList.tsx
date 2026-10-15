@@ -65,13 +65,13 @@ export function PersonAvatar({
   );
 }
 
-export type PresenceStatus = 'thinking' | 'voted' | 'away' | 'spectator' | 'idle';
+export type PresenceStatus = 'thinking' | 'voted' | 'away' | 'spectator' | 'observer' | 'idle';
 
-/** Indicador de estado de uma pessoa: pensando, votou, ausente ou espectador. */
+/** Indicador de estado de uma pessoa: pensando, votou, ausente, espectador ou observando (gestão que não vota). */
 export function PresenceIndicator({ status, label }: { status: PresenceStatus; label?: string }) {
   const text =
     label ??
-    (status === 'voted' ? 'Votou' : status === 'thinking' ? 'Pensando' : status === 'away' ? 'Ausente' : status === 'spectator' ? 'Espectador' : '');
+    (status === 'voted' ? 'Votou' : status === 'thinking' ? 'Pensando' : status === 'away' ? 'Ausente' : status === 'spectator' ? 'Espectador' : status === 'observer' ? 'Observando' : '');
   if (status === 'idle') return null;
   return (
     <span title={text} role="img" aria-label={text} className="inline-flex h-6 w-6 shrink-0 items-center justify-center">
@@ -88,7 +88,7 @@ export function PresenceIndicator({ status, label }: { status: PresenceStatus; l
         </span>
       )}
       {status === 'away' && <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />}
-      {status === 'spectator' && <Eye className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />}
+      {(status === 'spectator' || status === 'observer') && <Eye className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />}
     </span>
   );
 }
@@ -162,7 +162,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
       {groups.map((g) => (
         <section key={g.id} aria-label={g.label || 'Participantes'} className="flex flex-col gap-0.5">
           {g.label && (
-            <h3 className="flex items-center gap-2 px-2 pb-1 pt-1 text-[11px] font-semibold text-muted-foreground">
+            <h3 className="flex items-center gap-2 px-2 pb-1 pt-1 text-xs font-semibold text-muted-foreground">
               {g.label}
               <span className="tabular-nums text-muted-foreground/70">{g.items.length}</span>
             </h3>
@@ -189,10 +189,10 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
                     <span className="truncate">{p.name}</span>
-                    {p.isYou && <span className="text-[11px] font-normal text-muted-foreground">(você)</span>}
+                    {p.isYou && <span className="text-xs font-normal text-muted-foreground">(você)</span>}
                     {p.isHost && <Crown aria-label="Organizador" className="h-3.5 w-3.5 shrink-0 text-amber-500" strokeWidth={1.5} />}
                   </span>
-                  <span className={cn('truncate text-[11px] font-semibold', ROLE_STYLES[roleToneOf(p.category)].text)}>
+                  <span className={cn('truncate text-xs font-semibold', ROLE_STYLES[roleToneOf(p.category)].text)}>
                     {p.roleLabel}
                     {!p.online && !p.ghost && <span className="font-normal text-muted-foreground"> · ausente</span>}
                     {p.ghost && <span className="font-normal text-muted-foreground"> · saiu da sala</span>}
