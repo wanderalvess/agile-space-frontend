@@ -20,6 +20,9 @@ import { clearJustSignedUp } from '@/lib/team-welcome';
 const HYDRATE_TIMEOUT_MS = 15000;
 /** Tentativas extras da checagem de sessão quando o servidor responde 429/5xx ou a rede falha. */
 const HYDRATE_RETRIES = 3;
+/** Depois que as tentativas esgotam com o token ainda guardado, continua tentando de tempos em tempos (servidor voltando de deploy/queda). */
+const RECOVER_INTERVAL_MS = 5000;
+const RECOVER_MAX_ATTEMPTS = 120;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SPRING_API_URL || 'http://localhost:8002/api';
 
@@ -134,13 +137,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (attempt < HYDRATE_RETRIES) await wait(retryAfterMs || 800 * 2 ** attempt);
         if (cancelled) return;
       }
-      // Esgotou as tentativas: mantém o token (recarregar depois restaura a sessão), só não há sessão agora.
+      // Esgotou as tentativas: mantém o token, só não há sessão agora. Sem o laço abaixo a pessoa ficava no login
+      // mesmo com o servidor de volta e o token válido, até recarregar a página.
       setSession(null);
+      return 'retry-later' as const;
     };
 
-    hydrate().finally(() => {
-      if (!cancelled) setIsLoading(false);
-    });
+    // Servidor ainda fora: tenta de novo em segundo plano até voltar (ou o token ser recusado, ou a pessoa sair).
+    const recover = async () => {
+      for (let attempt = 0; attempt < RECOVER_MAX_ATTEMPTS; attempt++) {
+        await wait(RECOVER_INTERVAL_MS);
+        if (cancelled || !getAuthToken()) return;
+        const recoverController = new AbortController();
+        const timer = setTimeout(() => recoverController.abort(), HYDRATE_TIMEOUT_MS);
+        try {
+          const res = await authFetch(`${API_BASE_URL}/auth/me`, { signal: recoverController.signal });
+          if (cancelled) return;
+          if (res.ok) {
+            const data: AuthResponse = await res.json();
+            if (cancelled) return;
+            rememberSessionUser(data.id);
+            setSession(data);
+            return;
+          }
+          if (res.status === 401 || res.status === 403) {
+            clearAuthToken();
+            return;
+          }
+        } catch {
+          if (cancelled) return;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+    };
+
+    hydrate()
+      .then((outcome) => {
+        if (!cancelled) setIsLoading(false);
+        if (outcome === 'retry-later') return recover();
+      })
+      .catch(() => {
+        if (!cancelled) setIsLoading(false);
+      });
 
     return () => {
       cancelled = true;

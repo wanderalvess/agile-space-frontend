@@ -27,6 +27,7 @@ describe('auth-client - troca de usuário no mesmo navegador', () => {
     localStorage.setItem('agileSpace_guest_profile', '{"uid":"u1"}');
     localStorage.setItem('favorites_u1', '[]');
     localStorage.setItem('agileSpace_newSquad_DDW', '1');
+    localStorage.setItem('poker-chat-read:room1:u1', '123');
     localStorage.setItem('theme', 'dark');
     localStorage.setItem('poker-sound-enabled', '1');
 
@@ -36,6 +37,7 @@ describe('auth-client - troca de usuário no mesmo navegador', () => {
     expect(localStorage.getItem('agileSpace_guest_profile')).toBeNull();
     expect(localStorage.getItem('favorites_u1')).toBeNull();
     expect(localStorage.getItem('agileSpace_newSquad_DDW')).toBeNull();
+    expect(localStorage.getItem('poker-chat-read:room1:u1')).toBeNull();
     expect(localStorage.getItem('theme')).toBe('dark');
     expect(localStorage.getItem('poker-sound-enabled')).toBe('1');
   });

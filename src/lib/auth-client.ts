@@ -11,7 +11,7 @@ const USER_SCOPED_KEYS = [
   // Token pessoal do Jira (PAT) em texto claro: tem que sair do navegador junto com a sessão.
   'agileSpace_jira_config',
 ];
-const USER_SCOPED_PREFIXES = ['favorites_', 'agileSpace_newSquad_', 'agileSpace_estimationUnit_', 'agile_jira_config_', 'agile_tdn_config_'];
+const USER_SCOPED_PREFIXES = ['favorites_', 'agileSpace_newSquad_', 'agileSpace_estimationUnit_', 'agile_jira_config_', 'agile_tdn_config_', 'poker-chat-read:'];
 export const UNAUTHORIZED_EVENT = 'agile-space:unauthorized';
 
 export interface AuthResponse {
