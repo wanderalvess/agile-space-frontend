@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import { Lock } from 'lucide-react';
 import type { DeckType, Participant, Vote } from '@/lib/types';
 import { canParticipantVote, formatRoleForCopy, getEligibleStatsVotes, getParticipantCategory } from '@/lib/poker-utils';
-import { modeOf, ringFits, seatToneOf, stageMinHeight, tableGeometry, waitingLabel } from '@/lib/poker-table';
+import { LATE_SEAT_MS, introOffset, introTiming, modeOf, newcomersOf, ringFits, seatToneOf, stageMinHeight, tableGeometry, waitingLabel } from '@/lib/poker-table';
 import { cn } from '@/lib/utils';
 import { ProgressRing, VoteCard, VoteSeat, useElementSize } from '@/components/room-kit';
 
@@ -39,6 +39,19 @@ interface PokerTableProps {
 
 const FELT_SHADOW =
   'shadow-[inset_0_2px_14px_rgba(0,0,0,0.06),0_0_0_6px_hsl(var(--muted)/0.5)] dark:shadow-[inset_0_2px_14px_rgba(0,0,0,0.55),0_0_0_6px_hsl(var(--muted)/0.5),0_0_40px_hsl(var(--primary)/0.15)] [.theme-leitura_&]:shadow-[0_0_0_6px_hsl(var(--muted)/0.5)]';
+
+const ENTER_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+/** Assento surgindo a partir do centro da mesa (só opacidade e transform: não pesa na GPU). */
+function enterSeat(el: HTMLElement, from: { dx: number; dy: number }, delay: number, duration: number, scale: number) {
+  el.animate(
+    [
+      { opacity: 0, translate: `${from.dx}px ${from.dy}px`, scale },
+      { opacity: 1, translate: '0px 0px', scale: 1 },
+    ],
+    { duration, delay, easing: ENTER_EASE, fill: 'backwards' }
+  );
+}
 
 /** Mesa oval: assentos em volta do feltro, estado da votação no centro. Em tela estreita (ou mesa muito cheia) vira grade. */
 export function PokerTable({
@@ -84,6 +97,42 @@ export function PokerTable({
     [votes, participants, allowManagementToVote]
   );
 
+  // Entrada do time: ao sair de "refinamento não iniciado" os assentos entram em sequência a partir
+  // do centro (uma vez, só nesse momento); quem chega depois entra sozinho, mais curto. Sem
+  // animação com "reduzir movimento". As cartas e a mesa em si não animam por rodada.
+  const sectionRef = useRef<HTMLElement>(null);
+  const wasLocked = useRef(locked);
+  const seenSeats = useRef<Set<string> | null>(null);
+  useLayoutEffect(() => {
+    const root = sectionRef.current;
+    const starting = wasLocked.current && !locked;
+    wasLocked.current = locked;
+    const ids = seats.map((p) => p.id);
+    if (!root || ids.length === 0) return;
+    const seen = seenSeats.current;
+    seenSeats.current = new Set(ids);
+    if (!seen) return;
+    const fresh = starting ? ids : newcomersOf(seen, ids);
+    if (fresh.length === 0) return;
+    if (typeof root.animate !== 'function' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const felt = root.querySelector<HTMLElement>('[data-table-felt]');
+    const fr = felt?.getBoundingClientRect();
+    const center = fr ? { x: fr.left + fr.width / 2, y: fr.top + fr.height / 2 } : null;
+    const timing = introTiming(fresh.length);
+    fresh.forEach((id, i) => {
+      const el = root.querySelector<HTMLElement>(`[data-seat="${CSS.escape(id)}"]`);
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const from = center ? introOffset({ x: r.left + r.width / 2, y: r.top + r.height / 2 }, center, starting ? 0.5 : 0.3) : { dx: 0, dy: 14 };
+      enterSeat(el, from, starting ? i * timing.step : 0, starting ? timing.duration : LATE_SEAT_MS, starting ? 0.82 : 0.9);
+    });
+    if (starting) {
+      felt?.animate([{ opacity: 0.4, transform: 'scale(0.96)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 420, easing: ENTER_EASE, fill: 'backwards' });
+      root.querySelector<HTMLElement>('[data-table-center]')?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: 180, easing: 'ease-out', fill: 'backwards' });
+    }
+  }, [locked, seats]);
+
   const [stageRef, stage] = useElementSize<HTMLDivElement>();
   // O modo (oval ou grade) só depende da largura e da quantidade de assentos; a altura entra só no desenho da oval.
   const minH = stageMinHeight(seats.length, roomy);
@@ -101,6 +150,7 @@ export function PokerTable({
     const roleLabel = category && category !== 'Management' ? formatRoleForCopy(category) : (p.globalRole || (p.role === 'organizador' ? 'Organizador' : 'Participante'));
     const absent = !!onlineIds && !onlineIds.has(p.id);
     const seatProps = {
+      seatId: p.id,
       name: p.nickname,
       roleLabel,
       roleCategory: category,
@@ -160,6 +210,7 @@ export function PokerTable({
 
   return (
     <section
+      ref={sectionRef}
       aria-label="Mesa"
       className="relative flex shrink-0 grow basis-auto flex-col overflow-hidden rounded-2xl border border-border bg-card px-3 pb-2 pt-2.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-5"
     >
@@ -175,10 +226,12 @@ export function PokerTable({
           <>
             <div
               aria-hidden="true"
+              data-table-felt=""
               className={cn('absolute rounded-[50%] border border-border bg-background', FELT_SHADOW)}
               style={{ left: geo.felt.x, top: geo.felt.y, width: geo.felt.w, height: geo.felt.h }}
             />
             <div
+              data-table-center=""
               className="absolute z-[1] flex items-center justify-center gap-4"
               style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', maxWidth: Math.max(240, geo.felt.w - geo.tier.seatW * 2) }}
             >
@@ -190,7 +243,7 @@ export function PokerTable({
           </>
         ) : (
           <>
-            <div className={cn('relative z-[1] mx-auto flex min-h-[80px] w-full max-w-[560px] items-center justify-center gap-4 rounded-3xl border border-border bg-background px-4 py-3', FELT_SHADOW)}>
+            <div data-table-felt="" data-table-center="" className={cn('relative z-[1] mx-auto flex min-h-[80px] w-full max-w-[560px] items-center justify-center gap-4 rounded-3xl border border-border bg-background px-4 py-3', FELT_SHADOW)}>
               {centerContent}
             </div>
             <ul className="relative m-0 grid list-none gap-x-3 gap-y-4 p-0 pt-2 [grid-template-columns:repeat(auto-fill,minmax(92px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(116px,1fr))]">

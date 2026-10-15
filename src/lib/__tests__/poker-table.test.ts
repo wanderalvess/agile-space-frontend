@@ -46,10 +46,15 @@ describe('plainSnippet', () => {
 import {
   CENTER_BOX,
   DECK_CARD_DENSE,
+  INTRO_STEP_MAX_MS,
+  INTRO_TOTAL_MS,
   DECK_CARD_FULL,
   deckRows,
   ellipsePerimeter,
   ellipsePoints,
+  introOffset,
+  introTiming,
+  newcomersOf,
   ringFits,
   stageMinHeight,
   tableGeometry,
@@ -163,5 +168,34 @@ describe('mesa oval: geometria', () => {
     expect(stageMinHeight(18)).toBe(460);
     expect(stageMinHeight(8, true)).toBe(380);
     expect(ringFits(14, 1326)).toBe(true);
+  });
+});
+
+describe('entrada do time na mesa', () => {
+  it('poucas pessoas: 45 ms entre assentos; ninguém espera à toa', () => {
+    expect(introTiming(1)).toEqual({ step: 0, duration: 320, total: 320 });
+    expect(introTiming(6).step).toBe(INTRO_STEP_MAX_MS);
+    expect(introTiming(0).total).toBe(320);
+  });
+
+  it('mesa cheia aperta o intervalo (>= 30 ms até 20 pessoas) e a entrada nunca passa de 900 ms', () => {
+    expect(introTiming(20).step).toBeGreaterThanOrEqual(30);
+    for (const n of [2, 6, 10, 15, 20, 30, 60]) {
+      expect(introTiming(n).total).toBeLessThanOrEqual(INTRO_TOTAL_MS);
+      expect(introTiming(n).step).toBeLessThanOrEqual(INTRO_STEP_MAX_MS);
+    }
+  });
+
+  it('o assento parte da metade do caminho até o centro, com teto de distância', () => {
+    expect(introOffset({ x: 100, y: 50 }, { x: 300, y: 150 })).toEqual({ dx: 100, dy: 50 });
+    expect(introOffset({ x: 0, y: 0 }, { x: 0, y: 0 })).toEqual({ dx: 0, dy: 0 });
+    const far = introOffset({ x: 0, y: 0 }, { x: 2000, y: 0 });
+    expect(far.dx).toBe(180);
+    expect(far.dy).toBe(0);
+  });
+
+  it('newcomersOf devolve só quem não estava, na ordem', () => {
+    expect(newcomersOf(new Set(['a', 'b']), ['a', 'c', 'b', 'd'])).toEqual(['c', 'd']);
+    expect(newcomersOf(new Set(), [])).toEqual([]);
   });
 });

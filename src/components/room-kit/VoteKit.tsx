@@ -163,6 +163,7 @@ export function VoteSeat({
   observer = false,
   compact = false,
   absent = false,
+  seatId,
   className,
   style,
   children,
@@ -179,6 +180,8 @@ export function VoteSeat({
   compact?: boolean;
   /** Fora da sala (sem sinal de presença): avatar esmaecido. */
   absent?: boolean;
+  /** Identifica o assento no DOM (`data-seat`): a mesa usa para animar a entrada de cada pessoa. */
+  seatId?: string;
   className?: string;
   style?: React.CSSProperties;
   /** A carta (VoteCard) do assento. */
@@ -195,7 +198,7 @@ export function VoteSeat({
 
   if (observer) {
     return (
-      <li className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando`}>
+      <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando`}>
         <span className="relative">
           <PersonAvatar name={name} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
           <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
@@ -210,7 +213,7 @@ export function VoteSeat({
   }
 
   return (
-    <li className={cn('flex min-w-0 flex-col items-center gap-1.5', flipped && 'flex-col-reverse', className)} style={style}>
+    <li data-seat={seatId} className={cn('flex min-w-0 flex-col items-center gap-1.5', flipped && 'flex-col-reverse', className)} style={style}>
       {children}
       <span className="flex max-w-full items-center gap-1.5">
         <PersonAvatar name={name} size="sm" highlight={isYou} className={cn(absent && 'opacity-50')} />

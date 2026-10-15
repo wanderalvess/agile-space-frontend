@@ -57,6 +57,51 @@ export function plainSnippet(html: string | null | undefined, max = 220): string
 }
 
 // ---------------------------------------------------------------------------
+// Entrada do time na mesa (animação ao iniciar o refinamento)
+// ---------------------------------------------------------------------------
+
+/** Duração de cada assento entrando (ms). */
+export const INTRO_SEAT_MS = 320;
+/** A entrada inteira (último assento incluso) nunca passa disso, mesmo com a mesa cheia. */
+export const INTRO_TOTAL_MS = 900;
+/** Atraso máximo entre um assento e o seguinte (ms). */
+export const INTRO_STEP_MAX_MS = 45;
+/** Quem chega depois entra sozinho, mais curto. */
+export const LATE_SEAT_MS = 260;
+
+export interface IntroTiming {
+  /** Atraso entre assentos consecutivos (ms). */
+  step: number;
+  duration: number;
+  /** Do início ao fim do último assento (ms). */
+  total: number;
+}
+
+/** Escalonamento dos assentos: até 45 ms entre um e outro, apertando para a entrada toda caber em 900 ms. */
+export function introTiming(count: number): IntroTiming {
+  const gaps = Math.max(0, count - 1);
+  const step = gaps === 0 ? 0 : Math.max(0, Math.min(INTRO_STEP_MAX_MS, Math.floor((INTRO_TOTAL_MS - INTRO_SEAT_MS) / gaps)));
+  return { step, duration: INTRO_SEAT_MS, total: step * gaps + INTRO_SEAT_MS };
+}
+
+/**
+ * De onde o assento parte: a meio caminho entre a posição final e o centro da mesa
+ * (`pull` = fração do trajeto), com o deslocamento limitado a `maxDist` px.
+ */
+export function introOffset(seat: { x: number; y: number }, center: { x: number; y: number }, pull = 0.5, maxDist = 180): { dx: number; dy: number } {
+  const dx = (center.x - seat.x) * pull;
+  const dy = (center.y - seat.y) * pull;
+  const dist = Math.hypot(dx, dy);
+  const k = dist > maxDist && dist > 0 ? maxDist / dist : 1;
+  return { dx: Math.round(dx * k), dy: Math.round(dy * k) };
+}
+
+/** Quem apareceu desde a última conferência (ordem preservada). */
+export function newcomersOf(seen: ReadonlySet<string>, ids: readonly string[]): string[] {
+  return ids.filter((id) => !seen.has(id));
+}
+
+// ---------------------------------------------------------------------------
 // Geometria da mesa e do baralho (tudo em px; o componente só mede e desenha)
 // ---------------------------------------------------------------------------
 
