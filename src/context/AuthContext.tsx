@@ -14,6 +14,7 @@ import {
   UNAUTHORIZED_EVENT,
   type AuthResponse,
 } from '@/lib/auth-client';
+import { clearJustSignedUp } from '@/lib/team-welcome';
 
 /** Tempo máximo esperando o backend responder na abertura do app; passado isso o spinner não pode ficar eterno. */
 const HYDRATE_TIMEOUT_MS = 15000;
@@ -47,6 +48,7 @@ interface AuthContextType {
   createProject: (payload: CreateProjectPayload) => Promise<AuthResponse>;
   joinProject: (projectKey: string, roleName: string) => Promise<AuthResponse>;
   claimRosterMember: (memberId: string) => Promise<AuthResponse>;
+  acceptInvite: (token: string) => Promise<AuthResponse>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -267,6 +269,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(await parseErrorMessage(res, 'Não foi possível entrar no projeto'));
     }
     const data: AuthResponse = await res.json();
+    // Entrou por escolha própria: o aviso "encontramos o seu e-mail" só vale pro vínculo automático do cadastro.
+    clearJustSignedUp();
     setSession(data);
     return data;
   }, []);
@@ -284,6 +288,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(await parseErrorMessage(res, 'Não foi possível concluir o vínculo'));
     }
     const data: AuthResponse = await res.json();
+    clearJustSignedUp();
+    setSession(data);
+    return data;
+  }, []);
+
+  /** Aceita o convite e já adota a sessão devolvida (com a squad ativa), pra não cair de volta no onboarding. */
+  const acceptInvite = useCallback(async (token: string) => {
+    const res = await authFetch(`${API_BASE_URL}/invites/${encodeURIComponent(token)}/accept`, { method: 'POST' });
+    if (!res.ok) {
+      throw new Error(await parseErrorMessage(res, 'Não foi possível aceitar o convite.'));
+    }
+    const data: AuthResponse = await res.json();
+    clearJustSignedUp();
+    if (data.token) setAuthToken(data.token);
     setSession(data);
     return data;
   }, []);
@@ -301,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createProject,
         joinProject,
         claimRosterMember,
+        acceptInvite,
       }}
     >
       {children}

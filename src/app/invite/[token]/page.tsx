@@ -13,7 +13,7 @@ export default function InviteAcceptPage() {
   const params = useParams();
   const router = useRouter();
   const token = String(params.token);
-  const { session, isLoading: authLoading } = useAuth();
+  const { session, isLoading: authLoading, acceptInvite } = useAuth();
 
   const [invite, setInvite] = useState<Invite | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -44,7 +44,7 @@ export default function InviteAcceptPage() {
   const handleAccept = async () => {
     setIsAccepting(true);
     try {
-      await inviteApi.acceptInvite(token);
+      await acceptInvite(token);
       setAccepted(true);
       setTimeout(() => router.push('/squad'), 1500);
     } catch (err: any) {
@@ -122,7 +122,7 @@ export default function InviteAcceptPage() {
         {invite && !loadError && !accepted && !unavailableReason && (
           <CardContent className="flex flex-col gap-4">
             <div className="flex items-center justify-center gap-2">
-              <Badge variant="outline" className="text-xs font-bold">Squad: {invite.squadId}</Badge>
+              <Badge variant="outline" className="text-xs font-bold">Squad: {invite.squadName || invite.squadId}</Badge>
               <Badge variant="outline" className="text-xs font-bold">Papel: {invite.roleName}</Badge>
             </div>
             <Button onClick={handleAccept} disabled={isAccepting} className="h-10 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white">

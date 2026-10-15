@@ -14,6 +14,8 @@ export interface Invite {
   expiresAt: string;
   acceptedAt?: string | null;
   acceptedByUserId?: string | null;
+  /** Só na página do convite: nome legível da squad (sem projeto cadastrado, vem vazio e fica a chave). */
+  squadName?: string | null;
 }
 
 /** Mensagem em português para mostrar à pessoa; o corpo cru do Spring ({"status":400,...}) não serve para isso. */
@@ -60,10 +62,6 @@ export const inviteApi = {
 
   async getInvite(token: string): Promise<Invite> {
     return req<Invite>(`/invites/${encodeURIComponent(token)}`);
-  },
-
-  async acceptInvite(token: string): Promise<void> {
-    await req(`/invites/${encodeURIComponent(token)}/accept`, { method: 'POST' });
   },
 
   buildInviteLink(token: string): string {
