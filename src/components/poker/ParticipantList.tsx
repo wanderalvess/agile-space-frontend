@@ -17,7 +17,7 @@ interface ParticipantListProps {
   onUpdateParticipantRole: (id: string, newRole: Role) => void;
   onClaimFacilitator?: () => void;
   onlineIds?: Set<string>;
-  /** Gestão que não vota não fica "pensando": sem estado ao lado do nome. */
+  /** Gestão que não vota não fica "pensando": aparece como observando. */
   allowManagementToVote?: boolean;
 }
 
@@ -62,7 +62,7 @@ export function ParticipantList({
       const online = onlineIds ? onlineIds.has(p.id) : true;
       let status: PresenceStatus = 'idle';
       if (p.role === 'spectator') status = 'spectator';
-      else if (!canParticipantVote(p, allowManagementToVote)) status = 'idle';
+      else if (!canParticipantVote(p, allowManagementToVote)) status = 'observer';
       else if (votedIds.has(p.id)) status = 'voted';
       else status = online ? 'thinking' : 'away';
       return {

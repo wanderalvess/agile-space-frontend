@@ -72,7 +72,7 @@ export function TopicDisplay({
     if (event.key === 'Escape') setIsEditing(false);
   };
 
-  const card = 'rounded-[14px] border border-border bg-card px-5 py-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-6 sm:py-[18px]';
+  const card = 'rounded-[14px] border border-border bg-card px-5 py-3 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)] sm:px-6 sm:py-3.5';
 
   if (isFacilitator && isEditing) {
     return (
@@ -106,7 +106,7 @@ export function TopicDisplay({
           ) : topic ? (
             revealed ? <StatusChip tone="success">Revelado</StatusChip> : <StatusChip dot className="uppercase tracking-wide">Votando agora</StatusChip>
           ) : (
-            <span className="inline-flex h-5 items-center rounded-full border border-dashed border-border px-2 text-[11px] font-semibold text-muted-foreground">Mesa livre</span>
+            <span className="inline-flex h-[22px] items-center rounded-full border border-dashed border-border px-2 text-xs font-semibold text-muted-foreground">Mesa livre</span>
           )}
           {!showFinished && topic && issueKey && <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{issueKey}</span>}
           {!showFinished && topic && issueType && <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{issueType}</span>}
@@ -128,7 +128,7 @@ export function TopicDisplay({
         {topic && !showFinished ? (
           <>
             <h1 title={topic} className={cn('m-0 line-clamp-2 text-xl font-bold leading-tight tracking-tight sm:text-2xl', isTheaterMode && 'text-2xl sm:text-3xl lg:text-4xl')}>{topic}</h1>
-            {snippet && <p className={cn('m-0 line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted-foreground', isTheaterMode && 'text-base')}>{snippet}</p>}
+            {snippet && <p className={cn('m-0 line-clamp-2 max-w-3xl text-sm leading-relaxed text-muted-foreground [@media(max-height:820px)]:hidden', isTheaterMode && 'text-base')}>{snippet}</p>}
           </>
         ) : (
           <h1 className={cn('m-0 text-lg font-semibold', showFinished ? (untouchedCount > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300') : 'text-muted-foreground')}>

@@ -70,7 +70,7 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: 
       <div className="flex flex-col gap-3">
         {outliers.map(o => (
           <div key={o.category} className="flex flex-col gap-2">
-            <span className={cn('text-[11px] font-bold', ROLE_STYLES[roleToneOf(o.category)].text)}>{formatRoleForCopy(o.category)}</span>
+            <span className={cn('text-xs font-bold', ROLE_STYLES[roleToneOf(o.category)].text)}>{formatRoleForCopy(o.category)}</span>
             {[o.min, o.max].map((x, i) => (
               <div key={i} className="flex items-center gap-3 rounded-[10px] border border-border bg-muted/40 px-3 py-2.5">
                 <span className="flex h-12 w-10 shrink-0 items-center justify-center rounded-md border-[1.5px] border-amber-500/60 bg-amber-500/10 text-[15px] font-bold tabular-nums text-amber-800 dark:text-amber-200">

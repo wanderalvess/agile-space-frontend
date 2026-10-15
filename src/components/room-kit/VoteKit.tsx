@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Coffee, Crown, HelpCircle, Lightbulb, StepForward, ThumbsUp, type LucideIcon } from 'lucide-react';
+import { Coffee, Crown, Eye, HelpCircle, Lightbulb, StepForward, ThumbsUp, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FOCUS_RING, ROLE_STYLES, roleToneOf } from './tokens';
 import { PersonAvatar } from './PresenceList';
@@ -12,21 +12,31 @@ const CARD_BACK =
   'bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.1)_0_5px,transparent_5px_10px)] ' +
   'shadow-[inset_0_0_0_3px_rgba(255,255,255,0.12),0_10px_26px_hsl(var(--primary)/0.35)] [.theme-leitura_&]:shadow-[inset_0_0_0_3px_rgba(255,255,255,0.12)]';
 
-const CARD_PLAIN = 'border border-border bg-card text-card-foreground shadow-[0_6px_16px_rgba(15,23,42,0.08)] dark:shadow-[0_6px_16px_rgba(0,0,0,0.35)]';
+const CARD_PLAIN = 'border-2 border-foreground/20 bg-card text-card-foreground shadow-[0_6px_16px_rgba(15,23,42,0.08)] dark:shadow-[0_6px_16px_rgba(0,0,0,0.35)]';
 const CARD_MODE =
-  'border border-primary bg-primary text-primary-foreground shadow-[0_12px_30px_hsl(var(--primary)/0.4)] [.theme-leitura_&]:shadow-none';
-const CARD_WARN = 'border-[1.5px] border-amber-500/70 bg-amber-500/10 text-amber-800 dark:text-amber-200 shadow-[0_0_18px_rgba(245,158,11,0.18)]';
-const CARD_CRITICAL = 'border-[1.5px] border-red-500/70 bg-red-500/10 text-red-800 dark:text-red-200 shadow-[0_0_18px_rgba(239,68,68,0.2)]';
+  'border border-primary bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground shadow-[0_12px_30px_hsl(var(--primary)/0.4)] [.theme-leitura_&]:shadow-none';
+const CARD_WARN = 'border-2 border-amber-500 bg-amber-500/15 text-amber-900 dark:text-amber-100 shadow-[0_0_18px_rgba(245,158,11,0.25)]';
+const CARD_CRITICAL = 'border-2 border-red-500 bg-red-500/15 text-red-800 dark:text-red-100 shadow-[0_0_18px_rgba(239,68,68,0.28)]';
 
 export type VoteCardTone = 'plain' | 'mode' | 'warn' | 'critical';
 
 export const CONFIDENCE_LABEL = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
 
-const SIZE: Record<'sm' | 'md' | 'lg' | 'xl', string> = {
-  sm: 'h-[68px] w-[50px] rounded-lg text-lg',
-  md: 'h-14 w-10 rounded-[7px] text-sm sm:h-20 sm:w-[58px] sm:rounded-[9px] sm:text-xl',
-  lg: 'h-[104px] w-[76px] rounded-xl text-3xl',
-  xl: 'h-32 w-24 rounded-2xl text-4xl',
+const SIZE: Record<'xs' | 'sm' | 'md' | 'lg' | 'xl', string> = {
+  xs: 'h-14 w-10 rounded-md',
+  sm: 'h-[66px] w-12 rounded-lg',
+  md: 'h-14 w-10 rounded-[7px] sm:h-20 sm:w-[58px] sm:rounded-[9px]',
+  lg: 'h-[104px] w-[76px] rounded-xl',
+  xl: 'h-32 w-24 rounded-2xl',
+};
+
+/** Tamanho do valor na carta virada: número grande e em negrito, para ler de longe. */
+const GLYPH: Record<keyof typeof SIZE, string> = {
+  xs: 'text-lg',
+  sm: 'text-xl',
+  md: 'text-xl sm:text-2xl',
+  lg: 'text-4xl',
+  xl: 'text-5xl',
 };
 
 export type VoteCardSize = keyof typeof SIZE;
@@ -67,6 +77,7 @@ export function VoteCard({
   className?: string;
 }) {
   const base = cn('relative box-border flex shrink-0 items-center justify-center font-bold tabular-nums', SIZE[size]);
+  const showCorner = size === 'md' || size === 'lg' || size === 'xl';
 
   if (state === 'observer') {
     return (
@@ -87,9 +98,9 @@ export function VoteCard({
         aria-label={label ?? 'Pensando'}
         className={cn(base, 'gap-[3px] border-[1.5px] border-dashed border-border bg-muted/50', className)}
       >
-        <span className="room-dot-1 h-[5px] w-[5px] rounded-full bg-primary" />
-        <span className="room-dot-2 h-[5px] w-[5px] rounded-full bg-primary" />
-        <span className="room-dot-3 h-[5px] w-[5px] rounded-full bg-primary" />
+        <span className="room-dot-1 h-[5px] w-[5px] rounded-full bg-foreground/60" />
+        <span className="room-dot-2 h-[5px] w-[5px] rounded-full bg-foreground/60" />
+        <span className="room-dot-3 h-[5px] w-[5px] rounded-full bg-foreground/60" />
       </span>
     );
   }
@@ -112,7 +123,7 @@ export function VoteCard({
       style={{ animationDelay: `${delay}ms` }}
       aria-label={label}
     >
-      {!isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-[9px] font-semibold leading-none opacity-70">{value}</span>}
+      {showCorner && !isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-[10px] font-semibold leading-none opacity-70">{value}</span>}
       {confidence && (
         <span
           title={`Confiança ${CONFIDENCE_LABEL[confidence].toLowerCase()}`}
@@ -122,18 +133,23 @@ export function VoteCard({
         </span>
       )}
       {isCoffee ? (
-        <Coffee className="h-1/3 w-1/3" strokeWidth={1.5} aria-label="Pausa" />
+        <Coffee className="h-[38%] w-[38%]" strokeWidth={1.75} aria-label="Pausa" />
       ) : (
-        <span>
+        <span className={cn('font-black italic leading-none tracking-tighter', GLYPH[size])}>
           {value}
-          {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="text-[0.6em] opacity-80">{unit}</span>}
+          {unit && value && /^\d+([.,]\d+)?$/.test(value) && <span className="ml-px text-[0.5em] font-bold not-italic opacity-80">{unit}</span>}
         </span>
       )}
     </span>
   );
 }
 
-/** Lugar à mesa: carta + avatar + nome + papel. `flipped` põe a carta do lado de baixo da mesa. */
+/**
+ * Lugar à mesa: carta + avatar + nome + papel. `flipped` põe a carta do lado de
+ * baixo (assentos da metade de cima da mesa ficam com o nome para fora e a carta
+ * voltada para o centro). Sem `children` e com `observer`, é o lugar de quem
+ * acompanha sem votar: sem carta, avatar maior com o olho e o aviso "Observando".
+ */
 export function VoteSeat({
   name,
   roleLabel,
@@ -141,6 +157,11 @@ export function VoteSeat({
   flipped = false,
   isYou = false,
   isHost = false,
+  observer = false,
+  compact = false,
+  absent = false,
+  className,
+  style,
   children,
 }: {
   isHost?: boolean;
@@ -149,20 +170,50 @@ export function VoteSeat({
   roleCategory?: string | null;
   flipped?: boolean;
   isYou?: boolean;
+  /** Acompanha sem votar (gestão, espectador): desenha sem carta. */
+  observer?: boolean;
+  /** Assento pequeno (mesa apertada): avatar menor no lugar de quem observa. */
+  compact?: boolean;
+  /** Fora da sala (sem sinal de presença): avatar esmaecido. */
+  absent?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
   /** A carta (VoteCard) do assento. */
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
-  return (
-    <li className={cn('flex min-w-0 flex-col items-center gap-2', flipped && 'flex-col-reverse')}>
-      {children}
-      <span className="flex max-w-full items-center gap-2">
-        <PersonAvatar name={name} size="sm" highlight={isYou} />
-        <span className="flex min-w-0 flex-col">
-          <span className="flex items-center gap-1 text-[13px] font-semibold text-foreground">
-            <span className="truncate">{name}</span>
-            {isHost && <Crown aria-label="Organizador" className="h-3 w-3 shrink-0 text-amber-500" strokeWidth={1.5} />}
+  const nameLine = (
+    <span className="flex max-w-full items-center justify-center gap-1 text-[13px] font-semibold leading-tight text-foreground">
+      <span className="truncate" title={name}>{name}</span>
+      {isYou && <span className="sr-only">(você)</span>}
+      {isHost && <Crown aria-label="Organizador" className="h-3.5 w-3.5 shrink-0 text-amber-500" strokeWidth={1.5} />}
+    </span>
+  );
+  const roleLine = <span className={cn('max-w-full truncate text-xs font-bold leading-tight', ROLE_STYLES[roleToneOf(roleCategory)].text)}>{roleLabel}</span>;
+
+  if (observer) {
+    return (
+      <li className={cn('flex min-w-0 flex-col items-center gap-1', className)} style={style} aria-label={`${name}, ${roleLabel}, observando`}>
+        <span className="relative">
+          <PersonAvatar name={name} size="lg" highlight={isYou} className={cn(compact ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm', absent && 'opacity-50')} />
+          <span aria-hidden="true" className="absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+            <Eye className="h-3 w-3" strokeWidth={1.5} />
           </span>
-          <span className={cn('truncate text-[11px] font-bold', ROLE_STYLES[roleToneOf(roleCategory)].text)}>{roleLabel}</span>
+        </span>
+        {nameLine}
+        {roleLine}
+        <span className="text-xs font-medium leading-tight text-muted-foreground">Observando</span>
+      </li>
+    );
+  }
+
+  return (
+    <li className={cn('flex min-w-0 flex-col items-center gap-1.5', flipped && 'flex-col-reverse', className)} style={style}>
+      {children}
+      <span className="flex max-w-full items-center gap-1.5">
+        <PersonAvatar name={name} size="sm" highlight={isYou} className={cn(absent && 'opacity-50')} />
+        <span className="flex min-w-0 flex-col items-start">
+          {nameLine}
+          {roleLine}
         </span>
       </span>
     </li>
@@ -196,8 +247,15 @@ export function ProgressRing({ value, total, size = 56, label }: { value: number
 }
 
 /**
- * Carta do baralho do usuário. Segue a lógica do design: escolher sobe a carta
- * (8-14 px), hover sobe 4-6 px em 140 ms. As cartas especiais (? e pausa) levam ícone.
+ * Carta do baralho do usuário, no modelo clássico: carta de baralho de verdade,
+ * número grande em itálico no centro e o valor nos cantos (superior esquerdo e
+ * inferior direito, invertido). Passar o mouse levanta e inclina a carta; a
+ * escolhida sobe, ganha a cor do tema e um halo. As especiais (? e pausa) têm
+ * cor própria (violeta e âmbar) e dispensam os cantos.
+ *
+ * `width` (px) vem do baralho, que calcula o maior tamanho em que tudo cabe numa
+ * fileira; a altura é 4/3 da largura (72 x 96 no tamanho cheio). Sem `width`,
+ * `dense` escolhe entre 52 e 68 px.
  */
 export function DeckCard({
   value,
@@ -205,17 +263,25 @@ export function DeckCard({
   onSelect,
   disabled = false,
   dense = false,
+  width,
 }: {
   value: string;
   selected: boolean;
   onSelect: () => void;
   disabled?: boolean;
-  /** Baralhos grandes (Horas, 22 cartas): cartas menores. */
+  /** Baralhos grandes (Horas, 24 cartas): cartas menores quando não há `width`. */
   dense?: boolean;
+  width?: number;
 }) {
   const isCoffee = value === '☕';
   const isUnknown = value === '?';
+  const special = isCoffee || isUnknown;
   const aria = isCoffee ? 'Preciso de uma pausa' : isUnknown ? 'Não sei estimar' : `Votar ${value}`;
+  const w = width ?? (dense ? 52 : 68);
+  const h = Math.round((w * 4) / 3);
+  const glyph = Math.round(w * (isUnknown ? 0.52 : value.length > 2 ? 0.3 : value.length === 2 ? 0.4 : 0.46));
+  const pip = Math.max(9, Math.round(w * 0.15));
+  const showPips = !isCoffee && w >= 58;
   return (
     <button
       type="button"
@@ -224,24 +290,41 @@ export function DeckCard({
       role="radio"
       aria-checked={selected}
       aria-label={aria}
+      style={{ width: w, height: h }}
       className={cn(
-        'relative flex shrink-0 select-none items-center justify-center rounded-[10px] font-bold tabular-nums',
-        'transition-[transform,box-shadow,background-color,border-color] duration-fast ease-room motion-reduce:transition-none',
-        dense ? 'h-[58px] w-[42px] text-base sm:h-[66px] sm:w-[46px]' : 'h-[68px] w-[50px] text-xl sm:h-[90px] sm:w-16 sm:text-2xl',
+        'group/card relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-xl border-2 sm:rounded-2xl',
+        'transition-[transform,box-shadow,border-color,color] duration-base ease-room motion-reduce:transition-none',
         FOCUS_RING,
-        disabled && 'pointer-events-none opacity-40',
+        disabled && 'pointer-events-none opacity-40 grayscale',
         selected
-          ? '-translate-y-3.5 border border-primary bg-primary text-primary-foreground shadow-[0_0_0_1px_hsl(var(--primary)/0.35),0_16px_36px_hsl(var(--primary)/0.5)] [.theme-leitura_&]:shadow-none'
-          : cn(CARD_PLAIN, 'hover:-translate-y-1.5 hover:border-primary/60')
+          ? cn(
+              'z-10 border-primary-foreground/30 bg-gradient-to-br from-primary via-primary to-primary/75 text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground',
+              'shadow-xl shadow-primary/45 ring-4 ring-primary/25 motion-safe:-translate-y-3 motion-safe:scale-110',
+              '[.theme-leitura_&]:bg-none [.theme-leitura_&]:bg-primary [.theme-leitura_&]:shadow-none [.theme-leitura_&]:ring-0'
+            )
+          : special
+            ? isCoffee
+              ? 'border-amber-300/90 bg-gradient-to-b from-card to-amber-500/15 text-amber-700 shadow-sm hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/20 dark:border-amber-700/60 dark:text-amber-400 motion-safe:hover:-translate-y-3 motion-safe:hover:scale-105'
+              : 'border-violet-300/90 bg-gradient-to-b from-card to-violet-500/15 text-violet-700 shadow-sm hover:border-violet-500 hover:shadow-xl hover:shadow-violet-500/20 dark:border-violet-700/60 dark:text-violet-300 motion-safe:hover:-translate-y-3 motion-safe:hover:scale-105'
+            : cn(
+                'border-foreground/25 bg-gradient-to-b from-card to-muted text-foreground shadow-sm',
+                'hover:border-primary hover:shadow-xl hover:shadow-primary/25',
+                'motion-safe:hover:-translate-y-3 motion-safe:hover:rotate-2 motion-safe:hover:scale-105'
+              )
       )}
     >
-      {!isCoffee && (
+      {showPips && (
         <>
-          <span aria-hidden="true" className="pointer-events-none absolute left-[7px] top-[5px] hidden text-[10px] leading-none opacity-70 sm:block">{value}</span>
-          <span aria-hidden="true" className="pointer-events-none absolute bottom-[5px] right-[7px] hidden rotate-180 text-[10px] leading-none opacity-70 sm:block">{value}</span>
+          <span aria-hidden="true" style={{ fontSize: pip }} className="pointer-events-none absolute left-1.5 top-1 font-black leading-none opacity-60">{value}</span>
+          <span aria-hidden="true" style={{ fontSize: pip }} className="pointer-events-none absolute bottom-1 right-1.5 rotate-180 font-black leading-none opacity-60">{value}</span>
         </>
       )}
-      {isCoffee ? <Coffee className="h-6 w-6" strokeWidth={1.5} /> : <span>{value}</span>}
+      {selected && <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-white/0 via-white/25 to-white/0 opacity-70 [.theme-leitura_&]:hidden" />}
+      {isCoffee ? (
+        <Coffee style={{ width: Math.round(w * 0.44), height: Math.round(w * 0.44) }} strokeWidth={1.75} />
+      ) : (
+        <span style={{ fontSize: glyph }} className="font-black italic leading-none tracking-tighter drop-shadow-sm">{value}</span>
+      )}
     </button>
   );
 }

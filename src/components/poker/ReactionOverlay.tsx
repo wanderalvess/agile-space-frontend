@@ -24,7 +24,7 @@ export function ReactionBar({ onReact }: { onReact: (kind: string) => void }) {
           aria-label={k.label}
           title={k.label}
           onClick={() => onReact(k.id)}
-          className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-card transition-transform duration-fast hover:-translate-y-0.5 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transform-none"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-card transition-transform duration-fast hover:-translate-y-0.5 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transform-none"
         >
           <k.icon className={cn('h-4 w-4', k.tone.split(' ').filter((c) => c.includes('text-')).join(' '))} strokeWidth={1.5} aria-hidden="true" />
         </button>

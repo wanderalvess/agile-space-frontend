@@ -6,7 +6,7 @@ import type { DeckType, Issue, Participant, VotingRound, Room } from '@/lib/type
 import { formatEstimateCopy, formatRoleForCopy, type SessionBreakdown } from '@/lib/poker-utils';
 import { sumRoleHours } from '@/lib/poker-results';
 import { cn } from '@/lib/utils';
-import { ModalButton, StatusChip, TITLE_GRADIENT } from '@/components/room-kit';
+import { ModalButton, StatusChip } from '@/components/room-kit';
 import { ExportDialog } from './ExportDialog';
 import { TopicTiming } from './TopicTiming';
 import { SessionVelocity } from './SessionVelocity';
@@ -99,7 +99,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, stats, i
     <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-6">
       <section className="flex flex-wrap items-center justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h1 className={cn('m-0 text-4xl font-bold leading-[1.05] tracking-[-0.035em] sm:text-5xl', TITLE_GRADIENT)}>Cerimônia concluída</h1>
+          <h1 className={cn('m-0 text-4xl font-bold leading-[1.05] tracking-[-0.035em] sm:text-5xl')}>Cerimônia concluída</h1>
           <p className="m-0 text-[15px] text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex flex-wrap gap-2">

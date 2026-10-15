@@ -8,7 +8,7 @@ import { formatEstimateCopy, formatRoleForCopy } from '@/lib/poker-utils';
 import { copyUnitSuffix, type RoundSummary } from '@/lib/poker-results';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { ROLE_STYLES, RoleChip, TITLE_GRADIENT, roleToneOf } from '@/components/room-kit';
+import { ROLE_STYLES, RoleChip, roleToneOf } from '@/components/room-kit';
 import type { TshirtEquivalent } from '@/lib/types';
 
 const CARD = 'rounded-[14px] border border-border bg-card shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
@@ -47,11 +47,11 @@ export function RoundCenter({
   return (
     <div className="room-rise flex flex-wrap items-center justify-center gap-x-6 gap-y-3" style={{ animationDelay: '650ms' }}>
       <div className="flex flex-col items-center">
-        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           {summary.consensus && <Trophy className="h-3.5 w-3.5 text-amber-500" strokeWidth={1.5} aria-hidden="true" />}
           {h.label}
         </span>
-        <span className={cn('font-bold tabular-nums leading-none', large ? 'text-6xl' : 'text-4xl', TITLE_GRADIENT)}>
+        <span className={cn('font-bold tabular-nums leading-none', large ? 'text-6xl' : 'text-4xl')}>
           {h.value}{h.unit}
         </span>
         {eq && <span className="mt-1 text-xs text-muted-foreground">≈ {eq.value} {TSHIRT_UNIT_LABELS[eq.unit]}</span>}
@@ -68,7 +68,7 @@ export function RoundCenter({
               ))}
             </div>
             {divergenceLabel && (
-              <span className="inline-flex h-[22px] items-center rounded-full bg-red-500/10 px-2.5 text-[11px] font-bold text-red-700 dark:text-red-300">{divergenceLabel}</span>
+              <span className="inline-flex h-6 items-center rounded-full bg-red-500/10 px-2.5 text-xs font-bold text-red-700 dark:text-red-300">{divergenceLabel}</span>
             )}
           </div>
         </>
@@ -189,7 +189,7 @@ export function CopyEstimateCard({
       style={{ animationDelay: '850ms' }}
     >
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Estimativa para a issue pai</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Estimativa para a issue pai</span>
         {total !== null && <span className="text-xs tabular-nums text-muted-foreground">total {total}h</span>}
       </div>
       <div className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-3">

@@ -5,7 +5,7 @@ import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2, WalletCards }
 import { DECKS, type DeckType, type Participant } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { FOCUS_RING, PersonAvatar, RoomQr, StatusChip, TITLE_GRADIENT } from '@/components/room-kit';
+import { FOCUS_RING, PersonAvatar, RoomQr, StatusChip } from '@/components/room-kit';
 
 // Cartas exibidas no leque de boas-vindas, por baralho (a do meio é a destacada).
 const FAN_FACES: Record<DeckType, readonly string[]> = {
@@ -47,7 +47,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
 function CardFan({ deck }: { deck: DeckType }) {
   const faces = FAN_FACES[deck] ?? DECKS[deck].slice(0, 5);
   return (
-    <div className="group/fan relative mx-auto h-[190px] w-full max-w-[470px] select-none" aria-hidden="true">
+    <div className="group/fan relative mx-auto h-[190px] w-full max-w-[470px] select-none [@media(max-height:820px)]:-mb-10 [@media(max-height:820px)]:origin-top [@media(max-height:820px)]:scale-[0.8]" aria-hidden="true">
       {faces.map((face, i) => {
         const hero = i === 2;
         return (
@@ -95,7 +95,7 @@ function StepBadge({ n, state }: { n: number; state: 'done' | 'active' | 'locked
   );
 }
 
-const STEP_CARD = 'relative flex h-full flex-col gap-4 rounded-[14px] border p-[22px] transition-colors duration-slow';
+const STEP_CARD = 'relative flex h-full flex-col gap-3.5 rounded-[14px] border p-5 transition-colors duration-slow';
 const BTN = 'inline-flex h-[42px] w-full items-center justify-center gap-2.5 rounded-[10px] text-sm transition-[transform,background-color] duration-fast hover:-translate-y-px motion-reduce:transform-none';
 const KEY = 'rounded border border-current/30 px-1.5 py-px text-[11px] tabular-nums opacity-70';
 
@@ -147,7 +147,7 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
       <CardFan deck={deck} />
 
       <div className="mt-2 flex flex-col items-center gap-3.5 text-center">
-        <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl', TITLE_GRADIENT)}>Sua sala está pronta</h2>
+        <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Sua sala está pronta</h2>
         <div className="flex items-center gap-2">
           <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
@@ -162,7 +162,7 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
         </ul>
       </div>
 
-      <ol className="relative m-0 mt-8 grid list-none grid-cols-1 gap-5 p-0 md:grid-cols-3">
+      <ol className="relative m-0 mt-5 grid list-none grid-cols-1 gap-5 p-0 md:grid-cols-3">
         <li aria-hidden="true" className="absolute left-[16%] right-[16%] top-[38px] hidden h-px bg-border md:block" />
 
         <li className="relative">
@@ -252,7 +252,7 @@ export function RoomWaiting({ deck, deckLabel, roomTeam, participants, onlineIds
       <CardFan deck={deck} />
 
       <div className="mt-2 flex flex-col items-center gap-3.5">
-        <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl', TITLE_GRADIENT)}>Boas-vindas à sala</h2>
+        <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Boas-vindas à sala</h2>
         <div className="flex items-center gap-2">
           <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}

@@ -839,11 +839,13 @@ const PokerRoomComponent = ({
           </ResponsivePanel>
         )}
 
-        <main className="relative flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-3 sm:p-5">
-          <div aria-hidden="true" className="room-halo pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px]" />
+        <main className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div aria-hidden="true" className="room-halo pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]" />
 
+          {/* Miolo rolável: os filhos não encolhem (sem isso a mesa, com overflow oculto, era espremida e cortada); só a mesa estica. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:px-5 [&>*]:shrink-0">
           {isInitialState ? (
-            <div className="flex flex-1 items-start justify-center py-4">
+            <div className="flex flex-1 items-start justify-center py-1">
               {isCurrentUserFacilitator ? (
                 <RoomWelcome
                   deck={deck}
@@ -902,22 +904,15 @@ const PokerRoomComponent = ({
 
               {/* Início explícito da cerimônia: o relógio da sessão e o tempo de cada tarefa contam daqui. */}
               {activeIssueId && !sessionStartedAt && (
-                <section className="room-rise flex flex-col items-center justify-between gap-4 rounded-[14px] border border-primary/40 bg-primary/5 px-5 py-4 sm:flex-row">
-                  <div className="flex items-center gap-4 text-center sm:text-left">
-                    <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+                <section aria-label="Início do refinamento" className="room-rise flex flex-col items-stretch justify-between gap-3 rounded-[14px] border border-primary/40 bg-primary/5 px-4 py-3 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-3">
+                    <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
                       <Clock className="h-5 w-5" strokeWidth={1.5} />
                     </span>
-                    <div>
-                      <h2 className="m-0 text-[15px] font-semibold">{isCurrentUserFacilitator ? 'Tudo pronto para começar' : 'Aguardando o facilitador'}</h2>
-                      <p className="m-0 mt-0.5 max-w-md text-sm text-muted-foreground">
-                        {isCurrentUserFacilitator
-                          ? 'O timer e o tempo de cada tarefa contam a partir daqui, e o baralho abre para todos.'
-                          : 'Assim que ele iniciar o refinamento, o baralho abre e a votação começa.'}
-                      </p>
-                    </div>
+                    <h2 className="m-0 text-[15px] font-semibold">{isCurrentUserFacilitator ? 'Tudo pronto para começar' : 'Aguardando o facilitador iniciar o refinamento'}</h2>
                   </div>
                   {isCurrentUserFacilitator && onStartSession && (
-                    <ModalButton variant="primary" onClick={onStartSession} className="h-11 w-full gap-2 px-6 sm:w-auto">
+                    <ModalButton variant="primary" onClick={onStartSession} className="h-10 w-full gap-2 px-6 sm:w-auto">
                       <Play className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Iniciar refinamento
                     </ModalButton>
                   )}
@@ -931,6 +926,7 @@ const PokerRoomComponent = ({
                       participants={participants}
                       votes={votes}
                       votesRevealed
+                      roomy
                       deck={deck}
                       currentUserId={currentUser.id}
                       allowManagementToVote={settings?.allowManagementToVote}
@@ -989,35 +985,43 @@ const PokerRoomComponent = ({
                     groupByRole={!!settings?.groupVotesByRole}
                     onlineIds={onlineIds}
                     large={isTheaterMode}
+                    locked={!!activeIssueId && !sessionStartedAt}
                     footer={tableFooter}
                     overlay={reactionsEnabled ? <ReactionBubbles reactions={reactions || []} /> : undefined}
                   />
-                  {activeIssueId && currentUser.role !== 'spectator' ? (
-                    <Controls
-                      deck={deck}
-                      currentUserVote={currentUserVote}
-                      onVote={onVote}
-                      votesRevealed={votesRevealed}
-                      currentUser={currentUser}
-                      allowManagementToVote={settings?.allowManagementToVote}
-                      selectiveRevotingRole={selectiveRevotingRole}
-                      isTheaterMode={isTheaterMode}
-                      isSessionNotStarted={!!activeIssueId && !sessionStartedAt}
-                      confidenceEnabled={!!settings?.confidenceVote}
-                      onSetConfidence={onSetConfidence}
-                      currentUserConfidence={currentUserConfidence}
-                      onAllowManagementVote={isCurrentUserFacilitator ? () => onUpdateSettings({ allowManagementToVote: true }) : undefined}
-                    />
-                  ) : (
-                    <section className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
-                      <Users className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
-                      <span className="text-sm font-semibold">{!activeIssueId ? 'Sessão finalizada' : 'Você acompanha como espectador'}</span>
-                    </section>
-                  )}
                 </>
               )}
 
             </>
+          )}
+          </div>
+
+          {/* Baralho fixo embaixo: nunca cobre a mesa, que rola por cima dele se precisar. */}
+          {!isInitialState && !(isSessionFinished && stats) && !(votesRevealed && summary) && (
+            <div className="shrink-0">
+              {activeIssueId && currentUser.role !== 'spectator' ? (
+                <Controls
+                  deck={deck}
+                  currentUserVote={currentUserVote}
+                  onVote={onVote}
+                  votesRevealed={votesRevealed}
+                  currentUser={currentUser}
+                  allowManagementToVote={settings?.allowManagementToVote}
+                  selectiveRevotingRole={selectiveRevotingRole}
+                  isTheaterMode={isTheaterMode}
+                  isSessionNotStarted={!!activeIssueId && !sessionStartedAt}
+                  confidenceEnabled={!!settings?.confidenceVote}
+                  onSetConfidence={onSetConfidence}
+                  currentUserConfidence={currentUserConfidence}
+                  onAllowManagementVote={isCurrentUserFacilitator ? () => onUpdateSettings({ allowManagementToVote: true }) : undefined}
+                />
+              ) : (
+                <section className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
+                  <Users className="h-6 w-6 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                  <span className="text-sm font-semibold">{!activeIssueId ? 'Sessão finalizada' : 'Você acompanha como espectador'}</span>
+                </section>
+              )}
+            </div>
           )}
         </main>
 
