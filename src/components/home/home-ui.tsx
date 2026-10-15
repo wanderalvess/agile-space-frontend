@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
  * fica fora de "totvs" e "leitura" (regras da marca), por seletores de classe do <html>, sem JS.
  */
 
-/** Texto sobre o tom da cor de destaque. No TOTVS claro (ciano) e no Nordic escuro (verde-pinho) o primário não tem contraste: usa o texto padrão. */
-export const TINT_TEXT = 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground [.dark.theme-nordic_&]:text-foreground';
+/** Texto sobre o tom da cor de destaque. No TOTVS claro (ciano) o primário não tem contraste: usa o texto padrão. */
+export const TINT_TEXT = 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground';
 export const TINT_BG = 'bg-primary/10';
 
 /** Ícone de linha de cada ritual. */
@@ -29,10 +29,10 @@ export const FOCUS_RING =
 /** Elevação sutil de hover; desligada com "reduzir movimento". */
 export const LIFT = 'motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5';
 
-/** Título com gradiente discreto; sólido em totvs, leitura e no escuro do nordic (onde o primário some no fundo). */
+/** Título com gradiente discreto; sólido em totvs e leitura (regra da marca). */
 export const TITLE_GRADIENT =
   'bg-gradient-to-r from-foreground from-0% via-foreground via-55% to-primary to-100% bg-clip-text text-transparent ' +
-  '[.theme-totvs_&]:to-foreground [.theme-leitura_&]:to-foreground [.dark.theme-nordic_&]:to-foreground';
+  '[.theme-totvs_&]:to-foreground [.theme-leitura_&]:to-foreground';
 
 /** Halo atrás do topo da página. Ausente no tema "leitura". */
 export const HALO =
