@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { pickBannerAnnouncement } from './derive';
 import { dismissAnnouncement, fetchAnnouncements, loadDismissedAnnouncements } from './sources';
@@ -20,16 +20,16 @@ export function useHomeAnnouncements() {
     intervalMs: REFRESH_MS,
   });
 
-  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
-  useEffect(() => {
-    if (userId) setDismissed(loadDismissedAnnouncements(userId));
-  }, [userId]);
+  // Dispensados lidos do armazenamento uma vez por usuário; os de agora entram em `added`.
+  const stored = useMemo(() => (userId ? loadDismissedAnnouncements(userId) : new Set<string>()), [userId]);
+  const [added, setAdded] = useState<ReadonlySet<string>>(() => new Set());
+  const dismissed = useMemo<ReadonlySet<string>>(() => new Set([...stored, ...added]), [stored, added]);
 
   const announcement = useMemo(() => pickBannerAnnouncement(data, dismissed, now), [data, dismissed, now]);
 
   const dismiss = useCallback(
     async (id: string) => {
-      setDismissed((prev) => new Set(prev).add(id));
+      setAdded((prev) => new Set(prev).add(id));
       if (userId) await dismissAnnouncement(userId, id);
     },
     [userId],

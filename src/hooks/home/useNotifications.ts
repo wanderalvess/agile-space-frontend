@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { announcementsToNotifications, unreadByTab } from './derive';
 import { fetchAnnouncements, fetchNotifications, loadReadNotifications, markNotificationsRead } from './sources';
@@ -29,10 +29,10 @@ export function useNotifications() {
     intervalMs: REFRESH_MS,
   });
 
-  const [readIds, setReadIds] = useState<ReadonlySet<string>>(() => new Set());
-  useEffect(() => {
-    if (userId) setReadIds(loadReadNotifications(userId));
-  }, [userId]);
+  // Lidas do armazenamento uma vez por usuário; as marcadas agora entram em `added`.
+  const stored = useMemo(() => (userId ? loadReadNotifications(userId) : new Set<string>()), [userId]);
+  const [added, setAdded] = useState<ReadonlySet<string>>(() => new Set());
+  const readIds = useMemo<ReadonlySet<string>>(() => new Set([...stored, ...added]), [stored, added]);
 
   const items = useMemo<HomeNotification[]>(() => {
     const fromBackend = (remote.data ?? []).map((n) => ({ ...n, unread: n.unread && !readIds.has(n.id) }));
@@ -51,7 +51,7 @@ export function useNotifications() {
   const markAllRead = useCallback(async () => {
     const ids = items.filter((n) => n.unread).map((n) => n.id);
     if (ids.length === 0) return;
-    setReadIds((prev) => new Set([...prev, ...ids]));
+    setAdded((prev) => new Set([...prev, ...ids]));
     if (userId) await markNotificationsRead(userId, ids);
   }, [items, userId]);
 

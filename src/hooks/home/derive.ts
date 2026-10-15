@@ -519,3 +519,31 @@ export function matchesQuery(query: string, ...fields: string[]): boolean {
   if (!q) return true;
   return normalizeText(fields.join(' ')).includes(q);
 }
+
+// ---------- saudação ----------
+
+export interface HeroChip {
+  text: string;
+  /** Chip em destaque (cor da marca). */
+  brand?: boolean;
+}
+
+/** Chips sob a saudação: contexto da squad (uma só) ou visão geral (várias). */
+export function heroChips(input: {
+  squadName?: string;
+  squadCount: number;
+  liveCount: number;
+  sprintText?: string;
+  nextCeremonyText?: string;
+}): HeroChip[] {
+  const chips: HeroChip[] = [];
+  if (input.squadCount > 1) {
+    chips.push({ text: `Você acompanha ${input.squadCount} squads`, brand: true });
+    if (input.liveCount > 0) chips.push({ text: pluralize(input.liveCount, 'sessão ao vivo', 'sessões ao vivo') });
+  } else {
+    if (input.squadName) chips.push({ text: `Squad ${input.squadName}`, brand: true });
+    if (input.sprintText) chips.push({ text: input.sprintText });
+  }
+  if (input.nextCeremonyText) chips.push({ text: input.nextCeremonyText });
+  return chips;
+}

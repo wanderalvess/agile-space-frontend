@@ -9,6 +9,7 @@ import {
   formatRelative,
   formatShortDate,
   greetingFor,
+  heroChips,
   historyMeta,
   initialsOf,
   isLive,
@@ -298,5 +299,28 @@ describe('busca de módulos', () => {
     expect(matchesQuery('qualidade', 'Central de Qualidade')).toBe(true);
     expect(matchesQuery('POLITICAS', 'Políticas e ajuda')).toBe(true);
     expect(matchesQuery('xyz', 'Jolt', 'Layouts')).toBe(false);
+  });
+});
+
+describe('chips da saudação', () => {
+  it('uma squad: nome, sprint e próxima cerimônia', () => {
+    expect(heroChips({ squadName: 'Phoenix', squadCount: 1, liveCount: 3, sprintText: 'Sprint 42 · faltam 6 dias', nextCeremonyText: 'Review · sex 14:00' })).toEqual([
+      { text: 'Squad Phoenix', brand: true },
+      { text: 'Sprint 42 · faltam 6 dias' },
+      { text: 'Review · sex 14:00' },
+    ]);
+  });
+
+  it('várias squads: visão geral e contagem ao vivo (só quando há)', () => {
+    expect(heroChips({ squadCount: 3, liveCount: 2 })).toEqual([
+      { text: 'Você acompanha 3 squads', brand: true },
+      { text: '2 sessões ao vivo' },
+    ]);
+    expect(heroChips({ squadCount: 3, liveCount: 1 })[1].text).toBe('1 sessão ao vivo');
+    expect(heroChips({ squadCount: 3, liveCount: 0 })).toHaveLength(1);
+  });
+
+  it('sem dados não inventa chip', () => {
+    expect(heroChips({ squadCount: 0, liveCount: 0 })).toEqual([]);
   });
 });
