@@ -15,13 +15,8 @@ export interface AdminStats {
   sessionDurationSampleSize: number;
 }
 
-export interface Announcement {
-  id?: string;
-  title: string;
-  content: string;
-  createdBy: string;
-  createdAt?: string;
-}
+/** Aviso v2 (contrato home-api, seção 1): tipo, público, vigência e link. */
+export type Announcement = AnnouncementDto;
 
 export interface AuditLogData {
   id?: string;
@@ -63,6 +58,7 @@ export interface CreatedApiKey {
 }
 
 import { authFetch } from '@/lib/auth-client';
+import { adminAnnouncementsApi, type AnnouncementDto, type AnnouncementInput } from '@/lib/home-api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
@@ -95,19 +91,20 @@ export const adminApi = {
     });
   },
 
-  async getAnnouncements(): Promise<Announcement[]> {
-    return req<Announcement[]>('/admin/announcements');
+  getAnnouncements(): Promise<Announcement[]> {
+    return adminAnnouncementsApi.list();
   },
 
-  async createAnnouncement(announcement: Announcement): Promise<Announcement> {
-    return req<Announcement>('/admin/announcements', {
-      method: 'POST',
-      body: JSON.stringify(announcement)
-    });
+  createAnnouncement(input: AnnouncementInput): Promise<Announcement> {
+    return adminAnnouncementsApi.create(input);
   },
 
-  async deleteAnnouncement(id: string): Promise<void> {
-    return req<void>(`/admin/announcements/${id}`, { method: 'DELETE' });
+  updateAnnouncement(id: string, input: AnnouncementInput): Promise<Announcement> {
+    return adminAnnouncementsApi.update(id, input);
+  },
+
+  deleteAnnouncement(id: string): Promise<void> {
+    return adminAnnouncementsApi.remove(id);
   },
 
   async getAuditLogs(): Promise<AuditLogData[]> {
@@ -172,7 +169,7 @@ export const adminApi = {
   }
 };
 
-// Lidos antes do login (branding, banner de anúncio) — sem JWT, isento do
+// Lidos antes do login (branding) — sem JWT, isento do
 // gate de role=ADMIN que protege /admin/*. Usa fetch puro (não authFetch)
 // porque essas telas rodam acima do AuthProvider na árvore de providers.
 export const publicApi = {
@@ -185,14 +182,4 @@ export const publicApi = {
       return {};
     }
   },
-
-  async getAnnouncements(): Promise<Announcement[]> {
-    try {
-      const res = await fetch(`${API_BASE_URL}/public/announcements`);
-      if (!res.ok) return [];
-      return await res.json();
-    } catch {
-      return [];
-    }
-  }
 };

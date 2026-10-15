@@ -11,6 +11,13 @@ export const actionPlanApi = {
     return res.json();
   },
 
+  /** Planos de ação da squad (todas as sprints). */
+  async listBoardsBySquad(squadId: string): Promise<ActionPlanBoard[]> {
+    const res = await authFetch(`${API_BASE_URL}/action-plans?squadId=${encodeURIComponent(squadId)}`);
+    await ensureOk(res, 'Falha ao listar planos de ação');
+    return res.json();
+  },
+
   /** Criador, id e datas são definidos pelo servidor a partir do login; o que vier no corpo é ignorado. */
   async createBoard(board: Partial<ActionPlanBoard>): Promise<ActionPlanBoard> {
     const res = await authFetch(`${API_BASE_URL}/action-plans`, {
