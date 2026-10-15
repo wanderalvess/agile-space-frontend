@@ -216,7 +216,11 @@ export default function OnboardingPage() {
       await updateProfile({ squadId: roster.projectId });
       finish(`Você entrou em ${roster.projectId}`, `Como ${roleName}. Seu time pode ajustar isso depois.`);
     } catch (err: any) {
-      toast({ title: 'Não foi possível entrar no time', description: err.message, variant: 'destructive' });
+      toast({
+        title: 'Não foi possível entrar no time',
+        description: err?.message || 'O servidor recusou a entrada. Peça um convite ao Agile Master ou à liderança da squad, ou confirme que você consta na lista do time.',
+        variant: 'destructive',
+      });
     } finally {
       setBusy(null);
     }
@@ -620,7 +624,8 @@ export default function OnboardingPage() {
               <Crown className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground leading-relaxed">
                 É PO, Tech Lead ou Agile Master da squad? Esses papéis mexem na governança do time e vêm do Jira
-                ou de um convite direto — entre como participante agora e peça o ajuste a quem lidera a {roster.projectId}.
+                ou de um convite direto. Para entrar na {roster.projectId} é preciso constar na lista do time ou ter um convite do
+                Agile Master/liderança — se o acesso for recusado, peça o convite a quem lidera a squad.
               </p>
             </div>
 

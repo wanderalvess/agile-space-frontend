@@ -90,6 +90,9 @@ const SQUAD_ROLES = [
   'Tribe Lead',
 ];
 
+// Convite não concede liderança (o servidor recusa): só papéis de contribuidor.
+const INVITE_ROLES = ['Developer', 'QA', 'UX/Designer', 'SME'];
+
 function RosterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1583,7 +1586,7 @@ function RosterContent() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {SQUAD_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    {INVITE_ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

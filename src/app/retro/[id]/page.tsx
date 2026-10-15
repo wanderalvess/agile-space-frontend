@@ -187,7 +187,6 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     let stopped = false;
     let socket: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
-    let hadConnection = false;
 
     const connect = () => {
       const wsUrl = buildWsUrl();
@@ -196,8 +195,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
       socket.onopen = () => {
         // Eventos perdidos durante a queda não voltam sozinhos: reconectou, ressincroniza.
-        if (hadConnection) reloadBoardData();
-        hadConnection = true;
+        // Inclui a primeira conexão: o handshake pode ter sido recusado (403) antes de o usuário
+        // virar participante, e eventos entre o load inicial e o aceite se perderiam.
+        reloadBoardData();
       };
 
       socket.onmessage = (event) => {
