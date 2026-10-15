@@ -349,6 +349,7 @@ export function TicketDetailDialog({ open, onOpenChange, ticket, onUpdate }: { o
 export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
   const { userProfile: user } = useUserContext();
   const { toast } = useToast();
+  const [announcementTitle, setAnnouncementTitle] = useState('');
   const [announcement, setAnnouncement] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
@@ -364,17 +365,21 @@ export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: strin
   };
 
   const handleBroadcast = async () => {
-    if (!announcement.trim()) return;
+    if (!announcement.trim() || !announcementTitle.trim()) return;
     setIsLoading(true);
     try {
       await adminApi.createAnnouncement({
-        title: 'Aviso Diretor',
-        content: announcement,
-        createdBy: user?.email || user?.name || 'Admin',
+        title: announcementTitle.trim().slice(0, 120),
+        content: announcement.trim().slice(0, 2000),
+        type: 'INFO',
+        audienceType: 'ALL',
+        audienceSquadIds: [],
+        audienceRoles: [],
       });
       await adminApi.logAction('admin_broadcast', user?.email || 'admin', `Admin enviou anúncio global: "${announcement.substring(0, 30)}..."`);
-      toast({ title: "Anúncio Disparado", description: "Todos os usuários verão essa mensagem." });
+      toast({ title: "Aviso publicado" });
       setAnnouncement('');
+      setAnnouncementTitle('');
     } catch (e) {
       toast({ title: "Erro ao disparar", variant: "destructive" });
     } finally {
@@ -390,13 +395,20 @@ export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: strin
       </CardHeader>
       <CardContent className="p-10 space-y-8">
         <div className="space-y-4">
+          <input
+            value={announcementTitle} onChange={(e) => setAnnouncementTitle(e.target.value)}
+            maxLength={120}
+            placeholder="Título do aviso"
+            className="w-full h-11 bg-white/5 border border-white/10 rounded-2xl px-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 transition-all shadow-inner"
+          />
           <textarea
             value={announcement} onChange={(e) => setAnnouncement(e.target.value)}
-            placeholder="Anúncio Global em Tempo Real..."
+            maxLength={2000}
+            placeholder="Aviso para todos"
             className="w-full h-24 bg-white/5 border border-white/10 rounded-2xl p-4 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 transition-all resize-none shadow-inner"
           />
-          <Button disabled={!announcement.trim() || isLoading} onClick={handleBroadcast} className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-95">
-            {isLoading ? 'Disparando...' : 'Disparar Alerta Master'}
+          <Button disabled={!announcement.trim() || !announcementTitle.trim() || isLoading} onClick={handleBroadcast} className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-95">
+            {isLoading ? 'Publicando...' : 'Publicar aviso'}
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-4">
