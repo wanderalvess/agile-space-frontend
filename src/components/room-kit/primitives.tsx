@@ -79,3 +79,44 @@ export function RoleChip({
     </span>
   );
 }
+
+/** Botão só com ícone (cabeçalho da sala, cartões): 36 px, contorno, estado pressionado e selo de contagem. */
+export const IconButton = React.forwardRef<
+  HTMLButtonElement,
+  {
+    label: string;
+    icon: LucideIcon;
+    pressed?: boolean;
+    badge?: number;
+    size?: 'sm' | 'md';
+  } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'>
+>(({ label, icon: Icon, pressed, badge, size = 'md', className, ...props }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    aria-label={label}
+    title={label}
+    aria-pressed={pressed}
+    className={cn(
+      'relative inline-flex shrink-0 items-center justify-center rounded-lg border transition-[background-color,border-color,color,box-shadow] duration-[140ms]',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',
+      size === 'sm' ? 'h-8 w-8' : 'h-9 w-9',
+      pressed
+        ? 'border-primary/60 bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground'
+        : 'border-border bg-transparent text-foreground hover:bg-accent',
+      className
+    )}
+    {...props}
+  >
+    <Icon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+    {!!badge && badge > 0 && (
+      <span
+        aria-hidden="true"
+        className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-card bg-primary px-1 text-[11px] font-semibold text-primary-foreground"
+      >
+        {badge > 99 ? '99+' : badge}
+      </span>
+    )}
+  </button>
+));
+IconButton.displayName = 'IconButton';

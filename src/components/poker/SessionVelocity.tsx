@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { pokerApi } from '@/app/room/api';
-import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -75,33 +74,32 @@ export function SessionVelocity({ currentRoomId }: { currentRoomId: string }) {
   const maxPoints = Math.max(1, ...rows.map(r => r.totalPoints));
 
   return (
-    <Card className="border border-indigo-100/60 dark:border-indigo-900/30 bg-white/60 dark:bg-card/40 rounded-2xl">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-indigo-600" />
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-400">Histórico do time</h3>
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">últimas sessões</span>
-        </div>
-        <div className="space-y-2">
-          {rows.map(r => (
-            <div key={r.roomId} className={cn("flex items-center gap-3", r.isCurrent && "font-black")}>
-              <div className="w-28 shrink-0 truncate text-[11px] font-bold text-slate-600 dark:text-slate-300" title={r.title}>
-                {r.title}{r.isCurrent && <span className="text-indigo-500"> (atual)</span>}
-              </div>
-              <div className="flex-1 h-4 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full", r.isCurrent ? "bg-indigo-600" : "bg-indigo-400/60")}
-                  style={{ width: `${Math.round((r.totalPoints / maxPoints) * 100)}%` }}
-                />
-              </div>
-              <div className="w-16 shrink-0 text-right text-[11px] font-black text-slate-800 dark:text-slate-100">{r.totalPoints} pts</div>
-              <div className="w-20 shrink-0 flex items-center justify-end gap-1 text-[10px] font-bold text-slate-400">
-                <Clock className="h-3 w-3" /> {r.durationStr}
-              </div>
+    <section aria-label="Histórico do time" className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-base font-bold">
+          <TrendingUp className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" /> Histórico do time
+        </h2>
+        <span className="text-xs text-muted-foreground">últimas sessões</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {rows.map((r, idx) => (
+          <div key={r.roomId} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4rem_5rem] items-center gap-3">
+            <span className={cn('truncate text-[11px]', r.isCurrent ? 'font-bold text-foreground' : 'text-muted-foreground')} title={r.title}>
+              {r.title}{r.isCurrent && <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"> (atual)</span>}
+            </span>
+            <div className="h-[22px] overflow-hidden rounded-md bg-muted/60">
+              <div
+                className={cn('room-grow h-full rounded-md', r.isCurrent ? 'bg-primary' : 'bg-primary/45')}
+                style={{ width: `${Math.round((r.totalPoints / maxPoints) * 100)}%`, animationDelay: `${idx * 60}ms` }}
+              />
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <span className="text-right text-xs font-bold tabular-nums">{r.totalPoints}</span>
+            <span className="flex items-center justify-end gap-1 text-[11px] tabular-nums text-muted-foreground">
+              <Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> {r.durationStr}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

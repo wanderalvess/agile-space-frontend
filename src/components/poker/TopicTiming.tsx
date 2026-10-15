@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import type { VotingRound, Issue } from '@/lib/types';
 import { computeTopicTiming } from '@/lib/poker-utils';
-import { Card, CardContent } from '@/components/ui/card';
 import { Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -30,38 +29,39 @@ export function TopicTiming({ rounds, issues, sessionStartedAt }: TopicTimingPro
   const idleMins = rows.reduce((sum, r) => sum + r.idleMins, 0);
 
   return (
-    <Card className="border border-slate-200/60 dark:border-border/40 bg-white/60 dark:bg-card/40 rounded-2xl">
-      <CardContent className="p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-indigo-600" />
-          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-700 dark:text-indigo-400">Tempo por tópico</h3>
-        </div>
-        <div className="space-y-2">
-          {rows.map((r, idx) => (
-            <div key={idx} className="flex items-center gap-3">
-              <div className="w-32 shrink-0 truncate text-[11px] font-bold text-slate-600 dark:text-slate-300" title={r.title}>
-                {r.title}
-                {r.skipped && <span className="ml-1 text-amber-600 font-black">(pulado)</span>}
-              </div>
-              <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                <div className={cn("h-full rounded-full", r.skipped ? "bg-amber-400/70" : r.mins >= maxMins ? "bg-indigo-600" : "bg-indigo-400/60")} style={{ width: `${Math.round((r.mins / maxMins) * 100)}%` }} />
-              </div>
-              <div className="w-14 shrink-0 text-right text-[11px] font-black text-slate-800 dark:text-slate-100">{r.mins} min</div>
+    <section aria-label="Tempo por tópico" className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-base font-bold">
+          <Clock className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" /> Tempo por tópico
+        </h2>
+        <span className="text-xs text-muted-foreground">tempo ativo de discussão e votação</span>
+      </div>
+      <div className="flex flex-col gap-2">
+        {rows.map((r, idx) => (
+          <div key={idx} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_3.5rem] items-center gap-3">
+            <span className="truncate text-[11px] text-muted-foreground" title={r.title}>
+              {r.title}
+              {r.skipped && <span className="ml-1 font-semibold text-amber-700 dark:text-amber-300">(pulado)</span>}
+            </span>
+            <div className="h-[22px] overflow-hidden rounded-md bg-muted/60">
+              <div
+                className={cn('room-grow h-full rounded-md', r.skipped ? 'bg-amber-500/60' : r.mins >= maxMins ? 'bg-primary' : 'bg-primary/50')}
+                style={{ width: `${Math.round((r.mins / maxMins) * 100)}%`, animationDelay: `${idx * 60}ms` }}
+              />
             </div>
-          ))}
-        </div>
-        <div className="pt-3 mt-1 border-t border-slate-200/60 dark:border-border/40 flex items-center justify-between">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Tempo ativo</span>
-          <span className="text-[13px] font-black text-indigo-700 dark:text-indigo-400">{totalMins} min</span>
-        </div>
-        {idleMins > 0 && (
-          // Sala aberta muito antes da cerimônia (ou pausa longa): o intervalo
-          // é mostrado à parte em vez de inflar o tempo do primeiro tópico.
-          <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-            {idleMins} min de intervalo fora da discussão não foram contabilizados.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+            <span className="text-right text-xs font-bold tabular-nums">{r.mins} min</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex items-center justify-between border-t border-border pt-3">
+        <span className="text-xs text-muted-foreground">Tempo ativo</span>
+        <span className="text-sm font-bold tabular-nums">{totalMins} min</span>
+      </div>
+      {idleMins > 0 && (
+        // Sala aberta muito antes da cerimônia (ou pausa longa): o intervalo
+        // é mostrado à parte em vez de inflar o tempo do primeiro tópico.
+        <p className="m-0 text-xs text-muted-foreground">{idleMins} min de intervalo fora da discussão não foram contabilizados.</p>
+      )}
+    </section>
   );
 }

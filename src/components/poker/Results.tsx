@@ -1,347 +1,214 @@
 "use client";
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import type { Vote, Participant, DeckType, TshirtEquivalent } from '@/lib/types';
+import { useMemo, useState } from 'react';
+import { Check, Copy, Trophy } from 'lucide-react';
+import type { DeckType } from '@/lib/types';
 import { TSHIRT_UNIT_LABELS } from '@/lib/types';
-import { getParticipantCategory, TECHNICAL_CATEGORIES, calculateRoleEfforts, TechnicalCategory, formatRoleForCopy, getEligibleStatsVotes, resolveTshirtHours, roundEstimate, type RoundingMode } from '@/lib/poker-utils';
-import { Card, CardContent } from '@/components/ui/card';
-import { Users, Trophy, Copy, Hash } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { formatEstimateCopy, formatRoleForCopy } from '@/lib/poker-utils';
+import { copyUnitSuffix, type RoundSummary } from '@/lib/poker-results';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { ROLE_STYLES, RoleChip, TITLE_GRADIENT, roleToneOf } from '@/components/room-kit';
+import type { TshirtEquivalent } from '@/lib/types';
 
-interface ResultsProps {
-  votes: Vote[];
-  participants: Participant[];
-  deck: DeckType;
-  allowManagementToVote?: boolean;
-  // Equivalência numérica configurada pelo facilitador (ex: PP=4 horas) — só
-  // usada quando deck === 'tshirt'. Presente = resultado calculado de verdade
-  // (média em horas). Ausente = comportamento histórico (moda).
-  tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>;
-  // Como a média vira inteiro (configuração do facilitador). Padrão: para cima.
-  roundingMode?: RoundingMode;
+const CARD = 'rounded-[14px] border border-border bg-card shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
+
+/** Rótulo da métrica principal conforme o baralho. */
+function headlineOf(deck: DeckType, summary: RoundSummary): { label: string; value: string; unit: string } {
+  if (summary.consensus) {
+    return { label: 'Consenso pleno', value: deck === 'hours' ? summary.totalHours : summary.avg, unit: deck === 'hours' || summary.tshirtNumeric ? 'h' : '' };
+  }
+  if (deck === 'hours') return { label: 'Estimativa total', value: summary.totalHours, unit: 'h' };
+  if (deck === 'tshirt' && !summary.tshirtNumeric) return { label: 'Resultado predominante', value: summary.avg, unit: '' };
+  return { label: 'Média calculada', value: summary.avg, unit: summary.tshirtNumeric ? 'h' : '' };
 }
 
-// Estouro de partículas (uma vez) quando o time fecha em consenso pleno.
-const BURST_COLORS = ['bg-amber-400', 'bg-indigo-400', 'bg-fuchsia-400', 'bg-emerald-400'];
-function ConsensusBurst() {
+/**
+ * Centro da mesa revelada: estimativa total em destaque, chips por papel
+ * (DEV 10h, QA 4h, UX 2h) e o aviso de divergência quando houver.
+ */
+export function RoundCenter({
+  summary,
+  deck,
+  tshirtEquivalents,
+  divergenceLabel,
+  large = false,
+}: {
+  summary: RoundSummary;
+  deck: DeckType;
+  tshirtEquivalents?: Partial<Record<string, TshirtEquivalent>>;
+  /** Ex.: "Divergência crítica no DEV · 6h a 16h". */
+  divergenceLabel?: string;
+  large?: boolean;
+}) {
+  const h = headlineOf(deck, summary);
+  const eq = deck === 'tshirt' && !summary.tshirtNumeric ? tshirtEquivalents?.[summary.avg] : undefined;
+  const unit = copyUnitSuffix(deck, summary.tshirtNumeric);
   return (
-    <div className="pointer-events-none absolute left-9 top-8" aria-hidden>
-      {Array.from({ length: 16 }).map((_, i) => {
-        const angle = (i / 16) * Math.PI * 2;
-        const dist = 70 + (i % 3) * 22;
-        return (
-          <motion.span
-            key={i}
-            className={cn('absolute h-1.5 w-1.5 rounded-full', BURST_COLORS[i % BURST_COLORS.length])}
-            initial={{ x: 0, y: 0, opacity: 1, scale: 1.2 }}
-            animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.3 }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
-          />
-        );
-      })}
+    <div className="room-rise flex flex-wrap items-center justify-center gap-x-6 gap-y-3" style={{ animationDelay: '650ms' }}>
+      <div className="flex flex-col items-center">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          {summary.consensus && <Trophy className="h-3.5 w-3.5 text-amber-500" strokeWidth={1.5} aria-hidden="true" />}
+          {h.label}
+        </span>
+        <span className={cn('font-bold tabular-nums leading-none', large ? 'text-6xl' : 'text-4xl', TITLE_GRADIENT)}>
+          {h.value}{h.unit}
+        </span>
+        {eq && <span className="mt-1 text-xs text-muted-foreground">≈ {eq.value} {TSHIRT_UNIT_LABELS[eq.unit]}</span>}
+      </div>
+      {summary.activeRoles.length > 0 && (
+        <>
+          <span aria-hidden="true" className="hidden h-12 w-px bg-border sm:block" />
+          <div className="flex flex-col items-center gap-2 sm:items-start">
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {summary.activeRoles.map(role => (
+                <span key={role} className={cn('inline-flex h-[26px] items-center rounded-lg px-2.5 text-[13px] font-bold tabular-nums', ROLE_STYLES[roleToneOf(role)].chip)}>
+                  {formatRoleForCopy(role)} {summary.byRole[role]!.resultValue}{unit}
+                </span>
+              ))}
+            </div>
+            {divergenceLabel && (
+              <span className="inline-flex h-[22px] items-center rounded-full bg-red-500/10 px-2.5 text-[11px] font-bold text-red-700 dark:text-red-300">{divergenceLabel}</span>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-export function Results({ votes, participants, deck, allowManagementToVote = false, tshirtEquivalents, roundingMode = 'up' }: ResultsProps) {
+/**
+ * Resultado por papel: um cartão por papel que votou, com média, resultado e,
+ * quando "Histograma de votos" está ligado, as barras por valor.
+ */
+export function RoleBreakdown({
+  summary,
+  deck,
+  showBars,
+}: {
+  summary: RoundSummary;
+  deck: DeckType;
+  showBars: boolean;
+}) {
+  const suffix = deck === 'hours' || summary.tshirtNumeric ? 'h' : '';
+  if (summary.activeRoles.length === 0) {
+    return (
+      <p className={cn(CARD, 'm-0 p-5 text-center text-sm text-muted-foreground')}>Sem votos técnicos nesta rodada.</p>
+    );
+  }
+  return (
+    <section aria-label="Resultado por papel" className={cn('grid gap-4', summary.activeRoles.length >= 3 ? 'md:grid-cols-3' : summary.activeRoles.length === 2 ? 'md:grid-cols-2' : 'md:grid-cols-1')}>
+      {summary.activeRoles.map(role => {
+        const data = summary.byRole[role]!;
+        const nums = data.votes.map(Number).filter(n => !isNaN(n));
+        const avg = nums.length ? (nums.reduce((a, b) => a + b, 0) / nums.length) : null;
+        // Barras por valor, na ordem do menor para o maior.
+        const counts = new Map<string, number>();
+        data.votes.forEach(v => counts.set(v, (counts.get(v) || 0) + 1));
+        const values = [...counts.keys()].sort((a, b) => (Number(a) - Number(b)) || a.localeCompare(b));
+        const max = Math.max(...counts.values(), 1);
+        const top = Math.max(...counts.values());
+        return (
+          <div key={role} className={cn(CARD, 'flex flex-col gap-2.5 px-5 py-4')}>
+            <div className="flex items-center gap-2.5">
+              <RoleChip category={role} label={formatRoleForCopy(role)} />
+              <span className="text-[13px] text-muted-foreground">
+                {data.votes.length} {data.votes.length === 1 ? 'voto' : 'votos'}
+                {avg !== null && deck !== 'tshirt' ? ` · média ${Number.isInteger(avg) ? avg : avg.toFixed(1).replace('.', ',')}${suffix}` : ''}
+              </span>
+              <span className="ml-auto text-[22px] font-bold tabular-nums" title={data.resultLabel.toLowerCase()}>{data.resultValue}{!isNaN(Number(data.resultValue)) ? suffix : ''}</span>
+            </div>
+            {showBars && values.map((v, i) => {
+              const n = counts.get(v) || 0;
+              return (
+                <div key={v} className="grid grid-cols-[40px_minmax(0,1fr)_24px] items-center gap-2.5">
+                  <span className="text-right text-[13px] font-bold tabular-nums">{v === '☕' ? 'café' : v}{!isNaN(Number(v)) ? suffix : ''}</span>
+                  <div className="h-[18px] overflow-hidden rounded-[5px] bg-muted/60">
+                    <div
+                      className={cn('room-grow h-[18px] rounded-[5px]', n === top ? 'bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.35)] [.theme-leitura_&]:shadow-none' : 'bg-border')}
+                      style={{ width: `${Math.round((n / max) * 100)}%`, animationDelay: `${700 + i * 70}ms` }}
+                    />
+                  </div>
+                  <span className="text-xs tabular-nums text-muted-foreground">{n}</span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+/**
+ * Card "Copiar estimativa": mostra o texto que vai para a issue pai do Jira,
+ * por papel — "(DEV 10h / QA 4h / UX 2h)" — e copia com um clique. Aceita
+ * valores ajustados pelo facilitador (`values`), que valem no lugar da média.
+ */
+export function CopyEstimateCard({
+  summary,
+  deck,
+  values,
+}: {
+  summary: RoundSummary;
+  deck: DeckType;
+  /** Valor final por papel (padrão: o resultado da rodada). */
+  values?: Record<string, string>;
+}) {
   const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const suffix = copyUnitSuffix(deck, summary.tshirtNumeric);
+  const text = useMemo(
+    () => formatEstimateCopy(summary.activeRoles.map(role => ({ role, value: values?.[role] ?? summary.byRole[role]!.resultValue })), suffix),
+    [summary, values, suffix]
+  );
 
-  const stats = useMemo(() => {
-    // Consenso/média/piso/teto só sobre votos técnicos — gestão e espectador
-    // não entram (o detalhamento por papel abaixo já os exclui).
-    const eligibleVotes = getEligibleStatsVotes(votes, participants, allowManagementToVote);
-    const allVoteValues = eligibleVotes.map(v => v.value);
-    const numericVotes = allVoteValues
-      .filter((v): v is string => v !== null && !isNaN(Number(v)))
-      .map(Number);
-
-    const consensus = allVoteValues.length > 1 && new Set(allVoteValues).size === 1;
-
-    let avg = 'N/A', min = 'N/A', max = 'N/A';
-    let tshirtNumeric = false;
-
-    const efforts = calculateRoleEfforts(votes, participants, deck, tshirtEquivalents, roundingMode);
-    const totalHours = efforts.totalPoints;
-
-    const T_SHIRT_ORDER = ['PP', 'P', 'M', 'G', 'GG'];
-
-    if (allVoteValues.length > 0) {
-      if (deck === 'tshirt') {
-        // Equivalência configurada: calcula média/piso/teto de verdade em
-        // horas, igual deck numérico. Só entram votos com tamanho mapeado.
-        const numericTshirtVotes = allVoteValues
-          .map(v => resolveTshirtHours(v, tshirtEquivalents))
-          .filter(n => !isNaN(n));
-
-        if (numericTshirtVotes.length > 0) {
-          tshirtNumeric = true;
-          const sum = numericTshirtVotes.reduce((acc, val) => acc + val, 0);
-          avg = String(roundEstimate(sum / numericTshirtVotes.length, roundingMode, deck));
-          min = String(Math.min(...numericTshirtVotes));
-          max = String(Math.max(...numericTshirtVotes));
-        } else {
-          // Sem equivalência (ou nenhum voto cobre um tamanho mapeado):
-          // comportamento histórico — moda categórica.
-          const validTshirtVotes = allVoteValues.filter(v => T_SHIRT_ORDER.includes(v));
-
-          if (validTshirtVotes.length > 0) {
-            const voteCounts = validTshirtVotes.reduce((acc, value) => {
-              acc[value] = (acc[value] || 0) + 1;
-              return acc;
-            }, {} as Record<string, number>);
-            avg = Object.keys(voteCounts).reduce((a, b) => voteCounts[a] > voteCounts[b] ? a : b);
-
-            const indexes = validTshirtVotes.map(v => T_SHIRT_ORDER.indexOf(v));
-            const minIdx = Math.min(...indexes);
-            const maxIdx = Math.max(...indexes);
-            min = T_SHIRT_ORDER[minIdx];
-            max = T_SHIRT_ORDER[maxIdx];
-          }
-        }
-      } else {
-        if (numericVotes.length > 0) {
-          const sum = numericVotes.reduce((acc, val) => acc + val, 0);
-          avg = String(roundEstimate(sum / numericVotes.length, roundingMode, deck));
-          min = String(Math.min(...numericVotes));
-          max = String(Math.max(...numericVotes));
-        }
-      }
+  const copy = async () => {
+    if (!text) {
+      toast({ title: 'Nada para copiar', description: 'Não há estimativas calculadas.', variant: 'destructive' });
+      return;
     }
-
-    // Camisetas com equivalência parcial: votos em tamanho sem equivalência não entram na média.
-    const unmappedTshirt = deck === 'tshirt' && tshirtNumeric
-      ? allVoteValues.filter(v => v !== '?' && v !== '☕' && isNaN(resolveTshirtHours(v, tshirtEquivalents))).length
-      : 0;
-
-    return { consensus, avg, min, max, rolePoints: efforts.rolePoints, totalHours, tshirtNumeric, unmappedTshirt };
-  }, [votes, deck, participants, allowManagementToVote, tshirtEquivalents, roundingMode]);
-
-  const votesByCategory = useMemo(() => {
-    const participantMap = new Map(participants.map(p => [p.id, p]));
-    const result: Record<string, { votes: string[]; resultValue: string; resultLabel: string }> = {};
-
-    votes.forEach(vote => {
-      const participant = participantMap.get(vote.participantId);
-      
-      let category: TechnicalCategory | 'Management' | null = null;
-      
-      if (participant) {
-        category = getParticipantCategory(participant);
-      } else if (vote.participantRole) {
-        // Fallback para "votos são fatos" - usa identidade congelada no voto
-        category = getParticipantCategory({
-          role: vote.participantRole,
-          globalRole: vote.participantGlobalRole
-        });
-      }
-
-      if (category && category !== 'Management') {
-        if (!result[category]) {
-          result[category] = { votes: [], resultValue: 'N/A', resultLabel: 'MÉDIA' };
-        }
-        result[category].votes.push(vote.value);
-      }
-    });
-
-    const T_SHIRT_ORDER = ['PP', 'P', 'M', 'G', 'GG'];
-
-    Object.keys(result).forEach(category => {
-      const categoryData = result[category];
-      if (deck === 'hours' && stats.rolePoints[category]) {
-        categoryData.resultValue = stats.rolePoints[category];
-        categoryData.resultLabel = 'MÉDIA';
-      } else if (deck === 'tshirt' && stats.tshirtNumeric && stats.rolePoints[category]) {
-        // Mesma equivalência calculada no card principal — sem isso o
-        // detalhamento por papel ficava preso na moda antiga enquanto o
-        // resumo geral já mostrava a média real em horas.
-        categoryData.resultValue = stats.rolePoints[category];
-        categoryData.resultLabel = 'MÉDIA (H)';
-      } else if (deck === 'tshirt') {
-        const vals = categoryData.votes.filter(v => T_SHIRT_ORDER.includes(v));
-        if (vals.length > 0) {
-          const voteCounts = vals.reduce((acc, value) => {
-            acc[value] = (acc[value] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-          const predominant = Object.keys(voteCounts).reduce((a, b) => voteCounts[a] > voteCounts[b] ? a : b);
-          categoryData.resultValue = predominant;
-          categoryData.resultLabel = 'MAIS VOTADO';
-        }
-      } else {
-        const vals = categoryData.votes;
-        const nums = vals.map(Number).filter(n => !isNaN(n));
-        if (nums.length > 0) {
-          categoryData.resultValue = String(roundEstimate(nums.reduce((a, b) => a + b, 0) / nums.length, roundingMode, deck));
-          categoryData.resultLabel = 'MÉDIA';
-        }
-      }
-    });
-
-    return result;
-  }, [votes, participants, deck, stats.rolePoints, stats.tshirtNumeric, roundingMode]);
-
-  const handleCopyResults = () => {
-    const parts: string[] = [];
-    
-    TECHNICAL_CATEGORIES.forEach(category => {
-      const categoryData = votesByCategory[category];
-      if (categoryData && categoryData.resultValue && categoryData.resultValue !== 'N/A') {
-        const suffix = deck === 'hours' || (deck === 'tshirt' && stats.tshirtNumeric) ? 'h' : (deck === 'fibonacci' ? ' SP' : '');
-        parts.push(`${formatRoleForCopy(category)} ${categoryData.resultValue}${suffix}`);
-      }
-    });
-
-    if (parts.length > 0) {
-      const copyText = `(${parts.join(' / ')})`;
-      navigator.clipboard.writeText(copyText);
-      toast({
-        title: 'Estimativas copiadas!',
-        description: `"${copyText}" copiado para a área de transferência.`,
-      });
-    } else {
-      toast({
-        title: 'Nada para copiar',
-        description: 'Não há estimativas calculadas para copiar.',
-        variant: 'destructive',
-      });
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast({ title: 'Estimativa copiada', description: text });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast({ title: 'Não foi possível copiar', description: 'Selecione o texto e copie manualmente.', variant: 'destructive' });
     }
   };
 
-  const avgLabel = deck === 'hours' ? 'ESTIMATIVA TOTAL' : (deck === 'tshirt' && !stats.tshirtNumeric ? 'RESULTADO PREDOMINANTE' : 'MÉDIA CALCULADA');
-  const mainValue = deck === 'hours' ? stats.totalHours : stats.avg;
-
-  // Acento por papel (barra e número). Reaproveitado nos tiles compactos.
-  const roleBar: Record<string, string> = {
-    Developer: 'bg-indigo-500', QA: 'bg-pink-500', UX: 'bg-violet-500', Designer: 'bg-emerald-500',
-  };
-  const roleText: Record<string, string> = {
-    Developer: 'text-indigo-600 dark:text-indigo-400', QA: 'text-pink-600 dark:text-pink-400',
-    UX: 'text-violet-600 dark:text-violet-400', Designer: 'text-emerald-600 dark:text-emerald-400',
-  };
-  // Só papéis que votaram, na ordem canônica.
-  const activeCategories = TECHNICAL_CATEGORIES.filter(c => votesByCategory[c] && votesByCategory[c].votes.length > 0);
-  // Classes literais (JIT-safe) para o grid de tiles conforme a contagem.
-  const gridColsCls = ({ 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-2 sm:grid-cols-3', 4: 'grid-cols-2 sm:grid-cols-4' } as Record<number, string>)[activeCategories.length] || 'grid-cols-2';
+  const total = deck === 'hours' || summary.tshirtNumeric
+    ? summary.activeRoles.reduce((acc, r) => acc + (Number(values?.[r] ?? summary.byRole[r]!.resultValue) || 0), 0)
+    : null;
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-      <div className="flex flex-col md:flex-row gap-3 md:items-stretch">
-        {/* HERÓI — métrica principal + piso/teto inline */}
-        <div
-          className={cn(
-            'relative overflow-hidden rounded-2xl border p-5 md:w-[38%] flex flex-col justify-center',
-            stats.consensus
-              ? 'border-amber-300/70 dark:border-amber-700/40 bg-gradient-to-br from-amber-50 via-white to-amber-50/40 dark:from-amber-950/30 dark:to-card/40 shadow-[0_0_50px_-12px_rgba(245,158,11,0.45)]'
-              : 'border-slate-200/70 dark:border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl'
-          )}
-        >
-          {stats.consensus && <ConsensusBurst />}
-          <div className="flex items-center gap-2 mb-2">
-            {stats.consensus ? <Trophy className="h-4 w-4 text-amber-500" /> : <Hash className="h-4 w-4 text-indigo-400" />}
-            <span className={cn('text-[10px] font-black uppercase tracking-[0.28em]', stats.consensus ? 'text-amber-600 dark:text-amber-400' : 'text-indigo-500')}>
-              {stats.consensus ? 'Consenso Pleno' : avgLabel}
-            </span>
-          </div>
-
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <div className="flex items-baseline gap-1.5">
-                <motion.span
-                  key={`${mainValue}-${stats.consensus}`}
-                  initial={{ scale: 0.6, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 220, damping: 14 }}
-                  className={cn(
-                    'inline-block origin-left pr-3 pb-1 text-6xl lg:text-7xl font-black tracking-tighter leading-[1.05] italic',
-                    stats.consensus
-                      ? 'bg-gradient-to-br from-amber-500 to-orange-500 bg-clip-text text-transparent'
-                      : 'text-slate-900 dark:text-white'
-                  )}
-                >
-                  {mainValue}
-                </motion.span>
-                {(deck === 'hours' || stats.tshirtNumeric) && <span className="text-2xl font-black text-slate-300 dark:text-slate-600 italic">H</span>}
-              </div>
-              {deck === 'tshirt' && !stats.tshirtNumeric && tshirtEquivalents?.[mainValue] && (
-                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">
-                  ≈ {tshirtEquivalents[mainValue]!.value} {TSHIRT_UNIT_LABELS[tshirtEquivalents[mainValue]!.unit]}
-                </span>
-              )}
-            </div>
-            <div className="flex gap-1.5 shrink-0">
-              {[{ l: 'Piso', v: stats.min }, { l: 'Teto', v: stats.max }].map(s => (
-                <div key={s.l} className="text-center">
-                  <div className="text-[7px] font-black uppercase tracking-widest text-slate-400 mb-0.5">{s.l}</div>
-                  <div className="min-w-[2.5rem] px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-border text-sm font-black text-slate-800 dark:text-slate-100 leading-none">{s.v}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {stats.unmappedTshirt > 0 && (
-            <p className="mt-2 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-              {stats.unmappedTshirt} voto{stats.unmappedTshirt > 1 ? 's' : ''} em tamanho sem equivalência ficou fora da média.
-            </p>
-          )}
-          {deck === 'fibonacci' && stats.totalHours !== '0' && stats.totalHours !== stats.avg && (
-            <p className="mt-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
-              Ao salvar, vale a soma das médias por papel: {stats.totalHours}.
-            </p>
-          )}
-          {stats.consensus && (
-            <div className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> Sincronia máxima atingida
-            </div>
-          )}
-        </div>
-
-        {/* PAPÉIS — tiles compactos (sem chips por voto: já aparecem no Detalhamento) */}
-        <div className="flex-1 rounded-2xl border border-slate-200/70 dark:border-border/50 bg-white/70 dark:bg-card/50 backdrop-blur-xl p-4 flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg"><Users className="h-3.5 w-3.5 text-indigo-500" /></div>
-              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Estimativa por papel</span>
-            </div>
-            <Button
-              variant="ghost"
-              onClick={handleCopyResults}
-              className="h-8 px-3 text-[8px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg gap-1.5 transition-all active:scale-95 border border-indigo-100/50 dark:border-indigo-900/40"
-            >
-              <Copy className="h-3 w-3" /> COPIAR P/ JIRA
-            </Button>
-          </div>
-
-          {activeCategories.length > 0 ? (
-            <div className={cn('grid gap-2 flex-1 content-start', gridColsCls)}>
-              {activeCategories.map(category => {
-                const d = votesByCategory[category];
-                const unit = (deck === 'hours' || (deck === 'tshirt' && stats.tshirtNumeric)) && !isNaN(Number(d.resultValue)) ? 'H' : '';
-                return (
-                  <div key={category} className="relative overflow-hidden rounded-xl border border-slate-100 dark:border-border/40 bg-slate-50/70 dark:bg-slate-900/40 py-2.5 pl-4 pr-3">
-                    <div className={cn('absolute left-0 top-0 bottom-0 w-1.5', roleBar[category] || 'bg-slate-400')} />
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-[11px] font-black uppercase tracking-tight text-slate-800 dark:text-slate-100 truncate leading-none">{category}</div>
-                        <div className="text-[7px] font-black uppercase tracking-widest text-slate-400 mt-1">{d.resultLabel} · {d.votes.length} voto{d.votes.length > 1 ? 's' : ''}</div>
-                      </div>
-                      <span className={cn('text-2xl font-black italic tracking-tighter leading-none shrink-0', roleText[category] || 'text-slate-700')}>
-                        {d.resultValue}{unit}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-[10px] font-bold uppercase tracking-widest text-slate-400 py-6">
-              Sem votos técnicos nesta rodada
-            </div>
-          )}
-        </div>
+    <section
+      aria-label="Copiar estimativa"
+      className={cn(CARD, 'room-rise flex flex-col gap-3 border-primary/50 p-[22px] shadow-[0_0_0_4px_hsl(var(--primary)/0.08)] [.theme-leitura_&]:shadow-none')}
+      style={{ animationDelay: '850ms' }}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Estimativa para a issue pai</span>
+        {total !== null && <span className="text-xs tabular-nums text-muted-foreground">total {total}h</span>}
       </div>
-    </div>
+      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-3">
+        <code className="flex-1 break-words text-xl font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{text || 'Sem estimativa'}</code>
+      </div>
+      <button
+        type="button"
+        onClick={copy}
+        className={cn(
+          'flex h-11 items-center justify-center gap-2 rounded-[10px] text-[15px] font-bold transition-colors duration-[220ms]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          copied
+            ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+            : 'bg-primary text-primary-foreground room-glow hover:bg-primary/90'
+        )}
+      >
+        {copied ? <Check className="room-pop h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> : <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+        {copied ? 'Copiado' : 'Copiar estimativa'}
+      </button>
+    </section>
   );
 }

@@ -931,6 +931,10 @@ html, body {
   0% { transform: scaleX(0); }
   100% { transform: scaleX(1); }
 }
+@keyframes room-grow-y {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
 @keyframes room-pop {
   0% { transform: scale(0.4); opacity: 0; }
   55% { transform: scale(1.08); opacity: 1; }
@@ -958,6 +962,7 @@ html, body {
 .room-flip { animation: room-flip var(--motion-reveal) var(--ease-emph) both; }
 .room-rise { animation: room-rise var(--motion-base) var(--ease-enter) both; }
 .room-grow { transform-origin: left center; animation: room-grow var(--motion-slow) var(--ease-std) both; }
+.room-grow-y { transform-origin: bottom center; animation: room-grow-y var(--motion-land) var(--ease-std) both; }
 .room-pop { animation: room-pop var(--motion-land) var(--ease-emph) both; }
 .room-float { animation: room-float 2200ms var(--ease-enter) forwards; }
 .room-alarm { animation: room-alarm 1s infinite; }
@@ -988,7 +993,7 @@ html, body {
 .theme-leitura .room-dots-bg { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .room-land, .room-flip, .room-rise, .room-grow, .room-pop, .room-float,
+  .room-land, .room-flip, .room-rise, .room-grow, .room-grow-y, .room-pop, .room-float,
   .room-alarm, .room-breathe, .room-dot-1, .room-dot-2, .room-dot-3 {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;

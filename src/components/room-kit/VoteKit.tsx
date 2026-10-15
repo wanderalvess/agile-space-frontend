@@ -20,6 +20,8 @@ const CARD_CRITICAL = 'border-[1.5px] border-red-500/70 bg-red-500/10 text-red-8
 
 export type VoteCardTone = 'plain' | 'mode' | 'warn' | 'critical';
 
+export const CONFIDENCE_LABEL = { low: 'Baixa', medium: 'Média', high: 'Alta' } as const;
+
 const SIZE: Record<'sm' | 'md' | 'lg' | 'xl', string> = {
   sm: 'h-[68px] w-[50px] rounded-lg text-lg',
   md: 'h-20 w-[58px] rounded-[9px] text-xl',
@@ -46,9 +48,12 @@ export function VoteCard({
   highlight = false,
   label,
   observerLabel = 'não vota',
+  confidence,
   className,
 }: {
   state: 'hidden' | 'thinking' | 'revealed' | 'observer';
+  /** Confiança declarada com o voto (opt-in na sala). */
+  confidence?: 'low' | 'medium' | 'high' | null;
   value?: string | null;
   /** Sufixo do valor ("h"). */
   unit?: string;
@@ -108,6 +113,14 @@ export function VoteCard({
       aria-label={label}
     >
       {!isCoffee && value && <span aria-hidden="true" className="absolute left-1.5 top-1 text-[9px] font-semibold leading-none opacity-70">{value}</span>}
+      {confidence && (
+        <span
+          title={`Confiança ${CONFIDENCE_LABEL[confidence].toLowerCase()}`}
+          className={cn('absolute right-1 top-1 h-2 w-2 rounded-full ring-1 ring-card', confidence === 'high' ? 'bg-emerald-500' : confidence === 'medium' ? 'bg-amber-500' : 'bg-red-500')}
+        >
+          <span className="sr-only">Confiança {CONFIDENCE_LABEL[confidence].toLowerCase()}</span>
+        </span>
+      )}
       {isCoffee ? (
         <Coffee className="h-1/3 w-1/3" strokeWidth={1.5} aria-label="Pausa" />
       ) : (
@@ -127,8 +140,10 @@ export function VoteSeat({
   roleCategory,
   flipped = false,
   isYou = false,
+  isHost = false,
   children,
 }: {
+  isHost?: boolean;
   name: string;
   roleLabel: string;
   roleCategory?: string | null;
@@ -143,7 +158,10 @@ export function VoteSeat({
       <span className="flex max-w-full items-center gap-2">
         <PersonAvatar name={name} size="sm" highlight={isYou} />
         <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[13px] font-semibold text-foreground">{name}</span>
+          <span className="flex items-center gap-1 text-[13px] font-semibold text-foreground">
+            <span className="truncate">{name}</span>
+            {isHost && <Crown aria-label="Organizador" className="h-3 w-3 shrink-0 text-amber-500" strokeWidth={1.5} />}
+          </span>
           <span className={cn('truncate text-[11px] font-bold', ROLE_STYLES[roleToneOf(roleCategory)].text)}>{roleLabel}</span>
         </span>
       </span>
