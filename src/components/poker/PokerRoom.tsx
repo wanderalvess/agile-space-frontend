@@ -683,6 +683,7 @@ const PokerRoomComponent = ({
       onUpdateParticipantRole={onUpdateParticipantRole}
       onClaimFacilitator={onClaimFacilitator}
       onlineIds={onlineIds}
+      allowManagementToVote={settings?.allowManagementToVote}
     />
   );
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
-import { calculateRoleEfforts, canParticipantVote } from '@/lib/poker-utils';
+import { calculateRoleEfforts, canParticipantVote, formatRoleForCopy } from '@/lib/poker-utils';
 import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
 import { DECKS } from '@/lib/types';
@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { formatExternalUrl, cn } from '@/lib/utils';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { FIELD, Modal, ModalButton } from '@/components/room-kit';
 import { TopicQueue } from './TopicQueue';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { ShareRoomDialog } from './ShareRoomDialog';
@@ -570,59 +570,66 @@ function CompleteAsyncIssueDialog({ issueId, isRevealed, deck, issueVotes, parti
     setRolePoints({});
   };
 
+  const fieldCls = cn(FIELD, 'h-11 text-sm font-semibold tabular-nums');
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className={`h-9 px-6 font-black text-[10px] uppercase tracking-widest rounded-xl border-2 ${isRevealed ? 'text-emerald-500 hover:bg-emerald-500/10 hover:border-emerald-500/30' : ''}`}>
-           <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Finalizar Estimativa
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] border border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.2)] bg-card/60 backdrop-blur-3xl rounded-[2.5rem] overflow-hidden p-0">
-        <DialogHeader className="p-8 pb-4">
-          <DialogTitle className="text-2xl font-black uppercase tracking-tighter italic text-indigo-500">Finalizar Tarefa</DialogTitle>
-          <DialogDescription className="font-semibold text-xs text-muted-foreground/80">
-            Consolide e salve as estimativas finais deste card na fila.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="px-8 py-4 space-y-4">
-           {deck === 'hours' ? (
-             <div className="space-y-4">
-               <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-400 dark:text-indigo-500 ml-1 mb-1.5 block">Estimativa Total (Horas)</label>
-                  <input value={points} onChange={(e) => setPoints(e.target.value)} type="number" placeholder="Total horas" className="flex h-12 w-full rounded-2xl border-2 border-indigo-500/20 bg-background/50 px-4 py-2 text-sm font-black shadow-inner focus-visible:outline-none focus-visible:border-indigo-500 transition-colors" />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                 {Object.keys(rolePoints).length > 0 ? (
-                   Object.keys(rolePoints).map(role => (
-                     <div key={role} className="space-y-1.5">
-                       <label className="text-[9px] font-black uppercase tracking-tight text-slate-400 dark:text-slate-500 ml-1 block">{role}</label>
-                       <input
-                         value={rolePoints[role] || ''}
-                         onChange={(e) => setRolePoints(prev => ({...prev, [role]: e.target.value}))}
-                         type="number"
-                         placeholder={`${role} h`}
-                         className="flex h-12 w-full rounded-2xl border border-input bg-background/50 px-4 py-2 text-sm font-black shadow-inner focus-visible:outline-none focus-visible:border-indigo-500 transition-colors"
-                       />
-                     </div>
-                   ))
-                 ) : (
-                   <p className="col-span-2 text-center text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase py-4">Nenhum voto técnico detectado</p>
-                 )}
-               </div>
-             </div>
-           ) : (
-             <div>
-               <input value={points} onChange={(e) => {setPoints(e.target.value); setIsSuggested(false);}} placeholder={`Estimativa final (${deck === 'fibonacci' ? 'Pontos' : 'Tamanho'})`} className="flex h-14 w-full rounded-2xl border-2 border-indigo-500/20 bg-background/50 px-4 py-2 text-base font-black shadow-inner focus-visible:outline-none focus-visible:border-indigo-500 transition-colors" />
-               {isSuggested && points && <p className="text-[10px] mt-2 ml-1 font-black uppercase tracking-widest text-emerald-500">✓ Valor sugerido pelo time</p>}
-             </div>
-           )}
-        </div>
-        <DialogFooter className="p-8 pt-4">
-          <Button onClick={submit} className="w-full h-14 font-black uppercase tracking-widest text-xs rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 transition-all active:scale-[0.98]">
-            Salvar & Fila de Concluídos
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-      </Dialog>
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => handleOpenChange(true)}
+        className={cn('h-9 gap-2 rounded-[10px] px-4 text-sm font-medium', isRevealed && 'border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300')}
+      >
+        <CheckCircle2 className="h-4 w-4" strokeWidth={1.5} /> Finalizar estimativa
+      </Button>
+      <Modal
+        open={open}
+        onOpenChange={handleOpenChange}
+        size="sm"
+        tone="success"
+        icon={CheckCircle2}
+        title="Finalizar tarefa"
+        description="Salve as estimativas finais deste card na fila."
+        footer={
+          <>
+            <ModalButton onClick={() => handleOpenChange(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={submit}>Salvar na fila</ModalButton>
+          </>
+        }
+      >
+        {deck === 'hours' ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="async-total" className="text-[13px] font-semibold">Estimativa total (horas)</label>
+              <input id="async-total" value={points} onChange={(e) => setPoints(e.target.value)} type="number" placeholder="Total de horas" className={fieldCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.keys(rolePoints).length > 0 ? (
+                Object.keys(rolePoints).map((role) => (
+                  <div key={role} className="flex flex-col gap-1.5">
+                    <label htmlFor={`async-role-${role}`} className="text-xs font-semibold text-muted-foreground">{formatRoleForCopy(role)}</label>
+                    <input
+                      id={`async-role-${role}`}
+                      value={rolePoints[role] || ''}
+                      onChange={(e) => setRolePoints((prev) => ({ ...prev, [role]: e.target.value }))}
+                      type="number"
+                      placeholder={`${formatRoleForCopy(role)} em horas`}
+                      className={fieldCls}
+                    />
+                  </div>
+                ))
+              ) : (
+                <p className="col-span-2 py-4 text-center text-sm text-muted-foreground">Nenhum voto técnico detectado.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="async-final" className="text-[13px] font-semibold">Estimativa final ({deck === 'fibonacci' ? 'pontos' : 'tamanho'})</label>
+            <input id="async-final" value={points} onChange={(e) => { setPoints(e.target.value); setIsSuggested(false); }} className={fieldCls} />
+            {isSuggested && points && <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Valor sugerido pelo time</p>}
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

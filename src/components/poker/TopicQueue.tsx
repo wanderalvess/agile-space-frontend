@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { type Issue, type DeckType, type Participant } from '@/lib/types';
-import { getParticipantCategory, TECHNICAL_CATEGORIES, formatRoleForCopy, mapJiraTypeToIssueType } from '@/lib/poker-utils';
+import { getParticipantCategory, TECHNICAL_CATEGORIES, formatRoleForCopy, formatEstimateCopy, mapJiraTypeToIssueType } from '@/lib/poker-utils';
+import { ConfirmDialog, FIELD, Modal, ModalButton, ROLE_STYLES, roleToneOf } from '@/components/room-kit';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -879,169 +880,115 @@ export function TopicQueue({
         participants={participants}
       />
 
-      <Dialog open={isBulkImportOpen} onOpenChange={(open) => {
-        setIsBulkImportOpen(open);
-        if (!open) {
-          setIsBulkPreview(false);
-          setBulkPreviewItems([]);
-          setBulkText('');
-        }
-      }}>
-        <DialogContent className={cn(pokerDialogContent, "transition-all duration-300", isBulkPreview ? "sm:max-w-[620px]" : "sm:max-w-[520px]")}>
-          <DialogHeader>
-            <DialogTitle className={pokerDialogTitleCls}>
-              <span className="p-1.5 rounded-xl bg-primary/10 text-primary shrink-0"><Import className="h-4 w-4" /></span>
-              {isBulkPreview ? 'Revisar Importação' : 'Importar em Lote'}
-            </DialogTitle>
-            <DialogDescription className={pokerDialogDescCls}>
-              {isBulkPreview
-                ? `Detectamos ${bulkPreviewItems.length} ${bulkPreviewItems.length === 1 ? 'tarefa' : 'tarefas'}${bulkPreviewItems.filter(i => i.duplicate).length > 0 ? ` · ${bulkPreviewItems.filter(i => i.duplicate).length} possível(is) duplicata(s) já desmarcada(s)` : ''}. Confira e escolha o que entra na fila.`
-                : 'Cole várias tarefas de uma vez — uma por linha. O tipo e as duplicatas são detectados automaticamente.'}
-            </DialogDescription>
-          </DialogHeader>
-
-          {!isBulkPreview ? (
-            <div className="py-4 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Lista de Tarefas</Label>
-                <Textarea
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                  placeholder="EX-101 | Ajustar botões | https://jira.com/101&#10;EX-102 | Refatorar API&#10;Apenas um título sem chave..."
-                  className="min-h-[190px] text-xs font-bold font-code bg-muted/20 border-primary/10 focus:border-primary/30 rounded-xl transition-all"
-                />
-                <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-bold px-0.5">
-                  <span className="uppercase tracking-widest text-muted-foreground/60">Por linha:</span>
-                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-code">CHAVE</code>
-                  <span className="text-muted-foreground/40">|</span>
-                  <code className="px-1.5 py-0.5 rounded bg-primary/10 text-primary font-code">Título</code>
-                  <span className="text-muted-foreground/40">|</span>
-                  <code className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-code">Link</code>
-                  <span className="text-muted-foreground/50 italic normal-case tracking-normal">— chave e link são opcionais</span>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-dashed border-muted-foreground/20" />
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase font-black text-muted-foreground/40 bg-card px-2">
-                  Ou use um arquivo
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                <input
-                  type="file"
-                  id="csv-upload"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleBulkCsvUpload(file);
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => document.getElementById('csv-upload')?.click()}
-                  className="w-full border-dashed border-primary/20 hover:border-primary/40 hover:bg-primary/5 h-12 rounded-xl transition-all"
-                >
-                  <FileUp className="h-4 w-4 mr-2 text-primary" />
-                  <div className="text-left">
-                    <p className="text-[10px] font-black uppercase tracking-widest">Carregar Arquivo CSV</p>
-                    <p className="text-[9px] font-medium text-muted-foreground">Colunas: Chave (opcional), Título (obrig), Link (opcional)</p>
-                  </div>
-                </Button>
-              </div>
+      <Modal
+        open={isBulkImportOpen}
+        onOpenChange={(open) => {
+          setIsBulkImportOpen(open);
+          if (!open) {
+            setIsBulkPreview(false);
+            setBulkPreviewItems([]);
+            setBulkText('');
+          }
+        }}
+        size={isBulkPreview ? 'lg' : 'md'}
+        icon={Import}
+        title={isBulkPreview ? 'Revisar importação' : 'Importar em lote'}
+        description={isBulkPreview
+          ? `${bulkPreviewItems.length} ${bulkPreviewItems.length === 1 ? 'tarefa detectada' : 'tarefas detectadas'}${bulkPreviewItems.filter(i => i.duplicate).length > 0 ? ` · ${bulkPreviewItems.filter(i => i.duplicate).length} possível(is) duplicata(s) desmarcada(s)` : ''}`
+          : 'Uma tarefa por linha. Tipo e duplicatas são detectados sozinhos.'}
+        footerStart={isBulkPreview ? <ModalButton variant="ghost" onClick={() => setIsBulkPreview(false)}>Voltar ao texto</ModalButton> : undefined}
+        footer={!isBulkPreview ? (
+          <>
+            <ModalButton onClick={() => setIsBulkImportOpen(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={handleBulkSubmitPreview} disabled={!bulkText.trim()}>Visualizar itens</ModalButton>
+          </>
+        ) : (
+          <>
+            <ModalButton onClick={() => setIsBulkImportOpen(false)}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={handleConfirmBulkAdd} disabled={bulkSelected.size === 0}>
+              Importar {bulkSelected.size} {bulkSelected.size === 1 ? 'selecionada' : 'selecionadas'}
+            </ModalButton>
+          </>
+        )}
+      >
+        {!isBulkPreview ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="bulk-text" className="text-[13px] font-semibold text-foreground">Lista de tarefas</label>
+              <textarea
+                id="bulk-text"
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                placeholder={'EX-101 | Ajustar botões | https://jira.com/101\nEX-102 | Refatorar API\nApenas um título sem chave'}
+                className={cn(FIELD, 'min-h-[180px] resize-none py-2.5 font-code text-xs')}
+              />
+              <p className="text-xs text-muted-foreground">
+                Por linha: <code className="rounded bg-muted px-1.5 py-0.5 font-code">CHAVE | Título | Link</code>. Chave e link são opcionais.
+              </p>
             </div>
-          ) : (
-            <div className="py-2 space-y-4">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total: {bulkPreviewItems.length} detectados</span>
-                <button
-                  type="button"
-                  onClick={handleBulkToggleAll}
-                  className="text-[9px] font-bold text-primary hover:underline cursor-pointer"
-                >
-                  {bulkSelected.size === bulkPreviewItems.length ? 'Desmarcar Tudo' : 'Selecionar Tudo'}
-                </button>
-              </div>
-
-              <ScrollArea className="h-[300px] pr-3">
-                <div className="space-y-2">
-                  {bulkPreviewItems.map((item) => {
-                    const TypeIcon = TYPE_ICONS[item.type || 'dev'] || Code;
-                    const checked = bulkSelected.has(item.id);
-                    return (
+            <input
+              type="file"
+              id="csv-upload"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleBulkCsvUpload(file);
+              }}
+            />
+            <ModalButton onClick={() => document.getElementById('csv-upload')?.click()} className="w-full justify-center gap-2 border-dashed">
+              <FileUp className="h-4 w-4" strokeWidth={1.5} /> Carregar arquivo CSV
+            </ModalButton>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground tabular-nums">{bulkSelected.size} de {bulkPreviewItems.length} selecionadas</span>
+              <button type="button" onClick={handleBulkToggleAll} className="text-xs font-semibold text-primary hover:underline [.theme-totvs:not(.dark)_&]:text-foreground">
+                {bulkSelected.size === bulkPreviewItems.length ? 'Desmarcar tudo' : 'Selecionar tudo'}
+              </button>
+            </div>
+            <ul className="m-0 flex max-h-[320px] list-none flex-col gap-2 overflow-y-auto p-0 pr-1">
+              {bulkPreviewItems.map((item) => {
+                const TypeIcon = TYPE_ICONS[item.type || 'dev'] || Code;
+                const checked = bulkSelected.has(item.id);
+                return (
+                  <li key={item.id}>
                     <label
-                      key={item.id}
                       className={cn(
-                        "flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer group",
-                        checked
-                          ? "bg-primary/5 border-primary/20 shadow-sm"
-                          : item.duplicate
-                            ? "bg-amber-50/40 dark:bg-amber-950/10 border-amber-200/50 dark:border-amber-900/30"
-                            : "bg-card border-border hover:bg-muted/30"
+                        'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors duration-[140ms]',
+                        checked ? 'border-primary/40 bg-primary/5' : item.duplicate ? 'border-amber-500/30 bg-amber-500/5' : 'border-border hover:bg-accent/40'
                       )}
                     >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => handleBulkToggleSelect(item.id)}
-                        className="mt-0.5"
-                      />
-                      <span className="mt-0.5 p-1 rounded-lg bg-muted/60 text-muted-foreground shrink-0" title={item.type}>
-                        <TypeIcon className="h-3.5 w-3.5" />
+                      <Checkbox checked={checked} onCheckedChange={() => handleBulkToggleSelect(item.id)} className="mt-0.5" />
+                      <span className="mt-0.5 shrink-0 rounded-md bg-muted p-1 text-muted-foreground" title={item.type}>
+                        <TypeIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
                       </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                          {item.key && (
-                            <span className="text-[9px] font-black text-primary/70 uppercase px-1.5 py-0.5 rounded bg-primary/10 border border-primary/10">
-                              {item.key}
-                            </span>
-                          )}
-                          <span className="text-[11px] font-bold truncate group-hover:text-primary transition-colors">{item.title}</span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="flex flex-wrap items-center gap-2">
+                          {item.key && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{item.key}</span>}
+                          <span className="truncate text-[13px] font-semibold">{item.title}</span>
                           {item.duplicate && (
-                            <span className="inline-flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/20 shrink-0">
-                              <Copy className="h-2.5 w-2.5" /> Duplicada
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                              <Copy className="h-3 w-3" strokeWidth={1.5} /> Duplicada
                             </span>
                           )}
-                        </div>
+                        </span>
                         {item.link && (
-                          <div className="flex items-center gap-1 text-[9px] font-medium text-muted-foreground truncate opacity-60">
-                            <ExternalLink className="h-2.5 w-2.5" />
-                            {item.link}
-                          </div>
+                          <span className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                            <ExternalLink className="h-3 w-3 shrink-0" strokeWidth={1.5} />
+                            <span className="truncate">{item.link}</span>
+                          </span>
                         )}
-                      </div>
+                      </span>
                     </label>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </div>
-          )}
-
-          <DialogFooter className={pokerDialogFooterCls}>
-            {!isBulkPreview ? (
-              <>
-                <Button variant="ghost" onClick={() => setIsBulkImportOpen(false)} className="font-bold text-[10px] uppercase">Cancelar</Button>
-                <Button onClick={handleBulkSubmitPreview} disabled={!bulkText.trim()} className="font-black text-[10px] uppercase tracking-widest px-8 shadow-lg shadow-primary/20">
-                  Visualizar Itens
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" onClick={() => setIsBulkPreview(false)} className="font-bold text-[10px] uppercase">
-                  Voltar para Texto
-                </Button>
-                <Button onClick={handleConfirmBulkAdd} disabled={bulkSelected.size === 0} className="font-black text-[10px] uppercase tracking-widest px-8 shadow-lg shadow-primary/20">
-                  Importar {bulkSelected.size} Selecionados
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </Modal>
 
       <JiraImportDialog
         open={isJiraImportOpen}
@@ -1051,70 +998,44 @@ export function TopicQueue({
         description="Puxe as tarefas da squad diretamente para a rodada de votação."
       />
 
-      <AlertDialog open={!!idToDelete} onOpenChange={(open) => !open && setIdToDelete(null)}>
-        <AlertDialogContent className="rounded-3xl border-white/10 bg-card/90 backdrop-blur-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Excluir Tarefa?</AlertDialogTitle>
-            <AlertDialogDescription className="text-base text-muted-foreground font-medium pt-2 pb-4">
-              Esta tarefa {issues.find(i => i.id === idToDelete)?.id === activeIssueId ? 'está sendo votada agora' : 'já foi estimada'}. Tem certeza que deseja excluí-la? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="rounded-xl font-bold text-[10px] uppercase">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (idToDelete) {
-                  onDeleteIssue(idToDelete);
-                  setIdToDelete(null);
-                }
-              }}
-              className="rounded-xl bg-destructive text-destructive-foreground hover:bg-destructive/90 font-black text-[10px] uppercase tracking-widest px-6"
-            >
-              Excluir Permanentemente
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!idToDelete}
+        onOpenChange={(open) => { if (!open) setIdToDelete(null); }}
+        tone="danger"
+        icon={Trash2}
+        title="Excluir tarefa da fila?"
+        description={`Esta tarefa ${issues.find(i => i.id === idToDelete)?.id === activeIssueId ? 'está sendo votada agora' : 'já foi estimada'}. A exclusão não pode ser desfeita.`}
+        cancelLabel="Manter"
+        confirmLabel="Excluir tarefa"
+        onConfirm={() => {
+          if (idToDelete) {
+            onDeleteIssue(idToDelete);
+            setIdToDelete(null);
+          }
+        }}
+      />
 
-      <AlertDialog open={isCancelModalOpen} onOpenChange={(open) => {
-        if (!open) {
-          setIsCancelModalOpen(false);
-          setItemToCancel(null);
-          setCancelModalNote('');
-        }
-      }}>
-        <AlertDialogContent className="rounded-3xl border-rose-500/20 bg-card/95 backdrop-blur-2xl">
-          <AlertDialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-rose-500/10 text-rose-500">
-                <Ban className="h-5 w-5" />
-              </div>
-              <div>
-                <AlertDialogTitle className="text-lg font-black uppercase tracking-tight">
-                  Cancelar Tarefa no Refinamento?
-                </AlertDialogTitle>
-                <AlertDialogDescription className="text-xs text-muted-foreground font-medium mt-0.5">
-                  Esta tarefa será marcada como cancelada na sessão e não será estimada.
-                </AlertDialogDescription>
-              </div>
-            </div>
-          </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Motivo do cancelamento (opcional)
-            </Label>
-            <Textarea
-              value={cancelModalNote}
-              onChange={(e) => setCancelModalNote(e.target.value)}
-              placeholder="Ex: Escopo descartado pelo PO, duplicado, impedimento técnico..."
-              className="min-h-[90px] text-xs resize-none"
-            />
-          </div>
-          <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel className="rounded-xl font-bold text-[10px] uppercase">
-              Voltar
-            </AlertDialogCancel>
-            <AlertDialogAction
+      <Modal
+        open={isCancelModalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCancelModalOpen(false);
+            setItemToCancel(null);
+            setCancelModalNote('');
+          }
+        }}
+        size="md"
+        tone="warn"
+        iconTone="neutral"
+        icon={Ban}
+        title="Cancelar no refinamento?"
+        description="A tarefa sai da estimativa desta sessão e vai para as descartadas. Dá para reativar pela fila."
+        dismissible={false}
+        footer={
+          <>
+            <ModalButton onClick={() => setIsCancelModalOpen(false)}>Voltar</ModalButton>
+            <ModalButton
+              variant="danger"
               onClick={() => {
                 if (itemToCancel && onCancelIssue) {
                   onCancelIssue(itemToCancel.id, cancelModalNote.trim() || undefined);
@@ -1123,13 +1044,24 @@ export function TopicQueue({
                   setCancelModalNote('');
                 }
               }}
-              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-[10px] uppercase tracking-widest px-6"
             >
-              Confirmar Cancelamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              Cancelar tarefa
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="queue-cancel-why" className="text-[13px] font-semibold text-foreground">Por que esta tarefa foi cancelada?</label>
+          <textarea
+            id="queue-cancel-why"
+            rows={3}
+            value={cancelModalNote}
+            onChange={(e) => setCancelModalNote(e.target.value)}
+            placeholder="Ex.: descartada pelo PO, escopo duplicado, descontinuada"
+            className={cn(FIELD, 'min-h-[88px] resize-none py-2.5')}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1182,14 +1114,13 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
       'QA': round.qaPoints || '0'
     };
 
-    const parts = Object.entries(rolePoints)
-      .filter(([_, val]) => val && val !== '0')
-      .map(([role, val]) => `${formatRoleForCopy(role)} ${val}h`);
-
-    let copyText = '';
-    if (parts.length > 0) {
-      copyText = `(${parts.join(' / ')})`;
-    } else {
+    // Mesmo formato do "Copiar estimativa" da revelação: (DEV 10h / QA 4h / UX 2h).
+    let copyText = formatEstimateCopy(
+      Object.entries(rolePoints).map(([role, value]) => ({ role, value: String(value ?? '') })),
+      'h',
+      { skipZero: true }
+    );
+    if (!copyText) {
       const total = round.stats.avg !== 'N/A' ? round.stats.avg : '0';
       copyText = `(${total}h)`;
     }
@@ -1199,107 +1130,80 @@ function ConsolidatedReportDialog({ round, onClose, participants }: { round: any
   };
 
   return (
-    <Dialog open={!!round} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] border-none shadow-2xl rounded-[2.5rem] overflow-hidden p-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl">
-        <DialogHeader className="p-8 pb-4 bg-slate-50/50 dark:bg-slate-800/30">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-950/50 rounded-xl text-indigo-600 dark:text-indigo-400">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 dark:text-indigo-500">Tarefa Concluída</span>
+    <Modal
+      open={!!round}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      size="md"
+      tone="success"
+      icon={CheckCircle2}
+      title={round.topic}
+      description="Estimativa consolidada da tarefa"
+      footer={
+        <>
+          {round.deckType === 'hours' && (
+            <ModalButton onClick={handleCopyHoursOnly} className="gap-2">
+              <ClipboardCopy className="h-4 w-4" strokeWidth={1.5} /> Copiar estimativa
+            </ModalButton>
+          )}
+          <ModalButton variant="primary" onClick={handleCopyResults} className="gap-2">
+            <Copy className="h-4 w-4" strokeWidth={1.5} /> Copiar relatório
+          </ModalButton>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="flex flex-col items-center justify-center rounded-xl bg-primary p-4 text-primary-foreground">
+            <span className="text-[11px] font-semibold opacity-80">Total</span>
+            <span className="text-2xl font-bold tabular-nums">{round.stats.avg}{round.deckType === 'hours' ? 'h' : ''}</span>
           </div>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tight italic text-slate-800 dark:text-slate-100 leading-tight">
-            {round.topic}
-          </DialogTitle>
-          <DialogDescription className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Relatório de Estimativa Consolidada
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="p-8 space-y-8">
-          {/* Dashboard de Horas/Pontos */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-indigo-600 text-white p-4 rounded-3xl flex flex-col items-center justify-center shadow-lg shadow-indigo-600/20">
-              <span className="text-[8px] font-black uppercase tracking-widest opacity-80 mb-1">Total</span>
-              <span className="text-2xl font-black italic">{round.stats.avg}{round.deckType === 'hours' ? 'h' : ''}</span>
-            </div>
-            {round.deckType === 'hours' && (
-              <>
-                {TECHNICAL_CATEGORIES.map(category => {
-                  const rolePoints = round.rolePoints || { 'Developer': round.devPoints, 'QA': round.qaPoints };
-                  const value = rolePoints[category];
-                  if (!value || value === '0') return null;
-
-                  return (
-                    <div key={category} className="bg-slate-100 dark:bg-slate-800 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-200/50 dark:border-slate-700/50">
-                      <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">{category}</span>
-                      <span className="text-2xl font-black italic text-slate-700 dark:text-slate-200">{value}h</span>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-            {round.deckType !== 'hours' && (
-              <>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Menor</span>
-                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{round.stats.min}</span>
+          {round.deckType === 'hours' ? (
+            TECHNICAL_CATEGORIES.map(category => {
+              const rolePoints = round.rolePoints || { 'Developer': round.devPoints, 'QA': round.qaPoints };
+              const value = rolePoints[category];
+              if (!value || value === '0') return null;
+              return (
+                <div key={category} className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
+                  <span className={cn('text-[11px] font-bold', ROLE_STYLES[roleToneOf(category)].text)}>{formatRoleForCopy(category)}</span>
+                  <span className="text-2xl font-bold tabular-nums">{value}h</span>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-3xl flex flex-col items-center justify-center border border-slate-100 dark:border-slate-800">
-                  <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Maior</span>
-                  <span className="text-xl font-black text-slate-700 dark:text-slate-200">{round.stats.max}</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Votos Individuais */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Participação da Squad</span>
-              <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {(round.votes || []).map((vote: any) => {
-                const p = participantMap.get(vote.participantId);
-                return (
-                  <div key={vote.participantId} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-slate-800 group hover:bg-white dark:hover:bg-slate-800 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all">
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate">{p?.nickname || '...'}</span>
-                      <span className="text-[7px] font-black uppercase tracking-tighter text-slate-400 dark:text-slate-500">
-                        {p ? (getParticipantCategory(p) || p.globalRole || p.role) : '...'}
-                      </span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px] font-black bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-lg shadow-sm">
-                      {vote.value}
-                    </Badge>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+              );
+            })
+          ) : (
+            <>
+              <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
+                <span className="text-[11px] font-semibold text-muted-foreground">Menor</span>
+                <span className="text-xl font-bold tabular-nums">{round.stats.min}</span>
+              </div>
+              <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/40 p-4">
+                <span className="text-[11px] font-semibold text-muted-foreground">Maior</span>
+                <span className="text-xl font-bold tabular-nums">{round.stats.max}</span>
+              </div>
+            </>
+          )}
         </div>
 
-        <DialogFooter className="p-8 pt-0 flex flex-col gap-3">
-          {round.deckType === 'hours' && (
-            <Button
-              variant="outline"
-              onClick={handleCopyHoursOnly}
-              className="w-full h-12 border-indigo-100 dark:border-indigo-900 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 font-bold text-[10px] uppercase tracking-widest rounded-2xl transition-all flex items-center gap-2"
-            >
-              <ClipboardCopy className="h-4 w-4" />
-              Copiar Horas Resumidas
-            </Button>
-          )}
-          <Button
-            onClick={handleCopyResults}
-            className="w-full h-14 bg-slate-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-[0.98] flex items-center gap-2"
-          >
-            <Copy className="h-4 w-4" />
-            Copiar Relatório
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <section aria-label="Votos da rodada" className="flex flex-col gap-3">
+          <h3 className="text-[13px] font-semibold text-foreground">Votos</h3>
+          <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
+            {(round.votes || []).map((vote: any) => {
+              const p = participantMap.get(vote.participantId);
+              const category = p ? getParticipantCategory(p) : null;
+              return (
+                <li key={vote.participantId} className="flex items-center justify-between gap-3 rounded-[10px] border border-border bg-muted/30 px-3 py-2">
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-[13px] font-semibold">{p?.nickname || 'Participante'}</span>
+                    <span className={cn('truncate text-[11px] font-bold', ROLE_STYLES[roleToneOf(category)].text)}>
+                      {p ? (category ? formatRoleForCopy(category) : (p.globalRole || p.role)) : ''}
+                    </span>
+                  </span>
+                  <span className="rounded-md border border-border bg-card px-2 py-0.5 text-sm font-bold tabular-nums">{vote.value}</span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      </div>
+    </Modal>
   );
 }
