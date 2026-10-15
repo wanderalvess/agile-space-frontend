@@ -10,7 +10,11 @@ import { useHomeResource, useNow } from './useHomeResource';
 const EMPTY: HomeAnnouncement[] = [];
 const REFRESH_MS = 5 * 60_000;
 
-/** O aviso do banner da Home (um por vez) e a ação de dispensar. Sem aviso ou sem rede, `announcement` é null. */
+/**
+ * O aviso do banner da Home (um por vez) e a ação de dispensar. Com o backend novo o servidor já entrega só o
+ * que vale para a pessoa e lembra a dispensa; no legado a dispensa fica no navegador. Sem aviso ou sem rede,
+ * `announcement` é null.
+ */
 export function useHomeAnnouncements() {
   const { session } = useAuth();
   const userId = session?.id ?? '';
@@ -28,9 +32,9 @@ export function useHomeAnnouncements() {
   const announcement = useMemo(() => pickBannerAnnouncement(data, dismissed, now), [data, dismissed, now]);
 
   const dismiss = useCallback(
-    async (id: string) => {
-      setAdded((prev) => new Set(prev).add(id));
-      if (userId) await dismissAnnouncement(userId, id);
+    async (target: HomeAnnouncement) => {
+      setAdded((prev) => new Set(prev).add(target.id));
+      if (userId) await dismissAnnouncement(userId, target);
     },
     [userId],
   );

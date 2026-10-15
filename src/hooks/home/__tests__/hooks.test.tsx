@@ -8,11 +8,27 @@ const mocks = vi.hoisted(() => ({
   fetchNotifications: vi.fn(),
   fetchLiveSessions: vi.fn(),
   fetchRitualHistory: vi.fn(),
-  fetchSquadSnapshot: vi.fn(),
+  fetchSquadInfos: vi.fn(),
+  fetchConversations: vi.fn(),
+  fetchContacts: vi.fn(),
+  fetchMessages: vi.fn(),
+  sendMessage: vi.fn(),
+  markConversationRead: vi.fn(),
+  markNotificationsRead: vi.fn(),
+  onSignal: null as null | ((s: { type: string }) => void),
+  stopChannel: vi.fn(),
 }));
 
 vi.mock('../../../context/AuthContext', () => ({
   useAuth: () => ({ session: mocks.session, switchProject: mocks.switchProject }),
+}));
+
+vi.mock('../userChannel', () => ({
+  buildUserChannelUrl: () => 'ws://teste',
+  startUserChannel: (opts: { onSignal: (s: { type: string }) => void }) => {
+    mocks.onSignal = opts.onSignal;
+    return mocks.stopChannel;
+  },
 }));
 
 vi.mock('../sources', async () => {
@@ -23,12 +39,19 @@ vi.mock('../sources', async () => {
     fetchNotifications: mocks.fetchNotifications,
     fetchLiveSessions: mocks.fetchLiveSessions,
     fetchRitualHistory: mocks.fetchRitualHistory,
-    fetchSquadSnapshot: mocks.fetchSquadSnapshot,
+    fetchSquadInfos: mocks.fetchSquadInfos,
+    fetchConversations: mocks.fetchConversations,
+    fetchContacts: mocks.fetchContacts,
+    fetchMessages: mocks.fetchMessages,
+    sendMessage: mocks.sendMessage,
+    markConversationRead: mocks.markConversationRead,
+    markNotificationsRead: mocks.markNotificationsRead,
   };
 });
 
 import { useHomeAnnouncements } from '../useHomeAnnouncements';
 import { useLiveSessions } from '../useLiveSessions';
+import { useConversationList, useConversationThread } from '../useMessages';
 import { useMySquads } from '../useMySquads';
 import { useNotifications } from '../useNotifications';
 import { useRitualHistory } from '../useRitualHistory';
@@ -39,21 +62,25 @@ const ann = (over: Record<string, unknown> = {}) => ({ id: 'a1', kind: 'info', t
 beforeEach(() => {
   localStorage.clear();
   mocks.session = { id: 'u1', activeProjectId: 'phoenix', activeProjectName: 'Phoenix', accessibleProjects: [] };
-  mocks.switchProject.mockReset();
-  mocks.fetchAnnouncements.mockReset().mockResolvedValue([]);
-  mocks.fetchNotifications.mockReset().mockResolvedValue(null);
-  mocks.fetchLiveSessions.mockReset().mockResolvedValue([]);
-  mocks.fetchRitualHistory.mockReset().mockResolvedValue({ poker: [], retro: [], showcase: [], health: [], brainstorming: [] });
-  mocks.fetchSquadSnapshot.mockReset().mockResolvedValue({ rollup: null, config: null });
+  mocks.onSignal = null;
+  Object.values(mocks).forEach((m) => typeof m === 'function' && 'mockReset' in m && m.mockReset());
+  mocks.fetchAnnouncements.mockResolvedValue([]);
+  mocks.fetchNotifications.mockResolvedValue(null);
+  mocks.fetchLiveSessions.mockResolvedValue([]);
+  mocks.fetchRitualHistory.mockResolvedValue({ poker: [], retro: [], showcase: [], health: [], brainstorming: [] });
+  mocks.fetchSquadInfos.mockResolvedValue({});
+  mocks.fetchConversations.mockResolvedValue(null);
+  mocks.markNotificationsRead.mockResolvedValue(undefined);
+  mocks.markConversationRead.mockResolvedValue(undefined);
 });
 
 describe('useHomeAnnouncements', () => {
-  it('mostra o aviso e para de mostrá-lo depois de dispensado', async () => {
+  it('mostra o aviso e para de mostrá-lo depois de dispensado (aviso antigo: guarda no navegador)', async () => {
     mocks.fetchAnnouncements.mockResolvedValue([ann()]);
     const { result } = renderHook(() => useHomeAnnouncements());
     await waitFor(() => expect(result.current.announcement?.id).toBe('a1'));
     await act(async () => {
-      await result.current.dismiss('a1');
+      await result.current.dismiss(result.current.announcement!);
     });
     expect(result.current.announcement).toBeNull();
     expect(JSON.parse(localStorage.getItem('agileSpace_home_dismissed_u1') ?? '[]')).toEqual(['a1']);
@@ -65,6 +92,12 @@ describe('useHomeAnnouncements', () => {
     const { result } = renderHook(() => useHomeAnnouncements());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.announcement).toBeNull();
+  });
+
+  it('aviso do servidor sem data final continua valendo (não expira pela janela dos antigos)', async () => {
+    mocks.fetchAnnouncements.mockResolvedValue([ann({ serverManaged: true, publishedAt: '2026-01-01T00:00:00Z' })]);
+    const { result } = renderHook(() => useHomeAnnouncements());
+    await waitFor(() => expect(result.current.announcement?.id).toBe('a1'));
   });
 
   it('endpoint fora do ar: sem aviso e sem erro', async () => {
@@ -84,18 +117,18 @@ describe('useHomeAnnouncements', () => {
 });
 
 describe('useNotifications', () => {
-  it('só avisos enquanto o backend não entrega notificações', async () => {
+  it('servidor antigo: só avisos, e as abas Para você e Mensagens ficam vazias', async () => {
     mocks.fetchAnnouncements.mockResolvedValue([ann({ id: 'a1' }), ann({ id: 'a2', kind: 'maintenance' })]);
     const { result } = renderHook(() => useNotifications());
     await waitFor(() => expect(result.current.byTab.announcements).toHaveLength(2));
     expect(result.current.hasBackendFeed).toBe(false);
     expect(result.current.byTab.foryou).toEqual([]);
     expect(result.current.byTab.messages).toEqual([]);
-    expect(result.current.unread).toEqual({ foryou: 0, messages: 0, announcements: 2 });
+    expect(result.current.unread).toEqual({ foryou: 0, messages: 0, announcements: 2, total: 2 });
     expect(result.current.unreadTotal).toBe(2);
   });
 
-  it('marcar como lidas zera o contador e persiste', async () => {
+  it('servidor antigo: marcar como lidas zera o contador e persiste no navegador', async () => {
     mocks.fetchAnnouncements.mockResolvedValue([ann({ id: 'a1' })]);
     const { result } = renderHook(() => useNotifications());
     await waitFor(() => expect(result.current.unreadTotal).toBe(1));
@@ -103,19 +136,120 @@ describe('useNotifications', () => {
       await result.current.markAllRead();
     });
     expect(result.current.unreadTotal).toBe(0);
-    expect(JSON.parse(localStorage.getItem('agileSpace_home_read_u1') ?? '[]')).toEqual(['announcement:a1']);
+    expect(mocks.markNotificationsRead).toHaveBeenCalledWith('u1', ['announcement:a1']);
   });
 
-  it('usa notificações do backend quando existirem, junto com os avisos', async () => {
-    mocks.fetchAnnouncements.mockResolvedValue([ann({ id: 'a1' })]);
-    mocks.fetchNotifications.mockResolvedValue([
-      { id: 'n1', tab: 'foryou', who: 'Gabriela Nunes', text: 'convidou você', unread: true },
-      { id: 'n2', tab: 'messages', who: 'Diego Alves', text: 'oi', unread: false },
-    ]);
+  const feed = () => ({
+    items: [
+      { id: 'notification:n1', tab: 'foryou', who: 'Gabriela Nunes', text: 'convidou você', unread: true },
+      { id: 'notification:n3', tab: 'announcements', who: 'Nova versão', text: '', unread: true },
+    ],
+    unread: { foryou: 1, messages: 2, announcements: 1, total: 4 },
+  });
+
+  it('servidor novo: usa as notificações e os contadores do servidor (inclui mensagens)', async () => {
+    mocks.fetchNotifications.mockResolvedValue(feed());
     const { result } = renderHook(() => useNotifications());
     await waitFor(() => expect(result.current.hasBackendFeed).toBe(true));
-    expect(result.current.unread).toEqual({ foryou: 1, messages: 0, announcements: 1 });
-    expect(result.current.byTab.messages).toHaveLength(1);
+    expect(result.current.unread).toEqual({ foryou: 1, messages: 2, announcements: 1, total: 4 });
+    expect(result.current.byTab.foryou).toHaveLength(1);
+    expect(result.current.byTab.announcements).toHaveLength(1);
+    expect(mocks.fetchAnnouncements).not.toHaveBeenCalled();
+  });
+
+  it('servidor novo: marcar como lidas zera o contador na hora e pede nova leitura', async () => {
+    mocks.fetchNotifications.mockResolvedValue(feed());
+    const { result } = renderHook(() => useNotifications());
+    await waitFor(() => expect(result.current.unreadTotal).toBe(4));
+    const callsBefore = mocks.fetchNotifications.mock.calls.length;
+    mocks.fetchNotifications.mockResolvedValue({ ...feed(), unread: { foryou: 0, messages: 0, announcements: 0, total: 0 } });
+    await act(async () => {
+      await result.current.markAllRead();
+    });
+    expect(mocks.markNotificationsRead).toHaveBeenCalledWith('u1', ['notification:n1', 'notification:n3']);
+    await waitFor(() => expect(mocks.fetchNotifications.mock.calls.length).toBeGreaterThan(callsBefore));
+    expect(result.current.unreadTotal).toBe(0);
+  });
+
+  it('sinal do canal do usuário refaz a leitura e encerra ao desmontar', async () => {
+    mocks.fetchNotifications.mockResolvedValue(feed());
+    const { result, unmount } = renderHook(() => useNotifications());
+    await waitFor(() => expect(result.current.hasBackendFeed).toBe(true));
+    const before = mocks.fetchNotifications.mock.calls.length;
+    expect(mocks.onSignal).toBeTruthy();
+    await act(async () => {
+      mocks.onSignal?.({ type: 'NOTIFICATION' });
+    });
+    await waitFor(() => expect(mocks.fetchNotifications.mock.calls.length).toBeGreaterThan(before));
+    expect(result.current.tick).toBeGreaterThan(0);
+    unmount();
+    expect(mocks.stopChannel).toHaveBeenCalled();
+  });
+
+  it('sem sessão não abre canal nem busca', async () => {
+    mocks.session = null;
+    renderHook(() => useNotifications());
+    expect(mocks.onSignal).toBeNull();
+    expect(mocks.fetchNotifications).not.toHaveBeenCalled();
+  });
+});
+
+describe('mensagens', () => {
+  it('lista indisponível (servidor antigo): vazia e sem escrita', async () => {
+    const { result } = renderHook(() => useConversationList(true, 0));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.available).toBe(false);
+    expect(result.current.conversations).toEqual([]);
+  });
+
+  it('lista com conversas', async () => {
+    mocks.fetchConversations.mockResolvedValue([{ id: 'c1', other: { id: 'u2', name: 'Diego' }, lastMessage: null, unreadCount: 1, updatedAt: recent() }]);
+    const { result } = renderHook(() => useConversationList(true, 0));
+    await waitFor(() => expect(result.current.conversations).toHaveLength(1));
+    expect(result.current.available).toBe(true);
+  });
+
+  const msg = (id: string, minutesAgo: number, senderId = 'u2') => ({
+    id, conversationId: 'c1', senderId, body: `texto ${id}`, createdAt: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
+  });
+
+  it('abrir marca como lida; enviar acrescenta a mensagem em ordem e avisa a tela', async () => {
+    mocks.fetchMessages.mockResolvedValue([msg('m1', 10), msg('m2', 5)]);
+    mocks.sendMessage.mockResolvedValue(msg('m3', 0, 'u1'));
+    const onChanged = vi.fn();
+    const { result } = renderHook(() => useConversationThread('c1', 0, onChanged));
+    await waitFor(() => expect(result.current.messages).toHaveLength(2));
+    expect(mocks.markConversationRead).toHaveBeenCalledWith('c1');
+
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.send('Fechado');
+    });
+    expect(ok).toBe(true);
+    expect(mocks.sendMessage).toHaveBeenCalledWith('c1', 'Fechado');
+    expect(result.current.messages.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('envio que falha mostra o erro e não acrescenta', async () => {
+    mocks.fetchMessages.mockResolvedValue([]);
+    mocks.sendMessage.mockRejectedValue(new Error('A mensagem deve ter de 1 a 2000 caracteres.'));
+    const { result } = renderHook(() => useConversationThread('c1', 0));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.send('x');
+    });
+    expect(ok).toBe(false);
+    expect(result.current.sendError).toContain('2000');
+    expect(result.current.messages).toEqual([]);
+  });
+
+  it('sem conversa escolhida não busca nem envia', async () => {
+    const { result } = renderHook(() => useConversationThread(null, 0));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(mocks.fetchMessages).not.toHaveBeenCalled();
+    expect(await result.current.send('oi')).toBe(false);
   });
 });
 
@@ -168,10 +302,10 @@ describe('useMySquads', () => {
         { projectId: 'atlas', projectName: 'Atlas' },
       ],
     };
-    mocks.fetchSquadSnapshot.mockImplementation(async (id: string) => ({
-      rollup: id === 'atlas' ? { squadId: id, sprintName: 'Sprint 18', workdaysTotal: 10, workdaysRemaining: 2 } : null,
-      config: null,
-    }));
+    mocks.fetchSquadInfos.mockResolvedValue({
+      atlas: { sprintName: 'Sprint 18', sprintPercent: 80, daysLeft: 2 },
+      phoenix: { sprintPercent: null, daysLeft: null },
+    });
     mocks.switchProject.mockResolvedValue(undefined);
     const { result } = renderHook(() => useMySquads());
     await waitFor(() => expect(result.current.squads.find((s) => s.id === 'atlas')?.sprintPercent).toBe(80));
@@ -188,7 +322,7 @@ describe('useMySquads', () => {
 
   it('falha no resumo não derruba a lista de squads', async () => {
     mocks.session = { id: 'u1', activeProjectId: 'a', accessibleProjects: [{ projectId: 'a', projectName: 'A' }, { projectId: 'b', projectName: 'B' }] };
-    mocks.fetchSquadSnapshot.mockRejectedValue(new Error('x'));
+    mocks.fetchSquadInfos.mockRejectedValue(new Error('x'));
     const { result } = renderHook(() => useMySquads());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.squads.map((s) => s.name)).toEqual(['A', 'B']);

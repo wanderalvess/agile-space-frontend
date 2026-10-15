@@ -1,19 +1,26 @@
 /**
- * ÚNICO arquivo da Home que fala com a API. Os hooks (`useHomeAnnouncements`, `useNotifications`,
- * `useLiveSessions`, `useRitualHistory`, `useMySquads`) só chamam as funções exportadas aqui e recebem
- * os tipos de `types.ts`. Quando o backend publicar o contrato novo (avisos com tipo/público/validade/
- * dispensa, central de notificações, endpoint único de sessões ao vivo, agregado da home), trocar a fonte
- * é editar APENAS este arquivo:
+ * ÚNICO arquivo da Home que fala com a API. Os hooks só chamam as funções exportadas aqui e recebem os tipos
+ * de `types.ts`; a tradução do contrato do backend está em `contract.ts`.
  *
- *   fetchAnnouncements      hoje: GET /api/public/announcements        -> trocar pelo endpoint novo de avisos
- *   dismissAnnouncement     hoje: localStorage por usuário             -> POST de dispensa no servidor
- *   fetchNotifications      hoje: sem endpoint (devolve null)          -> GET da central de notificações
- *   markNotificationsRead   hoje: localStorage por usuário             -> POST "marcar como lidas"
- *   fetchLiveSessions       hoje: 5 listas por squad, filtradas        -> GET do endpoint único de ao vivo
- *   fetchRitualHistory      hoje: as mesmas 5 listas por squad         -> endpoint de histórico (ou do agregado)
- *   fetchSquadSnapshot      hoje: GET /api/squads/{id} e /rollup       -> agregado da home
+ * Cada função tenta primeiro o endpoint do backend novo (docs/home-api.md do agile-space-backend) e, se o
+ * servidor responder 404 (versão sem o endpoint), cai no comportamento anterior. O 404 fica lembrado até
+ * recarregar a página, para não repetir a tentativa a cada atualização.
  *
- * Falha de rede, 403 ou 404 nunca derruba a tela: cada função devolve o estado vazio.
+ *   fetchAnnouncements        GET  /api/announcements/active            | legado: GET /api/public/announcements
+ *   dismissAnnouncement       POST /api/announcements/{id}/dismiss      | legado: localStorage
+ *   fetchNotifications        GET  /api/notifications?category=FOR_YOU|ANNOUNCEMENTS e /unread-count | legado: null
+ *   markNotificationsRead     POST /api/notifications/read-all          | legado: localStorage
+ *   fetchConversations        GET  /api/conversations                   | legado: null (sem mensagens)
+ *   fetchContacts             GET  /api/conversations/contacts
+ *   openConversation          POST /api/conversations
+ *   fetchMessages             GET  /api/conversations/{id}/messages
+ *   sendMessage               POST /api/conversations/{id}/messages
+ *   markConversationRead      POST /api/conversations/{id}/read
+ *   fetchLiveSessions         GET  /api/live-sessions[?squadId=]        | legado: 5 listas por squad, filtradas
+ *   fetchRitualHistory        GET  /api/rituals/{tool}/history          | legado: as mesmas 5 listas por squad
+ *   fetchSquadInfos           GET  /api/home                            | legado: /api/squads/{id}/rollup e /squads/{id}
+ *
+ * Falha de rede, 403 ou outro erro nunca derruba a tela: os hooks recebem o estado vazio.
  */
 
 import { publicApi } from '@/app/admin/api';
@@ -23,7 +30,28 @@ import { showcaseApi } from '@/app/showcase/api';
 import { healthCheckApi } from '@/app/health-check/api';
 import { brainstormingApi } from '@/app/brainstorming/api';
 import { squadApi } from '@/app/squad/api';
+import { authFetch } from '@/lib/auth-client';
 import type { SquadConfig, SquadMetricsRollup } from '@/lib/types';
+import {
+  buildNotificationFeed,
+  HISTORY_SEGMENT,
+  mapContact,
+  mapConversationDto,
+  mapLiveSessionDto,
+  mapMessageDto,
+  mapRitualSessionDto,
+  mapSquadSummaryDto,
+  normalizeOutgoingMessage,
+  serverNotificationId,
+  type ConversationDto,
+  type HomeDto,
+  type LiveSessionDto,
+  type MessageDto,
+  type NotificationDto,
+  type RitualSessionDto,
+  type UnreadCountDto,
+  type UserRefDto,
+} from './contract';
 import {
   liveSessionsOf,
   mapBrainstormingBoard,
@@ -32,19 +60,82 @@ import {
   mapRetroBoard,
   mapShowcaseSession,
   sortByRecent,
+  sprintProgress,
   toHomeAnnouncement,
+  upcomingCeremonies,
   type RawAnnouncement,
 } from './derive';
 import {
   RITUAL_KEYS,
+  type ChatMessage,
+  type Contact,
+  type Conversation,
   type HomeAnnouncement,
-  type HomeNotification,
+  type NotificationFeed,
   type RitualKey,
+  type SquadInfo,
   type SquadRef,
   type ToolSession,
 } from './types';
 
-// ---------- armazenamento local (dispensa e leitura, por usuário) ----------
+// ---------- HTTP e detecção de endpoint ausente ----------
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+
+export class HomeHttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'HomeHttpError';
+  }
+}
+
+async function http<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  const res = await authFetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let message = `Erro ${res.status}`;
+    try {
+      const json = await res.json();
+      if (typeof json?.message === 'string' && json.message) message = json.message;
+    } catch {
+      /* corpo sem JSON */
+    }
+    throw new HomeHttpError(res.status, message);
+  }
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/** Endpoints do contrato novo que o servidor respondeu 404 (versão antiga): não tenta de novo. */
+const missingEndpoints = new Set<string>();
+
+type Attempt<T> = { ok: true; value: T } | { ok: false };
+
+async function viaContract<T>(key: string, run: () => Promise<T>): Promise<Attempt<T>> {
+  if (missingEndpoints.has(key)) return { ok: false };
+  try {
+    return { ok: true, value: await run() };
+  } catch (err) {
+    if (err instanceof HomeHttpError && err.status === 404) {
+      missingEndpoints.add(key);
+      return { ok: false };
+    }
+    throw err;
+  }
+}
+
+/** Esquece os endpoints marcados como ausentes (testes). */
+export function clearContractCache(): void {
+  missingEndpoints.clear();
+}
+
+const enc = encodeURIComponent;
+
+// ---------- armazenamento local (legado: dispensa e leitura, por usuário) ----------
 
 const dismissedKey = (userId: string) => `agileSpace_home_dismissed_${userId}`;
 const readKey = (userId: string) => `agileSpace_home_read_${userId}`;
@@ -75,32 +166,23 @@ export function loadDismissedAnnouncements(userId: string): Set<string> {
   return readIdSet(dismissedKey(userId));
 }
 
-export async function dismissAnnouncement(userId: string, id: string): Promise<void> {
-  const ids = readIdSet(dismissedKey(userId));
-  ids.add(id);
-  writeIdSet(dismissedKey(userId), ids);
-}
-
 export function loadReadNotifications(userId: string): Set<string> {
   return readIdSet(readKey(userId));
 }
 
-export async function markNotificationsRead(userId: string, ids: string[]): Promise<void> {
-  const current = readIdSet(readKey(userId));
-  ids.forEach((id) => current.add(id));
-  writeIdSet(readKey(userId), current);
-}
-
-// ---------- avisos e notificações ----------
+// ---------- avisos ----------
 
 const ANNOUNCEMENTS_TTL_MS = 30_000;
 let announcementsCache: { at: number; promise: Promise<HomeAnnouncement[]> } | null = null;
 
 async function loadAnnouncements(): Promise<HomeAnnouncement[]> {
+  const toList = (raw: unknown): HomeAnnouncement[] =>
+    Array.isArray(raw) ? (raw as RawAnnouncement[]).map(toHomeAnnouncement).filter((a): a is HomeAnnouncement => a !== null) : [];
+
+  const attempt = await viaContract('announcements', () => http<RawAnnouncement[]>('GET', '/announcements/active'));
+  if (attempt.ok) return toList(attempt.value);
   // publicApi já devolve [] em qualquer falha.
-  const raw = (await publicApi.getAnnouncements()) as unknown as RawAnnouncement[];
-  if (!Array.isArray(raw)) return [];
-  return raw.map(toHomeAnnouncement).filter((a): a is HomeAnnouncement => a !== null);
+  return toList(await publicApi.getAnnouncements());
 }
 
 /** O banner e o sino leem os mesmos avisos: um cache curto evita pedir duas vezes. */
@@ -118,13 +200,93 @@ export function clearAnnouncementsCache(): void {
   announcementsCache = null;
 }
 
+/** Dispensa no servidor (contrato v2) ou, nos avisos antigos, só neste navegador. */
+export async function dismissAnnouncement(userId: string, announcement: HomeAnnouncement): Promise<void> {
+  if (announcement.serverManaged) {
+    try {
+      await http<void>('POST', `/announcements/${enc(announcement.id)}/dismiss`);
+      announcementsCache = null;
+      return;
+    } catch {
+      /* sem rede ou erro: guarda aqui para o aviso sumir ao menos neste navegador */
+    }
+  }
+  const ids = readIdSet(dismissedKey(userId));
+  ids.add(announcement.id);
+  writeIdSet(dismissedKey(userId), ids);
+}
+
+// ---------- notificações ----------
+
 /**
- * Notificações "Para você" e "Mensagens". Ainda não existe endpoint: devolve null e a central mostra só os
- * avisos. Com o contrato novo, devolver aqui a lista já no formato de HomeNotification (sem os avisos, que
- * continuam vindo de fetchAnnouncements ou passam a vir junto, a critério do backend).
+ * Notificações "Para você" e "Avisos" do servidor, com os contadores dele. Null quando o servidor ainda não
+ * tem o endpoint: a central mostra só os avisos.
  */
-export async function fetchNotifications(): Promise<HomeNotification[] | null> {
-  return null;
+export async function fetchNotifications(): Promise<NotificationFeed | null> {
+  const attempt = await viaContract('notifications', async () => {
+    const [forYou, announcements, unread] = await Promise.all([
+      http<NotificationDto[]>('GET', '/notifications?category=FOR_YOU&limit=30'),
+      http<NotificationDto[]>('GET', '/notifications?category=ANNOUNCEMENTS&limit=30'),
+      http<UnreadCountDto>('GET', '/notifications/unread-count').catch(() => null),
+    ]);
+    return buildNotificationFeed(Array.isArray(forYou) ? forYou : [], Array.isArray(announcements) ? announcements : [], unread);
+  });
+  return attempt.ok ? attempt.value : null;
+}
+
+/** Contador de não lidas isolado (polling leve). Null se o servidor não tem o endpoint ou falhou. */
+export async function fetchUnreadCounts(): Promise<UnreadCountDto | null> {
+  const attempt = await viaContract('notifications', () => http<UnreadCountDto>('GET', '/notifications/unread-count'));
+  return attempt.ok ? attempt.value : null;
+}
+
+/** Marca como lidas: as do servidor num só POST (`read-all`), as de aviso antigo no navegador. */
+export async function markNotificationsRead(userId: string, ids: string[]): Promise<void> {
+  if (ids.some((id) => serverNotificationId(id))) {
+    try {
+      await http<void>('POST', '/notifications/read-all');
+    } catch {
+      /* o contador volta a refletir o servidor na próxima atualização */
+    }
+  }
+  const local = ids.filter((id) => !serverNotificationId(id));
+  if (local.length > 0) {
+    const current = readIdSet(readKey(userId));
+    local.forEach((id) => current.add(id));
+    writeIdSet(readKey(userId), current);
+  }
+}
+
+// ---------- mensagens diretas ----------
+
+/** Conversas da pessoa. Null quando o servidor ainda não tem mensagens diretas. */
+export async function fetchConversations(): Promise<Conversation[] | null> {
+  const attempt = await viaContract('conversations', () => http<ConversationDto[]>('GET', '/conversations'));
+  return attempt.ok ? (Array.isArray(attempt.value) ? attempt.value : []).map(mapConversationDto) : null;
+}
+
+export async function fetchContacts(): Promise<Contact[]> {
+  const list = await http<UserRefDto[]>('GET', '/conversations/contacts');
+  return (Array.isArray(list) ? list : []).map(mapContact);
+}
+
+export async function openConversation(userId: string): Promise<Conversation> {
+  return mapConversationDto(await http<ConversationDto>('POST', '/conversations', { userId }));
+}
+
+export async function fetchMessages(conversationId: string): Promise<ChatMessage[]> {
+  const list = await http<MessageDto[]>('GET', `/conversations/${enc(conversationId)}/messages?limit=50`);
+  return (Array.isArray(list) ? list : []).map(mapMessageDto);
+}
+
+export async function sendMessage(conversationId: string, text: string): Promise<ChatMessage> {
+  const body = normalizeOutgoingMessage(text);
+  if (!body) throw new Error('A mensagem está vazia.');
+  return mapMessageDto(await http<MessageDto>('POST', `/conversations/${enc(conversationId)}/messages`, { body }));
+}
+
+export async function markConversationRead(conversationId: string): Promise<void> {
+  await http<void>('POST', `/conversations/${enc(conversationId)}/read`);
 }
 
 // ---------- sessões dos rituais ----------
@@ -147,7 +309,7 @@ async function loadToolSessions(tool: RitualKey, squad: SquadRef, now: Date): Pr
   }
 }
 
-/** Lista de um ritual numa squad, com cache curto: "ao vivo" e "histórico" pedem as mesmas listas. */
+/** Legado: lista de um ritual numa squad, com cache curto ("ao vivo" e "histórico" pedem as mesmas listas). */
 export function fetchToolSessions(tool: RitualKey, squad: SquadRef, now: Date = new Date()): Promise<ToolSession[]> {
   const key = `${tool}:${squad.id}`;
   const hit = toolCache.get(key);
@@ -165,7 +327,7 @@ export function clearToolSessionCache(): void {
   toolCache.clear();
 }
 
-async function fetchAllTools(squads: SquadRef[], now: Date): Promise<ToolSession[]> {
+async function fetchAllToolsLegacy(squads: SquadRef[], now: Date): Promise<ToolSession[]> {
   const jobs = squads.flatMap((squad) => RITUAL_KEYS.map((tool) => fetchToolSessions(tool, squad, now)));
   const settled = await Promise.allSettled(jobs);
   return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
@@ -173,18 +335,49 @@ async function fetchAllTools(squads: SquadRef[], now: Date): Promise<ToolSession
 
 export async function fetchLiveSessions(squads: SquadRef[], now: Date = new Date()): Promise<ToolSession[]> {
   if (squads.length === 0) return [];
-  return liveSessionsOf(await fetchAllTools(squads, now));
+  const attempt = await viaContract('live-sessions', async () => {
+    const names = new Map(squads.map((s) => [s.id, s.name] as const));
+    // Uma squad só: o filtro vai na consulta. Várias: o servidor devolve todas as acessíveis e filtramos aqui.
+    const path = squads.length === 1 ? `/live-sessions?squadId=${enc(squads[0].id)}` : '/live-sessions';
+    const dtos = await http<LiveSessionDto[]>('GET', path);
+    return (Array.isArray(dtos) ? dtos : [])
+      .filter((d) => names.has(d.squadId))
+      .map((d) => mapLiveSessionDto(d, names))
+      .filter((s): s is ToolSession => s !== null);
+  });
+  if (attempt.ok) return liveSessionsOf(attempt.value);
+  return liveSessionsOf(await fetchAllToolsLegacy(squads, now));
 }
+
+const HISTORY_LIMIT = 10;
 
 export async function fetchRitualHistory(
   squads: SquadRef[],
   now: Date = new Date(),
 ): Promise<Record<RitualKey, ToolSession[]>> {
-  const empty: Record<RitualKey, ToolSession[]> = { poker: [], retro: [], showcase: [], health: [], brainstorming: [] };
-  if (squads.length === 0) return empty;
-  const all = await fetchAllTools(squads, now);
-  for (const tool of RITUAL_KEYS) empty[tool] = sortByRecent(all.filter((s) => s.tool === tool));
-  return empty;
+  const empty = (): Record<RitualKey, ToolSession[]> => ({ poker: [], retro: [], showcase: [], health: [], brainstorming: [] });
+  if (squads.length === 0) return empty();
+
+  const attempt = await viaContract('history', async () => {
+    const jobs = squads.flatMap((squad) =>
+      RITUAL_KEYS.map(async (tool) => {
+        const list = await http<RitualSessionDto[]>(
+          'GET',
+          `/rituals/${HISTORY_SEGMENT[tool]}/history?squadId=${enc(squad.id)}&limit=${HISTORY_LIMIT}`,
+        );
+        return (Array.isArray(list) ? list : []).map((d) => mapRitualSessionDto(d, squad)).filter((s): s is ToolSession => s !== null);
+      }),
+    );
+    const settled = await Promise.allSettled(jobs);
+    const notFound = settled.find((r) => r.status === 'rejected' && r.reason instanceof HomeHttpError && r.reason.status === 404);
+    if (notFound && settled.every((r) => r.status === 'rejected')) throw (notFound as PromiseRejectedResult).reason;
+    return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+  });
+
+  const all = attempt.ok ? attempt.value : await fetchAllToolsLegacy(squads, now);
+  const out = empty();
+  for (const tool of RITUAL_KEYS) out[tool] = sortByRecent(all.filter((s) => s.tool === tool));
+  return out;
 }
 
 // ---------- squads ----------
@@ -197,6 +390,7 @@ export interface SquadSnapshot {
 const snapshotCache = new Map<string, { at: number; promise: Promise<SquadSnapshot> }>();
 const SNAPSHOT_TTL_MS = 60_000;
 
+/** Legado: rollup da sprint e configuração (cerimônias manuais) de uma squad. */
 export function fetchSquadSnapshot(squadId: string, now: Date = new Date()): Promise<SquadSnapshot> {
   const hit = snapshotCache.get(squadId);
   if (hit && now.getTime() - hit.at < SNAPSHOT_TTL_MS) return hit.promise;
@@ -210,4 +404,43 @@ export function fetchSquadSnapshot(squadId: string, now: Date = new Date()): Pro
 
 export function clearSquadSnapshotCache(): void {
   snapshotCache.clear();
+}
+
+function infoFromSnapshot(snap: SquadSnapshot, now: Date): SquadInfo {
+  const progress = sprintProgress(snap.rollup, now);
+  const manual = snap.config?.ceremonyMode === 'manual' ? snap.config.ceremonies : undefined;
+  return {
+    sprintName: snap.rollup?.sprintName,
+    sprintPercent: progress.percent,
+    daysLeft: progress.daysLeft,
+    nextCeremony: upcomingCeremonies(manual, now, 1)[0],
+  };
+}
+
+/**
+ * Sprint e próxima cerimônia de cada squad. O agregado `/api/home` traz tudo numa chamada; squads que ele não
+ * cobre (ou servidor sem o endpoint) usam rollup e configuração, uma consulta por squad.
+ */
+export async function fetchSquadInfos(refs: SquadRef[], now: Date = new Date()): Promise<Record<string, SquadInfo>> {
+  const out: Record<string, SquadInfo> = {};
+  if (refs.length === 0) return out;
+
+  try {
+    const attempt = await viaContract('home', () => http<HomeDto>('GET', '/home'));
+    if (attempt.ok) {
+      const wanted = new Set(refs.map((r) => r.id));
+      for (const s of attempt.value?.squads ?? []) if (wanted.has(s.squadId)) out[s.squadId] = mapSquadSummaryDto(s);
+    }
+  } catch {
+    /* agregado indisponível: segue pelo caminho por squad */
+  }
+
+  await Promise.all(
+    refs
+      .filter((r) => !out[r.id])
+      .map(async (r) => {
+        out[r.id] = infoFromSnapshot(await fetchSquadSnapshot(r.id, now), now);
+      }),
+  );
+  return out;
 }

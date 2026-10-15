@@ -19,13 +19,18 @@ export interface HomeAnnouncement {
   audienceLabel?: string;
   /** Só http(s) ou caminho interno. */
   learnMoreUrl?: string;
+  /** Vem do contrato v2: vigência e público já foram resolvidos pelo servidor (sem validade = não expira). */
+  serverManaged?: boolean;
 }
 
 export type NotificationTab = 'foryou' | 'messages' | 'announcements';
 
+export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT';
+
 export interface HomeNotification {
   id: string;
   tab: NotificationTab;
+  kind?: NotificationKind;
   /** Quem enviou, ou o título quando não é uma pessoa. */
   who: string;
   text: string;
@@ -79,4 +84,48 @@ export interface HomeResource<T> {
   loading: boolean;
   /** true quando a última tentativa falhou; `data` fica no estado vazio. */
   failed: boolean;
+}
+
+export interface UnreadCounts {
+  foryou: number;
+  messages: number;
+  announcements: number;
+  total: number;
+}
+
+export const NO_UNREAD: UnreadCounts = { foryou: 0, messages: 0, announcements: 0, total: 0 };
+
+/** Notificações do servidor (contrato v2) já separadas por aba, com os contadores de não lidas dele. */
+export interface NotificationFeed {
+  items: HomeNotification[];
+  unread: UnreadCounts;
+}
+
+export interface Contact {
+  id: string;
+  name: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface Conversation {
+  id: string;
+  other: Contact;
+  lastMessage: ChatMessage | null;
+  unreadCount: number;
+  updatedAt: string;
+}
+
+/** Dados de sprint e cerimônia de uma squad, já no formato da Home. */
+export interface SquadInfo {
+  sprintName?: string;
+  sprintPercent: number | null;
+  daysLeft: number | null;
+  nextCeremony?: { title: string; start: Date };
 }

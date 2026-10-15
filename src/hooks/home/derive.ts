@@ -112,10 +112,15 @@ export interface RawAnnouncement {
   /** Campos que o backend novo vai mandar; hoje chegam ausentes. */
   type?: string;
   kind?: string;
-  validUntil?: string;
+  validUntil?: string | null;
   audience?: string;
   audienceLabel?: string;
   learnMoreUrl?: string;
+  /** Contrato v2 (GET /api/announcements/active). */
+  createdByName?: string | null;
+  validFrom?: string;
+  link?: string | null;
+  audienceType?: string;
 }
 
 export function announcementKind(raw?: string | null): AnnouncementKind {
@@ -130,23 +135,41 @@ export function toHomeAnnouncement(raw: RawAnnouncement | null | undefined): Hom
   const text = String(raw.content ?? raw.message ?? raw.text ?? '').trim();
   const title = String(raw.title ?? '').trim();
   if (!title && !text) return null;
-  const publishedAt = raw.publishedAt ?? raw.createdAt;
+  const v2 = typeof raw.audienceType === 'string';
+  const publishedAt = raw.publishedAt ?? raw.validFrom ?? raw.createdAt;
   return {
     id: raw.id || `${publishedAt ?? ''}|${title}`,
     kind: announcementKind(raw.type ?? raw.kind),
     title: title || text,
     text: title ? text : '',
-    publishedBy: raw.publishedBy ?? raw.createdBy,
+    // No v2 `createdBy` é o e-mail: só o nome resolvido pelo servidor pode aparecer.
+    publishedBy: raw.publishedBy ?? raw.createdByName ?? (v2 ? undefined : raw.createdBy) ?? undefined,
     publishedAt,
-    validUntil: raw.validUntil,
-    audienceLabel: raw.audienceLabel ?? ((raw.audience ?? '').toUpperCase() === 'ALL' ? 'para todas as squads' : undefined),
-    learnMoreUrl: safeHref(raw.learnMoreUrl),
+    validUntil: raw.validUntil ?? undefined,
+    audienceLabel: raw.audienceLabel ?? audienceLabelOf(raw.audienceType ?? raw.audience),
+    learnMoreUrl: safeHref(raw.link ?? raw.learnMoreUrl),
+    serverManaged: v2 || undefined,
   };
+}
+
+function audienceLabelOf(audience?: string): string | undefined {
+  switch ((audience ?? '').toUpperCase()) {
+    case 'ALL':
+      return 'para todas as squads';
+    case 'SQUADS':
+      return 'para squads selecionadas';
+    case 'ROLES':
+      return 'para papéis selecionados';
+    default:
+      return undefined;
+  }
 }
 
 export function isAnnouncementActive(a: HomeAnnouncement, now: Date, defaultTtlMs: number): boolean {
   const until = parseDate(a.validUntil);
   if (until) return now.getTime() <= until.getTime();
+  // Vigência resolvida pelo servidor: sem data final, o aviso vale até ser removido.
+  if (a.serverManaged) return true;
   const published = parseDate(a.publishedAt);
   if (!published) return true;
   return now.getTime() - published.getTime() <= defaultTtlMs;
