@@ -30,6 +30,29 @@ export const DEFAULT_ROOM_SETTINGS = {
 } as const;
 
 /**
+ * Todos os ajustes de liga/desliga que o facilitador enxerga em "Configurações
+ * da cerimônia". Usado por "Restaurar padrão": o que está em DEFAULT_ROOM_SETTINGS
+ * volta ligado; o resto volta desligado.
+ */
+export const CEREMONY_TOGGLE_KEYS = [
+  'allowManagementToVote', 'confidenceVote', 'groomingFlag', 'autoConsensus', 'reactions', 'referenceStory',
+  'roundNudge', 'cancelTask', 'parkTask', 'autoReveal', 'blindVotes', 'anonymousReveal', 'outlierPrompt',
+  'showDistribution', 'suggestRevote', 'groupVotesByRole', 'autoTimer', 'turnNotification', 'decisionNotes',
+  'refinementNotes', 'perTopicTime', 'showVelocity',
+] as const;
+
+/** Patch de configurações que devolve a sala ao padrão (não mexe em escala nem equivalência de camisetas). */
+export function buildDefaultSettingsPatch(): Record<string, boolean | number | string | { warn: number; high: number }> {
+  const defaults = DEFAULT_ROOM_SETTINGS as Record<string, boolean>;
+  const patch: Record<string, boolean | number | string | { warn: number; high: number }> = {};
+  for (const key of CEREMONY_TOGGLE_KEYS) patch[key] = !!defaults[key];
+  patch.maxRounds = 3;
+  patch.roundingMode = 'up';
+  patch.divergenceThresholds = { warn: 2, high: 5 };
+  return patch;
+}
+
+/**
  * Como a média dos votos vira o valor salvo. 'up' (padrão, sempre foi assim) arredonda para cima;
  * 'nearest' para o inteiro mais próximo; 'down' para baixo; 'deck' para a carta mais próxima do
  * baralho da sala (empate vai para a carta maior). Opt-in do facilitador: sala sem a opção = 'up'.

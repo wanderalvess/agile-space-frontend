@@ -4,10 +4,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Participant, DeckType, Vote, VotingRound, TimerState, Role, Issue, Room } from '@/lib/types';
-import { calculateRoleEfforts, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
+import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
 import { Logo } from '@/components/Logo';
 import { ParticipantList } from '@/components/poker/ParticipantList';
-import { Toolbar } from './Toolbar';
 import { Controls } from '@/components/poker/Controls';
 import { VotingArea } from '@/components/poker/VotingArea';
 import { Results } from '@/components/poker/Results';
@@ -72,6 +71,7 @@ import { TopicTiming } from './TopicTiming';
 import { saveTemplate } from '@/lib/poker-templates';
 import { ReactionOverlay, type RoomReaction } from './ReactionOverlay';
 import { ShareRoomDialog } from './ShareRoomDialog';
+import { SwitchIssueDialog, OffTableDialog, CancelIssueDialog, FinishSessionDialog, CeremonySettingsDialog } from './PokerDialogs';
 import { RoomWelcome, RoomWaiting } from './RoomWelcome';
 
 // Retorna true enquanto a viewport for menor que `px`. Usado para trocar as
@@ -269,15 +269,12 @@ const PokerRoomComponent = ({
   // Pular e Adiar dividem um botao so ("Tirar da mesa") e um modal so: o modo
   // escolhido dentro do modal decide qual handler roda. Economiza espaco numa
   // toolbar que ja disputa largura com Revelar/Cancelar/Encerrar.
-  const [offTableNote, setOffTableNote] = useState('');
   const canParkTask = (settings?.parkTask ?? true) && !!onParkIssue;
   const openOffTableDialog = (mode: 'skip' | 'park') => {
     setOffTableMode(canParkTask ? mode : 'skip');
-    setOffTableNote('');
     setIsOffTableDialogOpen(true);
   };
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
-  const [cancelNote, setCancelNote] = useState('');
   const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
 
   // Esc sai da apresentação: é o gesto que todo mundo tenta primeiro quando
@@ -1021,31 +1018,12 @@ const PokerRoomComponent = ({
         )}
 
         {/* ALERTA DE VOTOS NÃO SALVOS AO TROCAR TAREFA */}
-        <AlertDialog open={!!pendingIssueId} onOpenChange={(open) => !open && setPendingIssueId(null)}>
-          <AlertDialogContent className="rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl bg-white/90 dark:bg-card/90 backdrop-blur-xl max-w-md">
-            <AlertDialogHeader>
-              <div className="mx-auto w-16 h-16 bg-amber-100 dark:bg-amber-950/40 rounded-2xl flex items-center justify-center text-amber-600 dark:text-amber-400 mb-4 animate-pulse">
-                <AlertTriangle className="w-8 h-8" />
-              </div>
-              <AlertDialogTitle className="text-xl font-black uppercase tracking-tight text-center text-slate-900 dark:text-white">Votos em andamento!</AlertDialogTitle>
-              <AlertDialogDescription className="text-center font-medium text-slate-500 dark:text-slate-400">
-                Existem votos computados para a tarefa atual. Ao mudar de tarefa agora, esses votos serão <span className="text-destructive font-bold uppercase underline">descartados</span>.
-                Deseja prosseguir mesmo assim?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter className="flex-col sm:flex-row gap-2 mt-4">
-              <AlertDialogCancel className="rounded-2xl h-12 flex-1 font-bold uppercase tracking-widest text-[10px] border-slate-200">
-                Voltar e Salvar
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmIssueSwitch}
-                className="rounded-2xl h-12 flex-1 font-black uppercase tracking-widest text-[10px] bg-destructive hover:bg-destructive/90 text-white shadow-lg shadow-destructive/20 transition-all"
-              >
-                Sim, descartar votos
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <SwitchIssueDialog
+          open={!!pendingIssueId}
+          onOpenChange={(open) => { if (!open) setPendingIssueId(null); }}
+          votesCount={votes.length}
+          onConfirm={confirmIssueSwitch}
+        />
 
 
 
@@ -1187,7 +1165,7 @@ const PokerRoomComponent = ({
                           </DropdownMenuItem>
                         )}
                         {!votesRevealed && (settings?.cancelTask ?? true) && onCancelIssue && (
-                          <DropdownMenuItem onClick={() => { setCancelNote(''); setIsCancelDialogOpen(true); }} className="gap-2 rounded-lg py-2 text-xs font-bold text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-950/30">
+                          <DropdownMenuItem onClick={() => setIsCancelDialogOpen(true)} className="gap-2 rounded-lg py-2 text-xs font-bold text-rose-600 dark:text-rose-400 focus:bg-rose-50 dark:focus:bg-rose-950/30">
                             <Ban className="h-4 w-4" />
                             <span className="flex flex-col">
                               Cancelar tarefa
@@ -1300,69 +1278,44 @@ const PokerRoomComponent = ({
             )}
 
             {isCurrentUserFacilitator && (
-              <Dialog open={isFacilitatorSettingsOpen} onOpenChange={setIsFacilitatorSettingsOpen}>
-                <DialogContent className="flex max-h-[88vh] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-0 shadow-2xl dark:border-border dark:bg-card sm:rounded-3xl">
-                  <DialogHeader className="shrink-0 space-y-1.5 border-b border-slate-100 px-6 pb-4 pt-6 text-left dark:border-border/60">
-                    <div className="flex items-center gap-3 pr-8">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/25">
-                        <Settings className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <DialogTitle className="text-lg font-black uppercase italic tracking-tighter text-slate-900 dark:text-white">Configurações da cerimônia</DialogTitle>
-                        <DialogDescription className="text-[11px] font-medium text-slate-500 dark:text-muted-foreground">
-                          Ajuste como a votação funciona nesta sala. Cada mudança vale na hora para todo o time.
-                        </DialogDescription>
-                      </div>
-                    </div>
-                  </DialogHeader>
-                  <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">
-                    <FacilitatorPanel
-                                deck={deck}
-                                onUpdateSettings={onUpdateSettings}
-                                allowManagementToVote={settings?.allowManagementToVote}
-                                autoReveal={settings?.autoReveal}
-                                outlierPrompt={settings?.outlierPrompt}
-                                confidenceVote={settings?.confidenceVote}
-                                showVelocity={settings?.showVelocity}
-                                anonymousReveal={settings?.anonymousReveal}
-                                turnNotification={settings?.turnNotification}
-                                showDistribution={settings?.showDistribution}
-                                decisionNotes={settings?.decisionNotes}
-                                perTopicTime={settings?.perTopicTime !== false}
-                                autoTimer={settings?.autoTimer}
-                                groomingFlag={settings?.groomingFlag}
-                                autoConsensus={settings?.autoConsensus}
-                                suggestRevote={settings?.suggestRevote}
-                                reactions={settings?.reactions}
-                                roundingMode={settings?.roundingMode}
-                                blindVotes={settings?.blindVotes}
-                                groupVotesByRole={settings?.groupVotesByRole}
-                                referenceStory={settings?.referenceStory}
-                                roundNudge={settings?.roundNudge}
-                                maxRounds={settings?.maxRounds}
-                                refinementNotes={settings?.refinementNotes}
-                                parkTask={settings?.parkTask}
-                                cancelTask={settings?.cancelTask}
-                                divergenceThresholds={settings?.divergenceThresholds}
-                                onSetDeck={onSetDeck}
-                                onSaveTemplate={handleSaveTemplate}
-                                isEmbeddedInSheet={true}
-                              />
-                  </div>
-                  <DialogFooter className="shrink-0 flex-row items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-3 dark:border-border/60 dark:bg-slate-900/40 sm:justify-between">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Salvo automaticamente
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => setIsFacilitatorSettingsOpen(false)}
-                      className="h-9 rounded-xl bg-indigo-600 px-6 text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-700"
-                    >
-                      Concluir
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <CeremonySettingsDialog
+                open={isFacilitatorSettingsOpen}
+                onOpenChange={setIsFacilitatorSettingsOpen}
+                onRestoreDefaults={() => onUpdateSettings(buildDefaultSettingsPatch())}
+              >
+                <FacilitatorPanel
+                  deck={deck}
+                  onUpdateSettings={onUpdateSettings}
+                  allowManagementToVote={settings?.allowManagementToVote}
+                  autoReveal={settings?.autoReveal}
+                  outlierPrompt={settings?.outlierPrompt}
+                  confidenceVote={settings?.confidenceVote}
+                  showVelocity={settings?.showVelocity}
+                  anonymousReveal={settings?.anonymousReveal}
+                  turnNotification={settings?.turnNotification}
+                  showDistribution={settings?.showDistribution}
+                  decisionNotes={settings?.decisionNotes}
+                  perTopicTime={settings?.perTopicTime !== false}
+                  autoTimer={settings?.autoTimer}
+                  groomingFlag={settings?.groomingFlag}
+                  autoConsensus={settings?.autoConsensus}
+                  suggestRevote={settings?.suggestRevote}
+                  reactions={settings?.reactions}
+                  roundingMode={settings?.roundingMode}
+                  blindVotes={settings?.blindVotes}
+                  groupVotesByRole={settings?.groupVotesByRole}
+                  referenceStory={settings?.referenceStory}
+                  roundNudge={settings?.roundNudge}
+                  maxRounds={settings?.maxRounds}
+                  refinementNotes={settings?.refinementNotes}
+                  parkTask={settings?.parkTask}
+                  cancelTask={settings?.cancelTask}
+                  divergenceThresholds={settings?.divergenceThresholds}
+                  tshirtEquivalents={settings?.tshirtEquivalents}
+                  onSetDeck={onSetDeck}
+                  onSaveTemplate={handleSaveTemplate}
+                />
+              </CeremonySettingsDialog>
             )}
 
             {settings?.refinementNotes && activeIssueId && !isSessionFinished && (
@@ -1853,172 +1806,32 @@ const PokerRoomComponent = ({
         </Sheet>
       )}
 
-      {/* Off-table Dialog: pular ou adiar a tarefa da mesa */}
-      <AlertDialog open={isOffTableDialogOpen} onOpenChange={setIsOffTableDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-amber-600 dark:text-amber-500 flex items-center gap-2">
-              <SkipForward className="h-5 w-5" />
-              {canParkTask ? 'Tirar da mesa' : 'Pular Tarefa'}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                {canParkTask && (
-                  <div role="radiogroup" aria-label="O que fazer com a tarefa" className="grid gap-2">
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={offTableMode === 'skip'}
-                      onClick={() => setOffTableMode('skip')}
-                      className={cn(
-                        'text-left rounded-xl border p-3 transition-all',
-                        offTableMode === 'skip'
-                          ? 'border-amber-400 dark:border-amber-500 bg-amber-50 dark:bg-amber-950/30'
-                          : 'border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-slate-900/40'
-                      )}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                        <SkipForward className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                        Pular
-                      </span>
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        Sai da estimativa e entra no relatório como pulada.
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={offTableMode === 'park'}
-                      onClick={() => setOffTableMode('park')}
-                      className={cn(
-                        'text-left rounded-xl border p-3 transition-all',
-                        offTableMode === 'park'
-                          ? 'border-slate-400 dark:border-slate-500 bg-slate-100 dark:bg-slate-900/60'
-                          : 'border-slate-200 dark:border-border hover:bg-slate-50 dark:hover:bg-slate-900/40'
-                      )}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-slate-800 dark:text-slate-100">
-                        <Hourglass className="h-4 w-4 text-slate-600 dark:text-slate-300" />
-                        Adiar
-                      </span>
-                      <span className="block text-xs text-muted-foreground mt-1">
-                        Volta pro fim da fila para revisitar ainda nesta sessão.
-                      </span>
-                    </button>
-                  </div>
-                )}
-                <p className="text-sm text-muted-foreground font-medium">
-                  {offTableMode === 'park'
-                    ? <>Por que está adiando? <span className="opacity-60 text-xs">(Ex: aguardando alinhamento, quebrar antes)</span></>
-                    : <>Por que esta tarefa não será estimada agora? <span className="opacity-60 text-xs">(Ex: Bloqueado, Falta Info, Fora do Escopo)</span></>}
-                </p>
-                <Textarea
-                  value={offTableNote}
-                  onChange={(e) => setOffTableNote(e.target.value)}
-                  placeholder="Motivo opcional..."
-                  className={cn(
-                    'resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border text-slate-900 dark:text-foreground min-h-[90px]',
-                    offTableMode === 'park'
-                      ? 'focus:border-indigo-400 dark:focus:border-indigo-500'
-                      : 'focus:border-amber-400 dark:focus:border-amber-500'
-                  )}
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (offTableMode === 'park' && onParkIssue) {
-                  onParkIssue(offTableNote);
-                } else {
-                  onSkipIssue(offTableNote);
-                }
-                setIsOffTableDialogOpen(false);
-              }}
-              className={cn(
-                'text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg',
-                offTableMode === 'park'
-                  ? 'bg-slate-700 hover:bg-slate-800'
-                  : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'
-              )}
-            >
-              {offTableMode === 'park' ? 'Adiar e Avançar' : 'Pular e Avançar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Tirar da mesa: pular de vez ou adiar */}
+      <OffTableDialog
+        open={isOffTableDialogOpen}
+        onOpenChange={setIsOffTableDialogOpen}
+        initialMode={offTableMode}
+        canPark={canParkTask}
+        issueLabel={activeIssue?.key || undefined}
+        onSkip={onSkipIssue}
+        onPark={onParkIssue}
+      />
 
-      {/* Cancel Task Dialog */}
-      <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-rose-600 dark:text-rose-500 flex items-center gap-2">
-              <Ban className="h-5 w-5" />
-              Cancelar Tarefa
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground font-medium">
-                  Por que esta tarefa foi cancelada no refinamento? <span className="opacity-60 text-xs">(Ex: Descartada pelo PO, Escopo duplicado, Descontinuada)</span>
-                </p>
-                <Textarea
-                  value={cancelNote}
-                  onChange={(e) => setCancelNote(e.target.value)}
-                  placeholder="Motivo do cancelamento (opcional)..."
-                  className="resize-none text-sm rounded-xl bg-slate-50 dark:bg-background/60 border-slate-200 dark:border-border focus:border-rose-400 dark:focus:border-rose-500 text-slate-900 dark:text-foreground min-h-[90px]"
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Voltar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { activeIssueId && onCancelIssue && onCancelIssue(activeIssueId, cancelNote); setIsCancelDialogOpen(false); }}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg shadow-rose-600/20"
-            >
-              Confirmar Cancelamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Cancelar a tarefa no refinamento */}
+      <CancelIssueDialog
+        open={isCancelDialogOpen}
+        onOpenChange={setIsCancelDialogOpen}
+        onConfirm={(note) => { if (activeIssueId && onCancelIssue) onCancelIssue(activeIssueId, note); }}
+      />
 
-      {/* Finish Session Dialog */}
-      <AlertDialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
-        <AlertDialogContent className="rounded-[2rem] border border-slate-200 dark:border-border bg-white dark:bg-card shadow-2xl sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tighter text-rose-600 dark:text-rose-400 flex items-center gap-2">
-              <Flag className="h-5 w-5" />
-              Encerrar Refinamento
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground font-medium">
-                  Fecha a sessão agora e gera o relatório. {(() => {
-                    const restantes = issuesQueue.filter(i => !i.skipped && i.status !== 'completed').length;
-                    return restantes > 0
-                      ? `${restantes} tarefa${restantes !== 1 ? 's' : ''} sem estimativa ${restantes !== 1 ? 'entram' : 'entra'} no relatório como não abordada${restantes !== 1 ? 's' : ''} — sem precisar pular uma a uma.`
-                      : 'Todas as tarefas da fila já foram tratadas.';
-                  })()}
-                </p>
-                <p className="text-xs text-muted-foreground/80">
-                  O tempo contabilizado é só o das tarefas que foram votadas.
-                </p>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => { onFinishSession && onFinishSession(); setIsFinishDialogOpen(false); }}
-              className="bg-rose-600 hover:bg-rose-700 text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-lg"
-            >
-              Encerrar e ver relatório
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Encerrar a sessão */}
+      <FinishSessionDialog
+        open={isFinishDialogOpen}
+        onOpenChange={setIsFinishDialogOpen}
+        issues={issuesQueue}
+        rounds={votingRounds || []}
+        onConfirm={() => { onFinishSession && onFinishSession(); }}
+      />
 
       {/* FLOATING TEAM CHAT BUTTON */}
       <AnimatePresence>

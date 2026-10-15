@@ -36,6 +36,8 @@ export interface ModalProps {
   size?: ModalSize;
   /** Cor da placa do ícone e do filete: marca, alerta, perigo... */
   tone?: Tone;
+  /** Cor só da placa, quando difere do filete (ex.: placa neutra com filete de alerta). */
+  iconTone?: Tone;
   icon?: LucideIcon;
   title: React.ReactNode;
   /** Uma frase de apoio, opcional. */
@@ -65,6 +67,7 @@ export function Modal({
   onOpenChange,
   size = 'md',
   tone = 'brand',
+  iconTone,
   icon,
   title,
   description,
@@ -86,7 +89,7 @@ export function Modal({
         >
           <div aria-hidden="true" className={cn('h-0.5 shrink-0', TONES[tone].hairline)} />
           <header className="flex shrink-0 items-start gap-3.5 px-6 pb-4 pt-5">
-            {icon && <IconTile icon={icon} tone={tone} />}
+            {icon && <IconTile icon={icon} tone={iconTone ?? tone} />}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <DialogPrimitive.Title className="text-xl font-bold leading-tight tracking-tight text-foreground">
                 {title}

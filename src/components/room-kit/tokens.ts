@@ -91,6 +91,10 @@ export const OUTLINE_BUTTON = 'border border-border bg-transparent text-foregrou
 /** Foco visível padrão para controles que não são <Button>. */
 export const FOCUS_RING =
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+/** Campo de texto do kit (input, textarea, select nativo). */
+export const FIELD =
+  'w-full rounded-[10px] border border-border bg-muted/40 px-3 text-sm text-foreground placeholder:text-muted-foreground ' +
+  'transition-colors duration-[140ms] focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 /** Sombra de cartão do design (suave no claro, funda no escuro). */
 export const CARD_SHADOW = 'shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
 
