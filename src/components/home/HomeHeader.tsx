@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import type { SquadSummary } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
-import { FOCUS_RING } from './home-ui';
+import { FOCUS_RING, TINT_TEXT } from './home-ui';
 import { NotificationCenter } from './NotificationCenter';
 import { ProfileMenu } from './ProfileMenu';
 import { SquadSwitcher } from './SquadSwitcher';
@@ -27,7 +27,7 @@ export function HomeHeader({ squads, scope, isMulti, switchingTo, onPickSquad, q
       <div className="mx-auto flex max-w-[1280px] flex-wrap items-center gap-x-3.5 gap-y-2.5 px-4 py-3 sm:px-8">
         <Link href="/" className={cn('order-1 flex flex-col rounded-md leading-tight', FOCUS_RING)}>
           <span className="text-[15px] font-bold">
-            Portal Tech <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground">V&amp;D</span>
+            Portal Tech <span className={TINT_TEXT}>V&amp;D</span>
           </span>
           <span className="text-[11px] text-muted-foreground">TOTVS · Varejo e Distribuição</span>
         </Link>

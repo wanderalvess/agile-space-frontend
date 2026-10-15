@@ -10,7 +10,7 @@ import { formatRelative, initialsOf } from '@/hooks/home/derive';
 import type { HomeNotification, NotificationTab } from '@/hooks/home/types';
 import { useNotifications } from '@/hooks/home/useNotifications';
 import { useNow } from '@/hooks/home/useHomeResource';
-import { FOCUS_RING, IconTile } from './home-ui';
+import { FOCUS_RING, IconTile, TINT_TEXT } from './home-ui';
 
 const TABS: { id: NotificationTab; label: string; empty: string }[] = [
   { id: 'foryou', label: 'Para você', empty: 'Nada por aqui' },
@@ -102,7 +102,7 @@ export function NotificationCenter() {
                 >
                   {t.label}
                   {unread[t.id] > 0 && (
-                    <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/10 px-1 text-[10px] font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+                    <span className={cn('inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/10 px-1 text-[10px] font-bold', TINT_TEXT)}>
                       {unread[t.id]}
                     </span>
                   )}
@@ -114,7 +114,8 @@ export function NotificationCenter() {
               onClick={() => void markAllRead()}
               disabled={unreadTotal === 0}
               className={cn(
-                'mb-2 rounded-md px-1 text-xs font-semibold text-primary disabled:opacity-40 [.theme-totvs:not(.dark)_&]:text-foreground',
+                'mb-2 rounded-md px-1 text-xs font-semibold disabled:opacity-40',
+                TINT_TEXT,
                 FOCUS_RING,
               )}
             >

@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils';
  * fica fora de "totvs" e "leitura" (regras da marca), por seletores de classe do <html>, sem JS.
  */
 
-/** Texto sobre o tom da cor de destaque. No TOTVS claro o ciano não tem contraste: usa o texto padrão. */
-export const TINT_TEXT = 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground';
+/** Texto sobre o tom da cor de destaque. No TOTVS claro (ciano) e no Nordic escuro (verde-pinho) o primário não tem contraste: usa o texto padrão. */
+export const TINT_TEXT = 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground [.dark.theme-nordic_&]:text-foreground';
 export const TINT_BG = 'bg-primary/10';
 
 /** Ícone de linha de cada ritual. */

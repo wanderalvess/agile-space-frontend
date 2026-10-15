@@ -51,6 +51,18 @@ export function Notice({
 }: Props) {
   const external = action ? /^https?:\/\//i.test(action.href) : false;
   const actionClass = cn('shrink-0 whitespace-nowrap text-[13px] font-semibold hover:underline', TINT_TEXT, FOCUS_RING, 'rounded-sm');
+  // Em tela estreita o link desce para baixo do texto (senão espreme o título); a partir de sm fica ao lado.
+  const renderAction = (extra: string) =>
+    action &&
+    (external ? (
+      <a href={action.href} target="_blank" rel="noopener noreferrer" className={cn(actionClass, extra)}>
+        {action.label}
+      </a>
+    ) : (
+      <Link href={action.href} className={cn(actionClass, extra)}>
+        {action.label}
+      </Link>
+    ));
 
   return (
     <section role="status" className={cn('flex gap-3.5 rounded-2xl border p-3.5', compact ? 'items-center' : 'items-start', BOX[variant], className)}>
@@ -74,19 +86,11 @@ export function Notice({
             </p>
             {text && <p className="text-[13px] leading-relaxed text-muted-foreground">{text}</p>}
             {meta && <p className="text-[11px] text-muted-foreground">{meta}</p>}
+            {renderAction('mt-1 self-start sm:hidden')}
           </>
         )}
       </div>
-      {action &&
-        (external ? (
-          <a href={action.href} target="_blank" rel="noopener noreferrer" className={actionClass}>
-            {action.label}
-          </a>
-        ) : (
-          <Link href={action.href} className={actionClass}>
-            {action.label}
-          </Link>
-        ))}
+      {renderAction(compact ? '' : 'hidden sm:inline-block')}
       <button
         type="button"
         onClick={onDismiss}
