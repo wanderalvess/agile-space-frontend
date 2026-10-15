@@ -24,7 +24,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { clearJustSignedUp, markJustSignedUp } from '@/lib/team-welcome';
-import { loginContextFrom, signUpToastDescription, type LoginContext } from '@/lib/login-context';
+import { loginContextFromLocation, signUpToastDescription, type LoginContext } from '@/lib/login-context';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import packageInfo from '../../../package.json';
 
@@ -136,7 +136,7 @@ export default function LoginPage() {
   // Chegou por um link (convite, sala): o card diz para onde a pessoa volta depois de entrar.
   const [linkContext, setLinkContext] = useState<LoginContext>(null);
   useEffect(() => {
-    setLinkContext(loginContextFrom(new URLSearchParams(window.location.search).get('returnUrl')));
+    setLinkContext(loginContextFromLocation());
   }, []);
 
   // Lembra apenas o e-mail (nunca a senha) para não digitar a cada login.

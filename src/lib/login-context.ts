@@ -26,6 +26,12 @@ export function loginContextFrom(returnUrl: string | null | undefined): LoginCon
   return null;
 }
 
+/** Só leitura do link atual, para o texto do card; o redirecionamento continua só no AuthGuard. */
+export function loginContextFromLocation(): LoginContext {
+  if (typeof window === 'undefined') return null;
+  return loginContextFrom(new URLSearchParams(window.location.search).get('returnUrl'));
+}
+
 /** Texto do aviso depois do cadastro: só fala de time quando o cadastro realmente vinculou um. */
 export function signUpToastDescription(activeProjectName: string | null | undefined, context: LoginContext): string {
   if (context?.kind === 'invite') return 'Agora é só aceitar o convite.';
