@@ -29,7 +29,7 @@ export function AnnouncementBanner() {
       text={announcement.text}
       meta={announcementMeta(announcement, now)}
       action={announcement.learnMoreUrl ? { label: 'Saiba mais', href: announcement.learnMoreUrl } : undefined}
-      onDismiss={() => void dismiss(announcement.id)}
+      onDismiss={() => void dismiss(announcement)}
     />
   );
 }

@@ -10,6 +10,10 @@ import { formatRelative, initialsOf } from '@/hooks/home/derive';
 import type { HomeNotification, NotificationTab } from '@/hooks/home/types';
 import { useNotifications } from '@/hooks/home/useNotifications';
 import { useNow } from '@/hooks/home/useHomeResource';
+import { useConversationList } from '@/hooks/home/useMessages';
+import { markConversationRead } from '@/hooks/home/sources';
+import { useAuth } from '@/context/AuthContext';
+import { MessagesPanel } from './MessagesPanel';
 import { FOCUS_RING, IconTile, TINT_TEXT } from './home-ui';
 
 const TABS: { id: NotificationTab; label: string; empty: string }[] = [
@@ -64,9 +68,21 @@ function NotificationRow({ n, now }: { n: HomeNotification; now: Date }) {
 
 /** Sino do cabeçalho: contador de não lidas e central com as abas Para você, Mensagens e Avisos. */
 export function NotificationCenter() {
-  const { byTab, unread, unreadTotal, markAllRead } = useNotifications();
+  const { session } = useAuth();
+  const { byTab, unread, unreadTotal, markAllRead, tick, refresh } = useNotifications();
+  const { conversations, available } = useConversationList(!!session, tick);
   const [tab, setTab] = useState<NotificationTab>('foryou');
   const now = useNow();
+
+  // "Marcar como lidas" vale para tudo: notificações, avisos e conversas com mensagens novas.
+  const markEverythingRead = async () => {
+    await markAllRead();
+    const withNew = conversations.filter((c) => c.unreadCount > 0);
+    if (withNew.length > 0) {
+      await Promise.allSettled(withNew.map((c) => markConversationRead(c.id)));
+      refresh();
+    }
+  };
 
   return (
     <Popover>
@@ -111,7 +127,7 @@ export function NotificationCenter() {
             </TabsList>
             <button
               type="button"
-              onClick={() => void markAllRead()}
+              onClick={() => void markEverythingRead()}
               disabled={unreadTotal === 0}
               className={cn(
                 'mb-2 rounded-md px-1 text-xs font-semibold disabled:opacity-40',
@@ -124,7 +140,9 @@ export function NotificationCenter() {
           </div>
           {TABS.map((t) => (
             <TabsContent key={t.id} value={t.id} className="mt-0">
-              {byTab[t.id].length === 0 ? (
+              {t.id === 'messages' ? (
+                <MessagesPanel conversations={conversations} available={available} myId={session?.id ?? ''} tick={tick} now={now} refresh={refresh} />
+              ) : byTab[t.id].length === 0 ? (
                 <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t.empty}</p>
               ) : (
                 <ul className="flex max-h-[380px] flex-col gap-0.5 overflow-y-auto p-1.5">
