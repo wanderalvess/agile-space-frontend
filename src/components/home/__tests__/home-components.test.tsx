@@ -5,8 +5,9 @@ import { ModuleGrid } from '../ModuleGrid';
 import { MODULE_COUNT, MODULE_GROUPS } from '../modules';
 import { Notice } from '../Notice';
 import { LiveNow } from '../LiveNow';
+import { RitualArt } from '../RitualArt';
 import { SquadsOverview } from '../SquadsOverview';
-import type { SquadSummary, ToolSession } from '../../../hooks/home/types';
+import { RITUAL_KEYS, type SquadSummary, type ToolSession } from '../../../hooks/home/types';
 
 const NOW = new Date('2026-10-14T15:00:00');
 
@@ -82,6 +83,21 @@ describe('Ao vivo agora', () => {
     expect(screen.getByText('Phoenix')).toBeTruthy();
   });
 
+  it('sala aguardando o início aparece com o rótulo "Aguardando"; a que está rolando, "Ao vivo"', () => {
+    render(
+      <LiveNow
+        sessions={[session({}), session({ id: '2', title: 'Refinamento novo', status: 'planning', participants: 1, href: '/room/2' })]}
+        showSquad={false}
+        upcoming={[]}
+        now={NOW}
+      />,
+    );
+    expect(screen.getByText('Ao vivo')).toBeTruthy();
+    expect(screen.getByText('Aguardando')).toBeTruthy();
+    expect(screen.getByText('Refinamento novo')).toBeTruthy();
+    expect(screen.getAllByText('Entrar')).toHaveLength(2);
+  });
+
   it('sem sessões: estado vazio com as próximas cerimônias e o atalho', () => {
     render(
       <LiveNow
@@ -99,6 +115,21 @@ describe('Ao vivo agora', () => {
   it('sem sessões e sem cerimônias: só a mensagem', () => {
     render(<LiveNow sessions={[]} showSquad={false} upcoming={[]} now={NOW} />);
     expect(screen.queryByText(/Próximas cerimônias/)).toBeNull();
+  });
+});
+
+describe('Miniaturas dos rituais', () => {
+  it.each(RITUAL_KEYS)('%s: decorativa e contida na própria área (nada escapa do cartão)', (key) => {
+    const { container } = render(<RitualArt ritual={key} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.getAttribute('aria-hidden')).toBe('true');
+    expect(root.className).toContain('overflow-hidden');
+  });
+
+  it('retro: três colunas lado a lado, sem peças translúcidas empilhadas', () => {
+    render(<RitualArt ritual="retro" />);
+    ['Bom', 'Melhorar', 'Ação'].forEach((label) => expect(screen.getByText(label)).toBeTruthy());
+    expect(document.querySelectorAll('.absolute').length).toBe(0);
   });
 });
 

@@ -71,9 +71,9 @@ export function RitualsSection({ history, loading, showSquad, scopeLabel, now }:
                   FOCUS_RING,
                 )}
               >
-                <span aria-hidden="true" className={cn('pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full transition-transform duration-700 group-hover:scale-125', ORB)} />
+                <span aria-hidden="true" className={cn('pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full motion-safe:transition-transform motion-safe:duration-700 motion-safe:group-hover:scale-125', ORB)} />
                 <span className="relative flex items-center justify-between">
-                  <span className="transition-transform duration-300 group-hover:scale-110">
+                  <span className="motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-110">
                     <IconTile icon={TOOL_ICON[r.key]} size="lg" />
                   </span>
                   {liveNow && (
