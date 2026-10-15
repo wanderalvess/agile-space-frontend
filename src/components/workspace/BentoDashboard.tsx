@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { KanbanCardData, StickyNote } from './types';
 import { UserProfile } from '@/lib/types';
+import { deriveSessionStatus, sessionStatusChip, SESSION_CHIP_CLASSES } from '@/lib/session-status';
 
 interface BentoDashboardProps {
   tasks: KanbanCardData[];
@@ -275,6 +276,7 @@ export function BentoDashboard({
                 const roomUrl = (h.type === 'poker' ? '/room/' : h.type === 'retro' ? '/retro/' : '/health-check/') + (h.roomId || h.id);
                 const isPoker = h.type === 'poker';
                 const isRetro = h.type === 'retro';
+                const chip = sessionStatusChip(deriveSessionStatus(h.type, h));
                 
                 return (
                   <Link
@@ -306,8 +308,8 @@ export function BentoDashboard({
                       </div>
                     </div>
                     
-                    <Badge variant="outline" className="border-border/80 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 shrink-0 bg-background">
-                      {h.status === 'completed' ? 'Finalizada' : 'Ao Vivo'}
+                    <Badge variant="outline" className={cn("text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 shrink-0", SESSION_CHIP_CLASSES[chip.tone])}>
+                      {chip.label}
                     </Badge>
                   </Link>
                 );
