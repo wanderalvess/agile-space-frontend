@@ -245,7 +245,7 @@ export function initialsOf(name?: string | null): string {
 // ---------- sessões dos rituais ----------
 
 export const TOOL_LABEL: Record<RitualKey, string> = {
-  poker: 'Planning Poker',
+  poker: 'Scrum Poker',
   retro: 'Retrospectiva',
   showcase: 'Review',
   health: 'Radar de clima',

@@ -707,7 +707,7 @@ const PokerRoomComponent = ({
     <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2.5 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <StatusChip tone="danger" dot className="uppercase tracking-wide">Apresentando</StatusChip>
-        <span className="truncate text-sm font-semibold">{roomTitle || 'Planning Poker'}</span>
+        <span className="truncate text-sm font-semibold">{roomTitle || 'Scrum Poker'}</span>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         {timerVisible && timer && (
@@ -776,13 +776,13 @@ const PokerRoomComponent = ({
       {isTheaterMode ? theaterBar : (
         <>
           <RoomHeader
-            title={roomTitle || 'Planning Poker'}
+            title={roomTitle || 'Scrum Poker'}
             toolIcon={<WalletCards className="h-4 w-4" />}
             toolColorClass="text-primary"
             onOpenFeedback={onOpenFeedback}
           />
           <PokerRoomBar
-            roomTitle={roomTitle || 'Planning Poker'}
+            roomTitle={roomTitle || 'Scrum Poker'}
             roomTeam={roomTeam}
             deckLabel={deckLabel}
             phase={phase}

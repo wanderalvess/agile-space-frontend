@@ -237,8 +237,8 @@ describe('sessões dos rituais', () => {
   });
 
   it('textos de apoio e chips', () => {
-    expect(liveMeta(sessions[0])).toBe('Planning Poker · 7 pessoas');
-    expect(liveMeta(sessions[3])).toBe('Planning Poker · assíncrona');
+    expect(liveMeta(sessions[0])).toBe('Scrum Poker · 7 pessoas');
+    expect(liveMeta(sessions[3])).toBe('Scrum Poker · assíncrona');
     expect(historyMeta(sessions[2], NOW)).toBe('11/10 · 9 tarefas');
     expect(statusLabel('done', 'health')).toBe('Concluído');
     expect(statusLabel('done', 'poker')).toBe('Concluída');
