@@ -4,16 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, UserRound } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { userApi } from '@/app/users/api';
-import { AVATAR_SEEDS, normalizeRole } from '@/lib/types';
+import { normalizeRole } from '@/lib/types';
 import type { GlobalRole } from '@/lib/types';
-import { bestJiraAvatar, showAvatarPicker, writeStoredProfilePhoto } from '@/lib/profile-photo';
+import { bestJiraAvatar, writeStoredProfilePhoto } from '@/lib/profile-photo';
 import { Modal, ModalButton, RoleChip, StatusChip, TabBar, useBelowBreakpoint } from '@/components/room-kit';
 import { ChangePasswordSection } from '@/components/layout/ChangePasswordSection';
-import { AvatarPicker } from '@/components/profile/AvatarPicker';
-import { IdentityAvatar } from '@/components/profile/IdentityAvatar';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { JiraPanel, type JiraAccount } from '@/components/profile/JiraPanel';
 import { ProfileFields, type ProfileErrors } from '@/components/profile/ProfileFields';
 import { useRestoreFocus } from '@/components/profile/useRestoreFocus';
@@ -24,8 +24,8 @@ type TabId = 'profile' | 'jira' | 'security';
 const TAB_LABELS: Record<TabId, string> = { profile: 'Perfil', jira: 'Jira', security: 'Segurança' };
 
 /**
- * "Minha identidade": nome, papel, projeto/squad, foto ou avatar, conexão com o Jira e troca de senha.
- * Quem tem foto vinda do Jira vê a foto e não escolhe avatar ilustrado; sem foto, escolhe um da grade.
+ * "Minha identidade": nome, papel, projeto/squad, conexão com o Jira e troca de senha. No topo, a foto do Jira
+ * (quando há) ou um círculo com as iniciais do nome.
  */
 export function UserProfileModal() {
   const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
@@ -62,7 +62,6 @@ export function UserProfileModal() {
   const [isCustomSquad, setIsCustomSquad] = useState(false);
 
   const [email, setEmail] = useState('');
-  const [avatarSeed, setAvatarSeed] = useState(AVATAR_SEEDS[0]);
 
   // Jira PAT Token & Domain
   const [jiraDomain, setJiraDomain] = useState('');
@@ -98,7 +97,6 @@ export function UserProfileModal() {
     jiraAvatarUrls: jiraAccountDetails?.avatarUrls,
     jiraAccountId: jiraAccountDetails?.accountId,
   });
-  const pickerVisible = showAvatarPicker(photo);
   const connected = !!jiraSettingsStore?.token || !!jiraAccountDetails;
 
   // Carrega configurações de Jira salvas — fonte única é useJiraSettings (mesma
@@ -117,7 +115,6 @@ export function UserProfileModal() {
       const initialRole = userProfile.role ? normalizeRole(userProfile.role) : '';
       setRole(initialRole);
       setEmail(userProfile.email || '');
-      setAvatarSeed(userProfile.avatarSeed || AVATAR_SEEDS[0]);
 
       const activeSquadOrProject = userProfile.squadId || '';
       const foundSquad = rawSquads.find((s) => s.id === activeSquadOrProject);
@@ -221,7 +218,7 @@ export function UserProfileModal() {
     await removeJiraSettings();
     setJiraToken('');
     setJiraAccountDetails(null);
-    // Sem token, a foto sincronizada some e o seletor de avatares volta (se o time não tiver foto).
+    // Sem token, a foto sincronizada some e voltam as iniciais (se o time não tiver foto).
     writeStoredProfilePhoto(userStoreId, null);
     toast({ title: 'Token do Jira removido', description: 'Ele saiu deste navegador e da sua conta.' });
   };
@@ -238,8 +235,7 @@ export function UserProfileModal() {
     !!userProfile &&
     (name.trim() !== (userProfile.name || '') ||
       role !== (userProfile.role ? normalizeRole(userProfile.role) : '') ||
-      finalSquad !== (userProfile.squadId || '') ||
-      avatarSeed !== (userProfile.avatarSeed || AVATAR_SEEDS[0]));
+      finalSquad !== (userProfile.squadId || ''));
   // Quem ainda não tem perfil completo precisa poder concluir mesmo sem mexer em nada.
   const canSave = !saving && (!userProfile || isSquadsLoaded) && (isNewUser || dirty);
 
@@ -266,14 +262,13 @@ export function UserProfileModal() {
     setSaving(true);
     try {
       if (!userProfile || userProfile.isGuest) {
-        await setGuestProfile(name.trim(), role as GlobalRole, finalSquad, email.trim(), avatarSeed);
+        await setGuestProfile(name.trim(), role as GlobalRole, finalSquad, email.trim());
       } else {
         await updateProfile({
           name: name.trim(),
           role: role as GlobalRole,
           squadId: finalSquad,
           email: email.trim(),
-          avatarSeed,
         });
       }
 
@@ -295,7 +290,14 @@ export function UserProfileModal() {
 
   const summary = (
     <div className={compact ? 'flex items-center gap-4' : 'flex flex-col items-center gap-3 text-center'}>
-      <IdentityAvatar photo={photo} seed={avatarSeed} name={name.trim()} size={compact ? 64 : 96} onPhotoError={reportBroken} />
+      <InitialsAvatar
+        name={name.trim()}
+        email={email}
+        src={photo}
+        onPhotoError={reportBroken}
+        title={name.trim() || undefined}
+        className={cn('border border-border ring-2 ring-primary/25', compact ? 'h-16 w-16 text-xl' : 'h-24 w-24 text-3xl')}
+      />
       <div className={compact ? 'flex min-w-0 flex-col items-start gap-1.5' : 'flex min-w-0 flex-col items-center gap-2'}>
         <p className="max-w-full break-words text-base font-semibold leading-tight text-foreground">{displayName}</p>
         {role && <RoleChip category={role} label={role} className="max-w-full truncate" />}
@@ -383,7 +385,6 @@ export function UserProfileModal() {
           className={compact ? 'border-b border-border px-6 py-4' : 'flex w-60 shrink-0 flex-col gap-6 border-r border-border bg-muted/30 p-5'}
         >
           {summary}
-          {!compact && pickerVisible && <AvatarPicker value={avatarSeed} onChange={setAvatarSeed} />}
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -394,12 +395,7 @@ export function UserProfileModal() {
             aria-labelledby={`identity-tab-${tab}`}
             className="flex flex-col gap-5 p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
           >
-            {tab === 'profile' && (
-              <>
-                {profileFields}
-                {compact && pickerVisible && <AvatarPicker value={avatarSeed} onChange={setAvatarSeed} />}
-              </>
-            )}
+            {tab === 'profile' && profileFields}
             {tab === 'jira' && (
               <JiraPanel
                 connected={connected}

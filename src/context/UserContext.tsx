@@ -9,7 +9,7 @@ import { authFetch } from '@/lib/auth-client';
 
 interface UserContextType {
   userProfile: UserProfile | null;
-  setGuestProfile: (name: string, role: GlobalRole, squadId: string, email?: string, avatarSeed?: string) => void;
+  setGuestProfile: (name: string, role: GlobalRole, squadId: string, email?: string) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
   logout: () => void;
   isInitializing: boolean;
@@ -180,8 +180,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Mantido pela assinatura consumida pelo UserProfileModal e pela tela de login
   // (conclusão de onboarding pós-login); e-mail não é aceito aqui — a identidade
   // vem da sessão autenticada, não de texto livre.
-  const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, _email?: string, avatarSeed?: string) => {
-    await updateProfile({ name, role, squadId, avatarSeed });
+  const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, _email?: string) => {
+    // O avatarSeed já gravado no perfil não é exibido nem editado; segue como está (o merge em updateProfile o preserva).
+    await updateProfile({ name, role, squadId });
     if (pendingCallback.current) {
       const cb = pendingCallback.current;
       pendingCallback.current = null;

@@ -8,7 +8,6 @@ import {
   Briefcase, 
   Users, 
   Save, 
-  Sparkles,
   Camera,
   Check
 } from 'lucide-react';
@@ -23,9 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from '@/lib/utils';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
-import { ROLES, SQUADS, AVATAR_SEEDS, PREDEFINED_AVATARS, GlobalRole } from '@/lib/types';
+import { ROLES, SQUADS, GlobalRole } from '@/lib/types';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { authFetch } from '@/lib/auth-client';
 import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
 
@@ -39,7 +38,7 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
   const [role, setRole] = React.useState<GlobalRole | ''>(profile?.role || '');
   const [team, setTeam] = React.useState(profile?.squadId || profile?.team || '');
   const [email, setEmail] = React.useState(profile?.email || '');
-  const [avatarSeed, setAvatarSeed] = React.useState(profile?.avatarSeed || AVATAR_SEEDS[0]);
+  const { photo, reportBroken } = useProfilePhoto();
 
   interface SquadOption {
     id: string;
@@ -87,7 +86,6 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
       role: role as GlobalRole,
       squadId: team.trim(),
       email: email.trim(),
-      avatarSeed,
     });
   };
 
@@ -113,15 +111,18 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Dados da Conta */}
-        <Card className="col-span-1 xl:col-span-7 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
+        <Card className="col-span-1 xl:col-span-8 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
 
           <div className="space-y-6 relative z-10">
             <div className="flex items-center gap-4">
               <div className="relative shrink-0">
-                <NiceAvatar
-                  className="h-14 w-14 rounded-2xl shadow-sm border border-border/80"
-                  {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))}
+                <InitialsAvatar
+                  name={name}
+                  email={email}
+                  src={photo}
+                  onPhotoError={reportBroken}
+                  className="h-14 w-14 border border-border/80 text-lg shadow-sm"
                 />
                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-md flex items-center justify-center text-primary-foreground border-2 border-background shadow-xs">
                   <Check className="h-3 w-3" />
@@ -207,40 +208,6 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
                   )}
                 </div>
               </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Personalização de Avatar */}
-        <Card className="col-span-1 xl:col-span-5 rounded-3xl border border-border/80 bg-card text-card-foreground shadow-xs p-6 md:p-8 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-
-          <div className="space-y-6 relative z-10">
-            <div>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">Identidade & Avatar</h3>
-              <p className="text-xs font-medium text-muted-foreground mt-0.5">Selecione seu avatar para cerimônias e votações no Portal Tech V&D</p>
-            </div>
-
-            <div className="flex flex-wrap gap-2.5">
-              {AVATAR_SEEDS.map((seed) => (
-                <button
-                  key={seed}
-                  onClick={() => setAvatarSeed(seed)}
-                  className={cn(
-                    "relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 transition-all outline-none rounded-2xl border-2 p-1",
-                    avatarSeed === seed
-                      ? "border-primary bg-background shadow-md scale-105 z-10 ring-2 ring-primary/20"
-                      : "border-transparent opacity-50 hover:opacity-100 hover:scale-105 bg-muted/30"
-                  )}
-                >
-                  <NiceAvatar className="w-full h-full rounded-xl" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
-                  {avatarSeed === seed && (
-                    <div className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground p-1 rounded-full shadow-xs">
-                      <Sparkles className="h-3 w-3" />
-                    </div>
-                  )}
-                </button>
-              ))}
             </div>
           </div>
         </Card>
