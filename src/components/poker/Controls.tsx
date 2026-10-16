@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Eye, EyeOff, Keyboard, Lock, Check } from 'lucide-react';
+import { Eye, EyeOff, Lock, Check } from 'lucide-react';
 import { DECKS, DeckType, Participant } from '@/lib/types';
 import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
 import { Button } from '@/components/ui/button';
@@ -307,11 +307,10 @@ export function Controls({
     <section aria-label="Seu voto" className={cn(BAR, 'flex flex-col gap-1')}>
       <div className="mx-auto flex w-full max-w-[1500px] flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="flex min-w-0 flex-1 items-center gap-x-4">
-          <h2 className="m-0 shrink-0 text-[15px] font-semibold">Seu baralho</h2>
+          <h2 className="m-0 shrink-0 text-[15px] font-semibold" title={`Digite o valor${specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido`}>Seu baralho</h2>
           {hasVoted && activePhrase && <p className="m-0 hidden min-w-0 truncate text-[13px] italic text-muted-foreground md:block">{activePhrase}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
-          <span className="hidden items-center gap-1.5 lg:flex"><Keyboard className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Digite o valor{specialCards.includes('☕') ? ' · C café' : ''} · ? indefinido</span>
           {confidenceEnabled && onSetConfidence && (
             <fieldset title={hasVoted ? undefined : "Disponível depois do voto"} className="m-0 flex items-center gap-2 border-0 p-0 [&_button]:h-7">
               <legend className="sr-only">Confiança (opcional)</legend>

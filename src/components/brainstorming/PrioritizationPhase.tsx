@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { BrainstormingIdea, BrainstormingGroup } from '@/lib/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { Target, Zap, Rocket, Trash, MinusCircle, ChevronRight, AlertCircle, GripVertical } from 'lucide-react';
+import { Target, Zap, Compass, Trash, MinusCircle, ChevronRight, AlertCircle, GripVertical } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { getQuadrant, ideaText } from '@/lib/brainstorming-utils';
@@ -19,7 +19,7 @@ interface PrioritizationPhaseProps {
 const COLUMNS = [
   { id: 'unclassified', title: 'A Classificar', icon: Target, color: 'bg-slate-100 text-slate-500 border-slate-200', activeColor: 'ring-slate-400', badge: 'bg-slate-200 text-slate-600' },
   { id: 'quick_wins', title: 'Quick Wins', icon: Zap, color: 'bg-emerald-50 border-emerald-200 text-emerald-700', activeColor: 'ring-emerald-500', badge: 'bg-emerald-200 text-emerald-800', roi: 80, effort: 20 },
-  { id: 'strategic', title: 'Estratégico', icon: Rocket, color: 'bg-amber-50 border-amber-200 text-amber-700', activeColor: 'ring-amber-500', badge: 'bg-amber-200 text-amber-800', roi: 80, effort: 80 },
+  { id: 'strategic', title: 'Estratégico', icon: Compass, color: 'bg-amber-50 border-amber-200 text-amber-700', activeColor: 'ring-amber-500', badge: 'bg-amber-200 text-amber-800', roi: 80, effort: 80 },
   { id: 'secondary', title: 'Secundários', icon: MinusCircle, color: 'bg-indigo-50 border-indigo-200 text-indigo-700', activeColor: 'ring-indigo-500', badge: 'bg-indigo-200 text-indigo-800', roi: 20, effort: 20 },
   { id: 'discard', title: 'Descartar', icon: Trash, color: 'bg-rose-50 border-rose-200 text-rose-700', activeColor: 'ring-rose-500', badge: 'bg-rose-200 text-rose-800', roi: 20, effort: 80 }
 ];

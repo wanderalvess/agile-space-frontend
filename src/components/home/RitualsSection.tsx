@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Plus } from 'lucide-react';
+import { ArrowUpRight, CloudOff, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { historyMeta, isLive, ritualFacts, statusLabel, toolCreateHref, toolListHref } from '@/hooks/home/derive';
 import type { RitualKey, SessionStatus, ToolSession } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
-import { CARD, FOCUS_RING, IconTile, ORB, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
+import { CARD, FOCUS_RING, IconTile, ORB, RetryButton, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
 import { RitualArt } from './RitualArt';
 
 interface RitualDef {
@@ -40,20 +40,34 @@ interface Props {
   loading: boolean;
   /** A última busca falhou: sem lista, "nenhuma sessão" seria enganoso. */
   failed?: boolean;
+  /** "Tentar de novo" dos avisos de histórico indisponível (refaz a busca; `loading` fica true enquanto isso). */
+  onRetry?: () => void;
   showSquad: boolean;
   /** "Squad Phoenix" ou "Todas as squads", exibido no painel lateral. */
   scopeLabel: string;
   now: Date;
 }
 
-export function RitualsSection({ history, loading, failed = false, showSquad, scopeLabel, now }: Props) {
+export function RitualsSection({ history, loading, failed = false, onRetry, showSquad, scopeLabel, now }: Props) {
   const [openKey, setOpenKey] = useState<RitualKey | null>(null);
   const open = RITUALS.find((r) => r.key === openKey);
   const sessions = openKey ? history[openKey].slice(0, MAX_HISTORY_ITEMS) : [];
+  const anyUnavailable = failed && RITUALS.some((r) => history[r.key].length === 0);
 
   return (
     <section aria-labelledby="home-rituals" className="flex flex-col gap-3">
       <SectionHeading id="home-rituals">Rituais do time</SectionHeading>
+
+      {/* Região sempre montada: o leitor de tela anuncia o aviso quando ele aparece. */}
+      <div aria-live="polite">
+        {anyUnavailable && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed border-border bg-card px-4 py-2.5">
+            <CloudOff aria-hidden="true" className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+            <p className="min-w-0 flex-1 text-[13px] text-muted-foreground">Histórico indisponível agora.</p>
+            {onRetry && <RetryButton onRetry={onRetry} busy={loading} />}
+          </div>
+        )}
+      </div>
 
       <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {RITUALS.map((r) => {
@@ -141,16 +155,17 @@ export function RitualsSection({ history, loading, failed = false, showSquad, sc
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-5 pt-3.5">
                 <h3 className="px-1.5 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Sessões anteriores</h3>
-                {loading ? (
+                {loading && !failed ? (
                   <div aria-hidden="true" className="flex flex-col gap-1.5">
                     {[0, 1, 2].map((i) => (
                       <div key={i} className="h-[66px] rounded-xl border border-border bg-muted/30 motion-safe:animate-pulse" />
                     ))}
                   </div>
                 ) : sessions.length === 0 ? (
-                  <p role={failed ? 'alert' : undefined} className="px-1.5 py-8 text-center text-sm text-muted-foreground">
-                    {failed ? 'Não foi possível carregar o histórico agora' : 'Nenhuma sessão ainda'}
-                  </p>
+                  <div aria-live="polite" className="flex flex-col items-center gap-3 px-1.5 py-8 text-center">
+                    <p className="text-sm text-muted-foreground">{failed ? 'Não foi possível carregar o histórico agora' : 'Nenhuma sessão ainda'}</p>
+                    {failed && onRetry && <RetryButton onRetry={onRetry} busy={loading} />}
+                  </div>
                 ) : (
                   <ul className="flex flex-col gap-1.5">
                     {sessions.map((s) => (

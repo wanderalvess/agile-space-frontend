@@ -935,7 +935,7 @@ const PokerRoomComponent = ({
                       <p className="m-0 text-xs text-amber-700 dark:text-amber-300">{summary.unmappedTshirt} voto{summary.unmappedTshirt > 1 ? 's' : ''} em tamanho sem equivalência ficou fora da média.</p>
                     )}
                     {deck === 'fibonacci' && summary.totalHours !== '0' && summary.totalHours !== summary.avg && (
-                      <p className="m-0 text-xs text-muted-foreground">Ao salvar, vale a soma das médias por papel: {summary.totalHours}.</p>
+                      <p className="m-0 text-xs text-muted-foreground" title="Ao salvar, vale a soma das médias por papel">Total ao salvar: {summary.totalHours}</p>
                     )}
                     {settings?.confidenceVote && <ConfidenceSummary votes={votes} participants={participants} allowManagementToVote={settings?.allowManagementToVote} />}
                   </div>

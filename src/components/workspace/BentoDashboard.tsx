@@ -6,7 +6,7 @@ import {
   History, 
   ArrowRight, 
   CheckCircle2, 
-  Rocket, 
+  Gauge, 
   ExternalLink, 
   Trophy, 
   Pin,
@@ -97,7 +97,7 @@ export function BentoDashboard({
                 <div className="space-y-3 max-w-2xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-primary/10 dark:bg-white/10 backdrop-blur-xl border border-primary/20 dark:border-white/20 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-                      <Rocket className="h-5 w-5 text-primary" />
+                      <Gauge className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { HomeResource } from './types';
 
 interface Options {
@@ -25,7 +25,10 @@ export function useHomeResource<T>(load: () => Promise<T>, key: string, initial:
     loadRef.current = load;
   });
 
-  const [state, setState] = useState<HomeResource<T>>({ data: initial, loading: enabled, failed: false });
+  const [state, setState] = useState<Omit<HomeResource<T>, 'refetch'>>({ data: initial, loading: enabled, failed: false });
+  // "Tentar de novo": muda a tentativa e o efeito abaixo refaz a busca do zero (com o estado de carregando).
+  const [attempt, setAttempt] = useState(0);
+  const refetch = useCallback(() => setAttempt((n) => n + 1), []);
 
   useEffect(() => {
     if (!enabled) {
@@ -67,9 +70,9 @@ export function useHomeResource<T>(load: () => Promise<T>, key: string, initial:
         window.removeEventListener('focus', onVisible);
       }
     };
-  }, [key, enabled, intervalMs, refetchOnFocus]);
+  }, [key, enabled, intervalMs, refetchOnFocus, attempt]);
 
-  return state;
+  return { ...state, refetch };
 }
 
 /** "Agora" que se atualiza sozinho, para textos relativos. */

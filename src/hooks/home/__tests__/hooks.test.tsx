@@ -281,6 +281,34 @@ describe('useLiveSessions / useRitualHistory', () => {
     expect(mocks.fetchLiveSessions).toHaveBeenCalledTimes(2);
   });
 
+  it('refetch ("Tentar de novo"): volta a carregar, refaz a consulta e limpa a falha', async () => {
+    mocks.fetchLiveSessions.mockRejectedValueOnce(new Error('boom'));
+    const { result } = renderHook(() => useLiveSessions(squads));
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(mocks.fetchLiveSessions).toHaveBeenCalledTimes(1);
+
+    let release: (v: unknown[]) => void = () => {};
+    mocks.fetchLiveSessions.mockReturnValueOnce(new Promise((resolve) => { release = resolve; }));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(result.current.loading).toBe(true));
+    expect(mocks.fetchLiveSessions).toHaveBeenCalledTimes(2);
+
+    await act(async () => { release([{ id: 's1' }]); });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.failed).toBe(false);
+    expect(result.current.data).toHaveLength(1);
+  });
+
+  it('refetch do histórico refaz a consulta e, falhando de novo, continua com falha', async () => {
+    mocks.fetchRitualHistory.mockRejectedValue(new Error('x'));
+    const { result } = renderHook(() => useRitualHistory(squads));
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    act(() => result.current.refetch());
+    await waitFor(() => expect(mocks.fetchRitualHistory).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.failed).toBe(true);
+  });
+
   it('sem squads não consulta', async () => {
     const { result } = renderHook(() => useLiveSessions([]));
     await waitFor(() => expect(result.current.loading).toBe(false));

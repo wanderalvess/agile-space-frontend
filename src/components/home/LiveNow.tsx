@@ -6,7 +6,7 @@ import { formatCountdown } from '@/lib/ceremony-countdown';
 import { isLive, liveMeta, statusLabel, type UpcomingCeremony } from '@/hooks/home/derive';
 import type { ToolSession } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
-import { CARD, FOCUS_RING, IconTile, LIFT, LiveDot, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
+import { CARD, FOCUS_RING, IconTile, LIFT, LiveDot, RetryButton, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
 
 interface Props {
   sessions: ToolSession[];
@@ -18,6 +18,8 @@ interface Props {
   loading?: boolean;
   /** A última busca falhou e não há nada na tela para mostrar. */
   failed?: boolean;
+  /** "Tentar de novo" do aviso de falha (refaz a busca; enquanto isso `loading` fica true). */
+  onRetry?: () => void;
   now: Date;
 }
 
@@ -25,7 +27,7 @@ function whenLabel(c: UpcomingCeremony, now: Date): string {
   return formatCountdown(c.start, now).label;
 }
 
-export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed = false, now }: Props) {
+export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed = false, onRetry, now }: Props) {
   const hasLive = sessions.length > 0;
   // O ponto pulsante só quando há algo realmente rolando; sala que aguarda o início aparece na lista sem ele.
   const anyRunning = sessions.some(isLive);
@@ -69,6 +71,16 @@ export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed
             </li>
           ))}
         </ul>
+      ) : failed ? (
+        // Durante o "Tentar de novo" o aviso fica na tela com o botão ocupado (em vez de piscar o esqueleto).
+        <div role="status" aria-live="polite" className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>
+          <IconTile icon={CloudOff} size="lg" muted className="h-11 w-11 rounded-xl" />
+          <div className="flex min-w-[220px] flex-1 flex-col gap-0.5">
+            <p className="text-[15px] font-bold">Não foi possível carregar as sessões</p>
+            <p className="text-[13px] text-muted-foreground">A lista tenta de novo sozinha em alguns segundos.</p>
+          </div>
+          {onRetry && <RetryButton onRetry={onRetry} busy={loading} />}
+        </div>
       ) : loading ? (
         <div aria-busy="true" className={cn(CARD, 'flex items-center gap-4 px-5 py-[18px]')}>
           <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-xl bg-muted motion-safe:animate-pulse" />
@@ -77,14 +89,6 @@ export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed
             <span aria-hidden="true" className="h-3 w-40 max-w-full rounded bg-muted/70 motion-safe:animate-pulse" />
           </span>
           <span className="sr-only">Carregando as sessões</span>
-        </div>
-      ) : failed ? (
-        <div role="status" className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>
-          <IconTile icon={CloudOff} size="lg" muted className="h-11 w-11 rounded-xl" />
-          <div className="flex min-w-[220px] flex-1 flex-col gap-0.5">
-            <p className="text-[15px] font-bold">Não foi possível carregar as sessões</p>
-            <p className="text-[13px] text-muted-foreground">A lista tenta de novo sozinha em alguns segundos.</p>
-          </div>
         </div>
       ) : (
         <div className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
   GitBranch, 
-  Rocket, 
+  Flag, 
   Zap, 
   ShieldCheck, 
   Layers, 
@@ -37,7 +37,8 @@ import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
 const iconMap: Record<string, React.ComponentType<any>> = {
   ArrowLeft, 
   GitBranch, 
-  Rocket, 
+  Flag,
+  Rocket: Flag, // alias: releases já gravados com o ícone antigo
   Zap, 
   ShieldCheck, 
   Layers, 

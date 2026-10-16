@@ -8,7 +8,7 @@ import {
   CalendarRange, 
   ShieldCheck, 
   AlertTriangle, 
-  Rocket, 
+  SlidersHorizontal,
   MessageSquareHeart, 
   History, 
   Activity,
@@ -390,7 +390,7 @@ export function GovernanceConsoleCard({ onNavigate }: { onNavigate?: (tab: strin
   return (
     <Card className="border-slate-900 rounded-[3rem] bg-slate-900 overflow-hidden shadow-2xl relative group">
       <CardHeader className="p-10 border-b border-white/5 pb-6">
-        <h3 className="text-xl font-black uppercase tracking-tighter italic text-white flex items-center gap-3"><Rocket className="h-5 w-5 text-primary" /> Console Diretor</h3>
+        <h3 className="text-xl font-black uppercase tracking-tighter italic text-white flex items-center gap-3"><SlidersHorizontal className="h-5 w-5 text-primary" /> Console Diretor</h3>
         <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Ações de Operação Principal</p>
       </CardHeader>
       <CardContent className="p-10 space-y-8">
@@ -451,7 +451,7 @@ export function RecentActivityFeed() {
     switch (type) {
       case 'admin': return <ShieldCheck className="h-4 w-4" />;
       case 'security': return <AlertTriangle className="h-4 w-4" />;
-      case 'action': return <Rocket className="h-4 w-4" />;
+      case 'action': return <Activity className="h-4 w-4" />;
       default: return <History className="h-4 w-4" />;
     }
   };

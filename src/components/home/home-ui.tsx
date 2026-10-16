@@ -107,3 +107,26 @@ export function StatusChip({ tone, children }: { tone: 'live' | 'neutral' | 'don
     </span>
   );
 }
+
+/**
+ * Botão secundário "Tentar de novo" dos avisos de falha. Enquanto `busy` fica desabilitado e o ícone gira
+ * (parado com "reduzir movimento"); o texto não muda, para o leitor de tela não reanunciar.
+ */
+export function RetryButton({ onRetry, busy = false, className }: { onRetry: () => void; busy?: boolean; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onRetry}
+      disabled={busy}
+      aria-busy={busy}
+      className={cn(
+        'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border bg-transparent px-3 text-[13px] font-semibold text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-60',
+        FOCUS_RING,
+        className,
+      )}
+    >
+      <RefreshCw aria-hidden="true" className={cn('h-3.5 w-3.5', busy && 'motion-safe:animate-spin')} strokeWidth={1.5} />
+      Tentar de novo
+    </button>
+  );
+}
