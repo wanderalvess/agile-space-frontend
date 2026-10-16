@@ -131,10 +131,11 @@ export default function Home() {
           upcoming={upcoming}
           loading={live.loading}
           failed={live.failed}
+          onRetry={live.refetch}
           now={now}
         />
 
-        <RitualsSection history={history.data} loading={history.loading} failed={history.failed} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
+        <RitualsSection history={history.data} loading={history.loading} failed={history.failed} onRetry={history.refetch} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
 
         <ModuleGrid query={query} />
       </main>

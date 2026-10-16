@@ -7,7 +7,7 @@ import { formatRelative, initialsOf } from '@/hooks/home/derive';
 import { MESSAGE_MAX_LENGTH } from '@/hooks/home/contract';
 import type { Contact, Conversation } from '@/hooks/home/types';
 import { startConversationWith, useContacts, useConversationThread } from '@/hooks/home/useMessages';
-import { FOCUS_RING } from './home-ui';
+import { FOCUS_RING, RetryButton } from './home-ui';
 
 interface Props {
   conversations: Conversation[];
@@ -97,7 +97,7 @@ function Thread({ view, myId, tick, now, refresh, onBack }: { view: Extract<View
 }
 
 function Contacts({ onPick, onBack, busyId, error }: { onPick: (c: Contact) => void; onBack: () => void; busyId: string | null; error: string | null }) {
-  const { data, loading, failed } = useContacts(true);
+  const { data, loading, failed, refetch } = useContacts(true);
   return (
     <div className="flex flex-col">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
@@ -111,8 +111,11 @@ function Contacts({ onPick, onBack, busyId, error }: { onPick: (c: Contact) => v
           {error}
         </p>
       )}
-      {!loading && data.length === 0 ? (
-        <p className="px-4 py-10 text-center text-sm text-muted-foreground">{failed ? 'Não foi possível carregar' : 'Nenhum contato'}</p>
+      {(failed || !loading) && data.length === 0 ? (
+        <div aria-live="polite" className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+          <p className="text-sm text-muted-foreground">{failed ? 'Não foi possível carregar' : 'Nenhum contato'}</p>
+          {failed && <RetryButton onRetry={refetch} busy={loading} />}
+        </div>
       ) : (
         <ul className="flex max-h-[320px] flex-col gap-0.5 overflow-y-auto p-1.5">
           {data.map((c) => (

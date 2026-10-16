@@ -84,6 +84,8 @@ export interface HomeResource<T> {
   loading: boolean;
   /** true quando a última tentativa falhou; `data` fica no estado vazio. */
   failed: boolean;
+  /** Refaz a busca agora ("Tentar de novo"): volta a `loading` até chegar a resposta. */
+  refetch: () => void;
 }
 
 export interface UnreadCounts {

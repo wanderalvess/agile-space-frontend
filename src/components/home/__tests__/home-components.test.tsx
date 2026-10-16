@@ -5,6 +5,7 @@ import { ModuleGrid } from '../ModuleGrid';
 import { MODULE_COUNT, MODULE_GROUPS } from '../modules';
 import { Notice } from '../Notice';
 import { LiveNow } from '../LiveNow';
+import { RitualsSection } from '../RitualsSection';
 import { RitualArt } from '../RitualArt';
 import { SquadsOverview } from '../SquadsOverview';
 import { RITUAL_KEYS, type SquadSummary, type ToolSession } from '../../../hooks/home/types';
@@ -112,9 +113,40 @@ describe('Ao vivo agora', () => {
     expect(screen.getByRole('link', { name: 'Preparar o refinamento' }).getAttribute('href')).toBe('/room?nova=1');
   });
 
+  it('falha: aviso com "Tentar de novo"; durante a nova busca o botão fica ocupado', () => {
+    const onRetry = vi.fn();
+    const { rerender } = render(<LiveNow sessions={[]} showSquad={false} upcoming={[]} failed onRetry={onRetry} now={NOW} />);
+    expect(screen.getByText('Não foi possível carregar as sessões')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+
+    rerender(<LiveNow sessions={[]} showSquad={false} upcoming={[]} failed loading onRetry={onRetry} now={NOW} />);
+    const busy = screen.getByRole('button', { name: 'Tentar de novo' }) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    expect(busy.getAttribute('aria-busy')).toBe('true');
+  });
+
   it('sem sessões e sem cerimônias: só a mensagem', () => {
     render(<LiveNow sessions={[]} showSquad={false} upcoming={[]} now={NOW} />);
     expect(screen.queryByText(/Próximas cerimônias/)).toBeNull();
+  });
+});
+
+describe('RitualsSection: histórico indisponível', () => {
+  const empty = { poker: [], retro: [], showcase: [], health: [], brainstorming: [] };
+
+  it('mostra o aviso com "Tentar de novo" só quando a busca falhou', () => {
+    const onRetry = vi.fn();
+    const { rerender } = render(<RitualsSection history={empty} loading={false} showSquad={false} scopeLabel="Squad X" now={NOW} onRetry={onRetry} />);
+    expect(screen.queryByText('Histórico indisponível agora.')).toBeNull();
+
+    rerender(<RitualsSection history={empty} loading={false} failed showSquad={false} scopeLabel="Squad X" now={NOW} onRetry={onRetry} />);
+    expect(screen.getByText('Histórico indisponível agora.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+
+    rerender(<RitualsSection history={empty} loading failed showSquad={false} scopeLabel="Squad X" now={NOW} onRetry={onRetry} />);
+    expect((screen.getByRole('button', { name: 'Tentar de novo' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
