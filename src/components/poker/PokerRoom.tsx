@@ -277,7 +277,7 @@ const PokerRoomComponent = ({
     if (!canParticipantVote(currentUser, settings?.allowManagementToVote)) return;
     if (notifiedTurnRef.current === activeIssueId) return;
     notifiedTurnRef.current = activeIssueId;
-    toast({ title: '🗳️ É a sua vez de votar!', description: 'Uma nova rodada foi aberta.' });
+    toast({ title: 'É a sua vez de votar!', description: 'Uma nova rodada foi aberta.' });
     if (isSoundEnabled) {
       try {
         const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -287,7 +287,7 @@ const PokerRoomComponent = ({
     if (typeof document !== 'undefined' && document.hidden && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       const issueTitle = issuesQueue.find(i => i.id === activeIssueId)?.title;
       try {
-        const notification = new Notification('🗳️ É a sua vez de votar!', {
+        const notification = new Notification('É a sua vez de votar!', {
           body: issueTitle ? `Nova rodada aberta: ${issueTitle}` : 'Uma nova rodada foi aberta no Scrum Poker.',
           tag: 'poker-turn-notification',
         });

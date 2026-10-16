@@ -1778,7 +1778,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
 
       toast({
-        title: "👑 Controle Assumido",
+        title: "Controle assumido",
         description: `${userProfile?.name} agora é o organizador da sala.`,
       });
 

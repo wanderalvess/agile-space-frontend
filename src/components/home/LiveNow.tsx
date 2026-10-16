@@ -47,8 +47,8 @@ export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed
               >
                 <IconTile icon={TOOL_ICON[s.tool]} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-bold">{s.title}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="min-w-0 truncate text-sm font-bold max-sm:basis-full">{s.title}</span>
                     {showSquad && (
                       <span className="inline-flex h-[18px] shrink-0 items-center rounded-[5px] border border-border px-1.5 text-[10px] font-bold text-muted-foreground">
                         {s.squadName}
