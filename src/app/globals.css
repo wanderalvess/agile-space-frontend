@@ -38,6 +38,25 @@
     --sidebar-accent-foreground: var(--foreground);
     --sidebar-border: var(--border);
     --sidebar-ring: var(--ring);
+
+    /* Avatar com iniciais: 8 pares de tom suave + texto (contraste de 6:1 a 11:1), iguais em todos os temas;
+       o modo escuro troca o fundo claro por um escuro. Usados pelas classes .avatar-tone-N logo abaixo. */
+    --avatar-0-bg: 24 70% 88%;
+    --avatar-0-fg: 24 80% 20%;
+    --avatar-1-bg: 214 70% 88%;
+    --avatar-1-fg: 214 80% 20%;
+    --avatar-2-bg: 262 70% 88%;
+    --avatar-2-fg: 262 80% 20%;
+    --avatar-3-bg: 142 70% 88%;
+    --avatar-3-fg: 142 80% 20%;
+    --avatar-4-bg: 45 70% 88%;
+    --avatar-4-fg: 45 80% 20%;
+    --avatar-5-bg: 330 70% 88%;
+    --avatar-5-fg: 330 80% 20%;
+    --avatar-6-bg: 188 70% 88%;
+    --avatar-6-fg: 188 80% 20%;
+    --avatar-7-bg: 215 16% 88%;
+    --avatar-7-fg: 215 30% 20%;
   }
 
   .dark {
@@ -60,6 +79,58 @@
     --border: 217.2 32.6% 22%; /* Slate 750 (Highly Visible Border) */
     --input: 217.2 32.6% 22%; /* Slate 750 */
     --ring: 25 100% 50%;
+
+    --avatar-0-bg: 24 49% 26%;
+    --avatar-0-fg: 24 60% 90%;
+    --avatar-1-bg: 214 49% 26%;
+    --avatar-1-fg: 214 60% 90%;
+    --avatar-2-bg: 262 49% 26%;
+    --avatar-2-fg: 262 60% 90%;
+    --avatar-3-bg: 142 49% 26%;
+    --avatar-3-fg: 142 60% 90%;
+    --avatar-4-bg: 45 49% 26%;
+    --avatar-4-fg: 45 60% 90%;
+    --avatar-5-bg: 330 49% 26%;
+    --avatar-5-fg: 330 60% 90%;
+    --avatar-6-bg: 188 49% 26%;
+    --avatar-6-fg: 188 60% 90%;
+    --avatar-7-bg: 215 11% 26%;
+    --avatar-7-fg: 215 60% 90%;
+  }
+}
+
+@layer components {
+  .avatar-tone-0 {
+    background-color: hsl(var(--avatar-0-bg));
+    color: hsl(var(--avatar-0-fg));
+  }
+  .avatar-tone-1 {
+    background-color: hsl(var(--avatar-1-bg));
+    color: hsl(var(--avatar-1-fg));
+  }
+  .avatar-tone-2 {
+    background-color: hsl(var(--avatar-2-bg));
+    color: hsl(var(--avatar-2-fg));
+  }
+  .avatar-tone-3 {
+    background-color: hsl(var(--avatar-3-bg));
+    color: hsl(var(--avatar-3-fg));
+  }
+  .avatar-tone-4 {
+    background-color: hsl(var(--avatar-4-bg));
+    color: hsl(var(--avatar-4-fg));
+  }
+  .avatar-tone-5 {
+    background-color: hsl(var(--avatar-5-bg));
+    color: hsl(var(--avatar-5-fg));
+  }
+  .avatar-tone-6 {
+    background-color: hsl(var(--avatar-6-bg));
+    color: hsl(var(--avatar-6-fg));
+  }
+  .avatar-tone-7 {
+    background-color: hsl(var(--avatar-7-bg));
+    color: hsl(var(--avatar-7-fg));
   }
 }
 
