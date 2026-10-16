@@ -14,17 +14,37 @@ export interface PhaseStep {
  * atual aparecem concluídas; a atual leva o número em destaque. Cada sala passa
  * as suas fases — o componente só mostra em que etapa se está.
  */
+/**
+ * Classes literais (o Tailwind só gera o que lê por inteiro) para recolher o texto das fases que não são a
+ * atual abaixo de um breakpoint: sobra só o número/check, e o nome continua para leitor de tela.
+ */
+const COLLAPSE_LABEL = {
+  lg: 'max-lg:sr-only',
+  xl: 'max-xl:sr-only',
+  xxl: 'max-xxl:sr-only',
+  '3xl': 'max-3xl:sr-only',
+} as const;
+const COLLAPSE_PAD = {
+  lg: 'max-lg:gap-0 max-lg:px-2',
+  xl: 'max-xl:gap-0 max-xl:px-2',
+  xxl: 'max-xxl:gap-0 max-xxl:px-2',
+  '3xl': 'max-3xl:gap-0 max-3xl:px-2',
+} as const;
+
 export function PhaseStepper({
   steps,
   current,
   label = 'Fases',
   className,
+  collapseBelow,
 }: {
   steps: readonly PhaseStep[];
   /** id da fase atual. */
   current: string;
   label?: string;
   className?: string;
+  /** Abaixo deste breakpoint só a fase atual mostra o nome (cabeçalho apertado). */
+  collapseBelow?: keyof typeof COLLAPSE_LABEL;
 }) {
   const currentIndex = Math.max(0, steps.findIndex((s) => s.id === current));
   return (
@@ -39,11 +59,13 @@ export function PhaseStepper({
           <li
             key={step.id}
             aria-current={active ? 'step' : undefined}
+            title={collapseBelow ? step.label : undefined}
             className={cn(
               'flex items-center gap-2 whitespace-nowrap rounded-[7px] px-3 py-1.5 text-[13px] transition-[background-color,box-shadow,color] duration-base',
               active && 'bg-card font-semibold text-foreground shadow-[0_0_0_1px_hsl(var(--border))] dark:shadow-[0_0_0_1px_hsl(var(--border)),0_0_18px_hsl(var(--primary)/0.25)] [.theme-leitura_&]:shadow-[0_0_0_1px_hsl(var(--border))]',
               done && 'text-emerald-700 dark:text-emerald-300',
-              !done && !active && 'text-muted-foreground'
+              !done && !active && 'text-muted-foreground',
+              collapseBelow && !active && COLLAPSE_PAD[collapseBelow]
             )}
           >
             {done ? (
@@ -59,7 +81,7 @@ export function PhaseStepper({
                 {i + 1}
               </span>
             )}
-            <span>{step.label}</span>
+            <span className={cn(collapseBelow && !active && COLLAPSE_LABEL[collapseBelow])}>{step.label}</span>
             {done && <span className="sr-only"> (concluída)</span>}
           </li>
         );

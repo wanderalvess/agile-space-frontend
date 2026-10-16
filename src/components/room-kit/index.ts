@@ -21,3 +21,5 @@ export * from './VoteKit';
 export * from './TabBar';
 export * from './RoomQr';
 export * from './SelectField';
+export * from './RoomTopBar';
+export * from './room-top-bar-utils';

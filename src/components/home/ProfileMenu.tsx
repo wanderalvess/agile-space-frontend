@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { LogOut, Settings, ShieldCheck, User } from 'lucide-react';
+import { BookOpen, LayoutGrid, LogOut, Settings, ShieldCheck, User } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import { useUserContext } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { FOCUS_RING } from './home-ui';
 
-/** Menu da conta: Meu perfil, Configurações, Administração (só admin) e Sair. */
+/** Menu da conta: Meu perfil, Meu espaço, Manual de uso, Configurações, Administração (só admin) e Sair. */
 export function ProfileMenu() {
   const { userProfile, logout, setIsEditProfileOpen, requestIdentity } = useUserContext();
   const { session } = useAuth();
@@ -58,6 +58,18 @@ export function ProfileMenu() {
         <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
           <User className="h-4 w-4" strokeWidth={1.5} />
           Meu perfil
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
+          <Link href="/workspace">
+            <LayoutGrid className="h-4 w-4" strokeWidth={1.5} />
+            Meu espaço
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
+          <Link href="/manual">
+            <BookOpen className="h-4 w-4" strokeWidth={1.5} />
+            Manual de uso
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
           <Link href="/configuracoes">
