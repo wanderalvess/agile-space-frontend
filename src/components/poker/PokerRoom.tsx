@@ -10,7 +10,7 @@ import { ParticipantList } from '@/components/poker/ParticipantList';
 import { Controls } from '@/components/poker/Controls';
 import { RoundCenter, RoleBreakdown, CopyEstimateCard } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TopicDisplay } from './TopicDisplay';
 import { RefinementNotes } from './RefinementNotes';
@@ -19,7 +19,6 @@ import { FacilitatorPanel } from './FacilitatorPanel';
 import { pokerApi } from '../../app/room/api';
 import { TopicQueue } from './TopicQueue';
 import { cn } from '@/lib/utils';
-import { RoomHeader } from '@/components/layout/RoomHeader';
 import { PokerGuide } from './PokerGuide';
 import { PokerChat } from './PokerChat';
 import { TeamChat } from './team-chat/TeamChat';
@@ -671,6 +670,9 @@ const PokerRoomComponent = ({
   const deckLabel = WELCOME_DECK_LABELS[deck] || deck;
   const showRevealButton = !!activeIssueId && !isSessionFinished && !votesRevealed;
   const timerVisible = !!timer && (timer.initialDuration > 0 || timer.status !== 'stopped');
+  const sessionStatus = isSessionFinished ? 'done' : sessionStartedAt ? 'live' : 'waiting';
+  const presencePeople = participants.map(p => ({ id: p.id, name: p.nickname, online: onlineIds.has(p.id) }));
+  const pendingQueueCount = issuesQueue.filter(i => i.status !== 'completed' && !i.skipped && !i.cancelled && !i.parked).length;
 
   const taskMenu = isCurrentUserFacilitator && activeIssueId && !isSessionFinished ? (
     <TaskActionsMenu
@@ -775,17 +777,15 @@ const PokerRoomComponent = ({
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
       {isTheaterMode ? theaterBar : (
         <>
-          <RoomHeader
-            title={roomTitle || 'Scrum Poker'}
-            toolIcon={<WalletCards className="h-4 w-4" />}
-            toolColorClass="text-primary"
-            onOpenFeedback={onOpenFeedback}
-          />
           <PokerRoomBar
             roomTitle={roomTitle || 'Scrum Poker'}
             roomTeam={roomTeam}
             deckLabel={deckLabel}
             phase={phase}
+            status={sessionStatus}
+            people={presencePeople}
+            queueCount={pendingQueueCount}
+            onOpenFeedback={onOpenFeedback}
             isFacilitator={isCurrentUserFacilitator}
             timer={timer}
             serverTimeOffset={serverTimeOffset}
