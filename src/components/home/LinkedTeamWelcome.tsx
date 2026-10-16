@@ -33,9 +33,9 @@ export function LinkedTeamWelcome({ showPainelLink = true }: { showPainelLink?: 
     <Notice
       compact
       icon={Users}
-      title={`Você já está no time ${teamName}.`}
+      title={`Você já está na squad ${teamName}.`}
       text="Vinculamos a sua conta pelo e-mail."
-      action={showPainelLink ? { label: 'Ver painel do time', href: '/painel' } : undefined}
+      action={showPainelLink ? { label: 'Ver painel da squad', href: '/painel' } : undefined}
       onDismiss={dismiss}
     />
   );

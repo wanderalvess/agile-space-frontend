@@ -15,6 +15,7 @@ import {
   type AuthResponse,
 } from '@/lib/auth-client';
 import { clearJustSignedUp } from '@/lib/team-welcome';
+import { ApiError } from '@/lib/api-error';
 
 /** Tempo máximo esperando o backend responder na abertura do app; passado isso o spinner não pode ficar eterno. */
 const HYDRATE_TIMEOUT_MS = 15000;
@@ -292,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      throw new Error(await parseErrorMessage(res, 'Não foi possível criar o projeto'));
+      throw new ApiError(await parseErrorMessage(res, 'Não foi possível criar o projeto'), res.status);
     }
     const data: AuthResponse = await res.json();
     setSession(data);
@@ -305,7 +306,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { method: 'POST' }
     );
     if (!res.ok) {
-      throw new Error(await parseErrorMessage(res, 'Não foi possível entrar no projeto'));
+      throw new ApiError(await parseErrorMessage(res, 'Não foi possível entrar no projeto'), res.status);
     }
     const data: AuthResponse = await res.json();
     // Entrou por escolha própria: o aviso "encontramos o seu e-mail" só vale pro vínculo automático do cadastro.
@@ -324,7 +325,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: 'POST',
     });
     if (!res.ok) {
-      throw new Error(await parseErrorMessage(res, 'Não foi possível concluir o vínculo'));
+      throw new ApiError(await parseErrorMessage(res, 'Não foi possível concluir o vínculo'), res.status);
     }
     const data: AuthResponse = await res.json();
     clearJustSignedUp();

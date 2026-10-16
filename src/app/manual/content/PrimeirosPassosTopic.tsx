@@ -21,7 +21,7 @@ export function PrimeirosPassosTopic() {
             { title: 'É você?', text: 'Se o seu nome bate com alguém da lista de uma equipe (e essa pessoa não é liderança), o sistema pergunta num clique. Nada muda até você confirmar.' },
             { title: 'Como você usa o Portal?', text: 'Escolha entre “Sou Agile Master ou People Lead” (importa equipes do Jira ou cria uma) e “Participo de uma equipe” (procura uma equipe já cadastrada).' },
             { title: 'Participar', text: 'Busque pela chave do projeto, nome da equipe ou de uma pessoa. Na lista da equipe, marque “Sou eu” na sua linha. Se não estiver nela, escolha um papel: constrói (Developer), desenha (Designer) ou acompanha (Stakeholder/Observador).' },
-            { title: 'Link de convite', text: 'Quem recebeu um convite usa “Tenho um link de convite” no rodapé da tela. Quem só quer conhecer o Portal pode seguir em “Só quero dar uma olhada”.' },
+            { title: 'Link de convite', text: 'Quem recebeu um convite usa “Tenho um link de convite” no rodapé da tela.' },
           ],
         },
         {
