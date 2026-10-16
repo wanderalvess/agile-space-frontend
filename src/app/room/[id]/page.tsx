@@ -15,7 +15,7 @@ import { useUserContext } from '@/context/UserContext';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline, roundEstimate, resolveRoundingMode, shouldAutoReveal } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
@@ -868,21 +868,18 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     }
   }, [participants, votes, roomData, isCurrentUserFacilitator, roomId, notifyError]);
 
-  // Auto-revelar
+  // Auto-revelar (opt-in do facilitador: sem a opção ligada as cartas só viram no clique em "Revelar").
   useEffect(() => {
-    if (!roomData?.settings?.autoReveal || !isCurrentUserFacilitator) return;
-    if (roomData.votesRevealed || !roomData.activeIssueId) return;
-    if (!participants || !votes || votes.length === 0) return;
-
-    // Quem está offline (aba fechada) não trava a revelação, e voto de outra tarefa não conta.
-    const onlineIds = new Set(onlineParticipants.map(p => p.id));
-    const eligible = participants.filter(p => canParticipantVote(p, roomData.settings?.allowManagementToVote) && onlineIds.has(p.id));
-    if (eligible.length === 0) return;
-
-    const votedIds = new Set(
-      votes.filter(v => !v.issueId || v.issueId === roomData.activeIssueId).map(v => v.participantId)
-    );
-    if (eligible.every(p => votedIds.has(p.id))) {
+    if (!roomData || !participants || !votes) return;
+    if (shouldAutoReveal({
+      settings: roomData.settings,
+      isFacilitator: isCurrentUserFacilitator,
+      votesRevealed: roomData.votesRevealed,
+      activeIssueId: roomData.activeIssueId,
+      participants,
+      onlineIds: new Set(onlineParticipants.map(p => p.id)),
+      votes,
+    })) {
       handleReveal();
     }
   }, [roomData, participants, onlineParticipants, votes, isCurrentUserFacilitator, handleReveal]);
