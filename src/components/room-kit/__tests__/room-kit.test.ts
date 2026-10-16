@@ -118,3 +118,13 @@ describe('shortSeatName', () => {
     expect(shortSeatName('Maximiliano-Constantino')).toBe('Maximiliano-Constantino');
   });
 });
+
+describe('carta do assento', () => {
+  it('a animação de pouso da carta não gira (a carta termina e passa reta)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const css = readFileSync(`${process.cwd()}/src/app/globals.css`, 'utf-8');
+    const block = /@keyframes room-land \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
+    expect(block).toContain('room-land');
+    expect(block).not.toMatch(/rotate/);
+  });
+});

@@ -1000,8 +1000,8 @@ html, body {
 }
 
 @keyframes room-land {
-  0% { transform: translateY(-36px) rotate(-14deg) scale(1.12); opacity: 0; }
-  70% { transform: translateY(3px) rotate(2deg) scale(1); opacity: 1; }
+  0% { transform: translateY(-36px) scale(1.12); opacity: 0; }
+  70% { transform: translateY(3px) scale(1); opacity: 1; }
   100% { transform: none; opacity: 1; }
 }
 @keyframes room-flip {
