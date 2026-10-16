@@ -19,7 +19,7 @@ const HEADING: Record<LoginMode, string> = {
 const SUBTITLE: Record<LoginMode, string> = {
   login: 'Insira suas credenciais corporativas para continuar.',
   register: 'Use seu e-mail corporativo para vincular seus projetos.',
-  forgot: 'O pedido vai para aprovação do seu Admin, Agile Master ou Tribe Lead.',
+  forgot: 'O pedido vai para aprovação de um Admin.',
 };
 
 const ERROR_TITLE: Record<LoginMode, string> = {

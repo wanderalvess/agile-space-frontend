@@ -18,20 +18,63 @@ export interface Invite {
   squadName?: string | null;
 }
 
-/** Mensagem em português para mostrar à pessoa; o corpo cru do Spring ({"status":400,...}) não serve para isso. */
-export async function inviteErrorMessage(res: Response): Promise<string> {
+/** Código que o backend deve mandar (403) quando o convite é de um e-mail e a pessoa entrou com outro. */
+export const INVITE_OTHER_EMAIL = 'INVITE_OTHER_EMAIL';
+
+/**
+ * Erro das chamadas de convite: além da mensagem em português, leva o status HTTP e, se o servidor mandar,
+ * o `code` e o e-mail mascarado do convite (`invitedEmailMasked`). A tela decide o desenho por eles.
+ */
+export class InviteApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly invitedEmailMasked?: string;
+
+  constructor(message: string, status: number, code?: string, invitedEmailMasked?: string) {
+    super(message);
+    this.name = 'InviteApiError';
+    this.status = status;
+    this.code = code;
+    this.invitedEmailMasked = invitedEmailMasked;
+  }
+}
+
+/**
+ * "Esse convite é para outro e-mail". Hoje o `GET /invites/{token}` responde 404 genérico a quem não é o
+ * destinatário, então isto nunca é verdade; liga sozinho quando o backend passar a responder
+ * `403 { code: 'INVITE_OTHER_EMAIL', invitedEmailMasked: 'c••••@totvs.com.br' }`.
+ */
+export function isOtherEmailError(err: unknown): err is InviteApiError {
+  return err instanceof InviteApiError && err.status === 403 && err.code === INVITE_OTHER_EMAIL;
+}
+
+function friendlyInviteMessage(status: number, serverMessage: string): string {
+  if (serverMessage && !/^(Bad Request|Forbidden|Not Found|Unauthorized)$/i.test(serverMessage)) return serverMessage;
+  if (status === 404) return 'Convite não encontrado. Confira o link com quem te convidou.';
+  if (status === 403) return 'Você não tem permissão para esta ação de convite.';
+  if (status === 401) return 'Sua sessão expirou. Entre novamente.';
+  return `Não foi possível concluir (erro ${status}).`;
+}
+
+/** Erro de uma resposta HTTP de convite, já com a mensagem para mostrar à pessoa. */
+export async function inviteErrorFrom(res: Response): Promise<InviteApiError> {
   let serverMessage = '';
+  let code: string | undefined;
+  let masked: string | undefined;
   try {
     const body = await res.json();
     serverMessage = typeof body?.message === 'string' ? body.message : typeof body?.error === 'string' ? body.error : '';
+    if (typeof body?.code === 'string') code = body.code;
+    if (typeof body?.invitedEmailMasked === 'string') masked = body.invitedEmailMasked;
   } catch {
     /* corpo vazio ou não-JSON */
   }
-  if (serverMessage && !/^(Bad Request|Forbidden|Not Found|Unauthorized)$/i.test(serverMessage)) return serverMessage;
-  if (res.status === 404) return 'Convite não encontrado. Confira o link com quem te convidou.';
-  if (res.status === 403) return 'Você não tem permissão para esta ação de convite.';
-  if (res.status === 401) return 'Sua sessão expirou. Entre novamente.';
-  return `Não foi possível concluir (erro ${res.status}).`;
+  return new InviteApiError(friendlyInviteMessage(res.status, serverMessage), res.status, code, masked);
+}
+
+/** Mensagem em português para mostrar à pessoa; o corpo cru do Spring ({"status":400,...}) não serve para isso. */
+export async function inviteErrorMessage(res: Response): Promise<string> {
+  return (await inviteErrorFrom(res)).message;
 }
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -39,7 +82,7 @@ async function req<T>(url: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  if (!res.ok) throw new Error(await inviteErrorMessage(res));
+  if (!res.ok) throw await inviteErrorFrom(res);
   if (res.status === 204) return undefined as T;
   return res.json();
 }

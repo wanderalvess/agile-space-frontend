@@ -164,7 +164,7 @@ export function ForgotForm({ flow }: { flow: LoginFlow }) {
         </span>
         <span className="text-[15px] font-bold text-foreground">Solicitação registrada</span>
         <span className="text-[13px] leading-relaxed text-muted-foreground">
-          Aguarde a aprovação do seu Admin, Agile Master ou Tribe Lead.
+          Aguarde a aprovação de um Admin.
         </span>
         <SecondaryButton onClick={flow.backToLogin}>Voltar para o login</SecondaryButton>
       </div>
