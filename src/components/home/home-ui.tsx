@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * Peças visuais da Home. Só tokens semânticos (background, card, border, primary...), para o desenho valer
- * nos 7 temas em claro e escuro. Efeitos de brilho ficam fora do tema "leitura" e o gradiente de texto
- * fica fora de "totvs" e "leitura" (regras da marca), por seletores de classe do <html>, sem JS.
+ * nos 7 temas em claro e escuro. Efeitos de brilho ficam fora do tema "leitura" (seletor de classe do <html>, sem JS).
+ * Texto nunca leva degradê (regra da marca TOTVS).
  */
 
 /** Texto sobre o tom da cor de destaque. No TOTVS claro (ciano) o primário não tem contraste: usa o texto padrão. */
@@ -28,11 +28,6 @@ export const FOCUS_RING =
 
 /** Elevação sutil de hover; desligada com "reduzir movimento". */
 export const LIFT = 'motion-safe:transition-transform motion-safe:duration-200 motion-safe:hover:-translate-y-0.5';
-
-/** Título com gradiente discreto; sólido em totvs e leitura (regra da marca). */
-export const TITLE_GRADIENT =
-  'bg-gradient-to-r from-foreground from-0% via-foreground via-55% to-primary to-100% bg-clip-text text-transparent ' +
-  '[.theme-totvs_&]:to-foreground [.theme-leitura_&]:to-foreground';
 
 /** Halo atrás do topo da página. Ausente no tema "leitura". */
 export const HALO =
@@ -102,7 +97,7 @@ export function StatusChip({ tone, children }: { tone: 'live' | 'neutral' | 'don
     <span
       className={cn(
         'inline-flex h-[22px] shrink-0 items-center rounded-full px-2 text-[11px] font-bold uppercase tracking-wide',
-        tone === 'live' && 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+        tone === 'live' && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
         tone === 'done' && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
         tone === 'brand' && cn(TINT_BG, TINT_TEXT),
         tone === 'neutral' && 'border border-border bg-muted/40 text-muted-foreground',

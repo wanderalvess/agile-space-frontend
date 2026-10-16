@@ -183,8 +183,7 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
                   {participants.length > 5 && <span className="-ml-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-card bg-muted text-[11px] font-bold text-muted-foreground">+{participants.length - 5}</span>}
                 </div>
                 <span className="text-[13px] leading-snug text-muted-foreground">
-                  {participants.length > 1 ? `${participants.length} já entraram · ${onlineCount} online` : 'Ninguém entrou ainda.'}
-                  <br />Aponte a câmera ou copie o link.
+                  {participants.length > 1 ? `${participants.length} na sala · ${onlineCount} online` : 'Só você por aqui'}
                 </span>
               </div>
             </div>
@@ -205,7 +204,6 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
               <StepBadge n={2} state="active" />
               <h3 className="text-[17px] font-semibold">Monte a fila</h3>
             </div>
-            <p className="m-0 text-[13px] leading-normal text-muted-foreground">Importe do Jira ou adicione tarefas à mão. A primeira já cai na mesa.</p>
             <div className="mt-auto flex flex-col gap-2">
               <button type="button" onClick={onImportJira} className={cn(BTN, 'bg-primary font-semibold text-primary-foreground room-glow hover:bg-primary/90', FOCUS_RING)}>
                 <CloudDownload className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira <kbd className={KEY}>I</kbd>
@@ -223,9 +221,8 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
               <StepBadge n={3} state="locked" />
               <h3 className="text-[17px] font-semibold text-muted-foreground">Comece a votar</h3>
             </div>
-            <p className="m-0 text-[13px] leading-normal text-muted-foreground">Com o time reunido, inicie. O timer e o tempo de cada tarefa contam a partir daí, e o baralho abre para todos.</p>
             <span className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Play className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Libera quando houver uma tarefa na fila
+              <Play className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Libera com a primeira tarefa
             </span>
           </div>
         </li>
@@ -257,7 +254,6 @@ export function RoomWaiting({ deck, deckLabel, roomTeam, participants, onlineIds
           <StatusChip className="h-[26px] gap-1.5 px-2.5 text-xs"><WalletCards className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {deckLabel}</StatusChip>
           {roomTeam && <span className="inline-flex h-[26px] items-center rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">{roomTeam}</span>}
         </div>
-        <p className="m-0 max-w-sm text-sm leading-relaxed text-muted-foreground">Aguardando o início. Quando a primeira tarefa entrar na mesa, suas cartas aparecem aqui.</p>
       </div>
 
       <div className="mx-auto mt-6 flex max-w-md flex-col items-center gap-4 rounded-[14px] border border-border bg-card p-4">

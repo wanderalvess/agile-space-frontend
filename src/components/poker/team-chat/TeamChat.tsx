@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { isParticipantOnline } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
-import { pokerApi } from '@/app/room/api';
 import {
   GENERAL_CHANNEL, categoryLabel, dmChannelId, dmPeerId, participantCategory, roleChannelId,
   type ChatMessage, type ChatMessageKind, type ChatParticipant,

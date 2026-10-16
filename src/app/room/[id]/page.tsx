@@ -19,7 +19,6 @@ import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, reso
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
-import { workItemsApi } from '@/app/work-items-api';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
 
@@ -1779,7 +1778,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       }
 
       toast({
-        title: "👑 Controle Assumido",
+        title: "Controle assumido",
         description: `${userProfile?.name} agora é o organizador da sala.`,
       });
 
@@ -2031,13 +2030,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onResumeTimer={stableResumeTimer}
         onResetTimer={stableResetTimer}
         serverTimeOffset={clockOffset}
-        onLeaveRoom={stableLeaveRoom}
         isSoundEnabled={isSoundEnabled}
         onSetIsSoundEnabled={stableSetIsSoundEnabled}
         roomTitle={roomData.title}
         roomTeam={roomData.team}
         issuesQueue={roomData.issuesQueue || []}
-        creatorId={roomData.creatorId}
         activeIssueId={roomData.activeIssueId}
         referenceBaseline={roomData.referenceBaseline || null}
         onSetReference={stableSetReference}

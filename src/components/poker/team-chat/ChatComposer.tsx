@@ -54,7 +54,7 @@ export function ChatComposer({
           onClick={() => { setIsCodeMode(v => !v); textareaRef.current?.focus(); }}
           className={cn(
             'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            isCodeMode ? 'border-primary/60 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:bg-accent'
+            isCodeMode ? 'border-primary/60 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent'
           )}
           title={isCodeMode ? 'Sair do modo código' : 'Enviar trecho de código'}
           aria-label={isCodeMode ? 'Sair do modo código' : 'Enviar trecho de código'}

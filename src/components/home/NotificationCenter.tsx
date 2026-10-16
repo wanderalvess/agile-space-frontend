@@ -91,7 +91,7 @@ export function NotificationCenter() {
           type="button"
           aria-label={unreadTotal > 0 ? `Notificações, ${unreadTotal} não lidas` : 'Notificações'}
           className={cn(
-            'relative flex h-10 w-10 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-muted/60 data-[state=open]:border-primary',
+            'relative flex h-10 w-10 items-center justify-center rounded-[10px] border border-border max-sm:h-11 max-sm:w-11 text-foreground transition-colors hover:bg-muted/60 data-[state=open]:border-primary',
             FOCUS_RING,
           )}
         >

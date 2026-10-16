@@ -40,6 +40,7 @@ function SessionListCard({
   icon,
   title,
   loading,
+  failed = false,
   rooms,
   totalCount,
   emptyLabel,
@@ -50,6 +51,8 @@ function SessionListCard({
   icon: React.ReactNode;
   title: string;
   loading: boolean;
+  /** A busca das salas falhou: não dá para afirmar que a lista está vazia. */
+  failed?: boolean;
   rooms: any[];
   /** Total sem filtro: distingue "nada aqui" de "nada neste filtro". */
   totalCount: number;
@@ -68,10 +71,15 @@ function SessionListCard({
 
       <ul className="m-0 flex min-h-0 flex-1 list-none flex-col gap-2.5 overflow-y-auto p-0 pr-1">
         {loading ? (
-          <li aria-hidden="true" className="flex animate-pulse flex-col gap-2 py-1">
+          <li aria-hidden="true" className="flex flex-col gap-2 py-1 motion-safe:animate-pulse">
             <span className="h-14 rounded-xl bg-muted" />
             <span className="h-14 rounded-xl bg-muted" />
             <span className="h-14 rounded-xl bg-muted" />
+          </li>
+        ) : failed && rooms.length === 0 ? (
+          <li role="alert" className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
+            <IconTile icon={WalletCards} tone="neutral" />
+            <p className="text-sm text-muted-foreground">Não foi possível carregar as sessões. Recarregue a página para tentar de novo.</p>
           </li>
         ) : rooms.length === 0 ? (
           <li className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
@@ -135,6 +143,7 @@ export default function PokerHubPage() {
 
   const [rooms, setRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
+  const [roomsFailed, setRoomsFailed] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<any | null>(null);
   const [deletingRoom, setDeletingRoom] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>('all');
@@ -146,13 +155,19 @@ export default function PokerHubPage() {
   const currentSquadId = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
 
   useEffect(() => {
-    if (!currentSquadId) return;
+    if (!currentSquadId) {
+      // Sem squad não há o que listar: sem isto o esqueleto ficava para sempre.
+      setLoadingRooms(false);
+      return;
+    }
     const fetchRooms = async () => {
       try {
         const data = await pokerApi.listRooms(currentSquadId);
         setRooms(data);
+        setRoomsFailed(false);
       } catch (err) {
         console.error('Erro ao listar salas', err);
+        setRoomsFailed(true);
       } finally {
         setLoadingRooms(false);
       }
@@ -211,7 +226,7 @@ export default function PokerHubPage() {
       <RoomHeader
         title="Scrum Poker"
         toolIcon={<WalletCards className="h-4 w-4" />}
-        toolColorClass="text-primary"
+        toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
         onOpenFeedback={() => setFeedbackSignal(Date.now())}
         actions={<ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />}
       />
@@ -293,6 +308,7 @@ export default function PokerHubPage() {
             icon={<Users className="h-4 w-4" strokeWidth={1.5} />}
             title="Sessões da minha squad"
             loading={loadingRooms}
+            failed={roomsFailed}
             rooms={applyFilter(rooms)}
             totalCount={rooms.length}
             emptyLabel="Nenhuma sessão da squad ainda"
@@ -304,6 +320,7 @@ export default function PokerHubPage() {
             icon={<UserCheck className="h-4 w-4" strokeWidth={1.5} />}
             title="Sessões em que participei"
             loading={loadingRooms}
+            failed={roomsFailed}
             rooms={applyFilter(myParticipatedRooms)}
             totalCount={myParticipatedRooms.length}
             emptyLabel="Você ainda não participou de nenhuma sessão"
@@ -319,7 +336,7 @@ export default function PokerHubPage() {
             </h2>
             <ul className="m-0 flex flex-1 list-none flex-col gap-2 p-0">
               {loadingHistory ? (
-                <li aria-hidden="true" className="flex animate-pulse flex-col gap-2 py-1">
+                <li aria-hidden="true" className="flex flex-col gap-2 py-1 motion-safe:animate-pulse">
                   <span className="h-12 rounded-xl bg-muted" />
                   <span className="h-12 rounded-xl bg-muted" />
                 </li>

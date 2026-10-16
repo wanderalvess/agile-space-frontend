@@ -68,7 +68,7 @@ export function PhaseStepper({
   );
 }
 
-/** Fases do Planning Poker. */
+/** Fases do Scrum Poker. */
 export const POKER_PHASES: readonly PhaseStep[] = [
   { id: 'discuss', label: 'Discutir' },
   { id: 'vote', label: 'Votar' },

@@ -43,7 +43,7 @@ export function ProfileMenu() {
           type="button"
           aria-label="Menu do perfil"
           className={cn(
-            'flex h-10 items-center gap-2.5 rounded-full border border-border py-0 pl-1 pr-2.5 text-foreground transition-colors hover:bg-muted/60 data-[state=open]:border-primary',
+            'flex h-10 items-center gap-2.5 rounded-full border border-border max-sm:h-11 py-0 pl-1 pr-2.5 text-foreground transition-colors hover:bg-muted/60 data-[state=open]:border-primary',
             FOCUS_RING,
           )}
         >

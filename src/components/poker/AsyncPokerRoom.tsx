@@ -9,7 +9,7 @@ import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
 import { CopyEstimateCard } from './Results';
 import { Button } from '@/components/ui/button';
-import { Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards } from 'lucide-react';
 import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
@@ -18,7 +18,6 @@ import { TopicQueue } from './TopicQueue';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { ShareRoomDialog } from './ShareRoomDialog';
 import { CeremonySettingsDialog } from './PokerDialogs';
-import { Rocket } from 'lucide-react';
 import { DeckCard, FIELD, IconButton, Modal, ModalButton, ResponsivePanel, StatusChip, VoteCard } from '@/components/room-kit';
 
 interface AsyncPokerRoomProps {
@@ -108,8 +107,8 @@ const AsyncPokerRoomComponent = ({
       <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
         <RoomHeader
           title={roomTitle || 'Scrum Poker assíncrono'}
-          toolIcon={<Rocket className="h-4 w-4" />}
-          toolColorClass="text-primary"
+          toolIcon={<WalletCards className="h-4 w-4" />}
+          toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
           onOpenFeedback={onOpenFeedback}
           badge={<StatusChip>Assíncrono</StatusChip>}
         />
@@ -152,7 +151,7 @@ const AsyncPokerRoomComponent = ({
               {pendingIssues.length === 0 && completedIssues.length === 0 ? (
                 <section className="flex flex-col items-center gap-5 py-24 text-center">
                   <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-inset ring-primary/25 [.theme-totvs:not(.dark)_&]:text-foreground">
-                    <Rocket className="h-8 w-8" strokeWidth={1.5} />
+                    <WalletCards className="h-8 w-8" strokeWidth={1.5} />
                   </span>
                   <h2 className="m-0 text-3xl font-bold tracking-tight">Nenhuma tarefa ainda</h2>
                   <p className="m-0 max-w-md text-[15px] leading-relaxed text-muted-foreground">Cada pessoa vota no seu tempo. Comece adicionando as tarefas que o time deve estimar.</p>

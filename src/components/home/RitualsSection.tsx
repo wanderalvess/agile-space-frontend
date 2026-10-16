@@ -38,13 +38,15 @@ function chipTone(status: SessionStatus): 'live' | 'neutral' | 'done' {
 interface Props {
   history: Record<RitualKey, ToolSession[]>;
   loading: boolean;
+  /** A última busca falhou: sem lista, "nenhuma sessão" seria enganoso. */
+  failed?: boolean;
   showSquad: boolean;
   /** "Squad Phoenix" ou "Todas as squads", exibido no painel lateral. */
   scopeLabel: string;
   now: Date;
 }
 
-export function RitualsSection({ history, loading, showSquad, scopeLabel, now }: Props) {
+export function RitualsSection({ history, loading, failed = false, showSquad, scopeLabel, now }: Props) {
   const [openKey, setOpenKey] = useState<RitualKey | null>(null);
   const open = RITUALS.find((r) => r.key === openKey);
   const sessions = openKey ? history[openKey].slice(0, MAX_HISTORY_ITEMS) : [];
@@ -55,7 +57,8 @@ export function RitualsSection({ history, loading, showSquad, scopeLabel, now }:
 
       <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {RITUALS.map((r) => {
-          const facts = loading ? [] : ritualFacts(history[r.key], now);
+          const noData = failed && history[r.key].length === 0;
+          const facts = loading ? [] : noData ? ['Histórico indisponível'] : ritualFacts(history[r.key], now);
           const liveNow = history[r.key].some(isLive);
           return (
             <li key={r.key} className={cn(r.key === 'brainstorming' && 'sm:col-span-2 lg:col-span-1')}>
@@ -145,7 +148,9 @@ export function RitualsSection({ history, loading, showSquad, scopeLabel, now }:
                     ))}
                   </div>
                 ) : sessions.length === 0 ? (
-                  <p className="px-1.5 py-8 text-center text-sm text-muted-foreground">Nenhuma sessão ainda</p>
+                  <p role={failed ? 'alert' : undefined} className="px-1.5 py-8 text-center text-sm text-muted-foreground">
+                    {failed ? 'Não foi possível carregar o histórico agora' : 'Nenhuma sessão ainda'}
+                  </p>
                 ) : (
                   <ul className="flex flex-col gap-1.5">
                     {sessions.map((s) => (
