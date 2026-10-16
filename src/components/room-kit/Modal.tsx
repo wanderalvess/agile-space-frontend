@@ -53,6 +53,10 @@ export interface ModalProps {
   footer?: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  /** Classes extras no botão X (ex.: alvo de toque de 44 px no celular). */
+  closeClassName?: string;
+  /** Chamado quando o modal fecha e o Radix devolveria o foco (sem DialogTrigger ele o perde). `preventDefault()` assume o foco. */
+  onCloseAutoFocus?: (event: Event) => void;
   /** Impede fechar por clique fora/Esc (ex.: enquanto grava). */
   preventClose?: boolean;
 }
@@ -78,6 +82,8 @@ export function Modal({
   footer,
   className,
   bodyClassName,
+  closeClassName,
+  onCloseAutoFocus,
   preventClose = false,
 }: ModalProps) {
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -88,6 +94,7 @@ export function Modal({
         <DialogPrimitive.Content
           ref={contentRef}
           className={cn(MODAL_SURFACE, SIZE_CLASS[size], className)}
+          onCloseAutoFocus={onCloseAutoFocus}
           // Foco no próprio modal (não no X): o anel de foco só aparece quando a pessoa usa Tab.
           onOpenAutoFocus={(e) => { e.preventDefault(); contentRef.current?.focus(); }}
         >
@@ -111,7 +118,8 @@ export function Modal({
                 aria-label="Fechar"
                 className={cn(
                   '-mr-1.5 -mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors duration-fast hover:bg-accent hover:text-accent-foreground',
-                  FOCUS_RING
+                  FOCUS_RING,
+                  closeClassName
                 )}
               >
                 <X className="h-4 w-4" strokeWidth={1.5} />

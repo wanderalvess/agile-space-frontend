@@ -23,6 +23,7 @@ export function TabBar<T extends string>({
   label,
   idPrefix = 'tabbar',
   className,
+  tabClassName,
 }: {
   tabs: readonly TabBarItem<T>[];
   value: T;
@@ -30,6 +31,8 @@ export function TabBar<T extends string>({
   label: string;
   idPrefix?: string;
   className?: string;
+  /** Classes extras em cada aba (ex.: altura de toque no celular). */
+  tabClassName?: string;
 }) {
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
@@ -55,7 +58,8 @@ export function TabBar<T extends string>({
             className={cn(
               '-mb-px flex h-10 items-center gap-1.5 border-b-2 text-sm transition-colors duration-base',
               FOCUS_RING,
-              on ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+              on ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+              tabClassName
             )}
           >
             {t.label}
