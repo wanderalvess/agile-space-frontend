@@ -34,12 +34,22 @@ export async function inviteErrorMessage(res: Response): Promise<string> {
   return `Não foi possível concluir (erro ${res.status}).`;
 }
 
+/** Erro das chamadas de convite com o status HTTP à mão (403 = sem permissão; 429 = limite de requisições). */
+export class InviteApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'InviteApiError';
+    this.status = status;
+  }
+}
+
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await authFetch(`${API_BASE_URL}${url}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
-  if (!res.ok) throw new Error(await inviteErrorMessage(res));
+  if (!res.ok) throw new InviteApiError(res.status, await inviteErrorMessage(res));
   if (res.status === 204) return undefined as T;
   return res.json();
 }

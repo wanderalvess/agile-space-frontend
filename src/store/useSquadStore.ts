@@ -37,11 +37,12 @@ interface SquadStoreState {
   isLoadingViewedSprint: boolean;
   isForceResyncingSprint: boolean;
 
-  fetchSquad: (squadId: string) => Promise<void>;
+  /** Devolve false quando a leitura falhou (a tela do time mostra "Tentar de novo"). */
+  fetchSquad: (squadId: string) => Promise<boolean>;
   // Só chame isto se o viewer for SQUAD_LEADERSHIP_VIEW_ROLES — sem Firestore rules
   // o controle de visibilidade é feito no próprio componente (isLeadershipViewer).
   fetchSquadDetail: (squadId: string) => Promise<void>;
-  fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<void>;
+  fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<boolean>;
   claimMember: (squadId: string, jiraAccountId: string, uid: string) => Promise<void>;
   saveMemberCapacity: (
     squadId: string,
@@ -112,7 +113,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   isForceResyncingSprint: false,
 
   fetchSquad: async (squadId) => {
-    if (!squadId) return;
+    if (!squadId) return true;
     set({ activeSquadId: squadId, isLoading: true });
     try {
       const [config, rollup] = await Promise.all([
@@ -121,10 +122,12 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       ]);
       // Descarta se, enquanto essa leitura estava em voo, o usuário já
       // trocou de squad — senão dado do squad antigo pisa no do squad novo.
-      if (get().activeSquadId !== squadId) return;
+      if (get().activeSquadId !== squadId) return true;
       set({ config, rollup });
+      return true;
     } catch (err) {
       console.error('Erro ao buscar dados do squad:', err);
+      return false;
     } finally {
       if (get().activeSquadId === squadId) set({ isLoading: false });
     }
@@ -156,7 +159,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   // Roster é legível por qualquer membro do squad (não é dado sensível) —
   // Identifica automaticamente quem é o usuário atual no squad (auto-binding por UID, email, Jira ID ou nome).
   fetchMembers: async (squadId, uid, userHints) => {
-    if (!squadId) return;
+    if (!squadId) return true;
     try {
       const members = await squadApi.getMembers(squadId);
       const userEmail = (userHints?.email || (uid && uid.includes('@') ? uid : '')).toLowerCase().trim();
@@ -176,13 +179,15 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       // estava em voo pisava no roster/claim do squad novo com dado do
       // squad antigo — mesmo problema de race que fetchSquad/fetchSquadDetail
       // já evitam via activeSquadId.
-      if (get().activeSquadId !== squadId) return;
+      if (get().activeSquadId !== squadId) return true;
       set({
         members,
         myClaim,
       });
+      return true;
     } catch (err) {
       console.error('Erro ao buscar roster do squad:', err);
+      return false;
     }
   },
 
