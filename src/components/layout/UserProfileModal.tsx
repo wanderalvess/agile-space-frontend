@@ -1,61 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, UserRound } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
-import { 
-  ShieldCheck, 
-  Fingerprint, 
-  Sparkles, 
-  ChevronRight, 
-  ArrowLeft, 
-  Check,
-  User,
-  Users,
-  Settings,
-  Shield,
-  Loader2,
-  RefreshCw,
-  Key,
-  Globe,
-  CheckCircle2,
-  Building2
-} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
-import { ROLES, SQUADS, AVATAR_SEEDS, PREDEFINED_AVATARS, normalizeRole } from '@/lib/types';
-import type { GlobalRole, SquadMember } from '@/lib/types';
-import { cn } from '@/lib/utils';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
-import { userApi } from '@/app/users/api';
-import { Badge } from '@/components/ui/badge';
-import { authFetch } from '@/lib/auth-client';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
+import { userApi } from '@/app/users/api';
+import { AVATAR_SEEDS, normalizeRole } from '@/lib/types';
+import type { GlobalRole } from '@/lib/types';
+import { bestJiraAvatar, showAvatarPicker, writeStoredProfilePhoto } from '@/lib/profile-photo';
+import { Modal, ModalButton, RoleChip, StatusChip, TabBar, useBelowBreakpoint } from '@/components/room-kit';
 import { ChangePasswordSection } from '@/components/layout/ChangePasswordSection';
+import { AvatarPicker } from '@/components/profile/AvatarPicker';
+import { IdentityAvatar } from '@/components/profile/IdentityAvatar';
+import { JiraPanel, type JiraAccount } from '@/components/profile/JiraPanel';
+import { ProfileFields, type ProfileErrors } from '@/components/profile/ProfileFields';
+import { useRestoreFocus } from '@/components/profile/useRestoreFocus';
+import { useSquadOptions } from '@/components/profile/useSquadOptions';
 
+type TabId = 'profile' | 'jira' | 'security';
+
+const TAB_LABELS: Record<TabId, string> = { profile: 'Perfil', jira: 'Jira', security: 'Segurança' };
+
+/**
+ * "Minha identidade": nome, papel, projeto/squad, foto ou avatar, conexão com o Jira e troca de senha.
+ * Quem tem foto vinda do Jira vê a foto e não escolhe avatar ilustrado; sem foto, escolhe um da grade.
+ */
 export function UserProfileModal() {
   const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
   const {
@@ -66,22 +37,21 @@ export function UserProfileModal() {
     isEditProfileOpen,
     setIsEditProfileOpen,
     mustOnboard,
-    isInitializing,
     isIdentityRequested,
     setIsIdentityRequested,
-    loginWithGoogle,
     isPublicExploration,
-    setIsPublicExploration
   } = useUserContext();
-  
+
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('profile');
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const compact = useBelowBreakpoint(768);
+  const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [isSyncingJira, setIsSyncingJira] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<ProfileErrors>({});
 
   const [name, setName] = useState('');
   const [role, setRole] = useState<GlobalRole | ''>('');
-  
+
   // Projeto e Squad separados
   const [projectId, setProjectId] = useState('');
   const [customProject, setCustomProject] = useState('');
@@ -90,32 +60,22 @@ export function UserProfileModal() {
   const [squadId, setSquadId] = useState('');
   const [customSquad, setCustomSquad] = useState('');
   const [isCustomSquad, setIsCustomSquad] = useState(false);
-  
+
   const [email, setEmail] = useState('');
   const [avatarSeed, setAvatarSeed] = useState(AVATAR_SEEDS[0]);
-  const [step, setStep] = useState(0); // 0 = auth, 1 = profile
 
   // Jira PAT Token & Domain
   const [jiraDomain, setJiraDomain] = useState('');
   const [jiraToken, setJiraToken] = useState('');
-  // O PAT guardado não volta para o campo: a tela mostra "configurado" e só pede o valor de novo ao trocar.
+  const [rememberJira, setRememberJira] = useState(true);
+  // O PAT guardado não volta para o campo: a tela mostra "salvo" e só pede o valor de novo ao trocar.
   const [replacingToken, setReplacingToken] = useState(false);
   const hasSavedToken = !!jiraSettingsStore?.token && !replacingToken;
-  const [jiraAccountDetails, setJiraAccountDetails] = useState<any | null>(null);
-  
-  interface RawSquad {
-    id: string;
-    name: string;
-    jiraProjectKey: string;
-  }
-  interface DbProject {
-    id: string;
-    name: string;
-  }
-  const [rawSquads, setRawSquads] = useState<RawSquad[]>([]);
-  const [dbProjects, setDbProjects] = useState<DbProject[]>([]);
-  const [userDbProjectIds, setUserDbProjectIds] = useState<string[]>([]);
-  const [isSquadsLoaded, setIsSquadsLoaded] = useState(false);
+  const [jiraAccountDetails, setJiraAccountDetails] = useState<JiraAccount | null>(null);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const roleRef = useRef<HTMLButtonElement>(null);
+  const projectRef = useRef<HTMLButtonElement>(null);
 
   const isOpen = isEditProfileOpen || (isIdentityRequested && !isPublicExploration);
   const isNewUser = !userProfile || userProfile.isGuest || !userProfile.name;
@@ -124,138 +84,22 @@ export function UserProfileModal() {
   // aqui grava só localmente via updateProfile() e é sobrescrito no próximo
   // refresh de sessão, então deixar editável fingia uma troca que não pegava.
   const squadEditLocked = !isNewUser;
+  // O e-mail vem da sessão autenticada: updateProfile() o descarta, então editá-lo não adiantava.
+  const emailReadOnly = !!userProfile?.email;
+  const canChangePassword = !!userProfile && !userProfile.isGuest;
 
-  // Carrega projetos (tabela projects) e squads (tabela squads) da API
-  useEffect(() => {
-    if (isOpen) {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
-      
-      // 1. Busca diretamente na tabela `projects` (/api/projects)
-      authFetch(`${apiUrl}/projects`)
-        .then(r => r.ok ? r.json() : [])
-        .then((data: any[]) => {
-          if (Array.isArray(data)) {
-            const mapped = data.map(p => ({
-              id: String(p.id || p.jiraProjectKey || '').trim(),
-              name: String(p.name || p.id || '').trim()
-            })).filter(p => p.id);
-            setDbProjects(mapped);
-          }
-        })
-        .catch(err => console.warn('Erro ao carregar tabela projects:', err));
+  const restoreFocus = useRestoreFocus(isOpen);
 
-      // 2. Busca os projetos vinculados ao usuário logado na tabela `projects`
-      const userIdent = userProfile?.email || userProfile?.id;
-      if (userIdent) {
-        authFetch(`${apiUrl}/projects/user/${encodeURIComponent(userIdent)}`)
-          .then(r => r.ok ? r.json() : null)
-          .then((res: any) => {
-            // O backend devolve a lista em `projects` (`accessibleProjects` nunca existiu: a lista ficava sempre vazia).
-            const accessible = res && (res.projects ?? res.accessibleProjects);
-            if (Array.isArray(accessible)) {
-              const pIds = accessible.map((p: any) => String(p.projectId || '').trim()).filter(Boolean);
-              setUserDbProjectIds(pIds);
-            }
-          })
-          .catch(() => {});
-      }
+  const { rawSquads, isSquadsLoaded, availableProjects, squadsForProject } = useSquadOptions({ isOpen, userProfile, userSquads });
+  const availableSquadsForProject = squadsForProject(projectId);
 
-      // 3. Busca squads diretamente na tabela `squads` (/api/squads)
-      authFetch(`${apiUrl}/squads`)
-        .then(r => r.ok ? r.json() : [])
-        .then((data: any[]) => {
-          if (Array.isArray(data)) {
-            const parsed: RawSquad[] = data
-              .filter(s => s && (s.id || s.jiraProjectKey))
-              .map(s => ({
-                id: String(s.id || s.jiraProjectKey).trim(),
-                name: String(s.name || s.jiraProjectKey || s.id).trim(),
-                jiraProjectKey: String(s.jiraProjectKey || s.id).trim()
-              }));
-            setRawSquads(parsed);
-          }
-        })
-        .catch(err => console.warn('Erro ao carregar tabela squads:', err))
-        .finally(() => setIsSquadsLoaded(true));
-    }
-  }, [isOpen, userProfile?.email, userProfile?.id]);
-
-  // 1. Identificadores de Squads/Projetos vinculados no banco ao usuário logado
-  const userSquadIds = (function() {
-    const ids = new Set<string>();
-    if (userSquads && Array.isArray(userSquads)) {
-      userSquads.forEach(s => {
-        if (s.squadId) ids.add(s.squadId.trim());
-      });
-    }
-    userDbProjectIds.forEach(id => ids.add(id));
-    if (userProfile?.squadId) {
-      ids.add(userProfile.squadId.trim());
-    }
-    return ids;
-  })();
-
-  // 2. Filtra exclusivamente as squads/projetos do banco que possuem vínculo com o usuário
-  const allowedRawSquads = (function() {
-    if (userSquadIds.size > 0) {
-      const filtered = rawSquads.filter(s => {
-        const idMatch = userSquadIds.has(s.id);
-        const keyMatch = userSquadIds.has(s.jiraProjectKey);
-        return idMatch || keyMatch;
-      });
-      if (filtered.length > 0) return filtered;
-    }
-    return rawSquads;
-  })();
-
-  // 3. Deriva a lista de Projetos vinculados diretamente da tabela `projects` no PostgreSQL
-  const availableProjects = (function() {
-    const map = new Map<string, string>();
-
-    // Prioriza os projetos da tabela `projects` que têm vínculo com o usuário
-    if (userDbProjectIds.length > 0) {
-      userDbProjectIds.forEach(id => {
-        const found = dbProjects.find(p => p.id.toLowerCase() === id.toLowerCase());
-        map.set(id, found ? found.name : id);
-      });
-    }
-
-    // Se o mapa ainda estiver vazio ou para complementar com projetos do banco
-    if (map.size === 0 && dbProjects.length > 0) {
-      dbProjects.forEach(p => {
-        if (!map.has(p.id)) map.set(p.id, p.name);
-      });
-    }
-
-    // Complementa com projetos vinculados nas squads salvas
-    allowedRawSquads.forEach(s => {
-      const key = (s.jiraProjectKey || s.id || '').trim();
-      const name = (s.name || s.jiraProjectKey || s.id || '').trim();
-      if (key && !map.has(key)) map.set(key, name);
-    });
-
-    if (userProfile?.squadId && !map.has(userProfile.squadId)) {
-      const match = rawSquads.find(rs => rs.id === userProfile.squadId);
-      const projKey = match ? (match.jiraProjectKey || match.id) : userProfile.squadId;
-      if (projKey && !map.has(projKey)) {
-        map.set(projKey, projKey);
-      }
-    }
-
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  })();
-
-  // 4. Deriva as Squads vinculadas ao Projeto selecionado (exclusivamente do banco)
-  const availableSquadsForProject = (function() {
-    if (!projectId || projectId === 'other') return [];
-    return allowedRawSquads
-      .filter(s => {
-        const pKey = (s.jiraProjectKey || s.id || '').toLowerCase();
-        const target = projectId.toLowerCase();
-        return pKey === target && s.id.toLowerCase() !== target;
-      })
-      .map(s => ({ id: s.id, name: s.name || s.id }));
-  })();
+  // Foto do Jira: da importação do time, da última sincronização ou da sincronização feita agora, no modal.
+  const { photo, reportBroken } = useProfilePhoto({
+    jiraAvatarUrls: jiraAccountDetails?.avatarUrls,
+    jiraAccountId: jiraAccountDetails?.accountId,
+  });
+  const pickerVisible = showAvatarPicker(photo);
+  const connected = !!jiraSettingsStore?.token || !!jiraAccountDetails;
 
   // Carrega configurações de Jira salvas — fonte única é useJiraSettings (mesma
   // usada em ConnectivitySettings/JiraImportDialog), sem slots de localStorage próprios.
@@ -276,551 +120,307 @@ export function UserProfileModal() {
       setAvatarSeed(userProfile.avatarSeed || AVATAR_SEEDS[0]);
 
       const activeSquadOrProject = userProfile.squadId || '';
-      const foundSquad = rawSquads.find(s => s.id === activeSquadOrProject);
+      const foundSquad = rawSquads.find((s) => s.id === activeSquadOrProject);
       if (foundSquad) {
         setProjectId(foundSquad.jiraProjectKey || foundSquad.id);
+        setIsCustomProject(false);
+        setIsCustomSquad(false);
         if (foundSquad.id !== foundSquad.jiraProjectKey) {
           setSquadId(foundSquad.id);
         } else {
           setSquadId('none');
         }
-      } else if (availableProjects.some(p => p.id === activeSquadOrProject)) {
+      } else if (availableProjects.some((p) => p.id === activeSquadOrProject)) {
         setProjectId(activeSquadOrProject);
+        setIsCustomProject(false);
+        setIsCustomSquad(false);
         setSquadId('none');
       } else if (activeSquadOrProject) {
         setProjectId('other');
         setCustomProject(activeSquadOrProject);
         setIsCustomProject(true);
       }
-
-      if (!userProfile.isGuest && userProfile.name) {
-        setStep(1);
-      } else if (!userProfile.name && !userProfile.isGuest) {
-        setStep(0);
-      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, isOpen, isSquadsLoaded, rawSquads]);
 
-  const onGoogleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      await loginWithGoogle();
-    } finally {
-      setIsLoggingIn(false);
+  // Ao abrir: volta para a aba Perfil, limpa erros e põe o foco no nome (só com mouse/teclado;
+  // no celular o teclado não deve abrir sozinho). Ao fechar: esquece a conta sincronizada.
+  useEffect(() => {
+    if (!isOpen) {
+      setJiraAccountDetails(null);
+      return;
     }
-  };
+    setActiveTab('profile');
+    setErrors({});
+    if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: fine)').matches) {
+      const t = window.setTimeout(() => nameRef.current?.focus(), 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [isOpen]);
+
+  const userStoreId = userProfile?.id || userProfile?.email;
 
   const handleSyncFromJira = async (customToken?: string, customDomain?: string) => {
     const tokenToUse = (customToken || jiraToken || jiraSettingsStore?.token || '').trim();
     const domainToUse = (customDomain || jiraDomain || jiraSettingsStore?.domain || '').trim();
 
     if (!tokenToUse) {
-      toast({
-        title: "Token Jira necessário",
-        description: "Informe o seu Personal Access Token (PAT) do Jira para puxar seus dados automaticamente.",
-        variant: "destructive",
-      });
-      setActiveTab('security');
+      toast({ title: 'Token do Jira necessário', variant: 'destructive' });
+      setActiveTab('jira');
+      return;
+    }
+
+    if (!domainToUse) {
+      toast({ title: 'Domínio do Jira necessário', variant: 'destructive' });
+      setActiveTab('jira');
       return;
     }
 
     setIsSyncingJira(true);
     try {
-      const jiraUser = await userApi.getMyself(domainToUse, tokenToUse);
+      const jiraUser: JiraAccount | null = await userApi.getMyself(domainToUse, tokenToUse);
       if (jiraUser) {
         if (jiraUser.displayName) setName(jiraUser.displayName);
-        const resolvedEmail = jiraUser.emailAddress || email || '';
-        if (resolvedEmail) setEmail(resolvedEmail);
+        // Conta com e-mail da sessão não troca de e-mail (ele é descartado ao salvar).
+        if (!emailReadOnly) {
+          const resolvedEmail = jiraUser.emailAddress || email || '';
+          if (resolvedEmail) setEmail(resolvedEmail);
+        }
 
-        // Salva credenciais na fonte única (useJiraSettings): localStorage escopado por
-        // usuário + backend, mesmo slot usado em ConnectivitySettings/JiraImportDialog.
-        saveJiraSettings({ domain: domainToUse, token: tokenToUse });
-        setJiraToken('');
-        setReplacingToken(false);
+        if (rememberJira) {
+          // Salva credenciais na fonte única (useJiraSettings): localStorage escopado por
+          // usuário + backend, mesmo slot usado em ConnectivitySettings/JiraImportDialog.
+          saveJiraSettings({ domain: domainToUse, token: tokenToUse });
+          setJiraToken('');
+          setReplacingToken(false);
+        }
         setJiraDomain(domainToUse);
         setJiraAccountDetails(jiraUser);
+        // A foto fica guardada para os cabeçalhos mostrarem a mesma imagem.
+        writeStoredProfilePhoto(userStoreId, bestJiraAvatar(jiraUser.avatarUrls) ?? null);
+        setErrors((e) => ({ ...e, name: undefined }));
 
-        setStep(1);
         toast({
-          title: "Jira Sincronizado!",
-          description: `Identidade carregada: ${jiraUser.displayName || jiraUser.name}. Seus campos de Projeto e Squad foram mantidos.`,
+          title: 'Jira sincronizado',
+          description: `Identidade carregada: ${jiraUser.displayName || jiraUser.name}.`,
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       toast({
-        title: "Erro ao conectar ao Jira",
-        description: err.message || "Verifique o token e o domínio corporativo.",
-        variant: "destructive",
+        title: 'Erro ao conectar ao Jira',
+        description: (err instanceof Error && err.message) || 'Verifique o token e o domínio.',
+        variant: 'destructive',
       });
     } finally {
       setIsSyncingJira(false);
     }
   };
 
-  const handleSave = () => {
-    if (!name.trim()) {
-      toast({ title: "Nome obrigatório", variant: "destructive" });
-      return;
-    }
-    if (!role) {
-      toast({ title: "Função obrigatória", variant: "destructive" });
-      return;
-    }
+  const handleRemoveToken = async () => {
+    await removeJiraSettings();
+    setJiraToken('');
+    setJiraAccountDetails(null);
+    // Sem token, a foto sincronizada some e o seletor de avatares volta (se o time não tiver foto).
+    writeStoredProfilePhoto(userStoreId, null);
+    toast({ title: 'Token do Jira removido', description: 'Ele saiu deste navegador e da sua conta.' });
+  };
 
-    const finalProject = isCustomProject ? customProject.trim() : projectId;
-    const finalSquad = isCustomSquad 
-      ? customSquad.trim() 
-      : (squadId && squadId !== 'none' ? squadId : finalProject);
-
-    if (!finalProject && !finalSquad) {
-      toast({ title: "Projeto obrigatório", variant: "destructive" });
-      return;
-    }
-
-    if (!userProfile || userProfile.isGuest) {
-      setGuestProfile(
-        name.trim(),
-        role as GlobalRole,
-        finalSquad,
-        email.trim(),
-        avatarSeed
-      );
-    } else {
-      updateProfile({
-        name: name.trim(),
-        role: role as GlobalRole,
-        squadId: finalSquad,
-        email: email.trim(),
-        avatarSeed,
-      });
-    }
-
-    toast({
-      title: "Perfil Atualizado",
-      description: "Suas informações foram salvas com sucesso no sistema.",
-    });
-
+  const closeModal = () => {
     setIsEditProfileOpen(false);
     setIsIdentityRequested(false);
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) {
-        setIsEditProfileOpen(false);
-        setIsIdentityRequested(false);
+  const finalProject = isCustomProject ? customProject.trim() : projectId;
+  const finalSquad = isCustomSquad ? customSquad.trim() : squadId && squadId !== 'none' ? squadId : finalProject;
+
+  const dirty =
+    !!userProfile &&
+    (name.trim() !== (userProfile.name || '') ||
+      role !== (userProfile.role ? normalizeRole(userProfile.role) : '') ||
+      finalSquad !== (userProfile.squadId || '') ||
+      avatarSeed !== (userProfile.avatarSeed || AVATAR_SEEDS[0]));
+  // Quem ainda não tem perfil completo precisa poder concluir mesmo sem mexer em nada.
+  const canSave = !saving && (!userProfile || isSquadsLoaded) && (isNewUser || dirty);
+
+  const handleSave = async () => {
+    const next: ProfileErrors = {};
+    if (!name.trim()) next.name = 'Informe seu nome.';
+    if (!role) next.role = 'Selecione o papel.';
+    if (!finalProject && !finalSquad) next.project = 'Selecione o projeto.';
+
+    if (next.name || next.role || next.project) {
+      setErrors(next);
+      setActiveTab('profile');
+      toast({
+        title: next.name ? 'Nome obrigatório' : next.role ? 'Função obrigatória' : 'Projeto obrigatório',
+        variant: 'destructive',
+      });
+      window.setTimeout(() => {
+        (next.name ? nameRef.current : next.role ? roleRef.current : projectRef.current)?.focus();
+      }, 0);
+      return;
+    }
+    setErrors({});
+
+    setSaving(true);
+    try {
+      if (!userProfile || userProfile.isGuest) {
+        await setGuestProfile(name.trim(), role as GlobalRole, finalSquad, email.trim(), avatarSeed);
+      } else {
+        await updateProfile({
+          name: name.trim(),
+          role: role as GlobalRole,
+          squadId: finalSquad,
+          email: email.trim(),
+          avatarSeed,
+        });
       }
-    }}>
-      <DialogContent className="sm:max-w-[700px] md:max-w-[740px] max-h-[90vh] rounded-3xl p-0 overflow-hidden bg-card text-card-foreground border border-border/80 shadow-2xl font-body animate-in zoom-in-95 duration-200 focus:outline-none flex flex-col">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full overflow-hidden">
-          
-          {/* HERO HEADER */}
-          <div className="relative overflow-hidden shrink-0 bg-slate-950 text-slate-50 border-b border-white/10">
-            <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary/25 blur-[80px] rounded-full pointer-events-none transition-colors duration-500" />
-            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/15 blur-[80px] rounded-full pointer-events-none transition-colors duration-500" />
-            <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:16px_16px]" />
-            
-            <div className="relative px-7 py-5 flex items-center justify-between z-10 pr-14">
-              <div className="flex items-center gap-4">
-                <div className="relative shrink-0">
-                  <div className="absolute inset-0 bg-primary/30 blur-md rounded-2xl opacity-60" />
-                  <NiceAvatar 
-                    className="h-12 w-12 rounded-2xl border-2 border-white/20 shadow-md bg-slate-900 relative z-10" 
-                    {...(PREDEFINED_AVATARS[avatarSeed] || genConfig(avatarSeed))} 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <DialogTitle className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white leading-none font-headline flex items-center gap-2">
-                    Minha <span className="text-primary not-italic">Identidade</span>
-                  </DialogTitle>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <DialogDescription className="text-slate-400 text-xs font-semibold tracking-wide font-body">
-                      Gestão de Perfil & Integração Jira API
-                    </DialogDescription>
-                    {(jiraToken || hasSavedToken) && (
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                        Jira Ativo
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <div className="px-7 pb-3 relative z-10">
-              <TabsList className="bg-white/10 backdrop-blur-md border border-white/10 p-1 h-9 rounded-xl w-full max-w-[320px]">
-                <TabsTrigger 
-                  value="profile" 
-                  className="rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex-1 py-1.5 shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <User className="h-3.5 w-3.5" />
-                  Perfil
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="security" 
-                  className="rounded-lg text-xs font-bold uppercase tracking-wider text-slate-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex-1 py-1.5 shadow-sm flex items-center justify-center gap-1.5"
-                >
-                  <Shield className="h-3.5 w-3.5" />
-                  Jira & Segurança
-                </TabsTrigger>
-              </TabsList>
-            </div>
-          </div>
+      toast({ title: 'Perfil atualizado' });
+      closeModal();
+    } finally {
+      setSaving(false);
+    }
+  };
 
-          {/* SCROLLABLE TAB CONTENT */}
-          <div className="flex-1 overflow-y-auto px-7 py-5 space-y-4 bg-card text-card-foreground">
-            <TabsContent value="profile" className="m-0 space-y-4 animate-in fade-in duration-200">
-              
-              {/* GRID NOME & EMAIL */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-primary" /> Nome Completo
-                  </Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    autoComplete="off"
-                    className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/40 font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all"
-                    placeholder="Seu nome completo"
-                  />
-                </div>
+  const tabs = [
+    { id: 'profile' as const, label: TAB_LABELS.profile },
+    { id: 'jira' as const, label: TAB_LABELS.jira },
+    ...(canChangePassword ? [{ id: 'security' as const, label: TAB_LABELS.security }] : []),
+  ];
+  const tab: TabId = tabs.some((t) => t.id === activeTab) ? activeTab : 'profile';
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ChevronRight className="h-3.5 w-3.5 text-primary" /> E-mail Corporativo
-                  </Label>
-                  <Input
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="off"
-                    className="h-10 rounded-xl bg-background/50 border-input text-foreground placeholder:text-muted-foreground/40 font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all"
-                    placeholder="seu.email@empresa.com"
-                  />
-                </div>
-              </div>
+  const displayName = name.trim() || 'Seu nome';
 
-              {/* GRID CARGO & PROJETO */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ChevronRight className="h-3.5 w-3.5 text-primary" /> Cargo / Papel
-                  </Label>
-                  <Select value={role} onValueChange={(v: GlobalRole) => setRole(v)}>
-                    <SelectTrigger className="h-10 rounded-xl bg-background/50 border-input text-foreground font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all">
-                      <SelectValue placeholder="Selecione o cargo..." />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border border-border bg-card shadow-2xl p-1 max-h-[220px]">
-                      {ROLES.map(r => (
-                        <SelectItem
-                          key={r}
-                          value={r}
-                          className="font-bold text-xs py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary text-foreground uppercase tracking-tight"
-                        >
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+  const summary = (
+    <div className={compact ? 'flex items-center gap-4' : 'flex flex-col items-center gap-3 text-center'}>
+      <IdentityAvatar photo={photo} seed={avatarSeed} name={name.trim()} size={compact ? 64 : 96} onPhotoError={reportBroken} />
+      <div className={compact ? 'flex min-w-0 flex-col items-start gap-1.5' : 'flex min-w-0 flex-col items-center gap-2'}>
+        <p className="max-w-full break-words text-base font-semibold leading-tight text-foreground">{displayName}</p>
+        {role && <RoleChip category={role} label={role} className="max-w-full truncate" />}
+        <div className={compact ? 'flex flex-wrap gap-1.5' : 'flex flex-wrap justify-center gap-1.5'}>
+          {photo && <StatusChip tone="neutral">Foto do Jira</StatusChip>}
+          {connected && <StatusChip tone="success">Jira conectado</StatusChip>}
+        </div>
+      </div>
+    </div>
+  );
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Building2 className="h-3.5 w-3.5 text-primary" /> Projeto
-                  </Label>
-                  <Select
-                    disabled={squadEditLocked}
-                    value={availableProjects.some(p => p.id === projectId) ? projectId : (projectId ? 'other' : '')}
-                    onValueChange={(v) => {
-                      setProjectId(v);
-                      setIsCustomProject(v === 'other');
-                      setSquadId('none');
-                    }}
-                  >
-                    <SelectTrigger className="h-10 rounded-xl bg-background/50 border-input text-foreground font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
-                      <SelectValue placeholder="Selecione o projeto..." />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border border-border bg-card shadow-2xl p-1 max-h-[220px]">
-                      {!isSquadsLoaded && (
-                        <SelectItem value="loading" disabled className="text-xs text-muted-foreground font-bold">
-                          Carregando projetos...
-                        </SelectItem>
-                      )}
-                      {isSquadsLoaded && availableProjects.map(p => (
-                        <SelectItem
-                          key={p.id}
-                          value={p.id}
-                          className="font-bold text-xs py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary text-foreground uppercase tracking-tight"
-                        >
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                      <SelectItem
-                        value="other"
-                        className="text-xs font-bold text-primary py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary border-t border-border/70 mt-1"
-                      >
-                        + Digitar Novo Projeto
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+  const profileFields = (
+    <ProfileFields
+      name={name}
+      onName={(v) => {
+        setName(v);
+        if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+      }}
+      nameInput={nameRef}
+      email={email}
+      onEmail={setEmail}
+      emailReadOnly={emailReadOnly}
+      role={role}
+      onRole={(v) => {
+        setRole(v);
+        if (errors.role) setErrors((e) => ({ ...e, role: undefined }));
+      }}
+      roleTrigger={roleRef}
+      projectId={projectId}
+      onProject={(v) => {
+        setProjectId(v);
+        setIsCustomProject(v === 'other');
+        setSquadId('none');
+        setIsCustomSquad(false);
+        if (errors.project) setErrors((e) => ({ ...e, project: undefined }));
+      }}
+      projectTrigger={projectRef}
+      customProject={customProject}
+      onCustomProject={setCustomProject}
+      isCustomProject={isCustomProject}
+      squadId={squadId}
+      onSquad={(v) => {
+        setSquadId(v);
+        setIsCustomSquad(v === 'other');
+      }}
+      customSquad={customSquad}
+      onCustomSquad={setCustomSquad}
+      isCustomSquad={isCustomSquad}
+      projects={availableProjects}
+      squads={availableSquadsForProject}
+      isSquadsLoaded={isSquadsLoaded}
+      locked={squadEditLocked}
+      errors={errors}
+    />
+  );
 
-              {/* GRID SQUAD & AVATAR */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-primary" /> Squad / Equipe
-                  </Label>
-                  <Select
-                    disabled={squadEditLocked || !projectId || (availableSquadsForProject.length === 0 && projectId !== 'other')}
-                    value={availableSquadsForProject.some(sq => sq.id === squadId) ? squadId : (squadId === 'other' ? 'other' : 'none')}
-                    onValueChange={(v) => { setSquadId(v); setIsCustomSquad(v === 'other'); }}
-                  >
-                    <SelectTrigger className="h-10 rounded-xl bg-background/50 border-input text-foreground font-bold text-sm focus-visible:ring-primary focus-visible:border-primary transition-all disabled:opacity-60">
-                      <SelectValue placeholder={
-                        !projectId 
-                          ? "Selecione um projeto primeiro" 
-                          : (availableSquadsForProject.length === 0 ? "Sem Squad (Projeto Único)" : "Selecione a squad...")
-                      } />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border border-border bg-card shadow-2xl p-1 max-h-[220px]">
-                      <SelectItem value="none" className="text-xs font-medium py-1.5 pl-7 text-muted-foreground">
-                        Sem Squad (Projeto Único)
-                      </SelectItem>
-                      {availableSquadsForProject.map(sq => (
-                        <SelectItem
-                          key={sq.id}
-                          value={sq.id}
-                          className="font-bold text-xs py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary text-foreground uppercase tracking-tight"
-                        >
-                          {sq.name}
-                        </SelectItem>
-                      ))}
-                      <SelectItem
-                        value="other"
-                        className="text-xs font-bold text-primary py-1.5 pl-7 rounded-lg focus:bg-primary/10 focus:text-primary border-t border-border/70 mt-1"
-                      >
-                        + Digitar Nova Squad
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+  return (
+    <Modal
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) closeModal();
+      }}
+      size="lg"
+      icon={UserRound}
+      title="Minha identidade"
+      bodyClassName="p-0"
+      closeClassName="max-sm:h-11 max-sm:w-11"
+      onCloseAutoFocus={restoreFocus}
+      className="max-sm:left-0 max-sm:top-0 max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0"
+      footer={
+        <>
+          <ModalButton onClick={closeModal} className="max-sm:h-11">
+            Cancelar
+          </ModalButton>
+          <ModalButton variant="primary" onClick={handleSave} disabled={!canSave} className="min-w-24 gap-2 max-sm:h-11">
+            {saving && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />}
+            {mustOnboard ? 'Finalizar acesso' : 'Salvar'}
+          </ModalButton>
+        </>
+      }
+    >
+      <div className="flex min-h-full flex-col md:min-h-[500px] md:flex-row">
+        <aside
+          aria-label="Resumo da identidade"
+          className={compact ? 'border-b border-border px-6 py-4' : 'flex w-60 shrink-0 flex-col gap-6 border-r border-border bg-muted/30 p-5'}
+        >
+          {summary}
+          {!compact && pickerVisible && <AvatarPicker value={avatarSeed} onChange={setAvatarSeed} />}
+        </aside>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <ChevronRight className="h-3.5 w-3.5 text-primary" /> Escolher Avatar
-                  </Label>
-                  <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 pr-1">
-                    {AVATAR_SEEDS.map((seed) => (
-                      <button
-                        key={seed}
-                        type="button"
-                        onClick={() => setAvatarSeed(seed)}
-                        className={cn(
-                          "relative shrink-0 h-9 w-9 transition-all rounded-xl border-2",
-                          avatarSeed === seed ? "border-primary scale-110 shadow-md shadow-primary/25" : "border-transparent opacity-50 hover:opacity-90 hover:scale-105"
-                        )}
-                      >
-                        <NiceAvatar className="w-full h-full rounded-[8px]" {...(PREDEFINED_AVATARS[seed] || genConfig(seed))} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {squadEditLocked && (
-                <p className="text-xs text-muted-foreground font-medium pt-1">
-                  💡 Projeto e squad de contas já vinculadas trocam pelo seletor no topo da tela, não aqui.
-                </p>
-              )}
-
-              {/* CAMPOS CUSTOMIZADOS SE NECESSÁRIO */}
-              {isCustomProject && !squadEditLocked && (
-                <div className="animate-in slide-in-from-top-2 duration-200 space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-primary">Nome do Projeto Customizado</Label>
-                  <Input 
-                    value={customProject} 
-                    onChange={(e) => setCustomProject(e.target.value)} 
-                    autoComplete="off"
-                    className="h-10 rounded-xl border-primary/30 bg-primary/5 font-bold text-sm text-foreground focus-visible:ring-primary focus-visible:border-primary" 
-                    placeholder="Nome do projeto"
-                  />
-                </div>
-              )}
-
-              {isCustomSquad && !squadEditLocked && (
-                <div className="animate-in slide-in-from-top-2 duration-200 space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-primary">Nome da Squad Customizada</Label>
-                  <Input 
-                    value={customSquad} 
-                    onChange={(e) => setCustomSquad(e.target.value)} 
-                    autoComplete="off"
-                    className="h-10 rounded-xl border-primary/30 bg-primary/5 font-bold text-sm text-foreground focus-visible:ring-primary focus-visible:border-primary" 
-                    placeholder="Nome da squad"
-                  />
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="security" className="m-0 space-y-4 animate-in fade-in duration-200">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-extrabold uppercase tracking-wide text-foreground flex items-center gap-2 font-headline">
-                    <Key className="h-4 w-4 text-primary" /> Conexão Jira API & Token
-                  </h4>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Configure seu Personal Access Token (PAT) corporativo para sincronizar suas permissões e dados no Jira.
-                  </p>
-                </div>
-
-                <div className="space-y-3.5 bg-muted/30 p-4 sm:p-5 rounded-2xl border border-border/70">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <Globe className="h-3.5 w-3.5 text-primary" /> Domínio Jira
-                      </Label>
-                      <Input
-                        name="jiraInstanceDomain"
-                        id="jiraInstanceDomain"
-                        autoComplete="off"
-                        data-lpignore="true"
-                        value={jiraDomain}
-                        onChange={(e) => setJiraDomain(e.target.value)}
-                        placeholder="empresa.atlassian.net"
-                        className="h-10 rounded-xl text-sm bg-background/50 border-input text-foreground font-medium focus-visible:ring-primary focus-visible:border-primary"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <Key className="h-3.5 w-3.5 text-primary" /> Token de Acesso (PAT)
-                      </Label>
-                      {hasSavedToken ? (
-                        <div className="flex items-center justify-between gap-2 h-10 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3">
-                          <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-                            <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Token configurado
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-[10px] font-black uppercase tracking-wider" onClick={() => setReplacingToken(true)}>
-                              Trocar
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 px-2 text-[10px] font-black uppercase tracking-wider text-destructive"
-                              onClick={async () => {
-                                await removeJiraSettings();
-                                setJiraToken('');
-                                toast({ title: 'Token do Jira removido', description: 'Ele saiu deste navegador e da sua conta.' });
-                              }}
-                            >
-                              Remover
-                            </Button>
-                          </span>
-                        </div>
-                      ) : (
-                      <Input
-                        type="password"
-                        name="jiraPersonalAccessToken"
-                        id="jiraPersonalAccessToken"
-                        autoComplete="new-password"
-                        data-lpignore="true"
-                        value={jiraToken}
-                        onChange={(e) => setJiraToken(e.target.value)}
-                        placeholder="Cole seu token PAT"
-                        className="h-10 rounded-xl text-sm bg-background/50 border-input text-foreground font-code focus-visible:ring-primary focus-visible:border-primary"
-                      />
-                      )}
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    onClick={() => handleSyncFromJira(jiraToken, jiraDomain)}
-                    disabled={isSyncingJira}
-                    className="w-full h-10 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase text-xs tracking-wider gap-2 shadow-md shadow-primary/20 transition-all mt-1"
-                  >
-                    {isSyncingJira ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    {isSyncingJira ? 'Sincronizando com Jira...' : 'Testar e Puxar Dados do Jira'}
-                  </Button>
-                </div>
-
-                {jiraAccountDetails && (
-                  <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2 animate-in fade-in">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                        Conta Jira Conectada com Sucesso
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
-                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
-                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">Nome de Exibição</span>
-                        <span className="font-bold text-foreground truncate block" title={jiraAccountDetails.displayName}>{jiraAccountDetails.displayName || '—'}</span>
-                      </div>
-                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
-                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">Usuário</span>
-                        <span className="font-code text-foreground truncate block">{jiraAccountDetails.name || jiraAccountDetails.key || '—'}</span>
-                      </div>
-                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
-                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">E-mail</span>
-                        <span className="text-foreground truncate block" title={jiraAccountDetails.emailAddress}>{jiraAccountDetails.emailAddress || '—'}</span>
-                      </div>
-                      <div className="bg-background/40 p-2.5 rounded-xl border border-emerald-500/20">
-                        <span className="text-muted-foreground text-[10px] uppercase font-bold block mb-0.5">Fuso Horário</span>
-                        <span className="text-foreground truncate block">{jiraAccountDetails.timeZone || '—'}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <ChangePasswordSection />
-              </div>
-            </TabsContent>
-          </div>
-
-          {/* FOOTER ACTIONS */}
-          <div className="shrink-0 px-7 py-4 border-t border-border/70 bg-muted/20 flex items-center justify-between transition-colors duration-300">
-            {activeTab === 'profile' ? (
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TabBar tabs={tabs} value={tab} onChange={setActiveTab} label="Seções da identidade" idPrefix="identity" tabClassName="max-sm:h-11" />
+          <div
+            role="tabpanel"
+            id={`identity-panel-${tab}`}
+            aria-labelledby={`identity-tab-${tab}`}
+            className="flex flex-col gap-5 p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+          >
+            {tab === 'profile' && (
               <>
-                <p className="text-xs text-muted-foreground font-medium hidden sm:block">
-                  {squadEditLocked ? 'Projeto e squad vinculados à sessão ativa.' : 'Defina seus dados para personalizar seu acesso.'}
-                </p>
-                <div className="flex gap-2 w-full sm:w-auto justify-end">
-                  <Button
-                    onClick={handleSave}
-                    className="h-10 px-8 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase text-xs tracking-wider shadow-md shadow-primary/20 active:scale-95 transition-all w-full sm:w-auto"
-                  >
-                    {mustOnboard ? 'Finalizar Acesso' : 'Salvar Alterações'}
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-muted-foreground font-medium hidden sm:block">
-                  {(jiraToken || hasSavedToken) ? 'Credenciais do Jira ativas e salvas.' : 'Informe o PAT para sincronização com o Jira.'}
-                </p>
-                <div className="flex gap-2 w-full sm:w-auto justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsEditProfileOpen(false);
-                      setIsIdentityRequested(false);
-                    }}
-                    className="h-10 px-6 rounded-xl font-bold uppercase text-xs tracking-wider w-full sm:w-auto"
-                  >
-                    Fechar
-                  </Button>
-                </div>
+                {profileFields}
+                {compact && pickerVisible && <AvatarPicker value={avatarSeed} onChange={setAvatarSeed} />}
               </>
             )}
+            {tab === 'jira' && (
+              <JiraPanel
+                connected={connected}
+                domain={jiraDomain}
+                onDomain={setJiraDomain}
+                token={jiraToken}
+                onToken={setJiraToken}
+                hasSavedToken={hasSavedToken}
+                onReplaceToken={() => setReplacingToken(true)}
+                onRemoveToken={handleRemoveToken}
+                remember={rememberJira}
+                onRemember={setRememberJira}
+                syncing={isSyncingJira}
+                onSync={() => handleSyncFromJira(jiraToken, jiraDomain)}
+                account={jiraAccountDetails}
+              />
+            )}
+            {tab === 'security' && canChangePassword && <ChangePasswordSection />}
           </div>
-
-        </Tabs>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </Modal>
   );
 }
-

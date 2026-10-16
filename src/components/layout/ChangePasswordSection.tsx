@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertCircle, KeyRound, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { changeOwnPassword, validateNewPassword, MIN_PASSWORD_LENGTH } from '@/lib/password-api';
+import { changeOwnPassword, validateNewPassword } from '@/lib/password-api';
+import { ModalButton } from '@/components/room-kit';
+import { FIELD_INPUT, Field, FieldError } from '@/components/profile/fields';
 
 /** Troca da própria senha, no perfil. Quem trocou continua logado; as outras sessões caem. */
 export function ChangePasswordSection() {
@@ -43,45 +42,54 @@ export function ChangePasswordSection() {
     }
   };
 
+  const describedBy = error ? 'cp-error' : undefined;
+
   return (
-    <form onSubmit={submit} className="space-y-3.5 rounded-2xl border border-border/70 bg-muted/30 p-4 sm:p-5" noValidate>
-      <div>
-        <h4 className="flex items-center gap-2 font-headline text-sm font-extrabold uppercase tracking-wide text-foreground">
-          <KeyRound className="h-4 w-4 text-primary" /> Trocar minha senha
-        </h4>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Use uma senha só sua, com pelo menos {MIN_PASSWORD_LENGTH} caracteres.
-        </p>
+    <form onSubmit={submit} noValidate aria-labelledby="cp-title" className="flex flex-col gap-3.5 rounded-xl border border-border p-3.5">
+      <h3 id="cp-title" className="text-sm font-semibold text-foreground">
+        Trocar senha
+      </h3>
+      <div className="grid gap-3.5 sm:grid-cols-2">
+        <Field htmlFor="cp-current" label="Senha atual" className="sm:col-span-2">
+          <input
+            id="cp-current"
+            type="password"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            aria-invalid={!!error && !current}
+            aria-describedby={describedBy}
+            className={FIELD_INPUT}
+          />
+        </Field>
+        <Field htmlFor="cp-new" label="Nova senha">
+          <input
+            id="cp-new"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-describedby={describedBy}
+            className={FIELD_INPUT}
+          />
+        </Field>
+        <Field htmlFor="cp-confirm" label="Confirmar nova senha">
+          <input
+            id="cp-confirm"
+            type="password"
+            autoComplete="new-password"
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            aria-describedby={describedBy}
+            className={FIELD_INPUT}
+          />
+        </Field>
       </div>
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="cp-current" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Senha atual
-          </Label>
-          <Input id="cp-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} className="h-10 rounded-xl" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cp-new" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Nova senha
-          </Label>
-          <Input id="cp-new" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-10 rounded-xl" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="cp-confirm" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Confirmar
-          </Label>
-          <Input id="cp-confirm" type="password" autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} className="h-10 rounded-xl" />
-        </div>
-      </div>
-      {error && (
-        <p role="alert" className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-          <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {error}
-        </p>
-      )}
+      <FieldError id="cp-error">{error}</FieldError>
       <div className="flex justify-end">
-        <Button type="submit" disabled={saving} className="h-10 rounded-xl px-6 text-xs font-bold uppercase tracking-wider">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Trocar senha'}
-        </Button>
+        <ModalButton type="submit" variant="primary" disabled={saving} className="max-sm:h-11 max-sm:w-full">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-label="Trocando senha" /> : 'Trocar senha'}
+        </ModalButton>
       </div>
     </form>
   );
