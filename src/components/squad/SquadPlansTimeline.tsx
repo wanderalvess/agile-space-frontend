@@ -20,6 +20,7 @@ import { useSquadStore } from '@/store/useSquadStore';
 import { SquadDataState, deriveSquadDataState } from '@/components/squad/SquadDataState';
 import type { SquadIssueSnapshot, SquadWorkflowPhase } from '@/lib/types';
 import { isWeekend } from '@/lib/date-utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 
 export interface PlansTask {
   id: string;
@@ -1283,9 +1284,11 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
                         {/* 5. Assignee Column */}
                         <div className="px-2 flex items-center gap-1.5 overflow-hidden text-slate-700 dark:text-slate-300" style={{ width: `${colWidths.assignee}px` }}>
-                          <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[9px] font-bold shrink-0">
-                            {parent.assigneeName?.charAt(0)}
-                          </div>
+                          {parent.assigneeName ? (
+                            <InitialsAvatar name={parent.assigneeName} className="h-4 w-4 text-[8px]" />
+                          ) : (
+                            <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full bg-muted" />
+                          )}
                           <span className="truncate text-[10.5px]">{parent.assigneeName}</span>
                         </div>
                       </div>
@@ -1389,9 +1392,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
                             {/* 5. Assignee Column */}
                             <div className="px-2 flex items-center gap-1.5 overflow-hidden text-slate-800 dark:text-slate-200" style={{ width: `${colWidths.assignee}px` }}>
-                              <div className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[9px] font-bold shrink-0">
-                                {task.assigneeName.charAt(0)}
-                              </div>
+                              <InitialsAvatar name={task.assigneeName} className="h-4 w-4 text-[8px]" />
                               <span className="truncate text-[10.5px]">{task.assigneeName}</span>
                             </div>
                           </div>

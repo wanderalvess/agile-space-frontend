@@ -57,6 +57,7 @@ import {
   type GreenhopperQuickFilter,
 } from '@/services/greenhopperService';
 import { BoardConfigModal } from './BoardConfigModal';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { squadApi } from '@/app/squad/api';
 
 interface SquadScrumBoardProps {
@@ -540,35 +541,21 @@ export function SquadScrumBoard({
 
   const getAssigneeAvatar = (issue: GreenhopperIssue) => {
     const name = issue.assigneeName || issue.assignee || 'Não atribuído';
-    const initials = name
-      .split(' ')
-      .slice(0, 2)
-      .map(p => p[0]?.toUpperCase())
-      .join('');
-
-    // Cor determinística baseada no nome
-    const colors = [
-      'bg-orange-500 text-white',
-      'bg-blue-600 text-white',
-      'bg-emerald-600 text-white',
-      'bg-purple-600 text-white',
-      'bg-indigo-600 text-white',
-      'bg-pink-600 text-white',
-      'bg-teal-600 text-white',
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    const colorClass = colors[Math.abs(hash) % colors.length];
+    const assigned = !!(issue.assigneeName || issue.assignee);
 
     return (
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div
-              className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 shadow-xs cursor-pointer ring-1 ring-white dark:ring-slate-900 ${colorClass}`}
-            >
-              {initials || <User className="h-3 w-3" />}
-            </div>
+            {assigned ? (
+              <span className="inline-flex shrink-0 cursor-pointer">
+                <InitialsAvatar name={name} className="h-6 w-6 text-[10px] ring-1 ring-background" />
+              </span>
+            ) : (
+              <div className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-background">
+                <User className="h-3 w-3" />
+              </div>
+            )}
           </TooltipTrigger>
           <TooltipContent className="text-xs font-bold bg-slate-900 text-white p-2 rounded-xl">
             {name}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatTimer, remainingSeconds, timerFraction, timerPhase } from '../timer-utils';
 import { POKER_PHASES, pokerPhase } from '../PhaseStepper';
-import { groupPresence, initialsOf, avatarToneOf, type PresenceItem } from '../PresenceList';
+import { groupPresence, type PresenceItem } from '../PresenceList';
 import { reactionKindOf, REACTION_KINDS, shortSeatName } from '../VoteKit';
 import { roleToneOf } from '../tokens';
 import type { TimerState } from '@/lib/types';
@@ -78,13 +78,6 @@ describe('PresenceList helpers', () => {
 
   it('não cria grupo vazio', () => {
     expect(groupPresence([mk('a', 'QA')], order).map((g) => g.label)).toEqual(['QA']);
-  });
-
-  it('iniciais e cor de avatar são estáveis', () => {
-    expect(initialsOf('Ana Ribeiro')).toBe('AR');
-    expect(initialsOf('  carla ')).toBe('C');
-    expect(initialsOf('')).toBe('?');
-    expect(avatarToneOf('Ana Ribeiro')).toBe(avatarToneOf('Ana Ribeiro'));
   });
 });
 

@@ -20,6 +20,7 @@ import {
   Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
@@ -403,9 +404,7 @@ function ChatContent({ chatId }: { chatId: string }) {
                <Trash2 className="h-4 w-4" /> Limpar Conversa
              </Button>
              <div className="flex items-center gap-3 px-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xs border border-indigo-100 dark:border-indigo-900">
-                   {session?.name?.charAt(0) || 'U'}
-                </div>
+                <InitialsAvatar name={session?.name} className="h-8 w-8 text-xs" />
                 <div className="flex flex-col min-w-0">
                    <span className="text-[10px] font-black text-slate-900 dark:text-slate-100 truncate uppercase">{session?.name || 'Usuário'}</span>
                    <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate">Acesso Avançado Pro</span>

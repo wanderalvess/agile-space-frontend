@@ -22,7 +22,6 @@ import {
 import { cn } from '@/lib/utils';
 import { useCalmariaStore } from '@/store/useCalmariaStore';
 import { useUserContext } from '@/context/UserContext';
-import { PREDEFINED_AVATARS } from '@/lib/types';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,7 +135,7 @@ export function Header() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="flex items-center gap-2.5 px-3 py-1.5 rounded-full hover:bg-muted/50 transition-all outline-none group border border-transparent hover:border-border/40">
-                      <ProfileAvatar className="w-8 h-8 rounded-full border border-primary/20 shadow-md shadow-primary/20 shrink-0 group-hover:scale-105 transition-transform bg-primary" />
+                      <ProfileAvatar className="w-8 h-8 rounded-full border border-primary/20 shadow-md shadow-primary/20 shrink-0 group-hover:scale-105 transition-transform" />
                       <div className="flex flex-col items-start hidden md:flex">
                         <span className="text-[11px] font-black text-foreground uppercase tracking-tight leading-none mb-1">
                           {userProfile.name}

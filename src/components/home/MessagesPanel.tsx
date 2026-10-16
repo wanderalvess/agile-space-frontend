@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Plus, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatRelative, initialsOf } from '@/hooks/home/derive';
+import { formatRelative } from '@/hooks/home/derive';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { MESSAGE_MAX_LENGTH } from '@/hooks/home/contract';
 import type { Contact, Conversation } from '@/hooks/home/types';
 import { startConversationWith, useContacts, useConversationThread } from '@/hooks/home/useMessages';
@@ -21,14 +22,6 @@ interface Props {
 }
 
 type View = { kind: 'list' } | { kind: 'contacts' } | { kind: 'thread'; other: Contact; conversationId: string };
-
-function Avatar({ name }: { name: string }) {
-  return (
-    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-foreground">
-      {initialsOf(name)}
-    </span>
-  );
-}
 
 function Thread({ view, myId, tick, now, refresh, onBack }: { view: Extract<View, { kind: 'thread' }>; myId: string; tick: number; now: Date; refresh: () => void; onBack: () => void }) {
   const { messages, sending, sendError, send } = useConversationThread(view.conversationId, tick, refresh);
@@ -51,7 +44,7 @@ function Thread({ view, myId, tick, now, refresh, onBack }: { view: Extract<View
         <button type="button" onClick={onBack} aria-label="Voltar às conversas" className={cn('flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted/60', FOCUS_RING)}>
           <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
         </button>
-        <Avatar name={view.other.name} />
+        <InitialsAvatar name={view.other.name} />
         <span className="truncate text-sm font-semibold">{view.other.name}</span>
       </div>
       <ul aria-label={`Conversa com ${view.other.name}`} className="flex h-[280px] flex-col gap-1.5 overflow-y-auto p-3">
@@ -123,7 +116,7 @@ function Contacts({ onPick, onBack, busyId, error }: { onPick: (c: Contact) => v
                 onClick={() => onPick(c)}
                 className={cn('flex w-full items-center gap-2.5 rounded-xl p-2.5 text-left transition-colors hover:bg-muted/50 disabled:opacity-60', FOCUS_RING)}
               >
-                <Avatar name={c.name} />
+                <InitialsAvatar name={c.name} />
                 <span className="truncate text-[13px] font-semibold">{c.name}</span>
               </button>
             </li>
@@ -174,7 +167,7 @@ export function MessagesPanel({ conversations, available, myId, tick, now, refre
                 onClick={() => setView({ kind: 'thread', other: c.other, conversationId: c.id })}
                 className={cn('flex w-full items-start gap-2.5 rounded-xl p-2.5 text-left transition-colors hover:bg-muted/50', FOCUS_RING)}
               >
-                <Avatar name={c.other.name} />
+                <InitialsAvatar name={c.other.name} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate text-[13px] font-semibold">{c.other.name}</span>

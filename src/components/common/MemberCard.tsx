@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -49,12 +49,11 @@ export function MemberCard({
     >
       <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
         <div className="relative shrink-0">
-          <Avatar className="h-8 w-8 text-[9px] shrink-0 shadow-sm border border-white">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt={nickname} />}
-            <AvatarFallback className={cn(isYou ? "bg-indigo-600 text-white font-black" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-bold")}>
-              {nickname.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <InitialsAvatar
+            name={nickname}
+            src={avatarUrl}
+            className={cn('h-8 w-8 text-[11px] shadow-sm', isYou && 'ring-2 ring-primary/40')}
+          />
           {status === 'online' ? (
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-600 border-2 border-white dark:border-slate-900 shadow-[0_0_8px_rgba(37,99,235,0.4)]" />
           ) : (

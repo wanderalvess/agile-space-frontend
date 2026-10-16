@@ -32,7 +32,7 @@ import {
   ChevronDown,
   GraduationCap
 } from 'lucide-react';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 
 import { useUserContext } from '@/context/UserContext';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
@@ -1139,7 +1139,7 @@ function RosterContent() {
                       {/* Name & Avatar */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <NiceAvatar className="h-8 w-8 rounded-full border border-slate-200 dark:border-slate-700 shrink-0" {...genConfig(m.displayName || m.jiraAccountId)} />
+                          <InitialsAvatar name={m.displayName || m.jiraAccountId} email={m.email} className="h-8 w-8 text-xs" />
                           <div className="truncate max-w-[180px]">
                             <p className="font-bold text-slate-800 dark:text-slate-100 truncate">{m.displayName}</p>
                             <p className="text-[10px] text-slate-400 truncate">{m.email || m.jiraAccountId}</p>

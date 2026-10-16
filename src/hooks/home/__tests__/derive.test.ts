@@ -11,7 +11,6 @@ import {
   greetingFor,
   heroChips,
   historyMeta,
-  initialsOf,
   isLive,
   isOpen,
   liveCountBySquad,
@@ -64,12 +63,6 @@ describe('texto e datas', () => {
     expect(formatRelative('2026-10-14T13:00:00', NOW)).toBe('há 2 h');
     expect(formatRelative('2026-10-13T10:00:00', NOW)).toBe('ontem');
     expect(formatRelative(undefined, NOW)).toBe('');
-  });
-
-  it('iniciais', () => {
-    expect(initialsOf('Gabriela Nunes')).toBe('GN');
-    expect(initialsOf('Diego')).toBe('D');
-    expect(initialsOf('')).toBe('');
   });
 });
 

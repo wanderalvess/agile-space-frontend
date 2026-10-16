@@ -30,8 +30,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
-import { PREDEFINED_AVATARS } from '@/lib/types';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import {
   Select,
   SelectContent,
@@ -249,7 +248,6 @@ export function UserExplorer() {
             <TableBody className="divide-y divide-slate-50 dark:divide-slate-800/30">
               <AnimatePresence mode="popLayout">
                 {paginatedUsers.map((u, index) => {
-                  const avatarConfig = PREDEFINED_AVATARS[u.avatarSeed || ''] || genConfig(u.avatarSeed || u.email || u.name || 'Felix');
                   const label = u.name || u.email || 'usuário';
 
                   return (
@@ -263,7 +261,7 @@ export function UserExplorer() {
                       <TableCell className="py-2.5 pl-8">
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            <NiceAvatar className="w-9 h-9 border-2 border-white dark:border-slate-800 shadow-sm" {...avatarConfig} />
+                            <InitialsAvatar name={u.name} email={u.email} className="h-9 w-9 text-xs shadow-sm" />
                             {isAdminUser(u) && <div className="absolute -bottom-1 -right-1 bg-primary text-white p-0.5 rounded-full shadow-sm"><Zap className="h-2 w-2" /></div>}
                           </div>
                           <div className="flex flex-col">

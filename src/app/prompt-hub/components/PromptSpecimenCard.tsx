@@ -18,7 +18,7 @@ import { cn, openExternalUrl, toSafeExternalUrl } from '@/lib/utils';
 import { toast } from 'sonner';
 import { PromptItem } from '../types';
 import { getTypeMeta, getStatusMeta, getVisibilityMeta } from '../constants';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,26 +45,7 @@ const VARIABLE_REGEX = /(?<!\$)\{\{([^}\n]{1,60})\}\}/g;
 const MAX_VISIBLE_TAGS = 3;
 
 function AuthorAvatar({ prompt }: { prompt: PromptItem }) {
-  let config: any = null;
-  try {
-    config = prompt.authorAvatar ? genConfig(JSON.parse(prompt.authorAvatar)) : null;
-  } catch {
-    config = null;
-  }
-
-  if (!config) {
-    return (
-      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-        {prompt.authorName?.[0]?.toUpperCase() || '?'}
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-5 w-5 shrink-0 overflow-hidden rounded-full bg-muted">
-      <NiceAvatar className="h-full w-full" {...config} />
-    </div>
-  );
+  return <InitialsAvatar name={prompt.authorName} className="h-5 w-5 text-[9px]" />;
 }
 
 export function PromptSpecimenCard({
