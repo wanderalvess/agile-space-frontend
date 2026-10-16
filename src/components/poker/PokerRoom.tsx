@@ -10,7 +10,7 @@ import { ParticipantList } from '@/components/poker/ParticipantList';
 import { Controls } from '@/components/poker/Controls';
 import { RoundCenter, RoleBreakdown, CopyEstimateCard } from '@/components/poker/Results';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, RotateCw, SkipForward, StickyNote, Users, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, Clock, History as HistoryIcon, EyeOff, HelpCircle, Hourglass, Layers, ListChecks, Pin, Play, RotateCcw, SkipForward, StickyNote, Users, WalletCards, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TopicDisplay } from './TopicDisplay';
 import { RefinementNotes } from './RefinementNotes';
@@ -18,7 +18,6 @@ import { History } from './History';
 import { FacilitatorPanel } from './FacilitatorPanel';
 import { pokerApi } from '../../app/room/api';
 import { TopicQueue } from './TopicQueue';
-import { cn } from '@/lib/utils';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { PokerGuide } from './PokerGuide';
 import { PokerChat } from './PokerChat';
@@ -78,7 +77,6 @@ interface PokerRoomProps {
   onResumeTimer: () => void;
   onResetTimer: () => void;
   serverTimeOffset?: number;
-  onLeaveRoom: () => void;
   isSoundEnabled: boolean;
   onSetIsSoundEnabled: (enabled: boolean) => void;
   onOpenFeedback: () => void;
@@ -107,7 +105,6 @@ interface PokerRoomProps {
   settings?: Room['settings'];
   onUpdateSettings: (settings: Partial<NonNullable<Room['settings']>>) => void;
   onClaimFacilitator: () => void;
-  creatorId: string;
   messagesByChannel?: Record<string, any[]>;
   onSendMessage?: (text: string, kind: 'text' | 'code', channelId: string) => void;
   onDeleteMessage?: (messageId: string, channelId: string) => void;
@@ -147,7 +144,6 @@ const PokerRoomComponent = ({
   onResumeTimer,
   onResetTimer,
   serverTimeOffset = 0,
-  onLeaveRoom,
   isSoundEnabled,
   onSetIsSoundEnabled,
   onOpenFeedback,
@@ -176,7 +172,6 @@ const PokerRoomComponent = ({
   settings,
   onUpdateSettings,
   onClaimFacilitator,
-  creatorId,
   messagesByChannel = {},
   onSendMessage = () => {},
   onDeleteMessage = () => {},
@@ -621,7 +616,6 @@ const PokerRoomComponent = ({
   // não votaram. Excluir offline evita que um fantasma (aba fechada) trave o
   // "FALTAM N" pra sempre. Alimenta o aviso antes da revelação.
   const eligibleVoters = participants.filter(p => canParticipantVote(p, settings?.allowManagementToVote) && onlineIds.has(p.id));
-  const votedIds = new Set(votes.map(v => v.participantId));
 
   // Categorias técnicas realmente presentes na sala — alimentam o revote
   // seletivo genérico (antes só Dev/QA fixos).
@@ -763,13 +757,6 @@ const PokerRoomComponent = ({
       </div>
     );
   }
-  if (activeIssueId && !isSessionFinished && settings?.roundNudge) {
-    banners.push(
-      <div key="rounds" className={cn('inline-flex w-fit items-center gap-1.5 rounded-full border px-3 py-1 text-xs', activeRoundCount >= maxRounds ? 'border-amber-500/50 text-amber-700 dark:text-amber-300' : 'border-border text-muted-foreground')}>
-        <RotateCw className="h-3 w-3" strokeWidth={1.5} /> Rodada {currentRoundNumber} de {maxRounds}
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
@@ -778,14 +765,14 @@ const PokerRoomComponent = ({
           <RoomHeader
             title={roomTitle || 'Scrum Poker'}
             toolIcon={<WalletCards className="h-4 w-4" />}
-            toolColorClass="text-primary"
+            toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
             onOpenFeedback={onOpenFeedback}
           />
           <PokerRoomBar
             roomTitle={roomTitle || 'Scrum Poker'}
             roomTeam={roomTeam}
             deckLabel={deckLabel}
-            phase={phase}
+            phase={isSessionFinished ? null : phase}
             isFacilitator={isCurrentUserFacilitator}
             timer={timer}
             serverTimeOffset={serverTimeOffset}

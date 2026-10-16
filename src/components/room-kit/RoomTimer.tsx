@@ -36,7 +36,7 @@ const PHASE_TEXT: Record<TimerPhase, string> = {
   stopped: 'text-muted-foreground',
   paused: 'text-muted-foreground',
   running: 'text-foreground',
-  warning: 'text-amber-600 dark:text-amber-400',
+  warning: 'text-amber-700 dark:text-amber-400',
   expired: 'text-red-600 dark:text-red-400',
 };
 

@@ -111,7 +111,9 @@ export function TopicDisplay({
           {!showFinished && topic && issueKey && <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{issueKey}</span>}
           {!showFinished && topic && issueType && <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">{issueType}</span>}
           {!showFinished && topic && !!round && round > 0 && (
-            <span className="text-xs text-muted-foreground">Rodada {round}{maxRounds ? ` de ${maxRounds}` : ''}</span>
+            <span className={cn('text-xs', maxRounds && round >= maxRounds ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}>
+              Rodada {round}{maxRounds ? ` de ${maxRounds}` : ''}
+            </span>
           )}
           {jiraLink && !showFinished && (
             <a

@@ -33,7 +33,8 @@ export interface PokerRoomBarProps {
   /** "Squad · Sprint" acima do título. */
   roomTeam?: string;
   deckLabel: string;
-  phase: 'discuss' | 'vote' | 'reveal' | 'decide';
+  /** Fase da rodada; null com a cerimônia concluída (não há rodada em andamento). */
+  phase: 'discuss' | 'vote' | 'reveal' | 'decide' | null;
   isFacilitator: boolean;
   // Cronômetro
   timer?: TimerState;
@@ -90,7 +91,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
         </span>
       </div>
 
-      <PhaseStepper className="mx-auto hidden md:flex" steps={POKER_PHASES} current={p.phase} label="Fases da rodada" />
+      {p.phase ? <PhaseStepper className="mx-auto hidden md:flex" steps={POKER_PHASES} current={p.phase} label="Fases da rodada" /> : <span className="mx-auto" />}
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
         {showTimer && p.timer && (

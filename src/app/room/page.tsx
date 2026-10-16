@@ -211,7 +211,7 @@ export default function PokerHubPage() {
       <RoomHeader
         title="Scrum Poker"
         toolIcon={<WalletCards className="h-4 w-4" />}
-        toolColorClass="text-primary"
+        toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
         onOpenFeedback={() => setFeedbackSignal(Date.now())}
         actions={<ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />}
       />

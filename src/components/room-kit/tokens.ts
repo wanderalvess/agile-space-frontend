@@ -32,11 +32,6 @@ export const BRAND_TEXT = 'text-primary [.theme-totvs:not(.dark)_&]:text-foregro
 /** Fundo suave de marca (placas, chips ativos, linha selecionada). */
 export const BRAND_TINT = 'bg-primary/10 dark:bg-primary/15';
 
-/** Texto do título com gradiente — só fora dos temas TOTVS e Leitura. */
-export const TITLE_GRADIENT =
-  'bg-gradient-to-r from-foreground via-primary to-primary bg-clip-text text-transparent ' +
-  '[.theme-totvs_&]:bg-none [.theme-totvs_&]:text-foreground [.theme-leitura_&]:bg-none [.theme-leitura_&]:text-foreground';
-
 interface ToneStyle {
   /** Placa do ícone (quadrado arredondado). */
   tile: string;

@@ -109,7 +109,7 @@ export default function ConfiguracoesPage() {
                   <ThemePreview variant={t.id} dark={resolvedMode === 'dark'} />
                   <span className="flex items-center justify-between gap-2 px-0.5 text-sm font-semibold">
                     {t.name}
-                    {active && <Check aria-hidden="true" className="h-4 w-4 text-primary" strokeWidth={1.75} />}
+                    {active && <Check aria-hidden="true" className="h-4 w-4 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" strokeWidth={1.75} />}
                   </span>
                 </button>
               );
