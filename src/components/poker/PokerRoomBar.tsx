@@ -146,7 +146,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
             onClick={p.onReveal}
             disabled={!p.canReveal}
             className={cn(
-              'inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow transition-[background-color,opacity] duration-fast hover:bg-primary/90',
+              'inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground room-glow max-sm:h-11 transition-[background-color,opacity] duration-fast hover:bg-primary/90',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               'disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none'
             )}

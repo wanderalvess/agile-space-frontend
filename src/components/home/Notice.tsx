@@ -96,7 +96,7 @@ export function Notice({
         onClick={onDismiss}
         aria-label={dismissLabel}
         className={cn(
-          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors max-sm:h-11 max-sm:w-11 hover:bg-muted/60 hover:text-foreground',
           FOCUS_RING,
         )}
       >

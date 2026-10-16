@@ -147,6 +147,13 @@ export function VoteCard({
   );
 }
 
+/** Nome curto para o assento: "Gabriel Alves Mendes" vira "Gabriel M."; nomes curtos ficam como estão. O nome inteiro vai no title e no leitor de tela. */
+export function shortSeatName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (name.trim().length <= 14 || parts.length < 2) return name.trim();
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+}
+
 /**
  * Lugar à mesa: carta + avatar + nome + papel. `flipped` põe a carta do lado de
  * baixo (assentos da metade de cima da mesa ficam com o nome para fora e a carta
@@ -189,7 +196,8 @@ export function VoteSeat({
 }) {
   const nameLine = (
     <span className="flex max-w-full items-center justify-center gap-1 text-[13px] font-semibold leading-tight text-foreground">
-      <span className="truncate" title={name}>{name}</span>
+      <span className="truncate" title={name} aria-hidden="true">{shortSeatName(name)}</span>
+      <span className="sr-only">{name}</span>
       {isYou && <span className="sr-only">(você)</span>}
       {isHost && <Crown aria-label="Organizador" className="h-3.5 w-3.5 shrink-0 text-amber-500" strokeWidth={1.5} />}
     </span>

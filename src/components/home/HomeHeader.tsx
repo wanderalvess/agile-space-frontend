@@ -57,7 +57,7 @@ export function HomeHeader({ squads, scope, isMulti, switchingTo, onPickSquad, q
 
         <div className="order-2 ml-auto flex items-center gap-2.5 md:order-4 md:ml-0">
           <NotificationCenter />
-          <ThemeToggle className="h-10 w-10 rounded-[10px]" />
+          <ThemeToggle className="h-10 w-10 rounded-[10px] max-sm:h-11 max-sm:w-11" />
           <ProfileMenu />
         </div>
       </div>

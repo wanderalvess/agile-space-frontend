@@ -230,6 +230,15 @@ export function stageMinHeight(count: number, roomy = false): number {
   return roomy ? Math.max(base, 380) : base;
 }
 
+/** Largura da oval para poucos assentos (null = sem limite além do palco). Em apresentação (`large`) as cartas são maiores e o limite sobe. */
+function compactRingWidth(count: number, large: boolean): number | null {
+  const scale = large ? 1.35 : 1;
+  if (count <= 4) return Math.round(720 * scale);
+  if (count <= 6) return Math.round(840 * scale);
+  if (count <= 8) return Math.round(980 * scale);
+  return null;
+}
+
 /** Espaço livre mínimo no centro da oval (px). */
 export const CENTER_MIN_HEIGHT = 100;
 export const CENTER_MIN_WIDTH = 220;
@@ -256,19 +265,25 @@ export function tableGeometry(count: number, width: number, height: number, larg
   if (count <= 0 || width < RING_MIN_WIDTH) return fallback;
   const h = Math.max(height, minHeight);
   // A oval ocupa no máximo RING_MAX_ASPECT x a altura e fica centrada no palco.
-  const w = Math.min(width, Math.round(h * RING_MAX_ASPECT));
-  if (w < RING_MIN_WIDTH) return fallback;
-  const dx = (width - w) / 2;
+  const full = Math.min(width, Math.round(h * RING_MAX_ASPECT));
+  if (full < RING_MIN_WIDTH) return fallback;
   const tiers = large ? [XL_TIER, ...TIERS] : h >= 500 ? TIERS : TIERS.slice(1);
-  for (const tier of tiers) {
-    const ring = ringAt(count, w, h, tier);
-    if (ring) {
-      return {
-        mode: 'ring',
-        tier,
-        seats: ring.seats.map((p) => ({ x: Math.round((p.x + dx) * 10) / 10, y: p.y })),
-        felt: { x: dx + w / 2 - ring.rx, y: h / 2 - ring.ry, w: ring.rx * 2, h: ring.ry * 2 },
-      };
+  // Mesa pequena não espalha os poucos assentos nas pontas de uma oval gigante: tenta primeiro uma oval mais estreita
+  // (proporcional à quantidade) e só usa a largura toda se a estreita não comportar o desenho.
+  const compact = compactRingWidth(count, large);
+  const widths = compact !== null && compact < full ? [Math.max(RING_MIN_WIDTH, compact), full] : [full];
+  for (const w of widths) {
+    const dx = (width - w) / 2;
+    for (const tier of tiers) {
+      const ring = ringAt(count, w, h, tier);
+      if (ring) {
+        return {
+          mode: 'ring',
+          tier,
+          seats: ring.seats.map((p) => ({ x: Math.round((p.x + dx) * 10) / 10, y: p.y })),
+          felt: { x: dx + w / 2 - ring.rx, y: h / 2 - ring.ry, w: ring.rx * 2, h: ring.ry * 2 },
+        };
+      }
     }
   }
   return fallback;

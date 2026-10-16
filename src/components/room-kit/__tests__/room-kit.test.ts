@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatTimer, remainingSeconds, timerFraction, timerPhase } from '../timer-utils';
 import { POKER_PHASES, pokerPhase } from '../PhaseStepper';
 import { groupPresence, initialsOf, avatarToneOf, type PresenceItem } from '../PresenceList';
-import { reactionKindOf, REACTION_KINDS } from '../VoteKit';
+import { reactionKindOf, REACTION_KINDS, shortSeatName } from '../VoteKit';
 import { roleToneOf } from '../tokens';
 import type { TimerState } from '@/lib/types';
 
@@ -111,5 +111,17 @@ describe('roleToneOf', () => {
     expect(roleToneOf('Designer')).toBe('design');
     expect(roleToneOf('Management')).toBe('other');
     expect(roleToneOf(null)).toBe('other');
+  });
+});
+
+describe('shortSeatName', () => {
+  it('encurta nomes longos para primeiro nome e inicial do último', () => {
+    expect(shortSeatName('Gabriel Alves Mendes')).toBe('Gabriel M.');
+    expect(shortSeatName('Wanderson Alves')).toBe('Wanderson A.');
+  });
+  it('mantém nomes curtos e de uma palavra só', () => {
+    expect(shortSeatName('Ana Souza')).toBe('Ana Souza');
+    expect(shortSeatName('  Bruno ')).toBe('Bruno');
+    expect(shortSeatName('Maximiliano-Constantino')).toBe('Maximiliano-Constantino');
   });
 });

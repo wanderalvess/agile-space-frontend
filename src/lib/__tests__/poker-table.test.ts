@@ -154,6 +154,14 @@ describe('mesa oval: geometria', () => {
     expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(950, 0);
   });
 
+  it('mesa de 4 num palco largo usa uma oval estreita, não as pontas do palco inteiro', () => {
+    const g = tableGeometry(4, 1326, 380);
+    expect(g.mode).toBe('ring');
+    expect(g.felt.w).toBeLessThanOrEqual(740);
+    const xs = g.seats.map((s) => s.x);
+    expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(663, 0);
+  });
+
   it('tela estreita ou mesa cheia demais cai na grade', () => {
     expect(tableGeometry(10, 375, 300).mode).toBe('grid');
     expect(ringFits(10, 375)).toBe(false);

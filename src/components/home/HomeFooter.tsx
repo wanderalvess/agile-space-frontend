@@ -8,7 +8,7 @@ import { FOCUS_RING } from './home-ui';
 /** Rodapé da Home: sem logo, só o nome do portal e os atalhos de sempre. */
 export function HomeFooter({ onOpenFeedback }: { onOpenFeedback: () => void }) {
   const linkClass = cn(
-    'inline-flex h-8 items-center rounded-lg px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
+    'inline-flex h-8 items-center rounded-lg px-3 text-xs max-sm:h-11 font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
     FOCUS_RING,
   );
   return (
