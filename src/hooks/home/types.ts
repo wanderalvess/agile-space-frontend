@@ -25,7 +25,7 @@ export interface HomeAnnouncement {
 
 export type NotificationTab = 'foryou' | 'messages' | 'announcements';
 
-export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT';
+export type NotificationKind = 'INVITE' | 'REMINDER' | 'ACTION_ASSIGNED' | 'MESSAGE' | 'ANNOUNCEMENT' | 'LINK_REQUEST';
 
 export interface HomeNotification {
   id: string;
