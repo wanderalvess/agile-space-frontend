@@ -27,6 +27,7 @@ import {
   normalizeRoomTitle,
   pendingTiers,
   presenceLabel,
+  presenceMaxAvatars,
   presenceStack,
   type TopBarPerson,
   type TopBarTier,
@@ -199,12 +200,16 @@ function RoomTitle({ title, onTitleChange }: { title: string; onTitleChange?: (t
   );
 }
 
-/** Pilha de avatares da presença; clicar abre a lista de participantes. */
+/**
+ * Pilha de avatares da presença; clicar abre a lista de participantes.
+ * Avatares de 28 px (32 no celular), sobreposição de 6 px e iniciais de 11 px: legíveis sem esmagar o vizinho.
+ * O ponto verde só aparece em quem está online; quem saiu fica sem ponto (a lista completa explica o resto).
+ */
 function PresenceStack({ people, open, onClick }: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void }) {
   // Pilha menor quando a barra está apertada; o "+N" acompanha.
   const wide = useMediaQuery('(min-width: 1536px)');
   const phone = !useMediaQuery('(min-width: 640px)');
-  const stack = presenceStack(people, wide ? 5 : phone ? 2 : 3);
+  const stack = presenceStack(people, presenceMaxAvatars(wide, phone));
   const label = presenceLabel(stack);
   return (
     <button
@@ -219,18 +224,19 @@ function PresenceStack({ people, open, onClick }: { people: readonly TopBarPerso
         FOCUS_RING
       )}
     >
-      <span className="flex items-center -space-x-1.5" aria-hidden="true">
-        {stack.visible.map((p) => (
-          <PersonAvatar
-            key={p.id}
-            name={p.name}
-            size="sm"
-            className={cn('ring-2 ring-card', !p.online && 'opacity-50')}
-          />
+      <span className="flex items-center" aria-hidden="true">
+        {stack.visible.map((p, i) => (
+          // Quem vem antes fica por cima: o ponto de online nunca some atrás do vizinho.
+          <span key={p.id} className={cn('relative inline-flex', i > 0 && '-ml-1.5')} style={{ zIndex: stack.visible.length - i }}>
+            <PersonAvatar name={p.name} size="sm" className="h-7 w-7 text-[11px] ring-2 ring-card max-sm:h-8 max-sm:w-8" />
+            {p.online && (
+              <span className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />
+            )}
+          </span>
         ))}
       </span>
       {stack.extra > 0 && (
-        <span aria-hidden="true" className="text-xs font-semibold tabular-nums text-muted-foreground">
+        <span aria-hidden="true" className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
           +{stack.extra}
         </span>
       )}

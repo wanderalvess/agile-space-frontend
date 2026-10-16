@@ -36,7 +36,7 @@ export interface PresenceStackResult {
  * preservada dentro de cada grupo); o excedente vira "+N". Se ninguém está
  * online, mostra quem estiver na lista, para a pilha nunca ficar vazia com gente na sala.
  */
-export function presenceStack(people: readonly TopBarPerson[], max = 5): PresenceStackResult {
+export function presenceStack(people: readonly TopBarPerson[], max = 3): PresenceStackResult {
   const online = people.filter((p) => p.online);
   const offline = people.filter((p) => !p.online);
   const ordered = [...online, ...offline];
@@ -47,6 +47,15 @@ export function presenceStack(people: readonly TopBarPerson[], max = 5): Presenc
     onlineCount: online.length,
     total: people.length,
   };
+}
+
+/**
+ * Quantos avatares cabem na pilha do cabeçalho: 4 a partir de 1536 px, 3 abaixo disso e 2 no celular
+ * (o excedente vira "+N"). Com avatares de 28 a 32 px mais que isso empurra o título da sala.
+ */
+export function presenceMaxAvatars(wide: boolean, phone: boolean): number {
+  if (wide) return 4;
+  return phone ? 2 : 3;
 }
 
 /** Texto acessível do botão de presença: "3 online de 5 participantes". */

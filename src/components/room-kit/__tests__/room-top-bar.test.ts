@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeRoomTitle, pendingTiers, presenceLabel, presenceStack, type TopBarPerson } from '../room-top-bar-utils';
+import { normalizeRoomTitle, pendingTiers, presenceLabel, presenceMaxAvatars, presenceStack, type TopBarPerson } from '../room-top-bar-utils';
 
 const person = (id: string, online: boolean): TopBarPerson => ({ id, name: `Pessoa ${id}`, online });
 
@@ -17,7 +17,7 @@ describe('normalizeRoomTitle', () => {
 
 describe('presenceStack', () => {
   it('põe quem está online primeiro e mantém a ordem dentro de cada grupo', () => {
-    const s = presenceStack([person('a', false), person('b', true), person('c', false), person('d', true)]);
+    const s = presenceStack([person('a', false), person('b', true), person('c', false), person('d', true)], 5);
     expect(s.visible.map((p) => p.id)).toEqual(['b', 'd', 'a', 'c']);
     expect(s.onlineCount).toBe(2);
     expect(s.total).toBe(4);
@@ -29,6 +29,18 @@ describe('presenceStack', () => {
     const s = presenceStack(many, 5);
     expect(s.visible).toHaveLength(5);
     expect(s.extra).toBe(3);
+  });
+
+  it('sem limite explícito mostra 3 avatares e o resto vira +N', () => {
+    const s = presenceStack(Array.from({ length: 4 }, (_, i) => person(String(i), true)));
+    expect(s.visible).toHaveLength(3);
+    expect(s.extra).toBe(1);
+  });
+
+  it('limite de avatares por largura: 4 acima de 1536 px, 3 abaixo e 2 no celular', () => {
+    expect(presenceMaxAvatars(true, false)).toBe(4);
+    expect(presenceMaxAvatars(false, false)).toBe(3);
+    expect(presenceMaxAvatars(false, true)).toBe(2);
   });
 
   it('sala vazia não quebra', () => {
