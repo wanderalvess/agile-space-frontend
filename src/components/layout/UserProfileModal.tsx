@@ -11,7 +11,7 @@ import { userApi } from '@/app/users/api';
 import { normalizeRole } from '@/lib/types';
 import type { GlobalRole } from '@/lib/types';
 import { bestJiraAvatar, writeStoredProfilePhoto } from '@/lib/profile-photo';
-import { Modal, ModalButton, RoleChip, StatusChip, TabBar, useBelowBreakpoint } from '@/components/room-kit';
+import { FOCUS_RING, Modal, ModalButton, RoleChip, StatusChip, TabBar, useBelowBreakpoint } from '@/components/room-kit';
 import { ChangePasswordSection } from '@/components/layout/ChangePasswordSection';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { JiraPanel, type JiraAccount } from '@/components/profile/JiraPanel';
@@ -93,7 +93,7 @@ export function UserProfileModal() {
   const availableSquadsForProject = squadsForProject(projectId);
 
   // Foto do Jira: da importação do time, da última sincronização ou da sincronização feita agora, no modal.
-  const { photo, reportBroken } = useProfilePhoto({
+  const { photo, reportBroken, available: photoAvailable, photoOff, setPhotoOff } = useProfilePhoto({
     jiraAvatarUrls: jiraAccountDetails?.avatarUrls,
     jiraAccountId: jiraAccountDetails?.accountId,
   });
@@ -290,14 +290,25 @@ export function UserProfileModal() {
 
   const summary = (
     <div className={compact ? 'flex items-center gap-4' : 'flex flex-col items-center gap-3 text-center'}>
-      <InitialsAvatar
-        name={name.trim()}
-        email={email}
-        src={photo}
-        onPhotoError={reportBroken}
-        title={name.trim() || undefined}
-        className={cn('border border-border ring-2 ring-primary/25', compact ? 'h-16 w-16 text-xl' : 'h-24 w-24 text-3xl')}
-      />
+      <div className="flex shrink-0 flex-col items-center gap-1">
+        <InitialsAvatar
+          name={name.trim()}
+          email={email}
+          src={photo}
+          onPhotoError={reportBroken}
+          title={name.trim() || undefined}
+          className={cn('border border-border ring-2 ring-primary/25', compact ? 'h-16 w-16 text-xl' : 'h-24 w-24 text-3xl')}
+        />
+        {photoAvailable && (
+          <button
+            type="button"
+            onClick={() => setPhotoOff(!photoOff)}
+            className={cn('rounded-md px-1 text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground max-sm:flex max-sm:min-h-11 max-sm:items-center', FOCUS_RING)}
+          >
+            {photoOff ? 'Usar foto do Jira' : 'Usar minhas iniciais'}
+          </button>
+        )}
+      </div>
       <div className={compact ? 'flex min-w-0 flex-col items-start gap-1.5' : 'flex min-w-0 flex-col items-center gap-2'}>
         <p className="max-w-full break-words text-base font-semibold leading-tight text-foreground">{displayName}</p>
         {role && <RoleChip category={role} label={role} className="max-w-full truncate" />}

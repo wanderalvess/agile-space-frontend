@@ -71,10 +71,13 @@ export interface ResolveProfilePhotoInput {
   jiraAvatarUrls?: JiraAvatarUrls | null;
   /** Última foto sincronizada, guardada neste navegador. */
   storedPhoto?: string | null;
+  /** A pessoa escolheu usar só as iniciais: a foto, mesmo existindo, não vale (ver `readProfilePhotoOff`). */
+  photoOff?: boolean;
 }
 
 /** URL da foto do Jira da pessoa, ou `undefined` quando ela não tem. */
-export function resolveProfilePhoto({ teamPhoto, jiraAvatarUrls, storedPhoto }: ResolveProfilePhotoInput): string | undefined {
+export function resolveProfilePhoto({ teamPhoto, jiraAvatarUrls, storedPhoto, photoOff }: ResolveProfilePhotoInput): string | undefined {
+  if (photoOff) return undefined;
   const fresh = bestJiraAvatar(jiraAvatarUrls);
   if (fresh) return fresh;
   if (isUsablePhotoUrl(teamPhoto)) return teamPhoto.trim();
@@ -105,6 +108,33 @@ export function writeStoredProfilePhoto(userId: string | null | undefined, url: 
     else window.localStorage.removeItem(storageKey(userId));
   } catch {
     /* navegador sem armazenamento: a foto só vale nesta sessão */
+  }
+  window.dispatchEvent(new Event(PROFILE_PHOTO_EVENT));
+}
+
+// ---- "Usar minhas iniciais": preferência por pessoa, neste navegador ------------------------------------
+// A foto que chega por URL do Jira não dá para inspecionar (pode ser o ícone padrão); a pessoa decide.
+
+const photoOffKey = (userId: string) => `agile_profile_photo_off_${userId}`;
+
+/** `true` quando a pessoa pediu para ver só as iniciais. Sem armazenamento (ou sem id), a foto vale. */
+export function readProfilePhotoOff(userId?: string | null): boolean {
+  if (!userId || typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(photoOffKey(userId)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Liga/desliga a preferência e avisa quem estiver mostrando o avatar (mesmo evento da foto guardada). */
+export function writeProfilePhotoOff(userId: string | null | undefined, off: boolean): void {
+  if (!userId || typeof window === 'undefined') return;
+  try {
+    if (off) window.localStorage.setItem(photoOffKey(userId), '1');
+    else window.localStorage.removeItem(photoOffKey(userId));
+  } catch {
+    /* navegador sem armazenamento: a escolha só vale até recarregar */
   }
   window.dispatchEvent(new Event(PROFILE_PHOTO_EVENT));
 }

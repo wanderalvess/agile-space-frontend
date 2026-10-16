@@ -1,10 +1,12 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bestJiraAvatar,
   isJiraSystemAvatar,
   isUsablePhotoUrl,
+  readProfilePhotoOff,
   readStoredProfilePhoto,
   resolveProfilePhoto,
+  writeProfilePhotoOff,
   writeStoredProfilePhoto,
 } from '../profile-photo';
 
@@ -123,5 +125,58 @@ describe('isJiraSystemAvatar', () => {
     expect(isJiraSystemAvatar('https://jira.exemplo.com/secure/useravatar?ownerId=X&avatarId=1')).toBe(false);
     expect(isJiraSystemAvatar(undefined)).toBe(false);
     expect(isJiraSystemAvatar('')).toBe(false);
+  });
+});
+
+describe('preferência "Usar minhas iniciais"', () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it('liga, lê e desliga por pessoa, com a chave agile_profile_photo_off_<id>', () => {
+    expect(readProfilePhotoOff('u1')).toBe(false);
+    writeProfilePhotoOff('u1', true);
+    expect(window.localStorage.getItem('agile_profile_photo_off_u1')).toBe('1');
+    expect(readProfilePhotoOff('u1')).toBe(true);
+    expect(readProfilePhotoOff('u2')).toBe(false);
+    writeProfilePhotoOff('u1', false);
+    expect(window.localStorage.getItem('agile_profile_photo_off_u1')).toBeNull();
+    expect(readProfilePhotoOff('u1')).toBe(false);
+  });
+
+  it('avisa quem mostra o avatar ao mudar', () => {
+    let calls = 0;
+    const onChange = () => {
+      calls += 1;
+    };
+    window.addEventListener('profile-photo-changed', onChange);
+    writeProfilePhotoOff('u1', true);
+    writeProfilePhotoOff('u1', false);
+    window.removeEventListener('profile-photo-changed', onChange);
+    expect(calls).toBe(2);
+  });
+
+  it('sem id de pessoa não faz nada', () => {
+    writeProfilePhotoOff(undefined, true);
+    expect(readProfilePhotoOff(undefined)).toBe(false);
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('sem armazenamento (erro ao ler ou gravar) a foto continua valendo e nada quebra', () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('bloqueado');
+    });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('bloqueado');
+    });
+    expect(readProfilePhotoOff('u1')).toBe(false);
+    expect(() => writeProfilePhotoOff('u1', true)).not.toThrow();
+    get.mockRestore();
+    set.mockRestore();
+  });
+
+  it('com a preferência ligada, resolveProfilePhoto devolve undefined mesmo havendo foto', () => {
+    const input = { teamPhoto: 'https://t/foto.png', jiraAvatarUrls: JIRA, storedPhoto: 'https://s/foto.png' };
+    expect(resolveProfilePhoto(input)).toBe(JIRA['48x48']);
+    expect(resolveProfilePhoto({ ...input, photoOff: true })).toBeUndefined();
+    expect(resolveProfilePhoto({ ...input, photoOff: false })).toBe(JIRA['48x48']);
   });
 });
