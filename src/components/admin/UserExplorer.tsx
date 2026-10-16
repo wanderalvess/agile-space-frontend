@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { buildResetLink } from '@/lib/password-api';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -44,8 +43,7 @@ import {
   Zap,
   ArrowUpRight,
   RefreshCw,
-  Info,
-  Copy
+  Info
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { UserProfile, ROLES, AUTH_ROLES } from '@/lib/types';
@@ -57,7 +55,9 @@ import { cn } from '@/lib/utils';
 import { userApi } from '@/app/users/api';
 import { adminApi } from '@/app/admin/api';
 import { useUserContext } from '@/context/UserContext';
-import { PasswordResetManager } from './PasswordResetManager';
+import { ConfirmDialog } from '@/components/room-kit/ConfirmDialog';
+import { resetLinkFrom, type ResetLink } from './approvals/approvals-utils';
+import { ResetLinkDialog } from './approvals/ResetLinkParts';
 import {
   activeAdminCount,
   apiErrorMessage,
@@ -84,7 +84,7 @@ export function UserExplorer() {
   const [detailSquads, setDetailSquads] = useState<Array<{ squadId: string; role?: string }> | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState<UserProfile | null>(null);
   const [confirmReset, setConfirmReset] = useState<UserProfile | null>(null);
-  const [resetLink, setResetLink] = useState<{ email: string; url: string; expiresAt?: string } | null>(null);
+  const [resetLink, setResetLink] = useState<ResetLink | null>(null);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -143,9 +143,8 @@ export function UserExplorer() {
     setUpdatingId(u.id);
     try {
       const result = await adminApi.resetUserPassword(u.id);
-      if (result.resetToken) {
-        setResetLink({ email: u.email || u.name, url: buildResetLink(result.resetToken, window.location.origin), expiresAt: result.tokenExpiresAt });
-      }
+      const link = resetLinkFrom(result, u.email || u.name, window.location.origin);
+      if (link) setResetLink(link);
       toast({ title: 'Link de redefinição gerado', description: 'Repasse à pessoa fora do sistema. Ele vale uma vez só.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Não foi possível redefinir a senha', description: apiErrorMessage(error) });
@@ -160,7 +159,6 @@ export function UserExplorer() {
 
   return (
     <div className="space-y-6">
-      <PasswordResetManager />
       <Card className="border border-slate-200/50 dark:border-slate-800/50 rounded-[2rem] bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-xl shadow-slate-200/10 dark:shadow-slate-900/10 p-2 overflow-hidden">
         <div className="flex flex-col md:flex-row items-center gap-2">
           <div className="relative flex-1 group w-full">
@@ -340,7 +338,7 @@ export function UserExplorer() {
                           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Detalhes de ${label}`} onClick={() => openDetails(u)}>
                             <Info className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Redefinir a senha de ${label}`} disabled={updatingId === u.id} onClick={() => setConfirmReset(u)}>
+                          <Button variant="ghost" size="icon" className={cn("h-8 w-8", confirmReset?.id === u.id && "bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground")} aria-label={`Redefinir a senha de ${label}`} disabled={updatingId === u.id} onClick={() => setConfirmReset(u)}>
                             <KeyRound className="h-4 w-4" />
                           </Button>
                         </div>
@@ -387,38 +385,21 @@ export function UserExplorer() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={!!confirmReset} onOpenChange={(open) => !open && setConfirmReset(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Redefinir a senha de {confirmReset?.name || confirmReset?.email}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Será gerado um link de uso único (vale 2 horas), que você repassa à pessoa fora do sistema. Ela define a própria senha; a atual continua valendo até o link ser usado.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmReset && handleResetPassword(confirmReset)}>Gerar link de redefinição</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!confirmReset}
+        onOpenChange={(open) => { if (!open) setConfirmReset(null); }}
+        tone="brand"
+        icon={KeyRound}
+        title={`Redefinir a senha de ${confirmReset?.name || confirmReset?.email || ''}?`}
+        description="Será gerado um link de uso único (vale 2 horas), que você repassa à pessoa fora do sistema. Ela define a própria senha; a atual continua valendo até o link ser usado."
+        confirmLabel="Gerar link de redefinição"
+        loading={!!confirmReset && updatingId === confirmReset.id}
+        loadingLabel="Gerando…"
+        keepOpenOnConfirm
+        onConfirm={() => confirmReset && handleResetPassword(confirmReset)}
+      />
 
-      <Dialog open={!!resetLink} onOpenChange={(open) => !open && setResetLink(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Link de redefinição de {resetLink?.email}</DialogTitle>
-            <DialogDescription>
-              Copie agora e repasse à pessoa: é a única vez que o link aparece e ele vale uma vez só
-              {resetLink?.expiresAt ? `, até ${new Date(resetLink.expiresAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2">
-            <code className="min-w-0 flex-1 break-all rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-2 text-xs font-bold">{resetLink?.url}</code>
-            <Button variant="outline" size="icon" aria-label="Copiar link" onClick={() => resetLink && navigator.clipboard.writeText(resetLink.url)}>
-              <Copy className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ResetLinkDialog link={resetLink} onClose={() => setResetLink(null)} />
 
       <Dialog open={!!detailUser} onOpenChange={(open) => !open && setDetailUser(null)}>
         <DialogContent>

@@ -16,6 +16,7 @@ import {
   GitBranch,
   Brain,
   Lock,
+  UserCheck,
   ChevronDown
 } from 'lucide-react';
 import { adminApi } from '@/app/admin/api';
@@ -27,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { UserExplorer } from '@/components/admin/UserExplorer';
+import { ApprovalsHub } from '@/components/admin/approvals/ApprovalsHub';
 import { useUserContext } from '@/context/UserContext';
 import { AuditLogExplorer } from '@/components/admin/AuditLogExplorer';
 import { GovernanceHub } from '@/components/admin/GovernanceHub';
@@ -41,7 +43,7 @@ import { IntelligenceHubMonitor } from '@/components/admin/IntelligenceHubMonito
 import { ApiKeysManager } from '@/components/admin/ApiKeysManager';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 
-// 12 telas agrupadas em pares por afinidade -- cada grupo vira um dropdown na
+// 13 telas agrupadas em pares por afinidade -- cada grupo vira um dropdown na
 // barra, em vez de 12 abas competindo por espaço horizontal (ver TabsTrigger
 // original, cortava/quebrava em telas de notebook comuns).
 const TAB_GROUPS = [
@@ -52,6 +54,7 @@ const TAB_GROUPS = [
     items: [
       { id: 'governance', label: 'Sincronização Jira', icon: Building2 },
       { id: 'users', label: 'Usuários & Acesso', icon: Users },
+      { id: 'approvals', label: 'Aprovações', icon: UserCheck },
     ],
   },
   {
@@ -220,6 +223,9 @@ export default function AdminDashboard() {
                 </TabsContent>
                 <TabsContent value="users" className="outline-none focus-visible:ring-0">
                   <UserExplorer />
+                </TabsContent>
+                <TabsContent value="approvals" className="outline-none focus-visible:ring-0">
+                  <ApprovalsHub />
                 </TabsContent>
                 <TabsContent value="growth" className="outline-none focus-visible:ring-0">
                   <GrowthDashboard />
