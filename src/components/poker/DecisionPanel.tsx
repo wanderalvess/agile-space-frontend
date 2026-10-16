@@ -4,6 +4,7 @@ import { CheckCircle2, ChevronDown, Code, Minus, Plus, RotateCcw, Users } from '
 import type { DeckType } from '@/lib/types';
 import { formatRoleForCopy } from '@/lib/poker-utils';
 import type { RoundSummary } from '@/lib/poker-results';
+import { REVEAL_DELAY } from '@/lib/poker-table';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { FIELD, FOCUS_RING, ModalButton, RoleChip } from '@/components/room-kit';
@@ -52,7 +53,7 @@ function Stepper({ role, value, suggested, onChange }: { role: string; value: st
 export function DecisionPanel({ deck, summary, adjusted, onAdjust, presentCategories, onClear, onSelectiveRevote, onSave, hasNextPending, decisionNote }: DecisionPanelProps) {
   const adjustable = deck === 'hours' && summary.activeRoles.length > 0;
   return (
-    <section aria-label="Decidir" className="room-rise flex flex-col gap-3.5 rounded-[14px] border border-border bg-card p-[18px] shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]" style={{ animationDelay: '1050ms' }}>
+    <section aria-label="Decidir" className="room-rise flex flex-col gap-3.5 rounded-[14px] border border-border bg-card p-[18px] shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]" style={{ animationDelay: `${REVEAL_DELAY.decision}ms` }}>
       {adjustable && (
         <>
           <h2 className="text-[15px] font-semibold">Horas finais por papel</h2>

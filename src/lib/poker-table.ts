@@ -96,6 +96,13 @@ export function introOffset(seat: { x: number; y: number }, center: { x: number;
   return { dx: Math.round(dx * k), dy: Math.round(dy * k) };
 }
 
+/**
+ * Entrada do resultado depois de revelar (ms): mesa (cartas viram em cascata) -> estimativa -> cópia -> painel de decisão.
+ * O painel tem os botões "Salvar e avançar" e "Revotar": nunca passa de `DECISION_MAX_DELAY_MS`.
+ */
+export const REVEAL_DELAY = { estimate: 120, bars: 160, barsStep: 25, copy: 220, decision: 320 } as const;
+export const DECISION_MAX_DELAY_MS = 350;
+
 /** Quem apareceu desde a última conferência (ordem preservada). */
 export function newcomersOf(seen: ReadonlySet<string>, ids: readonly string[]): string[] {
   return ids.filter((id) => !seen.has(id));

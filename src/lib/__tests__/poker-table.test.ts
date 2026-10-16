@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitSeats, modeOf, seatToneOf, waitingLabel } from '../poker-table';
+import { splitSeats, modeOf, seatToneOf, waitingLabel, REVEAL_DELAY, DECISION_MAX_DELAY_MS } from '../poker-table';
 
 describe('mesa de votação', () => {
   it('divide os assentos com a sobra em cima', () => {
@@ -205,5 +205,17 @@ describe('entrada do time na mesa', () => {
   it('newcomersOf devolve só quem não estava, na ordem', () => {
     expect(newcomersOf(new Set(['a', 'b']), ['a', 'c', 'b', 'd'])).toEqual(['c', 'd']);
     expect(newcomersOf(new Set(), [])).toEqual([]);
+  });
+});
+
+describe('entrada do resultado após revelar', () => {
+  it('o painel de decisão aparece em até 350 ms, depois da estimativa e da cópia', () => {
+    expect(REVEAL_DELAY.decision).toBeLessThanOrEqual(DECISION_MAX_DELAY_MS);
+    expect(REVEAL_DELAY.estimate).toBeLessThan(REVEAL_DELAY.copy);
+    expect(REVEAL_DELAY.copy).toBeLessThan(REVEAL_DELAY.decision);
+  });
+
+  it('as barras de distribuição terminam de entrar antes do painel (até 8 valores)', () => {
+    expect(REVEAL_DELAY.bars + 7 * REVEAL_DELAY.barsStep).toBeLessThanOrEqual(DECISION_MAX_DELAY_MS);
   });
 });

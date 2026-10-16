@@ -6,6 +6,7 @@ import type { DeckType } from '@/lib/types';
 import { TSHIRT_UNIT_LABELS } from '@/lib/types';
 import { formatEstimateCopy, formatRoleForCopy } from '@/lib/poker-utils';
 import { copyUnitSuffix, type RoundSummary } from '@/lib/poker-results';
+import { REVEAL_DELAY } from '@/lib/poker-table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { ROLE_STYLES, RoleChip, roleToneOf } from '@/components/room-kit';
@@ -45,7 +46,7 @@ export function RoundCenter({
   const eq = deck === 'tshirt' && !summary.tshirtNumeric ? tshirtEquivalents?.[summary.avg] : undefined;
   const unit = copyUnitSuffix(deck, summary.tshirtNumeric);
   return (
-    <div className="room-rise flex flex-wrap items-center justify-center gap-x-6 gap-y-3" style={{ animationDelay: '650ms' }}>
+    <div className="room-rise flex flex-wrap items-center justify-center gap-x-6 gap-y-3" style={{ animationDelay: `${REVEAL_DELAY.estimate}ms` }}>
       <div className="flex flex-col items-center">
         <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           {summary.consensus && <Trophy className="h-3.5 w-3.5 text-amber-500" strokeWidth={1.5} aria-hidden="true" />}
@@ -126,7 +127,7 @@ export function RoleBreakdown({
                   <div className="h-[18px] overflow-hidden rounded-[5px] bg-muted/60">
                     <div
                       className={cn('room-grow h-[18px] rounded-[5px]', n === top ? 'bg-primary shadow-[0_0_12px_hsl(var(--primary)/0.35)] [.theme-leitura_&]:shadow-none' : 'bg-border')}
-                      style={{ width: `${Math.round((n / max) * 100)}%`, animationDelay: `${700 + i * 70}ms` }}
+                      style={{ width: `${Math.round((n / max) * 100)}%`, animationDelay: `${REVEAL_DELAY.bars + i * REVEAL_DELAY.barsStep}ms` }}
                     />
                   </div>
                   <span className="text-xs tabular-nums text-muted-foreground">{n}</span>
@@ -186,7 +187,7 @@ export function CopyEstimateCard({
     <section
       aria-label="Copiar estimativa"
       className={cn(CARD, 'room-rise flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5')}
-      style={{ animationDelay: '850ms' }}
+      style={{ animationDelay: `${REVEAL_DELAY.copy}ms` }}
     >
       <span className="text-xs font-medium text-muted-foreground">Estimativa para a issue pai</span>
       <code className="min-w-[9rem] flex-1 break-words rounded-md bg-muted/50 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">{text || 'Sem estimativa'}</code>
