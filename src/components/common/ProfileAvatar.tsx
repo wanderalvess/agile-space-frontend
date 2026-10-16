@@ -2,22 +2,29 @@
 
 import NiceAvatar, { genConfig } from 'react-nice-avatar';
 import { useUserContext } from '@/context/UserContext';
-import { useTeamAvatars } from '@/hooks/useTeamAvatars';
+import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { PREDEFINED_AVATARS } from '@/lib/types';
 
 /**
- * Avatar da pessoa logada nos cabeçalhos: a foto do Jira (quando o time foi importado com fotos) ou, sem ela,
- * o avatar ilustrado de sempre. As classes de tamanho/forma ficam com quem chama.
+ * Avatar da pessoa logada nos cabeçalhos: a foto do Jira (da importação do time ou da última sincronização
+ * feita em "Minha identidade") ou, sem ela, o avatar ilustrado de sempre. As classes de tamanho/forma ficam
+ * com quem chama.
  */
 export function ProfileAvatar({ className }: { className?: string }) {
   const { userProfile } = useUserContext();
-  const { avatarFor } = useTeamAvatars(userProfile?.squadId);
+  const { photo, reportBroken } = useProfilePhoto();
   if (!userProfile) return null;
 
-  const photo = avatarFor({ email: userProfile.email, name: userProfile.name });
   if (photo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={photo} alt={`Foto de ${userProfile.name}`} className={`${className ?? ''} object-cover`} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photo}
+        alt={`Foto de ${userProfile.name}`}
+        className={`${className ?? ''} object-cover`}
+        onError={() => reportBroken(photo)}
+      />
+    );
   }
   return (
     <NiceAvatar
