@@ -78,7 +78,7 @@ export function LoginShowcase({ className }: { className?: string }) {
           Do refinamento à entrega, num só lugar.
         </h2>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Planning poker, retrospectivas, clima do time e o conhecimento das squads de Varejo e Distribuição.
+          Scrum Poker, retrospectivas, clima do time e o conhecimento das squads de Varejo e Distribuição.
         </p>
       </div>
 

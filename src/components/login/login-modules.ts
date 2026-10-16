@@ -11,7 +11,7 @@ export interface LoginModule {
 }
 
 export const LOGIN_MODULES: LoginModule[] = [
-  { key: 'poker', name: 'Planning Poker', caption: 'Votando em horas, às cegas', icon: Layers },
+  { key: 'poker', name: 'Scrum Poker', caption: 'Votando em horas, às cegas', icon: Layers },
   { key: 'retro', name: 'Retrospectiva', caption: 'Correu bem, melhorar e ações', icon: RefreshCw },
   { key: 'health', name: 'Radar de clima', caption: 'Como o time está nesta sprint', icon: HeartPulse },
   { key: 'showcase', name: 'Showcase', caption: 'Review com evidências e decisão', icon: MonitorPlay },

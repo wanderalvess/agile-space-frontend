@@ -68,7 +68,7 @@ describe('vitrine', () => {
   });
 
   it('mostra os cinco módulos pedidos', () => {
-    expect(LOGIN_MODULES.map((m) => m.name)).toEqual(['Planning Poker', 'Retrospectiva', 'Radar de clima', 'Showcase', 'Brainstorming']);
+    expect(LOGIN_MODULES.map((m) => m.name)).toEqual(['Scrum Poker', 'Retrospectiva', 'Radar de clima', 'Showcase', 'Brainstorming']);
   });
 });
 
