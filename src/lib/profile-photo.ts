@@ -21,6 +21,28 @@ export function isUsablePhotoUrl(url: unknown): url is string {
   return /^https?:\/\//i.test(value) || (value.startsWith('/') && !value.startsWith('//'));
 }
 
+/**
+ * Avatar de sistema do Jira (ícones genéricos que o Jira dá a quem não subiu foto): não é foto de pessoa.
+ * Vêm da importação do time como data URI: SVG (avatares padrão) ou PNG com o marcador "jira-system-image-type"
+ * nos primeiros bytes. URLs `http(s)` não dá para inspecer no navegador e contam como foto.
+ */
+export function isJiraSystemAvatar(src: unknown): boolean {
+  if (typeof src !== 'string') return false;
+  const value = src.trim();
+  if (!value.startsWith('data:image/')) return false;
+  const comma = value.indexOf(',');
+  if (comma < 0) return false;
+  const header = value.slice(5, comma).toLowerCase();
+  if (header.startsWith('image/svg')) return true;
+  if (!header.includes(';base64')) return false;
+  try {
+    const head = typeof atob === 'function' ? atob(value.slice(comma + 1, comma + 1 + 2000)) : '';
+    return head.includes('jira-system');
+  } catch {
+    return false;
+  }
+}
+
 /** "48x48" -> 48. Chaves fora do padrão (ex.: "xlarge") contam como 0 e só entram se não houver outra. */
 function sizeOfKey(key: string): number {
   const match = /^(\d+)x(\d+)$/.exec(key.trim());

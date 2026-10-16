@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { avatarToneIndex, initialsOf } from '@/lib/initials';
+import { isJiraSystemAvatar } from '@/lib/profile-photo';
 import { cn } from '@/lib/utils';
 
 // Nomes por extenso: o Tailwind só gera as classes que encontra escritas por inteiro no código.
@@ -39,7 +40,8 @@ export function InitialsAvatar({ name, email, src, className, title, onPhotoErro
   const [failed, setFailed] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  const photo = src && failed !== src ? src : null;
+  // Ícone genérico do Jira (quem não subiu foto) não é foto: aparecem as iniciais.
+  const photo = src && failed !== src && !isJiraSystemAvatar(src) ? src : null;
   // A imagem pode falhar antes da hidratação (HTML do servidor): nesse caso o onError já passou.
   useEffect(() => {
     const img = imgRef.current;

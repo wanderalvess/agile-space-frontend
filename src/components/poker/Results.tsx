@@ -189,7 +189,7 @@ export function CopyEstimateCard({
       style={{ animationDelay: '850ms' }}
     >
       <span className="text-xs font-medium text-muted-foreground">Estimativa para a issue pai</span>
-      <code className="min-w-0 flex-1 break-words rounded-md bg-muted/50 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">{text || 'Sem estimativa'}</code>
+      <code className="min-w-[9rem] flex-1 break-words rounded-md bg-muted/50 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">{text || 'Sem estimativa'}</code>
       {total !== null && <span className="text-xs tabular-nums text-muted-foreground">total {total}h</span>}
       <button
         type="button"

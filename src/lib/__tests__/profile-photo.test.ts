@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   bestJiraAvatar,
+  isJiraSystemAvatar,
   isUsablePhotoUrl,
   readStoredProfilePhoto,
   resolveProfilePhoto,
@@ -101,5 +102,26 @@ describe('foto guardada no navegador', () => {
   it('sem id de pessoa não faz nada', () => {
     writeStoredProfilePhoto(undefined, 'https://s/foto.png');
     expect(readStoredProfilePhoto(undefined)).toBeUndefined();
+  });
+});
+
+describe('isJiraSystemAvatar', () => {
+  const b64 = (s: string) => Buffer.from(s, 'binary').toString('base64');
+
+  it('SVG embutido é avatar de sistema', () => {
+    expect(isJiraSystemAvatar(`data:image/svg+xml;base64,${b64('<svg id="bull"></svg>')}`)).toBe(true);
+  });
+
+  it('PNG com o marcador jira-system é avatar de sistema, mesmo rotulado como jpeg', () => {
+    const png = b64('\x89PNG\r\n\x1a\n....tEXtjira-system-image-type\0avatar');
+    expect(isJiraSystemAvatar(`data:image/png;base64,${png}`)).toBe(true);
+    expect(isJiraSystemAvatar(`data:image/jpeg;base64,${png}`)).toBe(true);
+  });
+
+  it('foto comum e URLs contam como foto', () => {
+    expect(isJiraSystemAvatar(`data:image/jpeg;base64,${b64('\xff\xd8\xff\xe0JFIF....')}`)).toBe(false);
+    expect(isJiraSystemAvatar('https://jira.exemplo.com/secure/useravatar?ownerId=X&avatarId=1')).toBe(false);
+    expect(isJiraSystemAvatar(undefined)).toBe(false);
+    expect(isJiraSystemAvatar('')).toBe(false);
   });
 });
