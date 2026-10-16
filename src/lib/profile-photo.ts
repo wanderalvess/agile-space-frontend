@@ -60,11 +60,6 @@ export function resolveProfilePhoto({ teamPhoto, jiraAvatarUrls, storedPhoto }: 
   return undefined;
 }
 
-/** O seletor de avatares ilustrados só aparece quando não há foto. */
-export function showAvatarPicker(photo: string | null | undefined): boolean {
-  return !isUsablePhotoUrl(photo);
-}
-
 // ---- Última foto sincronizada, por pessoa, neste navegador ----------------------------------------------
 
 export const PROFILE_PHOTO_EVENT = 'profile-photo-changed';

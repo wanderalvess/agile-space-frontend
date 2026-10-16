@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { ROLES, GlobalRole } from '@/lib/types';
 import { authFetch } from '@/lib/auth-client';
 import { useUserContext } from '@/context/UserContext';
@@ -435,10 +435,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
                       checked={member.selected}
                       onCheckedChange={() => toggleSelectMember(member.jiraAccountId)}
                     />
-                    <NiceAvatar
-                      style={{ width: 34, height: 34 }}
-                      {...genConfig(member.email || member.displayName)}
-                    />
+                    <InitialsAvatar name={member.displayName} email={member.email} className="h-[34px] w-[34px] text-xs" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">

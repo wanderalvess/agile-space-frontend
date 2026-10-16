@@ -4,7 +4,6 @@ import {
   isUsablePhotoUrl,
   readStoredProfilePhoto,
   resolveProfilePhoto,
-  showAvatarPicker,
   writeStoredProfilePhoto,
 } from '../profile-photo';
 
@@ -75,15 +74,6 @@ describe('resolveProfilePhoto', () => {
   });
   it('descarta fonte inválida e cai na próxima', () => {
     expect(resolveProfilePhoto({ teamPhoto: 'javascript:x', storedPhoto: 'https://s/foto.png' })).toBe('https://s/foto.png');
-  });
-});
-
-describe('showAvatarPicker', () => {
-  it('mostra o seletor só quando não há foto', () => {
-    expect(showAvatarPicker(undefined)).toBe(true);
-    expect(showAvatarPicker(null)).toBe(true);
-    expect(showAvatarPicker('')).toBe(true);
-    expect(showAvatarPicker('https://t/foto.png')).toBe(false);
   });
 });
 

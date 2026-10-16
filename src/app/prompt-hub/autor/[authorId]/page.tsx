@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowUpRight, GitFork, Library, User } from 'lucide-react';
-import NiceAvatar, { genConfig } from 'react-nice-avatar';
+import { ArrowLeft, ArrowUpRight, GitFork, Library } from 'lucide-react';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { useAuth } from '@/context/AuthContext';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
@@ -86,13 +86,6 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
     }
   };
 
-  let avatarConfig: any = null;
-  try {
-    avatarConfig = author?.authorAvatar ? genConfig(JSON.parse(author.authorAvatar)) : null;
-  } catch {
-    avatarConfig = null;
-  }
-
   if (isUserLoading || isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -117,15 +110,7 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
 
       <div className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 lg:px-8">
         <header className="mb-8 flex flex-wrap items-center gap-4 border-b border-border pb-6">
-          <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
-            {avatarConfig ? (
-              <NiceAvatar className="h-full w-full" {...avatarConfig} />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                <User className="h-6 w-6" />
-              </div>
-            )}
-          </div>
+          <InitialsAvatar name={author?.authorName} className="h-14 w-14 text-xl" />
 
           <div className="min-w-0 flex-1">
             <h1 className="text-xl font-semibold text-foreground">

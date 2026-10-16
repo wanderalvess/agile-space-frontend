@@ -47,7 +47,7 @@ export function ProfileMenu() {
             FOCUS_RING,
           )}
         >
-          <ProfileAvatar className="h-8 w-8 shrink-0 rounded-full bg-muted" />
+          <ProfileAvatar className="h-8 w-8 shrink-0 rounded-full" />
           <span className="hidden flex-col items-start leading-tight sm:flex">
             <span className="text-[13px] font-semibold">{first}</span>
             {roleLabel && <span className="max-w-[120px] truncate text-[11px] text-muted-foreground">{roleLabel}</span>}

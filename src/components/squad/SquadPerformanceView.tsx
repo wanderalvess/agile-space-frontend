@@ -25,6 +25,7 @@ import {
   SelectValue
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { isWeekend } from '@/lib/date-utils';
 import { useUserContext } from '@/context/UserContext';
 import { SQUAD_LEADERSHIP_VIEW_ROLES } from '@/lib/types';
@@ -531,9 +532,7 @@ export function SquadPerformanceView() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xs border border-indigo-200 dark:border-indigo-800/60">
-                        {m.displayName.charAt(0).toUpperCase()}
-                      </div>
+                      <InitialsAvatar name={m.displayName} className="h-8 w-8 text-xs" />
                       <div>
                         <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[140px]">
                           {m.displayName}

@@ -3,38 +3,8 @@
 import * as React from 'react';
 import { Check, Crown, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { ROLE_STYLES, roleToneOf } from './tokens';
-
-/** Iniciais para o avatar: "Ana Ribeiro" -> "AR". */
-export function initialsOf(name: string): string {
-  return (
-    name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase() || '?'
-  );
-}
-
-const AVATAR_TONES = [
-  'bg-orange-200',
-  'bg-blue-200',
-  'bg-violet-200',
-  'bg-green-200',
-  'bg-yellow-200',
-  'bg-pink-200',
-  'bg-cyan-200',
-  'bg-slate-200',
-] as const;
-
-/** Cor estável do avatar para um nome (mesma pessoa, mesma cor em toda tela). */
-export function avatarToneOf(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_TONES[h % AVATAR_TONES.length];
-}
 
 export function PersonAvatar({
   name,
@@ -50,18 +20,10 @@ export function PersonAvatar({
 }) {
   const box = size === 'sm' ? 'h-6 w-6 text-[10px]' : size === 'lg' ? 'h-9 w-9 text-xs' : 'h-8 w-8 text-[11px]';
   return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full font-bold text-slate-900',
-        box,
-        avatarToneOf(name),
-        highlight && 'ring-2 ring-primary ring-offset-2 ring-offset-card',
-        className
-      )}
-    >
-      {initialsOf(name)}
-    </span>
+    <InitialsAvatar
+      name={name}
+      className={cn(box, highlight && 'ring-2 ring-primary ring-offset-2 ring-offset-card', className)}
+    />
   );
 }
 

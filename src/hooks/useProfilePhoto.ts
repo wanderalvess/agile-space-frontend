@@ -13,7 +13,7 @@ import {
 /**
  * Foto do Jira da pessoa logada (ou `undefined`). Junta a foto da importação do time, a última foto
  * sincronizada neste navegador e, no modal de identidade, a recém-sincronizada (`jiraAvatarUrls`).
- * Uma imagem que não carrega é descartada, e a pessoa volta ao avatar ilustrado.
+ * Uma imagem que não carrega é descartada, e a pessoa volta às iniciais.
  */
 export function useProfilePhoto(opts?: { jiraAvatarUrls?: JiraAvatarUrls | null; jiraAccountId?: string }) {
   const { userProfile } = useUserContext();

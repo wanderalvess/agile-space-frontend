@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function IntelligenceHubMonitor() {
@@ -104,9 +105,7 @@ export function IntelligenceHubMonitor() {
                     <div key={u.userId} className="group p-5 bg-slate-50 hover:bg-white hover:shadow-lg rounded-[2rem] border border-slate-100 transition-all flex items-center justify-between">
                        <div className="flex items-center gap-4">
                           <span className="text-[10px] font-black text-slate-300">#0{idx + 1}</span>
-                          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm text-slate-900 font-black italic">
-                             {(u.userName || u.userId).substring(0, 2).toUpperCase()}
-                          </div>
+                          <InitialsAvatar name={u.userName || u.userId} className="h-10 w-10 text-sm" />
                           <div>
                              <p className="text-[11px] font-black uppercase text-slate-900 leading-none truncate w-32">{u.userName || u.userId}</p>
                              <p className="text-[9px] font-medium text-slate-400 mt-1 uppercase tracking-widest">Ativo em: {u.updatedAt ? new Date(u.updatedAt).toLocaleDateString('pt-BR') : 'Recentemente'}</p>

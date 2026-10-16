@@ -6,7 +6,8 @@ import { AlertTriangle, Bell, CalendarDays, ListChecks, Megaphone, Wrench, type 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { formatRelative, initialsOf } from '@/hooks/home/derive';
+import { formatRelative } from '@/hooks/home/derive';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import type { HomeNotification, NotificationTab } from '@/hooks/home/types';
 import { useNotifications } from '@/hooks/home/useNotifications';
 import { useNow } from '@/hooks/home/useHomeResource';
@@ -34,12 +35,7 @@ function NotificationRow({ n, now }: { n: HomeNotification; now: Date }) {
   return (
     <li className="flex items-start gap-2.5 rounded-xl p-2.5 transition-colors hover:bg-muted/50">
       {n.personName ? (
-        <span
-          aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-foreground"
-        >
-          {initialsOf(n.personName)}
-        </span>
+        <InitialsAvatar name={n.personName} />
       ) : (
         <IconTile icon={ICONS[n.icon ?? 'megaphone']} size="sm" className="h-8 w-8" />
       )}

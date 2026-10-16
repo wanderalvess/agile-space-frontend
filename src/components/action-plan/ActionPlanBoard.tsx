@@ -6,6 +6,7 @@ import { ActionTaskDialog } from './ActionTaskDialog';
 import { Badge } from '@/components/ui/badge';
 import { actionPlanApi } from '@/app/action-plan/api';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/ceremony-api';
 
@@ -190,9 +191,11 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
                   {/* WHO */}
                   <td className="p-2 border-r border-slate-50">
                     <div className="flex items-center gap-2 px-1 group/who">
-                      <div className="w-6 h-6 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center text-[9px] font-black shrink-0 shadow-sm border border-cyan-200">
-                         {(task.who || '').substring(0, 2).toUpperCase() || '??'}
-                      </div>
+                      {task.who ? (
+                        <InitialsAvatar name={task.who} className="h-6 w-6 text-[10px]" />
+                      ) : (
+                        <span aria-hidden="true" className="h-6 w-6 shrink-0 rounded-full bg-muted" />
+                      )}
                       <InPlaceInput 
                         value={task.who} 
                         onSave={(val) => handleUpdateField(task.id, 'who', val)}

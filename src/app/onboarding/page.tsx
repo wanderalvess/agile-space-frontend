@@ -51,6 +51,7 @@ import { useUserContext } from '@/context/UserContext';
 import { onboardingService, type OnboardingCandidate, type OnboardingRoster } from '@/services/onboardingService';
 import { JiraProfieldsImport } from '@/components/jira/JiraProfieldsImport';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 
 type Step = 'suggestion' | 'intent' | 'search' | 'roster' | 'role' | 'create' | 'jira';
 
@@ -63,14 +64,6 @@ function slugify(name: string) {
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')
     .slice(0, 12);
-}
-
-function initials(name?: string) {
-  const clean = (name || '').trim();
-  if (!clean) return '??';
-  const parts = clean.split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /**
@@ -325,9 +318,7 @@ export default function OnboardingPage() {
 
             <div className="w-full max-w-2xl bg-card/80 backdrop-blur-xl border border-border/60 rounded-3xl p-6 shadow-lg flex flex-col gap-5">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 text-primary flex items-center justify-center font-black text-lg shrink-0">
-                  {initials(firstCandidate.displayName)}
-                </div>
+                <InitialsAvatar name={firstCandidate.displayName} className="h-14 w-14 text-lg" />
                 <div className="min-w-0 flex-1">
                   <div className="text-lg font-extrabold font-headline truncate">{firstCandidate.displayName}</div>
                   {!!firstCandidate.emailHint && (
@@ -540,9 +531,7 @@ export default function OnboardingPage() {
                 <div className="max-h-[380px] overflow-y-auto divide-y divide-border/40">
                   {roster.members.map(m => (
                     <div key={m.memberId} className="flex items-center gap-3 px-4 py-2.5">
-                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-[11px] font-bold text-muted-foreground shrink-0">
-                        {initials(m.displayName)}
-                      </div>
+                      <InitialsAvatar name={m.displayName} className="h-9 w-9 text-xs" />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold truncate">{m.displayName}</div>
                         <div className="text-[11px] text-muted-foreground truncate">
