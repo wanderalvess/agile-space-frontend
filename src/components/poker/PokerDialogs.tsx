@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { AlertTriangle, Ban, Flag, Hourglass, Settings, SkipForward } from 'lucide-react';
+import { AlertTriangle, Ban, Flag, Hourglass, Save, Settings, SkipForward } from 'lucide-react';
 import type { Issue, VotingRound } from '@/lib/types';
 import { computeSessionBreakdown } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
@@ -235,10 +235,11 @@ export function FinishSessionDialog({ open, onOpenChange, issues, rounds, onConf
 // Configurações da cerimônia (as 22 opções, em abas, no FacilitatorPanel)
 // ---------------------------------------------------------------------------
 
-export function CeremonySettingsDialog({ open, onOpenChange, onRestoreDefaults, children }: {
+export function CeremonySettingsDialog({ open, onOpenChange, onRestoreDefaults, onSaveTemplate, children }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRestoreDefaults: () => void;
+  onSaveTemplate?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -249,7 +250,16 @@ export function CeremonySettingsDialog({ open, onOpenChange, onRestoreDefaults, 
       icon={Settings}
       title="Configurações da cerimônia"
       description="Cada mudança vale na hora para todo o time."
-      footerStart={<ModalButton variant="ghost" onClick={onRestoreDefaults}>Restaurar padrão</ModalButton>}
+      footerStart={
+        <>
+          <ModalButton variant="ghost" onClick={onRestoreDefaults}>Restaurar padrão</ModalButton>
+          {onSaveTemplate && (
+            <ModalButton variant="ghost" className="gap-2" onClick={onSaveTemplate}>
+              <Save className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Salvar como template
+            </ModalButton>
+          )}
+        </>
+      }
       footer={<ModalButton variant="primary" onClick={() => onOpenChange(false)}>Concluir</ModalButton>}
     >
       {children}

@@ -26,7 +26,7 @@ import { TeamChat } from './team-chat/TeamChat';
 import { IssueDetail } from './IssueDetail';
 import { OutlierPrompt } from './OutlierPrompt';
 import { ConfidenceSummary } from './ConfidenceSummary';
-import { saveTemplate } from '@/lib/poker-templates';
+import { useSaveRoomTemplate } from './TemplateDialogs';
 import { ReactionBar, ReactionBubbles, type RoomReaction } from './ReactionOverlay';
 import { ShareRoomDialog } from './ShareRoomDialog';
 import { RoomWelcome, RoomWaiting } from './RoomWelcome';
@@ -423,15 +423,7 @@ const PokerRoomComponent = ({
     setIsShareDialogOpen(true);
   };
 
-  const handleSaveTemplate = () => {
-    saveTemplate({
-      name: roomTitle || 'Template de Poker',
-      deckType: deck,
-      settings: settings || {},
-      backlog: issuesQueue.map(i => ({ title: i.title, jiraLink: i.jiraLink || undefined, type: i.type })),
-    });
-    toast({ title: 'Template salvo!', description: 'Deck, configurações e backlog guardados para reusar numa nova sessão.' });
-  };
+  const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
 
   const handleReveal = () => {
     onReveal();
@@ -849,6 +841,7 @@ const PokerRoomComponent = ({
               {isCurrentUserFacilitator ? (
                 <RoomWelcome
                   deck={deck}
+                  maxHours={settings?.maxHours}
                   deckLabel={deckLabel}
                   roomTeam={roomTeam}
                   participants={participants}
@@ -859,7 +852,7 @@ const PokerRoomComponent = ({
                   onAddManual={() => { setIsQueueOpen(true); setAddFormSignal(s => s + 1); }}
                 />
               ) : (
-                <RoomWaiting deck={deck} deckLabel={deckLabel} roomTeam={roomTeam} participants={participants} onlineIds={onlineIds} />
+                <RoomWaiting deck={deck} maxHours={settings?.maxHours} deckLabel={deckLabel} roomTeam={roomTeam} participants={participants} onlineIds={onlineIds} />
               )}
             </div>
           ) : isSessionFinished && stats ? (
@@ -1002,6 +995,7 @@ const PokerRoomComponent = ({
               {activeIssueId && currentUser.role !== 'spectator' ? (
                 <Controls
                   deck={deck}
+                  maxHours={settings?.maxHours}
                   currentUserVote={currentUserVote}
                   onVote={onVote}
                   votesRevealed={votesRevealed}
@@ -1074,6 +1068,7 @@ const PokerRoomComponent = ({
           open={isFacilitatorSettingsOpen}
           onOpenChange={setIsFacilitatorSettingsOpen}
           onRestoreDefaults={() => onUpdateSettings(buildDefaultSettingsPatch())}
+          onSaveTemplate={saveRoomTemplate.openDialog}
         >
           <FacilitatorPanel
             deck={deck}
@@ -1102,13 +1097,18 @@ const PokerRoomComponent = ({
             refinementNotes={settings?.refinementNotes}
             parkTask={settings?.parkTask}
             cancelTask={settings?.cancelTask}
+            maxHours={settings?.maxHours}
+            hasVotes={votes.length > 0}
             divergenceThresholds={settings?.divergenceThresholds}
             tshirtEquivalents={settings?.tshirtEquivalents}
             onSetDeck={onSetDeck}
-            onSaveTemplate={handleSaveTemplate}
+            onSaveTemplate={saveRoomTemplate.openDialog}
+            templatesVersion={saveRoomTemplate.version}
           />
         </CeremonySettingsDialog>
       )}
+
+      {isCurrentUserFacilitator && saveRoomTemplate.dialog}
 
       <OffTableDialog
         open={isOffTableDialogOpen}

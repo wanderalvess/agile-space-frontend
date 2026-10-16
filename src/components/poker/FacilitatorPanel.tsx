@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { DeckType, DECKS, TSHIRT_UNIT_LABELS, type TshirtUnit, type TshirtEquivalent } from '@/lib/types';
-import { Search, Save } from 'lucide-react';
+import { DeckType, TSHIRT_UNIT_LABELS, type TshirtUnit, type TshirtEquivalent } from '@/lib/types';
+import { Search } from 'lucide-react';
 import { Switch } from '../ui/switch';
-import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
-import { FIELD, FOCUS_RING, Segmented } from '@/components/room-kit';
+import { FIELD, FOCUS_RING, Segmented, SelectField } from '@/components/room-kit';
+import { effectiveMaxHours, getDeckCards } from '@/lib/poker-deck';
+import { MaxHoursField } from './MaxHoursField';
+import { TemplatesTab } from './TemplateDialogs';
 
 type DivergenceThresholds = { warn: number; high: number };
 type TshirtSize = 'PP' | 'P' | 'M' | 'G' | 'GG';
@@ -16,7 +18,7 @@ type FacilitatorSettings = {
   decisionNotes?: boolean; perTopicTime?: boolean; autoTimer?: boolean; groomingFlag?: boolean; autoConsensus?: boolean;
   suggestRevote?: boolean; reactions?: boolean; roundingMode?: 'up' | 'nearest' | 'down' | 'deck'; blindVotes?: boolean;
   groupVotesByRole?: boolean; referenceStory?: boolean; roundNudge?: boolean; maxRounds?: number; refinementNotes?: boolean;
-  parkTask?: boolean; cancelTask?: boolean; tshirtEquivalents?: Partial<Record<TshirtSize, TshirtEquivalent>>;
+  parkTask?: boolean; cancelTask?: boolean; maxHours?: number; tshirtEquivalents?: Partial<Record<TshirtSize, TshirtEquivalent>>;
 };
 
 interface FacilitatorPanelProps {
@@ -45,6 +47,12 @@ interface FacilitatorPanelProps {
   refinementNotes?: boolean;
   parkTask?: boolean;
   cancelTask?: boolean;
+  /** Horas máximas do baralho "Horas reais"; ausente = baralho completo. */
+  maxHours?: number;
+  /** Já há votos na rodada: a mudança do baralho só vale para as próximas. */
+  hasVotes?: boolean;
+  /** Muda a cada template salvo, para a lista da aba Sessão recarregar. */
+  templatesVersion?: number;
   divergenceThresholds?: DivergenceThresholds;
   tshirtEquivalents?: Partial<Record<TshirtSize, TshirtEquivalent>>;
   onUpdateSettings: (settings: Partial<FacilitatorSettings>) => void;
@@ -65,6 +73,15 @@ const SCALE_OPTIONS = [
   { id: 'hours', label: 'Horas reais' },
   { id: 'tshirt', label: 'Camisetas' },
 ] as const;
+
+const ROUNDING_OPTIONS = [
+  { value: 'up', label: 'Para cima (padrão)' },
+  { value: 'nearest', label: 'Mais próximo' },
+  { value: 'down', label: 'Para baixo' },
+  { value: 'deck', label: 'Carta mais próxima' },
+] as const;
+
+const UNIT_OPTIONS = (Object.keys(TSHIRT_UNIT_LABELS) as TshirtUnit[]).map((u) => ({ value: u, label: TSHIRT_UNIT_LABELS[u] }));
 
 const TSHIRT_SIZES: readonly TshirtSize[] = ['PP', 'P', 'M', 'G', 'GG'];
 
@@ -122,6 +139,9 @@ export function FacilitatorPanel({
   refinementNotes,
   parkTask,
   cancelTask,
+  maxHours,
+  hasVotes,
+  templatesVersion,
   divergenceThresholds,
   tshirtEquivalents,
   onUpdateSettings,
@@ -210,7 +230,7 @@ export function FacilitatorPanel({
             <span className="text-sm font-semibold text-foreground">{SCALE_OPTIONS.find((o) => o.id === deck)?.label ?? deck}</span>
           )}
           <div className="flex flex-wrap gap-1" aria-label="Cartas da escala">
-            {DECKS[deck].map((v) => (
+            {getDeckCards(deck, maxHours).map((v) => (
               <span key={v} className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md border border-border bg-card px-1 text-[11px] font-semibold tabular-nums text-muted-foreground">{v}</span>
             ))}
           </div>
@@ -282,6 +302,11 @@ export function FacilitatorPanel({
                     />
                   </ControlRow>
                 )}
+                {deck === 'hours' && (
+                  <ControlRow htmlFor="max-hours" title="Horas máximas do baralho" desc={hasVotes ? 'Votos já dados não mudam' : 'Última carta de horas'}>
+                    <MaxHoursField id="max-hours" value={effectiveMaxHours(maxHours)} onChange={(n) => onUpdateSettings({ maxHours: n })} />
+                  </ControlRow>
+                )}
                 {deck === 'tshirt' && (
                   <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
                     <span className="text-sm font-medium text-foreground">
@@ -303,16 +328,13 @@ export function FacilitatorPanel({
                               onChange={(e) => setEquivalent(size, { value: Number(e.target.value) || 0 })}
                               className={cn(FIELD, 'h-8 px-1 text-center text-[13px]')}
                             />
-                            <select
+                            <SelectField
                               aria-label={`Unidade para ${size}`}
                               value={eq?.unit ?? 'hora'}
-                              onChange={(e) => setEquivalent(size, { unit: e.target.value as TshirtUnit })}
-                              className={cn(FIELD, 'h-8 px-1 text-xs')}
-                            >
-                              {(Object.keys(TSHIRT_UNIT_LABELS) as TshirtUnit[]).map((u) => (
-                                <option key={u} value={u}>{TSHIRT_UNIT_LABELS[u]}</option>
-                              ))}
-                            </select>
+                              onChange={(v) => setEquivalent(size, { unit: v as TshirtUnit })}
+                              options={UNIT_OPTIONS}
+                              className="h-8 gap-1 px-1.5 text-xs"
+                            />
                           </div>
                         );
                       })}
@@ -326,18 +348,14 @@ export function FacilitatorPanel({
               <>
                 {visibleDefs.filter((d) => d.tab === 'revelacao').map(renderToggle)}
                 <ControlRow htmlFor="rounding-mode" title="Arredondamento da média" desc="Como a média dos votos vira o valor salvo">
-                  <select
+                  <SelectField
                     id="rounding-mode"
                     aria-label="Arredondamento da média"
                     value={roundingMode ?? 'up'}
-                    onChange={(e) => onUpdateSettings({ roundingMode: e.target.value as 'up' | 'nearest' | 'down' | 'deck' })}
-                    className={cn(FIELD, 'h-9 w-48 text-[13px]')}
-                  >
-                    <option value="up">Para cima (padrão)</option>
-                    <option value="nearest">Mais próximo</option>
-                    <option value="down">Para baixo</option>
-                    <option value="deck">Carta mais próxima</option>
-                  </select>
+                    onChange={(v) => onUpdateSettings({ roundingMode: v as 'up' | 'nearest' | 'down' | 'deck' })}
+                    options={ROUNDING_OPTIONS}
+                    className="w-48"
+                  />
                 </ControlRow>
                 {deck === 'hours' && showDivergence && (
                   <div className="mt-3 flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
@@ -382,15 +400,7 @@ export function FacilitatorPanel({
 
             {tab === 'relatorios' && visibleDefs.filter((d) => d.tab === 'relatorios').map(renderToggle)}
 
-            {tab === 'sessao' && (
-              onSaveTemplate ? (
-                <Button type="button" variant="outline" onClick={onSaveTemplate} className="h-10 w-full justify-center gap-2 rounded-[10px] text-sm font-medium">
-                  <Save className="h-4 w-4" strokeWidth={1.5} /> Salvar como template
-                </Button>
-              ) : (
-                <p className="text-xs text-muted-foreground">A escala de estimativa fica no topo.</p>
-              )
-            )}
+            {tab === 'sessao' && <TemplatesTab onSaveClick={onSaveTemplate} version={templatesVersion ?? 0} />}
           </div>
         </div>
       )}

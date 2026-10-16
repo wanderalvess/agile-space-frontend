@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { DeckType, Issue, Participant, Role, Vote, Room } from '@/lib/types';
-import { DECKS } from '@/lib/types';
+import { getDeckCards } from '@/lib/poker-deck';
 import { buildDefaultSettingsPatch, calculateRoleEfforts, canParticipantVote, formatRoleForCopy } from '@/lib/poker-utils';
 import { summarizeRound } from '@/lib/poker-results';
 import { VoteDistribution } from './VoteDistribution';
@@ -18,6 +18,7 @@ import { TopicQueue } from './TopicQueue';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { ShareRoomDialog } from './ShareRoomDialog';
 import { CeremonySettingsDialog } from './PokerDialogs';
+import { useSaveRoomTemplate } from './TemplateDialogs';
 import { Rocket } from 'lucide-react';
 import { DeckCard, FIELD, IconButton, Modal, ModalButton, ResponsivePanel, StatusChip, VoteCard } from '@/components/room-kit';
 
@@ -87,7 +88,8 @@ const AsyncPokerRoomComponent = ({
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const deckValues = DECKS[deck];
+  const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
+  const deckValues = useMemo(() => getDeckCards(deck, settings?.maxHours), [deck, settings?.maxHours]);
   const isDense = deckValues.length > 14;
 
   // Mesmo gate de room/[id]/page.tsx e Controls.tsx (poker-utils.canParticipantVote) —
@@ -325,7 +327,7 @@ const AsyncPokerRoomComponent = ({
       </div>
 
       {isCurrentUserFacilitator && (
-        <CeremonySettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} onRestoreDefaults={() => onUpdateSettings?.(buildDefaultSettingsPatch())}>
+        <CeremonySettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} onRestoreDefaults={() => onUpdateSettings?.(buildDefaultSettingsPatch())} onSaveTemplate={saveRoomTemplate.openDialog}>
           <FacilitatorPanel
             deck={deck}
             onSetDeck={onSetDeck}
@@ -348,6 +350,10 @@ const AsyncPokerRoomComponent = ({
             blindVotes={settings?.blindVotes}
             groupVotesByRole={settings?.groupVotesByRole}
             refinementNotes={settings?.refinementNotes}
+            maxHours={settings?.maxHours}
+            hasVotes={votes.length > 0}
+            onSaveTemplate={saveRoomTemplate.openDialog}
+            templatesVersion={saveRoomTemplate.version}
             divergenceThresholds={settings?.divergenceThresholds}
             tshirtEquivalents={settings?.tshirtEquivalents}
             onUpdateSettings={onUpdateSettings || (() => {})}
@@ -357,6 +363,7 @@ const AsyncPokerRoomComponent = ({
           />
         </CeremonySettingsDialog>
       )}
+      {isCurrentUserFacilitator && saveRoomTemplate.dialog}
 
       <ShareRoomDialog
         isOpen={isShareDialogOpen}
