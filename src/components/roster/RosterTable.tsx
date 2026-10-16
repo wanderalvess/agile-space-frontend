@@ -176,7 +176,7 @@ function RosterRow({
         </StatusChip>
       </div>
 
-      <div role="cell" className="col-span-full flex flex-wrap items-center justify-end gap-1 xl:col-span-1">
+      <div role="cell" className="col-span-full flex flex-wrap items-center justify-end gap-1 xl:col-span-1 xl:flex-nowrap">
         <IconButton
           size="sm"
           label="Papel e capacidade"

@@ -9,8 +9,10 @@ import { DecimalInput } from './DecimalInput';
 import { PERSON_LIMITS, personConfigNumbers, personConfigTotal, type PersonConfigDraft } from './hooks/usePersonConfig';
 import { FIELD_40, ICON_STROKE } from './styles';
 
+// Radix Select não aceita valor vazio: "não definido" viaja como "__NONE__" e volta a '' ao gravar.
+const NONE = '__NONE__';
 const PAPEL_OPTIONS = [
-  { value: '', label: 'Não definido' },
+  { value: NONE, label: 'Não definido' },
   { value: 'DEV', label: 'DEV' },
   { value: 'QA', label: 'QA' },
 ];
@@ -28,7 +30,7 @@ interface PersonConfigPanelProps {
 function Field({ label, inherited, inheritedLabel, range, children }: { label: string; inherited?: boolean; inheritedLabel?: string; range: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="flex flex-wrap items-center gap-1.5 text-xs font-bold text-foreground">
+      <span className="flex min-h-[22px] flex-wrap items-center gap-1.5 text-xs font-bold text-foreground">
         {label}
         {inherited && <StatusChip tone="neutral" className="h-5 px-2 text-xs font-semibold">{inheritedLabel ?? 'Herdado'}</StatusChip>}
       </span>
@@ -64,7 +66,7 @@ export function PersonConfigPanel({ loading, saving, resolved, draft, sprintId, 
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Field label="Papel" inherited={resolved.papelInherited} inheritedLabel={resolved.papelSource ? `Herdado: ${resolved.papelSource}` : 'Herdado'} range="Não definido · DEV · QA">
-              <SelectField aria-label="Papel DEV ou QA" value={draft.papel} onChange={(papel) => onChange({ papel })} options={PAPEL_OPTIONS} className="h-10 text-sm" />
+              <SelectField aria-label="Papel DEV ou QA" value={draft.papel || NONE} onChange={(papel) => onChange({ papel: papel === NONE ? '' : papel })} options={PAPEL_OPTIONS} className="h-10 text-sm" />
             </Field>
             <Field label="Dias codificação/teste" inherited={resolved.diasCodificacaoTesteInherited} range={`${PERSON_LIMITS.dias.min}–${PERSON_LIMITS.dias.max}`}>
               <DecimalInput

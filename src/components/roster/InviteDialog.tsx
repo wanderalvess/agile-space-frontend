@@ -82,6 +82,7 @@ export function InviteDialog(props: InviteDialogProps) {
       icon={Link2}
       title={isBatch ? 'Convidar em lote' : 'Convidar por link'}
       description={link || isBatch ? undefined : 'Vincula a pessoa a esta squad com o papel escolhido, mesmo se o e-mail não bater com o do Jira.'}
+      bodyClassName="pt-4"
       preventClose={creating || batch.phase === 'running'}
       headerExtra={showTabs ? <TabBar tabs={TABS} value={tab} onChange={setTab} label="Tipo de convite" idPrefix="invite" className="px-6" /> : undefined}
       footer={

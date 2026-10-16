@@ -18,4 +18,4 @@ export const FIELD_INVALID = 'border-red-500/70 focus-visible:border-red-500 foc
  * ações. Abaixo disso cada pessoa vira um cartão (a tabela não rola de lado em tela estreita).
  */
 export const ROSTER_GRID_COLS =
-  'xl:grid-cols-[minmax(0,1.6fr)_140px_104px_124px_72px_84px_72px_140px_168px]';
+  'xl:grid-cols-[minmax(0,1.6fr)_140px_104px_124px_72px_84px_72px_144px_200px]';

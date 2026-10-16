@@ -137,7 +137,7 @@ function RosterContent() {
   const noResults = phase === 'ready' && members.length > 0 && filtered.length === 0;
 
   return (
-    <main className="mx-auto flex max-w-[1360px] flex-col gap-5 px-4 pb-14 pt-6 sm:px-8 sm:pt-7">
+    <main className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 px-4 pb-14 pt-6 sm:px-8 sm:pt-7">
       <RosterHeader
         squadId={squadId}
         canManageTeam={canManageTeam}
