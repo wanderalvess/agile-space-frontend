@@ -178,7 +178,7 @@ export function useLoginFlow() {
       setForgotSent(true);
       toast({
         title: 'Solicitação registrada',
-        description: 'Um evento foi gravado na Auditoria. Solicite a aprovação ao seu Admin, Agile Master ou Tribe Lead.',
+        description: 'Um evento foi gravado na Auditoria. Solicite a aprovação a um Admin.',
       });
     } catch (err) {
       failAuth(errorMessage(err, 'Não foi possível registrar o pedido de reset.'));
