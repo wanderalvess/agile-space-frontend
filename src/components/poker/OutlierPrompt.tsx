@@ -61,11 +61,10 @@ export function OutlierPrompt({ votes, participants, deck, tshirtEquivalents }: 
   return (
     <section aria-label="Ouça os extremos" className="room-rise flex flex-col gap-3 rounded-[14px] border border-border bg-card p-[18px] shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
       <div className="flex flex-col gap-0.5">
-        <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+        <h2 className="flex items-center gap-2 text-[15px] font-semibold" title="Quem votou mais alto e mais baixo explica em uma frase">
           <MessageSquareQuote className="h-4 w-4 text-amber-600 dark:text-amber-300" strokeWidth={1.5} aria-hidden="true" />
           Ouça os extremos
         </h2>
-        <p className="m-0 text-[13px] text-muted-foreground">Quem votou mais alto e mais baixo explica em uma frase.</p>
       </div>
       <div className="flex flex-col gap-3">
         {outliers.map(o => (

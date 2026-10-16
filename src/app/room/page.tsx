@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronRight, HelpCircle, History, Plus, Trash2, UserCheck, Users, WalletCards } from 'lucide-react';
+import { ArrowRight, ChevronRight, HelpCircle, History, Plus, RefreshCw, Trash2, UserCheck, Users, WalletCards } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +16,7 @@ import { PokerGuide } from '@/components/poker/PokerGuide';
 import { useToolHistory } from '@/hooks/useToolHistory';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { CreateSessionModal } from '@/components/poker/CreateSessionModal';
-import { ConfirmDialog, FOCUS_RING, IconTile, StatusChip } from '@/components/room-kit';
+import { ConfirmDialog, FOCUS_RING, IconTile, OUTLINE_BUTTON, StatusChip } from '@/components/room-kit';
 import { roomLobbyStatus, ROOM_LOBBY_STATUS_LABEL, stripNewSessionParam, wantsNewSession, type RoomLobbyStatus } from '@/lib/poker-lobby';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +41,7 @@ function SessionListCard({
   title,
   loading,
   failed = false,
+  onRetry,
   rooms,
   totalCount,
   emptyLabel,
@@ -53,6 +54,8 @@ function SessionListCard({
   loading: boolean;
   /** A busca das salas falhou: não dá para afirmar que a lista está vazia. */
   failed?: boolean;
+  /** "Tentar de novo" do aviso de falha; o botão fica ocupado enquanto `loading`. */
+  onRetry?: () => void;
   rooms: any[];
   /** Total sem filtro: distingue "nada aqui" de "nada neste filtro". */
   totalCount: number;
@@ -70,16 +73,32 @@ function SessionListCard({
       </h2>
 
       <ul className="m-0 flex min-h-0 flex-1 list-none flex-col gap-2.5 overflow-y-auto p-0 pr-1">
-        {loading ? (
+        {loading && !(failed && rooms.length === 0) ? (
           <li aria-hidden="true" className="flex flex-col gap-2 py-1 motion-safe:animate-pulse">
             <span className="h-14 rounded-xl bg-muted" />
             <span className="h-14 rounded-xl bg-muted" />
             <span className="h-14 rounded-xl bg-muted" />
           </li>
         ) : failed && rooms.length === 0 ? (
-          <li role="alert" className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
+          <li aria-live="polite" className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
             <IconTile icon={WalletCards} tone="neutral" />
-            <p className="text-sm text-muted-foreground">Não foi possível carregar as sessões. Recarregue a página para tentar de novo.</p>
+            <p className="text-sm text-muted-foreground">Não foi possível carregar as sessões.</p>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                disabled={loading}
+                aria-busy={loading}
+                className={cn(
+                  'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold transition-colors disabled:opacity-60',
+                  OUTLINE_BUTTON,
+                  FOCUS_RING,
+                )}
+              >
+                <RefreshCw aria-hidden="true" className={cn('h-3.5 w-3.5', loading && 'motion-safe:animate-spin')} strokeWidth={1.5} />
+                Tentar de novo
+              </button>
+            )}
           </li>
         ) : rooms.length === 0 ? (
           <li className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
@@ -154,26 +173,28 @@ export default function PokerHubPage() {
 
   const currentSquadId = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
 
-  useEffect(() => {
+  const loadRooms = useCallback(async () => {
     if (!currentSquadId) {
       // Sem squad não há o que listar: sem isto o esqueleto ficava para sempre.
       setLoadingRooms(false);
       return;
     }
-    const fetchRooms = async () => {
-      try {
-        const data = await pokerApi.listRooms(currentSquadId);
-        setRooms(data);
-        setRoomsFailed(false);
-      } catch (err) {
-        console.error('Erro ao listar salas', err);
-        setRoomsFailed(true);
-      } finally {
-        setLoadingRooms(false);
-      }
-    };
-    fetchRooms();
+    setLoadingRooms(true);
+    try {
+      const data = await pokerApi.listRooms(currentSquadId);
+      setRooms(data);
+      setRoomsFailed(false);
+    } catch (err) {
+      console.error('Erro ao listar salas', err);
+      setRoomsFailed(true);
+    } finally {
+      setLoadingRooms(false);
+    }
   }, [currentSquadId]);
+
+  useEffect(() => {
+    void loadRooms();
+  }, [loadRooms]);
 
   // Backend já devolve só as salas da squad atual — rooms É a lista "da minha squad".
   const myParticipatedRooms = rooms.filter((r) => session?.id && (r.participantIds?.includes(session.id) || r.creatorId === session.id));
@@ -309,6 +330,7 @@ export default function PokerHubPage() {
             title="Sessões da minha squad"
             loading={loadingRooms}
             failed={roomsFailed}
+            onRetry={loadRooms}
             rooms={applyFilter(rooms)}
             totalCount={rooms.length}
             emptyLabel="Nenhuma sessão da squad ainda"
@@ -321,6 +343,7 @@ export default function PokerHubPage() {
             title="Sessões em que participei"
             loading={loadingRooms}
             failed={roomsFailed}
+            onRetry={loadRooms}
             rooms={applyFilter(myParticipatedRooms)}
             totalCount={myParticipatedRooms.length}
             emptyLabel="Você ainda não participou de nenhuma sessão"
