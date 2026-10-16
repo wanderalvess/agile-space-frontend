@@ -15,7 +15,7 @@ const BOX: Record<NoticeVariant, string> = {
 
 const LABEL_COLOR: Record<NoticeVariant, string> = {
   info: TINT_TEXT,
-  important: 'text-amber-600 dark:text-amber-400',
+  important: 'text-amber-700 dark:text-amber-400',
   maintenance: 'text-muted-foreground',
 };
 
@@ -70,7 +70,7 @@ export function Notice({
         icon={icon}
         size={compact ? 'sm' : 'md'}
         muted={variant === 'maintenance'}
-        className={variant === 'important' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : undefined}
+        className={variant === 'important' ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' : undefined}
       />
       <div className={cn('flex min-w-0 flex-1 flex-col', compact ? 'text-[13px]' : 'gap-0.5')}>
         {compact ? (

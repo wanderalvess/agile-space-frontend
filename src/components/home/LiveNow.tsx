@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, CloudOff } from 'lucide-react';
 import { formatCountdown } from '@/lib/ceremony-countdown';
 import { isLive, liveMeta, statusLabel, type UpcomingCeremony } from '@/hooks/home/derive';
 import type { ToolSession } from '@/hooks/home/types';
@@ -14,6 +14,10 @@ interface Props {
   showSquad: boolean;
   /** Próximas cerimônias para o estado vazio. */
   upcoming: UpcomingCeremony[];
+  /** Primeira busca em andamento: mostra o esqueleto em vez de afirmar que não há sessão. */
+  loading?: boolean;
+  /** A última busca falhou e não há nada na tela para mostrar. */
+  failed?: boolean;
   now: Date;
 }
 
@@ -21,7 +25,7 @@ function whenLabel(c: UpcomingCeremony, now: Date): string {
   return formatCountdown(c.start, now).label;
 }
 
-export function LiveNow({ sessions, showSquad, upcoming, now }: Props) {
+export function LiveNow({ sessions, showSquad, upcoming, loading = false, failed = false, now }: Props) {
   const hasLive = sessions.length > 0;
   // O ponto pulsante só quando há algo realmente rolando; sala que aguarda o início aparece na lista sem ele.
   const anyRunning = sessions.some(isLive);
@@ -65,6 +69,23 @@ export function LiveNow({ sessions, showSquad, upcoming, now }: Props) {
             </li>
           ))}
         </ul>
+      ) : loading ? (
+        <div aria-busy="true" className={cn(CARD, 'flex items-center gap-4 px-5 py-[18px]')}>
+          <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-xl bg-muted motion-safe:animate-pulse" />
+          <span className="flex flex-1 flex-col gap-2">
+            <span aria-hidden="true" className="h-3.5 w-56 max-w-full rounded bg-muted motion-safe:animate-pulse" />
+            <span aria-hidden="true" className="h-3 w-40 max-w-full rounded bg-muted/70 motion-safe:animate-pulse" />
+          </span>
+          <span className="sr-only">Carregando as sessões</span>
+        </div>
+      ) : failed ? (
+        <div role="status" className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>
+          <IconTile icon={CloudOff} size="lg" muted className="h-11 w-11 rounded-xl" />
+          <div className="flex min-w-[220px] flex-1 flex-col gap-0.5">
+            <p className="text-[15px] font-bold">Não foi possível carregar as sessões</p>
+            <p className="text-[13px] text-muted-foreground">A lista tenta de novo sozinha em alguns segundos.</p>
+          </div>
+        </div>
       ) : (
         <div className={cn(CARD, 'flex flex-wrap items-center gap-4 border-dashed px-5 py-[18px]')}>
           <IconTile icon={CalendarDays} size="lg" muted className="h-11 w-11 rounded-xl" />

@@ -129,10 +129,12 @@ export default function Home() {
           sessions={effectiveScope ? live.data.filter((s) => s.squadId === effectiveScope) : live.data}
           showSquad={isMulti}
           upcoming={upcoming}
+          loading={live.loading}
+          failed={live.failed}
           now={now}
         />
 
-        <RitualsSection history={history.data} loading={history.loading} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
+        <RitualsSection history={history.data} loading={history.loading} failed={history.failed} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
 
         <ModuleGrid query={query} />
       </main>
