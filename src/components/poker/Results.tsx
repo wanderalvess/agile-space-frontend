@@ -185,29 +185,25 @@ export function CopyEstimateCard({
   return (
     <section
       aria-label="Copiar estimativa"
-      className={cn(CARD, 'room-rise flex flex-col gap-3 border-primary/50 p-[22px] shadow-[0_0_0_4px_hsl(var(--primary)/0.08)] [.theme-leitura_&]:shadow-none')}
+      className={cn(CARD, 'room-rise flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5')}
       style={{ animationDelay: '850ms' }}
     >
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Estimativa para a issue pai</span>
-        {total !== null && <span className="text-xs tabular-nums text-muted-foreground">total {total}h</span>}
-      </div>
-      <div className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3.5 py-3">
-        <code className="flex-1 break-words text-xl font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{text || 'Sem estimativa'}</code>
-      </div>
+      <span className="text-xs font-medium text-muted-foreground">Estimativa para a issue pai</span>
+      <code className="min-w-0 flex-1 break-words rounded-md bg-muted/50 px-2.5 py-1 text-sm font-semibold tabular-nums text-foreground">{text || 'Sem estimativa'}</code>
+      {total !== null && <span className="text-xs tabular-nums text-muted-foreground">total {total}h</span>}
       <button
         type="button"
         onClick={copy}
         className={cn(
-          'flex h-11 items-center justify-center gap-2 rounded-[10px] text-[15px] font-bold transition-colors duration-base',
+          'inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition-colors duration-base',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           copied
-            ? 'border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-            : 'bg-primary text-primary-foreground room-glow hover:bg-primary/90'
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+            : 'border-border bg-transparent text-foreground hover:bg-accent/50'
         )}
       >
-        {copied ? <Check className="room-pop h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> : <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
-        {copied ? 'Copiado' : 'Copiar estimativa'}
+        {copied ? <Check className="room-pop h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> : <Copy className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+        {copied ? 'Copiado' : 'Copiar'}
       </button>
     </section>
   );
