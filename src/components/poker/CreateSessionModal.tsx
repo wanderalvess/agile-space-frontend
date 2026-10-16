@@ -2,19 +2,24 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, Users, WalletCards } from 'lucide-react';
-import { listTemplates, type PokerTemplate } from '@/lib/poker-templates';
-import { DECKS, TSHIRT_UNIT_LABELS, type DeckType, type TshirtUnit } from '@/lib/types';
+import { Clock, Save, Settings2, Users, WalletCards } from 'lucide-react';
+import { cleanTemplateName, deleteTemplate, listTemplates, renameTemplate, saveTemplate, TEMPLATE_NAME_MAX, type PokerTemplate } from '@/lib/poker-templates';
+import { TSHIRT_UNIT_LABELS, type DeckType, type TshirtUnit } from '@/lib/types';
+import { HOURS_MAX_DEFAULT, effectiveMaxHours, getDeckCards } from '@/lib/poker-deck';
 import { DEFAULT_ROOM_SETTINGS } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { pokerApi } from '@/app/room/api';
-import { FIELD, FOCUS_RING, IconTile, Modal, ModalButton, StatusChip } from '@/components/room-kit';
+import { FIELD, FOCUS_RING, IconButton, IconTile, Modal, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
+import { MaxHoursField } from './MaxHoursField';
+import { TemplateManagerDialog } from './TemplateDialogs';
 import { Switch } from '@/components/ui/switch';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+const BLANK_TEMPLATE = '__blank';
+const UNIT_OPTIONS = (Object.keys(TSHIRT_UNIT_LABELS) as TshirtUnit[]).map((u) => ({ value: u, label: TSHIRT_UNIT_LABELS[u] }));
 
 // Metadados dos baralhos para os cartões do modal (as cartas completas vêm de DECKS).
 const DECK_OPTIONS = [
@@ -124,6 +129,12 @@ export function CreateSessionModal({
   const [deckType, setDeckType] = useState<string>('hours');
   const [templates, setTemplates] = useState<PokerTemplate[]>([]);
   const [templateId, setTemplateId] = useState('');
+  const [managerOpen, setManagerOpen] = useState(false);
+  // Horas máximas do baralho "Horas reais": salas novas nascem com 40.
+  const [maxHours, setMaxHours] = useState<number>(HOURS_MAX_DEFAULT);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateNameError, setTemplateNameError] = useState(false);
   // O modal mostra TODOS os toggles que a sala vai levar, já no estado em que vão nascer.
   const [setupSettings, setSetupSettings] = useState<Record<string, boolean>>(baseSetupSettings);
   // Equivalência numérica por tamanho (só relevante para o baralho de camisetas).
@@ -157,11 +168,13 @@ export function CreateSessionModal({
   };
 
   const applyTemplate = (id: string) => {
-    if (!id) { setTemplateId(''); return; }
+    if (!id || id === BLANK_TEMPLATE) { setTemplateId(''); return; }
     setTemplateId(id);
     const t = templates.find((tp) => tp.id === id);
     if (!t) return;
     setDeckType(t.deckType);
+    // Template de sala antiga (sem o campo) guarda o baralho completo.
+    setMaxHours(effectiveMaxHours(t.settings?.maxHours));
     // O template manda: cada toggle exibido passa a refletir o que ele traz (ausente = desligado),
     // senão o modal mostraria uma coisa e a sala nasceria com outra.
     setSetupSettings((prev) => {
@@ -186,6 +199,11 @@ export function CreateSessionModal({
 
     if (!title.trim()) {
       setTitleError(true);
+      return;
+    }
+    if (saveAsTemplate && !templateName.trim()) {
+      setShowAdvancedSetup(true);
+      setTemplateNameError(true);
       return;
     }
 
@@ -231,6 +249,7 @@ export function CreateSessionModal({
         ...DEFAULT_ROOM_SETTINGS,
         ...(tpl ? tpl.settings : {}),
         ...setupSettings,
+        maxHours,
         ...(Object.keys(tshirtEquivalentsClean).length ? { tshirtEquivalents: tshirtEquivalentsClean } : {}),
       },
     };
@@ -239,6 +258,10 @@ export function CreateSessionModal({
       const docRef = await pokerApi.saveOrUpdateRoom(newRoom as any);
       if (docRef && docRef.id) {
         saveRoomMeta(docRef.id, 'poker', title.trim(), team.trim() || 'Squad');
+        if (saveAsTemplate) {
+          const saved = saveTemplate({ name: cleanTemplateName(templateName), deckType: deckType as DeckType, settings: newRoom.settings as NonNullable<PokerTemplate['settings']>, backlog: tpl?.backlog ?? [] });
+          toast({ title: 'Template salvo', description: saved.name });
+        }
         onOpenChange(false);
         router.push(`/room/${docRef.id}`);
       } else {
@@ -293,15 +316,20 @@ export function CreateSessionModal({
             <label htmlFor="ns-squad" className="text-[13px] font-semibold">Squad</label>
             <input id="ns-squad" value={team} onChange={(e) => { setTeam(e.target.value); setTeamTouched(true); }} placeholder="Ex.: Phoenix" className={cn(FIELD, 'h-10')} />
           </div>
-          {templates.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="ns-tpl" className="text-[13px] font-semibold">Template</label>
-              <select id="ns-tpl" value={templateId} onChange={(e) => applyTemplate(e.target.value)} className={cn(FIELD, 'h-10')}>
-                <option value="">Sessão em branco</option>
-                {templates.map((t) => <option key={t.id} value={t.id}>{t.name} · {t.backlog.length} tarefa(s)</option>)}
-              </select>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="ns-tpl" className="text-[13px] font-semibold">Template</label>
+            <div className="flex items-center gap-2">
+              <SelectField
+                id="ns-tpl"
+                aria-label="Template"
+                value={templateId || BLANK_TEMPLATE}
+                onChange={applyTemplate}
+                options={[{ value: BLANK_TEMPLATE, label: 'Sessão em branco' }, ...templates.map((t) => ({ value: t.id, label: `${t.name} · ${t.backlog.length} ${t.backlog.length === 1 ? 'tarefa' : 'tarefas'}` }))]}
+                className="h-10 min-w-0 flex-1 text-sm"
+              />
+              {templates.length > 0 && <IconButton label="Gerenciar templates" icon={Settings2} onClick={() => setManagerOpen(true)} className="h-10 w-10" />}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Baralho */}
@@ -329,12 +357,19 @@ export function CreateSessionModal({
                     <span className="text-xs text-muted-foreground">{opt.desc}</span>
                   </span>
                   <span className="text-[11px] leading-relaxed text-muted-foreground tabular-nums">
-                    {(DECKS[opt.key as keyof typeof DECKS] || []).map((v) => (v === '☕' ? 'café' : v)).join(' · ')}
+                    {getDeckCards(opt.key, opt.key === 'hours' ? maxHours : undefined).map((v) => (v === '☕' ? 'café' : v)).join(' · ')}
                   </span>
                 </button>
               );
             })}
           </div>
+
+          {deckType === 'hours' && (
+            <div className="room-rise flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+              <label htmlFor="ns-max-hours" className="text-[13px] font-semibold">Horas máximas do baralho</label>
+              <MaxHoursField id="ns-max-hours" value={maxHours} onChange={setMaxHours} />
+            </div>
+          )}
 
           {deckType === 'tshirt' && (
             <div className="room-rise flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
@@ -355,14 +390,13 @@ export function CreateSessionModal({
                       aria-label={`Quantidade para ${size}`}
                       className={cn(FIELD, 'h-8 px-2 text-center text-[13px]')}
                     />
-                    <select
+                    <SelectField
                       aria-label={`Unidade para ${size}`}
                       value={tshirtEquivalents[size]?.unit || 'hora'}
-                      onChange={(e) => setTshirtEquivalents((s) => ({ ...s, [size]: { value: s[size]?.value || '', unit: e.target.value as TshirtUnit } }))}
-                      className={cn(FIELD, 'h-8 px-1 text-xs')}
-                    >
-                      {(Object.keys(TSHIRT_UNIT_LABELS) as TshirtUnit[]).map((u) => <option key={u} value={u}>{TSHIRT_UNIT_LABELS[u]}</option>)}
-                    </select>
+                      onChange={(v) => setTshirtEquivalents((st) => ({ ...st, [size]: { value: st[size]?.value || '', unit: v as TshirtUnit } }))}
+                      options={UNIT_OPTIONS}
+                      className="h-8 gap-1 px-1.5 text-xs"
+                    />
                   </div>
                 ))}
               </div>
@@ -443,8 +477,41 @@ export function CreateSessionModal({
               )}
             </div>
           )}
+
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
+            <div className="flex items-center justify-between gap-2.5">
+              <label htmlFor="ns-save-tpl" className="flex min-w-0 cursor-pointer items-center gap-2 text-[13px] font-semibold">
+                <Save className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" /> Salvar estas configurações como template
+              </label>
+              <Switch id="ns-save-tpl" checked={saveAsTemplate} onCheckedChange={(v) => { setSaveAsTemplate(v); setTemplateNameError(false); if (v && !templateName) setTemplateName(title.trim()); }} className="shrink-0" />
+            </div>
+            {saveAsTemplate && (
+              <div className="room-rise flex flex-col gap-1.5">
+                <label htmlFor="ns-tpl-name" className="text-xs font-semibold text-muted-foreground">Nome do template</label>
+                <input
+                  id="ns-tpl-name"
+                  value={templateName}
+                  maxLength={TEMPLATE_NAME_MAX}
+                  onChange={(e) => { setTemplateName(e.target.value); if (templateNameError) setTemplateNameError(false); }}
+                  placeholder="Ex.: Refinamento quinzenal"
+                  aria-invalid={templateNameError}
+                  aria-describedby={templateNameError ? 'ns-tpl-name-error' : undefined}
+                  className={cn(FIELD, 'h-9 text-[13px]', templateNameError && 'border-red-500/70')}
+                />
+                {templateNameError && <span id="ns-tpl-name-error" className="text-xs text-red-700 dark:text-red-300">Dê um nome ao template.</span>}
+              </div>
+            )}
+          </div>
         </section>
       </div>
+
+      <TemplateManagerDialog
+        open={managerOpen}
+        onOpenChange={setManagerOpen}
+        templates={templates}
+        onRename={(id, name) => { renameTemplate(id, name); setTemplates(listTemplates()); }}
+        onDelete={(id) => { deleteTemplate(id); setTemplates(listTemplates()); if (templateId === id) setTemplateId(''); }}
+      />
     </Modal>
   );
 }

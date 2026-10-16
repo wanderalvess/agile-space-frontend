@@ -12,6 +12,9 @@ import { DECKS, Participant, Vote, DeckType, Role, GlobalRole, IssueType, Tshirt
  * Vale apenas na criação — salas já existentes não são tocadas.
  */
 export const DEFAULT_ROOM_SETTINGS = {
+  // Revelação: as cartas só viram quando o facilitador clica em "Revelar". Gravado de propósito (false)
+  // para a sala nascer com a escolha explícita; "Revelar automaticamente" é opt-in.
+  autoReveal: false,
   // Dados e visão
   perTopicTime: true,
   showDistribution: true,
@@ -341,6 +344,30 @@ export function isParticipantOnline(participant: { lastSeen?: string }, nowMs: n
  * Usado tanto pelo gate do Controls quanto pelo denominador de progresso,
  * evitando as duas listas de MANAGEMENT_ROLES divergentes de antes.
  */
+/**
+ * Revelação automática: só existe com `autoReveal` ligado de propósito (=== true; sala sem a opção,
+ * antiga ou nova, nunca revela sozinha) e só no cliente do facilitador. Revela quando todos os
+ * votantes elegíveis ONLINE já votaram na tarefa ativa; quem está offline não trava a rodada.
+ */
+export function shouldAutoReveal(input: {
+  settings?: { autoReveal?: boolean; allowManagementToVote?: boolean } | null;
+  isFacilitator: boolean;
+  votesRevealed?: boolean;
+  activeIssueId?: string | null;
+  participants: readonly Participant[];
+  onlineIds: ReadonlySet<string>;
+  votes: readonly Pick<Vote, 'participantId' | 'issueId'>[];
+}): boolean {
+  const { settings, isFacilitator, votesRevealed, activeIssueId, participants, onlineIds, votes } = input;
+  if (settings?.autoReveal !== true || !isFacilitator) return false;
+  if (votesRevealed || !activeIssueId) return false;
+  if (votes.length === 0) return false;
+  const eligible = participants.filter((p) => canParticipantVote(p, settings.allowManagementToVote) && onlineIds.has(p.id));
+  if (eligible.length === 0) return false;
+  const votedIds = new Set(votes.filter((v) => !v.issueId || v.issueId === activeIssueId).map((v) => v.participantId));
+  return eligible.every((p) => votedIds.has(p.id));
+}
+
 export function canParticipantVote(
   participant: { role: Role; globalRole?: GlobalRole },
   allowManagementToVote = false

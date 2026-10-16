@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Eye, EyeOff, Lock, Check } from 'lucide-react';
-import { DECKS, DeckType, Participant } from '@/lib/types';
+import { DeckType, Participant } from '@/lib/types';
+import { getDeckCards } from '@/lib/poker-deck';
 import { canParticipantVote, getParticipantCategory } from '@/lib/poker-utils';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,8 @@ interface ControlsProps {
   currentUserConfidence?: 'low' | 'medium' | 'high' | null;
   // Facilitador de gestão: atalho para liberar o próprio voto (e o da gestão) sem abrir as configurações.
   onAllowManagementVote?: () => void;
+  // Horas máximas do baralho "Horas reais" (ausente = baralho completo).
+  maxHours?: number | null;
 }
 
 const CONFIDENCE_OPTIONS = [
@@ -130,8 +133,9 @@ export function Controls({
   onSetConfidence,
   onAllowManagementVote,
   currentUserConfidence = null,
+  maxHours,
 }: ControlsProps) {
-  const deckValues = DECKS[deck];
+  const deckValues = useMemo(() => getDeckCards(deck, maxHours), [deck, maxHours]);
   const numberCards = useMemo(() => deckValues.filter((v) => !isSpecialCard(v)), [deckValues]);
   const specialCards = useMemo(() => deckValues.filter(isSpecialCard), [deckValues]);
   const hasVoted = currentUserVote !== null;

@@ -435,6 +435,9 @@ export type Room = {
     // Como a média dos votos vira o valor salvo: 'up' (padrão, para cima), 'nearest' (inteiro mais
     // próximo), 'down' (para baixo) ou 'deck' (carta mais próxima do baralho). Ausente = 'up'.
     roundingMode?: 'up' | 'nearest' | 'down' | 'deck';
+    // Horas máximas do baralho "Horas reais" (1 a 100). Ausente = baralho completo (até 50), como as
+    // salas criadas antes da opção; as salas novas nascem com 40.
+    maxHours?: number;
     // Votos às cegas: o servidor só entrega o valor dos votos dos outros depois da revelação
     // (evita ver o número pelo DevTools/rede). Default off.
     blindVotes?: boolean;

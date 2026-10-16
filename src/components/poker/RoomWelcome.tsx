@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Check, CloudDownload, Copy, ListPlus, Lock, Play, Share2, WalletCards } from 'lucide-react';
-import { DECKS, type DeckType, type Participant } from '@/lib/types';
+import type { DeckType, Participant } from '@/lib/types';
+import { getDeckCards } from '@/lib/poker-deck';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { FOCUS_RING, PersonAvatar, RoomQr, StatusChip } from '@/components/room-kit';
@@ -43,9 +44,18 @@ function isTypingTarget(t: EventTarget | null): boolean {
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName) || !!el.closest('[role="dialog"]');
 }
 
+/** Escolhe até `n` itens espalhados ao longo da lista, do menor ao maior. */
+function pickEvenly(list: readonly string[], n: number): string[] {
+  if (list.length <= n) return [...list];
+  return Array.from({ length: n }, (_, i) => list[Math.round(((i + 1) * (list.length - 1)) / n)]);
+}
+
 /** Leque de cartas do baralho da sala; abre em 320 ms e afasta no hover. */
-function CardFan({ deck }: { deck: DeckType }) {
-  const faces = FAN_FACES[deck] ?? DECKS[deck].slice(0, 5);
+function CardFan({ deck, maxHours }: { deck: DeckType; maxHours?: number | null }) {
+  const cards = getDeckCards(deck, maxHours);
+  const preset = FAN_FACES[deck] ?? cards.slice(0, 5);
+  // Com limite baixo no baralho de horas, o leque usa cartas que existem de fato.
+  const faces = preset.every((f) => cards.includes(f)) ? preset : [...pickEvenly(cards.filter((c) => Number(c) > 0), 4), '☕'];
   return (
     <div className="group/fan relative mx-auto h-[190px] w-full max-w-[470px] select-none [@media(max-height:820px)]:-mb-10 [@media(max-height:820px)]:origin-top [@media(max-height:820px)]:scale-[0.8]" aria-hidden="true">
       {faces.map((face, i) => {
@@ -101,6 +111,7 @@ const KEY = 'rounded border border-current/30 px-1.5 py-px text-[11px] tabular-n
 
 interface RoomWelcomeProps {
   deck: DeckType;
+  maxHours?: number | null;
   deckLabel: string;
   roomTeam?: string | null;
   participants: Participant[];
@@ -112,7 +123,7 @@ interface RoomWelcomeProps {
 }
 
 /** Facilitador, fila vazia: três passos para começar (convidar, montar a fila, votar). */
-export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds, roomUrl, onShare, onImportJira, onAddManual }: RoomWelcomeProps) {
+export function RoomWelcome({ deck, maxHours, deckLabel, roomTeam, participants, onlineIds, roomUrl, onShare, onImportJira, onAddManual }: RoomWelcomeProps) {
   const { toast } = useToast();
   const others = participants.length > 1;
   const onlineCount = participants.filter((p) => onlineIds.has(p.id)).length;
@@ -144,7 +155,7 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
     <div className="relative w-full max-w-[1080px] text-left">
       <div aria-hidden="true" className="room-halo room-breathe pointer-events-none absolute left-1/2 top-0 -z-10 h-[520px] w-[900px] -translate-x-1/2" />
 
-      <CardFan deck={deck} />
+      <CardFan deck={deck} maxHours={maxHours} />
 
       <div className="mt-2 flex flex-col items-center gap-3.5 text-center">
         <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Sua sala está pronta</h2>
@@ -233,6 +244,7 @@ export function RoomWelcome({ deck, deckLabel, roomTeam, participants, onlineIds
 
 interface RoomWaitingProps {
   deck: DeckType;
+  maxHours?: number | null;
   deckLabel: string;
   roomTeam?: string | null;
   participants: Participant[];
@@ -240,13 +252,13 @@ interface RoomWaitingProps {
 }
 
 /** Participante: aguardando o facilitador montar a fila. */
-export function RoomWaiting({ deck, deckLabel, roomTeam, participants, onlineIds }: RoomWaitingProps) {
+export function RoomWaiting({ deck, maxHours, deckLabel, roomTeam, participants, onlineIds }: RoomWaitingProps) {
   const facilitator = participants.find((p) => p.isFacilitator);
   return (
     <div className="relative w-full max-w-xl text-center">
       <div aria-hidden="true" className="room-halo room-breathe pointer-events-none absolute left-1/2 top-0 -z-10 h-[420px] w-[720px] -translate-x-1/2" />
 
-      <CardFan deck={deck} />
+      <CardFan deck={deck} maxHours={maxHours} />
 
       <div className="mt-2 flex flex-col items-center gap-3.5">
         <h2 className={cn('px-1 pb-1 text-4xl font-bold leading-[1.1] tracking-[-0.035em] sm:text-5xl')}>Boas-vindas à sala</h2>
@@ -277,7 +289,7 @@ export function RoomWaiting({ deck, deckLabel, roomTeam, participants, onlineIds
           </span>
         )}
         <div className="flex flex-wrap justify-center gap-1.5" aria-label="Cartas do baralho">
-          {(DECKS[deck] ?? []).map((face) => (
+          {getDeckCards(deck, maxHours).map((face) => (
             <span key={face} className="flex h-8 min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-muted/40 px-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
               {face === '☕' ? 'café' : face}
             </span>
