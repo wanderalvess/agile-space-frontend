@@ -11,19 +11,21 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 25 100% 50%; /* Vibrant Orange */
+    /* Laranja de ação (#C2410C do desenho): branco sobre ele passa de 5:1 e serve também como cor de texto.
+       O laranja vivo (25 100% 50%) fica só no escuro, onde o texto escuro sobre ele tem 7:1. */
+    --primary: 17 88% 40%;
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222 47% 11.2%;
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 215 16% 42%; /* 5,2:1 sobre muted; o 46.9% ficava em 4,3:1 */
     --accent: 210 40% 96.1%;
     --accent-foreground: 222 47% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 25 100% 50%;
+    --ring: 17 88% 40%;
     --radius: 0.5rem;
 
     /* Sidebar tokens follow the active theme surfaces (indirect refs resolve
@@ -80,6 +82,9 @@ html, body {
   --ring: 262 83% 58%;
 }
 .dark.theme-nebula {
+  /* Roxo mais claro no escuro: o 58% dava 3,3:1 como texto e 3,5:1 com texto escuro por cima. */
+  --primary: 262 90% 68%;
+  --ring: 262 90% 68%;
   --background: 240 25% 4%; /* Dark Navy/Obsidian */
   --foreground: 210 40% 98%;
   --card: 240 20% 8%; /* Navy card */
@@ -144,9 +149,9 @@ html, body {
   --popover-foreground: 155 50% 10%;
 }
 .dark.theme-nordic {
-  --primary: 156 51% 42%; /* verde mais claro: o pinho escuro não tinha contraste no escuro */
+  --primary: 156 51% 46%; /* verde mais claro: o pinho escuro não tinha contraste no escuro */
   --primary-foreground: 155 30% 7%;
-  --ring: 156 51% 42%;
+  --ring: 156 51% 46%;
   --background: 155 20% 8%; /* Dark pine */
   --foreground: 140 20% 95%;
   --card: 155 15% 12%; /* Sage dark card */
@@ -178,6 +183,9 @@ html, body {
 
 /* Cyberpunk (light) — soft pink with cyan accent */
 .theme-cyberpunk:not(.dark) {
+  /* Rosa de ação mais fechado no claro (#C2127A do desenho): branco sobre ele tem 5,9:1, o vivo tinha 3,6:1. */
+  --primary: 327 83% 41%;
+  --ring: 327 83% 41%;
   --background: 327 55% 98%;
   --foreground: 300 35% 12%;
   --card: 0 0% 100%;
@@ -196,6 +204,9 @@ html, body {
 
 /* Midnight (light) — cool electric blue */
 .theme-midnight:not(.dark) {
+  /* Azul de ação mais fechado no claro: branco sobre ele tem 5,8:1, o vivo tinha 3,6:1. */
+  --primary: 221 83% 50%;
+  --ring: 221 83% 50%;
   --background: 217 50% 98%;
   --foreground: 217 45% 12%;
   --card: 0 0% 100%;
