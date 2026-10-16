@@ -249,7 +249,6 @@ export function CeremonySettingsDialog({ open, onOpenChange, onRestoreDefaults, 
       size="lg"
       icon={Settings}
       title="Configurações da cerimônia"
-      description="Cada mudança vale na hora para todo o time."
       footerStart={
         <>
           <ModalButton variant="ghost" onClick={onRestoreDefaults}>Restaurar padrão</ModalButton>

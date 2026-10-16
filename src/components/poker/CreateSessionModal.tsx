@@ -284,7 +284,6 @@ export function CreateSessionModal({
       className="sm:max-w-[800px]"
       icon={WalletCards}
       title="Nova sessão"
-      description="Dá para ajustar tudo depois nas configurações da sala."
       preventClose={isCreating}
       footer={
         <>
