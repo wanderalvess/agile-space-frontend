@@ -24,7 +24,7 @@ import {
   MessageSquare,
   Search,
   CheckCircle2,
-  Rocket
+  Keyboard
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -144,7 +144,7 @@ export function CommandPalette({
            <span className="flex items-center gap-1.5"><kbd className="bg-background border border-border/80 text-foreground rounded px-1.5 py-0.5 font-code shadow-2xs">Enter</kbd> Selecionar</span>
         </div>
         <div className="flex items-center gap-2">
-           <Rocket className="h-3 w-3 text-indigo-500" />
+           <Keyboard className="h-3 w-3 text-indigo-500" />
            <span className="text-[9px] font-black uppercase text-indigo-500 tracking-tighter italic">Command Center</span>
         </div>
       </div>

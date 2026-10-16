@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   GitBranch,
   Loader2,
-  Rocket,
+  Flag,
   Zap,
   Sparkles,
   ShieldCheck,
@@ -60,7 +60,7 @@ import rawVersions from '@/app/changelog/versions.json';
 const AVAILABLE_ICONS = [
   { name: 'Zap', label: 'Raio (Patch / Fix)', className: 'h-5 w-5 text-indigo-500', defaultFor: 'patch' },
   { name: 'Sparkles', label: 'Brilho (Feature / Minor)', className: 'h-5 w-5 text-emerald-500', defaultFor: 'minor' },
-  { name: 'Rocket', label: 'Foguete (Major / Lançamento)', className: 'h-5 w-5 text-primary', defaultFor: 'major' },
+  { name: 'Flag', label: 'Bandeira (Major / Lançamento)', className: 'h-5 w-5 text-primary', defaultFor: 'major' },
   { name: 'ShieldCheck', label: 'Segurança & Validação', className: 'h-5 w-5 text-emerald-600' },
   { name: 'Layers', label: 'Arquitetura / Módulos', className: 'h-5 w-5 text-blue-500' },
   { name: 'Code2', label: 'Código', className: 'h-5 w-5 text-amber-500' },
@@ -73,7 +73,8 @@ const AVAILABLE_ICONS = [
 const iconComponentMap: Record<string, React.ComponentType<any>> = {
   Zap,
   Sparkles,
-  Rocket,
+  Flag,
+  Rocket: Flag, // alias: releases já gravados com o ícone antigo
   ShieldCheck,
   Layers,
   Code2,

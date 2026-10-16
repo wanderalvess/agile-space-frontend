@@ -6,7 +6,7 @@ import { adminApi } from '@/app/admin/api';
 import {
   TrendingUp,
   Users,
-  Rocket,
+  Activity,
   Target,
   BarChart3,
   Zap,
@@ -145,7 +145,7 @@ export function GrowthDashboard() {
           title="Total de Interações" 
           value={totalInteractions} 
           subtitle="Ações registradas na plataforma" 
-          icon={<Rocket className="h-6 w-6" />}
+          icon={<Activity className="h-6 w-6" />}
           color="from-primary to-indigo-600"
         />
         <MetricHighlight

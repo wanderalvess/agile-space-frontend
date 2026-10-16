@@ -31,7 +31,6 @@ import { ExportHealthCheckDialog } from './ExportHealthCheckDialog';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { cn } from '@/lib/utils';
-import { Logo } from '../Logo';
 import { useAuth } from '@/context/AuthContext';
 import { workspaceApi } from '@/app/workspace/api';
 import { AgileSpinner } from '../ui/AgileSpinner';

@@ -10,7 +10,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '../ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Logo } from '../Logo';
 import { Badge } from '../ui/badge';
 import { HealthGuide } from './HealthGuide';
 import {

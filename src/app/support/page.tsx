@@ -12,7 +12,7 @@ import {
   Lightbulb,
   HelpCircle,
   Sparkles,
-  Rocket,
+  BookOpen,
   AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -306,7 +306,7 @@ export default function SupportPage() {
             <aside className="xl:col-span-4 space-y-6">
               <Card className="border border-indigo-500/20 dark:border-indigo-800/40 bg-gradient-to-br from-indigo-600 via-indigo-650 to-indigo-700 dark:from-indigo-950 dark:to-slate-900 text-white rounded-3xl p-8 shadow-xl shadow-indigo-600/15 relative overflow-hidden group">
                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-125 transition-transform duration-700">
-                      <Rocket className="h-28 w-28" />
+                      <BookOpen className="h-28 w-28" />
                    </div>
                    <div className="relative z-10 space-y-4">
                       <Badge className="bg-white/20 text-white border-none uppercase text-[8px] font-black tracking-widest px-3 py-1">Autoatendimento</Badge>

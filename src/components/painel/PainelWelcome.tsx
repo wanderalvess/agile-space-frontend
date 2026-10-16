@@ -28,7 +28,7 @@ import {
   Loader2,
   Presentation,
   RefreshCw,
-  Rocket,
+  Flag,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -235,7 +235,7 @@ export function PainelWelcome({ squadId, syncState, syncError, myRole, squadMemb
       {/* COMECE POR AQUI */}
       <section aria-label="Cerimônias" className="space-y-2">
         <h2 className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-          <Rocket className="h-3.5 w-3.5" /> Comece por aqui
+          <Flag className="h-3.5 w-3.5" /> Comece por aqui
         </h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CEREMONIES.map(c => {
