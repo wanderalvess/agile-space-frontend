@@ -76,7 +76,7 @@ export function ImportResultStep({ result, onGoToPanel, onIssueAction }: Props) 
           <li key={key} className="flex items-center gap-3 px-4 py-3">
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-sm font-bold">{key}</span>
-              <span className="text-xs text-muted-foreground">Pulada na prévia</span>
+              <span className="text-xs text-muted-foreground">Não importada</span>
             </span>
             <span className={cn('inline-flex h-[22px] shrink-0 items-center rounded-full px-2.5 text-xs font-bold', TONES.warn.chip)}>Sem importar</span>
           </li>
