@@ -71,11 +71,13 @@ export interface ImportRow {
 export interface ImportParseResult {
   delimiter: CsvDelimiter;
   rows: ImportRow[];
-  /** Linhas ignoradas por não terem nome, e-mail nem ID. */
+  /** Linhas ignoradas: sem nome, e-mail nem ID, ou com e-mail inválido que criaria um integrante novo. */
   skipped: number;
 }
 
 export type ImportParseError = 'EMPTY';
+
+const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function findMemberMatch(
   members: SquadMember[],
@@ -144,8 +146,14 @@ export function parseRosterImport(
       if (legacy && !SOURCE_VALUES.test(legacy)) notes = legacy;
     }
 
-    const match = findMemberMatch(members, { id: idRaw, email: emailRaw, name: nameRaw });
+    // E-mail fora do formato não casa ninguém e não cria integrante novo: a linha é ignorada (conta em `skipped`).
+    const emailOk = !emailRaw || EMAIL_FORMAT.test(emailRaw);
+    const match = findMemberMatch(members, { id: idRaw, email: emailOk ? emailRaw : '', name: nameRaw });
     const existing = match?.member;
+    if (!existing && !emailOk) {
+      skipped++;
+      continue;
+    }
     const parsed = parseDecimal(realRaw);
     const valid = Number.isFinite(parsed) && parsed > 0 && parsed <= MAX_DAILY_HOURS;
     const current = existing?.capacityHoursPerDay ?? baseHours;
@@ -164,7 +172,7 @@ export function parseRosterImport(
       jiraAccountId: existing ? existing.jiraAccountId : idRaw,
       displayName: existing ? existing.displayName : nameRaw || idRaw || emailRaw,
       role,
-      email: emailRaw || existing?.email || '',
+      email: (emailOk ? emailRaw : '') || existing?.email || '',
       importedCapacity: imported,
       currentCapacity: current,
       capacityKept: !valid,

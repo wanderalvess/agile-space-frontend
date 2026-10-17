@@ -77,7 +77,7 @@ export function ImportDialog({ importer }: { importer: ReturnType<typeof useRost
             <span className="truncate text-sm font-semibold text-foreground">{importer.fileName}</span>
             <span className="text-xs text-muted-foreground">
               {lineCount} {lineCount === 1 ? 'linha' : 'linhas'}
-              {importer.skipped > 0 && ` (${importer.skipped} sem nome, e-mail nem ID foram ignoradas)`} · aceita .csv e .txt
+              {importer.skipped > 0 && ` (${importer.skipped} ignoradas: sem nome, e-mail nem ID, ou com e-mail inválido)`} · aceita .csv e .txt
             </span>
           </span>
           <ModalButton className="h-9 text-[13px]" disabled={importer.applying} onClick={importer.pickFile}>Trocar arquivo</ModalButton>

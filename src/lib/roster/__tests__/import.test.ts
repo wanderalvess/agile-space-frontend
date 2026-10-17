@@ -62,6 +62,23 @@ describe('parseRosterImport', () => {
     expect(r.rows[1].notes).toBe('Importado via planilha');
   });
 
+  it('ignora a linha com e-mail inválido que criaria um integrante novo, mas ainda casa quem existe por ID', () => {
+    const csv = [
+      'JiraAccountId;Nome;Email;Funcao;Horas_Sugeridas_Sistema_Dia;Horas_Reais_Gestor_Dia',
+      ';Linha Quebrada;sem-email;Developer;;abc',
+      'bruno;Bruno Teixeira;sem-email;QA;;7',
+      ';Nova Pessoa;nova@totvs.com.br;Developer;;6',
+    ].join('\n');
+    const r = ok(parseRosterImport(csv, team, 6));
+    expect(r.skipped).toBe(1);
+    expect(r.rows.map((x) => [x.displayName, x.status])).toEqual([
+      ['Bruno Teixeira', 'changed'],
+      ['Nova Pessoa', 'new'],
+    ]);
+    // o e-mail inválido da linha de quem já existe não sobrescreve o e-mail cadastrado
+    expect(r.rows[0].email).toBe('bruno@totvs.com.br');
+  });
+
   it('lê planilha do Excel em português (; e vírgula decimal)', () => {
     const csv = ['JiraAccountId;Nome;Email;Funcao;Horas_Sugeridas_Sistema_Dia;Horas_Reais_Gestor_Dia', 'carla;Carla Mendes;carla@totvs.com.br;Developer;6;7,5'].join('\r\n');
     const r = ok(parseRosterImport(csv, team, 6));
