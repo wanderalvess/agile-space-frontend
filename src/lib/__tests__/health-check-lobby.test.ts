@@ -11,6 +11,8 @@ import {
   parseJoinInput,
   previousBoard,
   rowFromBoard,
+  squadChoices,
+  squadDisplayName,
   summaryOfBoard,
 } from '../health-check-lobby';
 import { summarizeResults } from '../health-check-rules';
@@ -187,5 +189,37 @@ describe('comparar com o radar anterior', () => {
     const diffs = compareBoards(a, cur.dimensions, b, prev.dimensions);
     expect(diffs.map((d) => d.key)).toEqual(['a']);
     expect(diffs[0].delta).toBeGreaterThan(0);
+  });
+});
+
+describe('squads para escolher', () => {
+  it('usa os vínculos, sem repetir e em ordem alfabética', () => {
+    const c = squadChoices([{ projectId: 'ZED', projectName: 'Zeta' }, { projectId: 'phx', projectName: 'Phoenix' }, { projectId: 'PHX', projectName: 'Outro' }], { squadId: 'X' });
+    expect(c.map((x) => x.label)).toEqual(['Phoenix', 'Zeta']);
+  });
+
+  it('sem vínculos cai na squad ativa; sem nenhuma, vazio', () => {
+    expect(squadChoices([], { squadId: 'PHX', squadName: 'Phoenix' })).toEqual([{ value: 'PHX', label: 'Phoenix' }]);
+    expect(squadChoices(null, { squadId: '' })).toEqual([]);
+  });
+
+  it('mostra o nome da squad pela chave gravada no radar', () => {
+    const c = squadChoices([{ projectId: 'PHX', projectName: 'Phoenix' }], {});
+    expect(squadDisplayName('phx', c)).toBe('Phoenix');
+    expect(squadDisplayName('OUTRA', c)).toBe('OUTRA');
+    expect(squadDisplayName('', c)).toBe('');
+  });
+});
+
+describe('atalho local de salas', () => {
+  it('tira só a sala apagada e aguenta dado quebrado', async () => {
+    const { removeLocalRoomMeta } = await import('../health-check-lobby');
+    const mem = new Map<string, string>([['agileSpace_rooms_meta', JSON.stringify([{ roomId: 'a' }, { roomId: 'b' }])]]);
+    const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) };
+    removeLocalRoomMeta('a', storage);
+    expect(JSON.parse(mem.get('agileSpace_rooms_meta') as string)).toEqual([{ roomId: 'b' }]);
+    mem.set('agileSpace_rooms_meta', '{quebrado');
+    expect(() => removeLocalRoomMeta('b', storage)).not.toThrow();
+    expect(() => removeLocalRoomMeta('b', undefined)).not.toThrow();
   });
 });

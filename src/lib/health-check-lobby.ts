@@ -214,3 +214,55 @@ export function compareBoards(current: HealthSummary, currentDims: readonly { ke
   }
   return diffs;
 }
+
+// ───────────────────────── Squads para escolher ─────────────────────────
+
+export interface SquadChoice {
+  value: string;
+  label: string;
+}
+
+/**
+ * Squads que a pessoa pode escolher para a pesquisa: as do vínculo (nunca texto livre: a lista da squad filtra
+ * pela chave, então um nome digitado fazia a pesquisa sumir). Sem vínculos, só a ativa; sem nenhuma, vazio.
+ */
+export function squadChoices(
+  memberships: readonly { projectId: string; projectName?: string }[] | null | undefined,
+  active: { squadId?: string; squadName?: string },
+): SquadChoice[] {
+  const byKey = new Map<string, SquadChoice>();
+  const add = (value?: string, label?: string) => {
+    const v = (value ?? '').trim();
+    if (!v) return;
+    const key = v.toLowerCase();
+    if (!byKey.has(key)) byKey.set(key, { value: v, label: (label ?? '').trim() || v });
+  };
+  for (const m of memberships ?? []) add(m.projectId, m.projectName);
+  if (!memberships || memberships.length === 0) add(active.squadId, active.squadName);
+  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+}
+
+/** Nome para mostrar de uma squad guardada no radar (a chave), usando o vínculo quando houver. */
+export function squadDisplayName(value: string | undefined, choices: readonly SquadChoice[]): string {
+  const v = (value ?? '').trim();
+  if (!v) return '';
+  return choices.find((c) => c.value.toLowerCase() === v.toLowerCase())?.label ?? v;
+}
+
+// ───────────────────────── Atalho local de salas ─────────────────────────
+
+const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+
+/** Tira uma sala do atalho local deste navegador (ao apagar o radar). Falha de armazenamento é ignorada. */
+export function removeLocalRoomMeta(roomId: string, storage: Pick<Storage, 'getItem' | 'setItem'> | undefined): void {
+  if (!storage) return;
+  try {
+    const raw = storage.getItem(ROOMS_META_KEY);
+    if (!raw) return;
+    const rooms = JSON.parse(raw) as { roomId?: string }[];
+    if (!Array.isArray(rooms)) return;
+    storage.setItem(ROOMS_META_KEY, JSON.stringify(rooms.filter((r) => r.roomId !== roomId)));
+  } catch {
+    // dado quebrado: o atalho some sozinho quando for regravado
+  }
+}
