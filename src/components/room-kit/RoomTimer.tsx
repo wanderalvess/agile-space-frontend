@@ -37,6 +37,8 @@ export interface RoomTimerProps {
   onExpire?: (info: { late: boolean }) => void;
   /** Tolerância (ms) para um fim contar como "agora". Com ela, fim atrasado não toca o alarme. Sem ela, comportamento antigo. */
   lateGraceMs?: number;
+  /** Durações oferecidas ao facilitador (segundos). Padrão: 1 a 5 minutos. */
+  presets?: readonly number[];
 }
 
 const ALARM_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
@@ -68,6 +70,7 @@ export function RoomTimer({
   className,
   onExpire,
   lateGraceMs,
+  presets = TIMER_PRESETS,
 }: RoomTimerProps) {
   const [remaining, setRemaining] = React.useState(() => remainingSeconds(timer, Date.now(), serverOffset));
   // Guarda o endTime que já tocou o alarme: trocar a referência de `timer` sem
@@ -126,7 +129,7 @@ export function RoomTimer({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[8rem]">
-            {TIMER_PRESETS.map((d) => (
+            {presets.map((d) => (
               <DropdownMenuItem
                 key={d}
                 onClick={() => onSetDuration(d)}

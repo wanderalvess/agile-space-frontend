@@ -62,7 +62,8 @@ export interface PresenceItem {
   roleLabel: string;
   /** Categoria técnica para agrupar/colorir (Developer, QA, UX, Designer, Management, null). */
   category?: string | null;
-  online: boolean;
+  /** Omitido quando o servidor não informa presença: a lista não mostra ponto nem "ausente". */
+  online?: boolean;
   status?: PresenceStatus;
   isYou?: boolean;
   isHost?: boolean;
@@ -140,13 +141,15 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
               >
                 <span className="relative">
                   <PersonAvatar name={p.name} highlight={p.isYou} />
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card',
-                      p.online ? 'bg-emerald-500' : 'bg-muted-foreground/40'
-                    )}
-                  />
+                  {p.online !== undefined && (
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card',
+                        p.online ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                      )}
+                    />
+                  )}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
@@ -156,7 +159,7 @@ export function PresenceList({ items, groupOrder, renderActions, emptyLabel = 'N
                   </span>
                   <span className={cn('truncate text-xs font-semibold', ROLE_STYLES[roleToneOf(p.category)].text)}>
                     {p.roleLabel}
-                    {!p.online && !p.ghost && <span className="font-normal text-muted-foreground"> · ausente</span>}
+                    {p.online === false && !p.ghost && <span className="font-normal text-muted-foreground"> · ausente</span>}
                     {p.ghost && <span className="font-normal text-muted-foreground"> · saiu da sala</span>}
                   </span>
                 </span>

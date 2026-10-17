@@ -26,6 +26,7 @@ import { PhaseStepper, type PhaseStep } from './PhaseStepper';
 import {
   normalizeRoomTitle,
   pendingTiers,
+  presenceCountLabel,
   presenceLabel,
   presenceMaxAvatars,
   presenceStack,
@@ -92,7 +93,7 @@ export interface RoomTopBarProps {
   /** Ação principal da sala (ex.: "Revelar votos"), ao lado do cronômetro. */
   primaryAction?: React.ReactNode;
   /** Presença: pilha de avatares que abre a lista de participantes. */
-  presence?: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void };
+  presence?: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void; /** Sem dado de quem está conectado: só conta quem entrou na sala. */ unknown?: boolean };
   actions?: RoomTopBarAction[];
   /** Itens que ficam sempre no "Mais". */
   menuItems?: RoomTopBarMenuItem[];
@@ -209,12 +210,13 @@ function RoomTitle({ title, onTitleChange }: { title: string; onTitleChange?: (t
  * Avatares de 28 px (32 no celular), sobreposição de 6 px e iniciais de 11 px: legíveis sem esmagar o vizinho.
  * O ponto verde só aparece em quem está online; quem saiu fica sem ponto (a lista completa explica o resto).
  */
-function PresenceStack({ people, open, onClick }: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void }) {
+function PresenceStack({ people, open, onClick, unknown }: { people: readonly TopBarPerson[]; open?: boolean; onClick: () => void; unknown?: boolean }) {
   // Pilha menor quando a barra está apertada; o "+N" acompanha.
   const wide = useMediaQuery('(min-width: 1536px)');
   const phone = !useMediaQuery('(min-width: 640px)');
   const stack = presenceStack(people, presenceMaxAvatars(wide, phone));
-  const label = presenceLabel(stack);
+  // `unknown`: o servidor da sala não informa quem está conectado; nada de ponto verde nem "online" inventado.
+  const label = unknown ? presenceCountLabel(stack.total) : presenceLabel(stack);
   return (
     <button
       type="button"
@@ -234,7 +236,7 @@ function PresenceStack({ people, open, onClick }: { people: readonly TopBarPerso
           <span key={p.id} className={cn('relative inline-flex', i > 0 && '-ml-1.5')} style={{ zIndex: stack.visible.length - i }}>
             {/* O vizinho da frente cobre a borda esquerda (6 px + anel): o recuo de 4 px leva as iniciais para a parte que aparece. */}
             <PersonAvatar name={p.name} size="sm" className={cn('h-7 w-7 text-[11px] ring-2 ring-card max-sm:h-8 max-sm:w-8', i > 0 && 'pl-1')} />
-            {p.online && (
+            {!unknown && p.online && (
               <span className="absolute -bottom-px -right-px h-2.5 w-2.5 rounded-full border-2 border-card bg-emerald-500" />
             )}
           </span>
@@ -377,7 +379,7 @@ export function RoomTopBar({
 
         {/* Direita: presença, ações, tema e conta */}
         <div className="order-2 ml-auto flex shrink-0 items-center gap-1.5 xl:order-3 xl:ml-0">
-          {presence && <PresenceStack people={presence.people} open={presence.open} onClick={presence.onClick} />}
+          {presence && <PresenceStack people={presence.people} open={presence.open} onClick={presence.onClick} unknown={presence.unknown} />}
 
           {actions.map((a) => (
             <IconButton

@@ -10,6 +10,8 @@ export interface RoomSocketOptions {
    * aconteceu até a conexão firmar precisa ser recarregado.
    */
   onOpen?: () => void;
+  /** Chamado quando a conexão cai sem a tela ter pedido (antes da nova tentativa): serve ao aviso de "reconectando". */
+  onClose?: () => void;
   /** Mensagem que não é JSON válido ou handler que lançou: a tela recarrega tudo por segurança. */
   onError?: (error: unknown) => void;
   WebSocketImpl?: typeof WebSocket;
@@ -24,7 +26,7 @@ export interface RoomSocketOptions {
  */
 export function connectRoomSocket(options: RoomSocketOptions): () => void {
   const {
-    buildUrl, onMessage, onReconnect, onOpen, onError,
+    buildUrl, onMessage, onReconnect, onOpen, onClose, onError,
     WebSocketImpl = typeof WebSocket !== 'undefined' ? WebSocket : undefined,
     baseDelayMs = 1500, maxDelayMs = 15000,
   } = options;
@@ -59,7 +61,9 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
       }
     };
     socket.onclose = () => {
-      if (!stopped) schedule();
+      if (stopped) return;
+      onClose?.();
+      schedule();
     };
     socket.onerror = () => {
       // o close vem em seguida e agenda a reconexão
