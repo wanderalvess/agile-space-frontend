@@ -80,6 +80,8 @@ export interface RoomTopBarProps {
   homeHref?: string;
   /** Estado da sessão: ponto pulsante em "Ao vivo". */
   status?: RoomTopBarStatus;
+  /** Texto do selo no lugar do padrão ("Em preparação" em vez de "Aguardando"). */
+  statusLabel?: string;
   chips?: RoomTopBarChip[];
   /** Fases da cerimônia (centro). Cada sala passa as suas. */
   phases?: { steps: readonly PhaseStep[]; current: string; label?: string };
@@ -105,8 +107,8 @@ const TIER_BUTTON: Record<TopBarTier, string> = { core: 'max-sm:hidden', mid: 'm
 const TIER_MENU_ITEM: Record<TopBarTier, string> = { core: 'sm:hidden', mid: '2xl:hidden', wide: '3xl:hidden' };
 const TIER_DOT = TIER_MENU_ITEM;
 
-function StatusPill({ status }: { status: RoomTopBarStatus }) {
-  const label = STATUS_LABEL[status];
+function StatusPill({ status, label: custom }: { status: RoomTopBarStatus; label?: string }) {
+  const label = custom ?? STATUS_LABEL[status];
   const live = status === 'live';
   return (
     <span
@@ -287,6 +289,7 @@ export function RoomTopBar({
   onTitleChange,
   homeHref = '/',
   status,
+  statusLabel,
   chips = [],
   phases,
   timer,
@@ -327,7 +330,7 @@ export function RoomTopBar({
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span className="shrink-0 text-[11px] font-medium leading-[18px] text-muted-foreground">{toolName}</span>
-              {status && <StatusPill status={status} />}
+              {status && <StatusPill status={status} label={statusLabel} />}
               {chips.map((c) => (
                 <StatusChip
                   key={c.id}

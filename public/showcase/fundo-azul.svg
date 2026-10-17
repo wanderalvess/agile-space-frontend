@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#001824"/>
+      <stop offset="0.55" stop-color="#002233"/>
+      <stop offset="1" stop-color="#0A3048"/>
+    </linearGradient>
+    <radialGradient id="halo1" cx="0.82" cy="0.18" r="0.5">
+      <stop offset="0" stop-color="#00DBFF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#00DBFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="halo2" cx="0.12" cy="0.95" r="0.45">
+      <stop offset="0" stop-color="#00FFD4" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#00FFD4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#base)"/>
+  <rect width="1920" height="1080" fill="url(#halo1)"/>
+  <rect width="1920" height="1080" fill="url(#halo2)"/>
+  <circle cx="1560" cy="260" r="360" fill="none" stroke="#00DBFF" stroke-opacity="0.16" stroke-width="2"/>
+  <circle cx="1560" cy="260" r="520" fill="none" stroke="#00DBFF" stroke-opacity="0.10" stroke-width="2"/>
+  <circle cx="1560" cy="260" r="700" fill="none" stroke="#00DBFF" stroke-opacity="0.06" stroke-width="2"/>
+</svg>
