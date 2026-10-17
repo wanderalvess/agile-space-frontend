@@ -146,6 +146,33 @@ describe('ArticleEditor: artigo novo', () => {
     await waitFor(() => expect(h.push).toHaveBeenCalledWith('/knowledge/kb?id=novo-1'));
   });
 
+  it.each([
+    ['Enter', false],
+    ['Shift+Enter', true],
+  ])('%s no título leva o foco ao corpo do texto sem mexer no título', async (_nome, shiftKey) => {
+    await renderNew();
+    const title = screen.getByLabelText('Título do artigo') as HTMLInputElement;
+    fireEvent.change(title, { target: { value: 'Guia novo' } });
+    title.focus();
+    expect(document.activeElement).toBe(title);
+
+    // fireEvent devolve false quando o handler chamou preventDefault (nenhuma quebra de linha/submissão).
+    const notPrevented = fireEvent.keyDown(title, { key: 'Enter', shiftKey });
+    expect(notPrevented).toBe(false);
+
+    const body = document.querySelector('.ProseMirror') as HTMLElement;
+    await waitFor(() => expect(document.activeElement).toBe(body));
+    expect(title.value).toBe('Guia novo');
+  });
+
+  it('outras teclas no título não roubam o foco', async () => {
+    await renderNew();
+    const title = screen.getByLabelText('Título do artigo') as HTMLInputElement;
+    title.focus();
+    expect(fireEvent.keyDown(title, { key: 'a' })).toBe(true);
+    expect(document.activeElement).toBe(title);
+  });
+
   it('enquanto o servidor não aceita rascunho, não oferece "Salvar rascunho"', async () => {
     await renderNew();
     expect(screen.queryByRole('button', { name: 'Salvar rascunho' })).toBeNull();
