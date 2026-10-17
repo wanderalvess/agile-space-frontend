@@ -56,7 +56,7 @@ function getSwaggerDocs(): SwaggerDoc[] {
  * Example: "GET http://{{host}}:{{port}}/winthor/integracao/fulfillment/v1/layout/resolverUrlsRotasWta?integracao=pdvsync&tipoLote=true"
  * Output: { cleanPath: "winthor/integracao/fulfillment/v1/layout/resolverurlsrotaswta", queryParams: { integracao: "pdvsync", tipoLote: "true" }, rawUrl: ... }
  */
-export function parseRouteUrl(inputUrl: string): {
+function parseRouteUrl(inputUrl: string): {
   cleanPath: string;
   queryParams: Record<string, string>;
   rawUrl: string;
