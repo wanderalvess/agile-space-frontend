@@ -33,6 +33,8 @@ const h = vi.hoisted(() => ({
     getChatMessages: vi.fn(),
     sendChatMessage: vi.fn(),
     deleteChatMessage: vi.fn(),
+    finishBoard: vi.fn(),
+    reopenBoard: vi.fn(),
   },
 }));
 const { router, state, requestIdentity, toast, stopSocket, api } = h;
@@ -49,7 +51,13 @@ vi.mock('../../../components/NotFound', () => ({ NotFound: () => <div data-testi
 vi.mock('../../../components/feedback-widget', () => ({ FeedbackWidget: () => null }));
 vi.mock('../../../components/retro/SprintStatsDialog', () => ({ SprintStatsDialog: () => null }));
 vi.mock('../../../components/retro/RetroHealthCheckGate', () => ({
-  RetroHealthCheckGate: ({ onAnswer }: { onAnswer: (a: string) => void }) => <button onClick={() => onAnswer('good')}>responder check-in</button>,
+  RetroHealthCheckGate: ({ onAnswer, allowNote }: { onAnswer: (a: string, note?: string) => void; allowNote?: boolean }) => (
+    <>
+      <button onClick={() => onAnswer('good')}>responder check-in</button>
+      <button onClick={() => onAnswer('tired', '  Dia puxado.  ')}>responder com nota</button>
+      <span data-testid="allow-note">{String(!!allowNote)}</span>
+    </>
+  ),
 }));
 vi.mock('../../../lib/auth-client', () => ({ getAuthToken: () => 'tok' }));
 vi.mock('../../../components/retro/RetroRoom', () => ({
@@ -64,6 +72,7 @@ vi.mock('../../../lib/room-socket', () => ({
     return h.stopSocket;
   },
 }));
+Object.assign(h.stopSocket, { send: vi.fn(() => true) });
 vi.mock('../api', () => ({
   retroApi: h.api,
   RetroApiError: class RetroApiError extends Error {
@@ -662,5 +671,183 @@ describe('pessoas e check-in', () => {
     await mount();
     await waitFor(() => expect(api.addOrUpdateParticipant).toHaveBeenCalled());
     expect(api.addOrUpdateParticipant.mock.calls[0][1]).toMatchObject({ id: 'me', nickname: 'Ana Souza', globalRole: 'Developer', role: 'DEV' });
+  });
+});
+
+
+describe('encerrar, reabrir e somente leitura (backend novo)', () => {
+  const newBackend = (over: Partial<RetroBoard> = {}) => { serverBoard = { ...serverBoard, lifecycleStatus: 'OPEN', finishedAt: null, ...over }; };
+
+  it('backend antigo (sem lifecycleStatus): sem botões de encerrar, sem escrevendo…, sem nota no check-in, nada somente leitura', async () => {
+    await mount();
+    expect(latest().onFinishRetro).toBeUndefined();
+    expect(latest().onReopenRetro).toBeUndefined();
+    expect(latest().onTypingCard).toBeUndefined();
+    expect(latest().typingLabelForColumn).toBeUndefined();
+    expect(latest().isFinished).toBe(false);
+    expect(latest().readOnly).toBe(false);
+  });
+
+  it('facilitador encerra: chama POST /finish, troca o quadro e avisa; reabrir faz o inverso', async () => {
+    newBackend();
+    api.finishBoard.mockImplementation(async () => { serverBoard = { ...serverBoard, lifecycleStatus: 'FINISHED', finishedAt: '2026-10-17T15:00:00' }; return serverBoard; });
+    api.reopenBoard.mockImplementation(async () => { serverBoard = { ...serverBoard, lifecycleStatus: 'OPEN', finishedAt: null }; return serverBoard; });
+    await mount();
+    expect(typeof latest().onFinishRetro).toBe('function');
+    await call(() => latest().onFinishRetro());
+    expect(api.finishBoard).toHaveBeenCalledWith('b1');
+    expect(latest().boardData.lifecycleStatus).toBe('FINISHED');
+    expect(latest().isFinished).toBe(true);
+    expect(latest().readOnly).toBe(false); // facilitador continua podendo tudo
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Retro encerrada' }));
+    await call(() => latest().onReopenRetro());
+    expect(api.reopenBoard).toHaveBeenCalledWith('b1');
+    expect(latest().isFinished).toBe(false);
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Retro reaberta' }));
+  });
+
+  it('erro ao encerrar (403/409) mostra a mensagem do servidor e mantém a retro como estava', async () => {
+    newBackend();
+    api.finishBoard.mockRejectedValueOnce(new RetroApiError('Só o facilitador pode encerrar a retro.', 403));
+    await mount();
+    await call(() => latest().onFinishRetro());
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Não foi possível encerrar a retro', description: 'Só o facilitador pode encerrar a retro.', variant: 'destructive' }));
+    expect(latest().isFinished).toBe(false);
+  });
+
+  it('participante não vê os callbacks de encerrar; ADMIN que não criou a retro vê', async () => {
+    newBackend({ creatorId: 'u3' });
+    await mount();
+    expect(latest().onFinishRetro).toBeUndefined();
+    cleanup();
+    state.profile = { id: 'me', name: 'Ana Souza', role: 'admin' };
+    await mount();
+    expect(typeof latest().onFinishRetro).toBe('function');
+  });
+
+  it('o facilitador encerra e o participante recebe BOARD_UPDATED: a sala vira somente leitura e as escritas são barradas na tela', async () => {
+    newBackend({ creatorId: 'u3' });
+    await mount();
+    expect(latest().readOnly).toBe(false);
+    await emit('BOARD_UPDATED', { ...serverBoard, lifecycleStatus: 'FINISHED', finishedAt: '2026-10-17T15:00:00' });
+    expect(latest().readOnly).toBe(true);
+    expect(latest().isFinished).toBe(true);
+
+    let ok: boolean | undefined;
+    await call(async () => { ok = await latest().onAddCard('Texto novo', 'wentWell'); });
+    expect(ok).toBe(false);
+    await call(() => latest().onToggleVote('c1', []));
+    await call(() => latest().onToggleReaction('c1', 'up', []));
+    await call(() => latest().onDeleteCard('c1'));
+    await call(() => latest().onUpdateCard('c1', 'Editado'));
+    await call(() => latest().onToggleDone('c1', true));
+    expect(api.saveOrUpdateCard).not.toHaveBeenCalled();
+    expect(api.toggleVote).not.toHaveBeenCalled();
+    expect(api.deleteCard).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Retro encerrada' }));
+
+    // reabriu: volta a escrever
+    await emit('BOARD_UPDATED', { ...serverBoard, lifecycleStatus: 'OPEN', finishedAt: null });
+    expect(latest().readOnly).toBe(false);
+    await call(async () => { ok = await latest().onAddCard('Texto novo', 'wentWell'); });
+    expect(ok).toBe(true);
+  });
+
+  it('retro já encerrada ao entrar: participante só lê; o 409 do servidor aparece com a mensagem dele', async () => {
+    newBackend({ creatorId: 'u3', lifecycleStatus: 'FINISHED', finishedAt: '2026-10-17T15:00:00' });
+    await mount();
+    expect(latest().readOnly).toBe(true);
+    // corrida: a tela ainda achava que estava aberta e o servidor respondeu 409
+    await emit('BOARD_UPDATED', { ...serverBoard, lifecycleStatus: 'OPEN', finishedAt: null });
+    api.saveOrUpdateCard.mockRejectedValueOnce(new RetroApiError('Esta retrospectiva foi encerrada. Só o facilitador pode alterá-la.', 409));
+    let ok: boolean | undefined;
+    await call(async () => { ok = await latest().onAddCard('Texto', 'wentWell'); });
+    expect(ok).toBe(false);
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Esta retrospectiva foi encerrada. Só o facilitador pode alterá-la.', variant: 'destructive' }));
+  });
+
+  it('arrastar não faz nada numa retro encerrada para participante', async () => {
+    newBackend({ creatorId: 'u3', lifecycleStatus: 'FINISHED' });
+    await mount();
+    await call(() => latest().onDragEnd({ active: { id: 'c1' }, over: { id: 'toImprove', data: { current: { type: 'column' } } } }));
+    expect(api.saveOrUpdateCard).not.toHaveBeenCalled();
+  });
+});
+
+describe('escrevendo… (backend novo)', () => {
+  const newBackend = (over: Partial<RetroBoard> = {}) => { serverBoard = { ...serverBoard, lifecycleStatus: 'OPEN', finishedAt: null, ...over }; };
+  const typingEvent = (over: Record<string, unknown> = {}) => ({ userId: 'u3', anonymous: false, scope: 'card', columnKey: 'wentWell', expiresInMs: 5000, expiresAt: 0, ...over });
+
+  it('abre o socket com typing=1 e o evento TYPING nunca recarrega a sala', async () => {
+    newBackend();
+    await mount();
+    expect(state.socket.typing).toBe(true);
+    const before = api.getBoard.mock.calls.length;
+    await emit('TYPING', typingEvent());
+    expect(api.getBoard.mock.calls.length).toBe(before);
+  });
+
+  it('autoria oculta: "Alguém está escrevendo…"; revelada: o nome; some sozinho em 5 s', async () => {
+    newBackend({ isAuthorsRevealed: false });
+    await mount();
+    vi.useFakeTimers();
+    await emit('TYPING', typingEvent({ userId: null, anonymous: true }));
+    expect(latest().typingLabelForColumn('wentWell')).toBe('Alguém está escrevendo…');
+    expect(latest().typingLabelForColumn('toImprove')).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(5200); });
+    expect(latest().typingLabelForColumn('wentWell')).toBeNull();
+    await emit('BOARD_UPDATED', { ...serverBoard, isAuthorsRevealed: true });
+    await emit('TYPING', typingEvent());
+    expect(latest().typingLabelForColumn('wentWell')).toBe('Bruno está escrevendo…');
+  });
+
+  it('chat: mostra por canal e com o nome', async () => {
+    newBackend();
+    await mount();
+    await emit('TYPING', { userId: 'u3', anonymous: false, scope: 'chat', channelId: 'geral', expiresInMs: 5000 });
+    expect(latest().typingLabelForChannel('geral')).toBe('Bruno está escrevendo…');
+    expect(latest().typingLabelForChannel('role-QA')).toBeNull();
+    expect(latest().typingLabelForColumn('geral')).toBeNull();
+  });
+
+  it('digitar envia TYPING pelo socket no máximo a cada 2 s, sem userId no corpo', async () => {
+    newBackend();
+    await mount();
+    const send = (h.stopSocket as any).send as ReturnType<typeof vi.fn>;
+    send.mockClear();
+    await call(() => latest().onTypingCard('wentWell'));
+    await call(() => latest().onTypingCard('wentWell'));
+    await call(() => latest().onTypingChat('geral'));
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({ type: 'TYPING', scope: 'card', columnKey: 'wentWell' });
+  });
+
+  it('o evento de si mesmo é ignorado', async () => {
+    newBackend();
+    await mount();
+    await emit('TYPING', typingEvent({ userId: 'me' }));
+    expect(latest().typingLabelForColumn('wentWell')).toBeNull();
+  });
+});
+
+describe('check-in com nota (backend novo)', () => {
+  it('a nota vai junto com a resposta, cortada em 500 e sem espaços nas pontas; o campo só aparece no backend novo', async () => {
+    serverBoard = { ...serverBoard, healthCheckEnabled: true };
+    await mount();
+    expect(screen.getByTestId('allow-note').textContent).toBe('false');
+    cleanup();
+    serverBoard = { ...serverBoard, healthCheckEnabled: true, lifecycleStatus: 'OPEN' };
+    await mount();
+    expect(screen.getByTestId('allow-note').textContent).toBe('true');
+    await act(async () => { screen.getByText('responder com nota').click(); });
+    expect(api.addOrUpdateParticipant).toHaveBeenCalledWith('b1', expect.objectContaining({ id: 'me', healthCheckAnswer: 'tired', checkinNote: 'Dia puxado.' }));
+    expect(latest().participants.find((x: RetroParticipant) => x.id === 'me').checkinNote).toBe('Dia puxado.');
+  });
+
+  it('sem nota, o corpo não leva checkinNote (campo ausente não apaga no servidor)', async () => {
+    serverBoard = { ...serverBoard, healthCheckEnabled: true, lifecycleStatus: 'OPEN' };
+    await mount();
+    await act(async () => { screen.getByText('responder check-in').click(); });
+    expect(api.addOrUpdateParticipant.mock.calls.at(-1)![1]).not.toHaveProperty('checkinNote');
   });
 });

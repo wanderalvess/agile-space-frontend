@@ -39,6 +39,7 @@ import { ExportRetroDialog } from './ExportRetroDialog';
 import { RetroActionImportDialog, type RetroImportEntry } from './RetroActionImportDialog';
 import { RetroColumn, type RetroColumnView } from './RetroColumn';
 import { RetroControlBar, RetroPhaseActions, type RetroLayoutMode } from './RetroControlBar';
+import { RetroCheckinNotes } from './RetroCheckinNotes';
 import { RetroGuide } from './RetroGuide';
 import { RetroLiveStrip } from './RetroLiveStrip';
 import { RetroParticipantList } from './RetroParticipantList';
@@ -113,6 +114,20 @@ export interface RetroRoomProps {
   onOpenStats?: () => void;
   onSendChatMessage: (text: string, kind: ChatMessageKind, channelId: string) => void;
   onDeleteChatMessage: (messageId: string, channelId: string) => void;
+
+  // ---- Backend novo (todos opcionais; sem eles a sala é a de sempre) ----
+  /** Retro encerrada pelo facilitador. */
+  isFinished?: boolean;
+  /** Encerrada e esta pessoa não é facilitador/ADMIN: a sala fica somente leitura, com aviso. */
+  readOnly?: boolean;
+  onFinishRetro?: () => void | Promise<void>;
+  onReopenRetro?: () => void | Promise<void>;
+  lifecycleBusy?: boolean;
+  /** "Fulana está escrevendo…" de uma coluna. */
+  typingLabelForColumn?: (columnKey: string) => string | null;
+  typingLabelForChannel?: (channelId: string) => string | null;
+  onTypingCard?: (columnKey: string) => void;
+  onTypingChat?: (channelId: string) => void;
 }
 
 const isTypingTarget = (t: EventTarget | null) => {
@@ -138,6 +153,9 @@ function RetroRoomComponent(props: RetroRoomProps) {
     mergingSourceId,
     needsHealthCheck = false,
     chatMessagesByChannel,
+    isFinished = false,
+    readOnly = false,
+    typingLabelForColumn,
     onStageChange,
     onSetVotingStatus,
     onToggleCardsRevealed,
@@ -255,6 +273,9 @@ function RetroRoomComponent(props: RetroRoomProps) {
       onOpenImport={handleOpenImport}
       onStartMerge={props.onStartMerge}
       onExecuteMerge={props.onExecuteMerge}
+      readOnly={readOnly}
+      typingLabel={typingLabelForColumn?.(col.id) ?? null}
+      onTyping={props.onTypingCard}
     />
   ));
 
@@ -320,6 +341,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
             onToggleSound={() => setSoundEnabled(!soundEnabled)}
             onLeave={() => setLeaveOpen(true)}
             onOpenFeedback={props.onOpenFeedback}
+            isFinished={isFinished}
           />
           <RetroControlBar
             boardData={boardData}
@@ -338,6 +360,11 @@ function RetroRoomComponent(props: RetroRoomProps) {
             layoutMode={layoutMode}
             onLayoutModeChange={setLayoutMode}
             onPresent={() => setPresenting(true)}
+            isFinished={isFinished}
+            onFinishRetro={props.onFinishRetro}
+            onReopenRetro={props.onReopenRetro}
+            lifecycleBusy={props.lifecycleBusy}
+            readOnly={readOnly}
           />
           <RetroLiveStrip summary={summary} currentUserId={currentUserId} authorsRevealed={boardData.isAuthorsRevealed === true} />
         </>
@@ -389,6 +416,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
               </ModalButton>
             }
           >
+            {isCurrentUserCreator && <RetroCheckinNotes participants={participants} />}
             <RetroParticipantList
               participants={participants}
               onlineIds={onlineIds}
@@ -414,10 +442,12 @@ function RetroRoomComponent(props: RetroRoomProps) {
         messagesByChannel={chatMessagesByChannel}
         onSendMessage={props.onSendChatMessage}
         onDeleteMessage={props.onDeleteChatMessage}
+        onTyping={props.onTypingChat}
+        typingLabelFor={props.typingLabelForChannel}
       />
 
       {cards.length === 0 && (
-        <RetroWelcome title={boardData.title || 'Retrospectiva'} isFacilitator={isCurrentUserCreator} disabled={needsHealthCheck || presenting} />
+        <RetroWelcome title={boardData.title || 'Retrospectiva'} isFacilitator={isCurrentUserCreator} disabled={needsHealthCheck || presenting || readOnly} />
       )}
 
       <RetroGuide open={guideOpen} onOpenChange={setGuideOpen} />

@@ -1,4 +1,5 @@
 import { RETRO_TEMPLATES, type RetroBoard, type RetroCard } from './types';
+import { isRetroFinished, supportsRetroLifecycle } from './retro-lifecycle';
 
 /** Fase de um quadro, em palavras, para a lista do lobby (o servidor não guarda "encerrada"). */
 export function retroLobbyPhaseLabel(board: Pick<RetroBoard, 'isCardsRevealed' | 'votingStatus'>): string {
@@ -11,11 +12,17 @@ export function retroLobbyPhaseLabel(board: Pick<RetroBoard, 'isCardsRevealed' |
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Retro "em andamento": criada nas últimas 24 h e com a votação ainda não encerrada. É uma aproximação — o
- * servidor não informa encerramento nem presença —, por isso a tela chama de "em andamento", não de "ao vivo".
+ * Retro "em andamento" (lobby). Backend novo (`lifecycleStatus`): aberta de verdade, ou seja, não encerrada pelo
+ * facilitador, e criada nas últimas 24 h (as retros anteriores à migração estão todas "abertas" e não podem virar
+ * "ao vivo" para sempre). Backend antigo: criada nas últimas 24 h e com a votação ainda não encerrada, uma
+ * aproximação, por isso a tela fala "em andamento" quando não há o campo.
  */
-export function isRetroInProgress(board: Pick<RetroBoard, 'createdAt' | 'votingStatus'>, now: number = Date.now()): boolean {
-  if (board.votingStatus === 'finished') return false;
+export function isRetroInProgress(board: Pick<RetroBoard, 'createdAt' | 'votingStatus'> & Partial<Pick<RetroBoard, 'lifecycleStatus'>>, now: number = Date.now()): boolean {
+  if (supportsRetroLifecycle(board)) {
+    if (isRetroFinished(board)) return false;
+  } else if (board.votingStatus === 'finished') {
+    return false;
+  }
   const created = Date.parse(board.createdAt);
   return Number.isFinite(created) && now - created >= 0 && now - created <= DAY_MS;
 }
@@ -85,13 +92,20 @@ export function mergeLobbyRows(remote: readonly RetroBoard[], local: readonly Lo
   return [...rows.values()].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
 }
 
-export type RetroLobbyFilter = 'all' | 'year' | 'open-actions';
+export type RetroLobbyFilter = 'all' | 'year' | 'open-actions' | 'finished';
 
 export const RETRO_LOBBY_FILTERS: readonly { id: RetroLobbyFilter; label: string }[] = [
   { id: 'all', label: 'Todas' },
   { id: 'year', label: 'Este ano' },
   { id: 'open-actions', label: 'Com ações abertas' },
+  { id: 'finished', label: 'Encerradas' },
 ];
+
+/** "Encerradas" só faz sentido quando o backend informa o encerramento; antes disso o filtro não aparece. */
+export function lobbyFiltersFor(rows: readonly RetroLobbyRow[]): readonly { id: RetroLobbyFilter; label: string }[] {
+  const known = rows.some((r) => supportsRetroLifecycle(r.board));
+  return known ? RETRO_LOBBY_FILTERS : RETRO_LOBBY_FILTERS.filter((f) => f.id !== 'finished');
+}
 
 export function filterLobbyRows(
   rows: readonly RetroLobbyRow[],
@@ -101,5 +115,6 @@ export function filterLobbyRows(
 ): RetroLobbyRow[] {
   if (filter === 'year') return rows.filter((r) => new Date(r.createdAt).getFullYear() === now.getFullYear());
   if (filter === 'open-actions') return rows.filter((r) => (openActionsByBoard.get(r.id) || 0) > 0);
+  if (filter === 'finished') return rows.filter((r) => isRetroFinished(r.board));
   return [...rows];
 }

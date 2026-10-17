@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, RefreshCw, RotateCcw, SquareCheck, Vote } from 'lucide-react';
+import { Eye, EyeOff, Flag, Info, RefreshCw, RotateCcw, SquareCheck, Unlock, Vote } from 'lucide-react';
 import {
   ConfirmDialog,
   ModalButton,
@@ -12,6 +12,7 @@ import {
 } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import type { RetroBoard, TimerState } from '@/lib/types';
+import { RETRO_READ_ONLY_NOTICE } from '@/lib/retro-lifecycle';
 import { TIMER_LATE_GRACE_MS, retroPhase, voteLimitOptions, type RetroPhase } from './retro-room-logic';
 
 export type RetroLayoutMode = 'board' | 'focus';
@@ -107,6 +108,15 @@ export interface RetroControlBarProps {
   layoutMode: RetroLayoutMode;
   onLayoutModeChange: (mode: RetroLayoutMode) => void;
   onPresent: () => void;
+  /** Retro encerrada (backend novo). */
+  isFinished?: boolean;
+  /** Só com o backend novo: sem `onFinishRetro` os botões de encerrar e reabrir não existem. */
+  onFinishRetro?: () => void | Promise<void>;
+  onReopenRetro?: () => void | Promise<void>;
+  /** Encerrando ou reabrindo agora. */
+  lifecycleBusy?: boolean;
+  /** Encerrada e sem permissão para escrever: mostra o aviso de somente leitura. */
+  readOnly?: boolean;
 }
 
 const LAYOUT_OPTIONS = [
@@ -136,7 +146,13 @@ export function RetroControlBar({
   layoutMode,
   onLayoutModeChange,
   onPresent,
+  isFinished = false,
+  onFinishRetro,
+  onReopenRetro,
+  lifecycleBusy = false,
+  readOnly = false,
 }: RetroControlBarProps) {
+  const [confirm, setConfirm] = useState<'finish' | 'reopen' | null>(null);
   const phase = retroPhase(boardData);
   const maxVotes = boardData.maxVotesPerParticipant || 0;
   const showTimer = isFacilitator || timer.status !== 'stopped';
@@ -185,6 +201,20 @@ export function RetroControlBar({
         />
       )}
 
+      {isFinished && <StatusChip tone="neutral" className="h-8 px-3 text-[13px]">Encerrada</StatusChip>}
+
+      {isFacilitator && onFinishRetro && onReopenRetro && (
+        isFinished ? (
+          <ModalButton className="gap-2" disabled={lifecycleBusy} onClick={() => setConfirm('reopen')}>
+            <Unlock className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Reabrir
+          </ModalButton>
+        ) : (
+          <ModalButton className="gap-2" disabled={lifecycleBusy} onClick={() => setConfirm('finish')}>
+            <Flag className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Encerrar retro
+          </ModalButton>
+        )
+      )}
+
       <span className="flex-1" />
 
       <div className="max-sm:w-full max-sm:[&>div]:flex max-sm:[&>div]:w-full max-sm:[&_button]:flex-1">
@@ -195,6 +225,36 @@ export function RetroControlBar({
           onChange={(id) => (id === 'present' ? onPresent() : onLayoutModeChange(id))}
         />
       </div>
+
+      {readOnly && (
+        <p role="status" className="m-0 flex basis-full items-start gap-2 rounded-xl border border-border bg-muted/50 px-3.5 py-2.5 text-[13px] leading-snug text-foreground">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+          {RETRO_READ_ONLY_NOTICE}
+        </p>
+      )}
+
+      <ConfirmDialog
+        open={confirm === 'finish'}
+        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        tone="warn"
+        icon={Flag}
+        title="Encerrar a retro?"
+        description="As outras pessoas continuam vendo o quadro, mas não escrevem, votam nem movem cartões. Você segue podendo tudo e pode reabrir quando quiser."
+        cancelLabel="Continuar a retro"
+        confirmLabel="Encerrar retro"
+        onConfirm={() => void onFinishRetro?.()}
+      />
+      <ConfirmDialog
+        open={confirm === 'reopen'}
+        onOpenChange={(open) => { if (!open) setConfirm(null); }}
+        tone="warn"
+        icon={Unlock}
+        title="Reabrir a retro?"
+        description="Todas as pessoas voltam a poder escrever, votar e mover cartões."
+        cancelLabel="Manter encerrada"
+        confirmLabel="Reabrir retro"
+        onConfirm={() => void onReopenRetro?.()}
+      />
     </div>
   );
 }

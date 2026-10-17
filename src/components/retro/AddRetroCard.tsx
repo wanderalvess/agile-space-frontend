@@ -23,10 +23,12 @@ interface AddRetroCardProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   addLabel?: string;
+  /** Avisa que a pessoa está digitando neste campo ("escrevendo…" dos outros). Quem chama limita a frequência. */
+  onTyping?: (columnKey: RetroColumnKey) => void;
 }
 
 /** Campo de novo cartão (ou nova ação). O texto só some depois que o servidor aceitou: se falhar, ele continua ali. */
-export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participants, variant, open = false, onOpenChange, addLabel }: AddRetroCardProps) {
+export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participants, variant, open = false, onOpenChange, addLabel, onTyping }: AddRetroCardProps) {
   const [content, setContent] = useState('');
   const [assignee, setAssignee] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -110,7 +112,10 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
           ref={textareaRef}
           placeholder={placeholder}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            if (e.target.value.trim()) onTyping?.(columnKey);
+          }}
           onKeyDown={onKeyDown}
           maxLength={1000}
           rows={1}

@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { Annoyed, Frown, Laugh, Meh, Smile } from 'lucide-react';
-import { Modal } from '@/components/room-kit';
+import { FIELD, Modal } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import { DEFAULT_HEALTH_CHECK_QUESTION } from '@/lib/retro-formats';
 import type { HealthCheckAnswer } from '@/lib/types';
 
-const SCALE: { key: HealthCheckAnswer; label: string; icon: typeof Frown }[] = [
+/** Limite do servidor para a nota livre do check-in. */
+export const CHECKIN_NOTE_MAX = 500;
+
+export const SCALE: { key: HealthCheckAnswer; label: string; icon: typeof Frown }[] = [
   { key: 'exhausted', label: 'Exausto', icon: Frown },
   { key: 'tired', label: 'Cansado', icon: Annoyed },
   { key: 'neutral', label: 'Neutro', icon: Meh },
@@ -15,9 +18,17 @@ const SCALE: { key: HealthCheckAnswer; label: string; icon: typeof Frown }[] = [
   { key: 'great', label: 'Ótimo', icon: Laugh },
 ];
 
+/** Nome do humor do check-in ("Cansado"), para mostrar a resposta de alguém. */
+export function checkinAnswerLabel(answer: HealthCheckAnswer | undefined): string | null {
+  return SCALE.find((s) => s.key === answer)?.label ?? null;
+}
+
 interface RetroHealthCheckGateProps {
   question?: string;
-  onAnswer: (answer: HealthCheckAnswer) => void | Promise<void>;
+  /** A nota só vai junto com a resposta, e só se for preenchida. */
+  onAnswer: (answer: HealthCheckAnswer, note?: string) => void | Promise<void>;
+  /** Mostra o campo de nota livre (backend novo). Sem ele a janela é a de sempre. */
+  allowNote?: boolean;
 }
 
 /**
@@ -25,14 +36,16 @@ interface RetroHealthCheckGateProps {
  * fechar sem responder. A resposta some assim que enviada: `currentUser.healthCheckAnswer` passa a existir e
  * a página para de renderizar isto. O histórico da retro mostra só a média do time.
  */
-export function RetroHealthCheckGate({ question, onAnswer }: RetroHealthCheckGateProps) {
+export function RetroHealthCheckGate({ question, onAnswer, allowNote = false }: RetroHealthCheckGateProps) {
   // Um clique só: sem isso, cliques repetidos enviavam várias respostas e a tela não dava retorno nenhum.
   const [submitting, setSubmitting] = useState(false);
+  const [note, setNote] = useState('');
   const answer = async (key: HealthCheckAnswer) => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      await onAnswer(key);
+      const text = allowNote ? note.trim() : '';
+      await (text ? onAnswer(key, text) : onAnswer(key));
     } finally {
       setSubmitting(false);
     }
@@ -49,6 +62,26 @@ export function RetroHealthCheckGate({ question, onAnswer }: RetroHealthCheckGat
       description="Sua resposta aparece só para o facilitador, resumida na média do time."
       className="text-center sm:max-w-[520px]"
     >
+      {allowNote && (
+        <div className="flex flex-col gap-1.5 pt-1 text-left">
+          <label htmlFor="retro-checkin-note" className="text-[13px] font-semibold text-foreground">
+            Quer contar mais? <span className="font-normal text-muted-foreground">(opcional)</span>
+          </label>
+          <textarea
+            id="retro-checkin-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, CHECKIN_NOTE_MAX))}
+            maxLength={CHECKIN_NOTE_MAX}
+            rows={2}
+            placeholder="Uma frase sobre como você chega na retro…"
+            className={`${FIELD} min-h-[64px] resize-none py-2 text-[13px] leading-relaxed`}
+          />
+          <p className="m-0 flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+            <span>Aparece com o seu nome, só para o facilitador.</span>
+            <span className="tabular-nums" aria-live="polite">{note.length}/{CHECKIN_NOTE_MAX}</span>
+          </p>
+        </div>
+      )}
       <div role="group" aria-label="Como você está" className="flex flex-wrap justify-center gap-2.5 pt-2">
         {SCALE.map(({ key, label, icon: Icon }) => (
           <button

@@ -93,6 +93,8 @@ export interface RetroCardProps {
   isTopVoted?: boolean;
   /** Texto maior para a projeção (modo apresentação). */
   large?: boolean;
+  /** Retro encerrada para quem não é facilitador: o cartão só se lê (sem editar, apagar, votar, reagir, mover ou fundir). */
+  readOnly?: boolean;
   onDelete: (cardId: string) => void;
   onUpdate: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
@@ -115,6 +117,7 @@ export function RetroCard({
   mergingSourceId,
   isTopVoted = false,
   large = false,
+  readOnly = false,
   onDelete,
   onUpdate,
   onToggleVote,
@@ -154,16 +157,16 @@ export function RetroCard({
     setEditedDueDate(card.dueDate || '');
   }, [card.content, card.assignee, card.dueDate, isEditing]);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id: card.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({ id: card.id, disabled: readOnly });
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined };
 
   const showRealContent = canShowCardContent(card, { isCardsRevealed, isAuthor, isActionPlan: isActionColumn });
   const showAuthorInfo = isAuthorsRevealed || isAuthor || isActionColumn;
   const authorName = isAuthor ? 'Você' : participants.find((p) => p.id === card.authorId)?.nickname;
   const showVotes = (votingStatus === 'active' || votingStatus === 'finished') && !isActionColumn;
-  const canVote = votingStatus === 'active';
+  const canVote = votingStatus === 'active' && !readOnly;
   const hasVoted = card.votes.includes(currentUserId);
-  const canEdit = isAuthor || isCreator;
+  const canEdit = (isAuthor || isCreator) && !readOnly;
   const isMergeSource = mergingSourceId === card.id;
   const isMergeTarget = !!mergingSourceId && !isMergeSource;
 
@@ -271,7 +274,7 @@ export function RetroCard({
             Cartão de <strong className="font-semibold text-foreground">{isAuthorsRevealed && authorName ? authorName : 'alguém'}</strong> · oculto até a revelação
           </span>
           <span aria-hidden="true" className="h-2 w-14 shrink-0 rounded bg-border" />
-          {isCreator && (
+          {isCreator && !readOnly && (
             <span {...attributes} {...listeners} aria-label="Arrastar cartão" className={cn('inline-flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md hover:bg-accent active:cursor-grabbing', FOCUS_RING)}>
               <GripVertical className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </span>
@@ -317,6 +320,7 @@ export function RetroCard({
           <p className={cn('m-0 min-w-0 flex-1 whitespace-pre-wrap break-words font-medium', textSize, card.isDone && isActionColumn ? 'text-muted-foreground line-through' : 'text-foreground')}>
             {card.content}
           </p>
+          {!readOnly && (
           <div className="-mr-1 -mt-1 flex shrink-0 items-center opacity-0 transition-opacity duration-fast focus-within:opacity-100 group-hover:opacity-100 data-[open=true]:opacity-100 [@media(hover:none)]:opacity-100" data-open={menuOpen}>
             <span {...attributes} {...listeners} aria-label="Arrastar cartão" title="Arrastar cartão" className={cn('inline-flex h-8 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent active:cursor-grabbing max-sm:h-9', FOCUS_RING)}>
               <GripVertical className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
@@ -357,6 +361,7 @@ export function RetroCard({
               </DropdownMenu>
             )}
           </div>
+          )}
         </div>
 
         <MergedTimeline items={card.originalTexts ?? []} large={large} />
@@ -437,10 +442,12 @@ export function RetroCard({
                     title={label}
                     aria-label={`${label}${userIds.length > 0 ? ` (${userIds.length})` : ''}`}
                     aria-pressed={on}
+                    disabled={readOnly}
                     onClick={() => onToggleReaction(card.id, key, userIds)}
                     className={cn(
                       'inline-flex h-7 items-center gap-1 rounded-full border px-2 text-xs font-semibold tabular-nums transition-colors max-sm:h-8',
-                      on ? REACTION_ON[key] : 'border-transparent bg-muted/60 text-muted-foreground hover:bg-accent',
+                      on ? REACTION_ON[key] : cn('border-transparent bg-muted/60 text-muted-foreground', !readOnly && 'hover:bg-accent'),
+                      'disabled:cursor-default',
                       FOCUS_RING
                     )}
                   >

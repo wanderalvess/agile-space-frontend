@@ -9,15 +9,16 @@ import { FOCUS_RING, IconTile, ModalButton, StatusChip } from '@/components/room
 import { moduleIcon } from '@/lib/modules-registry';
 import { retroFormatName } from '@/lib/retro-formats';
 import {
-  RETRO_LOBBY_FILTERS,
   filterLobbyRows,
   isRetroInProgress,
+  lobbyFiltersFor,
   retroLobbyPhaseLabel,
   type RetroBoardSummary,
   type RetroLobbyFilter,
   type RetroLobbyRow,
 } from '@/lib/retro-lobby';
 import type { RetroTemplate } from '@/lib/retro-templates';
+import { isRetroFinished, retroFinishedAt, supportsRetroLifecycle } from '@/lib/retro-lifecycle';
 import type { RetroCard } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { RetroGuide } from './RetroGuide';
@@ -88,7 +89,10 @@ export function RetroLobbyView({
   const inProgress = rows.filter((r) => r.board && isRetroInProgress(r.board, now ?? mountedAt));
   const past = rows.filter((r) => !inProgress.includes(r));
   const openActionsByBoard = useMemo(() => new Map(Object.entries(details).map(([id, d]) => [id, d.open.length])), [details]);
-  const visibleRows = filterLobbyRows(past, filter, openActionsByBoard);
+  const filters = lobbyFiltersFor(rows);
+  // Filtro escolhido que deixou de existir (a lista mudou): volta para "Todas".
+  const activeFilter = filters.some((f) => f.id === filter) ? filter : 'all';
+  const visibleRows = filterLobbyRows(past, activeFilter, openActionsByBoard);
   const openActions = useMemo(
     () =>
       rows
@@ -161,7 +165,10 @@ export function RetroLobbyView({
             <span className="absolute inset-0 rounded-full bg-emerald-500" />
           </span>
           <span className="flex min-w-[14rem] flex-1 flex-col">
-            <span className="text-base font-bold">{r.title}</span>
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-base font-bold">{r.title}</span>
+              {supportsRetroLifecycle(r.board) && <StatusChip tone="success" dot>Ao vivo</StatusChip>}
+            </span>
             <span className="text-[13px] text-muted-foreground">
               {[retroFormatName(r.templateKey), r.board ? `Fase: ${retroLobbyPhaseLabel(r.board)}` : '', r.team].filter(Boolean).join(' · ')}
             </span>
@@ -175,8 +182,8 @@ export function RetroLobbyView({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="m-0 text-base font-bold">Retros anteriores</h2>
             <div role="group" aria-label="Filtrar retros" className="flex flex-wrap gap-1.5">
-              {RETRO_LOBBY_FILTERS.map((f) => {
-                const active = filter === f.id;
+              {filters.map((f) => {
+                const active = activeFilter === f.id;
                 return (
                   <button
                     key={f.id}
@@ -291,9 +298,11 @@ export function RetroLobbyView({
 }
 
 function PastRow({ row, detail, onOpen }: { row: RetroLobbyRow; detail?: RetroBoardSummary; onOpen: (id: string) => void }) {
+  const finished = isRetroFinished(row.board);
+  const closedAt = retroFinishedAt(row.board);
   const meta = [
     retroFormatName(row.templateKey),
-    shortDate(row.createdAt),
+    finished && closedAt ? `encerrada em ${shortDate(closedAt.toISOString())}` : shortDate(row.createdAt),
     detail ? `${detail.cards} ${detail.cards === 1 ? 'cartão' : 'cartões'}` : '',
     detail && detail.actions > 0 ? `${detail.actions} ${detail.actions === 1 ? 'ação' : 'ações'} · ${detail.actionsDone} ${detail.actionsDone === 1 ? 'feita' : 'feitas'}` : '',
   ].filter(Boolean);
@@ -310,7 +319,9 @@ function PastRow({ row, detail, onOpen }: { row: RetroLobbyRow; detail?: RetroBo
           <span className="truncate text-sm font-bold">{row.title}</span>
           <span className="truncate text-xs text-muted-foreground">{meta.join(' · ') || row.team}</span>
         </span>
-        {row.board && <StatusChip tone="neutral" className="max-sm:hidden">{retroLobbyPhaseLabel(row.board)}</StatusChip>}
+        {row.board && (finished
+          ? <StatusChip tone="success">Encerrada</StatusChip>
+          : <StatusChip tone="neutral" className="max-sm:hidden">{retroLobbyPhaseLabel(row.board)}</StatusChip>)}
         <span className="hidden text-[13px] font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground sm:inline">Abrir</span>
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-fast group-hover:translate-x-0.5" strokeWidth={1.5} aria-hidden="true" />
       </button>

@@ -45,6 +45,12 @@ export interface RetroColumnProps {
   onOpenImport: () => void;
   onStartMerge: (cardId: string | null) => void;
   onExecuteMerge: (targetId: string) => void;
+  /** Retro encerrada para quem não é facilitador: sem campo de novo cartão e com os cartões só para leitura. */
+  readOnly?: boolean;
+  /** "Fulana está escrevendo…" nesta coluna (backend novo); `null`/ausente = ninguém. */
+  typingLabel?: string | null;
+  /** Avisa que a pessoa digita um cartão nesta coluna. */
+  onTyping?: (columnKey: string) => void;
 }
 
 function RetroColumnComponent({
@@ -74,6 +80,9 @@ function RetroColumnComponent({
   onOpenImport,
   onStartMerge,
   onExecuteMerge,
+  readOnly = false,
+  typingLabel = null,
+  onTyping,
 }: RetroColumnProps) {
   const { id: columnKey, title, theme } = column;
   const tone = columnTone(theme);
@@ -263,9 +272,16 @@ function RetroColumnComponent({
         )}
       </div>
 
+      {typingLabel && (
+        <p role="status" className="m-0 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
+          <PenLine className="h-3.5 w-3.5 shrink-0 motion-safe:animate-pulse" strokeWidth={1.5} aria-hidden="true" />
+          <span className="min-w-0 truncate">{typingLabel}</span>
+        </p>
+      )}
+
       {/* Campo fixo no topo (visão foco) */}
-      {focus && (
-        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} />
+      {focus && !readOnly && (
+        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} />
       )}
 
       {/* Cartões */}
@@ -277,7 +293,7 @@ function RetroColumnComponent({
             </span>
             <p className="m-0 mt-1.5 text-base font-bold text-foreground">{filteredEmpty ? 'Nenhum cartão com voto' : emptyCopy.title}</p>
             <p className="m-0 text-sm text-muted-foreground">{filteredEmpty ? 'Tire o filtro para ver todos os cartões.' : emptyCopy.hint}</p>
-            {focus && !filteredEmpty && (
+            {focus && !filteredEmpty && !readOnly && (
               <ModalButton
                 className="mt-2 gap-2"
                 onClick={(e) => {
@@ -322,6 +338,7 @@ function RetroColumnComponent({
               mergingSourceId={mergingSourceId}
               isTopVoted={topVotes > 0 && card.votes.length === topVotes}
               large={present}
+              readOnly={readOnly}
               onDelete={onDeleteCard}
               onUpdate={onUpdateCard}
               onToggleVote={onToggleVote}
@@ -335,7 +352,7 @@ function RetroColumnComponent({
       </SortableContext>
 
       {/* Rodapé da coluna (visão em quadro) */}
-      {view === 'board' && (
+      {view === 'board' && !readOnly && (
         <AddRetroCard
           columnKey={columnKey}
           isActionColumn={isActionColumn}
@@ -344,10 +361,11 @@ function RetroColumnComponent({
           onOpenChange={setComposerOpen}
           onAddCard={onAddCard}
           participants={participants}
+          onTyping={onTyping}
         />
       )}
 
-      {isActionColumn && isCreator && !present && (
+      {isActionColumn && isCreator && !present && !readOnly && (
         <button
           type="button"
           onClick={onOpenImport}
