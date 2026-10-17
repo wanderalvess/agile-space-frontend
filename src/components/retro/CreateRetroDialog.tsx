@@ -1,526 +1,367 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Plus, X } from 'lucide-react';
+import { retroApi } from '@/app/retro/api';
+import { useToast } from '@/hooks/use-toast';
+import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { FIELD, FOCUS_RING, IconButton, Modal, ModalButton, SelectField, SettingRow } from '@/components/room-kit';
+import { moduleIcon } from '@/lib/modules-registry';
 import {
-  Users,
-  ArrowRight as ArrowRightIcon,
-  Trash2,
-  User,
-  Clock,
-  ThumbsUp,
-  ListPlus,
-  LayoutTemplate,
-  Zap,
-  Plus,
-  Sparkles,
-  MessageCircleHeart,
-  ListChecks,
-} from 'lucide-react';
-import { RetroTemplateKey, RetroColumnTheme } from '@/lib/types';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { DEFAULT_HEALTH_CHECK_QUESTION } from '@/components/retro/RetroSettingsDialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DEFAULT_CUSTOM_COLUMNS,
+  DEFAULT_HEALTH_CHECK_QUESTION,
+  DEFAULT_SETUP_SETTINGS,
+  MAX_CUSTOM_COLUMNS,
+  MIN_CUSTOM_COLUMNS,
+  RETRO_FORMATS,
+  SETUP_TOGGLES,
+  buildNewRetroBoard,
+  formatColumns,
+  validateNewRetro,
+  type CustomColumnDraft,
+  type SetupSettings,
+} from '@/lib/retro-formats';
+import { listTemplates, saveTemplate, type RetroTemplate } from '@/lib/retro-templates';
+import { RETRO_TEMPLATES, type RetroTemplateKey } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { listTemplates, type RetroTemplate } from '@/lib/retro-templates';
+import { columnTone } from './retro-tones';
 
-// Cada toggle carrega seu grupo — agrupadas por categoria na renderização,
-// mesmo padrão do modal "Configurar Sessão" do Planning Poker (SETUP_GROUPS
-// em app/room/page.tsx).
-export const SETUP_TOGGLES = [
-  { key: 'isAuthorsRevealed', group: 'Visibilidade e ritmo', icon: User, title: 'Autores Abertos', desc: 'Mostra quem escreveu cada card' },
-  { key: 'syncStageEnabled', group: 'Visibilidade e ritmo', icon: Users, title: 'Sincronizar Coluna Ativa', desc: 'Todos veem a coluna focada' },
-  { key: 'healthCheckEnabled', group: 'Visibilidade e ritmo', icon: MessageCircleHeart, title: 'Check-in Inicial', desc: 'Pergunta antes de abrir o quadro' },
-  { key: 'autoRevealOnTimerEnd', group: 'Automação de fim de sessão', icon: Clock, title: 'Auto-revelar ao fim do timer', desc: 'Revela cards quando o tempo zera' },
-  { key: 'autoSortOnVoteEnd', group: 'Automação de fim de sessão', icon: ThumbsUp, title: 'Ordenar por votos ao encerrar', desc: 'Aplica em colunas de feedback' },
-] as const;
+const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+const BLANK_FORMAT = '__blank';
 
-export type SetupToggleKey = typeof SETUP_TOGGLES[number]['key'];
-export type SetupSettings = Record<SetupToggleKey, boolean>;
-
-export const DEFAULT_SETUP_SETTINGS: SetupSettings = Object.fromEntries(
-  SETUP_TOGGLES.map(t => [t.key, false])
-) as SetupSettings;
-
-// Grupos na ordem de exibição — derivados de SETUP_TOGGLES para não duplicar dados.
-export const SETUP_GROUPS = Array.from(new Set(SETUP_TOGGLES.map(t => t.group))).map(label => ({
-  label,
-  items: SETUP_TOGGLES.filter(t => t.group === label),
-}));
-
-export interface TemplateOption {
-  key: RetroTemplateKey;
-  name: string;
-  tagline: string;
-  desc: string;
-  columns: string[];
+/** Guarda a retro criada na lista "abertas neste navegador" do lobby. */
+function saveRoomMeta(roomId: string, title: string, team: string, createdBy?: string) {
+  try {
+    const saved = localStorage.getItem(ROOMS_META_KEY);
+    const rooms = saved ? JSON.parse(saved) : [];
+    localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, { roomId, type: 'retro', title, team, createdBy, createdAt: new Date().toISOString() }]));
+  } catch (e) {
+    console.error('Erro ao salvar metadados da sala', e);
+  }
 }
-
-export const TEMPLATE_OPTIONS: TemplateOption[] = [
-  {
-    key: 'classic',
-    name: 'Clássico',
-    tagline: '3 Colunas',
-    desc: 'O formato padrão de retrospectiva: o que funcionou, o que melhorar e ações.',
-    columns: ['O que funcionou?', 'O que melhorar?', 'Plano de Ação'],
-  },
-  {
-    key: 'start_stop_continue',
-    name: 'Start / Stop / Continue',
-    tagline: '3 Colunas',
-    desc: 'Foco direto em comportamentos do time: começar, parar e continuar.',
-    columns: ['Começar (Start)', 'Parar (Stop)', 'Continuar (Continue)'],
-  },
-  {
-    key: 'four_ls',
-    name: '4Ls',
-    tagline: '5 Colunas',
-    desc: 'Reflexão abrangente da sprint: Liked, Learned, Lacked e Longed For.',
-    columns: ['Liked', 'Learned', 'Lacked', 'Longed For', 'Ações'],
-  },
-  {
-    key: 'daki',
-    name: 'DAKI',
-    tagline: '5 Colunas',
-    desc: 'Drop, Add, Keep, Improve — refinamento pragmático de práticas.',
-    columns: ['Drop', 'Add', 'Keep', 'Improve', 'Ações'],
-  },
-  {
-    key: 'sailboat',
-    name: 'Sailboat',
-    tagline: '5 Colunas',
-    desc: 'Metáfora visual: ventos favoráveis, sol, âncoras e pedras adiante.',
-    columns: ['Vento', 'Sol', 'Âncora', 'Pedras', 'Ações'],
-  },
-  {
-    key: 'starfish',
-    name: 'Starfish',
-    tagline: '5 Colunas',
-    desc: 'Estrela do mar: manter, fazer menos, fazer mais, começar e parar.',
-    columns: ['Manter', 'Menos', 'Mais', 'Começar', 'Parar'],
-  },
-  {
-    key: 'mad_sad_glad',
-    name: 'Mad / Sad / Glad',
-    tagline: '3 Colunas',
-    desc: 'Foco no clima da squad: o que gerou alegria, tristeza ou frustração.',
-    columns: ['Feliz (Glad)', 'Triste (Sad)', 'Irritado (Mad)'],
-  },
-  {
-    key: 'three_little_pigs',
-    name: '3 Porquinhos',
-    tagline: '4 Colunas',
-    desc: 'Nível de solidez dos processos: palha (frágil), madeira e tijolo (sólido).',
-    columns: ['Palha (Frágil)', 'Madeira', 'Tijolo (Sólido)', 'Ações'],
-  },
-  {
-    key: 'speed_car',
-    name: 'Speed Car',
-    tagline: '3 Colunas',
-    desc: 'Metáfora de velocidade: motor (aceleradores) e paraquedas (freadores).',
-    columns: ['Motor (Acelerador)', 'Paraquedas (Freador)', 'Ações'],
-  },
-  {
-    key: 'custom',
-    name: 'Personalizado',
-    tagline: 'Custom',
-    desc: 'Crie colunas exclusivas com nomes e temas definidos por você.',
-    columns: ['Colunas configuráveis'],
-  },
-];
 
 interface CreateRetroDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
-  onTitleChange: (value: string) => void;
-  team: string;
-  onTeamChange: (value: string) => void;
-  template: RetroTemplateKey;
-  onTemplateChange: (value: RetroTemplateKey) => void;
-  customColumns: { title: string; theme: RetroColumnTheme }[];
-  onCustomColumnsChange: (columns: { title: string; theme: RetroColumnTheme }[]) => void;
-  setupSettings: SetupSettings;
-  onSetupSettingsChange: (settings: SetupSettings) => void;
-  healthCheckQuestion: string;
-  onHealthCheckQuestionChange: (value: string) => void;
-  isCreating: boolean;
-  onCreate: () => void;
-  onCancel: () => void;
+  /** Avisa a tela de fora enquanto o quadro está sendo criado. */
+  onCreatingChange?: (creating: boolean) => void;
+  /** Formato salvo para já começar aplicado (botão "Usar" do lobby). */
+  presetFormatId?: string;
 }
 
-export function CreateRetroDialog({
-  open,
-  onOpenChange,
-  title,
-  onTitleChange,
-  team,
-  onTeamChange,
-  template,
-  onTemplateChange,
-  customColumns,
-  onCustomColumnsChange,
-  setupSettings,
-  onSetupSettingsChange,
-  healthCheckQuestion,
-  onHealthCheckQuestionChange,
-  isCreating,
-  onCreate,
-  onCancel,
-}: CreateRetroDialogProps) {
-  const [hoveredTemplate, setHoveredTemplate] = useState<RetroTemplateKey | null>(null);
-  const [savedTemplates, setSavedTemplates] = useState<RetroTemplate[]>([]);
-  const [savedTemplateId, setSavedTemplateId] = useState('');
-  const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
+/**
+ * "Nova retro": título, squad, formato das colunas (ou colunas próprias), opções do facilitador e, se quiser,
+ * salvar o formato para a próxima vez. Cria o quadro e leva a pessoa para a sala.
+ */
+export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, presetFormatId }: CreateRetroDialogProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { userProfile } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
-  // Carrega templates salvos (localStorage) toda vez que o modal abre.
-  useEffect(() => {
-    if (open) setSavedTemplates(listTemplates());
-  }, [open]);
+  const [title, setTitle] = useState('');
+  const [titleError, setTitleError] = useState(false);
+  const [team, setTeam] = useState('');
+  const [teamTouched, setTeamTouched] = useState(false);
+  const [template, setTemplate] = useState<RetroTemplateKey>('classic');
+  const [customColumns, setCustomColumns] = useState<CustomColumnDraft[]>(DEFAULT_CUSTOM_COLUMNS);
+  const [settings, setSettings] = useState<SetupSettings>(DEFAULT_SETUP_SETTINGS);
+  const [healthCheckQuestion, setHealthCheckQuestion] = useState('');
+  const [saveFormat, setSaveFormat] = useState(false);
+  const [savedFormats, setSavedFormats] = useState<RetroTemplate[]>([]);
+  const [savedFormatId, setSavedFormatId] = useState(BLANK_FORMAT);
+  const [sprintId, setSprintId] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleApplySavedTemplate = (id: string) => {
-    if (id === 'none') { setSavedTemplateId(''); return; }
-    setSavedTemplateId(id);
-    const tpl = savedTemplates.find(t => t.id === id);
+  const applySaved = (id: string) => {
+    setSavedFormatId(id);
+    const tpl = savedFormats.find((t) => t.id === id);
     if (!tpl) return;
-    onTemplateChange(tpl.template);
-    onCustomColumnsChange(tpl.customColumns);
-    onSetupSettingsChange(tpl.setupSettings);
+    setTemplate(tpl.template);
+    setCustomColumns(tpl.customColumns.length ? tpl.customColumns : DEFAULT_CUSTOM_COLUMNS);
+    setSettings({ ...DEFAULT_SETUP_SETTINGS, ...tpl.setupSettings });
   };
 
-  const currentOption = TEMPLATE_OPTIONS.find(t => t.key === (hoveredTemplate || template)) || TEMPLATE_OPTIONS[0];
-  const previewColumns = template === 'custom'
-    ? customColumns.map((c, i) => c.title.trim() || `Coluna ${i + 1}`)
-    : currentOption.columns;
+  // A cada abertura: formatos salvos, parâmetros de navegação (?squad, ?sprintId) e, se pedido, o formato "Usar".
+  useEffect(() => {
+    if (!open) return;
+    const list = listTemplates();
+    setSavedFormats(list);
+    const params = new URLSearchParams(window.location.search);
+    const sprintParam = params.get('sprintId');
+    if (sprintParam) setSprintId(sprintParam);
+    const squadParam = params.get('squad');
+    if (squadParam && !teamTouched) setTeam(squadParam);
+    const preset = presetFormatId ? list.find((t) => t.id === presetFormatId) : undefined;
+    if (preset) {
+      setSavedFormatId(preset.id);
+      setTemplate(preset.template);
+      setCustomColumns(preset.customColumns.length ? preset.customColumns : DEFAULT_CUSTOM_COLUMNS);
+      setSettings({ ...DEFAULT_SETUP_SETTINGS, ...preset.setupSettings });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, presetFormatId]);
+
+  // Preenche a squad com a ativa assim que o perfil carrega — só enquanto ninguém mexeu no campo.
+  useEffect(() => {
+    if (teamTouched || team) return;
+    if (activeSquadId) setTeam(activeSquadId);
+  }, [activeSquadId, teamTouched, team]);
+
+  const reset = () => {
+    setTitle('');
+    setTitleError(false);
+    setTemplate('classic');
+    setCustomColumns(DEFAULT_CUSTOM_COLUMNS);
+    setSettings(DEFAULT_SETUP_SETTINGS);
+    setHealthCheckQuestion('');
+    setSaveFormat(false);
+    setSavedFormatId(BLANK_FORMAT);
+  };
+
+  const close = () => {
+    onOpenChange(false);
+    reset();
+  };
+
+  const setCreating = (value: boolean) => {
+    setIsCreating(value);
+    onCreatingChange?.(value);
+  };
+
+  const handleCreate = async () => {
+    if (isCreating) return;
+    if (!userProfile?.id) {
+      toast({ title: 'Perfil não identificado', description: 'Não foi possível carregar a sua identidade. Defina seu perfil e tente de novo.', variant: 'destructive' });
+      return;
+    }
+    const problem = validateNewRetro({ title, template, customColumns });
+    if (problem === 'no-title') {
+      setTitleError(true);
+      return;
+    }
+    if (problem === 'custom-columns') {
+      toast({ title: 'Revise as colunas', description: 'Dê nome a pelo menos 2 colunas, sem nomes repetidos.', variant: 'destructive' });
+      return;
+    }
+
+    setCreating(true);
+    const newBoard = buildNewRetroBoard({
+      id: crypto.randomUUID(),
+      userId: userProfile.id,
+      title,
+      team,
+      template,
+      customColumns,
+      settings,
+      healthCheckQuestion,
+      squadId: activeSquadId || undefined,
+      sprintId: sprintId || undefined,
+    });
+
+    try {
+      const created = await retroApi.saveOrUpdateBoard(newBoard);
+      if (created && created.id) {
+        saveRoomMeta(created.id, title.trim(), newBoard.team || 'Squad Geral', userProfile.id);
+        if (saveFormat) {
+          saveTemplate({ name: title.trim(), template, customColumns: customColumns.filter((c) => c.title.trim()), setupSettings: settings });
+        }
+        onOpenChange(false);
+        router.push(`/retro/${created.id}`);
+      } else {
+        console.error('[retro] Resposta da API ao criar quadro não veio com ID válido:', created);
+        setCreating(false);
+        toast({ title: 'Erro ao criar', description: 'O servidor não retornou um ID para o novo quadro.', variant: 'destructive' });
+      }
+    } catch (error: any) {
+      console.error('Error creating retro board: ', error);
+      setCreating(false);
+      toast({ title: 'Erro ao criar', description: error?.message || 'Não foi possível iniciar o quadro agora.', variant: 'destructive' });
+    }
+  };
+
+  const formats = useMemo(
+    () => RETRO_FORMATS.map((f) => ({ ...f, columns: f.key === 'custom' ? null : formatColumns(f.key) ?? RETRO_TEMPLATES.classic })),
+    []
+  );
+
+  const updateColumn = (index: number, patch: Partial<CustomColumnDraft>) =>
+    setCustomColumns((cols) => cols.map((c, i) => (i === index ? { ...c, ...patch } : c)));
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1100px] max-h-[94vh] overflow-y-auto gap-4 p-5 sm:p-6 rounded-[2rem] border border-border shadow-2xl bg-card text-card-foreground">
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-none">
-            Configurar Retrospectiva
-          </DialogTitle>
-          <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-1.5">
-            Nomeie o quadro, escolha o formato das colunas e ajuste as permissões do facilitador
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Começar de um template salvo — mesmo padrão do /room */}
-        {savedTemplates.length > 0 && (
-          <div className="space-y-2 px-1 pt-1">
-            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Começar de um template
-            </Label>
-            <Select value={savedTemplateId || 'none'} onValueChange={handleApplySavedTemplate}>
-              <SelectTrigger className="h-11 rounded-2xl border-border bg-muted/40 font-bold focus:ring-primary">
-                <SelectValue placeholder="Retrospectiva em branco" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl font-bold">
-                <SelectItem value="none">Retrospectiva em branco</SelectItem>
-                {savedTemplates.map(t => (
-                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {/* Nome + squad */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-          <div className="space-y-2">
-            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
-              <ListPlus className="h-3.5 w-3.5 text-primary" /> Título da Retrospectiva
-            </Label>
-            <Input
-              placeholder="Ex: Fim da Sprint #42"
+    <Modal
+      open={open}
+      onOpenChange={(next) => { if (!next) close(); else onOpenChange(true); }}
+      size="lg"
+      className="sm:max-w-[860px]"
+      icon={moduleIcon('retro')}
+      title="Nova retro"
+      preventClose={isCreating}
+      footerStart={
+        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
+          <input type="checkbox" checked={saveFormat} onChange={(e) => setSaveFormat(e.target.checked)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+          Salvar este formato para a próxima vez
+        </label>
+      }
+      footer={
+        <>
+          <ModalButton onClick={close} disabled={isCreating}>Cancelar</ModalButton>
+          <ModalButton variant="primary" onClick={() => void handleCreate()} disabled={isCreating} className="min-w-[132px] gap-2">
+            {isCreating && <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground/40 border-t-primary-foreground" />}
+            {isCreating ? 'Preparando…' : 'Criar retro'}
+          </ModalButton>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6 pt-3">
+        {/* Título, squad e formato salvo */}
+        <div className={cn('grid gap-3.5', savedFormats.length > 0 ? 'sm:grid-cols-[1.4fr_1fr_1fr]' : 'sm:grid-cols-[1.4fr_1fr]')}>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="nr-title" className="text-[13px] font-semibold">Título</label>
+            <input
+              id="nr-title"
               value={title}
-              onChange={e => onTitleChange(e.target.value)}
-              className="h-11 rounded-2xl border-border focus:border-primary font-bold bg-muted/40 focus-visible:ring-primary"
+              onChange={(e) => { setTitle(e.target.value); if (titleError) setTitleError(false); }}
+              placeholder="Ex.: Retro Sprint 43"
+              aria-invalid={titleError}
+              aria-describedby={titleError ? 'nr-title-error' : undefined}
+              className={cn(FIELD, 'h-10', titleError && 'border-red-500/70')}
             />
+            {titleError && <span id="nr-title-error" className="text-xs text-red-700 dark:text-red-300">Dê um nome à retro.</span>}
           </div>
-          <div className="space-y-2">
-            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-primary" /> Squad / Time
-            </Label>
-            <Input
-              placeholder="Ex: Delta Force"
-              value={team}
-              onChange={e => onTeamChange(e.target.value)}
-              className="h-11 rounded-2xl border-border focus:border-primary font-bold bg-muted/40 focus-visible:ring-primary"
-            />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="nr-squad" className="text-[13px] font-semibold">Squad</label>
+            <input id="nr-squad" value={team} onChange={(e) => { setTeam(e.target.value); setTeamTouched(true); }} placeholder="Ex.: Phoenix" className={cn(FIELD, 'h-10')} />
           </div>
+          {savedFormats.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="nr-saved" className="text-[13px] font-semibold">Formato salvo</label>
+              <SelectField
+                id="nr-saved"
+                aria-label="Formato salvo"
+                value={savedFormatId}
+                onChange={(v) => (v === BLANK_FORMAT ? setSavedFormatId(BLANK_FORMAT) : applySaved(v))}
+                options={[{ value: BLANK_FORMAT, label: 'Retro em branco' }, ...savedFormats.map((t) => ({ value: t.id, label: t.name }))]}
+                className="h-10 text-sm"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Formatos de Colunas — Cartões Visuais (Estilo Poker) */}
-        <div className="space-y-2 pt-1">
-          <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
-            <LayoutTemplate className="h-3.5 w-3.5 text-primary" /> Formato das Colunas
-          </Label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
-            {TEMPLATE_OPTIONS.map(opt => {
-              const selected = template === opt.key;
+        {/* Formato */}
+        <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
+          <legend className="mb-2.5 p-0 text-[13px] font-semibold">Formato</legend>
+          <div role="radiogroup" aria-label="Formato das colunas" className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
+            {formats.map((f) => {
+              const selected = template === f.key;
               return (
                 <button
-                  key={opt.key}
+                  key={f.key}
                   type="button"
-                  onClick={() => onTemplateChange(opt.key)}
-                  onMouseEnter={() => setHoveredTemplate(opt.key)}
-                  onMouseLeave={() => setHoveredTemplate(null)}
-                  onFocus={() => setHoveredTemplate(opt.key)}
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setTemplate(f.key)}
                   className={cn(
-                    "text-left p-3 rounded-2xl border-2 transition-all group flex flex-col justify-between min-h-[110px]",
-                    selected
-                      ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
-                      : "border-border bg-muted/30 hover:border-primary/40 hover:bg-primary/5"
+                    'flex flex-col gap-2 rounded-xl border p-3 text-left transition-[transform,background-color,border-color] duration-fast hover:-translate-y-0.5 motion-reduce:hover:translate-y-0',
+                    FOCUS_RING,
+                    selected ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40'
                   )}
                 >
-                  <div>
-                    <div className="flex items-center justify-between gap-1 mb-1.5">
-                      <span className="text-xs font-black uppercase tracking-tight text-foreground truncate">{opt.name}</span>
-                      <span className={cn(
-                        "text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full shrink-0",
-                        selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                      )}>
-                        {opt.tagline}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {opt.columns.slice(0, 3).map((col, idx) => (
-                        <span
-                          key={idx}
-                          className={cn(
-                            "h-5 px-1.5 flex items-center justify-center rounded-md text-[11px] font-bold border truncate max-w-[120px]",
-                            selected ? "bg-background border-primary/30 text-primary" : "bg-background border-border text-muted-foreground"
-                          )}
-                        >
-                          {col}
-                        </span>
-                      ))}
-                      {opt.columns.length > 3 && (
-                        <span className="h-5 px-1 flex items-center justify-center text-[11px] font-bold text-muted-foreground">
-                          +{opt.columns.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-[11px] font-medium text-muted-foreground leading-snug line-clamp-2">{opt.desc}</p>
+                  <span aria-hidden="true" className="flex h-[26px] gap-[3px]">
+                    {f.columns ? (
+                      f.columns.map((col) => <span key={col.id} className={cn('flex-1 rounded-[3px] opacity-85', columnTone(col.theme).bar)} />)
+                    ) : (
+                      [0, 1, 2].map((i) => <span key={i} className="flex-1 rounded-[3px] bg-muted-foreground/40" />)
+                    )}
+                  </span>
+                  <span className="text-[13px] font-bold leading-tight">{f.name}</span>
+                  <span className="text-xs leading-snug text-muted-foreground">
+                    {f.columns ? f.columns.map((c) => c.title.replace(/\s*\(.*\)\s*$/, '')).join(' · ') : 'Você define · de 2 a 6 colunas'}
+                  </span>
                 </button>
               );
             })}
           </div>
+        </fieldset>
 
-          {/* Preview das colunas completas */}
-          <div className="flex items-center gap-1.5 flex-wrap px-1 pt-1 min-h-[28px]">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mr-1">Colunas do quadro:</span>
-            {previewColumns.map((colTitle, i) => (
-              <span
-                key={i}
-                className="h-6 px-2 flex items-center justify-center rounded-md text-[11px] font-bold bg-muted text-muted-foreground border border-border"
-              >
-                {colTitle}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Editor de colunas customizadas se selecionado */}
         {template === 'custom' && (
-          <div className="space-y-3 p-4 rounded-2xl border border-dashed border-border bg-muted/20 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Definição das Colunas Customizadas</Label>
-              <span className="text-[11px] font-medium text-muted-foreground">Mínimo 2, máximo 6</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {customColumns.map((col, idx) => (
-                <div key={idx} className="flex gap-1.5 items-center">
-                  <Input
-                    value={col.title}
-                    onChange={(e) => {
-                      onCustomColumnsChange(customColumns.map((c, i) => (i === idx ? { ...c, title: e.target.value } : c)));
-                    }}
-                    placeholder={`Coluna ${idx + 1}`}
-                    aria-label={`Nome da coluna ${idx + 1}`}
-                    maxLength={40}
-                    className="h-10 rounded-xl border-border bg-background font-bold text-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onCustomColumnsChange(customColumns.map((c, i) => (i === idx ? { ...c, theme: c.theme === 'action' ? 'neutral' : 'action' } : c)))}
-                    aria-pressed={col.theme === 'action'}
-                    aria-label={`Coluna ${idx + 1} é de plano de ação`}
-                    title={col.theme === 'action' ? 'Coluna de plano de ação (clique para tornar comum)' : 'Tornar coluna de plano de ação'}
-                    className={cn(
-                      "h-10 w-10 rounded-xl shrink-0 border",
-                      col.theme === 'action' ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:text-white" : "text-muted-foreground border-border"
-                    )}
-                  >
-                    <ListChecks className="h-4 w-4" />
-                  </Button>
-                  {customColumns.length > 2 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onCustomColumnsChange(customColumns.filter((_, i) => i !== idx))}
-                      aria-label={`Remover coluna ${idx + 1}`}
-                      className="h-10 w-10 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {customColumns.length < 6 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onCustomColumnsChange([...customColumns, { title: '', theme: 'neutral' }])}
-                  className="h-10 rounded-xl border-dashed border-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Coluna
-                </Button>
+          <section aria-label="Colunas do formato personalizado" className="room-rise flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[13px] font-semibold">Colunas <span className="font-normal text-muted-foreground">({MIN_CUSTOM_COLUMNS} a {MAX_CUSTOM_COLUMNS})</span></span>
+              {customColumns.length < MAX_CUSTOM_COLUMNS && (
+                <ModalButton className="h-8 gap-1.5 px-3 text-[13px]" onClick={() => setCustomColumns((cols) => [...cols, { title: '', theme: 'neutral' }])}>
+                  <Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Adicionar coluna
+                </ModalButton>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Configurações do Facilitador — Grid com Switches idêntico ao Poker */}
-        <div className="pt-2 space-y-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap ml-1">
-            <Label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
-              <Zap className="h-3.5 w-3.5 text-primary" /> Configurações do Facilitador
-              <span className="text-muted-foreground/70 normal-case tracking-normal font-medium">
-                ({activeSetupCount} de {SETUP_TOGGLES.length} ativados)
-              </span>
-            </Label>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onSetupSettingsChange(DEFAULT_SETUP_SETTINGS)}
-                className="h-auto text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-              >
-                Padrão
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, false])) as SetupSettings)}
-                className="h-auto text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-              >
-                Nenhum
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onSetupSettingsChange(Object.fromEntries(SETUP_TOGGLES.map(t => [t.key, true])) as SetupSettings)}
-                className="h-auto text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-lg border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
-              >
-                Todos
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-            {SETUP_GROUPS.map(group => (
-              <div key={group.label} className="space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground/60 ml-1">{group.label}</p>
-                {group.items.map(cfg => {
-                  const on = !!setupSettings[cfg.key];
-                  const Icon = cfg.icon;
-                  return (
-                    <div key={cfg.key}>
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            onSetupSettingsChange({ ...setupSettings, [cfg.key]: !on });
-                          }
-                        }}
-                        title={cfg.desc}
-                        className={cn(
-                          "w-full text-left px-3 py-2.5 rounded-xl border-2 flex items-center justify-between gap-2.5 transition-all cursor-pointer select-none",
-                          on ? "border-primary bg-primary/10 shadow-sm" : "border-border bg-muted/30 hover:border-primary/30",
-                          cfg.key === 'healthCheckEnabled' && on && "rounded-b-none border-b-0"
-                        )}
+            {customColumns.map((col, i) => (
+              <div key={i} className="flex flex-wrap items-center gap-2">
+                <input
+                  value={col.title}
+                  onChange={(e) => updateColumn(i, { title: e.target.value })}
+                  placeholder={`Coluna ${i + 1}`}
+                  aria-label={`Nome da coluna ${i + 1}`}
+                  maxLength={40}
+                  className={cn(FIELD, 'h-9 min-w-[10rem] flex-1')}
+                />
+                <div role="group" aria-label={`Tipo da coluna ${i + 1}`} className="inline-flex gap-[3px] rounded-lg border border-border bg-background p-[3px]">
+                  {([['neutral', 'Cartões'], ['action', 'Ações']] as const).map(([theme, label]) => {
+                    const on = theme === 'action' ? col.theme === 'action' : col.theme !== 'action';
+                    return (
+                      <button
+                        key={theme}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => updateColumn(i, { theme })}
+                        className={cn('h-[30px] rounded-md px-3 text-[13px] transition-colors', FOCUS_RING, on ? 'bg-primary/10 font-semibold text-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.4)]' : 'text-muted-foreground hover:text-foreground')}
                       >
-                        <span className="min-w-0">
-                          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-tight text-foreground leading-tight">
-                            <Icon className="h-3 w-3 shrink-0 text-primary" />
-                            {cfg.title}
-                          </span>
-                          <span className="block text-[11px] font-medium text-muted-foreground leading-tight mt-1 truncate max-w-[220px]">
-                            {cfg.desc}
-                          </span>
-                        </span>
-                        <Switch checked={on} className="pointer-events-none shrink-0 scale-90" />
-                      </div>
-
-                      {cfg.key === 'healthCheckEnabled' && on && (
-                        <div
-                          className="px-3 py-2.5 rounded-b-xl border-2 border-t-0 border-primary bg-primary/5 space-y-1.5"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Label className="text-[11px] font-bold uppercase tracking-wide text-primary/80">Pergunta exibida</Label>
-                          <Textarea
-                            value={healthCheckQuestion}
-                            onChange={(e) => onHealthCheckQuestionChange(e.target.value)}
-                            placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
-                            className="min-h-[54px] text-xs font-bold bg-background rounded-xl focus-visible:ring-primary/20"
-                          />
-                          <p className="text-[11px] font-medium text-muted-foreground">vazio = usa a pergunta padrão</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {customColumns.length > MIN_CUSTOM_COLUMNS && (
+                  <IconButton label={`Remover a coluna ${i + 1}`} icon={X} size="sm" onClick={() => setCustomColumns((cols) => cols.filter((_, idx) => idx !== i))} />
+                )}
               </div>
             ))}
-          </div>
-        </div>
+          </section>
+        )}
 
-        <DialogFooter className="pt-4 mt-2 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onCancel}
-            className="h-auto px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:bg-transparent text-center sm:text-left order-2 sm:order-1"
-          >
-            Cancelar
-          </Button>
-          <Button
-            disabled={isCreating}
-            onClick={onCreate}
-            className="w-full sm:w-auto px-8 h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-primary/10 gap-3 order-1 sm:order-2"
-          >
-            {isCreating ? 'Preparando...' : 'Iniciar Retrospectiva'}
-            <ArrowRightIcon className="h-4 w-4" />
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        {/* Opções */}
+        <section aria-label="Opções da retro" className="flex flex-col">
+          <div className="flex items-center justify-between gap-2 pb-1">
+            <span className="text-[13px] font-semibold">Opções</span>
+            <ModalButton variant="ghost" className="h-8 text-[13px]" onClick={() => setSettings(DEFAULT_SETUP_SETTINGS)}>Padrão</ModalButton>
+          </div>
+          {SETUP_TOGGLES.map((t) => (
+            <SettingRow
+              key={t.key}
+              id={`nr-${t.key}`}
+              title={t.title}
+              desc={t.desc}
+              checked={settings[t.key]}
+              onChange={(v) => setSettings((s) => ({ ...s, [t.key]: v }))}
+            >
+              {t.key === 'healthCheckEnabled' && (
+                <div className="room-rise mt-3 flex items-center gap-2.5 rounded-[10px] border border-border bg-muted/40 p-2.5">
+                  <label htmlFor="nr-hc-question" className="shrink-0 text-[13px] text-muted-foreground">Pergunta do check-in</label>
+                  <input
+                    id="nr-hc-question"
+                    value={healthCheckQuestion}
+                    onChange={(e) => setHealthCheckQuestion(e.target.value)}
+                    placeholder={DEFAULT_HEALTH_CHECK_QUESTION}
+                    className={cn(FIELD, 'h-9 min-w-0 flex-1')}
+                  />
+                </div>
+              )}
+            </SettingRow>
+          ))}
+        </section>
+      </div>
+    </Modal>
   );
 }
+

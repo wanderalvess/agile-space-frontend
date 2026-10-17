@@ -1,5 +1,5 @@
 import type { RetroTemplateKey, RetroColumnTheme } from './types';
-import type { SetupSettings } from '@/components/retro/CreateRetroDialog';
+import type { SetupSettings } from './retro-formats';
 
 /**
  * Templates de retro guardados no localStorage (por navegador do usuário),
