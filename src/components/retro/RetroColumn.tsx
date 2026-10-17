@@ -5,10 +5,12 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { ArrowDownWideNarrow, ClipboardCheck, EyeOff, Lock, PackageOpen, Pencil, PenLine, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { ResolvedColumnIdentity } from '@/lib/retro-format-themes';
 import { FOCUS_RING, ModalButton } from '@/components/room-kit';
 import type { RetroBoard, RetroCard as RetroCardType, RetroColumnDef, RetroParticipant, RetroReactionType } from '@/lib/types';
 import { AddRetroCard } from './AddRetroCard';
 import { RetroCard } from './RetroCard';
+import { COLUMN_ICONS } from './column-icons';
 import { COLUMN_EMPTY_COPY, columnTone } from './retro-tones';
 import { isActionTheme, isColumnSortedByVotes, sortColumnCards, votesUsedInColumn } from './retro-room-logic';
 
@@ -51,6 +53,10 @@ export interface RetroColumnProps {
   typingLabel?: string | null;
   /** Avisa que a pessoa digita um cartão nesta coluna. */
   onTyping?: (columnKey: string) => void;
+  /** Identidade da coluna no formato (ícone, pergunta-guia, estado vazio, placeholder); ausente = formato personalizado ou sem tema. */
+  identity?: ResolvedColumnIdentity | null;
+  /** Há cenário atrás das colunas: o fundo vira o cartão do tema a 80% com desfoque, para o texto manter o contraste. */
+  onScene?: boolean;
 }
 
 function RetroColumnComponent({
@@ -83,10 +89,14 @@ function RetroColumnComponent({
   readOnly = false,
   typingLabel = null,
   onTyping,
+  identity = null,
+  onScene = false,
 }: RetroColumnProps) {
   const { id: columnKey, title, theme } = column;
   const tone = columnTone(theme);
-  const Icon = tone.icon;
+  // Coluna renomeada pela facilitação: o ícone fica, mas pergunta-guia, vazio e placeholder do formato perdem o sentido.
+  const themed = identity && !identity.renamed ? identity.identity : null;
+  const Icon = identity ? COLUMN_ICONS[identity.identity.icon] : tone.icon;
   const isActionColumn = isActionTheme(theme);
   const isFeedbackColumn = !isActionColumn;
   const present = view === 'present';
@@ -136,7 +146,8 @@ function RetroColumnComponent({
 
   const [composerOpen, setComposerOpen] = useState(false);
   const empty = visibleCards.length === 0;
-  const emptyCopy = COLUMN_EMPTY_COPY[theme] ?? COLUMN_EMPTY_COPY.neutral;
+  const genericEmpty = COLUMN_EMPTY_COPY[theme] ?? COLUMN_EMPTY_COPY.neutral;
+  const emptyCopy = themed ? { title: themed.vazio.titulo, hint: themed.vazio.dica } : genericEmpty;
   const filteredEmpty = onlyVoted && isFeedbackColumn && cards.length > 0 && empty;
 
   const sortLabel = isCreator ? 'Ordenar por votos' : 'Ordenado por votos';
@@ -146,7 +157,8 @@ function RetroColumnComponent({
       ref={setNodeRef}
       aria-label={title}
       className={cn(
-        'flex min-w-0 flex-col gap-2.5 rounded-2xl border border-t-[3px] border-border bg-muted/30 p-3 transition-[border-color,box-shadow,opacity] duration-base',
+        'flex min-w-0 flex-col gap-2.5 rounded-2xl border border-t-[3px] border-border p-3 transition-[border-color,box-shadow,opacity] duration-base',
+        onScene ? 'retro-on-scene bg-card/80 backdrop-blur-sm' : 'bg-muted/30',
         tone.top,
         view === 'board' && 'min-w-[min(86vw,320px)] flex-1 snap-start sm:min-w-[270px] 2xl:min-w-[320px]',
         highlightStage && isActiveStage && 'ring-2 ring-primary/50',
@@ -156,11 +168,11 @@ function RetroColumnComponent({
     >
       {/* Cabeçalho */}
       <div
-        className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 py-0.5', big && 'sm:flex-nowrap', !isNavLocked && view === 'board' && 'cursor-pointer')}
+        className={cn('flex flex-wrap items-center gap-x-2 gap-y-1 px-1 py-0.5', big && 'sm:flex-nowrap', !isNavLocked && view === 'board' && 'cursor-pointer')}
         onClick={view === 'board' && !isNavLocked ? () => onFocus(columnKey) : undefined}
       >
-        {big && (
-          <span aria-hidden="true" className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]', tone.tint)}>
+        {(big || identity) && (
+          <span aria-hidden="true" className={cn('flex shrink-0 items-center justify-center', big ? 'h-8 w-8 rounded-[10px]' : 'h-7 w-7 rounded-lg', tone.tint)}>
             <Icon className="h-[17px] w-[17px]" strokeWidth={1.5} />
           </span>
         )}
@@ -185,7 +197,7 @@ function RetroColumnComponent({
           />
         ) : (
           <>
-            <h2 title={title} className={cn('m-0 min-w-0 truncate font-bold leading-tight text-foreground', present ? 'text-xl' : 'text-[15px]')}>{title}</h2>
+            <h2 title={title} className={cn('m-0 min-w-0 flex-1 basis-[5.5rem] break-words font-bold leading-tight text-foreground', identity ? 'line-clamp-2' : 'truncate', present ? 'text-xl' : 'text-[15px]')}>{title}</h2>
             {!big && <span className="text-xs font-semibold tabular-nums text-muted-foreground">{cards.length}</span>}
             {isCreator && !present && (
               <button
@@ -200,8 +212,6 @@ function RetroColumnComponent({
             )}
           </>
         )}
-
-        <span className="flex-1" />
 
         {showVoteCounter && (
           <span
@@ -272,6 +282,10 @@ function RetroColumnComponent({
         )}
       </div>
 
+      {themed && (
+        <p title={themed.guia} className={cn('m-0 line-clamp-2 px-1 text-muted-foreground', present ? 'text-sm' : 'text-xs')}>{themed.guia}</p>
+      )}
+
       {typingLabel && (
         <p role="status" className="m-0 flex items-center gap-1.5 px-1 text-xs text-muted-foreground">
           <PenLine className="h-3.5 w-3.5 shrink-0 motion-safe:animate-pulse" strokeWidth={1.5} aria-hidden="true" />
@@ -281,7 +295,7 @@ function RetroColumnComponent({
 
       {/* Campo fixo no topo (visão foco) */}
       {focus && !readOnly && (
-        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} />
+        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} placeholder={themed?.placeholder} />
       )}
 
       {/* Cartões */}
@@ -308,6 +322,14 @@ function RetroColumnComponent({
                 <EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Seus cartões ficam ocultos até a revelação
               </p>
             )}
+          </div>
+        ) : themed && !filteredEmpty ? (
+          <div className="flex flex-col items-center gap-1 rounded-[10px] border border-dashed border-border px-3.5 py-4 text-center">
+            <span aria-hidden="true" className={cn('mb-1 flex h-10 w-10 items-center justify-center rounded-xl', tone.tint)}>
+              <Icon className="h-5 w-5" strokeWidth={1.5} />
+            </span>
+            <p className="m-0 text-[13px] font-bold text-foreground">{emptyCopy.title}</p>
+            <p className="m-0 text-xs text-muted-foreground">{emptyCopy.hint}</p>
           </div>
         ) : (
           <div className="rounded-[10px] border border-dashed border-border p-3.5 text-center text-[13px] text-muted-foreground">Nenhum cartão ainda</div>
@@ -362,6 +384,7 @@ function RetroColumnComponent({
           onAddCard={onAddCard}
           participants={participants}
           onTyping={onTyping}
+          placeholder={themed?.placeholder}
         />
       )}
 
