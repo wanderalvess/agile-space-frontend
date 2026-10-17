@@ -13,6 +13,8 @@
  * /mcp/sse via os @Tool de com.agilespace.backend.mcp.*.
  */
 
+import { moduleLabel, type ModuleKey } from './modules-registry';
+
 export const API_KEY_HEADER = 'X-Api-Key';
 
 /**
@@ -104,7 +106,7 @@ export interface ModuleIntegration {
 export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
   {
     id: 'knowledge',
-    label: 'Base de Conhecimento',
+    label: moduleLabel('knowledge'),
     tagline: 'Listar, buscar, baixar e criar documentos da KB de fora da aplicação.',
     rest: [
       {
@@ -181,7 +183,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
   },
   {
     id: 'prompt-hub',
-    label: 'Prompt Hub',
+    label: moduleLabel('prompt-hub'),
     tagline: 'Consultar prompts/coleções públicas e publicar/atualizar skills de agentes por REST ou MCP.',
     rest: [
       {
@@ -293,7 +295,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
   },
   {
     id: 'squad',
-    label: 'Squad',
+    label: moduleLabel('squad'),
     tagline: 'Ler status, membros e issues sincronizadas de uma squad — leitura apenas, só via MCP.',
     rest: [],
     mcp: [
@@ -324,7 +326,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
   },
   {
     id: 'poker',
-    label: 'Scrum Poker',
+    label: moduleLabel('poker'),
     tagline: 'Abrir uma sala de Scrum Poker, e buscar estimativas de rodadas já feitas.',
     rest: [
       {
@@ -363,16 +365,10 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
 ];
 
 /** Módulos sem superfície pública — documentado de propósito, evita procura inútil. */
-export const MODULES_WITHOUT_INTEGRATION = [
-  'Retrospectiva',
-  'Daily Flow',
-  'Sprint Planner',
-  'Radar de Saúde',
-  'Brainstorming',
-  'Showcase',
-  'Jolt Hub',
-  'Governança',
-];
+const MODULE_KEYS_WITHOUT_INTEGRATION: ModuleKey[] = ['retro', 'sprint-planner', 'health', 'brainstorming', 'showcase', 'jolt', 'governance'];
+
+/** Nomes vêm do registro de módulos, os mesmos de Home e menus. */
+export const MODULES_WITHOUT_INTEGRATION = MODULE_KEYS_WITHOUT_INTEGRATION.map(moduleLabel);
 
 export function getModuleIntegration(id: string): ModuleIntegration | undefined {
   return MODULE_INTEGRATIONS.find(m => m.id === id);

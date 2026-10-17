@@ -1,6 +1,7 @@
-import { HeartPulse, Layers, Lightbulb, MonitorPlay, RefreshCw, type LucideIcon } from 'lucide-react';
+import { RefreshCw, type LucideIcon } from 'lucide-react';
 import type { RitualKey } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
+import { moduleIcon } from '@/lib/modules-registry';
 
 /**
  * Peças visuais da Home. Só tokens semânticos (background, card, border, primary...), para o desenho valer
@@ -14,11 +15,11 @@ export const TINT_BG = 'bg-primary/10';
 
 /** Ícone de linha de cada ritual. */
 export const TOOL_ICON: Record<RitualKey, LucideIcon> = {
-  poker: Layers,
-  retro: RefreshCw,
-  showcase: MonitorPlay,
-  health: HeartPulse,
-  brainstorming: Lightbulb,
+  poker: moduleIcon('poker'),
+  retro: moduleIcon('retro'),
+  showcase: moduleIcon('showcase'),
+  health: moduleIcon('health'),
+  brainstorming: moduleIcon('brainstorming'),
 };
 
 export const CARD = 'rounded-2xl border border-border bg-card text-card-foreground';

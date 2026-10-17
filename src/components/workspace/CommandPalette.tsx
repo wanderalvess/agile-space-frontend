@@ -14,19 +14,16 @@ import {
   LayoutGrid, 
   Plus, 
   History, 
-  FileText, 
   StickyNote, 
   User, 
-  Settings, 
   Terminal, 
   Zap,
-  Home,
-  MessageSquare,
-  Search,
-  CheckCircle2,
   Keyboard
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useUserContext } from '@/context/UserContext';
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
+import { visibleModules } from '@/lib/modules-registry';
 
 interface CommandPaletteProps {
   onNavigate: (tab: string) => void;
@@ -46,7 +43,10 @@ export function CommandPalette({
   onOpenChange: setControlledOpen
 }: CommandPaletteProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  
+  const router = useRouter();
+  const { userProfile } = useUserContext();
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
+
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setOpen = setControlledOpen !== undefined ? setControlledOpen : setInternalOpen;
 
@@ -76,7 +76,7 @@ export function CommandPalette({
         
         <CommandGroup heading="Navegação">
           <CommandItem onSelect={() => runCommand(() => onNavigate('home'))}>
-            <Home className="mr-2 h-4 w-4 text-slate-400" />
+            <ModuleIcon module="home" className="mr-2 text-slate-400" />
             <span>Painel Principal (Home)</span>
             <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-code text-[10px] font-medium text-muted-foreground opacity-100">
               H
@@ -126,9 +126,23 @@ export function CommandPalette({
 
         <CommandSeparator />
 
+        <CommandGroup heading="Módulos do portal">
+          {visibleModules(isAdmin).map((m) => {
+            return (
+              <CommandItem key={m.key} value={`${m.label} ${(m.aliases ?? []).join(' ')}`} onSelect={() => runCommand(() => router.push(m.href))}>
+                <ModuleIcon module={m.key} className="mr-2 text-muted-foreground" />
+                <span>{m.label}</span>
+                {m.soon && <span className="ml-auto text-[11px] text-muted-foreground">Em breve</span>}
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+
+        <CommandSeparator />
+
         <CommandGroup heading="Portal Tech V&D">
           <CommandItem onSelect={() => runCommand(() => onNavigate('prompts'))}>
-            <MessageSquare className="mr-2 h-4 w-4 text-slate-400" />
+            <ModuleIcon module="prompt-hub" className="mr-2 text-slate-400" />
             <span>Meus Prompts Hub</span>
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => onNavigate('profile'))}>

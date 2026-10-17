@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { BookOpen, LayoutGrid, LogOut, Settings, ShieldCheck, User } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
+import { ModuleIcon } from '@/components/brand/ModuleIcon';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,26 +62,26 @@ export function ProfileMenu() {
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
           <Link href="/workspace">
-            <LayoutGrid className="h-4 w-4" strokeWidth={1.5} />
+            <ModuleIcon module="workspace" />
             Meu espaço
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
           <Link href="/manual">
-            <BookOpen className="h-4 w-4" strokeWidth={1.5} />
+            <ModuleIcon module="manual" />
             Manual de uso
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
           <Link href="/configuracoes">
-            <Settings className="h-4 w-4" strokeWidth={1.5} />
+            <ModuleIcon module="settings" />
             Configurações
           </Link>
         </DropdownMenuItem>
         {isAdmin && (
           <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg py-2 text-[13px]">
             <Link href="/admin">
-              <ShieldCheck className="h-4 w-4" strokeWidth={1.5} />
+              <ModuleIcon module="admin" />
               Administração
             </Link>
           </DropdownMenuItem>
