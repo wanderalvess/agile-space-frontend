@@ -287,3 +287,12 @@ export function connectionLabel(status: RoomConnectionStatus): string {
       return 'Sem conexão';
   }
 }
+
+// ───────────────────────── Convite ─────────────────────────
+
+/** Texto do convite (editável na janela de compartilhar): nome da sessão, squad e o link. */
+export function buildInviteText(opts: { title: string; squad?: string; url: string }): string {
+  const title = opts.title.trim() || 'Brainstorming';
+  const squad = opts.squad?.trim();
+  return `Brainstorming "${title}"${squad ? ` da squad ${squad}` : ''}. Vamos lançar ideias, agrupar e priorizar juntos.\nLink: ${opts.url}`;
+}

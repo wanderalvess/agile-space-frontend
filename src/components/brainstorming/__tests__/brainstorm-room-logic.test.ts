@@ -11,6 +11,7 @@ import {
   OFFLINE_AFTER_CLOSES,
   authorInfo,
   boardTotals,
+  buildInviteText,
   canExportImage,
   connectionLabel,
   durationLabel,
@@ -296,5 +297,17 @@ describe('estado da conexão', () => {
     expect(connectionLabel('reconnecting')).toBe('Reconectando…');
     expect(connectionLabel('offline')).toBe('Sem conexão');
     expect(connectionLabel('connecting')).toBe('Conectando…');
+  });
+});
+
+describe('convite', () => {
+  it('leva o nome da sessão, a squad e o link', () => {
+    expect(buildInviteText({ title: 'Redesenho', squad: 'Phoenix', url: 'https://x/brainstorming/1' })).toBe(
+      'Brainstorming "Redesenho" da squad Phoenix. Vamos lançar ideias, agrupar e priorizar juntos.\nLink: https://x/brainstorming/1'
+    );
+  });
+
+  it('sem squad ou sem título', () => {
+    expect(buildInviteText({ title: ' ', url: 'u' })).toBe('Brainstorming "Brainstorming". Vamos lançar ideias, agrupar e priorizar juntos.\nLink: u');
   });
 });

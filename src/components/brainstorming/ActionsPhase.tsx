@@ -1,17 +1,13 @@
-import React, { useState } from 'react';
-import { BrainstormingIdea, BrainstormingGroup, BrainstormingBoard } from '@/lib/types';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, TrendingUp, Zap, Target, ArrowRight, ListChecks, Loader2 } from 'lucide-react';
+'use client';
+
+import React, { useMemo, useRef, useState } from 'react';
+import { ListChecks, Lock, Target, ThumbsUp, TrendingUp, Zap } from 'lucide-react';
+import { IconTile, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
+import { getQuadrant, ideaText, votesOf } from '@/lib/brainstorming-utils';
+import type { BrainstormingBoard, BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import { useAuth } from '@/context/AuthContext';
-import { actionPlanApi } from '../../app/action-plan/api';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
-import { errorMessage } from '@/lib/ceremony-api';
-import { Button } from '@/components/ui/button';
-import { getQuadrant, ideaText } from '@/lib/brainstorming-utils';
+import { CreatePlanDialog } from './CreatePlanDialog';
+import { NO_GROUP_COLOR, groupColorOf, quadrantLabel, sortByVotes } from './brainstorm-room-logic';
 
 interface ActionsPhaseProps {
   ideas: BrainstormingIdea[];
@@ -21,244 +17,154 @@ interface ActionsPhaseProps {
   onMoveIdea: (id: string, groupId: string | null) => void;
 }
 
+const NO_GROUP = '__none';
+const RANK_SIZE = 10;
+
+const SECTION_CARD = 'rounded-2xl border border-border bg-card p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.4)]';
+
+/**
+ * Etapa 5, Plano: as ideias que venceram (Quick wins por votos e iniciativas estratégicas), o ranking e o botão
+ * que leva as melhores para um plano de ação 5W2H, com prévia.
+ */
 export function ActionsPhase({ ideas, groups, boardData, onUpdateIdea, onMoveIdea }: ActionsPhaseProps) {
-  const { session } = useAuth();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [isExporting, setIsExporting] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
 
-  const sortedIdeas = [...ideas].sort((a, b) => {
-    const votesA = a.votes?.length || 0;
-    const votesB = b.votes?.length || 0;
-    return votesB - votesA;
-  });
-
-  // mesma classificação da fase "Matriz" (antes, uma ideia devolvida a "A Classificar" aparecia aqui como Quick Win)
-  const quickWins = sortedIdeas.filter(i => getQuadrant(i.qualifiers) === 'quick_wins');
-  const strategic = sortedIdeas.filter(i => getQuadrant(i.qualifiers) === 'strategic');
-
-  // o que foi descartado na matriz não vira ação no 5W2H
-  // ideias que o servidor ainda não revelou a esta pessoa não têm texto: não dá para exportá-las
-  const hasHiddenIdeas = ideas.some(i => i.hidden);
-  const topIdeas = sortedIdeas.filter(i => !i.hidden && getQuadrant(i.qualifiers) !== 'discard').slice(0, 5);
-
-  const handleExportTo5W2H = async () => {
-    if (!session || isExporting || hasHiddenIdeas) return;
-
-    setIsExporting(true);
-
-    try {
-      const planTitle = `Plano de Ação: ${boardData.title}`;
-
-      // criador, id, datas e autor são definidos pelo servidor a partir do login
-      const newPlan = await actionPlanApi.createBoard({
-        title: planTitle,
-        team: boardData.team || 'Squad Geral',
-      });
-
-      if (!newPlan || !newPlan.id) {
-        throw new Error('Falha ao criar o plano de ação.');
-      }
-
-      let failed = 0;
-      for (let i = 0; i < topIdeas.length; i++) {
-        const idea = topIdeas[i];
-        const group = groups.find(g => g.id === idea.groupId);
-
-        try {
-          await actionPlanApi.createTask(newPlan.id, {
-            what: idea.content,
-            why: `Ideia priorizada no Brainstorming (ROI: ${idea.qualifiers?.roi || 0}%)`,
-            where: group?.title || 'Squad',
-            when: '',
-            who: '',
-            how: '',
-            howMuch: idea.qualifiers?.effort ? `Esforço: ${idea.qualifiers.effort}%` : '',
-            status: 'todo',
-            order: i
-          });
-        } catch (taskError) {
-          failed += 1;
-          console.error("Erro ao criar ação do plano", taskError);
-        }
-      }
-
-      toast(failed === 0
-        ? { title: "Plano de ação criado!", description: "Matriz 5W2H gerada com sucesso. Redirecionando..." }
-        : {
-            title: "Plano criado, mas faltam ações",
-            description: `${failed} de ${topIdeas.length} ações não foram criadas. Adicione as que faltam no plano.`,
-            variant: "destructive",
-          });
-
-      // o plano já existe: leva para ele mesmo com falhas parciais (senão ficaria um plano órfão e sem link)
-      router.push(`/action-plan/${newPlan.id}`);
-    } catch (e) {
-      console.error("Erro ao exportar", e);
-      toast({
-        title: "Erro na exportação",
-        description: errorMessage(e, "Não foi possível gerar a matriz 5W2H."),
-        variant: "destructive"
-      });
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  const sorted = useMemo(() => sortByVotes(ideas), [ideas]);
+  // mesma classificação da etapa Matriz (uma ideia devolvida a "A classificar" não vira Quick win aqui)
+  const quickWins = sorted.filter((i) => getQuadrant(i.qualifiers) === 'quick_wins');
+  const strategic = sorted.filter((i) => getQuadrant(i.qualifiers) === 'strategic');
+  // ideias que o servidor ainda não revelou a esta pessoa não têm texto: não dá para virar ação
+  const hasHiddenIdeas = ideas.some((i) => i.hidden);
+  const groupOf = (idea: BrainstormingIdea) => groups.find((g) => g.id === idea.groupId);
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-slate-50/50">
-      <div className="px-8 pt-8 pb-4 flex items-center justify-between shrink-0">
+    <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Plano de Ação</h2>
-          <p className="text-slate-500 text-sm">Resumo estratégico baseado nas fases anteriores.</p>
+          <h2 className="m-0 text-xl font-bold text-foreground">Plano</h2>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">Resumo do que a squad decidiu nas etapas anteriores.</p>
         </div>
-
-        <Button
-          onClick={handleExportTo5W2H}
-          disabled={isExporting || hasHiddenIdeas}
-          title={hasHiddenIdeas ? "Disponível quando o facilitador revelar as ideias" : undefined}
-          className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-black uppercase tracking-widest text-[10px] h-12 px-8 rounded-2xl shadow-xl shadow-fuchsia-600/20 gap-3"
+        <ModalButton
+          variant="primary"
+          className="h-11 gap-2 px-5"
+          onClick={() => setPlanOpen(true)}
+          disabled={hasHiddenIdeas}
+          title={hasHiddenIdeas ? 'Disponível quando o facilitador revelar as ideias' : undefined}
         >
-          {isExporting ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ListChecks className="h-4 w-4" />
-          )}
-          {isExporting ? 'Exportando...' : 'Exportar para 5W2H'}
-        </Button>
+          <ListChecks className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar plano de ação
+        </ModalButton>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 pb-12">
-        <div className="max-w-full mx-auto space-y-12 py-8">
-          
-          <section>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
-                <Zap className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Execução Imediata (Quick Wins)</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {quickWins.length > 0 ? (
-                quickWins.map((idea, idx) => (
-                  <ActionCard 
-                    key={idea.id} 
-                    idea={idea} 
-                    groups={groups} 
-                    rank={idx + 1} 
-                    onUpdate={onUpdateIdea}
-                    onMove={onMoveIdea}
-                  />
-                ))
-              ) : (
-                <div className="col-span-full p-8 border-2 border-dashed border-slate-200 rounded-[2rem] text-center text-slate-400 font-bold text-sm italic">
-                  Nenhuma ideia classificada como Quick Win ainda.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
-                <Target className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Iniciativas Estratégicas</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {strategic.length > 0 ? (
-                strategic.map((idea, idx) => (
-                  <ActionCard 
-                    key={idea.id} 
-                    idea={idea} 
-                    groups={groups} 
-                    isStrategic 
-                    onUpdate={onUpdateIdea}
-                    onMove={onMoveIdea}
-                  />
-                ))
-              ) : (
-                <div className="col-span-full p-8 border-2 border-dashed border-slate-200 rounded-[2rem] text-center text-slate-400 font-bold text-sm italic">
-                  Nenhuma iniciativa estratégica identificada.
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center gap-3 mb-6">
-               <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Rank Total de Ideias</h3>
-            </div>
-            
-            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-xl overflow-hidden">
-               <table className="w-full text-left">
-                  <thead className="bg-slate-50 border-b border-slate-100">
-                    <tr>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Rank</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Ideia</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Grupo</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Votos</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Valor/ROI</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {sortedIdeas.slice(0, 10).map((idea, idx) => (
-                      <tr key={idea.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-black text-slate-300">#{idx + 1}</td>
-                        <td className="px-6 py-4 text-xs font-bold text-slate-700 max-w-md truncate">{ideaText(idea)}</td>
-                        <td className="px-6 py-4">
-                           {idea.groupId ? (
-                             <Badge variant="outline" className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 border-amber-100">
-                               {groups.find(g => g.id === idea.groupId)?.title || 'Geral'}
-                             </Badge>
-                           ) : <span className="text-[10px] text-slate-300 italic">Sem grupo</span>}
-                        </td>
-                        <td className="px-6 py-4 font-black text-xs text-orange-500">{idea.votes?.length || 0} 🔥</td>
-                        <td className="px-6 py-4 font-black text-xs text-emerald-500">{idea.qualifiers?.roi || 0}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-               </table>
-            </div>
-          </section>
-
+      <section aria-label="Execução imediata" className="flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={Zap} tone="success" size="sm" />
+          <h3 className="m-0 text-base font-bold text-foreground">Execução imediata (Quick wins)</h3>
         </div>
-      </div>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          {quickWins.length > 0 ? (
+            quickWins.map((idea, i) => <ActionCard key={idea.id} idea={idea} groups={groups} rank={i + 1} onUpdate={onUpdateIdea} onMove={onMoveIdea} />)
+          ) : (
+            <p className="col-span-full m-0 rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhuma ideia classificada como Quick win ainda.</p>
+          )}
+        </div>
+      </section>
+
+      <section aria-label="Iniciativas estratégicas" className="flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={Target} size="sm" />
+          <h3 className="m-0 text-base font-bold text-foreground">Iniciativas estratégicas</h3>
+        </div>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          {strategic.length > 0 ? (
+            strategic.map((idea) => <ActionCard key={idea.id} idea={idea} groups={groups} isStrategic onUpdate={onUpdateIdea} onMove={onMoveIdea} />)
+          ) : (
+            <p className="col-span-full m-0 rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">Nenhuma iniciativa estratégica identificada.</p>
+          )}
+        </div>
+      </section>
+
+      <section aria-label="Ranking de ideias" className="flex flex-col gap-3">
+        <div className="flex items-center gap-2.5">
+          <IconTile icon={TrendingUp} tone="neutral" size="sm" />
+          <h3 className="m-0 text-base font-bold text-foreground">Ranking de ideias</h3>
+          <StatusChip tone="neutral">{Math.min(RANK_SIZE, sorted.length)} primeiras</StatusChip>
+        </div>
+        <div className={cn(SECTION_CARD, 'overflow-x-auto p-0')}>
+          <table className="w-full min-w-[640px] border-collapse text-left">
+            <thead className="bg-muted/60">
+              <tr>
+                {['Posição', 'Ideia', 'Grupo', 'Votos', 'Retorno e esforço'].map((h) => (
+                  <th key={h} scope="col" className="px-4 py-3 text-xs font-bold text-muted-foreground">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.slice(0, RANK_SIZE).map((idea, i) => {
+                const group = groupOf(idea);
+                return (
+                  <tr key={idea.id} className="border-t border-border">
+                    <td className="px-4 py-3 text-sm font-bold tabular-nums text-muted-foreground">#{i + 1}</td>
+                    <td className="max-w-md px-4 py-3 text-[13px] font-medium text-foreground">
+                      <span className="line-clamp-2">{ideaText(idea)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-[13px]">
+                      {group ? (
+                        <span className="inline-flex items-center gap-1.5 text-foreground">
+                          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: groupColorOf(group) }} />
+                          {group.title}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Sem grupo</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-[13px] font-semibold tabular-nums text-foreground">{idea.hidden ? '—' : votesOf(idea).length}</td>
+                    <td className="px-4 py-3 text-[13px] text-muted-foreground">{quadrantLabel(idea.qualifiers)}</td>
+                  </tr>
+                );
+              })}
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">Sem ideias ainda.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <CreatePlanDialog open={planOpen} onOpenChange={setPlanOpen} boardId={boardData.id} boardTitle={boardData.title} team={boardData.team} ideas={ideas} groups={groups} />
     </div>
   );
 }
 
-function ActionCard({ 
-  idea, 
-  groups, 
-  rank, 
+function ActionCard({
+  idea,
+  groups,
+  rank,
   isStrategic,
   onUpdate,
-  onMove
-}: { 
-  idea: BrainstormingIdea, 
-  groups: BrainstormingGroup[], 
-  rank?: number, 
-  isStrategic?: boolean,
-  onUpdate: (id: string, content: string) => Promise<boolean | void> | boolean | void,
-  onMove: (id: string, groupId: string | null) => void
+  onMove,
+}: {
+  idea: BrainstormingIdea;
+  groups: BrainstormingGroup[];
+  rank?: number;
+  isStrategic?: boolean;
+  onUpdate: (id: string, content: string) => Promise<boolean | void> | boolean | void;
+  onMove: (id: string, groupId: string | null) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedContent, setEditedContent] = useState(idea.content);
-  const group = groups.find(g => g.id === idea.groupId);
+  const [draft, setDraft] = useState(idea.content);
+  const savingRef = useRef(false);
+  const group = groups.find((g) => g.id === idea.groupId);
+  const hidden = !!idea.hidden;
 
-  const savingRef = React.useRef(false);
+  const options = useMemo(() => [{ value: NO_GROUP, label: 'Sem grupo' }, ...groups.map((g) => ({ value: g.id, label: g.title }))], [groups]);
 
-  const handleSave = async () => {
+  const save = async () => {
     // Enter e perda de foco disparam as duas: salva uma vez só
     if (savingRef.current) return;
-    const text = editedContent.trim();
+    const text = draft.trim();
     if (!text || text === idea.content) {
       setIsEditing(false);
       return;
@@ -271,105 +177,75 @@ function ActionCard({
       savingRef.current = false;
     }
   };
-  
+
+  const votes = votesOf(idea).length;
+  const dot = group ? groupColorOf(group) : NO_GROUP_COLOR;
+
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="h-full"
-    >
-      <Card className="p-4 rounded-[1.5rem] border-none shadow-lg bg-white relative overflow-hidden group h-full flex flex-col">
-        <div className="absolute top-0 right-0 w-16 h-16 bg-slate-50 rounded-bl-full -mr-8 -mt-8 group-hover:scale-110 transition-transform" />
-        
-        <div className="relative flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-3 shrink-0">
-             <div className="flex gap-2">
-               {rank && (
-                 <div className="text-[7px] font-black text-white bg-slate-900 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                   TOP {rank}
-                 </div>
-               )}
-               {isStrategic && (
-                 <div className="text-[7px] font-black text-white bg-indigo-500 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                   Estratégico
-                 </div>
-               )}
-             </div>
-             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity" />
-          </div>
+    <article className={cn(SECTION_CARD, 'flex h-full flex-col gap-3 p-3.5')}>
+      <div className="flex items-center gap-2">
+        {rank !== undefined && <StatusChip tone="brand" className="h-5 px-2">Top {rank}</StatusChip>}
+        {isStrategic && <StatusChip tone="warn" className="h-5 px-2">Estratégico</StatusChip>}
+      </div>
 
-          <div className="flex-1 mb-4">
-            {isEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full text-[12px] font-bold text-slate-800 bg-slate-50 border-2 border-indigo-100 rounded-xl p-2 focus:ring-0 focus:border-indigo-400 outline-none resize-none min-h-[80px]"
-                  autoFocus
-                  onBlur={handleSave}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSave();
-                    }
-                  }}
-                />
-              </div>
-            ) : (
-              <div 
-                onClick={() => { if (idea.hidden) return; setEditedContent(idea.content); setIsEditing(true); }}
-                className="cursor-pointer hover:bg-slate-50 rounded-xl p-1 -m-1 transition-colors"
-              >
-                <p className={cn(
-                  "text-[12px] font-bold text-slate-800 leading-snug",
-                  !isExpanded && "line-clamp-4"
-                )}>
-                  {ideaText(idea)}
-                </p>
-              </div>
-            )}
-            
-            {!idea.hidden && idea.content.length > 100 && !isEditing && (
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(!isExpanded);
-                }}
-                className="text-[10px] font-black uppercase text-indigo-600 hover:text-indigo-700 mt-2 flex items-center gap-1"
-              >
-                {isExpanded ? 'Ver menos' : 'Ver tudo'}
-              </button>
-            )}
-          </div>
+      <div className="min-w-0 flex-1">
+        {isEditing ? (
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            autoFocus
+            aria-label="Texto da ideia"
+            maxLength={5000}
+            onBlur={() => void save()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void save();
+              }
+              if (e.key === 'Escape') setIsEditing(false);
+            }}
+            className="min-h-[88px] w-full resize-none rounded-[10px] border border-primary/50 bg-muted/40 p-2 text-[13px] font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        ) : hidden ? (
+          <p className="m-0 flex items-center gap-1.5 text-[13px] italic text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> {ideaText(idea)}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(idea.content);
+              setIsEditing(true);
+            }}
+            title="Clique para editar o texto"
+            className="-m-1 block w-[calc(100%+0.5rem)] rounded-lg p-1 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className={cn('block whitespace-pre-wrap break-words text-[13px] font-medium leading-snug text-foreground', !isExpanded && 'line-clamp-4')}>{idea.content}</span>
+          </button>
+        )}
+        {!hidden && !isEditing && idea.content.length > 100 && (
+          <button type="button" onClick={() => setIsExpanded((v) => !v)} aria-expanded={isExpanded} className="mt-1.5 rounded text-xs font-semibold text-primary hover:underline [.theme-totvs:not(.dark)_&]:text-foreground">
+            {isExpanded ? 'Ver menos' : 'Ver tudo'}
+          </button>
+        )}
+      </div>
 
-          <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50 shrink-0">
-             <div className="relative group/group">
-               <select
-                 aria-label="Mover ideia para um grupo"
-                 value={idea.groupId || ''}
-                 onChange={(e) => onMove(idea.id, e.target.value || null)}
-                 className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-               >
-                 <option value="">Geral</option>
-                 {groups.map(g => (
-                   <option key={g.id} value={g.id}>{g.title}</option>
-                 ))}
-               </select>
-               <div className="flex items-center gap-1.5 pointer-events-none">
-                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: group?.color || '#cbd5e1' }} />
-                 <span className="text-[8px] font-black text-slate-400 uppercase truncate max-w-[80px]">
-                   {group?.title || 'Geral'}
-                 </span>
-               </div>
-             </div>
-             <div className="flex items-center gap-1 font-black text-[9px] text-amber-500 px-1.5 py-0.5 bg-amber-50 rounded-md">
-                <TrendingUp className="h-2.5 w-2.5" />
-                {idea.votes?.length || 0}
-             </div>
-          </div>
+      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+          <SelectField
+            aria-label="Mover a ideia para um grupo"
+            value={idea.groupId || NO_GROUP}
+            onChange={(v) => onMove(idea.id, v === NO_GROUP ? null : v)}
+            options={options}
+            className="h-8 min-w-0 max-w-[10rem] border-transparent bg-transparent px-2 text-xs"
+          />
         </div>
-      </Card>
-    </motion.div>
+        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold tabular-nums text-muted-foreground" title={`${votes} ${votes === 1 ? 'voto' : 'votos'}`}>
+          <ThumbsUp className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+          {hidden ? '—' : votes}
+        </span>
+      </div>
+    </article>
   );
 }

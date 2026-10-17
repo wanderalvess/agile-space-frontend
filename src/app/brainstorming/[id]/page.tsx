@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useCallback, useState, use, useRef } from 'react';
+import { useEffect, useCallback, useMemo, useState, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { brainstormingApi, type BrainstormingBoardPatch } from '../api';
@@ -11,27 +11,36 @@ import type {
   BrainstormingIdea,
   BrainstormingGroup,
   BrainstormingPhase,
+  Participant,
 } from '@/lib/types';
-import { NotFound } from '@/components/NotFound';
 import { useToast } from '@/hooks/use-toast';
 import { useStableCallback } from '@/hooks/use-stable-callback';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
-import { errorMessage } from '@/lib/ceremony-api';
+import { CeremonyApiError, errorMessage } from '@/lib/ceremony-api';
 import { connectRoomSocket } from '@/lib/room-socket';
 import { applyGroupDeleted, applyIdeaDeleted, upsertById } from '@/lib/brainstorming-utils';
-import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { FeedbackWidget } from '@/components/feedback-widget';
-import { MuralPhase } from '@/components/brainstorming/MuralPhase';
-import { DiagramPhase } from '@/components/brainstorming/DiagramPhase';
-import { BrainstormingToolbar } from '@/components/brainstorming/Toolbar';
-import { GroupingPhase } from '@/components/brainstorming/GroupingPhase';
-import { PrioritizationPhase } from '@/components/brainstorming/PrioritizationPhase';
-import { ActionsPhase } from '@/components/brainstorming/ActionsPhase';
-import { EliteSidebar } from '@/components/shared/EliteSidebar';
-import { EliteParticipantList } from '@/components/shared/EliteParticipantList';
-import { type Participant } from '@/lib/types';
+import { squadLabel as resolveSquadLabel, squadOptions } from '@/components/showcase/review-room-logic';
+import { BrainstormRoom } from '@/components/brainstorming/BrainstormRoom';
+import { BrainstormRoomState } from '@/components/brainstorming/BrainstormRoomState';
+import {
+  INITIAL_CONNECTION,
+  nextConnection,
+  nextGroupColor,
+  pausedTimer,
+  resetTimer,
+  resumedTimer,
+  runningTimer,
+  stoppedTimer,
+  type RoomConnectionState,
+} from '@/components/brainstorming/brainstorm-room-logic';
+
+/** Depois de apagada pelo facilitador, a sala mostra o aviso por este tempo e volta ao Brainstorming. */
+const DELETED_REDIRECT_MS = 4000;
 
 export default function BrainstormingRoomPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -41,6 +50,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, isInitializing } = useUserContext();
+  const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
+  const { memberships } = useMyMemberships();
 
   const [boardData, setBoardData] = useState<BrainstormingBoard | null>(null);
   const [ideas, setIdeas] = useState<BrainstormingIdea[]>([]);
@@ -51,44 +62,42 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const [areIdeasLoading, setAreIdeasLoading] = useState(true);
   const [areGroupsLoading, setAreGroupsLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
+  // 'notfound' = o servidor disse que o mural não existe; 'failed' = não deu para carregar (rede, sessão, 5xx).
+  const [loadError, setLoadError] = useState<null | 'notfound' | 'failed'>(null);
+  const [deleted, setDeleted] = useState(false);
+  const [connection, setConnection] = useState<RoomConnectionState>(INITIAL_CONNECTION);
 
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
   // Só a recarga mais recente vale: uma resposta lenta de uma recarga antiga não pode sobrescrever a nova.
   const reloadSeq = useRef(0);
   const joinAttempted = useRef(false);
+  const boardLoaded = useRef(false);
+  // O facilitador que apaga o mural também recebe BOARD_DELETED: para ele não é "a sessão foi encerrada".
+  const deletingSelf = useRef(false);
   const isFacilitator = !!userProfile && boardData?.creatorId === userProfile.id;
 
   useEffect(() => {
     // O estado da sala não pode vazar de uma sala para outra ao trocar o id na URL.
+    reloadSeq.current += 1;
     setBoardData(null);
     setIdeas([]);
     setGroups([]);
     setParticipants([]);
     setMergingSourceId(null);
+    setLoadError(null);
+    setDeleted(false);
+    setConnection(INITIAL_CONNECTION);
     setIsBoardLoading(true);
     setAreIdeasLoading(true);
     setAreGroupsLoading(true);
     setAreParticipantsLoading(true);
     joinAttempted.current = false;
+    boardLoaded.current = false;
+    deletingSelf.current = false;
     lastVisibilityKey.current = null;
   }, [boardId]);
-
-  useEffect(() => {
-    const storedSoundPref = localStorage.getItem('brainstorming-sound-enabled');
-    if (storedSoundPref !== null) {
-      setIsSoundEnabled(storedSoundPref === 'true');
-    }
-  }, []);
-
-  const handleSetIsSoundEnabled = useCallback((enabled: boolean) => {
-    localStorage.setItem('brainstorming-sound-enabled', String(enabled));
-    setIsSoundEnabled(enabled);
-  }, []);
 
   const reloadBoardData = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -98,16 +107,20 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
         brainstormingApi.getBoard(boardId),
         brainstormingApi.getIdeas(boardId),
         brainstormingApi.getGroups(boardId),
-        brainstormingApi.getParticipants(boardId)
+        brainstormingApi.getParticipants(boardId),
       ]);
       if (seq !== reloadSeq.current) return;
+      boardLoaded.current = true;
       setBoardData(board);
       setIdeas(ideasList);
       setGroups(groupsList);
       setParticipants(partsList);
+      setLoadError(null);
     } catch (e) {
       if (seq !== reloadSeq.current) return;
-      console.error("Erro ao recarregar dados do Brainstorming:", e);
+      console.error('Erro ao recarregar dados do Brainstorming:', e);
+      // Já com o mural na tela, uma falha de rede passageira não derruba nada: o próximo evento ou reconexão ressincroniza.
+      if (!boardLoaded.current) setLoadError(e instanceof CeremonyApiError && e.status === 404 ? 'notfound' : 'failed');
     } finally {
       if (seq === reloadSeq.current) {
         setIsBoardLoading(false);
@@ -129,6 +142,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
     return connectRoomSocket({
       buildUrl: () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''),
+      onOpen: () => setConnection((c) => nextConnection(c, 'open')),
+      onClose: () => setConnection((c) => nextConnection(c, 'close')),
       onReconnect: reloadBoardData,
       onError: () => reloadBoardData(),
       onMessage: (message) => {
@@ -139,8 +154,12 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
             break;
 
           case 'BOARD_DELETED':
+            if (deletingSelf.current) {
+              router.push('/brainstorming');
+              break;
+            }
             toast({ title: 'Esta sessão foi encerrada', description: 'O facilitador apagou o mural.', variant: 'destructive' });
-            router.push('/brainstorming');
+            setDeleted(true);
             break;
 
           case 'PARTICIPANT_JOINED':
@@ -185,6 +204,13 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     });
   }, [boardId, reloadBoardData, isAuthenticated, router, toast]);
 
+  // Sessão apagada pelo facilitador: mostra o aviso e volta ao Brainstorming sozinho.
+  useEffect(() => {
+    if (!deleted) return;
+    const timer = setTimeout(() => router.push('/brainstorming'), DELETED_REDIRECT_MS);
+    return () => clearTimeout(timer);
+  }, [deleted, router]);
+
   // Entra na sala uma vez por sala (o servidor usa a identidade do login; o corpo só dá apelido e papel)
   useEffect(() => {
     if (!isAuthenticated || !boardData || !userProfile || areParticipantsLoading) return;
@@ -227,6 +253,12 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
       document.title = `${moduleName} | ${baseTitle}`;
     }
   }, [boardData]);
+
+  // Nome da squad para o chip: o vínculo dá o nome; sem ele, a chave que o mural guarda.
+  const squadLabel = useMemo(
+    () => resolveSquadLabel(boardData?.team, squadOptions(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName })),
+    [boardData?.team, memberships, activeSquadId, activeSquadName]
+  );
 
   // --- Handlers ---
   // useStableCallback: identidade fixa e sempre a versão mais recente (nada de closure velha sobre `ideas`),
@@ -316,9 +348,10 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const handleUpdateIdeaQualifiers = useStableCallback((ideaId: string, qualifiers: { roi?: number, effort?: number }) =>
     patchIdea(ideaId, { qualifiers }, 'Não foi possível salvar a priorização'));
 
+  /** Cada grupo novo recebe uma cor da paleta (o servidor guarda; Matriz e Plano usam a mesma). */
   const handleAddGroup = useStableCallback(async (title: string): Promise<boolean> => {
     try {
-      const created = await brainstormingApi.saveOrUpdateGroup(boardId, { title });
+      const created = await brainstormingApi.saveOrUpdateGroup(boardId, { title, color: nextGroupColor(groups) });
       setGroups(prev => upsertById(prev, created));
       return true;
     } catch (e) {
@@ -350,29 +383,25 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
   const handlePhaseChange = useStableCallback((phase: BrainstormingPhase) => patchBoard({ phase }));
 
-  const handleSetTimerDuration = useStableCallback((duration: number) =>
-    patchBoard({ timer: { status: 'stopped', initialDuration: duration, remainingOnPause: duration, endTime: null } }));
+  const handleRename = useStableCallback((title: string) => patchBoard({ title }));
 
-  const handleStartTimer = useStableCallback((duration: number) =>
-    patchBoard({ timer: { status: 'running', endTime: Date.now() + duration * 1000, initialDuration: duration, remainingOnPause: duration } }));
+  const handleSetTimerDuration = useStableCallback((duration: number) => patchBoard({ timer: stoppedTimer(duration) }));
+
+  const handleStartTimer = useStableCallback((duration: number) => patchBoard({ timer: runningTimer(duration, Date.now()) }));
 
   const handlePauseTimer = useStableCallback(() => {
-    const timer = boardData?.timer;
-    if (!timer || !timer.endTime) return;
-    const remaining = Math.max(0, Math.round((timer.endTime - Date.now()) / 1000));
-    return patchBoard({ timer: { ...timer, status: 'paused', remainingOnPause: remaining } });
+    const next = pausedTimer(boardData?.timer, Date.now());
+    if (next) return patchBoard({ timer: next });
   });
 
   const handleResumeTimer = useStableCallback(() => {
-    const timer = boardData?.timer;
-    if (!timer) return;
-    return patchBoard({ timer: { ...timer, status: 'running', endTime: Date.now() + timer.remainingOnPause * 1000 } });
+    const next = resumedTimer(boardData?.timer, Date.now());
+    if (next) return patchBoard({ timer: next });
   });
 
   const handleResetTimer = useStableCallback(() => {
-    const timer = boardData?.timer;
-    if (!timer) return;
-    return patchBoard({ timer: { ...timer, status: 'stopped', endTime: null, remainingOnPause: timer.initialDuration } });
+    const next = resetTimer(boardData?.timer);
+    if (next) return patchBoard({ timer: next });
   });
 
   const handleToggleAnonymous = useStableCallback(() =>
@@ -384,13 +413,6 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const handleToggleReveal = useStableCallback(() =>
     patchBoard({ settings: { isRevealed: boardData?.settings.isRevealed === false } }));
 
-  const handleCopyLink = useStableCallback(async () => {
-    const ok = await copyToClipboard(window.location.href);
-    toast(ok
-      ? { title: 'Link copiado!', description: 'Convide seu time para a sessão.' }
-      : { title: 'Não foi possível copiar o link', variant: 'destructive' });
-  });
-
   const handleRemoveParticipant = useStableCallback(async (participantId: string) => {
     try {
       await brainstormingApi.leaveBoard(boardId, participantId);
@@ -400,120 +422,86 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     }
   });
 
+  /** Apaga o mural (só o facilitador); o servidor avisa a sala com BOARD_DELETED. */
+  const handleDeleteBoard = useStableCallback(async () => {
+    deletingSelf.current = true;
+    try {
+      await brainstormingApi.deleteBoard(boardId);
+      toast({ title: 'Brainstorming apagado', description: boardData?.title });
+      router.push('/brainstorming');
+    } catch (e) {
+      deletingSelf.current = false;
+      fail('Não foi possível apagar o brainstorming', e);
+    }
+  });
+
+  const handleOpenFeedback = useCallback(() => setFeedbackSignal(Date.now()), []);
+
+  const retryLoad = () => {
+    setLoadError(null);
+    setIsBoardLoading(true);
+    setAreIdeasLoading(true);
+    setAreGroupsLoading(true);
+    setAreParticipantsLoading(true);
+    void reloadBoardData();
+  };
+
+  const goBack = () => router.push('/brainstorming');
+
+  if (deleted) return <BrainstormRoomState kind="deleted" onBack={goBack} />;
+
+  if (loadError === 'failed' && !boardData) return <BrainstormRoomState kind="error" onRetry={retryLoad} onBack={goBack} />;
+
   if (isLoading || isInitializing || isBoardLoading || areIdeasLoading || areGroupsLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
-     if (!userProfile) {
-       return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sessão" />;
-     }
-     return <LoadingScreen message="Brainstorming" submessage="Inspirando mentes e conectando ideias..." />;
+    if (!userProfile) {
+      return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar na sessão" />;
+    }
+    return <BrainstormRoomState kind="loading" />;
   }
 
-  if (!boardData) return <NotFound resourceName="sessão de brainstorming" />;
+  if (!boardData) return <BrainstormRoomState kind="notfound" onBack={goBack} />;
 
   return (
-    <div className="flex flex-col h-dvh w-full overflow-hidden bg-slate-50">
-      <BrainstormingToolbar
+    <>
+      <BrainstormRoom
+        boardId={boardId}
         boardData={boardData}
         ideas={ideas}
         groups={groups}
-        isCreator={isFacilitator}
+        participants={participants}
+        currentUserId={userProfile.id}
+        isFacilitator={isFacilitator}
+        mergingSourceId={mergingSourceId}
+        connection={connection.status}
+        squadLabel={squadLabel}
+        onAddIdea={handleAddIdea}
+        onDeleteIdea={handleDeleteIdea}
+        onUpdateIdea={handleUpdateIdea}
+        onVoteIdea={handleToggleVote}
+        onStartMerge={setMergingSourceId}
+        onExecuteMerge={handleMergeIdeas}
+        onUpdateIdeaPosition={handleUpdateIdeaPosition}
+        onConnectIdeas={handleConnectIdeas}
+        onDisconnectIdea={handleDisconnectIdea}
+        onMoveIdeaToGroup={handleMoveIdeaToGroup}
+        onUpdateIdeaQualifiers={handleUpdateIdeaQualifiers}
+        onAddGroup={handleAddGroup}
+        onDeleteGroup={handleDeleteGroup}
         onPhaseChange={handlePhaseChange}
+        onRename={handleRename}
         onToggleAnonymous={handleToggleAnonymous}
-        onExportImage={() => setIsExporting(true)}
-        isParticipantsOpen={isParticipantsOpen}
-        onToggleParticipants={setIsParticipantsOpen}
-        timer={boardData.timer}
-        onSetTimerDuration={handleSetTimerDuration}
+        onToggleReveal={handleToggleReveal}
+        onTogglePresentation={handleTogglePresentationMode}
         onStartTimer={handleStartTimer}
         onPauseTimer={handlePauseTimer}
         onResumeTimer={handleResumeTimer}
-        onToggleReveal={handleToggleReveal}
         onResetTimer={handleResetTimer}
-        isSoundEnabled={isSoundEnabled}
-        onSetIsSoundEnabled={handleSetIsSoundEnabled}
-        onTogglePresentationMode={handleTogglePresentationMode}
+        onSetTimerDuration={handleSetTimerDuration}
+        onRemoveParticipant={handleRemoveParticipant}
+        onDeleteBoard={handleDeleteBoard}
+        onOpenFeedback={handleOpenFeedback}
       />
-
-      <div className="flex-1 flex overflow-hidden">
-        <main className="flex-1 relative overflow-hidden">
-          {boardData.phase === 'ideation' ? (
-            <MuralPhase
-              ideas={ideas}
-              currentUserId={userProfile.id}
-              onAddIdea={handleAddIdea}
-              onDeleteIdea={handleDeleteIdea}
-              onUpdateIdea={handleUpdateIdea}
-              onVoteIdea={handleToggleVote}
-              onStartMerge={setMergingSourceId}
-              onExecuteMerge={handleMergeIdeas}
-              mergingSourceId={mergingSourceId}
-              isAnonymous={boardData.settings.isAnonymous}
-              isRevealed={boardData.settings.isRevealed}
-              isPresentationMode={boardData.settings.isPresentationMode}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
-            />
-          ) : boardData.phase === 'diagram' ? (
-            <DiagramPhase
-              ideas={ideas}
-              boardId={boardId}
-              currentUserId={userProfile.id}
-              isAnonymous={boardData.settings.isAnonymous}
-              isRevealed={boardData.settings.isRevealed}
-              onVoteIdea={handleToggleVote}
-              onUpdateIdea={handleUpdateIdea}
-              onUpdatePosition={handleUpdateIdeaPosition}
-              onConnectIdeas={handleConnectIdeas}
-              onDisconnectIdea={handleDisconnectIdea}
-              isExporting={isExporting}
-              onExportComplete={() => setIsExporting(false)}
-            />
-          ) : boardData.phase === 'grouping' ? (
-            <GroupingPhase
-              ideas={ideas}
-              groups={groups}
-              currentUserId={userProfile.id}
-              onAddGroup={handleAddGroup}
-              onDeleteGroup={handleDeleteGroup}
-              onMoveIdeaToGroup={handleMoveIdeaToGroup}
-              isAnonymous={boardData.settings.isAnonymous}
-              isRevealed={boardData.settings.isRevealed}
-              onVoteIdea={handleToggleVote}
-            />
-          ) : boardData.phase === 'prioritization' ? (
-            <PrioritizationPhase
-              ideas={ideas}
-              groups={groups}
-              onUpdateQualifiers={handleUpdateIdeaQualifiers}
-              isAnonymous={boardData.settings.isAnonymous}
-            />
-          ) : (
-            <ActionsPhase
-              ideas={ideas}
-              groups={groups}
-              boardData={boardData}
-              onUpdateIdea={handleUpdateIdea}
-              onMoveIdea={handleMoveIdeaToGroup}
-            />
-          )}
-        </main>
-
-        <EliteSidebar
-          isOpen={isParticipantsOpen}
-          onClose={() => setIsParticipantsOpen(false)}
-          title="PARTICIPANTES"
-          participantsCount={participants.length}
-          onCopyLink={handleCopyLink}
-        >
-          <EliteParticipantList
-            participants={participants}
-            currentUserId={userProfile.id}
-            isFacilitator={isFacilitator}
-            onRemoveParticipant={handleRemoveParticipant}
-          />
-        </EliteSidebar>
-      </div>
-
       <FeedbackWidget toolName="Brainstorming" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
-    </div>
+    </>
   );
 }

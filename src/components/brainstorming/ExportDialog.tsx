@@ -1,153 +1,89 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { EliteExportDialog } from "@/components/shared/EliteExportDialog";
-import { Button } from "@/components/ui/button";
-import { Copy, Check, FileText, DownloadCloud, Image as ImageIcon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { votesOf } from "@/lib/brainstorming-utils";
-import type { BrainstormingIdea, BrainstormingBoard, BrainstormingGroup } from "@/lib/types";
+import React, { useMemo, useState } from 'react';
+import { ExportDialogShell, type ExportFormatOption } from '@/components/room-kit';
+import { useToast } from '@/hooks/use-toast';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
+import type { BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
+import { buildCsv, buildMarkdown, csvFileName } from './brainstorm-export';
+import { boardTotals, totalsLine } from './brainstorm-room-logic';
 
-interface ExportBrainstormingDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  boardData: BrainstormingBoard;
+type ExportFormat = 'md' | 'csv' | 'png';
+
+const FORMATS: Record<ExportFormat, ExportFormatOption & { cta: string }> = {
+  md: { id: 'md', name: 'Resumo em Markdown', desc: 'Grupos com as ideias ordenadas por votos, com retorno e esforço.', short: 'MD', cta: 'Copiar resumo' },
+  csv: { id: 'csv', name: 'Planilha (CSV)', desc: 'Grupo, votos, texto, retorno, esforço e data de criação.', short: 'CSV', cta: 'Baixar planilha' },
+  png: { id: 'png', name: 'Imagem (PNG)', desc: 'Só do Mural e da Teia.', short: 'PNG', cta: 'Salvar imagem' },
+};
+
+export interface ExportBrainstormingDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
   ideas: BrainstormingIdea[];
   groups: BrainstormingGroup[];
+  /** A etapa atual gera imagem (Mural e Teia): só então a opção aparece. */
+  canExportImage: boolean;
   onExportImage: () => void;
 }
 
-export function ExportBrainstormingDialog({ 
-  isOpen, 
-  onClose, 
-  boardData, 
-  ideas, 
-  groups,
-  onExportImage 
-}: ExportBrainstormingDialogProps) {
+/** Exportar o brainstorming: resumo em Markdown (copia), planilha CSV (baixa) e, no Mural e na Teia, a imagem (PNG). */
+export function ExportBrainstormingDialog({ open, onOpenChange, title, ideas, groups, canExportImage, onExportImage }: ExportBrainstormingDialogProps) {
   const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
+  const [format, setFormat] = useState<ExportFormat>('md');
 
-  const markdown = useMemo(() => {
-    if (!isOpen) return '';
+  const formats = (canExportImage ? ['md', 'csv', 'png'] : ['md', 'csv']) as ExportFormat[];
+  const current: ExportFormat = formats.includes(format) ? format : 'md';
 
-    const date = new Date().toLocaleDateString('pt-BR');
-    let md = `# 💡 Brainstorming - ${boardData.title || 'Sem Título'} (${date})\n\n`;
+  const markdown = useMemo(
+    () => (open ? buildMarkdown({ title, date: new Date().toLocaleDateString('pt-BR'), ideas, groups }) : ''),
+    [open, title, ideas, groups]
+  );
 
-    // Group ideas
-    const groupsWithIdeas = groups.map(group => ({
-      ...group,
-      ideas: ideas.filter(i => i.groupId === group.id)
-    })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-    const unassignedIdeas = ideas.filter(i => !i.groupId);
-
-    // Render assigned groups
-    groupsWithIdeas.forEach(group => {
-      if (group.ideas.length === 0) return;
-      md += `## 📁 ${group.title}\n\n`;
-      
-      const sorted = [...group.ideas].sort((a, b) => votesOf(b).length - votesOf(a).length);
-      sorted.forEach(idea => {
-        const roi = idea.qualifiers?.roi !== undefined ? ` | ROI: ${idea.qualifiers.roi}%` : '';
-        const effort = idea.qualifiers?.effort !== undefined ? ` | Esforço: ${idea.qualifiers.effort}%` : '';
-        md += `- [🔼 ${votesOf(idea).length} votos] ${idea.content.replace(/\n/g, ' ')}${roi}${effort}\n`;
-      });
-      md += '\n';
-    });
-
-    // Render unassigned
-    if (unassignedIdeas.length > 0) {
-      md += `## 📎 Sem Grupo\n\n`;
-      const sorted = [...unassignedIdeas].sort((a, b) => votesOf(b).length - votesOf(a).length);
-      sorted.forEach(idea => {
-        const roi = idea.qualifiers?.roi !== undefined ? ` | ROI: ${idea.qualifiers.roi}%` : '';
-        const effort = idea.qualifiers?.effort !== undefined ? ` | Esforço: ${idea.qualifiers.effort}%` : '';
-        md += `- [🔼 ${votesOf(idea).length} votos] ${idea.content.replace(/\n/g, ' ')}${roi}${effort}\n`;
-      });
-      md += '\n';
+  const exportNow = async () => {
+    if (current === 'md') {
+      const ok = await copyToClipboard(markdown);
+      toast(ok ? { title: 'Resumo copiado!', description: 'Cole no Slack, Teams ou Confluence.' } : { title: 'Erro ao copiar', description: 'Ocorreu um erro ao copiar para a área de transferência.', variant: 'destructive' });
+      return;
     }
-
-    return md.trim();
-  }, [isOpen, boardData, ideas, groups]);
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(markdown);
-      setCopied(true);
-      toast({
-        title: "Resumo copiado!",
-        description: "Cole no Slack, Teams ou Confluence.",
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast({
-        title: "Erro ao copiar",
-        description: "Ocorreu um erro ao copiar para a área de transferência.",
-        variant: "destructive",
-      });
+    if (current === 'csv') {
+      // BOM de UTF-8 para o Excel abrir os acentos certos
+      const blob = new Blob([new Uint8Array([0xef, 0xbb, 0xbf]), buildCsv(ideas, groups)], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = csvFileName(title);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({ title: 'Download iniciado!', description: 'O arquivo CSV foi gerado com sucesso.' });
+      return;
     }
-  };
-
-  const handleDownloadCSV = () => {
-    const csvRows = [
-      ['Grupo', 'Votos', 'Conteúdo', 'ROI', 'Esforço', 'Data Criação'],
-    ];
-
-    const groupMap = new Map(groups.map(g => [g.id, g.title]));
-
-    ideas.forEach(idea => {
-      const row = [
-        idea.groupId ? (groupMap.get(idea.groupId) || 'Desconhecido') : 'Sem Grupo',
-        votesOf(idea).length.toString(),
-        idea.content.replace(/"/g, '""'),
-        idea.qualifiers?.roi?.toString() || '',
-        idea.qualifiers?.effort?.toString() || '',
-        new Date(idea.createdAt).toLocaleString()
-      ];
-      csvRows.push(row);
-    });
-
-    const csvString = csvRows
-      .map(row => row.map(cell => `"${cell.toString().replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-      
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]); // UTF-8 BOM for Excel
-    const blob = new Blob([bom, csvString], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    
-    link.setAttribute('href', url);
-    link.setAttribute('download', `brainstorming_${boardData.title?.replace(/\s+/g, '_') || 'summary'}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    toast({
-      title: "Download Iniciado!",
-      description: "O arquivo CSV foi gerado com sucesso.",
-    });
+    onOpenChange(false);
+    // espera a janela sumir para a imagem não sair com ela por cima
+    setTimeout(onExportImage, 300);
   };
 
   return (
-    <EliteExportDialog
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Exportar Brainstorming"
-      description="Escolha o formato ideal para documentar suas ideias."
-      markdownContent={markdown}
-      onDownloadCSV={handleDownloadCSV}
-      onExportImage={onExportImage}
-      theme="amber"
-    />
+    <ExportDialogShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Exportar o brainstorming"
+      summary={`${title || 'Sem título'} · ${totalsLine(boardTotals(ideas.filter((i) => !i.hidden), groups))}`}
+      formats={formats.map((f) => FORMATS[f])}
+      selected={current}
+      onSelect={(id) => setFormat(id as ExportFormat)}
+      onExport={() => void exportNow()}
+      ctaLabel={FORMATS[current].cta}
+    >
+      {current === 'md' && (
+        <div className="mt-4 flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold text-foreground">Prévia</span>
+          <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-xl border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed text-foreground">{markdown || 'Sem ideias ainda.'}</pre>
+        </div>
+      )}
+    </ExportDialogShell>
   );
 }
