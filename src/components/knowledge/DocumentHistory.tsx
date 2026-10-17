@@ -14,7 +14,8 @@ import {
 } from '@/components/ui/dialog';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { knowledgeApi } from '@/app/knowledge/api';
-import { sanitizeHtml } from '@/lib/sanitize-html';
+import { ArticleContent } from '@/components/knowledge/ArticleContent';
+import { cn } from '@/lib/utils';
 import { KnowledgeDocument, KnowledgeVersion } from '@/lib/knowledge-types';
 
 interface DocumentHistoryProps {
@@ -98,7 +99,7 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[280px_minmax(0,1fr)] gap-6">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-[340px_minmax(0,1fr)]">
       <ul className="space-y-2" aria-label="Versões do documento">
         {versions.map(v => (
           <li key={v.versionNumber}>
@@ -106,38 +107,42 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
               type="button"
               onClick={() => open(v)}
               aria-current={selected?.versionNumber === v.versionNumber}
-              className={`w-full text-left rounded-xl border px-3 py-2.5 transition-colors ${
+              className={cn(
+                'w-full rounded-xl border px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 selected?.versionNumber === v.versionNumber
-                  ? 'border-cyan-600 bg-cyan-50/60 dark:bg-cyan-950/30'
-                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900'
-              }`}
+                  ? 'border-primary/60 bg-primary/10'
+                  : 'border-border bg-card hover:bg-muted/60',
+              )}
             >
-              <span className="flex items-center justify-between gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">Versão {v.versionNumber}</span>
-                {v.current && <span className="text-[9px] font-black uppercase tracking-widest text-cyan-700 dark:text-cyan-400">Atual</span>}
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">Versão {v.versionNumber}</span>
+                {v.current && <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-xs font-bold text-primary">Atual</span>}
               </span>
-              <span className="block text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">{v.changedByName || v.changedBy || 'Autor desconhecido'}</span>
-              <span className="block text-[10px] text-slate-500">{formatVersionDate(v.changedAt)}</span>
+              <span className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
+                <span>{v.changedByName || v.changedBy || 'Autor desconhecido'}</span>
+                <span aria-hidden="true">·</span>
+                <span>{formatVersionDate(v.changedAt)}</span>
+              </span>
             </button>
           </li>
         ))}
-        {versions.length === 0 && <li className="text-sm text-slate-500">Este documento ainda não tem versões registradas.</li>}
+        {versions.length === 0 && <li className="text-sm text-muted-foreground">Este documento ainda não tem versões registradas.</li>}
       </ul>
 
       <div className="min-w-0">
         {isLoadingVersion && <div className="py-10 flex justify-center"><AgileSpinner size="sm" /></div>}
         {!isLoadingVersion && !selected && (
-          <div className="py-16 text-center text-sm text-slate-500 flex flex-col items-center gap-2">
+          <div className="py-16 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
             <History className="h-6 w-6 opacity-50" />
             Escolha uma versão para ver o conteúdo.
           </div>
         )}
         {!isLoadingVersion && selected && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="space-y-4 rounded-2xl border border-border bg-card px-6 py-6 md:px-8">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
               <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-slate-100">{selected.title}</h3>
-                <p className="text-[11px] text-slate-500">
+                <h3 className="text-2xl font-bold text-foreground">{selected.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   Versão {selected.versionNumber} · {selected.changedByName || selected.changedBy || 'Autor desconhecido'} · {formatVersionDate(selected.changedAt)}
                 </p>
               </div>
@@ -148,12 +153,9 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
               )}
             </div>
             {selected.tags && selected.tags.length > 0 && (
-              <p className="text-[11px] text-slate-500">Tags: {selected.tags.join(', ')}</p>
+              <p className="text-sm text-muted-foreground">Tags: {selected.tags.join(', ')}</p>
             )}
-            <div
-              className="prose prose-slate dark:prose-invert max-w-none text-[14px] leading-relaxed whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(selected.content) || '<em>Sem conteúdo.</em>' }}
-            />
+            <ArticleContent html={selected.content || ''} emptyText="Sem conteúdo." />
           </div>
         )}
       </div>

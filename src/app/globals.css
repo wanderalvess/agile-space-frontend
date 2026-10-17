@@ -805,91 +805,6 @@ html, body {
     color: currentColor !important;
   }
 
-  /* Wiki Confluence/TDN macro styling */
-  .wiki-tab-section {
-    margin: 2rem 0;
-    border-radius: 1.25rem;
-    border: 1px solid rgb(226, 232, 240);
-    background-color: rgb(255, 255, 255);
-    overflow: hidden;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  }
-  .dark .wiki-tab-section {
-    border-color: rgb(30, 41, 59);
-    background-color: rgba(15, 23, 42, 0.2);
-    box-shadow: none;
-  }
-
-  .wiki-tab-title {
-    font-size: 0.75rem !important;
-    font-weight: 900 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.05em !important;
-    margin: 0 !important;
-    padding: 0.75rem 1.25rem !important;
-    background-color: rgb(248, 250, 252);
-    border-bottom: 1px solid rgb(226, 232, 240);
-    color: rgb(8, 145, 178) !important;
-  }
-  .dark .wiki-tab-title {
-    background-color: rgba(30, 41, 59, 0.4);
-    border-color: rgb(30, 41, 59);
-    color: rgb(34, 211, 238) !important;
-  }
-
-  .wiki-tab-content {
-    padding: 1.25rem;
-  }
-
-  .wiki-code-block {
-    margin: 1rem 0;
-    padding: 1rem;
-    border-radius: 0.75rem;
-    background-color: rgb(15, 23, 42) !important;
-    color: rgb(241, 245, 249) !important;
-    overflow-x: auto;
-    border: 1px solid rgb(30, 41, 59);
-  }
-  .wiki-code-block code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-    font-size: 0.8rem !important;
-    color: inherit !important;
-    background: transparent !important;
-    padding: 0 !important;
-  }
-
-  .wiki-panel {
-    margin: 1.5rem 0;
-    padding: 1.25rem;
-    border-radius: 1rem;
-    border-left: 4px solid transparent;
-  }
-  .wiki-panel-title {
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-  }
-  .wiki-panel-info {
-    background-color: rgb(240, 249, 255);
-    border-left-color: rgb(14, 165, 233);
-  }
-  .dark .wiki-panel-info {
-    background-color: rgba(14, 165, 233, 0.1);
-  }
-  .wiki-panel-warning {
-    background-color: rgb(254, 242, 242);
-    border-left-color: rgb(239, 68, 68);
-  }
-  .dark .wiki-panel-warning {
-    background-color: rgba(239, 68, 68, 0.1);
-  }
-  .wiki-panel-tip {
-    background-color: rgb(240, 253, 244);
-    border-left-color: rgb(34, 197, 94);
-  }
-  .dark .wiki-panel-tip {
-    background-color: rgba(34, 197, 94, 0.1);
-  }
-
   /* Login: aurora ambiente + starfield temático (CSS puro, sem imagem externa) */
   @keyframes aurora-drift {
     0%, 100% { transform: translate(0, 0) scale(1); }
@@ -1144,3 +1059,276 @@ html, body {
 .retro-on-scene .text-muted-foreground {
   color: color-mix(in srgb, hsl(var(--muted-foreground)) 50%, hsl(var(--foreground)));
 }
+
+/* Fora de qualquer @layer de propósito: o Tailwind descarta classes de @layer que não aparecem
+   nos arquivos que ele varre (src/lib e src/services não entram), e estas são geradas em string. */
+/* ==========================================================================
+   Leitor de artigo (Base de Conhecimento) e blocos importados do TDN.
+   Tudo por tokens do tema, que já mudam entre claro/escuro e entre os 7 temas.
+   A única cor fixa é a do bloco de código (escuro nos dois modos), como no desenho.
+   ========================================================================== */
+.kb-article {
+  --tw-prose-body: hsl(var(--foreground));
+  --tw-prose-headings: hsl(var(--foreground));
+  --tw-prose-lead: hsl(var(--muted-foreground));
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bold: hsl(var(--foreground));
+  --tw-prose-counters: hsl(var(--muted-foreground));
+  --tw-prose-bullets: hsl(var(--muted-foreground));
+  --tw-prose-hr: hsl(var(--border));
+  --tw-prose-quotes: hsl(var(--foreground));
+  --tw-prose-quote-borders: hsl(var(--primary));
+  --tw-prose-captions: hsl(var(--muted-foreground));
+  --tw-prose-code: hsl(var(--foreground));
+  --tw-prose-th-borders: hsl(var(--border));
+  --tw-prose-td-borders: hsl(var(--border));
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1024px) {
+  .kb-article { font-size: 1.125rem; }
+}
+
+.kb-article h1,
+.kb-article h2,
+.kb-article h3,
+.kb-article h4 {
+  font-style: normal;
+  text-transform: none;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  scroll-margin-top: 1.5rem;
+}
+.kb-article h1 { font-size: 1.75rem; margin: 2em 0 0.6em; }
+.kb-article h2 { font-size: 1.75rem; margin: 2em 0 0.6em; }
+.kb-article h3 { font-size: 1.35rem; margin: 1.75em 0 0.5em; }
+.kb-article h4 { font-size: 1.125rem; margin: 1.5em 0 0.4em; }
+.kb-article > :first-child { margin-top: 0; }
+
+.kb-article a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.kb-article a:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+.kb-article blockquote {
+  font-style: normal;
+  border-left: 4px solid hsl(var(--primary));
+  padding-left: 1rem;
+  color: hsl(var(--foreground));
+  quotes: none;
+}
+.kb-article blockquote p::before,
+.kb-article blockquote p::after { content: none; }
+
+.kb-article img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+/* Código em linha */
+.kb-article :not(pre) > code {
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  padding: 0.1em 0.4em;
+  font-size: 0.9em;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.kb-article :not(pre) > code::before,
+.kb-article :not(pre) > code::after { content: none; }
+
+/* Bloco de código: fundo escuro fixo, texto claro, quebras preservadas, rolagem horizontal */
+.kb-article pre,
+.wiki-code-block {
+  margin: 1.5rem 0;
+  padding: 1rem 1.125rem;
+  border-radius: 0.75rem;
+  border: 0;
+  background-color: #0F172A;
+  color: #E2E8F0;
+  overflow-x: auto;
+  white-space: pre;
+  overflow-wrap: normal;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.dark .kb-article pre,
+.dark .wiki-code-block { background-color: #05070D; }
+.kb-article pre code,
+.wiki-code-block code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  font-family: inherit;
+  white-space: pre;
+}
+.kb-article .kb-code {
+  margin: 1.5rem 0;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background-color: #0F172A;
+}
+.dark .kb-article .kb-code { background-color: #05070D; }
+.kb-article .kb-code pre,
+.kb-article .kb-code .wiki-code-block {
+  margin: 0;
+  border-radius: 0;
+  background-color: transparent;
+}
+.kb-code-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: #94A3B8;
+  border-bottom: 1px solid rgb(148 163 184 / 0.18);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.kb-code-copy {
+  height: 1.625rem;
+  padding: 0 0.625rem;
+  border-radius: 0.4375rem;
+  border: 1px solid rgb(148 163 184 / 0.3);
+  background: transparent;
+  color: #E2E8F0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+.kb-code-copy:hover { background-color: rgb(148 163 184 / 0.16); }
+.kb-code-copy:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kb-code-copy { transition: none; }
+}
+
+/* Tabelas: rolagem horizontal e cabeçalho suave */
+.kb-table-wrap {
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+}
+.kb-article table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.9375em;
+}
+.kb-article thead {
+  background-color: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
+}
+.kb-article th {
+  text-align: left;
+  padding: 0.625rem 0.875rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.kb-article td {
+  padding: 0.625rem 0.875rem;
+  vertical-align: top;
+  border-top: 1px solid hsl(var(--border));
+}
+.kb-article tbody tr:first-child td { border-top: 0; }
+
+/* Imagem do TDN que não veio na importação */
+.kb-article .wiki-image-missing {
+  border: 1px dashed hsl(var(--border));
+  background-color: hsl(var(--muted) / 0.4);
+  color: hsl(var(--muted-foreground));
+  padding: 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.9375em;
+}
+
+/* Macros do Confluence/TDN: abas */
+.wiki-tab-section {
+  margin: 2rem 0;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  overflow: hidden;
+}
+.wiki-tab-title {
+  font-size: 0.875rem !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+  margin: 0 !important;
+  padding: 0.75rem 1.25rem !important;
+  background-color: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground)) !important;
+}
+.wiki-tab-content { padding: 1.25rem; }
+
+/* Macros do Confluence/TDN: painéis (info, note, warning, tip). Faixa com ícone e cor semântica. */
+.wiki-panel {
+  --wiki-accent: hsl(var(--primary));
+  --wiki-bg: hsl(var(--primary) / 0.08);
+  --wiki-border: hsl(var(--primary) / 0.3);
+  --wiki-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8h.01M11 12h1v4h1'/%3E%3C/svg%3E");
+  position: relative;
+  margin: 1.5rem 0;
+  padding: 0.875rem 1rem 0.875rem 3rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--wiki-border);
+  background-color: var(--wiki-bg);
+  font-size: 0.9375em;
+  line-height: 1.6;
+}
+.wiki-panel::before {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  top: 1rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  background-color: var(--wiki-accent);
+  -webkit-mask: var(--wiki-icon) center / contain no-repeat;
+  mask: var(--wiki-icon) center / contain no-repeat;
+}
+.wiki-panel-title {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.wiki-panel p { margin: 0.4em 0; }
+.wiki-panel-body > :first-child { margin-top: 0; }
+.wiki-panel-body > :last-child { margin-bottom: 0; }
+.wiki-panel-warning,
+.wiki-panel-alert {
+  --wiki-accent: #B45309;
+  --wiki-bg: rgb(245 158 11 / 0.1);
+  --wiki-border: rgb(245 158 11 / 0.35);
+  --wiki-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'/%3E%3C/svg%3E");
+}
+.dark .wiki-panel-warning,
+.dark .wiki-panel-alert { --wiki-accent: #FBBF24; }
+.wiki-panel-tip {
+  --wiki-accent: #15803D;
+  --wiki-bg: rgb(34 197 94 / 0.1);
+  --wiki-border: rgb(34 197 94 / 0.35);
+  --wiki-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8.5 12.5 2.5 2.5 4.5-5'/%3E%3C/svg%3E");
+}
+.dark .wiki-panel-tip { --wiki-accent: #4ADE80; }
