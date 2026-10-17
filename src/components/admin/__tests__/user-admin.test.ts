@@ -11,7 +11,11 @@ import {
   hasActiveFilters,
   lockReasons,
   needsAdminConfirm,
-  squadLabelOf,
+  linkText,
+  linksView,
+  hasLegacyLeadLevel,
+  ACCESS_LEVEL_LABEL,
+  ACCESS_LEVEL_HINT,
   squadsSummary,
   usersCountLabel,
 } from '../user-admin';
@@ -92,14 +96,29 @@ describe('travas, filtros e detalhes (painel admin)', () => {
   it('só dar ADMIN a quem não é admin pede confirmação', () => {
     expect(needsAdminConfirm(u({}), 'ADMIN')).toBe(true);
     expect(needsAdminConfirm(admin('a'), 'ADMIN')).toBe(false);
-    expect(needsAdminConfirm(u({}), 'LEAD')).toBe(false);
+    expect(needsAdminConfirm(u({}), 'MEMBER')).toBe(false);
+    // conta ainda LEAD no servidor também pede a confirmação ao virar ADMIN
+    expect(needsAdminConfirm(u({ role: 'LEAD' as any }), 'ADMIN')).toBe(true);
   });
 
-  it('nível de acesso: papel desconhecido vale MEMBER', () => {
+  it('nível de acesso: só ADMIN e MEMBER; LEAD antigo e papel desconhecido valem MEMBER', () => {
     expect(accessLevelOf(u({ role: 'admin' as any }))).toBe('ADMIN');
-    expect(accessLevelOf(u({ role: 'lead' as any }))).toBe('LEAD');
+    expect(accessLevelOf(u({ role: 'lead' as any }))).toBe('MEMBER');
+    expect(accessLevelOf(u({ role: 'LEAD' as any }))).toBe('MEMBER');
     expect(accessLevelOf(u({ role: 'Developer' }))).toBe('MEMBER');
-    expect(ACCESS_LEVEL_INFO.LEAD).toContain('Todas as squads');
+    expect(Object.keys(ACCESS_LEVEL_INFO)).toEqual(['ADMIN', 'MEMBER']);
+    expect(ACCESS_LEVEL_LABEL).toEqual({ ADMIN: 'Administrador', MEMBER: 'Membro' });
+    expect(ACCESS_LEVEL_HINT).toBe('Administrador gerencia o portal inteiro. A liderança de uma squad vem do vínculo.');
+    expect(JSON.stringify(ACCESS_LEVEL_INFO)).not.toMatch(/Todas as squads, sem/);
+  });
+
+  it('nível antigo LEAD: aparece como Membro e é detectado para o selo', () => {
+    expect(hasLegacyLeadLevel(u({ role: 'LEAD' as any }))).toBe(true);
+    expect(hasLegacyLeadLevel(u({ role: 'lead' as any }))).toBe(true);
+    expect(hasLegacyLeadLevel(u({ role: 'ADMIN' as any }))).toBe(false);
+    expect(hasLegacyLeadLevel(u({ role: 'Developer' }))).toBe(false);
+    // as travas não mudam para quem é LEAD antigo: só admin tem trava de nível
+    expect(lockReasons(u({ id: 'l', role: 'LEAD' as any }), { currentUserId: 'me', adminCount: 1 })).toEqual({ status: null, nivel: null });
   });
 
   it('o filtro de cargo traz todos os 15 cargos além de "todos" e "administradores"', () => {
@@ -130,9 +149,21 @@ describe('travas, filtros e detalhes (painel admin)', () => {
     expect(squadsSummary([], undefined)).toEqual({ kind: 'none' });
   });
 
-  it('squad da lista: squad ativa, depois o time antigo, depois "Sem squad"', () => {
-    expect(squadLabelOf({ squadId: 'A', team: 'B' })).toBe('A');
-    expect(squadLabelOf({ squadId: '', team: 'B' })).toBe('B');
-    expect(squadLabelOf({ squadId: '' })).toBe('Sem squad');
+  it('coluna Squad: vínculos reais com o principal e a contagem dos demais', () => {
+    expect(linksView(undefined)).toBeNull();
+    expect(linksView(null)).toBeNull();
+    expect(linksView([])).toBeNull();
+    const one = linksView([{ squadId: 'DDW', role: 'Agile Master' }]);
+    expect(one).toMatchObject({ primary: { squadId: 'DDW', role: 'Agile Master' }, extra: 0 });
+    const many = linksView([
+      { squadId: 'DDW', role: 'Agile Master' },
+      { squadId: 'ATL', role: 'Developer' },
+      { squadId: 'ddw', role: 'agile master' },
+      { squadId: '', role: 'QA' },
+    ]);
+    expect(many?.primary.squadId).toBe('DDW');
+    expect(many?.extra).toBe(1);
+    expect(many?.all.map(linkText)).toEqual(['DDW · Agile Master', 'ATL · Developer']);
+    expect(linkText({ squadId: 'DDW' })).toBe('DDW');
   });
 });

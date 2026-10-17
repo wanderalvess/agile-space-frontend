@@ -21,8 +21,11 @@ import { resetLinkFrom, type ResetLink } from './approvals/approvals-utils';
 import { ResetLinkDialog } from './approvals/ResetLinkParts';
 import { Segmented } from './Segmented';
 import { adminTabHref } from './admin-tabs';
+import { UserLinksCell, type UserLinksState } from './UserLinksCell';
 import {
+  ACCESS_LEVEL_HINT,
   ACCESS_LEVEL_INFO,
+  ACCESS_LEVEL_LABEL,
   CARGO_FILTER_OPTIONS,
   accessLevelOf,
   activeAdminCount,
@@ -30,11 +33,11 @@ import {
   describeLastAccess,
   filterUsers,
   hasActiveFilters,
+  hasLegacyLeadLevel,
   isActiveUser,
   isAdminUser,
   lockReasons,
   needsAdminConfirm,
-  squadLabelOf,
   squadsSummary,
   usersCountLabel,
   type AccessLevel,
@@ -82,18 +85,21 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [detailUser, setDetailUser] = useState<UserProfile | null>(null);
-  const [detailLinks, setDetailLinks] = useState<SquadLink[] | null | undefined>(undefined);
   const [confirmDeactivate, setConfirmDeactivate] = useState<UserProfile | null>(null);
   const [confirmAdmin, setConfirmAdmin] = useState<UserProfile | null>(null);
   const [confirmReset, setConfirmReset] = useState<UserProfile | null>(null);
   const [resetLink, setResetLink] = useState<ResetLink | null>(null);
-  const detailRequest = useRef(0);
+  // Vínculos por conta, pedidos sob demanda (a lista de usuários só traz a squad ativa).
+  const [linksByUser, setLinksByUser] = useState<Record<string, UserLinksState>>({});
+  const linksInFlight = useRef(new Set<string>());
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
       setUsers(await userApi.listUsersOrThrow());
       setLoadError(null);
+      // Os vínculos podem ter mudado fora daqui: recarregar a lista descarta o que estava guardado.
+      setLinksByUser({});
     } catch (e) {
       const message = apiErrorMessage(e, 'Não foi possível carregar a lista de usuários.');
       setLoadError(message);
@@ -131,16 +137,24 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
     }
   };
 
-  const openDetails = async (u: UserProfile) => {
-    const request = ++detailRequest.current;
-    setDetailUser(u);
-    setDetailLinks(undefined);
+  /** Busca os vínculos de uma conta uma vez só (chamadas em voo se juntam; o resultado fica guardado). */
+  const loadLinks = useCallback(async (userId: string) => {
+    if (linksInFlight.current.has(userId)) return;
+    linksInFlight.current.add(userId);
+    setLinksByUser((prev) => ({ ...prev, [userId]: 'loading' }));
     try {
-      const links = await userApi.getUserSquads(u.id);
-      if (request === detailRequest.current) setDetailLinks(links);
+      const links = await userApi.getUserSquads(userId);
+      setLinksByUser((prev) => ({ ...prev, [userId]: Array.isArray(links) ? links : [] }));
     } catch {
-      if (request === detailRequest.current) setDetailLinks(null);
+      setLinksByUser((prev) => ({ ...prev, [userId]: null }));
+    } finally {
+      linksInFlight.current.delete(userId);
     }
+  }, []);
+
+  const openDetails = (u: UserProfile) => {
+    setDetailUser(u);
+    if (!Array.isArray(linksByUser[u.id])) void loadLinks(u.id);
   };
 
   const resetPassword = async (u: UserProfile) => {
@@ -176,7 +190,8 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
   };
 
   const filtering = hasActiveFilters({ search, status, role });
-  const summary = squadsSummary(detailLinks, detailUser?.squadId);
+  const detailState = detailUser ? linksByUser[detailUser.id] : undefined;
+  const summary = squadsSummary(detailState === 'loading' ? undefined : detailState, detailUser?.squadId);
 
   const columns: DataColumn<UserProfile>[] = [
     {
@@ -273,33 +288,37 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
     {
       id: 'nivel',
       header: 'Nível de acesso',
-      width: '132px',
+      width: '156px',
       cell: (u) => {
         const label = u.name || u.email || 'usuário';
         const level = accessLevelOf(u);
         const lock = lockReasons(u, { currentUserId: currentUser?.id, adminCount }).nivel;
         return (
-          <span className="flex items-center gap-1">
-            {/* Nível de autorização real: controla o acesso a /admin no servidor. */}
-            <Select value={level} onValueChange={(val) => changeLevel(u, val)} disabled={updatingId === u.id || !!lock}>
-              <SelectTrigger
-                aria-label={`Nível de acesso de ${label}`}
-                className={cn(SELECT_TRIGGER, level === 'ADMIN' ? cn('bg-primary/10', BRAND_TEXT) : 'text-foreground')}
-              >
-                <SelectValue>{level}</SelectValue>
-              </SelectTrigger>
-              <SelectContent className="min-w-[280px] border-border bg-popover text-popover-foreground">
-                {AUTH_ROLES.map((r) => (
-                  <SelectItem key={r} value={r} className="items-start py-2">
-                    <span className="flex flex-col gap-0.5">
-                      <span className="text-[13px] font-bold">{r}</span>
-                      <span className="text-xs text-muted-foreground">{ACCESS_LEVEL_INFO[r as AccessLevel]}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {lock && <LockHint prefix="Nível de acesso" reason={lock} />}
+          <span className="flex min-w-0 flex-col items-start gap-1">
+            <span className="flex w-full items-center gap-1">
+              {/* Nível de autorização real: controla o acesso a /admin no servidor. */}
+              <Select value={level} onValueChange={(val) => changeLevel(u, val)} disabled={updatingId === u.id || !!lock}>
+                <SelectTrigger
+                  aria-label={`Nível de acesso de ${label}`}
+                  className={cn(SELECT_TRIGGER, level === 'ADMIN' ? cn('bg-primary/10', BRAND_TEXT) : 'text-foreground')}
+                >
+                  <SelectValue>{ACCESS_LEVEL_LABEL[level]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent className="min-w-[280px] border-border bg-popover text-popover-foreground">
+                  {AUTH_ROLES.map((r) => (
+                    <SelectItem key={r} value={r} className="items-start py-2">
+                      <span className="flex flex-col gap-0.5">
+                        <span className="text-[13px] font-bold">{ACCESS_LEVEL_LABEL[r as AccessLevel]}</span>
+                        <span className="text-xs text-muted-foreground">{ACCESS_LEVEL_INFO[r as AccessLevel]}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                  <div className="mt-1 max-w-[280px] border-t border-border px-2.5 pb-1 pt-2 text-xs text-muted-foreground">{ACCESS_LEVEL_HINT}</div>
+                </SelectContent>
+              </Select>
+              {lock && <LockHint prefix="Nível de acesso" reason={lock} />}
+            </span>
+            {hasLegacyLeadLevel(u) && <StatusChip tone="warn" className="h-5">Nível antigo (LEAD)</StatusChip>}
           </span>
         );
       },
@@ -307,11 +326,14 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
     {
       id: 'squad',
       header: 'Squad',
-      width: '112px',
+      width: '200px',
       cell: (u) => (
-        <span className="inline-flex h-[22px] w-fit max-w-full items-center truncate rounded-full border border-border px-2.5 text-xs font-semibold text-muted-foreground">
-          {squadLabelOf(u)}
-        </span>
+        <UserLinksCell
+          name={u.name || u.email || 'usuário'}
+          activeSquadId={u.squadId}
+          state={linksByUser[u.id]}
+          onLoad={() => void loadLinks(u.id)}
+        />
       ),
     },
     {
@@ -322,7 +344,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
         const label = u.name || u.email || 'usuário';
         return (
           <span className="flex items-center gap-1">
-            <IconButton size="sm" label={`Detalhes de ${label}`} icon={Info} className="border-transparent" onClick={() => void openDetails(u)} />
+            <IconButton size="sm" label={`Detalhes de ${label}`} icon={Info} className="border-transparent" onClick={() => openDetails(u)} />
             <IconButton
               size="sm"
               label={`Redefinir a senha de ${label}`}
@@ -344,7 +366,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
         <section className="flex flex-col gap-1">
           <h2 className="text-[22px] font-bold text-foreground">Usuários &amp; Acesso</h2>
           <p className="text-sm text-muted-foreground">
-            {loading && users.length === 0 ? 'Carregando a lista…' : 'Quem entra, o que pode fazer e a que squad pertence'}
+            {loading && users.length === 0 ? 'Carregando a lista…' : 'Quem entra, o nível de acesso e os vínculos com squads'}
           </p>
         </section>
 
@@ -489,7 +511,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
 
         <Modal
           open={!!detailUser}
-          onOpenChange={(open) => { if (!open) { detailRequest.current++; setDetailUser(null); } }}
+          onOpenChange={(open) => { if (!open) setDetailUser(null); }}
           size="md"
           title={detailUser?.name || 'Sem nome'}
           description={detailUser?.email}
@@ -498,11 +520,12 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
             <dt className="font-bold text-muted-foreground">Status</dt>
             <dd>{detailUser && isActiveUser(detailUser) ? 'Ativo' : 'Inativo'}</dd>
             <dt className="font-bold text-muted-foreground">Nível de acesso</dt>
-            <dd className="flex flex-wrap items-center gap-x-2">
-              {detailUser ? accessLevelOf(detailUser) : ''}
+            <dd className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {detailUser ? ACCESS_LEVEL_LABEL[accessLevelOf(detailUser)] : ''}
               {detailUser && accessLevelOf(detailUser) !== 'MEMBER' && (
                 <span className="text-xs text-muted-foreground">{ACCESS_LEVEL_INFO[accessLevelOf(detailUser)]}</span>
               )}
+              {detailUser && hasLegacyLeadLevel(detailUser) && <StatusChip tone="warn" className="h-5">Nível antigo (LEAD)</StatusChip>}
             </dd>
             <dt className="font-bold text-muted-foreground">Cargo</dt>
             <dd>{detailUser?.jobTitle || 'Sem cargo'}</dd>
@@ -519,7 +542,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
                 <span className="flex flex-wrap items-center gap-2" role="alert">
                   <span className={TONES.danger.text}>Não foi possível carregar as squads</span>
                   {detailUser && (
-                    <ModalButton className="h-8 px-3 text-[13px]" onClick={() => void openDetails(detailUser)}>
+                    <ModalButton className="h-8 px-3 text-[13px]" onClick={() => void loadLinks(detailUser.id)}>
                       Tentar de novo
                     </ModalButton>
                   )}
