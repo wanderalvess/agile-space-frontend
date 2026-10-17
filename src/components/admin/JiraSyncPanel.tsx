@@ -232,7 +232,7 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
       <section className={cn(PAGE_CARD, 'overflow-clip')} aria-label="Importar o time de um projeto do Jira">
         <header className="flex flex-wrap items-center gap-3.5 border-b border-border px-6 py-4">
           <IconTile icon={Users} />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 flex-1 basis-[14rem] flex-col">
             <h2 className="text-lg font-bold tracking-tight text-foreground">Importar o time de um projeto do Jira</h2>
             <p className="text-[13px] text-muted-foreground">Usa o seu token pessoal; nada vale para a organização inteira.</p>
           </div>
