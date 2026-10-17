@@ -8,7 +8,6 @@ import {
   Copy,
   ExternalLink,
   FolderTree,
-  GraduationCap,
   Layers,
   ListChecks,
   Sparkles,
@@ -18,8 +17,7 @@ import {
   Wrench
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
+import { PageHeader, PageShell } from '@/components/page';
 import { cn, openExternalUrl } from '@/lib/utils';
 
 const SECTIONS = [
@@ -126,25 +124,22 @@ function Comparison({
 export default function SkillTutorialPage() {
   const router = useRouter();
 
-  React.useEffect(() => {
-    document.title = 'Como criar uma Skill | Portal Tech V&D';
-  }, []);
-
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <RoomHeader
-        title="Como criar uma Skill"
-        toolIcon={<GraduationCap className="h-4 w-4" />}
-        toolColorClass="text-primary"
+    <PageShell documentTitle="Como criar uma skill | Prompt Hub" feedbackName="Prompt Hub" width="narrow">
+      <PageHeader
+        title="Como criar uma skill"
+        module="prompt-hub"
+        breadcrumb={[{ label: 'Prompt Hub', href: '/prompt-hub' }, { label: 'Como criar uma skill' }]}
+        subtitle="Skill é o formato aberto para ensinar um agente de IA a executar um trabalho do jeito da nossa empresa. Este guia cobre do zero até a publicação aqui na biblioteca, com as regras que a documentação oficial exige e os erros que mais aparecem na prática."
         actions={
-          <Button variant="ghost" size="sm" onClick={() => router.push('/prompt-hub')} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={() => router.push('/prompt-hub')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
             Voltar à biblioteca
           </Button>
         }
       />
 
-      <div className="mx-auto flex w-full max-w-[1200px] flex-1 gap-10 px-4 py-8 lg:px-8">
+      <div className="flex w-full flex-1 gap-10">
         {/* Índice fixo */}
         <nav className="sticky top-24 hidden h-fit w-56 shrink-0 lg:block">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -164,18 +159,7 @@ export default function SkillTutorialPage() {
           </ul>
         </nav>
 
-        <main className="min-w-0 flex-1 space-y-8 pb-16">
-          <header className="space-y-3">
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-              Criando sua primeira Agent Skill
-            </h1>
-            <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">
-              Skill é o formato aberto para ensinar um agente de IA a executar um trabalho do jeito
-              da nossa empresa. Este guia cobre do zero até a publicação aqui na biblioteca, com as
-              regras que a documentação oficial exige e os erros que mais aparecem na prática.
-            </p>
-          </header>
-
+        <div className="min-w-0 flex-1 space-y-8 pb-8">
           <Section id="o-que-e" title="O que é uma skill" icon={Sparkles}>
             <p className="text-sm leading-relaxed text-foreground">
               Uma skill é <strong>uma pasta com um arquivo <code className="rounded bg-muted px-1 py-0.5 font-code text-[13px]">SKILL.md</code> dentro</strong>. Esse
@@ -681,10 +665,8 @@ Se houver itens sem registro, pare e liste antes de seguir para a etapa 4.`}
               Publicar minha skill
             </Button>
           </section>
-        </main>
+        </div>
       </div>
-
-      <Footer className="mt-8 shrink-0" />
-    </div>
+    </PageShell>
   );
 }

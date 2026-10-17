@@ -4,10 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Layers, Plus, Lock, Globe, MoreVertical } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
+import { EmptyState, LoadingSkeleton, PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,10 +91,6 @@ export default function CollectionsPage() {
 
   const collections = useMemo(() => collectionsDto.map(toUiCollection), [collectionsDto]);
 
-  React.useEffect(() => {
-    document.title = 'Coleções | Biblioteca de IA';
-  }, []);
-
   const handleSave = async (data: Partial<PromptCollection>) => {
     if (!userProfile?.id) {
       toast.error('Sua sessão expirou. Entre de novo para salvar.');
@@ -143,25 +137,29 @@ export default function CollectionsPage() {
     }
   };
 
+  const crumbs = [{ label: 'Prompt Hub', href: '/prompt-hub' }, { label: 'Coleções' }];
+
   if (isInitializing || isLoadingData) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <AgileSpinner size="lg" variant="indigo" />
-      </div>
+      <PageShell documentTitle="Coleções | Prompt Hub" feedbackName="Prompt Hub">
+        <PageHeader title="Coleções" module="prompt-hub" breadcrumb={crumbs} />
+        <LoadingSkeleton variant="cards" label="Carregando as coleções" />
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <RoomHeader
+    <PageShell documentTitle="Coleções | Prompt Hub" feedbackName="Prompt Hub">
+      <PageHeader
         title="Coleções"
-        toolIcon={<Layers className="h-4 w-4" />}
-        toolColorClass="text-primary"
+        module="prompt-hub"
+        breadcrumb={crumbs}
+        subtitle="Coleções agrupam itens numa ordem que faz sentido percorrer, o que tags, por serem planas, não conseguem expressar."
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => router.push('/prompt-hub')} className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Voltar à biblioteca</span>
+          <>
+            <Button variant="outline" size="sm" onClick={() => router.push('/prompt-hub')} className="gap-2">
+              <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+              Voltar à biblioteca
             </Button>
             {userProfile && (
               <Button
@@ -172,41 +170,36 @@ export default function CollectionsPage() {
                 }}
                 className="gap-2"
               >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Nova coleção</span>
-              </Button>
-            )}
-          </div>
-        }
-      />
-
-      <div className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 lg:px-8">
-        <p className="mb-6 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Coleções agrupam itens numa ordem que faz sentido percorrer — o que tags, por serem
-          planas, não conseguem expressar.
-        </p>
-
-        {collections.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
-            <Layers className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-            <h2 className="text-base font-semibold text-foreground">Nenhuma coleção ainda</h2>
-            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-              Monte a primeira trilha reunindo os itens que alguém precisa seguir em sequência.
-            </p>
-            {userProfile && (
-              <Button
-                size="sm"
-                className="mt-5 gap-2"
-                onClick={() => {
-                  setEditing(null);
-                  setIsEditorOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" strokeWidth={1.5} />
                 Nova coleção
               </Button>
             )}
-          </div>
+          </>
+        }
+      />
+
+      <div className="w-full flex-1">
+        {collections.length === 0 ? (
+          <EmptyState
+            icon={Layers}
+            title="Nenhuma coleção ainda"
+            description="Monte a primeira trilha reunindo os itens que alguém precisa seguir em sequência."
+            actions={
+              userProfile && (
+                <Button
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => {
+                    setEditing(null);
+                    setIsEditorOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={1.5} />
+                  Nova coleção
+                </Button>
+              )
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {collections.map(item => {
@@ -306,8 +299,6 @@ export default function CollectionsPage() {
         initialData={editing}
         availableItems={availableItems}
       />
-
-      <Footer className="mt-8 shrink-0" />
-    </div>
+    </PageShell>
   );
 }
