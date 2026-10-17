@@ -416,7 +416,7 @@ export function OnboardingFlow() {
 
           {step === 'result' && importResult && <ImportResultStep result={importResult} onGoToPanel={() => router.push(DONE_ROUTE)} onIssueAction={handleIssueAction} />}
 
-          {showRequests && <MyRequests requests={requests} />}
+          {showRequests && <MyRequests requests={requests} onChanged={reloadRequests} />}
 
           <InviteFooter open={inviteOpen} onOpenChange={setInviteOpen} onSubmit={handleInvite} />
         </div>

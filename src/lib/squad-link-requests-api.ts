@@ -4,7 +4,7 @@
  *
  * Contrato do servidor (docs/link-requests-squad-api.md do backend):
  *  - GET  /api/squads/{id}/link-requests/can-approve        -> { canApprove, canApproveLeadership }
- *  - GET  /api/squads/{id}/link-requests?status=&size=      -> pedidos (PENDING | APPROVED | REJECTED | ALL), mais novos primeiro
+ *  - GET  /api/squads/{id}/link-requests?status=&size=      -> pedidos (PENDING | APPROVED | REJECTED | CANCELLED | ALL), mais novos primeiro
  *  - POST /api/squads/{id}/link-requests/{reqId}/approve    -> pedido decidido (corpo opcional { memberId })
  *  - POST /api/squads/{id}/link-requests/{reqId}/reject     -> pedido decidido (corpo opcional { reason })
  *
@@ -17,7 +17,7 @@ import { ApiError } from '@/lib/api-error';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
-export type SquadRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type SquadRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type SquadRequestFilter = SquadRequestStatus | 'ALL';
 /** CONTRIBUTOR: pessoa comum (papel da lista de auto-cadastro). LEADERSHIP: linha de liderança do time. */
 export type SquadRequestKind = 'CONTRIBUTOR' | 'LEADERSHIP';
@@ -63,7 +63,7 @@ export function normalizeSquadLinkRequest(raw: unknown): SquadLinkRequest | null
   const id = text(r.id);
   if (!id) return null;
   const requester = (r.requester && typeof r.requester === 'object' ? r.requester : {}) as Record<string, unknown>;
-  const status: SquadRequestStatus = r.status === 'APPROVED' || r.status === 'REJECTED' ? r.status : 'PENDING';
+  const status: SquadRequestStatus = r.status === 'APPROVED' || r.status === 'REJECTED' || r.status === 'CANCELLED' ? r.status : 'PENDING';
   return {
     id,
     requester: { id: text(requester.id) ?? '', name: text(requester.name) ?? '', email: text(requester.email) ?? '' },

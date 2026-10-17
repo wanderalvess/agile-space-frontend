@@ -7,6 +7,8 @@ import {
   approveEffect,
   decisionAbility,
   needsRowPick,
+  REQUEST_STATUS_LABEL,
+  STATUS_FILTERS,
   requestDetail,
   resolveRosterTab,
 } from '../squad-requests-utils';
@@ -89,5 +91,20 @@ describe('textos do pedido', () => {
   it('o detalhe mostra a linha pedida, o e-mail do Jira e a mensagem', () => {
     expect(requestDetail(req({ memberName: 'Ana P.', message: 'oi' }))).toBe('Pede para assumir a linha “Ana P.” do time. E-mail no Jira: ana.n@totvs.com.br. “oi”');
     expect(requestDetail(req())).toBe('Não aparece na lista do time. E-mail no Jira: ana.n@totvs.com.br.');
+  });
+});
+
+describe('pedido CANCELLED', () => {
+  it('nunca tem botões de decisão nem aviso, para qualquer permissão', () => {
+    for (const access of [am, peopleLead, none]) {
+      expect(decisionAbility(req({ status: 'CANCELLED' }), access, 'u-me')).toEqual({ approve: false, reject: false, note: null });
+      expect(decisionAbility(req({ status: 'CANCELLED', kind: 'LEADERSHIP', canDecide: false }), access, 'u-me')).toEqual({ approve: false, reject: false, note: null });
+    }
+  });
+
+  it('o filtro "Cancelados" existe e o rótulo é "Cancelado"', () => {
+    expect(STATUS_FILTERS.map((f) => f.id)).toEqual(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']);
+    expect(STATUS_FILTERS.find((f) => f.id === 'CANCELLED')?.label).toBe('Cancelados');
+    expect(REQUEST_STATUS_LABEL.CANCELLED).toBe('Cancelado');
   });
 });

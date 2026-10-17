@@ -22,6 +22,7 @@ import {
   buildApprovalRows,
   fullWhen,
   linkRequestDetail,
+  linkStatusLabel,
   relativeWhen,
   resetStatusLabel,
   shortWhen,
@@ -233,12 +234,18 @@ export function ApprovalsHub() {
                       <HistoryLine
                         key={r.id}
                         left={`${r.requester.name || r.requester.email} · ${r.projectKey}`}
-                        status={r.status === 'APPROVED' ? 'Vínculo aprovado' : 'Recusado'}
+                        status={linkStatusLabel(r.status)}
                         right={
-                          <>
-                            Decidido por: <strong>{r.decidedBy || 'Admin'}</strong> · {shortWhen(r.decidedAt)}
-                            {r.decisionNote ? ` · “${r.decisionNote}”` : ''}
-                          </>
+                          r.status === 'CANCELLED' ? (
+                            <>
+                              Cancelado por <strong>quem pediu</strong> · {shortWhen(r.decidedAt)}
+                            </>
+                          ) : (
+                            <>
+                              Decidido por: <strong>{r.decidedBy || 'Admin'}</strong> · {shortWhen(r.decidedAt)}
+                              {r.decisionNote ? ` · “${r.decisionNote}”` : ''}
+                            </>
+                          )
                         }
                       />
                     ))}

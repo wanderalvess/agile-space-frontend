@@ -2,7 +2,7 @@ import { authFetch } from '@/lib/auth-client';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
-export type LinkRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type LinkRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 /** Pedido de vínculo de liderança: a pessoa diz que o e-mail do Jira é outro e pede a um admin que a vincule. */
 export interface LinkRequest {

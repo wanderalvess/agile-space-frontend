@@ -136,3 +136,10 @@ describe('approve / reject', () => {
     expect(decisionErrorMessage(new Error('boom'))).toBe('boom');
   });
 });
+
+describe('status CANCELLED', () => {
+  it('normalize mantém CANCELLED (e status desconhecido segue virando PENDING)', () => {
+    expect(normalizeSquadLinkRequest({ id: 'r1', status: 'CANCELLED' })?.status).toBe('CANCELLED');
+    expect(normalizeSquadLinkRequest({ id: 'r1', status: 'OUTRO' })?.status).toBe('PENDING');
+  });
+});

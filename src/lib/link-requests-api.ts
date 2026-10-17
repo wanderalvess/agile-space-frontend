@@ -5,6 +5,7 @@
  * Contrato do servidor:
  *  - POST /api/link-requests        -> 201 { id, status: 'PENDING' }  (aceita kind e requestedRoleName)
  *  - GET  /api/link-requests/mine   -> LinkRequest[]
+ *  - POST /api/link-requests/{id}/cancel -> LinkRequest com status CANCELLED (só o solicitante, só pedido PENDING)
  * Quem aprova: a liderança da squad (aba Pedidos do Time da squad) ou um admin.
  * Enquanto o servidor não tiver essas rotas (404/405), a tela mostra um aviso curto em vez de quebrar.
  */
@@ -14,7 +15,7 @@ import { ApiError } from '@/lib/api-error';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
-export type LinkRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type LinkRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type LinkRequestKind = 'CONTRIBUTOR' | 'LEADERSHIP';
 
 export interface CreateLinkRequestInput {
@@ -100,6 +101,30 @@ export async function listMyLinkRequests(): Promise<LinkRequest[]> {
   if (!res.ok) throw await failure(res, `Não foi possível carregar seus pedidos (${res.status})`);
   const data = await res.json();
   return Array.isArray(data) ? data : [];
+}
+
+/**
+ * O solicitante desiste de um pedido ainda pendente. Idempotente no servidor (repetir devolve 200).
+ * 403 = não é o dono, 404 = pedido sumiu, 409 = já foi decidido; os três viram `ApiError` com texto amigável
+ * (aqui 404 não quer dizer "recurso indisponível", e sim "esse pedido não existe").
+ */
+export async function cancelLinkRequest(id: string): Promise<LinkRequest> {
+  const res = await authFetch(`${API_BASE_URL}/link-requests/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+  if (!res.ok) {
+    if (res.status === 403) throw new ApiError('Só quem fez o pedido pode cancelá-lo.', 403);
+    if (res.status === 404) throw new ApiError('Esse pedido não existe mais.', 404);
+    if (res.status === 409) throw new ApiError('Esse pedido já foi decidido.', 409);
+    const text = await res.text().catch(() => '');
+    let message = '';
+    try {
+      const json = JSON.parse(text);
+      message = json.message || json.error || '';
+    } catch {
+      /* corpo não é JSON */
+    }
+    throw new ApiError(message || `Não foi possível cancelar o pedido (${res.status})`, res.status);
+  }
+  return res.json();
 }
 
 export const isLinkRequestUnavailable = (err: unknown): err is LinkRequestUnavailableError =>

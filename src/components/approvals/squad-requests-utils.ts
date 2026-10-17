@@ -41,10 +41,12 @@ export const needsRowPick = (req: SquadLinkRequest): boolean => !req.memberId &&
 
 /**
  * O que a pessoa pode fazer neste pedido (nunca mostre um botão que o servidor vai recusar): liderança exige
- * `canApproveLeadership`, ninguém decide o próprio pedido e `canDecide` do servidor manda quando vem.
+ * `canApproveLeadership`, pedido que não está pendente não se decide, ninguém decide o próprio pedido e `canDecide` do servidor manda quando vem.
  * Pedido sem linha e sem papel também se aprova: quem aprova escolhe a linha (`needsRowPick`).
  */
 export function decisionAbility(req: SquadLinkRequest, access: ApprovalAccess, currentUserId?: string | null): DecisionAbility {
+  // Cancelado (ou já decidido) nunca tem botão de decisão.
+  if (req.status !== 'PENDING') return { approve: false, reject: false, note: null };
   if (currentUserId && req.requester.id && req.requester.id === currentUserId) return { approve: false, reject: false, note: NOTE_SELF };
   if (req.kind === 'LEADERSHIP' && !access.canApproveLeadership) return { approve: false, reject: false, note: NOTE_LEADERSHIP };
   if (req.canDecide === false) return { approve: false, reject: false, note: req.kind === 'LEADERSHIP' ? NOTE_LEADERSHIP : NOTE_CANNOT };
@@ -68,10 +70,18 @@ export function requestDetail(req: SquadLinkRequest): string {
   return [target, email, note].filter(Boolean).join(' ');
 }
 
+export const REQUEST_STATUS_LABEL: Record<SquadLinkRequest['status'], string> = {
+  PENDING: 'Pendente',
+  APPROVED: 'Aprovado',
+  REJECTED: 'Recusado',
+  CANCELLED: 'Cancelado',
+};
+
 export const KIND_LABEL = { CONTRIBUTOR: 'Contribuidor', LEADERSHIP: 'Liderança' } as const;
 
 export const STATUS_FILTERS = [
   { id: 'PENDING', label: 'Pendentes' },
   { id: 'APPROVED', label: 'Aprovados' },
   { id: 'REJECTED', label: 'Recusados' },
+  { id: 'CANCELLED', label: 'Cancelados' },
 ] as const;

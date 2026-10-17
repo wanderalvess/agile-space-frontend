@@ -112,7 +112,7 @@ export function LinksSection({ links, canSwitch, switchingTo, onActivate, email,
           </div>
           {invite}
         </section>
-        <MyRequests requests={requests} />
+        <MyRequests requests={requests} onChanged={reload} />
       </div>
     );
   }
@@ -157,7 +157,7 @@ export function LinksSection({ links, canSwitch, switchingTo, onActivate, email,
       </ul>
       {visible.length === 0 && <p className="text-[13px] text-muted-foreground">Nenhuma squad com “{query.trim()}”.</p>}
 
-      <MyRequests requests={requests} />
+      <MyRequests requests={requests} onChanged={reload} />
     </div>
   );
 }
