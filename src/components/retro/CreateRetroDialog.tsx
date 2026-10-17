@@ -199,12 +199,6 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
       icon={moduleIcon('retro')}
       title="Nova retro"
       preventClose={isCreating}
-      footerStart={
-        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
-          <input type="checkbox" checked={saveFormat} onChange={(e) => setSaveFormat(e.target.checked)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
-          Salvar este formato para a próxima vez
-        </label>
-      }
       footer={
         <>
           <ModalButton onClick={close} disabled={isCreating}>Cancelar</ModalButton>
@@ -359,6 +353,7 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
               )}
             </SettingRow>
           ))}
+          <SettingRow id="nr-save-format" title="Salvar este formato" desc="Para usar de novo nas próximas retros, neste navegador" checked={saveFormat} onChange={setSaveFormat} />
         </section>
       </div>
     </Modal>
