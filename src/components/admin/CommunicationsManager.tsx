@@ -1,13 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Megaphone, Send, Trash2, Clock, Bell, Pencil, X, TriangleAlert, Wrench, Link2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { Bell, Link2, Megaphone, Pencil, Send, Trash2, TriangleAlert, Wrench, X, type LucideIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { AgileSpinner } from '../ui/AgileSpinner';
 import { cn } from '@/lib/utils';
 import { adminApi, type Announcement } from '@/app/admin/api';
 import { useAuth } from '@/context/AuthContext';
@@ -25,39 +20,42 @@ import {
   validateAnnouncementForm,
   type AnnouncementFormState,
 } from '@/lib/announcement-form';
+import { EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD } from '@/components/page';
+import { ConfirmDialog, FIELD, FOCUS_RING, IconButton, IconTile, ModalButton, StatusChip, type Tone } from '@/components/room-kit';
+import { AdminCheckbox, ChipGroup, FIELD_HINT, FIELD_LABEL } from './AdminOpsParts';
 
-const TYPE_ICONS: Record<AnnouncementType, React.ElementType> = {
+const TYPE_ICONS: Record<AnnouncementType, LucideIcon> = {
   INFO: Megaphone,
   IMPORTANT: TriangleAlert,
   MAINTENANCE: Wrench,
 };
 
-const fieldLabel = 'text-[10px] font-black uppercase tracking-widest text-muted-foreground pl-1';
-const fieldBox = 'w-full rounded-2xl border border-border bg-muted/30 px-4 py-3 text-sm font-medium outline-none focus:border-primary/40 focus:bg-background transition-all';
+const TYPE_TONES: Record<AnnouncementType, Tone> = {
+  INFO: 'brand',
+  IMPORTANT: 'warn',
+  MAINTENANCE: 'neutral',
+};
 
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-pressed={value === o.value}
-          className={cn(
-            'h-9 px-4 rounded-xl border text-[11px] font-bold transition-all',
-            value === o.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+const TITLE_MAX = 120;
+const CONTENT_MAX = 2000;
 
 function toggle(list: string[], value: string) {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+}
+
+/** Mensagem inline do campo de público; só aparece depois de tentar publicar. */
+function audienceProblem(form: AnnouncementFormState): string | null {
+  if (form.audienceType === 'SQUADS' && form.audienceSquadIds.length === 0) return 'Escolha ao menos uma squad.';
+  if (form.audienceType === 'ROLES' && form.audienceRoles.length === 0) return 'Escolha ao menos um papel.';
+  return null;
+}
+
+function Counter({ value, max }: { value: number; max: number }) {
+  return (
+    <span className={cn('text-xs tabular-nums', value >= max ? 'font-semibold text-red-700 dark:text-red-300' : 'text-muted-foreground')} aria-live="off">
+      {value}/{max}
+    </span>
+  );
 }
 
 export function CommunicationsManager() {
@@ -66,24 +64,35 @@ export function CommunicationsManager() {
   const [squads, setSquads] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState<AnnouncementFormState>(EMPTY_ANNOUNCEMENT_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<Announcement | null>(null);
+  const [removing, setRemoving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [sending, setSending] = useState(false);
+  const [attempted, setAttempted] = useState(false);
   const [squadFilter, setSquadFilter] = useState('');
 
-  const fetchAnnouncements = useCallback(async () => {
+  const fetchAnnouncements = useCallback(async (initial = false) => {
     try {
       const list = await adminApi.getAnnouncements();
       setAnnouncements(list || []);
+      setLoadError(false);
     } catch (e) {
+      if (initial) setLoadError(true);
       toast({ variant: 'destructive', title: errorMessage(e, 'Não foi possível carregar os avisos') });
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const reload = () => {
+    setLoading(true);
+    setLoadError(false);
+    fetchAnnouncements(true);
+  };
+
   useEffect(() => {
-    fetchAnnouncements();
+    fetchAnnouncements(true);
   }, [fetchAnnouncements]);
 
   // Squads que o admin enxerga: catálogo de projetos; sem ele, as squads da própria sessão.
@@ -112,9 +121,11 @@ export function CommunicationsManager() {
   const resetForm = () => {
     setForm(EMPTY_ANNOUNCEMENT_FORM);
     setEditingId(null);
+    setAttempted(false);
   };
 
   const handleSubmit = async () => {
+    setAttempted(true);
     const problem = validateAnnouncementForm(form);
     if (problem) {
       toast({ variant: 'destructive', title: problem });
@@ -139,235 +150,262 @@ export function CommunicationsManager() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirmDeleteId !== id) {
-      setConfirmDeleteId(id);
-      return;
-    }
-    setConfirmDeleteId(null);
+  const handleRemove = async () => {
+    const target = pendingRemove;
+    if (!target) return;
+    setRemoving(true);
     try {
-      await adminApi.deleteAnnouncement(id);
-      if (editingId === id) resetForm();
+      await adminApi.deleteAnnouncement(target.id);
+      if (editingId === target.id) resetForm();
       toast({ title: 'Aviso removido' });
       fetchAnnouncements();
     } catch (e) {
       toast({ variant: 'destructive', title: errorMessage(e, 'Erro ao remover') });
+    } finally {
+      setRemoving(false);
+      setPendingRemove(null);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center gap-4">
-        <AgileSpinner size="lg" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingSkeleton variant="cards" rows={3} label="Carregando avisos" />;
+  if (loadError) return <ErrorState title="Não foi possível carregar os avisos" onRetry={reload} />;
 
-  const typeOptions = (Object.keys(ANNOUNCEMENT_TYPE_LABELS) as AnnouncementType[]).map((value) => ({ value, label: ANNOUNCEMENT_TYPE_LABELS[value] }));
-  const audienceOptions = (Object.keys(AUDIENCE_LABELS) as AudienceType[]).map((value) => ({ value, label: AUDIENCE_LABELS[value] }));
+  const typeOptions = (Object.keys(ANNOUNCEMENT_TYPE_LABELS) as AnnouncementType[]).map((value) => ({
+    id: value,
+    label: ANNOUNCEMENT_TYPE_LABELS[value],
+    icon: TYPE_ICONS[value],
+  }));
+  const audienceOptions = (Object.keys(AUDIENCE_LABELS) as AudienceType[]).map((value) => ({ id: value, label: AUDIENCE_LABELS[value] }));
+  const problem = attempted ? audienceProblem(form) : null;
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-5">
       {/* Editor */}
-      <div className="xl:col-span-2">
-        <Card className="border-border/70 rounded-[2.5rem] bg-card/80 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
-          <CardHeader className="p-8 border-b border-border/50 flex flex-row items-center justify-between gap-4 space-y-0">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-2xl text-primary"><Megaphone className="h-6 w-6" /></div>
-              <CardTitle className="text-xl font-black uppercase tracking-tighter italic font-headline">
-                {editingId ? 'Editar aviso' : 'Novo aviso'}
-              </CardTitle>
+      <section className={cn(PAGE_CARD, 'flex flex-col overflow-clip xl:col-span-2')} aria-label={editingId ? 'Editar aviso' : 'Novo aviso'}>
+        <header className="flex items-center justify-between gap-3 border-b border-border px-6 py-4">
+          <div className="flex items-center gap-3">
+            <IconTile icon={Megaphone} />
+            <h2 className="text-lg font-bold tracking-tight text-foreground">{editingId ? 'Editar aviso' : 'Novo aviso'}</h2>
+          </div>
+          {editingId && (
+            <ModalButton variant="ghost" onClick={resetForm}>
+              <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Cancelar
+            </ModalButton>
+          )}
+        </header>
+        <div className="flex flex-col gap-5 p-6">
+          <div className="flex flex-col gap-2">
+            <span className={FIELD_LABEL} id="ann-type-label">Tipo</span>
+            <ChipGroup options={typeOptions} value={form.type} onChange={(v) => set('type', v)} ariaLabel="Tipo do aviso" />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <label htmlFor="ann-title" className={FIELD_LABEL}>Título</label>
+              <Counter value={form.title.length} max={TITLE_MAX} />
             </div>
-            {editingId && (
-              <Button variant="ghost" size="sm" onClick={resetForm} className="rounded-xl gap-1.5 text-xs font-bold">
-                <X className="h-3.5 w-3.5" /> Cancelar
-              </Button>
+            <input id="ann-title" value={form.title} maxLength={TITLE_MAX} onChange={(e) => set('title', e.target.value)} className={cn(FIELD, 'h-11')} />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <label htmlFor="ann-content" className={FIELD_LABEL}>Texto</label>
+              <Counter value={form.content.length} max={CONTENT_MAX} />
+            </div>
+            <textarea
+              id="ann-content"
+              value={form.content}
+              maxLength={CONTENT_MAX}
+              onChange={(e) => set('content', e.target.value)}
+              className={cn(FIELD, 'min-h-[120px] py-2.5 leading-relaxed')}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={FIELD_LABEL}>Público</span>
+            <ChipGroup options={audienceOptions} value={form.audienceType} onChange={(v) => set('audienceType', v)} ariaLabel="Público do aviso" />
+            {form.audienceType === 'SQUADS' && (
+              <div
+                className={cn('mt-1 flex flex-col gap-2 rounded-xl border bg-muted/30 p-3', problem ? 'border-red-500/60' : 'border-border')}
+                aria-invalid={problem ? true : undefined}
+              >
+                <input
+                  value={squadFilter}
+                  onChange={(e) => setSquadFilter(e.target.value)}
+                  placeholder="Buscar squad"
+                  aria-label="Buscar squad"
+                  className={cn(FIELD, 'h-9')}
+                />
+                <div className="scrollbar-thin flex max-h-44 flex-col gap-0.5 overflow-y-auto pr-1">
+                  {visibleSquads.map((s) => (
+                    <label key={s.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-2 text-[13px] font-medium text-foreground hover:bg-accent">
+                      <AdminCheckbox
+                        checked={form.audienceSquadIds.includes(s.id)}
+                        onChange={() => set('audienceSquadIds', toggle(form.audienceSquadIds, s.id))}
+                        label={`Squad ${s.name}`}
+                      />
+                      <span className="truncate">{s.name}</span>
+                      {s.name !== s.id && <span className="font-mono text-xs text-muted-foreground">{s.id}</span>}
+                    </label>
+                  ))}
+                  {visibleSquads.length === 0 && <p className="px-2 py-1 text-[13px] text-muted-foreground">Nenhuma squad</p>}
+                </div>
+              </div>
             )}
-          </CardHeader>
-          <CardContent className="p-8 space-y-6">
-            <div className="space-y-2">
-              <label className={fieldLabel}>Tipo</label>
-              <Segmented value={form.type} options={typeOptions} onChange={(v) => set('type', v)} />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="ann-title" className={fieldLabel}>Título</label>
-              <Input id="ann-title" value={form.title} maxLength={120} onChange={(e) => set('title', e.target.value)} className="h-11 rounded-2xl" />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="ann-content" className={fieldLabel}>Texto</label>
-              <textarea
-                id="ann-content"
-                value={form.content}
-                maxLength={2000}
-                onChange={(e) => set('content', e.target.value)}
-                className={cn(fieldBox, 'min-h-[120px] leading-relaxed')}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className={fieldLabel}>Público</label>
-              <Segmented value={form.audienceType} options={audienceOptions} onChange={(v) => set('audienceType', v)} />
-              {form.audienceType === 'SQUADS' && (
-                <div className="mt-3 rounded-2xl border border-border bg-muted/20 p-3 space-y-2">
-                  <Input value={squadFilter} onChange={(e) => setSquadFilter(e.target.value)} placeholder="Buscar squad" className="h-9 rounded-xl text-xs" />
-                  <div className="max-h-44 overflow-y-auto space-y-1 pr-1">
-                    {visibleSquads.map((s) => (
-                      <label key={s.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs font-semibold hover:bg-muted/60 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={form.audienceSquadIds.includes(s.id)}
-                          onChange={() => set('audienceSquadIds', toggle(form.audienceSquadIds, s.id))}
-                          className="accent-[hsl(var(--primary))]"
-                        />
-                        <span className="truncate">{s.name}</span>
-                        {s.name !== s.id && <span className="text-[10px] text-muted-foreground font-mono">{s.id}</span>}
-                      </label>
-                    ))}
-                    {visibleSquads.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">Nenhuma squad</p>}
-                  </div>
-                </div>
-              )}
-              {form.audienceType === 'ROLES' && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {AUDIENCE_ROLE_OPTIONS.map((r) => {
-                    const on = form.audienceRoles.includes(r.value);
-                    return (
-                      <button
-                        key={r.value}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => set('audienceRoles', toggle(form.audienceRoles, r.value))}
-                        className={cn(
-                          'h-8 px-3 rounded-full border text-[11px] font-bold transition-all',
-                          on ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        {r.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="ann-from" className={fieldLabel}>Início</label>
-                <input id="ann-from" type="datetime-local" value={form.validFrom} onChange={(e) => set('validFrom', e.target.value)} className={cn(fieldBox, 'h-11 py-0')} />
+            {form.audienceType === 'ROLES' && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {AUDIENCE_ROLE_OPTIONS.map((r) => {
+                  const on = form.audienceRoles.includes(r.value);
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => set('audienceRoles', toggle(form.audienceRoles, r.value))}
+                      className={cn(
+                        'h-8 rounded-full border px-3 text-[13px] font-semibold transition-colors max-sm:h-11',
+                        FOCUS_RING,
+                        on
+                          ? 'border-primary/50 bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground'
+                          : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                      )}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="space-y-2">
-                <label htmlFor="ann-until" className={fieldLabel}>Fim</label>
-                <input id="ann-until" type="datetime-local" value={form.validUntil} onChange={(e) => set('validUntil', e.target.value)} className={cn(fieldBox, 'h-11 py-0')} />
-              </div>
-            </div>
+            )}
+            {problem && (
+              <p role="alert" className="text-[13px] font-medium text-red-700 dark:text-red-300">
+                {problem}
+              </p>
+            )}
+          </div>
 
-            <div className="space-y-2">
-              <label htmlFor="ann-link" className={fieldLabel}>Link</label>
-              <Input id="ann-link" value={form.link} maxLength={500} onChange={(e) => set('link', e.target.value)} placeholder="https://… ou /rota" className="h-11 rounded-2xl" />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="ann-from" className={FIELD_LABEL}>Início</label>
+              <input id="ann-from" type="datetime-local" value={form.validFrom} onChange={(e) => set('validFrom', e.target.value)} className={cn(FIELD, 'h-11 py-0')} />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="ann-until" className={FIELD_LABEL}>Fim</label>
+              <input id="ann-until" type="datetime-local" value={form.validUntil} onChange={(e) => set('validUntil', e.target.value)} className={cn(FIELD, 'h-11 py-0')} />
+            </div>
+            <p className={cn(FIELD_HINT, 'sm:col-span-2')}>Início vazio publica agora. Fim vazio não expira.</p>
+          </div>
 
-            <Button
-              onClick={handleSubmit}
-              disabled={sending || !form.title.trim() || !form.content.trim()}
-              className="w-full h-14 rounded-[1.5rem] bg-slate-900 dark:bg-primary hover:bg-primary text-white font-black uppercase text-[11px] tracking-[0.2em] shadow-xl active:scale-95 transition-all gap-3"
-            >
-              {sending ? 'Salvando…' : editingId ? 'Salvar' : 'Publicar'}
-              <Send className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="ann-link" className={FIELD_LABEL}>Link</label>
+            <input id="ann-link" value={form.link} maxLength={500} onChange={(e) => set('link', e.target.value)} placeholder="https://… ou /rota" className={cn(FIELD, 'h-11')} />
+          </div>
+
+          <ModalButton
+            variant="primary"
+            onClick={handleSubmit}
+            disabled={sending || !form.title.trim() || !form.content.trim()}
+            className="h-11 w-full gap-2"
+          >
+            {sending ? 'Salvando…' : editingId ? 'Salvar' : 'Publicar'}
+            <Send className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </ModalButton>
+        </div>
+      </section>
 
       {/* Lista */}
-      <div className="xl:col-span-3">
-        <Card className="border-border/70 rounded-[2.5rem] bg-card/80 backdrop-blur-xl shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden min-h-[600px]">
-          <CardHeader className="p-8 border-b border-border/50 flex flex-row items-center gap-4 space-y-0">
-            <div className="p-3 bg-muted rounded-2xl text-muted-foreground"><Clock className="h-6 w-6" /></div>
-            <CardTitle className="text-xl font-black uppercase tracking-tighter italic font-headline">Avisos</CardTitle>
-            <Badge variant="outline" className="ml-auto rounded-full text-[10px] font-black">{announcements.length}</Badge>
-          </CardHeader>
-          <CardContent className="p-6 space-y-3">
-            {announcements.length === 0 ? (
-              <div className="h-48 flex flex-col items-center justify-center text-muted-foreground gap-3 border-2 border-dashed border-border rounded-[2rem]">
-                <Bell className="h-8 w-8 opacity-30" />
-                <p className="text-[10px] font-black uppercase tracking-widest">Nenhum aviso</p>
-              </div>
-            ) : announcements.map((a) => {
+      <section className={cn(PAGE_CARD, 'flex flex-col overflow-clip xl:col-span-3')} aria-label="Avisos">
+        <header className="flex items-center gap-3 border-b border-border px-6 py-4">
+          <IconTile icon={Bell} tone="neutral" />
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Avisos</h2>
+          <StatusChip tone="neutral" className="ml-auto">{announcements.length}</StatusChip>
+        </header>
+        <div className="flex flex-1 flex-col gap-3 p-5">
+          {announcements.length === 0 ? (
+            <EmptyState embedded icon={Bell} title="Nenhum aviso" description="Publique o primeiro ao lado." />
+          ) : (
+            announcements.map((a) => {
               const Icon = TYPE_ICONS[a.type] || Megaphone;
+              const tone = TYPE_TONES[a.type] || 'brand';
               const now = Date.now();
               const expired = a.validUntil ? new Date(a.validUntil).getTime() <= now : false;
               const scheduled = a.validFrom ? new Date(a.validFrom).getTime() > now : false;
               return (
-                <div
+                <article
                   key={a.id}
                   className={cn(
-                    'group p-5 rounded-[1.75rem] border transition-all',
-                    editingId === a.id ? 'border-primary/40 bg-primary/5' : 'border-border/70 bg-muted/20 hover:bg-background',
+                    'rounded-2xl border p-4 transition-colors',
+                    editingId === a.id ? 'border-primary/50 bg-primary/5' : 'border-border bg-muted/30 hover:bg-muted/50',
                   )}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className={cn(
-                      'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
-                      a.type === 'IMPORTANT' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : a.type === 'MAINTENANCE' ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary',
-                    )}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-start gap-3.5">
+                    <IconTile icon={Icon} tone={tone} size="sm" />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground">{ANNOUNCEMENT_TYPE_LABELS[a.type] || 'Aviso'}</span>
-                        {expired && <Badge variant="outline" className="text-[9px] rounded-full">Expirado</Badge>}
-                        {scheduled && <Badge variant="outline" className="text-[9px] rounded-full">Agendado</Badge>}
+                        <span className="text-xs font-semibold text-muted-foreground">{ANNOUNCEMENT_TYPE_LABELS[a.type] || 'Aviso'}</span>
+                        {expired && <StatusChip tone="neutral">Expirado</StatusChip>}
+                        {scheduled && <StatusChip tone="brand">Agendado</StatusChip>}
                       </div>
-                      <p className="text-sm font-bold text-foreground">{a.title}</p>
-                      <p className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-line line-clamp-3">{a.content}</p>
-                      <p className="text-[11px] text-muted-foreground pt-1 flex flex-wrap items-center gap-x-1.5">
+                      <h3 className="text-sm font-bold text-foreground">{a.title}</h3>
+                      <p className="line-clamp-3 whitespace-pre-line text-[13px] leading-relaxed text-muted-foreground">{a.content}</p>
+                      <p className="flex flex-wrap items-center gap-x-1.5 pt-1 text-xs text-muted-foreground">
                         <span>{a.createdByName || a.createdBy}</span>
-                        <span>·</span>
+                        <span aria-hidden="true">·</span>
                         <span suppressHydrationWarning>{a.createdAt ? new Date(a.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''}</span>
-                        <span>·</span>
+                        <span aria-hidden="true">·</span>
                         <span>{audienceSummary(a, squadNames)}</span>
                         {a.validUntil && (
                           <>
-                            <span>·</span>
+                            <span aria-hidden="true">·</span>
                             <span suppressHydrationWarning>até {new Date(a.validUntil).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                           </>
                         )}
-                        {a.link && <Link2 className="h-3 w-3 ml-1" aria-label="Com link" />}
+                        {a.link && <Link2 className="ml-1 h-3.5 w-3.5" strokeWidth={1.5} aria-label="Com link" />}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Editar"
-                        onClick={() => { setEditingId(a.id); setForm(formFromAnnouncement(a)); setConfirmDeleteId(null); }}
-                        className="h-9 w-9 rounded-xl text-muted-foreground hover:text-primary"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size={confirmDeleteId === a.id ? 'sm' : 'icon'}
-                        aria-label="Remover"
-                        onClick={() => handleDelete(a.id)}
-                        onBlur={() => setConfirmDeleteId((cur) => (cur === a.id ? null : cur))}
-                        className={cn(
-                          'h-9 rounded-xl',
-                          confirmDeleteId === a.id ? 'px-3 text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/30' : 'w-9 text-muted-foreground hover:text-rose-600',
-                        )}
-                      >
-                        {confirmDeleteId === a.id ? 'Remover?' : <Trash2 className="h-4 w-4" />}
-                      </Button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <IconButton
+                        size="sm"
+                        label={`Editar o aviso ${a.title}`}
+                        icon={Pencil}
+                        onClick={() => { setEditingId(a.id); setForm(formFromAnnouncement(a)); setAttempted(false); }}
+                      />
+                      <IconButton
+                        size="sm"
+                        label={`Remover o aviso ${a.title}`}
+                        icon={Trash2}
+                        onClick={() => setPendingRemove(a)}
+                        className="hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+                      />
                     </div>
                   </div>
-                </div>
+                </article>
               );
-            })}
-          </CardContent>
-        </Card>
-      </div>
+            })
+          )}
+        </div>
+      </section>
+
+      <ConfirmDialog
+        open={!!pendingRemove}
+        onOpenChange={(open) => { if (!open) setPendingRemove(null); }}
+        tone="danger"
+        icon={Trash2}
+        title={`Remover o aviso “${pendingRemove?.title ?? ''}”?`}
+        description="Some para quem ainda não viu."
+        cancelLabel="Manter"
+        confirmLabel="Remover aviso"
+        loading={removing}
+        loadingLabel="Removendo…"
+        keepOpenOnConfirm
+        onConfirm={handleRemove}
+      >
+        {pendingRemove && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-[13px] text-muted-foreground">
+            <StatusChip tone={TYPE_TONES[pendingRemove.type] || 'brand'}>{ANNOUNCEMENT_TYPE_LABELS[pendingRemove.type] || 'Aviso'}</StatusChip>
+            <span>{audienceSummary(pendingRemove, squadNames)}</span>
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }
