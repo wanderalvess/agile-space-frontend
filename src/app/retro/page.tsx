@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CreateRetroDialog } from '@/components/retro/CreateRetroDialog';
 import { RetroLobbyView, type RetroLobbyDetail } from '@/components/retro/RetroLobbyView';
@@ -19,7 +19,7 @@ export default function RetroHubPage() {
   const router = useRouter();
   const { userProfile, requestIdentity } = useUserContext();
   const { squadId: activeSquadId, squadName } = useActiveSquad();
-  const { history: localHistory } = useToolHistory('retro');
+  const { history: localHistory, removeRoom: removeLocalRoom } = useToolHistory('retro');
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -59,6 +59,20 @@ export default function RetroHubPage() {
     () => mergeLobbyRows(boards, localHistory.map((h) => ({ roomId: h.roomId, title: h.title, team: h.team, createdAt: h.createdAt }))),
     [boards, localHistory]
   );
+
+  // Atalhos deste navegador que o servidor não lista: confere cada um uma vez e tira da lista o que já foi apagado (404).
+  const checkedLocalRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loadingBoards || boardsFailed) return;
+    const pending = rows.filter((r) => !r.board && !checkedLocalRef.current.has(r.id)).slice(0, 10);
+    if (pending.length === 0) return;
+    pending.forEach((r) => checkedLocalRef.current.add(r.id));
+    void Promise.allSettled(pending.map((r) => retroApi.getBoard(r.id))).then((settled) => {
+      settled.forEach((result, i) => {
+        if (result.status === 'rejected' && (result.reason as { status?: number } | undefined)?.status === 404) removeLocalRoom(pending[i].id);
+      });
+    });
+  }, [rows, loadingBoards, boardsFailed, removeLocalRoom]);
 
   // Contagens e ações em aberto: lê os cartões das retros mais recentes (falha de uma não derruba as outras).
   useEffect(() => {

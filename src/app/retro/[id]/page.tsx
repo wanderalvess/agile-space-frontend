@@ -39,6 +39,7 @@ import { useUserContext } from '@/context/UserContext';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi, RetroApiError } from '../api';
+import { removeLocalRoomMeta } from '@/lib/health-check-lobby';
 import { getAuthToken } from '@/lib/auth-client';
 import { connectRoomSocket } from '@/lib/room-socket';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
@@ -80,6 +81,8 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const optimisticRef = useRef<RetroCardType[]>([]);
   const boardRef = useRef<RetroBoardType | null>(null);
   const leavingRef = useRef(false);
+  /** Marca a retro como apagada: o aviso do servidor depois do DELETE não pode recarregar uma sala que já não existe. */
+  const deletedRef = useRef(false);
   // Mudanças otimistas ainda em voo: sobrevivem a ecos de outros eventos do WebSocket até o servidor responder.
   const pendingRef = useRef<Map<string, RetroCardType>>(new Map());
 
@@ -126,7 +129,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   // Centralized data loading
   const reloadBoardData = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || deletedRef.current) return;
     // Só a resposta mais recente vale: um reload lento que chega depois de eventos novos do WebSocket
     // não pode sobrescrever o estado mais novo com dados velhos.
     const seq = ++loadSeqRef.current;
@@ -171,6 +174,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     setAreCardsLoading(true);
     setAreParticipantsLoading(true);
     leavingRef.current = false;
+    deletedRef.current = false;
   }, [boardId]);
 
   /** Aplica no estado um card devolvido pelo servidor (a resposta do POST vale mesmo se o eco do WebSocket se perder). */
@@ -824,12 +828,16 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   }, [currentUser, handleRemoveParticipant, router]);
 
   const handleDeleteBoard = useCallback(async () => {
+    // Antes do pedido: o aviso do servidor pode chegar antes da resposta e não deve recarregar a sala.
+    deletedRef.current = true;
     try {
       await retroApi.deleteBoard(boardId);
       leavingRef.current = true;
+      removeLocalRoomMeta(boardId, typeof window === 'undefined' ? undefined : window.localStorage);
       toast({ title: 'Retro apagada' });
       router.push('/retro');
     } catch (error) {
+      deletedRef.current = false;
       const message = error instanceof Error ? error.message : 'Não foi possível apagar a retro.';
       toast({ title: 'Não foi possível apagar a retro', description: message, variant: 'destructive' });
     }
