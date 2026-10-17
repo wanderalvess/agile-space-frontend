@@ -47,7 +47,18 @@ export function PageShell({
   contentClassName,
 }: PageShellProps) {
   useEffect(() => {
-    if (documentTitle) document.title = `${documentTitle} | Portal Tech V&D`;
+    if (!documentTitle) return;
+    const wanted = `${documentTitle} | Portal Tech V&D`;
+    document.title = wanted;
+    // O metadata estático do layout raiz volta a escrever o <title> depois da hidratação;
+    // reafirma o título da tela enquanto ela estiver montada (só escreve se for diferente).
+    const titleEl = document.querySelector('title');
+    if (!titleEl || typeof MutationObserver === 'undefined') return;
+    const observer = new MutationObserver(() => {
+      if (document.title !== wanted) document.title = wanted;
+    });
+    observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
+    return () => observer.disconnect();
   }, [documentTitle]);
 
   return (
