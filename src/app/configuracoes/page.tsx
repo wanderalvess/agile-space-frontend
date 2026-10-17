@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { PageHeader, PageShell } from '@/components/page';
 import { useTheme, type ThemeVariant } from '@/context/ThemeContext';
 import { THEME_MODES, THEME_SWATCHES, THEME_VARIANTS } from '@/lib/theme-options';
 import { cn } from '@/lib/utils';
@@ -32,22 +31,14 @@ function ThemePreview({ variant, dark }: { variant: ThemeVariant; dark: boolean 
 export default function ConfiguracoesPage() {
   const { mode, resolvedMode, variant, setMode, setVariant } = useTheme();
 
-  useEffect(() => {
-    document.title = 'Configurações | Portal Tech V&D';
-  }, []);
-
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8 sm:px-8">
-      <div className="flex flex-col gap-3">
-        <Link
-          href="/"
-          className={cn('inline-flex w-fit items-center gap-1.5 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground', FOCUS_RING)}
-        >
-          <ArrowLeft aria-hidden="true" className="h-4 w-4" strokeWidth={1.5} />
-          Início
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-      </div>
+    <PageShell documentTitle="Configurações" width="narrow" contentClassName="gap-6">
+      <PageHeader
+        title="Configurações"
+        module="settings"
+        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Configurações' }]}
+        subtitle="Preferências da sua conta."
+      />
 
       <section aria-labelledby="cfg-aparencia" className="flex flex-col gap-6 rounded-2xl border border-border bg-card p-5 text-card-foreground sm:p-6">
         <div className="flex flex-col gap-1">
@@ -58,7 +49,7 @@ export default function ConfiguracoesPage() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <h3 id="cfg-modo" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 id="cfg-modo" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Modo
           </h3>
           <div role="radiogroup" aria-labelledby="cfg-modo" className="grid grid-cols-3 gap-2">
@@ -87,7 +78,7 @@ export default function ConfiguracoesPage() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          <h3 id="cfg-tema" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          <h3 id="cfg-tema" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Tema
           </h3>
           <div role="radiogroup" aria-labelledby="cfg-tema" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -117,6 +108,6 @@ export default function ConfiguracoesPage() {
           </div>
         </div>
       </section>
-    </div>
+    </PageShell>
   );
 }
