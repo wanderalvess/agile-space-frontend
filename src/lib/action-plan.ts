@@ -6,7 +6,16 @@
  * português. O valor cru continua sendo o que vai e volta da API.
  */
 
-import type { ActionPlanBoard, ActionPlanTask, ActionPlanTaskStatus } from '@/lib/types';
+import {
+  dueDateOf,
+  formatDueDate,
+  matchesProgress,
+  normalizeSourceType,
+  planCounts,
+  type PlanCounts,
+  type ProgressFilter,
+} from '@/lib/action-plan-origin';
+import type { ActionPlanBoard, ActionPlanTask, ActionPlanTaskInput, ActionPlanTaskStatus, PlanSourceType } from '@/lib/types';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Status
@@ -133,9 +142,11 @@ export interface TaskForm {
   how: string;
   howMuch: string;
   status: ActionPlanTaskStatus;
+  /** Prazo como data (`yyyy-MM-dd`); vazio = sem prazo. Só vai ao servidor que conhece `dueDate` (V78). */
+  dueDate: string;
 }
 
-export const EMPTY_TASK_FORM: TaskForm = { what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: 'todo' };
+export const EMPTY_TASK_FORM: TaskForm = { what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: 'todo', dueDate: '' };
 
 export function taskToForm(task: ActionPlanTask | null | undefined): TaskForm {
   if (!task) return { ...EMPTY_TASK_FORM };
@@ -148,7 +159,20 @@ export function taskToForm(task: ActionPlanTask | null | undefined): TaskForm {
     how: task.how ?? '',
     howMuch: task.howMuch || '',
     status: normalizeStatus(task.status),
+    dueDate: dueDateOf(task),
   };
+}
+
+/**
+ * Corpo da gravação de uma ação a partir do formulário. `dueDates` diz se o servidor conhece o prazo como data (V78):
+ * com ele vai `dueDate`, ou `clearDueDate: true` quando a pessoa apagou um prazo que existia; sem ele o campo nem sai
+ * (o prazo segue no texto livre "Quando", como sempre foi).
+ */
+export function taskFormPayload(form: TaskForm, previous: Pick<ActionPlanTask, 'dueDate'> | null | undefined, dueDates: boolean): ActionPlanTaskInput {
+  const { dueDate, ...rest } = form;
+  if (!dueDates) return rest;
+  if (dueDate) return { ...rest, dueDate };
+  return previous && dueDateOf(previous) ? { ...rest, clearDueDate: true } : rest;
 }
 
 export type TaskFormErrors = Partial<Record<'what' | 'who', string>>;
@@ -268,7 +292,9 @@ export function planMarkdown(board: Pick<ActionPlanBoard, 'title'>, tasks: reado
     if (task.howMuch) md += `- **Custo/Esforço:** ${task.howMuch}\n`;
     md += `- **Onde:** ${task.where ?? ''}\n`;
     md += `- **Quando:** ${task.when ?? ''}\n`;
+    if (dueDateOf(task)) md += `- **Prazo:** ${formatDueDate(task.dueDate)}\n`;
     md += `- **Quem:** ${task.who ?? ''}\n`;
+    if (task.sourceLabel) md += `- **Origem:** ${task.sourceLabel}\n`;
     md += `- **Status:** ${statusLabel(task.status)}\n\n`;
   });
   return md.trim();
@@ -282,6 +308,7 @@ export const CSV_HEADER = [
   'Custo/Esforço (How Much)',
   'Onde (Where)',
   'Quando (When)',
+  'Prazo (Due date)',
   'Quem (Who)',
   'Status',
 ] as const;
@@ -301,7 +328,7 @@ export function planCsv(tasks: readonly ActionPlanTask[]): string {
   const rows: string[][] = [CSV_HEADER.map(csvCell)];
   tasks.forEach((t, i) => {
     rows.push(
-      [String(i + 1), t.what, t.why, t.how, t.howMuch || '', t.where, t.when, t.who, statusLabel(t.status)].map(csvCell),
+      [String(i + 1), t.what, t.why, t.how, t.howMuch || '', t.where, t.when, formatDueDate(t.dueDate), t.who, statusLabel(t.status)].map(csvCell),
     );
   });
   return rows.map((r) => r.join(',')).join('\n');
@@ -324,6 +351,12 @@ export interface PlanLobbyRow {
   isPublic: boolean | null;
   /** Veio só do histórico local deste navegador. */
   local: boolean;
+  /** Origem do plano; `undefined` quando o servidor é anterior à V78 (ou o plano veio só do histórico local). */
+  sourceType?: PlanSourceType;
+  sourceId?: string | null;
+  sourceTitle?: string | null;
+  /** Contagens de ações da lista do servidor; `null` sem elas. */
+  counts: PlanCounts | null;
 }
 
 const time = (iso: string) => {
@@ -348,19 +381,36 @@ export function mergePlanRows(server: readonly ActionPlanBoard[], local: readonl
     createdAt: b.createdAt,
     isPublic: boardIsPublic(b),
     local: false,
+    sourceType: normalizeSourceType(b.sourceType),
+    sourceId: b.sourceId,
+    sourceTitle: b.sourceTitle,
+    counts: planCounts(b),
   }));
   const seen = new Set(rows.map((r) => r.id.toLowerCase()));
   const extra = [...local]
     .sort((a, b) => time(b.createdAt) - time(a.createdAt))
     .filter((m) => !seen.has(m.roomId.toLowerCase()))
     .slice(0, localLimit)
-    .map<PlanLobbyRow>((m) => ({ id: m.roomId, title: m.title, createdAt: m.createdAt, isPublic: null, local: true }));
+    .map<PlanLobbyRow>((m) => ({ id: m.roomId, title: m.title, createdAt: m.createdAt, isPublic: null, local: true, counts: null }));
   return [...rows, ...extra].sort((a, b) => time(b.createdAt) - time(a.createdAt));
 }
 
-export function filterPlanRows(rows: readonly PlanLobbyRow[], query: string): PlanLobbyRow[] {
+export interface PlanRowFilters {
+  /** Origem: um tipo, ou `all`. */
+  origin?: PlanSourceType | typeof FILTER_ALL;
+  /** Andamento pelas contagens do servidor: `open` (ainda tem ação aberta) ou `done` (todas concluídas). */
+  progress?: ProgressFilter;
+}
+
+/** Busca por nome, mais os filtros de origem e de andamento (os dois só existem com um servidor que conhece origem e contagens). */
+export function filterPlanRows(rows: readonly PlanLobbyRow[], query: string, filters: PlanRowFilters = {}): PlanLobbyRow[] {
   const q = foldText(query);
-  return q ? rows.filter((r) => foldText(r.title).includes(q)) : [...rows];
+  const { origin = FILTER_ALL, progress = 'all' } = filters;
+  return rows.filter((r) => {
+    if (q && !foldText(r.title).includes(q)) return false;
+    if (origin !== FILTER_ALL && r.sourceType !== origin) return false;
+    return matchesProgress(r.counts, progress);
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------------------
