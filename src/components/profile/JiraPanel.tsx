@@ -1,11 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react';
+import { AtSign, CircleCheck, Clock, Eye, EyeOff, Loader2, Mail, Plug, RefreshCw, UserRound } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { InitialsAvatar } from '@/components/common/InitialsAvatar';
+import { bestJiraAvatar } from '@/lib/profile-photo';
 import { FOCUS_RING, ModalButton, StatusChip } from '@/components/room-kit';
 import { FIELD_INPUT, FIELD_LABEL, Field } from './fields';
+import { DetailItem, SectionCard } from './ui';
 
 /** Resposta do `/myself` do Jira que a tela usa. */
 export interface JiraAccount {
@@ -35,19 +38,24 @@ export interface JiraPanelProps {
   account: JiraAccount | null;
 }
 
-/** Aba "Jira": domínio, token pessoal, sincronização e os dados da conta sincronizada. */
+/** Seção "Jira": conexão (domínio, token pessoal, sincronização) e os dados da conta sincronizada. */
 export function JiraPanel(p: JiraPanelProps) {
   const [showToken, setShowToken] = useState(false);
+  const accountPhoto = bestJiraAvatar(p.account?.avatarUrls);
+  const accountName = p.account?.displayName || p.account?.name || '';
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusChip tone={p.connected ? 'success' : 'neutral'}>{p.connected ? 'Conectado' : 'Não conectado'}</StatusChip>
-      </div>
+      <SectionCard
+        icon={Plug}
+        tone={p.connected ? 'success' : 'brand'}
+        title="Conexão"
+        titleId="identity-jira-conexao"
+        aside={<StatusChip tone={p.connected ? 'success' : 'neutral'}>{p.connected ? 'Conectado' : 'Não conectado'}</StatusChip>}
+      >
+        {!p.connected && <p className="-mt-1 text-[13px] text-muted-foreground">Informe o domínio e o seu token pessoal para trazer nome e foto do Jira.</p>}
 
-      <fieldset className="m-0 flex flex-col gap-3 rounded-xl border border-border p-3.5">
-        <legend className="sr-only">Conexão com o Jira</legend>
-        <div className="grid gap-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field htmlFor="jiraInstanceDomain" label="Domínio">
             <input
               id="jiraInstanceDomain"
@@ -71,7 +79,10 @@ export function JiraPanel(p: JiraPanelProps) {
                 aria-labelledby="identity-token-label"
                 className="flex min-h-10 items-center justify-between gap-2 rounded-[10px] border border-border bg-muted/40 pl-3 pr-1 max-sm:min-h-11"
               >
-                <span className="whitespace-nowrap text-[13px] text-foreground">Token salvo</span>
+                <span className="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-foreground">
+                  <CircleCheck aria-hidden="true" className="h-4 w-4 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
+                  Token salvo
+                </span>
                 <span className="flex items-center">
                   <ModalButton variant="ghost" onClick={p.onReplaceToken} className="h-9 px-2.5 text-[13px] max-sm:h-11">
                     Trocar
@@ -115,44 +126,39 @@ export function JiraPanel(p: JiraPanelProps) {
           </div>
         </div>
 
-        <label htmlFor="identity-jira-remember" className="flex min-h-9 w-fit cursor-pointer items-center gap-2.5 text-[13px] text-foreground max-sm:min-h-11">
-          <Checkbox id="identity-jira-remember" checked={p.remember} onCheckedChange={(v) => p.onRemember(!!v)} className="h-[18px] w-[18px] rounded-[5px]" />
-          Lembrar credenciais
-        </label>
-      </fieldset>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-border pt-4">
+          <label htmlFor="identity-jira-remember" className="flex min-h-9 w-fit cursor-pointer items-center gap-2.5 text-[13px] text-foreground max-sm:min-h-11">
+            <Checkbox id="identity-jira-remember" checked={p.remember} onCheckedChange={(v) => p.onRemember(!!v)} className="h-[18px] w-[18px] rounded-[5px]" />
+            Lembrar credenciais
+          </label>
+          <ModalButton variant="primary" onClick={p.onSync} disabled={p.syncing} className="gap-2 max-sm:h-11 max-sm:w-full">
+            {p.syncing ? (
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />
+            ) : (
+              <RefreshCw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            )}
+            {p.syncing ? 'Sincronizando' : 'Sincronizar com o Jira'}
+          </ModalButton>
+        </div>
+      </SectionCard>
 
-      <div>
-        <ModalButton onClick={p.onSync} disabled={p.syncing} className="w-full gap-2 max-sm:h-11 sm:w-auto">
-          {p.syncing ? (
-            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />
-          ) : (
-            <RefreshCw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          )}
-          {p.syncing ? 'Sincronizando' : 'Sincronizar com o Jira'}
-        </ModalButton>
-      </div>
-
-      {p.account && (
-        <section aria-label="Conta do Jira" className="rounded-xl border border-border bg-muted/30 p-3.5">
-          <dl className="grid gap-x-4 gap-y-3 text-[13px] sm:grid-cols-2">
-            <Detail label="Nome" value={p.account.displayName} />
-            <Detail label="Usuário" value={p.account.name || p.account.key || p.account.accountId} mono />
-            <Detail label="E-mail" value={p.account.emailAddress} />
-            <Detail label="Fuso horário" value={p.account.timeZone} />
+      {p.account ? (
+        <SectionCard icon={UserRound} tone="success" title="Conta do Jira" titleId="identity-jira-conta" aside={<StatusChip tone="success">Sincronizada</StatusChip>}>
+          <dl className="m-0 grid gap-3 sm:grid-cols-2">
+            <DetailItem
+              icon={UserRound}
+              label="Nome"
+              value={p.account.displayName}
+              leading={<InitialsAvatar name={accountName} email={p.account.emailAddress} src={accountPhoto} className="h-9 w-9 border border-border text-xs" />}
+            />
+            <DetailItem icon={AtSign} label="Usuário" value={p.account.name || p.account.key || p.account.accountId} mono />
+            <DetailItem icon={Mail} label="E-mail" value={p.account.emailAddress} />
+            <DetailItem icon={Clock} label="Fuso horário" value={p.account.timeZone} />
           </dl>
-        </section>
+        </SectionCard>
+      ) : (
+        p.connected && <p className="px-1 text-[13px] text-muted-foreground">Sincronize para ver os dados da sua conta do Jira.</p>
       )}
-    </div>
-  );
-}
-
-function Detail({ label, value, mono }: { label: string; value?: string; mono?: boolean }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={cn('truncate text-foreground', mono && 'font-code')} title={value || undefined}>
-        {value || '—'}
-      </dd>
     </div>
   );
 }
