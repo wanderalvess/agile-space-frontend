@@ -22,7 +22,7 @@ O cálculo parte das **contagens por valor** que o servidor grava em `summary.re
 | `src/lib/health-check-lobby.ts` | Entrar por ID/link, linhas da lista, filtros, evolução, radar anterior, squads |
 | `src/lib/health-check-form.ts` | Limites do servidor, importação em massa, validação da nova pesquisa |
 | `src/lib/health-check-export.ts` | `buildReport` (um modelo para MD, CSV e PDF), convite em texto |
-| `src/lib/health-check-plan.ts` | Criação do plano (item a item, com resultado de cada um) e trava local |
+| `src/lib/health-check-plan.ts` | Criação do plano (item a item, com resultado de cada um), origem enviada ao servidor e trava local de reserva (ver `plano-de-acao-origem.md`) |
 | `src/components/health-check/HealthLobbyView.tsx` | Lobby no `PageShell` |
 | `src/components/health-check/CreateHealthCheckDialog.tsx` | Nova pesquisa (Modal G, duas abas) |
 | `src/components/health-check/HealthRoomShell.tsx` | `RoomTopBar` (Votar, Resultado), participantes, compartilhar, guia, apagar |
@@ -88,7 +88,6 @@ Removidos por estarem sem uso: `FinishHealthCheckDialog`, `HealthCheckNicknameDi
 - Quantas pessoas já responderam, "N de M" na sala e no resultado (o servidor conta em `RitualSessionService`, mas não devolve no board nem no WebSocket). Hoje: contagem de respostas por dimensão (resultado) e "respostas até agora" do histórico da Home (lobby), quando existe.
 - Presença (quem está online): o servidor só avisa entrada e saída. Os avatares e a lista não mostram ponto de online (`online` ficou opcional no kit).
 - Todos seguirem a etapa do facilitador na apresentação (evento novo no WebSocket). Hoje cada pessoa navega na própria tela.
-- Origem (radar, dimensão) no plano e na ação: sem o campo, o plano só cita o radar no texto e a trava "plano criado" é local.
 - `finishedAt` no radar ("Encerrada em").
 
 ## Testes

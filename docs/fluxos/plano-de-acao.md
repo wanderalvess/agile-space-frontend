@@ -79,11 +79,11 @@ Ainda abertos:
 - **Sem tempo real:** até 15 s de atraso e, na mesma célula, vale a última gravação sem aviso de conflito.
 - **Sem dono por ação, sem histórico:** qualquer pessoa com o link apaga ou altera qualquer ação e não há registro de quem mudou o quê (o autor da criação é gravado, mas não aparece na tela).
 - **Sem apagar nem renomear o plano**, e sem reordenar as ações (a ordem é a de criação).
-- **"Quando" e "Quem" em texto livre:** não dá para filtrar por prazo, ordenar por data, lembrar prazos vencidos nem ligar à pessoa. A tela do diálogo exige "Quem", mas o servidor e o Brainstorming criam ações sem responsável.
+- **"Quando" e "Quem" em texto livre:** com o backend anterior à V78 não dá para filtrar por prazo, ordenar por data nem marcar prazos vencidos (a V78 acrescenta `dueDate` e a tela usa; ver `docs/redesign/plano-de-acao-origem.md`); "Quem" segue sem ligar à pessoa. A tela do diálogo exige "Quem", mas o servidor e o Brainstorming criam ações sem responsável.
 - **Plano privado só por API:** a tela nunca cria; o campo `settings.isPublic` que a tela enviava era ignorado pelo servidor (removido do envio).
 - **Painel de cerimônias pode abrir plano de outra squad:** `openOrCreateActionPlan` procura o plano da sprint pela squad e, se não achar, usa o primeiro plano público da sprint.
 - **Listagem de planos por sprint** lê os participantes de cada plano em consultas separadas (carregamento eager), custo cresce com a quantidade de planos da sprint.
-- **Exportar do Brainstorming** cria sempre um plano novo; clicar duas vezes cria dois planos.
+- **Exportar do Brainstorming** cria sempre um plano novo no backend anterior à V78; com a V78 o plano guarda a sessão de origem e uma segunda criação volta 409 (a tela mostra "Esta sessão já gerou o plano").
 - **Não testado ao vivo** (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários: backend (criação, edição parcial com todos os campos preservados, validações, autorização por plano público/privado, participante só a si mesmo) e frontend (cliente de API, mensagens de erro e códigos). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.
 
 ## Onde olhar no código
