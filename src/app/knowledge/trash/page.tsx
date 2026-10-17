@@ -7,14 +7,12 @@ import {
   Trash,
   History,
   FileText,
-  Database,
   Clock,
   ArrowLeft,
-  ShieldAlert,
+  Info,
   Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import { knowledgeApi } from '@/app/knowledge/api';
 import type { KnowledgeDocument } from '@/lib/knowledge-types';
@@ -24,6 +22,8 @@ import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
+
+const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background';
 
 export default function TrashPage() {
   const { session } = useAuth();
@@ -91,112 +91,117 @@ export default function TrashPage() {
   };
 
   return (
-    <div className="px-4 md:px-10 lg:px-16 pt-4 lg:pt-6 pb-12 max-w-[1600px] mx-auto animate-in fade-in duration-700 bg-transparent min-h-full relative overflow-hidden">
-       {/* Glow ambient background effects matching KB/Admin page */}
-       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-rose-100 dark:bg-rose-950/20 rounded-full blur-[120px] pointer-events-none -z-10" />
-
-       <div className="space-y-6 md:space-y-8 relative z-10">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
-             <div className="space-y-3">
-                <Button
-                 variant="ghost"
-                 onClick={() => router.back()}
-                 className="gap-2 text-muted-foreground hover:text-foreground -ml-4 text-xs font-bold uppercase tracking-wider"
-                >
-                   <ArrowLeft className="h-4 w-4" /> Voltar ao Painel
-                </Button>
-                <div className="flex items-center gap-4">
-                   <div className="w-12 h-12 bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/30 rounded-2xl flex items-center justify-center shadow-md">
-                      <History className="h-6 w-6 text-rose-500" />
-                   </div>
-                   <div>
-                      <h1 className="text-3xl font-black font-headline uppercase tracking-tighter italic text-foreground leading-none">
-                         Cofre de <span className="text-rose-500 not-italic">Descarte</span>
-                      </h1>
-                      <p className="text-xs font-black text-rose-500 uppercase tracking-widest mt-1.5">
-                         Documentos removidos ficam aqui até serem restaurados
-                      </p>
-                   </div>
-                </div>
-             </div>
-
-             <div className="relative w-full md:w-80">
-                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-rose-500 transition-colors" />
-                 <Input
-                   placeholder="Localizar na lixeira..."
-                   className="pl-12 w-full h-11 rounded-xl bg-card/60 border-border shadow-xs font-bold text-foreground placeholder:text-muted-foreground focus-visible:ring-rose-500 transition-all"
-                   value={searchTerm}
-                   onChange={(e) => setSearchTerm(e.target.value)}
-                 />
-             </div>
+    <div className="mx-auto min-h-full w-full max-w-[1200px] px-4 pb-12 pt-6 md:px-8 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+      <div className="space-y-6">
+        {/* Cabeçalho */}
+        <div className="flex flex-col justify-between gap-6 border-b border-border pb-6 md:flex-row md:items-end">
+          <div className="space-y-3">
+            <Button
+              variant="ghost"
+              onClick={() => router.back()}
+              className={`-ml-3 gap-2 text-sm text-muted-foreground hover:text-foreground ${FOCUS}`}
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar ao Painel
+            </Button>
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted">
+                <History className="h-6 w-6 text-foreground" aria-hidden="true" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold leading-tight tracking-tight text-foreground">Lixeira</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Documentos removidos ficam aqui até serem restaurados.
+                </p>
+              </div>
+            </div>
           </div>
 
-          {isLoading ? (
-            <div className="py-40 flex flex-col items-center justify-center gap-4">
-               <AgileSpinner variant="indigo" size="md" />
-               <span className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Varrendo arquivos temporários...</span>
-            </div>
-          ) : filteredTrash.length === 0 ? (
-            <div className="py-32 text-center space-y-4 bg-card/40 border border-border/60 rounded-[2.5rem] backdrop-blur-md">
-               <div className="w-20 h-20 bg-muted rounded-[2rem] flex items-center justify-center mx-auto border border-border">
-                  <Trash className="h-8 w-8 text-muted-foreground" />
-               </div>
-               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">A lixeira está vazia</p>
-            </div>
-          ) : (
-             <div className="grid gap-4">
-                {filteredTrash.map((docItem) => (
-                  <div key={docItem.id} className="group p-5 bg-card/60 border border-border/60 rounded-[2rem] flex items-center justify-between hover:border-rose-500/30 hover:bg-background/50 transition-all duration-500 backdrop-blur-xs">
-                     <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-11 h-11 bg-muted border border-border/50 rounded-xl flex items-center justify-center text-muted-foreground group-hover:text-rose-500 group-hover:scale-105 transition-all duration-350 shrink-0">
-                           <FileText className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                           <h3 className="text-sm font-black uppercase italic tracking-tight text-foreground leading-none truncate pr-4">{docItem.title}</h3>
-                           <div className="flex items-center gap-3 mt-2 flex-wrap">
-                              <span className="text-xs font-black uppercase px-2 py-0.5 bg-muted rounded text-muted-foreground tracking-widest border border-border/60">{docItem.category}</span>
-                              <span className="text-xs font-black uppercase text-muted-foreground flex items-center gap-1">
-                                 <Clock className="h-3 w-3" /> Excluído {formatDocDate(docItem.deletedAt)}
-                              </span>
-                           </div>
-                        </div>
-                     </div>
+          <div className="relative w-full md:w-80">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input
+              aria-label="Localizar na lixeira"
+              placeholder="Localizar na lixeira..."
+              className="h-11 w-full rounded-xl border-border bg-card pl-10 text-sm text-foreground placeholder:text-muted-foreground"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
 
-                     <div className="flex items-center gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
-                         {docItem.canEdit && <Button
-                           variant="outline"
-                           onClick={() => handleRestore(docItem)}
-                           className="h-9 px-4 rounded-xl border-border bg-card text-foreground font-black uppercase text-xs tracking-wider gap-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-500/20 shadow-none transition-all"
-                         >
-                            <RotateCcw className="h-3.5 w-3.5" /> Restaurar
-                         </Button>}
-                         <Button
-                           variant="ghost"
-                           onClick={() => handlePermanentDelete(docItem.id)}
-                           title="Exclusão permanente ainda não suportada pelo backend"
-                           className="h-9 w-9 rounded-xl text-muted-foreground hover:text-rose-600 dark:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-none transition-all cursor-not-allowed"
-                         >
-                            <Trash2 className="h-4 w-4" />
-                         </Button>
-                     </div>
+        {isLoading ? (
+          <div role="status" className="flex flex-col items-center justify-center gap-4 py-32">
+            <AgileSpinner variant="indigo" size="md" />
+            <span className="text-sm text-muted-foreground">Carregando a lixeira...</span>
+          </div>
+        ) : filteredTrash.length === 0 ? (
+          <div className="space-y-4 rounded-2xl border border-border bg-card py-24 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted">
+              <Trash className="h-7 w-7 text-muted-foreground" aria-hidden="true" />
+            </div>
+            <p className="text-base font-semibold text-foreground">A lixeira está vazia</p>
+          </div>
+        ) : (
+          <ul className="grid gap-3">
+            {filteredTrash.map((docItem) => (
+              <li
+                key={docItem.id}
+                className="flex flex-col justify-between gap-4 rounded-xl border border-border bg-card p-4 motion-safe:transition-colors hover:bg-muted/40 sm:flex-row sm:items-center"
+              >
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-muted-foreground">
+                    <FileText className="h-5 w-5" aria-hidden="true" />
                   </div>
-                ))}
-             </div>
-          )}
+                  <div className="min-w-0">
+                    <h3 className="truncate pr-4 text-base font-semibold text-foreground">{docItem.title}</h3>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                      <span className="rounded-md border border-border bg-muted px-2 py-0.5 text-[0.8125rem] font-medium text-foreground">{docItem.category}</span>
+                      <span className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5" aria-hidden="true" /> Excluído {formatDocDate(docItem.deletedAt)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-          {/* Security Notice */}
-          <div className="p-8 bg-rose-50/40 bg-card/40 border border-rose-100/50 border-border/80 rounded-[2.5rem] space-y-3 relative overflow-hidden backdrop-blur-md">
-             <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
-                <ShieldAlert className="h-32 w-32 text-rose-500" />
-             </div>
-             <h4 className="text-sm font-black uppercase italic tracking-tighter text-rose-600 dark:text-rose-500 leading-none">Aviso Estrutural</h4>
-             <p className="text-xs font-bold text-muted-foreground max-w-4xl leading-relaxed uppercase tracking-wider">
-                Documentos na lixeira continuam guardados e podem ser restaurados pelo autor, pela liderança da squad ou por administradores. Hoje não existe exclusão definitiva automática.
-                A restauração recupera todos os metadados técnicos originais.
-             </p>
+                <div className="flex shrink-0 items-center gap-2">
+                  {docItem.canEdit && (
+                    <Button
+                      variant="outline"
+                      onClick={() => handleRestore(docItem)}
+                      aria-label={`Restaurar ${docItem.title}`}
+                      className={`h-9 gap-1.5 rounded-[10px] px-4 text-sm font-semibold ${FOCUS}`}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden="true" /> Restaurar
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-disabled="true"
+                    aria-label={`Excluir ${docItem.title} permanentemente (indisponível)`}
+                    onClick={() => handlePermanentDelete(docItem.id)}
+                    title="A exclusão permanente ainda não está disponível"
+                    className={`h-9 w-9 cursor-not-allowed rounded-[10px] text-muted-foreground opacity-70 hover:bg-muted hover:text-muted-foreground ${FOCUS}`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Aviso */}
+        <div role="note" className="flex gap-3 rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 text-foreground md:p-5">
+          <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold text-foreground">Sobre a lixeira</h2>
+            <p className="max-w-4xl text-sm leading-relaxed text-foreground">
+              Itens na lixeira ficam guardados para restauração. A exclusão permanente ainda não está disponível.
+              Quem pode restaurar: o autor, a liderança da squad ou administradores. A restauração recupera todos os metadados originais.
+            </p>
           </div>
-       </div>
+        </div>
+      </div>
     </div>
   );
 }

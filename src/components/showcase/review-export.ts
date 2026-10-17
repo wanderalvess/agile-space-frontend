@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import type { ShowcaseSession, ShowcaseTask } from './types';
 import { DECISION } from './types';
 import { getEvidenceUrls } from './utils';
+import { parseServerDate } from '@/lib/server-time';
 
 /** Nome de arquivo seguro: sem acento, barra ou dois-pontos. */
 export const fileSlug = (name: string, fallback: string) =>
@@ -15,12 +16,15 @@ export const fileSlug = (name: string, fallback: string) =>
 /** Célula de tabela markdown: "|" e quebra de linha quebrariam a tabela. */
 export const mdCell = (value?: string) => (value || '—').replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
 
-/** "17/10 às 10:42"; vazio se a data não existir ou for inválida. */
+/**
+ * "17/10 às 10:42"; vazio se a data não existir ou for inválida.
+ * O servidor grava decidedAt/approvedAt sem fuso (UTC): `parseServerDate` evita a hora adiantada.
+ */
 export const decidedWhen = (iso?: string) => {
   if (!iso) return '';
   try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
+    const d = parseServerDate(iso);
+    if (!d) return '';
     return format(d, "dd/MM 'às' HH:mm", { locale: ptBR });
   } catch {
     return '';

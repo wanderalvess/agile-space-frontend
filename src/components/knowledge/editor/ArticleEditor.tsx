@@ -371,6 +371,13 @@ export function ArticleEditor() {
                         patch({ title: e.target.value });
                         if (errors.title) setErrors((prev) => ({ ...prev, title: undefined }));
                       }}
+                      onKeyDown={(e) => {
+                        // Enter (com ou sem Shift) no título leva o cursor ao começo do texto, sem inserir nada.
+                        // Durante a composição de acento/IME o Enter confirma a letra: não interceptar.
+                        if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+                        e.preventDefault();
+                        editor?.commands.focus('start');
+                      }}
                       placeholder="Título do artigo"
                       autoComplete="off"
                       aria-invalid={errors.title ? true : undefined}

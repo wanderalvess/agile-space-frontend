@@ -77,6 +77,9 @@ describe('status e fases', () => {
   it('active recente é Ao vivo; active sem atividade há mais de 12 h volta a Em preparação', () => {
     expect(normalizeReviewStatus('active', '2026-10-17T11:00:00Z', now)).toBe('active');
     expect(normalizeReviewStatus('active', new Date(now - REVIEW_STALE_MS - 1000).toISOString(), now)).toBe('planning');
+    // carimbo antigo, sem fuso, vale UTC: 11:00 UTC e "agora" 14:00 UTC (3 h) continuam Ao vivo
+    expect(normalizeReviewStatus('active', '2026-10-17T11:00:00', Date.parse('2026-10-17T14:00:00Z'))).toBe('active');
+    expect(normalizeReviewStatus('active', '2026-10-17T00:00:00', Date.parse('2026-10-17T12:00:01Z'))).toBe('planning');
     // sem data de atualização, confia no status gravado
     expect(normalizeReviewStatus('active', undefined, now)).toBe('active');
   });
