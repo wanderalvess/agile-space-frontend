@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Trash2, TrendingUp, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ExternalLink, Maximize2, Minimize2, Trash2, TrendingUp } from 'lucide-react';
+import { FOCUS_RING, IconButton, SelectField } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import { ShowcaseTask, PreparationStatus, DECISION, ISSUE_TYPES, PREPARATION_STATUS } from './types';
 import { ControlledInput } from './ControlledFields';
@@ -21,6 +20,8 @@ interface TaskCardHeaderProps {
   onRemove: () => void;
 }
 
+const PREP_OPTIONS = (Object.keys(PREPARATION_STATUS) as PreparationStatus[]).map((k) => ({ value: k, label: PREPARATION_STATUS[k].label }));
+
 /**
  * Duas linhas: em cima a identificação (chave, tipo, preparação e ações), embaixo o título
  * inteiro. Numa linha só o título disputava espaço com cinco controles e a chave era cortada.
@@ -36,30 +37,30 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
   // Remover apaga o card, as métricas e os arquivos anexados: pede confirmação antes.
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const jiraUrl = toSafeUrl(task.url);
+  const typeOptions = ISSUE_TYPES.includes(task.type) || !task.type ? ISSUE_TYPES : [task.type, ...ISSUE_TYPES];
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {isManual && (
-          <span className="inline-flex items-center h-7 px-2 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[11px] font-bold uppercase tracking-wide shrink-0">
-            Manual
-          </span>
+          <span className="inline-flex h-7 shrink-0 items-center rounded-lg bg-amber-500/10 px-2 text-xs font-semibold text-amber-700 dark:text-amber-300">Manual</span>
         )}
         {isMetricsCard && (
-          <span className="inline-flex items-center gap-1 h-7 px-2 rounded-lg bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400 text-[11px] font-bold uppercase tracking-wide shrink-0">
-            <TrendingUp className="h-3 w-3" /> Métrica
+          <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-primary/10 px-2 text-xs font-semibold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+            <TrendingUp className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Métrica
           </span>
         )}
 
         {/* Chave */}
-        <div className="inline-flex items-center h-7 pl-2.5 pr-1 rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0">
+        <div className="inline-flex h-8 shrink-0 items-center rounded-lg bg-muted pl-2.5 pr-1">
           <ControlledInput
             id={`key-${task.id}`}
+            aria-label="Chave da issue"
             value={task.key}
             onChange={(v: string) => onUpdate({ key: v.toUpperCase() })}
             placeholder="CHAVE-00"
             style={{ width: `${keyWidthCh}ch` }}
-            className="bg-transparent border-none outline-none text-[11px] font-bold uppercase tracking-wide text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600"
+            className="border-none bg-transparent text-[13px] font-bold uppercase tabular-nums text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0"
           />
           {jiraUrl && (
             <a
@@ -67,31 +68,28 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
               target="_blank"
               rel="noopener noreferrer"
               title="Abrir no Jira"
-              className="h-5 w-5 rounded-md flex items-center justify-center text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-slate-700 transition-colors"
+              aria-label="Abrir no Jira"
+              className={cn('flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground', FOCUS_RING)}
             >
-              <ExternalLink className="h-3 w-3" />
+              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
             </a>
           )}
         </div>
 
         {/* Tipo */}
-        <Select value={task.type} onValueChange={(v) => onUpdate({ type: v })}>
-          <SelectTrigger className="h-7 w-fit gap-1 px-2.5 bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 rounded-lg text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors focus:ring-0 shrink-0">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-            {ISSUE_TYPES.map((type) => (
-              <SelectItem key={type} value={type} className="text-[11px] font-black uppercase">
-                {type}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SelectField
+          aria-label="Tipo da issue"
+          value={task.type || ''}
+          onChange={(v) => onUpdate({ type: v })}
+          options={typeOptions.map((t) => ({ value: t, label: t }))}
+          placeholder="Tipo"
+          className="h-8 w-auto min-w-[7.5rem] shrink-0 rounded-lg px-2.5 text-[13px] font-medium"
+        />
 
         {decided && (
           <span
             title="Decisão registrada na apresentação"
-            className={cn('inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wide shrink-0', DECISION[task.decision].cls)}
+            className={cn('inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold', DECISION[task.decision].cls)}
           >
             {DECISION[task.decision].icon}
             {DECISION[task.decision].label}
@@ -101,72 +99,46 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
         <div className="flex-1" />
 
         {/* Preparação */}
-        <Select
-          value={task.preparationStatus || 'todo'}
-          onValueChange={(v) => onUpdate({ preparationStatus: v as PreparationStatus })}
-        >
-          <SelectTrigger
-            data-tour={index === 0 ? 'first-card-status' : undefined}
-            className={cn(
-              'h-7 w-fit gap-1 px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wide transition-colors shrink-0 border focus:ring-0',
-              prep.cls,
-              prep.border
-            )}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="dark:bg-slate-900 dark:border-slate-800">
-            {Object.entries(PREPARATION_STATUS).map(([key, config]) => (
-              <SelectItem key={key} value={key} className="text-[11px] font-bold uppercase">
-                {config.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div data-tour={index === 0 ? 'first-card-status' : undefined} className="shrink-0">
+          <SelectField
+            aria-label="Status de preparação"
+            value={task.preparationStatus || 'todo'}
+            onChange={(v) => onUpdate({ preparationStatus: v as PreparationStatus })}
+            options={PREP_OPTIONS}
+            className={cn('h-8 w-auto min-w-[8.5rem] rounded-lg border px-2.5 text-[13px] font-semibold', prep.cls, prep.border)}
+          />
+        </div>
 
-        <div className="flex items-center shrink-0">
-          {/* Recolher/Expandir — Maximize2/Minimize2, não Chevron, para não parecer a seta do select ao lado. */}
-          <Button
-            variant="ghost" size="icon"
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Recolher/Expandir: Maximize2/Minimize2, não Chevron, para não parecer a seta do select ao lado. */}
+          <IconButton
+            size="sm"
+            label={collapsed ? 'Expandir card' : 'Recolher card'}
+            title={!canCollapse ? 'Marque a preparação como "Pronta" para poder recolher' : (collapsed ? 'Expandir' : 'Recolher')}
+            icon={collapsed ? Maximize2 : Minimize2}
             onClick={onToggleCollapse}
             disabled={!canCollapse}
-            title={!canCollapse ? 'Marque a preparação como "Pronta" pra poder recolher' : (collapsed ? 'Expandir' : 'Recolher')}
-            aria-label={collapsed ? 'Expandir card' : 'Recolher card'}
-            className={cn(
-              'h-7 w-7 rounded-lg transition-all',
-              canCollapse
-                ? 'text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20'
-                : 'text-slate-200 dark:text-slate-700 cursor-not-allowed'
-            )}
-          >
-            {collapsed ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
-          </Button>
+            className="border-transparent max-sm:h-11 max-sm:w-11"
+          />
           {confirmingRemove ? (
-            <span className="flex items-center gap-1.5 pl-1" role="group" aria-label="Confirmar remoção do card">
+            <span className="flex items-center gap-2 pl-1" role="group" aria-label="Confirmar remoção do card">
               <button
                 type="button"
                 onClick={() => { setConfirmingRemove(false); onRemove(); }}
-                className="text-[11px] font-bold text-rose-600 hover:underline"
+                className={cn('rounded-md px-1 text-[13px] font-semibold text-red-700 hover:underline dark:text-red-300 max-sm:min-h-11', FOCUS_RING)}
               >
                 Remover card e anexos
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmingRemove(false)}
-                className="text-[11px] font-bold text-slate-400 hover:underline"
+                className={cn('rounded-md px-1 text-[13px] font-semibold text-muted-foreground hover:underline max-sm:min-h-11', FOCUS_RING)}
               >
                 Manter
               </button>
             </span>
           ) : (
-            <Button
-              variant="ghost" size="icon" onClick={() => setConfirmingRemove(true)}
-              title="Remover card"
-              aria-label="Remover card"
-              className="h-7 w-7 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
+            <IconButton size="sm" label="Remover card" icon={Trash2} onClick={() => setConfirmingRemove(true)} className="border-transparent hover:text-red-700 dark:hover:text-red-300 max-sm:h-11 max-sm:w-11" />
           )}
         </div>
       </div>
@@ -174,10 +146,11 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
       {/* Título */}
       <ControlledInput
         id={`title-${task.id}`}
+        aria-label="Título da entrega"
         value={task.title}
         onChange={(v: string) => onUpdate({ title: v })}
         placeholder="Título da entrega"
-        className="w-full text-[15px] font-bold leading-snug text-slate-900 dark:text-slate-100 bg-transparent border-none outline-none focus:text-violet-700 dark:focus:text-violet-300 transition-colors placeholder:text-slate-400"
+        className="w-full border-none bg-transparent text-base font-bold leading-snug text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:text-primary [.theme-totvs:not(.dark)_&]:focus:text-foreground"
       />
     </div>
   );

@@ -26,35 +26,35 @@ export function TaskCardSummary({ task, isMetricsCard, onExpand }: TaskCardSumma
       type="button"
       onClick={onExpand}
       title="Expandir card"
-      className="w-full flex items-center gap-3 text-left rounded-xl px-3 py-2 -mx-1 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/70 transition-colors"
+      className="-mx-1 flex w-full items-center gap-3 rounded-xl bg-muted/50 px-3 py-2 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:min-h-11"
     >
-      <span className="flex-1 min-w-0 flex items-center gap-2 text-[12px] text-slate-500 dark:text-slate-400">
+      <span className="flex min-w-0 flex-1 items-center gap-2 text-[13px] text-muted-foreground">
         {problem || solution ? (
           <>
             <span className="truncate">{truncate(problem || '', 60) || 'Sem problema descrito'}</span>
             {!isMetricsCard && (
               <>
-                <ArrowRight className="h-3 w-3 text-slate-300 dark:text-slate-600 shrink-0" />
+                <ArrowRight className="h-3 w-3 shrink-0 opacity-60" strokeWidth={1.5} aria-hidden="true" />
                 <span className="truncate">{truncate(solution || '', 60) || 'Sem solução descrita'}</span>
               </>
             )}
           </>
         ) : (
-          <span className="italic text-slate-400 dark:text-slate-500">Problema e solução ainda não preenchidos</span>
+          <span className="italic">Problema e solução ainda não preenchidos</span>
         )}
       </span>
       {!isMetricsCard && task.acceptanceCriteria && (
-        <span className="flex items-center gap-1 text-[11px] font-bold text-violet-500 dark:text-violet-400 shrink-0">
-          <CheckSquare className="h-3 w-3" /> Critérios
+        <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+          <CheckSquare className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Critérios
         </span>
       )}
       {hasEvidence && (
-        <span className="flex items-center gap-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 shrink-0">
-          <Paperclip className="h-3 w-3" /> Evidência
+        <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
+          <Paperclip className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Evidência
         </span>
       )}
-      <span className="flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0">
-        <User className="h-3 w-3" /> {task.evidence.dev || 'sem dev'}
+      <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground">
+        <User className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> {task.evidence.dev || 'sem dev'}
       </span>
     </button>
   );

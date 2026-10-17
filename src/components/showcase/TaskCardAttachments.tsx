@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { FileImage, FileText, Loader2, Paperclip, Trash2, UploadCloud } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { FOCUS_RING } from '@/components/room-kit/tokens';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { showcaseApi } from '@/app/showcase/api';
@@ -109,46 +109,43 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
   };
 
   return (
-    <div className="space-y-2" data-testid="task-attachments">
+    <div className="flex flex-col gap-2" data-testid="task-attachments">
       <div className="flex items-center justify-between">
-        <FieldLabel icon={Paperclip} label="Arquivos anexados" color="text-slate-500 dark:text-slate-400" />
-        <span className={cn('text-[11px] font-bold tabular-nums', isFull ? 'text-amber-500' : 'text-slate-400 dark:text-slate-500')}>
+        <FieldLabel icon={Paperclip} label="Arquivos anexados" />
+        <span className={cn('text-xs font-semibold tabular-nums', isFull ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}>
           {files.length}/{TASK_FILE_MAX_COUNT}
         </span>
       </div>
 
       {files.length > 0 && (
-        <ul className="space-y-1.5">
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
           {files.map(file => {
             const isPdf = file.contentType === 'application/pdf';
             const Icon = isPdf ? FileText : FileImage;
             const confirming = confirmingId === file.id;
             return (
-              <li
-                key={file.id}
-                className="flex items-center gap-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 h-8"
-              >
-                <Icon className={cn('h-3.5 w-3.5 shrink-0', isPdf ? 'text-rose-500' : 'text-sky-500')} />
+              <li key={file.id} className="flex h-9 items-center gap-2 rounded-lg border border-border bg-background px-2 max-sm:h-11">
+                <Icon className={cn('h-3.5 w-3.5 shrink-0', isPdf ? 'text-red-600 dark:text-red-400' : 'text-blue-600 dark:text-blue-400')} strokeWidth={1.5} aria-hidden="true" />
                 <button
                   type="button"
                   onClick={() => openFile(file)}
                   title={`Abrir ${file.name}`}
-                  className="flex-1 min-w-0 text-left text-[11px] font-medium text-slate-700 dark:text-slate-200 truncate hover:text-violet-600 dark:hover:text-violet-400"
+                  className={cn('min-w-0 flex-1 truncate rounded text-left text-xs font-medium hover:text-primary [.theme-totvs:not(.dark)_&]:hover:text-foreground [.theme-totvs:not(.dark)_&]:hover:underline', FOCUS_RING)}
                 >
                   {file.name}
                 </button>
-                <span className="text-[10px] font-semibold text-slate-400 shrink-0 tabular-nums">{formatFileSize(file.size)}</span>
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{formatFileSize(file.size)}</span>
                 {confirming ? (
-                  <span className="flex items-center gap-1 shrink-0">
+                  <span className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => removeFile(file)}
                       disabled={deletingId === file.id}
-                      className="text-[10px] font-bold text-rose-600 hover:underline disabled:opacity-50"
+                      className={cn('rounded px-1 text-xs font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-300', FOCUS_RING)}
                     >
                       {deletingId === file.id ? 'Removendo…' : 'Remover'}
                     </button>
-                    <button type="button" onClick={() => setConfirmingId(null)} className="text-[10px] font-bold text-slate-400 hover:underline">
+                    <button type="button" onClick={() => setConfirmingId(null)} className={cn('rounded px-1 text-xs font-semibold text-muted-foreground hover:underline', FOCUS_RING)}>
                       Manter
                     </button>
                   </span>
@@ -158,9 +155,9 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
                     onClick={() => setConfirmingId(file.id)}
                     title={`Remover ${file.name}`}
                     aria-label={`Remover ${file.name}`}
-                    className="text-slate-300 hover:text-rose-500 transition-colors shrink-0"
+                    className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-red-700 dark:hover:text-red-300', FOCUS_RING)}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
                   </button>
                 )}
               </li>
@@ -176,11 +173,11 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
         accept={TASK_FILE_ACCEPT}
         className="hidden"
         data-testid="task-file-input"
+        aria-label="Anexar arquivos ao card"
         onChange={e => sendFiles(Array.from(e.target.files || []))}
       />
-      <Button
+      <button
         type="button"
-        variant="outline"
         disabled={uploading || isFull}
         onClick={() => inputRef.current?.click()}
         onDragOver={e => { e.preventDefault(); if (!isFull) setDragOver(true); }}
@@ -191,18 +188,20 @@ export function TaskCardAttachments({ task, sessionId, onUploadFile, onDeleteFil
           sendFiles(Array.from(e.dataTransfer.files || []));
         }}
         className={cn(
-          'w-full h-auto min-h-9 py-2 rounded-lg border-dashed text-[11px] font-bold gap-2 whitespace-normal',
-          dragOver ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/20 text-violet-600' : 'text-slate-500 dark:text-slate-400'
+          'flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs font-semibold transition-colors max-sm:min-h-11',
+          'disabled:cursor-not-allowed disabled:opacity-60',
+          dragOver ? 'border-primary bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+          FOCUS_RING
         )}
       >
-        {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UploadCloud className="h-3.5 w-3.5" />}
+        {uploading ? <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" strokeWidth={1.5} aria-hidden="true" /> : <UploadCloud className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
         {uploading
           ? 'Enviando…'
           : isFull
             ? `Limite de ${TASK_FILE_MAX_COUNT} arquivos atingido`
             : 'Anexar arquivo ou arrastar aqui'}
-      </Button>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500">PNG, JPEG ou PDF · até 10 MB cada · máximo de {TASK_FILE_MAX_COUNT} por card.</p>
+      </button>
+      <p className="m-0 text-xs text-muted-foreground">PNG, JPEG ou PDF · até 10 MB cada · máximo de {TASK_FILE_MAX_COUNT} por card.</p>
     </div>
   );
 }

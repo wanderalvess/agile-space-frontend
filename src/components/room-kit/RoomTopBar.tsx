@@ -78,8 +78,12 @@ export interface RoomTopBarProps {
   onTitleChange?: (title: string) => void;
   /** Para onde o botão de voltar leva. Padrão: Home. */
   homeHref?: string;
+  /** Nome acessível do botão de voltar. Padrão: "Voltar para a página inicial". */
+  homeLabel?: string;
   /** Estado da sessão: ponto pulsante em "Ao vivo". */
   status?: RoomTopBarStatus;
+  /** Texto do selo no lugar do padrão ("Em preparação" em vez de "Aguardando"). */
+  statusLabel?: string;
   chips?: RoomTopBarChip[];
   /** Fases da cerimônia (centro). Cada sala passa as suas. */
   phases?: { steps: readonly PhaseStep[]; current: string; label?: string };
@@ -105,8 +109,8 @@ const TIER_BUTTON: Record<TopBarTier, string> = { core: 'max-sm:hidden', mid: 'm
 const TIER_MENU_ITEM: Record<TopBarTier, string> = { core: 'sm:hidden', mid: '2xl:hidden', wide: '3xl:hidden' };
 const TIER_DOT = TIER_MENU_ITEM;
 
-function StatusPill({ status }: { status: RoomTopBarStatus }) {
-  const label = STATUS_LABEL[status];
+function StatusPill({ status, label: custom }: { status: RoomTopBarStatus; label?: string }) {
+  const label = custom ?? STATUS_LABEL[status];
   const live = status === 'live';
   return (
     <span
@@ -286,7 +290,9 @@ export function RoomTopBar({
   title,
   onTitleChange,
   homeHref = '/',
+  homeLabel = 'Voltar para a página inicial',
   status,
+  statusLabel,
   chips = [],
   phases,
   timer,
@@ -314,8 +320,8 @@ export function RoomTopBar({
         <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[15rem]">
           <Link
             href={homeHref}
-            aria-label="Voltar para a página inicial"
-            title="Voltar para a página inicial"
+            aria-label={homeLabel}
+            title={homeLabel}
             className={cn(
               'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-foreground transition-colors duration-fast hover:bg-accent max-sm:h-11 max-sm:w-11',
               FOCUS_RING
@@ -327,7 +333,7 @@ export function RoomTopBar({
           <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
             <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
               <span className="shrink-0 text-[11px] font-medium leading-[18px] text-muted-foreground">{toolName}</span>
-              {status && <StatusPill status={status} />}
+              {status && <StatusPill status={status} label={statusLabel} />}
               {chips.map((c) => (
                 <StatusChip
                   key={c.id}

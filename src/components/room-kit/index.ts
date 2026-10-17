@@ -27,3 +27,4 @@ export * from './SettingRow';
 export * from './PresentationBar';
 export * from './StageNav';
 export * from './useRoomPreference';
+export * from './ShareDialog';

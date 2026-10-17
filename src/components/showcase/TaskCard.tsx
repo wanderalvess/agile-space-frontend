@@ -3,11 +3,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, TrendingUp } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { BRAND_TEXT, FOCUS_RING } from '@/components/room-kit/tokens';
 import { cn } from '@/lib/utils';
 import { ShowcaseTask, SessionMember } from './types';
 import { isTaskContentComplete } from './utils';
+import { isManualTask } from './session-model';
 import { ControlledTextarea } from './ControlledFields';
 import { FieldLabel } from './TaskCardFields';
 import { MetricsEditor, ChartDisplayPicker } from './MetricsEditor';
@@ -16,21 +16,23 @@ import { TaskCardSummary } from './TaskCardSummary';
 import { TaskCardContentFields } from './TaskCardContentFields';
 import { TaskCardExecutionDetails } from './TaskCardExecutionDetails';
 
+/** Faixa lateral na cor da preparação: dá para ler o estado da lista inteira de relance. */
 const PREP_ACCENT: Record<string, string> = {
-  todo: 'bg-slate-200 dark:bg-slate-700',
-  doing: 'bg-blue-500',
-  review: 'bg-indigo-500',
+  todo: 'bg-muted-foreground/30',
+  doing: 'bg-primary',
+  review: 'bg-blue-500',
   done: 'bg-emerald-500',
 };
+
+const METRICS_PANEL = 'flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10';
 
 interface TaskCardProps {
   task: ShowcaseTask;
   index: number;
   members: SessionMember[];
-  // taskId-first (em vez de já vir pré-aplicado) — permite passar a MESMA
-  // função pra todos os cards, e junto com React.memo evita re-renderizar
-  // todo mundo a cada edição de um único card.
-  onUpdateTask: (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => void;
+  // taskId-first (em vez de já vir pré-aplicado): permite passar a MESMA função para todos os cards, e junto com
+  // React.memo evita re-renderizar todo mundo a cada edição de um único card.
+  onUpdateTask: (taskId: string, updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => void | Promise<boolean>;
   onRemoveTask: (taskId: string) => void;
   // Anexos (PNG/JPEG/PDF): funções estáveis da página, pelo mesmo motivo do React.memo acima.
   sessionId?: string;
@@ -40,30 +42,24 @@ interface TaskCardProps {
 
 function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId, onUploadFile, onDeleteFile }: TaskCardProps) {
   const onUpdate = React.useCallback(
-    (updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => onUpdateTask(task.id, updates),
+    (updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => { void onUpdateTask(task.id, updates); },
     [task.id, onUpdateTask]
   );
   const onRemove = React.useCallback(() => onRemoveTask(task.id), [task.id, onRemoveTask]);
   const isMetricsCard = task.cardKind === 'metrics';
   const isReady = isTaskContentComplete(task);
-  const isManual = task.id.startsWith('manual_') || task.key.startsWith('MANUAL-');
-  // Só pode recolher quando a squad já marcou a preparação como "Pronta" —
-  // colapsar um card ainda em aberto escondia campo vazio que precisava de
-  // atenção. Critério é o status explícito (preparationStatus), não o
-  // isReady calculado por conteúdo — são coisas diferentes.
+  const isManual = isManualTask(task);
+  // Só pode recolher quando a squad já marcou a preparação como "Pronta": colapsar um card ainda em aberto
+  // escondia campo vazio que precisava de atenção. O critério é o status explícito (preparationStatus), não o
+  // isReady calculado por conteúdo: são coisas diferentes.
   const canCollapse = task.preparationStatus === 'done';
-  // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint
-  // grande) — sprint de 40 itens não vira scroll infinito de card 100% aberto.
+  // Recolhido de cara só quando a task JÁ chega pronta (import do Jira, sprint grande): sprint de 40 itens não
+  // vira scroll infinito de card 100% aberto.
   const [collapsed, setCollapsed] = React.useState(canCollapse);
 
-  // Colapsa/reabre sozinho seguindo a transição de "Pronta" — mas só na
-  // TRANSIÇÃO (via ref), nunca a cada render: marcar "Pronta" já é uma ação
-  // discreta e deliberada no próprio header do card (clique num dropdown),
-  // então reagir a ela colapsando na hora é a confirmação visual esperada,
-  // não vira fechar "debaixo do cursor" de quem tá digitando num campo de
-  // texto. Reabre se o status regredir de "Pronta" — nunca deixa escondido
-  // um card fora do critério de recolher. Sem o `prev` isso brigaria com
-  // reabrir manualmente um card já pronto pra reconferir algo.
+  // Recolhe/reabre sozinho seguindo a transição de "Pronta", só na TRANSIÇÃO (via ref), nunca a cada render:
+  // marcar "Pronta" é uma ação deliberada no próprio cabeçalho do card, então recolher na hora é a confirmação
+  // visual esperada. Reabre se o status regredir de "Pronta": nunca deixa escondido um card fora do critério.
   const prevCanCollapseRef = React.useRef(canCollapse);
   const cardRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -76,26 +72,30 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
     } else if (!canCollapse && collapsed) setCollapsed(false);
   }, [canCollapse, collapsed]);
 
+  const applyPreset = (preset: { chartType: ShowcaseTask['chartType']; chartTitle: string; metrics: { field: string; value: number }[] }) =>
+    onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) });
+
   return (
     <motion.div
       ref={cardRef}
-      // "position" e não `layout` inteiro: animar o tamanho escalava o card (texto esticado e
-      // um vão vazio) durante a transição de recolher/expandir. Agora só a posição anima.
+      // "position" e não `layout` inteiro: animar o tamanho escalava o card (texto esticado e um vão vazio)
+      // durante a transição de recolher/expandir. Agora só a posição anima.
       layout="position"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.04, ease: [0.23, 1, 0.32, 1] }}
+      transition={{ duration: 0.4, delay: Math.min(index, 8) * 0.04, ease: [0.23, 1, 0.32, 1] }}
       className="group/card"
     >
-      <Card className={cn(
-        'relative border rounded-2xl overflow-hidden bg-white dark:bg-slate-900/80 transition-shadow duration-300',
-        'hover:shadow-lg hover:shadow-slate-200/60 dark:hover:shadow-black/30',
-        isReady ? 'border-emerald-200 dark:border-emerald-900/50' : 'border-slate-200 dark:border-slate-800',
-      )}>
-        {/* Faixa lateral com a cor da preparação: dá para ler o estado da lista inteira de relance. */}
-        <div aria-hidden className={cn('absolute inset-y-0 left-0 w-1', PREP_ACCENT[task.preparationStatus || 'todo'])} />
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-2xl border bg-card text-card-foreground transition-shadow duration-base',
+          'hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)] dark:hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)]',
+          isReady ? 'border-emerald-500/50' : 'border-border',
+        )}
+      >
+        <div aria-hidden="true" className={cn('absolute inset-y-0 left-0 w-1', PREP_ACCENT[task.preparationStatus || 'todo'])} />
 
-        <div className={cn('pl-6 pr-5 space-y-4', collapsed ? 'py-3.5' : 'py-5')}>
+        <div className={cn('flex flex-col gap-4 pl-6 pr-5', collapsed ? 'py-3.5' : 'py-5')}>
           <TaskCardHeader
             task={task}
             index={index}
@@ -115,8 +115,8 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
               <TaskCardContentFields task={task} isMetricsCard={isMetricsCard} onUpdate={onUpdate} />
 
               {isMetricsCard ? (
-                <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
-                  <FieldLabel icon={TrendingUp} label="Campos e Valores" color="text-violet-500 dark:text-violet-400" />
+                <div className={METRICS_PANEL}>
+                  <FieldLabel icon={TrendingUp} label="Campos e valores" color={BRAND_TEXT} />
                   <MetricsEditor
                     metrics={task.metrics || []}
                     onChange={(metrics) => onUpdate({ metrics })}
@@ -124,19 +124,18 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
                     onChartTypeChange={(chartType) => onUpdate({ chartType })}
                     chartTitle={task.chartTitle}
                     onChartTitleChange={(chartTitle) => onUpdate({ chartTitle })}
-                    onApplyPreset={(preset) => onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) })}
+                    onApplyPreset={applyPreset}
                   />
                 </div>
               ) : (
                 <TaskCardExecutionDetails task={task} onUpdate={onUpdate} sessionId={sessionId} onUploadFile={onUploadFile} onDeleteFile={onDeleteFile} />
               )}
 
-              {/* Métrica de Impacto avulsa — só no card padrão (no card de
-                  métricas isso já é a seção acima). */}
+              {/* Métrica de impacto avulsa: só no card padrão (no card de métricas isso já é a seção acima). */}
               {!isMetricsCard && ((task.metrics && task.metrics.length > 0) ? (
-                <div className="p-4 bg-violet-50/40 dark:bg-violet-950/10 border border-violet-100 dark:border-violet-900/30 rounded-xl space-y-3">
+                <div className={METRICS_PANEL}>
                   <div className="flex items-center justify-between gap-2">
-                    <FieldLabel icon={TrendingUp} label="Métricas de Impacto" color="text-violet-500 dark:text-violet-400" />
+                    <FieldLabel icon={TrendingUp} label="Métricas de impacto" color={BRAND_TEXT} />
                     <ChartDisplayPicker value={task.chartDisplay} onChange={(chartDisplay) => onUpdate({ chartDisplay })} />
                   </div>
                   <MetricsEditor
@@ -146,35 +145,36 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
                     onChartTypeChange={(chartType) => onUpdate({ chartType })}
                     chartTitle={task.chartTitle}
                     onChartTitleChange={(chartTitle) => onUpdate({ chartTitle })}
-                    onApplyPreset={(preset) => onUpdate({ chartType: preset.chartType, chartTitle: preset.chartTitle, metrics: preset.metrics.map(m => ({ ...m })) })}
+                    onApplyPreset={applyPreset}
                   />
                 </div>
               ) : (
-                <Button
-                  variant="ghost" size="sm"
+                <button
+                  type="button"
                   onClick={() => onUpdate({ metrics: [{ field: '', value: 0 }] })}
-                  className="h-7 px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wide text-slate-400 hover:text-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20 gap-1 w-fit"
+                  className={cn('inline-flex h-8 w-fit items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground max-sm:h-11', FOCUS_RING)}
                 >
-                  <Plus className="h-3 w-3" /> Métrica de Impacto
-                </Button>
+                  <Plus className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Métrica de impacto
+                </button>
               ))}
 
-              {/* Feedback do PO: só depois que a decisão foi tomada na apresentação. Na
-                  preparação o bloco aparecia vazio em todo card novo (feedback: ''). */}
+              {/* Feedback do PO: só depois que a decisão foi tomada na apresentação. Na preparação o bloco
+                  aparecia vazio em todo card novo (feedback: ''). */}
               {(task.decision === 'needs_adjustment' || task.decision === 'rejected' || !!task.feedback?.trim()) && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-xl"
+                  className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3"
                 >
-                  <div className="w-1 rounded-full bg-amber-400 shrink-0" />
+                  <div className="w-1 shrink-0 rounded-full bg-amber-500" />
                   <div className="flex-1">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-amber-500 dark:text-amber-400 mb-0.5">Feedback da Review</p>
+                    <label htmlFor={`feedback-${task.id}`} className="mb-0.5 block text-xs font-semibold text-amber-800 dark:text-amber-300">Feedback da Review</label>
                     <ControlledTextarea
+                      id={`feedback-${task.id}`}
                       value={task.feedback || ''}
                       onChange={(v: string) => onUpdate({ feedback: v })}
                       placeholder="Detalhes do ajuste ou motivo da rejeição..."
-                      className="w-full bg-transparent border-none outline-none text-[12px] font-medium text-amber-900 dark:text-amber-300 italic placeholder:text-amber-500/50 resize-none min-h-[40px]"
+                      className="min-h-[40px] w-full resize-none border-none bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-amber-800/50 dark:placeholder:text-amber-300/50"
                     />
                   </div>
                 </motion.div>
@@ -182,7 +182,7 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
             </>
           )}
         </div>
-      </Card>
+      </div>
     </motion.div>
   );
 }

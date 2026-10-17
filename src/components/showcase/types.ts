@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock, CheckCircle2, AlertTriangle, Ban } from 'lucide-react';
+import { TONES } from '@/components/room-kit/tokens';
 
 export type Decision = 'open' | 'approved' | 'needs_adjustment' | 'rejected';
 export type PreparationStatus = 'todo' | 'doing' | 'review' | 'done';
@@ -111,6 +112,8 @@ export interface ShowcaseSession {
   members?: SessionMember[];
   tasks: ShowcaseTask[];
   createdAt: string | null;
+  /** Última gravação (vem do servidor); base para tratar "Ao vivo" abandonado. */
+  updatedAt?: string | null;
   status: string;
   presentationBackground?: string;
   presentationTheme?: 'cinematic' | 'minimalist' | 'corporate' | 'glass';
@@ -138,20 +141,26 @@ export const ISSUE_TYPES = [
   'Evolução'
 ];
 
+/**
+ * Decisão do PO: rótulo, ícone e classes do selo (tokens do kit: valem nos 7 temas, claro e escuro).
+ * `cls` serve às telas com o tema do portal; o Modo Teatro usa `stageCls`, que lê bem sobre o fundo
+ * escolhido para a apresentação (claro ou escuro), seja qual for o tema do portal.
+ */
 export const DECISION = {
-  open:             { label: 'Aguardando',  cls: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',   icon: React.createElement(Clock, { className: "h-3 w-3" }) },
-  approved:         { label: 'Aprovado',    cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400', icon: React.createElement(CheckCircle2, { className: "h-3 w-3" }) },
-  needs_adjustment: { label: 'Ajuste',      cls: 'bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400',     icon: React.createElement(AlertTriangle, { className: "h-3 w-3" }) },
-  rejected:         { label: 'Rejeitado',   cls: 'bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400',       icon: React.createElement(Ban, { className: "h-3 w-3" }) },
+  open:             { label: 'Aguardando', cls: TONES.neutral.chip, stageCls: { dark: 'bg-white/10 text-white/70', light: 'bg-slate-100 text-slate-600' }, icon: React.createElement(Clock, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  approved:         { label: 'Aprovado',   cls: TONES.success.chip, stageCls: { dark: 'bg-emerald-500/15 text-emerald-300', light: 'bg-emerald-100 text-emerald-800' }, icon: React.createElement(CheckCircle2, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  needs_adjustment: { label: 'Ajuste',     cls: TONES.warn.chip, stageCls: { dark: 'bg-amber-500/15 text-amber-300', light: 'bg-amber-100 text-amber-800' }, icon: React.createElement(AlertTriangle, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
+  rejected:         { label: 'Rejeitado',  cls: TONES.danger.chip, stageCls: { dark: 'bg-red-500/15 text-red-300', light: 'bg-red-100 text-red-800' }, icon: React.createElement(Ban, { className: 'h-3 w-3', strokeWidth: 1.5 }) },
 } as const;
 
+/** Status de preparação do card: texto do selo, classes do selo e da borda. */
 export const PREPARATION_STATUS = {
-  todo:   { label: 'Aguardando',      cls: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400', border: 'border-slate-200 dark:border-slate-800' },
-  doing:  { label: 'Em Preparação',  cls: 'bg-blue-50 text-blue-600 dark:bg-blue-950/30 dark:text-blue-400',    border: 'border-blue-100 dark:border-blue-900/30' },
-  review: { label: 'Em Revisão',     cls: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400', border: 'border-indigo-100 dark:border-indigo-900/30' },
-  done:   { label: 'Pronta',          cls: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-900/30' },
+  todo:   { label: 'Aguardando',     cls: TONES.neutral.chip, border: 'border-border' },
+  doing:  { label: 'Em preparação',  cls: TONES.brand.chip,   border: 'border-primary/30' },
+  review: { label: 'Em revisão',     cls: 'bg-blue-500/10 text-blue-700 dark:text-blue-300', border: 'border-blue-500/30' },
+  done:   { label: 'Pronta',         cls: TONES.success.chip, border: 'border-emerald-500/30' },
 } as const;
- 
+
 export interface PresentationPreset {
   id: string;
   name: string;
@@ -176,6 +185,15 @@ export const PRESENTATION_PRESETS: PresentationPreset[] = [
     isLight: false,
   },
   // --- TONS ESCUROS (CINEMATOGRÁFICO) ---
+  {
+    id: 'totvs-azul',
+    name: 'Azul TOTVS',
+    category: 'dark',
+    value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)',
+    preview: '#002233',
+    description: 'Azul institucional escuro, sóbrio e fiel à marca',
+    isLight: false,
+  },
   {
     id: 'noir',
     name: 'Deep Space',
@@ -280,10 +298,14 @@ export const PRESENTATION_PRESETS: PresentationPreset[] = [
 ];
 
 
+/**
+ * Capas prontas: arquivos do próprio app em `public/showcase/` (sem imagens de terceiros e sem logo de produto).
+ * A primeira é o padrão da empresa; as outras são fundos abstratos na paleta TOTVS.
+ */
 export const PRESETS = [
   { id: 'totvs-padrao', name: 'TOTVS', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
-  { id: 'totvs', name: 'Corporativo Agile', url: 'https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente profissional e moderno' },
-  { id: 'abstract', name: 'Abstract Flow', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?q=80&w=2029&auto=format&fit=crop', description: 'Gradients suaves e modernos' },
-  { id: 'office', name: 'Focus Office', url: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?q=80&w=2069&auto=format&fit=crop', description: 'Ambiente de trabalho limpo' },
-  { id: 'creative', name: 'Creative Dash', url: 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?q=80&w=2070&auto=format&fit=crop', description: 'Dinâmico e inspirador' },
+  { id: 'azul-profundo', name: 'Azul profundo', url: '/showcase/fundo-azul.svg', description: 'Azul escuro com halos de luz' },
+  { id: 'grade-clara', name: 'Grade clara', url: '/showcase/fundo-grade.svg', description: 'Fundo claro com grade suave' },
+  { id: 'ondas', name: 'Ondas', url: '/showcase/fundo-ondas.svg', description: 'Linhas fluidas em azul e verde' },
+  { id: 'pontos', name: 'Pontos', url: '/showcase/fundo-pontos.svg', description: 'Malha de pontos em tom petróleo' },
 ];

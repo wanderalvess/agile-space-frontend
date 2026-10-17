@@ -1,26 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  CloudDownload, ShieldCheck, Lightbulb, Loader2, Send, AlertTriangle, RotateCcw,
-  Search, CheckCircle2, FileUp, Info, X, ChevronDown, Tag, ExternalLink,
-  Bookmark, Globe, User, Plus, Trash2
+  Bookmark, ChevronDown, CloudDownload, ExternalLink, FileUp, Globe, Loader2, RotateCcw, Search, Tag, User, X,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { FIELD, FOCUS_RING, Modal, ModalButton, TabBar } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, enrichWithParentContext, JiraIssue } from '@/services/jiraService';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useSavedJqls } from '@/hooks/useSavedJqls';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+import { JQL_VISIBILITY_HELP, jqlPresets } from '@/components/showcase/review-room-logic';
 
 interface JiraImportDialogProps {
   open: boolean;
@@ -28,32 +19,51 @@ interface JiraImportDialogProps {
   onImport: (issues: JiraIssue[]) => void;
   title?: string;
   description?: string;
+  /** Chaves que já são cards da Review: aparecem marcadas na revisão e não voltam marcadas para importar. */
+  existingKeys?: readonly string[];
+  /** Chave da squad, para a predefinição de refinamento da própria squad. */
+  squadKey?: string;
+  /** Sprint ativa da squad (id do Jira), para a predefinição "Review da sprint atual". */
+  sprintId?: string;
 }
+
+type SourceTab = 'xml' | 'api';
+
+const LABEL = 'text-[13px] font-semibold text-foreground';
+const CHIP = 'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors';
+
+/** Cor do selo de status por heurística de texto (o Jira varia o nome). */
+function statusClasses(s?: string) {
+  const t = (s || '').toLowerCase();
+  if (/(done|conclu|fech|resolv|encerr)/.test(t)) return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+  if (/(progress|andamento|doing|desenvolv|execu)/.test(t)) return 'bg-blue-500/10 text-blue-700 dark:text-blue-300';
+  if (/(block|imped|bloque)/.test(t)) return 'bg-red-500/10 text-red-700 dark:text-red-300';
+  if (/(review|revis|test|qa|homolog)/.test(t)) return 'bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground';
+  return 'bg-muted text-muted-foreground';
+}
+
+const norm = (s?: string) => (s || '').toLowerCase();
+const stripHtml = (s?: string) => (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
 export function JiraImportDialog({
   open,
   onClose,
   onImport,
-  title = "Importar do Jira",
-  description = "Conecte sua squad ao Jira via XML ou API para sincronizar tarefas."
+  title = 'Importar do Jira',
+  description = 'Conecte sua squad ao Jira via XML ou API para sincronizar tarefas.',
+  existingKeys,
+  squadKey,
+  sprintId,
 }: JiraImportDialogProps) {
-  const JQL_PRESETS = [
-    { label: '🙋 Minhas Issues', jql: 'assignee = currentUser() AND status != Done' },
-    { label: '🏃 Sprint Atual', jql: 'sprint in openSprints()' },
-    { label: '📋 Backlog', jql: 'status = "To Do" ORDER BY rank DESC' },
-    { label: '📺 Review DDPDV', jql: 'project = "Varejo Front"  AND sprint = 52188 AND (issuetype in (História, "Débito Técnico", Legislação, Story) OR issuetype in (Manutencao, Manutenção, "Rejeição - Manutenção") AND priority = Crítica OR labels in (ApresentarReview)) AND sprint not in (futureSprints(), openSprints() )' },
-    { label: '📺 Review Geral', jql: 'sprint = NumeroDaSprint AND status = Concluído AND (issuetype in (Legislação, História, Story, Participativo, Spike) OR (issuetype = Manutenção AND priority = Crítica))' },
-    { label: '🔍 Refinamento DDWMISSI', jql: 'project = "DDWMISSI" and issuetype != Gestão and issueFunction in linkedIssuesOf("issuetype = Gestão AND summary ~ Refinamento and resolution = unresolved and project= \'DDWMISSI\'")' },
-    { label: '✅ Concluídas na Semana', jql: 'assignee = currentUser() AND resolutiondate >= -1w AND status = Done' },
-    { label: '⚠️ Bloqueadas', jql: 'assignee = currentUser() AND status = Blocked' },
-  ];
+  const presets = useMemo(() => jqlPresets({ squadKey, sprintId }), [squadKey, sprintId]);
+  const existing = useMemo(() => new Set(existingKeys ?? []), [existingKeys]);
 
   const { toast } = useToast();
   const { savedJqls, saveJql, deleteJql } = useSavedJqls();
   const [isSaveJqlOpen, setIsSaveJqlOpen] = useState(false);
   const [newJqlLabel, setNewJqlLabel] = useState('');
   const [newJqlIsPublic, setNewJqlIsPublic] = useState(false);
-  const [tab, setTab] = useState<'xml' | 'api'>('xml');
+  const [tab, setTab] = useState<SourceTab>('xml');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<JiraIssue[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -75,16 +85,24 @@ export function JiraImportDialog({
   // Auto-populate saved credentials e prioriza API quando token já existe
   useEffect(() => {
     if (settings && open) {
-      if (settings.token) {
-        setTab('api');
-      }
+      if (settings.token) setTab('api');
       if (!domain && !token) {
         setDomain(settings.domain || 'jiraproducao.totvs.com.br');
         setToken(settings.token || '');
         setSaveDefault(true);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, open]);
+
+  const clearFilters = () => {
+    setFilterText('');
+    setTypeFilter(new Set());
+    setStatusFilter(new Set());
+  };
+
+  /** Tudo vem marcado, menos o que já é card da Review (a importação não duplica a chave). */
+  const selectNew = (issues: JiraIssue[]) => new Set(issues.filter((i) => !existing.has(i.key)).map((i) => i.key));
 
   const handleXml = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -99,17 +117,17 @@ export function JiraImportDialog({
       });
 
       const resultsArray = await Promise.all(filePromises);
-      resultsArray.forEach(issues => allIssues.push(...issues));
+      resultsArray.forEach((issues) => allIssues.push(...issues));
 
-      // Deduplicate by key
-      const uniqueIssues = Array.from(new Map(allIssues.map(i => [i.key, i])).values());
+      // Chaves repetidas viram uma
+      const uniqueIssues = Array.from(new Map(allIssues.map((i) => [i.key, i])).values());
 
       setResults(uniqueIssues);
       clearFilters();
-      setSelected(new Set(uniqueIssues.map(i => i.key))); // Select all by default
-      toast({ title: "Arquivo lido!", description: `${uniqueIssues.length} issues detectadas.` });
-    } catch (err: any) {
-      toast({ title: "Erro no XML", description: err.message || "Arquivo inválido.", variant: "destructive" });
+      setSelected(selectNew(uniqueIssues));
+      toast({ title: 'Arquivo lido!', description: `${uniqueIssues.length} issues detectadas.` });
+    } catch (err: unknown) {
+      toast({ title: 'Erro no XML', description: (err as Error)?.message || 'Arquivo inválido.', variant: 'destructive' });
     } finally {
       setLoading(false);
       e.target.value = '';
@@ -120,59 +138,46 @@ export function JiraImportDialog({
     if (!domain || !token || !jql) return;
     setLoading(true);
     try {
-      if (saveDefault) {
-        await saveSettings({ domain, token });
-      }
+      if (saveDefault) await saveSettings({ domain, token });
       const { issues, total } = await fetchJiraIssues(domain, token, jql);
-      // Problema/solução às vezes só existem na subtarefa "Codificação"
-      // (issue filha), não na história em si — busca extra só pra quem
-      // ainda ficou sem os dois campos.
+      // Problema/solução às vezes só existem na subtarefa "Codificação" (issue filha), não na história em si.
       const enrichedFromChildren = await enrichWithCodificacaoChildren(domain, token, issues);
-      // Caminho inverso: quando a própria subtarefa é a issue buscada (JQL
-      // trouxe a "Codificação" direto, não a história), o contexto costuma
-      // estar na história pai, não repetido na subtarefa.
+      // Caminho inverso: quando a própria subtarefa é a issue buscada, o contexto costuma estar na história pai.
       const enriched = await enrichWithParentContext(domain, token, enrichedFromChildren);
       setResults(enriched);
       clearFilters();
-      setSelected(new Set(enriched.map(i => i.key))); // Select all by default
-      // Avisa quando o board é maior que o limite retornado (antes truncava
-      // silenciosamente): refine a JQL para ver o resto.
+      setSelected(selectNew(enriched));
+      // Avisa quando o board é maior que o limite retornado: refine a JQL para ver o resto.
       const truncated = typeof total === 'number' && total > issues.length;
       toast({
-        title: "Busca concluída!",
+        title: 'Busca concluída!',
         description: truncated
-          ? `${issues.length} de ${total} issues (limite atingido — refine a JQL para ver o resto).`
+          ? `${issues.length} de ${total} issues (limite atingido: refine a JQL para ver o resto).`
           : `${issues.length} issues encontradas.`,
-        variant: truncated ? "default" : undefined,
+        variant: truncated ? 'default' : undefined,
       });
-    } catch (err: any) {
-      toast({ title: "Erro na busca", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      toast({ title: 'Erro na busca', description: (err as Error)?.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   const toggleSelect = (key: string) => {
+    if (existing.has(key)) return;
     const next = new Set(selected);
     if (next.has(key)) next.delete(key); else next.add(key);
     setSelected(next);
   };
 
-  const toggleTypeFilter = (t: string) => {
-    setTypeFilter(prev => { const n = new Set(prev); n.has(t) ? n.delete(t) : n.add(t); return n; });
-  };
-  const toggleStatusFilter = (s: string) => {
-    setStatusFilter(prev => { const n = new Set(prev); n.has(s) ? n.delete(s) : n.add(s); return n; });
-  };
+  const toggleIn = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, value: string) =>
+    setter((prev) => { const n = new Set(prev); if (n.has(value)) n.delete(value); else n.add(value); return n; });
 
-  const norm = (s?: string) => (s || '').toLowerCase();
-  const stripHtml = (s?: string) => (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-  const distinctTypes = Array.from(new Set(results.map(r => r.type).filter(Boolean)));
-  const distinctStatuses = Array.from(new Set(results.map(r => r.status).filter(Boolean)));
+  const distinctTypes = Array.from(new Set(results.map((r) => r.type).filter(Boolean)));
+  const distinctStatuses = Array.from(new Set(results.map((r) => r.status).filter(Boolean)));
 
   // Resultado filtrado (busca por texto + tipo + status). Filtro vazio = tudo.
-  const filteredResults = results.filter(r => {
+  const filteredResults = results.filter((r) => {
     if (typeFilter.size && !typeFilter.has(r.type)) return false;
     if (statusFilter.size && !statusFilter.has(r.status)) return false;
     if (filterText.trim()) {
@@ -182,31 +187,16 @@ export function JiraImportDialog({
     return true;
   });
 
-  const allFilteredSelected = filteredResults.length > 0 && filteredResults.every(r => selected.has(r.key));
+  const selectable = filteredResults.filter((r) => !existing.has(r.key));
+  const allFilteredSelected = selectable.length > 0 && selectable.every((r) => selected.has(r.key));
+  const alreadyCount = results.filter((r) => existing.has(r.key)).length;
 
-  // Marcar/desmarcar age sobre o que está VISÍVEL (filtrado), preservando o
-  // resto da seleção.
+  // Marcar/desmarcar age sobre o que está VISÍVEL (filtrado), preservando o resto da seleção.
   const toggleAll = () => {
     const next = new Set(selected);
-    if (allFilteredSelected) filteredResults.forEach(r => next.delete(r.key));
-    else filteredResults.forEach(r => next.add(r.key));
+    if (allFilteredSelected) selectable.forEach((r) => next.delete(r.key));
+    else selectable.forEach((r) => next.add(r.key));
     setSelected(next);
-  };
-
-  // Cor do badge de status por heurística de texto (Jira varia o nome).
-  const statusClasses = (s?: string) => {
-    const t = norm(s);
-    if (/(done|conclu|fech|resolv|encerr)/.test(t)) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400';
-    if (/(progress|andamento|doing|desenvolv|execu)/.test(t)) return 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400';
-    if (/(block|imped|bloque)/.test(t)) return 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400';
-    if (/(review|revis|test|qa|homolog)/.test(t)) return 'bg-violet-100 text-violet-700 dark:bg-violet-950/40 dark:text-violet-400';
-    return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
-  };
-
-  const clearFilters = () => {
-    setFilterText('');
-    setTypeFilter(new Set());
-    setStatusFilter(new Set());
   };
 
   const reset = () => {
@@ -228,584 +218,409 @@ export function JiraImportDialog({
   };
 
   const handleConfirmImport = () => {
-    const selectedIssues = results.filter(r => selected.has(r.key));
+    const selectedIssues = results.filter((r) => selected.has(r.key) && !existing.has(r.key));
     onImport(selectedIssues);
     reset();
     onClose();
   };
 
+  const close = () => { reset(); onClose(); };
+
+  const fileInput = (cls: string) => (
+    <input type="file" accept=".xml" multiple className={cls} onChange={handleXml} disabled={loading} aria-label="Selecionar arquivos XML do Jira" />
+  );
+
+  const footerButtons =
+    results.length === 0 ? (
+      tab === 'xml' ? (
+        <span className="relative inline-flex">
+          <ModalButton variant="primary" className="gap-2" tabIndex={-1}>
+            <FileUp className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Selecionar XML
+          </ModalButton>
+          {fileInput('absolute inset-0 cursor-pointer opacity-0')}
+        </span>
+      ) : (
+        <ModalButton variant="primary" className="gap-2" onClick={handleApiSearch} disabled={loading || !domain || !token || !jql}>
+          {loading ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" strokeWidth={1.5} aria-hidden="true" /> : <Search className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+          Buscar no Jira
+        </ModalButton>
+      )
+    ) : (
+      <>
+        {tab === 'api' && (
+          <ModalButton className="gap-2" onClick={() => setResults([])}>
+            <Search className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Outra busca
+          </ModalButton>
+        )}
+        <ModalButton variant="primary" onClick={handleConfirmImport} disabled={selected.size === 0}>
+          Importar selecionados ({selected.size})
+        </ModalButton>
+      </>
+    );
+
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent className="sm:max-w-[1200px] w-[96vw] max-h-[92vh] rounded-[2rem] p-0 border-none shadow-3xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col">
-        <DialogHeader className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 relative overflow-hidden shrink-0">
-          <div className="absolute top-0 right-0 p-6 opacity-5 rotate-12">
-            <CloudDownload className="h-16 w-16" />
+    <>
+      <Modal
+        open={open}
+        onOpenChange={(o) => { if (!o) close(); }}
+        size="lg"
+        icon={CloudDownload}
+        title={title}
+        description={description}
+        className="sm:h-[min(88vh,840px)] sm:max-w-[1100px]"
+        bodyClassName="pt-4"
+        headerExtra={
+          <TabBar<SourceTab>
+            label="Origem das issues"
+            idPrefix="jira"
+            value={tab}
+            onChange={setTab}
+            tabs={[{ id: 'xml', label: 'Upload XML' }, { id: 'api', label: 'Conexão API' }]}
+          />
+        }
+        footerStart={
+          <div className="hidden min-w-0 flex-col md:flex">
+            <span className="text-xs text-muted-foreground">Status da importação</span>
+            <span className="truncate text-sm font-semibold">
+              {results.length > 0
+                ? <>{selected.size} {selected.size === 1 ? 'item selecionado' : 'itens selecionados'}{alreadyCount > 0 && <span className="font-normal text-muted-foreground"> · {alreadyCount} já {alreadyCount === 1 ? 'está' : 'estão'} na Review</span>}</>
+                : tab === 'xml' ? 'Aguardando arquivo…' : 'Preencha os filtros…'}
+            </span>
           </div>
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/20 shrink-0">
-              <CloudDownload className="h-4.5 w-4.5 text-white" />
+        }
+        footer={
+          <>
+            <ModalButton onClick={close}>Cancelar</ModalButton>
+            {footerButtons}
+          </>
+        }
+      >
+        <div role="tabpanel" id={`jira-panel-${tab}`} aria-labelledby={`jira-tab-${tab}`} className="flex flex-col gap-4">
+          {results.length === 0 && tab === 'xml' && (
+            <div className="relative flex min-h-[160px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center transition-colors hover:border-primary/60 hover:bg-primary/5 focus-within:border-primary/60">
+              <FileUp className="mb-2.5 h-8 w-8 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+              <span className="text-sm font-semibold">Arraste ou selecione seu arquivo XML do Jira</span>
+              <span className="mt-1.5 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                Dica: no Jira, acesse <strong className="font-semibold text-foreground">Filters &gt; View all issues</strong>, aplique a busca e clique em <strong className="font-semibold text-foreground">Export &gt; XML</strong>.
+              </span>
+              {fileInput('absolute inset-0 cursor-pointer opacity-0')}
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-card/75 backdrop-blur-sm">
+                  <Loader2 className="h-5 w-5 text-primary motion-safe:animate-spin" aria-label="Lendo o arquivo" />
+                </div>
+              )}
             </div>
-            <div>
-              <DialogTitle className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 leading-none">
-                {title}
-              </DialogTitle>
-              <DialogDescription className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed max-w-sm">
-                {description}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+          )}
 
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <Tabs value={tab} onValueChange={(v: any) => setTab(v)} className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 pt-4 shrink-0">
-              <TabsList className="w-full bg-slate-100/80 dark:bg-slate-950 rounded-xl p-1 border border-slate-200/50 dark:border-slate-800">
-                <TabsTrigger value="xml" className="flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm dark:data-[state=active]:text-indigo-400 transition-all">Upload XML</TabsTrigger>
-                <TabsTrigger value="api" className="flex-1 rounded-lg text-[9px] font-black uppercase tracking-widest py-2 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm dark:data-[state=active]:text-indigo-400 transition-all">Conexão API</TabsTrigger>
-              </TabsList>
-            </div>
+          {results.length === 0 && tab === 'api' && (
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="jira-domain" className={LABEL}>Domínio do Jira</label>
+                  <input id="jira-domain" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="exemplo.atlassian.net" className={cn(FIELD, 'h-10')} />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="jira-token" className={LABEL}>Token (PAT)</label>
+                  <input id="jira-token" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="••••••••••••" autoComplete="off" className={cn(FIELD, 'h-10 font-mono')} />
+                </div>
+              </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  transition={{ duration: 0.15 }}
-                  className="space-y-4"
-                >
-                  <TabsContent value="xml" className="mt-0 outline-none space-y-4">
-                    {results.length === 0 ? (
-                      <div className="relative group border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-indigo-500 rounded-2xl bg-slate-50/30 dark:bg-slate-950/20 hover:bg-indigo-50/10 transition-all p-6 flex flex-col items-center justify-center text-center cursor-pointer min-h-[140px]">
-                        <FileUp className="h-8 w-8 text-slate-400 group-hover:text-indigo-600 transition-colors mb-2.5" />
-                        <span className="text-[10px] font-black uppercase text-slate-700 dark:text-slate-200 tracking-wider">
-                           Arraste ou selecione seu arquivo XML do Jira
-                        </span>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-400 font-bold mt-1.5 max-w-sm leading-relaxed">
-                           Dica: No Jira, acesse <span className="text-slate-600 dark:text-slate-400 font-extrabold">Filters &gt; View all issues</span>, aplique a busca e clique em <span className="text-slate-600 dark:text-slate-400 font-extrabold">Export &gt; XML</span>.
-                        </span>
-                        <input 
-                          type="file" 
-                          accept=".xml" 
-                          multiple 
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
-                          onChange={handleXml} 
-                          disabled={loading} 
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="jira-jql" className={LABEL}>Consulta JQL</label>
+                  <ModalButton
+                    className="h-8 gap-1.5 px-3 text-[13px]"
+                    disabled={!jql.trim()}
+                    onClick={() => { setNewJqlLabel(''); setNewJqlIsPublic(false); setIsSaveJqlOpen(true); }}
+                  >
+                    <Bookmark className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Salvar JQL
+                  </ModalButton>
+                </div>
+                <textarea
+                  id="jira-jql"
+                  value={jql}
+                  onChange={(e) => setJql(e.target.value)}
+                  placeholder='Ex.: sprint = 123 AND status = "In Progress"'
+                  className={cn(FIELD, 'h-[72px] min-h-[72px] resize-none py-2 font-mono text-xs leading-normal')}
+                />
+                <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label="Consultas salvas e predefinições">
+                  {/* Consultas salvas: ficam só neste navegador */}
+                  {savedJqls.map((sj) => (
+                    <span key={sj.id} className="group relative inline-flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => setJql(sj.jql)}
+                        title={`Consulta ${sj.isPublic ? 'pública (só neste navegador)' : 'privada'} · criada por ${sj.createdBy || 'Usuário'}\n${sj.jql}`}
+                        className={cn(CHIP, 'pr-7 border-border bg-card hover:bg-accent', FOCUS_RING)}
+                      >
+                        {sj.isPublic ? <Globe className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" /> : <User className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" />}
+                        <span className="max-w-[160px] truncate">{sj.label}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); deleteJql(sj.id); toast({ title: 'JQL excluída com sucesso.' }); }}
+                        title="Excluir esta JQL salva"
+                        aria-label={`Excluir a JQL salva ${sj.label}`}
+                        className={cn('absolute right-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-60 transition-opacity hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 max-sm:opacity-100', FOCUS_RING)}
+                      >
+                        <X className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
+                      </button>
+                    </span>
+                  ))}
+                  {presets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setJql(preset.jql)}
+                      className={cn(CHIP, 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label htmlFor="save-creds" className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-3">
+                <Checkbox id="save-creds" checked={saveDefault} onCheckedChange={(v) => setSaveDefault(!!v)} className="h-4 w-4 shrink-0 rounded-md" />
+                <span className="text-[13px] font-medium">Lembrar as credenciais para as próximas sessões</span>
+              </label>
+            </div>
+          )}
+
+          {/* Revisão do que voltou do Jira */}
+          {results.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <span className="inline-flex h-6 items-center rounded-full bg-primary px-2.5 text-xs font-bold text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground">
+                    {filteredResults.length === results.length ? `${results.length} itens` : `${filteredResults.length} de ${results.length}`}
+                  </span>
+                  <span className="inline-flex h-6 items-center rounded-full bg-emerald-500/10 px-2.5 text-xs font-bold text-emerald-700 dark:text-emerald-300">{selected.size} marcadas</span>
+                  {alreadyCount > 0 && (
+                    <span className="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-xs font-semibold text-muted-foreground">{alreadyCount} já na Review</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <ModalButton variant="ghost" className="h-8 px-3 text-[13px] font-semibold" onClick={toggleAll}>
+                    {allFilteredSelected ? 'Desmarcar' : 'Marcar todas'}
+                  </ModalButton>
+                  <ModalButton variant="ghost" className="h-8 gap-1.5 px-3 text-[13px] font-semibold text-red-700 hover:text-red-700 dark:text-red-300" onClick={reset}>
+                    <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Resetar
+                  </ModalButton>
+                </div>
+              </div>
+
+              {/* Busca + filtros por tipo/status */}
+              <div className="flex flex-col gap-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                  <input
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    placeholder="Filtrar por título, chave ou descrição..."
+                    aria-label="Filtrar as issues"
+                    className={cn(FIELD, 'h-9 pl-9 pr-8 text-[13px]')}
+                  />
+                  {filterText && (
+                    <button type="button" onClick={() => setFilterText('')} aria-label="Limpar o filtro" className={cn('absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground', FOCUS_RING)}>
+                      <X className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                {(distinctTypes.length > 1 || distinctStatuses.length > 1) && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {distinctTypes.map((tp) => {
+                      const active = typeFilter.has(tp);
+                      return (
+                        <button
+                          key={`t-${tp}`}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => toggleIn(setTypeFilter, tp)}
+                          className={cn(CHIP, active ? 'border-primary bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border bg-card text-muted-foreground hover:border-foreground/30', FOCUS_RING)}
+                        >
+                          {tp} · {results.filter((r) => r.type === tp).length}
+                        </button>
+                      );
+                    })}
+                    {distinctStatuses.length > 1 && distinctTypes.length > 1 && <span aria-hidden="true" className="mx-0.5 h-4 w-px bg-border" />}
+                    {distinctStatuses.map((st) => {
+                      const active = statusFilter.has(st);
+                      return (
+                        <button
+                          key={`s-${st}`}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => toggleIn(setStatusFilter, st)}
+                          className={cn(CHIP, active ? 'border-foreground bg-foreground text-background' : 'border-border bg-card text-muted-foreground hover:border-foreground/30', FOCUS_RING)}
+                        >
+                          {st} · {results.filter((r) => r.status === st).length}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <ul className="m-0 flex max-h-[46vh] min-h-[260px] list-none flex-col gap-2.5 overflow-y-auto p-0 pb-2 pr-1">
+                {filteredResults.length === 0 ? (
+                  <li className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                    <Search className="mb-2 h-6 w-6 opacity-40" strokeWidth={1.5} aria-hidden="true" />
+                    <p className="m-0 text-sm font-semibold">Nenhum item bate o filtro</p>
+                  </li>
+                ) : filteredResults.map((r) => {
+                  const isSel = selected.has(r.key);
+                  const isOpen = expanded.has(r.key);
+                  const isKnown = existing.has(r.key);
+                  const hasDetail = !!(r.description || r.acceptanceCriteria);
+                  return (
+                    <li
+                      key={r.key}
+                      onClick={() => toggleSelect(r.key)}
+                      className={cn(
+                        'group rounded-xl border transition-colors',
+                        isKnown ? 'cursor-default border-border bg-muted/30' : 'cursor-pointer',
+                        !isKnown && (isSel ? 'border-primary/50 bg-primary/5' : 'border-border bg-card hover:bg-accent/40')
+                      )}
+                    >
+                      <div className="flex items-start gap-3 p-3">
+                        <Checkbox
+                          checked={isSel}
+                          disabled={isKnown}
+                          onCheckedChange={() => toggleSelect(r.key)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={isKnown ? `${r.key} já está na Review` : `Marcar ${r.key}`}
+                          className="mt-0.5 h-4 w-4 shrink-0 rounded-md"
                         />
-                        {loading && (
-                          <div className="absolute inset-0 bg-white/75 dark:bg-slate-900/75 backdrop-blur-xs flex items-center justify-center rounded-2xl">
-                            <Loader2 className="h-5 w-5 text-indigo-600 animate-spin" />
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-bold tabular-nums text-primary [.theme-totvs:not(.dark)_&]:text-foreground">{r.key}</span>
+                            {r.type && <span className="rounded-md border border-border px-1.5 text-xs text-muted-foreground">{r.type}</span>}
+                            {r.status && <span className={cn('rounded-md px-1.5 text-xs font-semibold', statusClasses(r.status))}>{r.status}</span>}
+                            {isKnown && <span className="rounded-md bg-amber-500/10 px-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">Já está na Review</span>}
+                            {r.priority && <span className="text-xs text-muted-foreground">• {r.priority}</span>}
+                            {r.points > 0 && <span className="ml-auto shrink-0 rounded-md bg-muted px-1.5 text-xs font-semibold text-muted-foreground">{r.points} pts</span>}
                           </div>
+                          <h4 className="m-0 line-clamp-2 text-sm font-semibold leading-snug">{r.title}</h4>
+                          {stripHtml(r.description) && <p className="m-0 mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{stripHtml(r.description)}</p>}
+                          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            {r.assignee && <p className="m-0 truncate text-xs text-muted-foreground">Resp.: <span className="text-foreground">{r.assignee}</span></p>}
+                            {r.labels && r.labels.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {r.labels.slice(0, 3).map((lb) => (
+                                  <span key={lb} className="inline-flex items-center gap-1 rounded border border-border px-1.5 text-xs text-muted-foreground">
+                                    <Tag className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />{lb}
+                                  </span>
+                                ))}
+                                {r.labels.length > 3 && <span className="text-xs text-muted-foreground">+{r.labels.length - 3}</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {hasDetail && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(r.key); }}
+                            aria-label={isOpen ? 'Recolher detalhes' : 'Ver detalhes'}
+                            aria-expanded={isOpen}
+                            className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground', FOCUS_RING)}
+                          >
+                            <ChevronDown className={cn('h-5 w-5 transition-transform', isOpen && 'rotate-180')} strokeWidth={1.5} aria-hidden="true" />
+                          </button>
                         )}
                       </div>
-                    ) : null}
-                  </TabsContent>
 
-                  <TabsContent value="api" className="mt-0 outline-none space-y-3">
-                    {results.length === 0 ? (
-                      <div className="space-y-3.5">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Domínio Jira</Label>
-                            <Input
-                              value={domain}
-                              onChange={(e) => setDomain(e.target.value)}
-                              placeholder="exemplo.atlassian.net"
-                              className="h-10 rounded-xl text-[11px] font-bold bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Token (PAT)</Label>
-                            <Input
-                              type="password"
-                              value={token}
-                              onChange={(e) => setToken(e.target.value)}
-                              placeholder="••••••••••••"
-                              className="h-10 rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                           <div className="flex items-center justify-between ml-1">
-                             <div className="flex items-center gap-2">
-                               <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Consulta JQL</Label>
-                               <Badge variant="outline" className="text-[7px] font-black uppercase border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-400 tracking-widest bg-white dark:bg-slate-950">Filtro Avançado</Badge>
-                             </div>
-                             <Button
-                               type="button"
-                               variant="outline"
-                               disabled={!jql.trim()}
-                               onClick={() => {
-                                 setNewJqlLabel('');
-                                 setNewJqlIsPublic(false);
-                                 setIsSaveJqlOpen(true);
-                               }}
-                               className="h-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 border-indigo-200/40 dark:border-indigo-800"
-                             >
-                               <Bookmark className="h-3 w-3 text-indigo-600 dark:text-indigo-400" /> Salvar JQL
-                             </Button>
-                           </div>
-                          <Textarea
-                            value={jql}
-                            onChange={(e) => setJql(e.target.value)}
-                            placeholder='Ex: sprint = 123 AND status = "In Progress"'
-                            className="min-h-[72px] h-[72px] rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-200 dark:focus:border-indigo-950 text-slate-700 dark:text-slate-200 transition-all resize-none py-2 px-3 leading-normal"
-                          />
-                          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                            {/* Saved JQLs (Personalizadas) */}
-                            {savedJqls.map((sj) => (
-                              <div key={sj.id} className="relative group inline-flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setJql(sj.jql)}
-                                  className={cn(
-                                    "px-2.5 py-1 pr-6 rounded-full text-[8px] font-black uppercase tracking-widest transition-all cursor-pointer border flex items-center gap-1",
-                                    sj.isPublic
-                                      ? "bg-emerald-50 dark:bg-emerald-950/35 text-emerald-700 dark:text-emerald-400 border-emerald-200/40 dark:border-emerald-900/30 hover:bg-emerald-100/70"
-                                      : "bg-purple-50 dark:bg-purple-950/35 text-purple-700 dark:text-purple-400 border-purple-200/40 dark:border-purple-900/30 hover:bg-purple-100/70"
-                                  )}
-                                  title={`JQL ${sj.isPublic ? 'Pública' : 'Privada'} | Criado por ${sj.createdBy || 'Usuário'}\n${sj.jql}`}
-                                >
-                                  {sj.isPublic ? <Globe className="h-2.5 w-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" /> : <User className="h-2.5 w-2.5 shrink-0 text-purple-600 dark:text-purple-400" />}
-                                  <span className="truncate max-w-[140px]">{sj.label}</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteJql(sj.id);
-                                    toast({ title: "JQL excluída com sucesso." });
-                                  }}
-                                  className="absolute right-1 text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
-                                  title="Excluir esta JQL salva"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                            ))}
-
-                            {/* Built-in Presets */}
-                            {JQL_PRESETS.map((preset) => (
-                              <button
-                                key={preset.label}
-                                type="button"
-                                onClick={() => setJql(preset.jql)}
-                                className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-950/35 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/70 dark:hover:bg-indigo-950/80 border border-indigo-200/20 dark:border-indigo-900/30 transition-all cursor-pointer"
-                              >
-                                {preset.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2.5 bg-indigo-50/40 dark:bg-indigo-950/20 p-3 rounded-xl border border-indigo-100/30 dark:border-indigo-900/30">
-                          <Checkbox
-                            id="save-creds"
-                            checked={saveDefault}
-                            onCheckedChange={(v) => setSaveDefault(!!v)}
-                            className="w-4 h-4 rounded-md border-indigo-300 data-[state=checked]:bg-indigo-600 shrink-0"
-                          />
-                          <Label htmlFor="save-creds" className="text-[8px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-widest cursor-pointer select-none">Lembrar credenciais para as próximas sessões</Label>
-                        </div>
-                      </div>
-                    ) : null}
-                  </TabsContent>
-
-                  {/* Results — revisão do que voltou do Jira */}
-                  {results.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.98 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="space-y-3"
-                    >
-                      <div className="flex items-center justify-between px-1 gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Badge className="bg-indigo-600 text-white border-none font-black text-[10px] px-2 py-0.5 shrink-0">
-                            {filteredResults.length === results.length ? `${results.length} itens` : `${filteredResults.length} de ${results.length}`}
-                          </Badge>
-                          <Badge className="bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-none font-black text-[10px] px-2 py-0.5 shrink-0">{selected.size} marcadas</Badge>
-                        </div>
-                        <div className="flex gap-1.5 shrink-0">
-                          <Button
-                            variant="ghost"
-                            onClick={toggleAll}
-                            className="h-7 px-2.5 text-[9px] font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 uppercase tracking-widest rounded-lg"
-                          >
-                            {allFilteredSelected ? 'Desmarcar' : 'Marcar todas'}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            onClick={reset}
-                            className="h-7 px-2.5 text-[9px] font-black text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 uppercase tracking-widest rounded-lg flex items-center"
-                          >
-                            <RotateCcw className="h-3 w-3 mr-1" /> Resetar
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Busca + filtros por tipo/status */}
-                      <div className="space-y-2 px-1">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                          <Input
-                            value={filterText}
-                            onChange={(e) => setFilterText(e.target.value)}
-                            placeholder="Filtrar por título, chave ou descrição..."
-                            className="h-9 pl-9 pr-8 rounded-xl text-xs font-medium bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 text-slate-700 dark:text-slate-200"
-                          />
-                          {filterText && (
-                            <button type="button" onClick={() => setFilterText('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                              <X className="h-3.5 w-3.5" />
-                            </button>
+                      {isOpen && hasDetail && (
+                        <div className="flex cursor-default flex-col gap-3.5 rounded-b-xl border-t border-border bg-muted/30 px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                          {r.description && (
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-semibold text-muted-foreground">Descrição</span>
+                              <p className="m-0 whitespace-pre-line text-[13px] leading-relaxed">{r.description}</p>
+                            </div>
+                          )}
+                          {r.acceptanceCriteria && (
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Critérios de aceite</span>
+                              <p className="m-0 whitespace-pre-line text-[13px] leading-relaxed">{r.acceptanceCriteria}</p>
+                            </div>
+                          )}
+                          {r.url && (
+                            <a href={r.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline [.theme-totvs:not(.dark)_&]:text-foreground">
+                              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Abrir no Jira
+                            </a>
                           )}
                         </div>
-                        {(distinctTypes.length > 1 || distinctStatuses.length > 1) && (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            {distinctTypes.map((tp) => {
-                              const active = typeFilter.has(tp);
-                              const count = results.filter(r => r.type === tp).length;
-                              return (
-                                <button
-                                  key={`t-${tp}`}
-                                  type="button"
-                                  onClick={() => toggleTypeFilter(tp)}
-                                  className={cn(
-                                    "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide border transition-all",
-                                    active
-                                      ? "bg-indigo-600 text-white border-indigo-600"
-                                      : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-800"
-                                  )}
-                                >
-                                  {tp} · {count}
-                                </button>
-                              );
-                            })}
-                            {distinctStatuses.length > 1 && distinctTypes.length > 1 && (
-                              <span className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-0.5" />
-                            )}
-                            {distinctStatuses.map((st) => {
-                              const active = statusFilter.has(st);
-                              const count = results.filter(r => r.status === st).length;
-                              return (
-                                <button
-                                  key={`s-${st}`}
-                                  type="button"
-                                  onClick={() => toggleStatusFilter(st)}
-                                  className={cn(
-                                    "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide border transition-all",
-                                    active
-                                      ? "bg-slate-800 text-white border-slate-800 dark:bg-slate-200 dark:text-slate-900 dark:border-slate-200"
-                                      : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600"
-                                  )}
-                                >
-                                  {st} · {count}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-
-                      <ScrollArea className="h-[46vh] min-h-[260px] pr-3 -mr-3">
-                        <div className="grid grid-cols-1 gap-2.5 pb-4">
-                          {filteredResults.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
-                              <Search className="h-6 w-6 mb-2 opacity-40" />
-                              <p className="text-[11px] font-black uppercase tracking-widest">Nenhum item bate o filtro</p>
-                            </div>
-                          ) : filteredResults.map((r) => {
-                            const isSel = selected.has(r.key);
-                            const isOpen = expanded.has(r.key);
-                            const hasDetail = !!(r.description || r.acceptanceCriteria);
-                            return (
-                              <div
-                                key={r.key}
-                                onClick={() => toggleSelect(r.key)}
-                                className={cn(
-                                  "group rounded-xl transition-all cursor-pointer border",
-                                  isSel
-                                    ? "bg-indigo-50/50 dark:bg-indigo-950/25 border-indigo-200 dark:border-indigo-900 shadow-xs"
-                                    : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-800/50"
-                                )}
-                              >
-                                <div className="flex items-start gap-3 p-3">
-                                  <Checkbox
-                                    checked={isSel}
-                                    onCheckedChange={() => toggleSelect(r.key)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-4 h-4 rounded-md border-slate-300 data-[state=checked]:bg-indigo-600 shrink-0 mt-0.5"
-                                  />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                      <span className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 tracking-wide">{r.key}</span>
-                                      {r.type && (
-                                        <Badge variant="outline" className="text-[8px] font-black px-1.5 py-0 h-4 uppercase border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 tracking-wide bg-white dark:bg-slate-950">
-                                          {r.type}
-                                        </Badge>
-                                      )}
-                                      {r.status && (
-                                        <span className={cn("px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wide", statusClasses(r.status))}>
-                                          {r.status}
-                                        </span>
-                                      )}
-                                      {r.priority && (
-                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 capitalize">• {r.priority}</span>
-                                      )}
-                                      {r.points > 0 && (
-                                        <span className="ml-auto shrink-0 text-[9px] font-black text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
-                                          {r.points} pts
-                                        </span>
-                                      )}
-                                    </div>
-                                    <h4 className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors">
-                                      {r.title}
-                                    </h4>
-                                    {stripHtml(r.description) && (
-                                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2 mt-1">
-                                        {stripHtml(r.description)}
-                                      </p>
-                                    )}
-                                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5">
-                                      {r.assignee && (
-                                        <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wide truncate">
-                                          Resp: <span className="text-slate-600 dark:text-slate-300">{r.assignee}</span>
-                                        </p>
-                                      )}
-                                      {r.labels && r.labels.length > 0 && (
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                          {r.labels.slice(0, 3).map((lb) => (
-                                            <span key={lb} className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded px-1.5 py-0.5">
-                                              <Tag className="h-2.5 w-2.5" />{lb}
-                                            </span>
-                                          ))}
-                                          {r.labels.length > 3 && (
-                                            <span className="text-[9px] font-bold text-slate-400">+{r.labels.length - 3}</span>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {hasDetail && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); toggleExpand(r.key); }}
-                                      className="shrink-0 mt-1 p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-all"
-                                      aria-label={isOpen ? 'Recolher detalhes' : 'Ver detalhes'}
-                                    >
-                                      <ChevronDown className={cn("h-5 w-5 transition-transform", isOpen && "rotate-180")} />
-                                    </button>
-                                  )}
-                                </div>
-
-                                {isOpen && hasDetail && (
-                                  <div
-                                    className="border-t border-slate-100 dark:border-slate-800 px-4 py-3.5 space-y-3.5 bg-slate-50/40 dark:bg-slate-950/30 rounded-b-xl"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    {r.description && (
-                                      <div className="space-y-1.5">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Descrição</span>
-                                        <p className="text-[12px] leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                                          {r.description}
-                                        </p>
-                                      </div>
-                                    )}
-                                    {r.acceptanceCriteria && (
-                                      <div className="space-y-1.5">
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-emerald-500 dark:text-emerald-400">Critérios de Aceite</span>
-                                        <p className="text-[12px] leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                                          {r.acceptanceCriteria}
-                                        </p>
-                                      </div>
-                                    )}
-                                    {r.url && (
-                                      <a
-                                        href={r.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 hover:underline"
-                                      >
-                                        <ExternalLink className="h-3 w-3" /> Abrir no Jira
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </ScrollArea>
-                    </motion.div>
-                  )}
-                </motion.div>
-              </AnimatePresence>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          </Tabs>
+          )}
         </div>
+      </Modal>
 
-        <DialogFooter className="p-4 px-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-          <div className="hidden md:flex flex-col">
-            <span className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-widest">
-              Status de Importação
-            </span>
-            <span className="text-xs font-black text-slate-900 dark:text-slate-200 tracking-tight italic">
-              {results.length > 0 ? (
-                <>{selected.size} <span className="text-indigo-600 dark:text-indigo-400">itens</span> selecionados</>
-              ) : (
-                tab === 'xml' ? 'Aguardando arquivo...' : 'Preencha os filtros...'
-              )}
-            </span>
-          </div>
-          <div className="flex gap-2 w-full md:w-auto justify-end">
-            <Button
-              variant="outline"
-              onClick={() => { reset(); onClose(); }}
-              className="h-10 px-5 rounded-xl font-black uppercase text-[9px] tracking-widest text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900 transition-all border-slate-200 dark:border-slate-800"
-            >
-              Cancelar
-            </Button>
-            
-            {results.length === 0 ? (
-              tab === 'xml' ? (
-                <div className="relative">
-                  <Button
-                    className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.1em] text-[10px] rounded-xl shadow-xl shadow-indigo-600/10 transition-all active:scale-95 flex-1 md:flex-none"
-                  >
-                    <FileUp className="h-3.5 w-3.5 mr-1.5" /> Selecionar XML
-                  </Button>
-                  <input type="file" accept=".xml" multiple className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleXml} disabled={loading} />
-                </div>
-              ) : (
-                <Button
-                  onClick={handleApiSearch}
-                  disabled={loading || !domain || !token || !jql}
-                  className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.1em] text-[10px] rounded-xl shadow-xl shadow-indigo-600/10 transition-all active:scale-95 flex-1 md:flex-none"
-                >
-                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Search className="h-3.5 w-3.5 mr-1.5" />}
-                  Buscar no Jira
-                </Button>
-              )
-            ) : (
-              <div className="flex gap-2">
-                {tab === 'api' && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setResults([])}
-                    className="h-10 px-4 rounded-xl font-black uppercase text-[9px] tracking-widest text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/45 transition-all border border-indigo-100 dark:border-indigo-900/50"
-                  >
-                    <Search className="h-3.5 w-3.5 mr-1.5" /> Outra Busca
-                  </Button>
-                )}
-                <Button
-                  onClick={handleConfirmImport}
-                  disabled={selected.size === 0}
-                  className="h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.1em] text-[10px] rounded-xl shadow-xl shadow-indigo-600/10 transition-all active:scale-95 disabled:opacity-50 flex-1 md:flex-none"
-                >
-                  Importar Selecionados ({selected.size})
-                </Button>
-              </div>
-            )}
-          </div>
-        </DialogFooter>
-      </DialogContent>
-
-      {/* Sub-Modal para Salvar JQL Personalizada */}
-      <Dialog open={isSaveJqlOpen} onOpenChange={setIsSaveJqlOpen}>
-        <DialogContent className="max-w-md rounded-2xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Bookmark className="h-4.5 w-4.5 text-indigo-600 dark:text-indigo-400" />
-              Salvar Consulta JQL
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Defina um nome e a visibilidade para reutilizar esta consulta rapidamente nas suas importações.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Preview da Consulta</Label>
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 text-[10px] font-code text-indigo-600 dark:text-indigo-400 max-h-24 overflow-y-auto break-all leading-normal">
-                {jql || 'Nenhuma JQL preenchida'}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Nome do Filtro</Label>
-              <Input
-                value={newJqlLabel}
-                onChange={(e) => setNewJqlLabel(e.target.value)}
-                placeholder="Ex: Review DDPDV, Meus Bugs, Sprint Ativa"
-                className="h-10 rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200"
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Visibilidade do Filtro</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNewJqlIsPublic(false)}
-                  className={cn(
-                    "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
-                    !newJqlIsPublic
-                      ? "bg-purple-50/70 dark:bg-purple-950/40 border-purple-300 dark:border-purple-800 text-purple-900 dark:text-purple-200 shadow-xs"
-                      : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300"
-                  )}
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <User className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
-                    <span>Privada</span>
-                  </div>
-                  <span className="text-[9px] opacity-70 leading-tight">Visível apenas no seu navegador/usuário.</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNewJqlIsPublic(true)}
-                  className={cn(
-                    "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
-                    newJqlIsPublic
-                      ? "bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 shadow-xs"
-                      : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 hover:border-slate-300"
-                  )}
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-xs">
-                    <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Pública</span>
-                  </div>
-                  <span className="text-[9px] opacity-70 leading-tight">Compartilhada com toda a squad.</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="flex gap-2 justify-end pt-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsSaveJqlOpen(false)}
-              className="h-9 px-4 rounded-xl font-bold text-xs uppercase"
-            >
-              Cancelar
-            </Button>
-            <Button
+      {/* Salvar a consulta JQL (fica só neste navegador) */}
+      <Modal
+        open={isSaveJqlOpen}
+        onOpenChange={setIsSaveJqlOpen}
+        size="md"
+        icon={Bookmark}
+        title="Salvar consulta JQL"
+        description="Dê um nome e escolha a visibilidade para reutilizar a consulta nas próximas importações."
+        footer={
+          <>
+            <ModalButton onClick={() => setIsSaveJqlOpen(false)}>Cancelar</ModalButton>
+            <ModalButton
+              variant="primary"
               disabled={!newJqlLabel.trim() || !jql.trim()}
               onClick={() => {
                 saveJql({ label: newJqlLabel, jql, isPublic: newJqlIsPublic });
                 setIsSaveJqlOpen(false);
-                toast({ title: "JQL salva com sucesso!", description: `Salva como ${newJqlIsPublic ? 'Pública' : 'Privada'}.` });
+                toast({ title: 'JQL salva com sucesso!', description: newJqlIsPublic ? 'Salva como Pública, só neste navegador.' : 'Salva como Privada.' });
               }}
-              className="h-9 px-5 rounded-xl font-extrabold text-xs uppercase bg-indigo-600 hover:bg-indigo-700 text-white"
             >
-              Salvar Filtro
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Dialog>
+              Salvar filtro
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <span className={LABEL}>Prévia da consulta</span>
+            <div className="max-h-24 overflow-y-auto break-all rounded-xl border border-border bg-muted/40 p-2.5 font-mono text-xs leading-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+              {jql || 'Nenhuma JQL preenchida'}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="jql-name" className={LABEL}>Nome do filtro</label>
+            <input id="jql-name" autoFocus value={newJqlLabel} onChange={(e) => setNewJqlLabel(e.target.value)} placeholder="Ex.: Meus bugs, Sprint ativa" className={cn(FIELD, 'h-10')} />
+          </div>
+          <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+            <legend className={cn(LABEL, 'mb-2 p-0')}>Visibilidade do filtro</legend>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {([
+                { pub: false, icon: User, name: 'Privada', desc: JQL_VISIBILITY_HELP.private },
+                { pub: true, icon: Globe, name: 'Pública', desc: JQL_VISIBILITY_HELP.public },
+              ] as const).map((o) => {
+                const on = newJqlIsPublic === o.pub;
+                return (
+                  <button
+                    key={o.name}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setNewJqlIsPublic(o.pub)}
+                    className={cn('flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors', on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40', FOCUS_RING)}
+                  >
+                    <span className="flex items-center gap-1.5 text-[13px] font-semibold"><o.icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />{o.name}</span>
+                    <span className="text-xs leading-snug text-muted-foreground">{o.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+        </div>
+      </Modal>
+    </>
   );
 }

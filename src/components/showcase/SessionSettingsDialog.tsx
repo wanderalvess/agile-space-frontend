@@ -1,30 +1,27 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Sparkles, Link as LinkIcon, Check, AlertTriangle,
-  Layout, Target, Palette, Video, SortAsc, Camera,
-  Sun, Moon, Pipette,
-  CloudDownload, FileText, TrendingUp, Copy, ListChecks, Users, Info
+  AlertTriangle, Camera, Check, CloudDownload, Copy, FileText, Info, Layout, Link as LinkIcon, ListChecks,
+  Moon, Palette, Pipette, SlidersHorizontal, SortAsc, Sparkles, Sun, Target, TrendingUp, Users, Video,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import { ConfirmDialog, FIELD, FOCUS_RING, Modal, ModalButton, SelectField, TabBar } from '@/components/room-kit';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ShowcaseSession, ShowcaseTask, CardKind, PRESETS, PRESENTATION_PRESETS, PresentationPreset } from './types';
-import { getDirectImageUrl, isLightBackground, isImageBackground, imageBackgroundCss, toSafeUrl } from './utils';
+import { type CardKind, type ShowcaseSession, type ShowcaseTask, PRESETS, PRESENTATION_PRESETS } from './types';
+import { getDirectImageUrl, imageBackgroundCss, isImageBackground, isLightBackground, toSafeUrl } from './utils';
+import { SORT_LABELS, isReviewSort, squadOptions, type ReviewSort } from './review-room-logic';
 
 interface SessionSettingsDialogProps {
   open: boolean;
   onClose: () => void;
   session: ShowcaseSession | null;
   onUpdate: (updates: Partial<ShowcaseSession>) => void;
-  // true quando o dialog foi reaberto porque o usuário tentou apresentar
-  // sem preencher Objetivos/Capa — mostra o banner de aviso em vez de abrir
-  // silencioso como o botão de Config normal.
+  /**
+   * true quando o diálogo foi reaberto porque a pessoa tentou apresentar sem preencher os objetivos:
+   * mostra o aviso em vez de abrir em silêncio como o botão de Configurações.
+   */
   presentWarning?: boolean;
   onPresentAnyway?: () => void;
   /** Quantos cards a Review já tem (atualiza ao vivo enquanto o modal está aberto). */
@@ -52,11 +49,37 @@ const JIRA_FIELD_SOURCES: [string, string][] = [
   ['TDN', 'Primeiro link do tdn.totvs.com na descrição, nos comentários ou em campos da issue.'],
 ];
 
+const STYLES = [
+  { id: 'cinematic', label: 'Cinematográfico', desc: 'Foco no conteúdo com bordas suaves e presença cênica' },
+  { id: 'minimalist', label: 'Minimalista', desc: 'Sem divisórias laterais, layout limpo e direto' },
+  { id: 'corporate', label: 'Corporativo', desc: 'Estrutura sólida executiva para stakeholders' },
+  { id: 'glass', label: 'Glassmorphism', desc: 'Painéis translúcidos com efeito de desfoque moderno' },
+] as const;
+
+const QUICK_BACKGROUNDS = [
+  { label: 'Branco Puro', value: '#ffffff', border: true },
+  { label: 'Studio Off-White', value: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', border: true },
+  { label: 'Azul TOTVS', value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)' },
+  { label: 'Deep Space', value: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)' },
+  { label: 'Tech Emerald', value: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)' },
+];
+
+const PANEL = 'flex flex-col gap-4 rounded-2xl border border-border bg-muted/30 p-4';
+const LABEL = 'text-[13px] font-semibold text-foreground';
+const HELP = 'm-0 text-xs text-muted-foreground';
+
+function PanelTitle({ icon: I, children }: { icon: React.ElementType; children: React.ReactNode }) {
+  return (
+    <h3 className="m-0 flex items-center gap-2 text-sm font-bold">
+      <I className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+      {children}
+    </h3>
+  );
+}
+
 /**
- * Réplica em miniatura do painel lateral do Modo Teatro (TeatroMode.tsx) —
- * mesma lógica de fundo/tema, só em escala menor. Sem isso a aba só deixava
- * escolher fundo/tema às cegas, o resultado real só aparecia abrindo a
- * apresentação inteira.
+ * Réplica em miniatura do painel lateral do Modo Teatro (TeatroMode.tsx), mesma lógica de fundo/tema em
+ * escala menor. Sem ela a aba só deixava escolher fundo/tema às cegas.
  */
 function PresentationPreview({ background, theme, task }: { background?: string; theme?: ShowcaseSession['presentationTheme']; task?: ShowcaseTask }) {
   const isLight = isLightBackground(background);
@@ -64,84 +87,57 @@ function PresentationPreview({ background, theme, task }: { background?: string;
   const isMinimalist = theme === 'minimalist';
 
   const bgStyle: React.CSSProperties = background
-    ? {
-        background: isImageBackground(background) ? imageBackgroundCss(background) : background,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : { background: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)' };
+    ? { background: isImageBackground(background) ? imageBackgroundCss(background) : background, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)' };
 
   const badgeKey = task?.key || 'DEMO-101';
   const title = task?.title || 'Assim seus cards vão aparecer na tela';
   const desc = task?.evidence?.problem || task?.description || 'Evidência, contexto do negócio e resultados da entrega.';
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-2xl transition-all duration-500" style={bgStyle}>
-      {/* Indicador de Modo Claro/Escuro */}
-      <div className="absolute top-3 right-3 z-20">
+    <div className="relative h-full w-full overflow-hidden rounded-2xl shadow-lg transition-all duration-500" style={bgStyle}>
+      <div className="absolute right-3 top-3 z-20">
         <span className={cn(
-          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider backdrop-blur-md border shadow-sm transition-colors",
-          isLight
-            ? "bg-white/90 text-slate-800 border-slate-200 shadow-slate-900/5"
-            : "bg-slate-950/80 text-white/90 border-white/10"
+          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold backdrop-blur-md',
+          isLight ? 'border-slate-200 bg-white/90 text-slate-800' : 'border-white/10 bg-slate-950/80 text-white/90'
         )}>
-          {isLight ? <Sun className="h-3 w-3 text-amber-500 shrink-0" /> : <Moon className="h-3 w-3 text-violet-400 shrink-0" />}
-          {isLight ? "Modo Claro Ativo" : "Modo Escuro Ativo"}
+          {isLight ? <Sun className="h-3 w-3 shrink-0 text-amber-500" strokeWidth={1.5} aria-hidden="true" /> : <Moon className="h-3 w-3 shrink-0 text-cyan-300" strokeWidth={1.5} aria-hidden="true" />}
+          {isLight ? 'Modo claro ativo' : 'Modo escuro ativo'}
         </span>
       </div>
 
-      {/* Painel lateral do card */}
-      <div
-        className={cn(
-          'absolute inset-y-0 left-0 w-[58%] max-w-[270px] p-5 flex flex-col justify-between border-r transition-all duration-300',
-          isLight
-            ? (isGlass ? 'bg-white/80 backdrop-blur-xl border-slate-200/90 shadow-sm' : 'bg-white/95 backdrop-blur-md border-slate-200 shadow-sm')
-            : (isGlass ? 'bg-white/[0.03] backdrop-blur-2xl border-white/10' : 'bg-[#080812]/95 backdrop-blur-2xl border-white/10'),
-          isMinimalist && 'border-r-0 shadow-none'
-        )}
-      >
-        <div className="space-y-3">
+      <div className={cn(
+        'absolute inset-y-0 left-0 flex w-[58%] max-w-[270px] flex-col justify-between border-r p-5 transition-all duration-300',
+        isLight
+          ? (isGlass ? 'border-slate-200/90 bg-white/80 backdrop-blur-xl' : 'border-slate-200 bg-white/95 backdrop-blur-md')
+          : (isGlass ? 'border-white/10 bg-white/[0.03] backdrop-blur-2xl' : 'border-white/10 bg-[#001824]/95 backdrop-blur-2xl'),
+        isMinimalist && 'border-r-0 shadow-none'
+      )}>
+        <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-2">
-            <span className={cn(
-              'text-[9px] font-bold px-2.5 py-1 rounded-full shrink-0 tracking-wide',
-              task ? 'bg-violet-600 text-white shadow-sm' : (isLight ? 'bg-violet-100 text-violet-700' : 'bg-white/10 text-white/70')
-            )}>
+            <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-bold', task ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : (isLight ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-white/70'))}>
               {badgeKey}
             </span>
-            <span className={cn(
-              "text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0",
-              isLight ? "bg-emerald-100 text-emerald-700 border border-emerald-200/60" : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20"
-            )}>
-              <Check className="h-2.5 w-2.5" /> Aprovado
+            <span className={cn('flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold', isLight ? 'bg-emerald-100 text-emerald-800' : 'bg-emerald-500/15 text-emerald-300')}>
+              <Check className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Aprovado
             </span>
           </div>
-          <h4 className={cn('text-[14px] font-bold leading-tight line-clamp-2 transition-colors', isLight ? 'text-slate-900' : 'text-white')}>
-            {title}
-          </h4>
-          <p className={cn('text-[10.5px] leading-relaxed line-clamp-3 transition-colors', isLight ? 'text-slate-600' : 'text-white/60')}>
-            {desc}
-          </p>
+          <h4 className={cn('m-0 line-clamp-2 text-[15px] font-bold leading-tight', isLight ? 'text-slate-900' : 'text-white')}>{title}</h4>
+          <p className={cn('m-0 line-clamp-3 text-xs leading-relaxed', isLight ? 'text-slate-600' : 'text-white/60')}>{desc}</p>
         </div>
-
-        <div className={cn(
-          'pt-3 border-t flex items-center justify-between text-[9px] font-bold uppercase tracking-wider transition-colors',
-          isLight ? 'border-slate-100 text-slate-400' : 'border-white/5 text-white/40'
-        )}>
+        <div className={cn('flex items-center justify-between border-t pt-3 text-xs', isLight ? 'border-slate-100 text-slate-500' : 'border-white/5 text-white/50')}>
           <span>Desenvolvedor</span>
-          <span className={cn('font-black', isLight ? 'text-slate-800' : 'text-white/90')}>{task?.evidence?.dev || 'Ana Silva'}</span>
+          <span className={cn('font-bold', isLight ? 'text-slate-800' : 'text-white/90')}>{task?.evidence?.dev || 'Ana Silva'}</span>
         </div>
       </div>
 
-      {/* Área de evidência à direita */}
-      <div className="absolute inset-y-0 right-0 left-[58%] flex items-center justify-center p-6">
+      <div className="absolute inset-y-0 left-[58%] right-0 flex items-center justify-center p-6">
         <div className={cn(
-          'w-full max-w-[210px] aspect-video rounded-2xl border flex flex-col items-center justify-center gap-2 transition-all shadow-sm',
-          isLight
-            ? 'bg-white/80 border-slate-200/90 text-slate-500 shadow-slate-200/50'
-            : 'bg-white/[0.03] border-white/10 text-white/40'
+          'flex aspect-video w-full max-w-[210px] flex-col items-center justify-center gap-2 rounded-2xl border transition-all',
+          isLight ? 'border-slate-200/90 bg-white/80 text-slate-500' : 'border-white/10 bg-white/[0.03] text-white/50'
         )}>
-          <Camera className="h-7 w-7 opacity-70" />
-          <span className="text-[9px] font-bold uppercase tracking-widest opacity-70">Evidência / Demo</span>
+          <Camera className="h-7 w-7 opacity-70" strokeWidth={1.5} aria-hidden="true" />
+          <span className="text-xs opacity-80">Evidência / demo</span>
         </div>
       </div>
     </div>
@@ -156,13 +152,16 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
   const [session, setSession] = useState<Partial<ShowcaseSession>>({});
   const [coverUrl, setCoverUrl] = useState('');
   const [previewError, setPreviewError] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
-  // A sessão do pai muda de referência a cada broadcast de WebSocket (SESSION_UPDATED),
-  // disparado por QUALQUER save na sessão (editar um card, favoritar, etc.), não só
-  // pelo que esse dialog controla. Sincronizar direto de `initialSession` a cada
-  // mudança apagava edições locais não salvas se um broadcast concorrente chegasse
-  // com o dialog aberto. Guardamos a versão mais recente numa ref (sem disparar
-  // re-sync) e só carregamos no form quando o dialog efetivamente abre.
+  const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
+  const { memberships } = useMyMemberships();
+
+  // A sessão do pai muda de referência a cada broadcast de WebSocket (SESSION_UPDATED), disparado por QUALQUER
+  // save na sessão (editar um card, etc.), não só pelo que este diálogo controla. Sincronizar direto de
+  // `initialSession` a cada mudança apagava edições locais não salvas se um broadcast concorrente chegasse com o
+  // diálogo aberto. Guardamos a versão mais recente numa ref (sem disparar re-sync) e só carregamos no
+  // formulário quando o diálogo efetivamente abre.
   const latestSessionRef = React.useRef(initialSession);
   React.useEffect(() => { latestSessionRef.current = initialSession; }, [initialSession]);
   // Cópia de quando o modal abriu: base do diff no salvar.
@@ -177,603 +176,383 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
     }
   }, [open]);
 
+  const squads = useMemo(
+    () => squadOptions(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName }, initialSession?.squadName),
+    [memberships, activeSquadId, activeSquadName, initialSession?.squadName]
+  );
+
   const onUpdate = (updates: Partial<ShowcaseSession>) => {
-    setSession(prev => ({ ...prev, ...updates }));
+    setSession((prev) => ({ ...prev, ...updates }));
   };
 
-  // Grava só o que mudou no modal. Mandar a sessão inteira regravava `tasks`
-  // com a cópia de quando o modal abriu (apagando edições feitas nos cards
-  // nesse meio-tempo) e o Firestore recusava campos `undefined` dos cards.
+  // Grava só o que mudou no modal. Mandar a sessão inteira regravava `tasks` com a cópia de quando o modal abriu
+  // (apagando edições feitas nos cards nesse meio-tempo).
   const getChanged = () => {
     const original = (openedSessionRef.current || {}) as Record<string, unknown>;
     return Object.fromEntries(
       Object.entries(session).filter(([k, v]) =>
-        !['id', 'tasks', 'createdAt'].includes(k) && v !== undefined && v !== original[k]
+        !['id', 'tasks', 'createdAt', 'updatedAt'].includes(k) && v !== undefined && v !== original[k]
       )
     ) as Partial<ShowcaseSession>;
   };
 
   const handleSave = () => {
     const changed = getChanged();
-    if (Object.keys(changed).length > 0) {
-      onCommit(changed);
-    }
+    if (Object.keys(changed).length > 0) onCommit(changed);
     onClose();
   };
 
   // Clicar fora ou apertar Esc fecha o modal: sem aviso, as alterações digitadas se perdiam.
   const handleDismiss = () => {
-    if (Object.keys(getChanged()).length > 0 && !window.confirm('Descartar as alterações que ainda não foram salvas?')) {
+    if (Object.keys(getChanged()).length > 0) {
+      setConfirmDiscard(true);
       return;
     }
     onClose();
   };
 
   const tabs = [
-    { id: 'geral', label: 'Geral', icon: Layout, description: 'Nome, time e objetivos' },
-    { id: 'tarefas', label: 'Cards e link', icon: ListChecks, description: 'Importar do Jira, criar cards e compartilhar com a squad' },
-    { id: 'identidade', label: 'Capa', icon: Palette, description: 'Tela de abertura da Review' },
-    { id: 'apresentacao', label: 'Apresentação', icon: Video, description: 'Cores e fundo do Modo Teatro' },
+    { id: 'geral' as const, label: 'Geral' },
+    { id: 'tarefas' as const, label: 'Cards e link' },
+    { id: 'identidade' as const, label: 'Capa' },
+    { id: 'apresentacao' as const, label: 'Apresentação' },
   ];
 
-  // Prontidão da sessão: os 3 campos que fazem diferença real numa
-  // apresentação (o resto tem fallback razoável ou não é essencial).
+  // Prontidão da sessão: os 4 campos que fazem diferença real numa apresentação.
   const checklist = [
-    { key: 'squad', label: 'Squad / Time', done: !!session?.squadName?.trim(), tab: 'geral' as TabType },
+    { key: 'squad', label: 'Squad', done: !!session?.squadName?.trim(), tab: 'geral' as TabType },
     { key: 'tarefas', label: taskCount > 0 ? `${taskCount} cards` : 'Cards', done: taskCount > 0, tab: 'tarefas' as TabType },
-    { key: 'objetivos', label: 'Objetivos da Sprint', done: !!session?.description?.trim(), tab: 'geral' as TabType },
-    { key: 'capa', label: 'Capa da sessão', done: !!session?.coverImage, tab: 'identidade' as TabType },
+    { key: 'objetivos', label: 'Objetivos', done: !!session?.description?.trim(), tab: 'geral' as TabType },
+    { key: 'capa', label: 'Capa', done: !!session?.coverImage, tab: 'identidade' as TabType },
   ];
-  const doneCount = checklist.filter(c => c.done).length;
+  const doneCount = checklist.filter((c) => c.done).length;
 
   const renderGeral = () => (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Card 1: Identificação Básica */}
-        <div className="md:col-span-6 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Layout className="h-4 w-4 text-violet-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Identificação</h3>
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Título da Review</label>
-            <Input 
-              value={session?.name || ''} 
-              onChange={(e) => onUpdate({ name: e.target.value })}
-              placeholder="Ex: Review Sprint 42"
-              className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
-            />
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Squad / Time</label>
-            <Input
-              value={session?.squadName || ''}
-              onChange={(e) => onUpdate({ squadName: e.target.value })}
-              placeholder="Ex: Squad Phoenix"
-              className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
-            />
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium ml-1">Aparece no topo do showcase e nos relatórios. A lista de Reviews do painel é filtrada por este nome: se mudar, confira se é o nome exato da squad.</p>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Data / Ciclo</label>
-            <Input
-              value={session?.period || ''}
-              onChange={(e) => onUpdate({ period: e.target.value })}
-              placeholder="Ex: 2026 / Q1"
-              className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all"
-            />
-          </div>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+      <div className={cn(PANEL, 'md:col-span-6')}>
+        <PanelTitle icon={Layout}>Identificação</PanelTitle>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cfg-name" className={LABEL}>Título da Review</label>
+          <input id="cfg-name" value={session?.name || ''} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Ex.: Review da Sprint 42" className={cn(FIELD, 'h-10')} />
         </div>
-
-        {/* Card 2: Ordem dos cards */}
-        <div className="md:col-span-6 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
-          <div className="flex items-center gap-2">
-            <SortAsc className="h-4 w-4 text-violet-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Ordem dos cards</h3>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-500 dark:text-slate-400 ml-1">Ordenar por</label>
-            <Select
-              value={session?.defaultSort || 'key'}
-              onValueChange={(v) => onUpdate({ defaultSort: v as any })}
-            >
-              <SelectTrigger className="h-10 w-full bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 rounded-xl text-sm font-semibold focus:ring-0 text-slate-800 dark:text-slate-200">
-                <SelectValue placeholder="Ordenar por" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-slate-200 dark:border-slate-800 dark:bg-slate-900">
-                <SelectItem value="key" className="text-sm font-semibold">Chave do Jira</SelectItem>
-                <SelectItem value="type" className="text-sm font-semibold">Tipo de issue</SelectItem>
-                <SelectItem value="dev" className="text-sm font-semibold">Desenvolvedor</SelectItem>
-                <SelectItem value="qa" className="text-sm font-semibold">QA / validador</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium ml-1">Define a ordem em que os cards aparecem na lista e na apresentação.</p>
-          </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cfg-squad" className={LABEL}>Squad</label>
+          <SelectField id="cfg-squad" aria-label="Squad da Review" value={session?.squadName || ''} onChange={(squadName) => onUpdate({ squadName })} options={squads} placeholder="Escolha a squad" className="h-10" />
+          <p className={HELP}>É o nome que a lista do hub usa para achar a Review. Escolha entre as squads do seu vínculo.</p>
         </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cfg-period" className={LABEL}>Data ou ciclo</label>
+          <input id="cfg-period" value={session?.period || ''} onChange={(e) => onUpdate({ period: e.target.value })} placeholder="Ex.: 2026 · 4º trimestre" className={cn(FIELD, 'h-10')} />
+        </div>
+      </div>
 
-        {/* Card 3: Objetivos da Sprint */}
-        <div className="md:col-span-12 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-violet-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Objetivos da sprint</h3>
-          </div>
-          <Textarea 
-            value={session?.description || ''} 
+      <div className={cn(PANEL, 'md:col-span-6')}>
+        <PanelTitle icon={SortAsc}>Ordem dos cards</PanelTitle>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cfg-sort" className={LABEL}>Ordenar por</label>
+          <SelectField
+            id="cfg-sort"
+            aria-label="Ordenar os cards por"
+            value={session?.defaultSort || 'key'}
+            onChange={(v) => isReviewSort(v) && onUpdate({ defaultSort: v })}
+            options={(Object.keys(SORT_LABELS) as ReviewSort[]).map((k) => ({ value: k, label: SORT_LABELS[k] }))}
+            className="h-10"
+          />
+          <p className={HELP}>Define a ordem em que os cards aparecem na lista e na apresentação. Com a chave, PTV-2 vem antes de PTV-10.</p>
+        </div>
+      </div>
+
+      <div className={cn(PANEL, 'md:col-span-12')}>
+        <PanelTitle icon={Target}>Objetivos da sprint</PanelTitle>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="cfg-goals" className={LABEL}>Objetivos</label>
+          <textarea
+            id="cfg-goals"
+            value={session?.description || ''}
             onChange={(e) => onUpdate({ description: e.target.value })}
-            placeholder="Ex: reduzimos o tempo de fechamento de pedido de 40s para 12s..."
-            className="w-full h-24 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all resize-none p-3"
+            placeholder="Ex.: reduzimos o tempo de fechamento de pedido de 40 s para 12 s..."
+            className={cn(FIELD, 'h-24 resize-none py-2.5')}
           />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 
   const renderTarefas = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-      className="grid grid-cols-1 md:grid-cols-12 gap-4"
-    >
-      {/* Cards da Review */}
-      <div className="md:col-span-7 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-5">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+      <div className={cn(PANEL, 'gap-5 md:col-span-7')}>
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <ListChecks className="h-4 w-4 text-violet-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cards da Review</h3>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm">
-              A importação traz título, tipo, problema, solução e critérios de cada issue. Depois cada pessoa completa a evidência no próprio card.
-            </p>
+          <div className="flex flex-col gap-1.5">
+            <PanelTitle icon={ListChecks}>Cards da Review</PanelTitle>
+            <p className={cn(HELP, 'max-w-sm')}>A importação traz título, tipo, problema, solução e critérios de cada issue. Depois cada pessoa completa a evidência no próprio card.</p>
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-3xl font-black tabular-nums text-slate-900 dark:text-slate-100 leading-none">{taskCount}</p>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mt-1">{taskCount === 1 ? 'card' : 'cards'}</p>
+          <div className="shrink-0 text-right">
+            <p className="m-0 text-3xl font-bold leading-none tabular-nums">{taskCount}</p>
+            <p className="m-0 mt-1 text-xs text-muted-foreground">{taskCount === 1 ? 'card' : 'cards'}</p>
           </div>
         </div>
-
-        <Button
-          onClick={onOpenJira}
-          disabled={!onOpenJira}
-          className="w-full h-12 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm gap-2 shadow-lg shadow-violet-600/20"
-        >
-          <CloudDownload className="h-4 w-4" /> {taskCount > 0 ? 'Importar mais issues do Jira' : 'Importar issues do Jira'}
-        </Button>
-
-        <div className="space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Ou crie um card manual</p>
+        <ModalButton variant="primary" className="h-11 w-full gap-2" onClick={onOpenJira} disabled={!onOpenJira}>
+          <CloudDownload className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> {taskCount > 0 ? 'Importar mais issues do Jira' : 'Importar issues do Jira'}
+        </ModalButton>
+        <div className="flex flex-col gap-2">
+          <p className="m-0 text-xs font-semibold text-muted-foreground">Ou crie um card manual</p>
           <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              onClick={() => onAddManualTask?.('story')}
-              disabled={!onAddManualTask}
-              className="h-11 rounded-xl justify-start gap-2.5 font-semibold text-xs border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-            >
-              <FileText className="h-4 w-4 text-slate-400" /> Card padrão
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => onAddManualTask?.('metrics')}
-              disabled={!onAddManualTask}
-              className="h-11 rounded-xl justify-start gap-2.5 font-semibold text-xs border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-            >
-              <TrendingUp className="h-4 w-4 text-violet-500" /> Card de métricas
-            </Button>
+            <ModalButton className="h-11 justify-start gap-2.5" onClick={() => onAddManualTask?.('story')} disabled={!onAddManualTask}>
+              <FileText className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Card padrão
+            </ModalButton>
+            <ModalButton className="h-11 justify-start gap-2.5" onClick={() => onAddManualTask?.('metrics')} disabled={!onAddManualTask}>
+              <TrendingUp className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Card de métricas
+            </ModalButton>
           </div>
         </div>
       </div>
 
-      {/* Compartilhar */}
-      <div className="md:col-span-5 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-violet-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Compartilhar com a squad</h3>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
-            Quem abrir o link entra nesta Review e ajuda a preparar os cards antes da apresentação.
-          </p>
+      <div className={cn(PANEL, 'md:col-span-5')}>
+        <div className="flex flex-col gap-1.5">
+          <PanelTitle icon={Users}>Compartilhar com a squad</PanelTitle>
+          <p className={HELP}>Quem abrir o link entra nesta Review e ajuda a preparar os cards antes da apresentação.</p>
         </div>
         <div className="flex gap-2">
-          <Input
-            readOnly
-            value={shareUrl}
-            onFocus={(e) => e.currentTarget.select()}
-            aria-label="Link da Review"
-            className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-mono text-[11px] text-slate-600 dark:text-slate-300"
-          />
-          <Button
+          <input readOnly value={shareUrl} onFocus={(e) => e.currentTarget.select()} aria-label="Link da Review" className={cn(FIELD, 'h-10 min-w-0 flex-1 font-mono text-xs')} />
+          <ModalButton
+            variant="primary"
+            className="shrink-0 gap-1.5"
             onClick={() => { onCopyLink?.(); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2000); }}
-            className={cn(
-              'h-10 px-4 rounded-xl font-bold text-xs gap-1.5 shrink-0 transition-colors',
-              linkCopied ? 'bg-emerald-600 hover:bg-emerald-600 text-white' : 'bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200'
-            )}
           >
-            {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {linkCopied ? <Check className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> : <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
             {linkCopied ? 'Copiado' : 'Copiar'}
-          </Button>
+          </ModalButton>
         </div>
       </div>
 
-      {/* Origem de cada campo: dá para arrumar a issue no Jira antes de importar */}
-      <div className="md:col-span-12 p-5 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-violet-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">De onde vem cada campo do card</h3>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5">
+      <div className={cn(PANEL, 'md:col-span-12')}>
+        <div className="flex flex-col gap-1.5">
+          <PanelTitle icon={Info}>De onde vem cada campo do card</PanelTitle>
+          <p className={HELP}>
             Quer que o card já chegue completo? Ajuste a issue no Jira antes de importar. Uma issue que já virou card não é importada de novo: para reimportar, exclua o card primeiro.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
+        <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2">
           {JIRA_FIELD_SOURCES.map(([field, source]) => (
-            <div key={field} className="flex gap-3 py-1.5 border-b border-slate-100 dark:border-slate-800/60 text-xs">
-              <span className="w-32 shrink-0 font-bold text-slate-700 dark:text-slate-200">{field}</span>
-              <span className="text-slate-500 dark:text-slate-400">{source}</span>
+            <div key={field} className="flex gap-3 border-b border-border py-2 text-[13px]">
+              <span className="w-32 shrink-0 font-semibold">{field}</span>
+              <span className="text-muted-foreground">{source}</span>
             </div>
           ))}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 
   const renderIdentidade = () => (
-    <motion.div 
-      initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Left Column: Galeria & Custom link */}
-        <div className="md:col-span-7 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-violet-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Fundos prontos</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {PRESETS.map((p, i) => (
-                <button 
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+      <div className={cn(PANEL, 'md:col-span-7')}>
+        <div className="flex flex-col gap-2">
+          <PanelTitle icon={Sparkles}>Fundos prontos</PanelTitle>
+          <div className="grid grid-cols-2 gap-2">
+            {PRESETS.map((p, i) => {
+              const selected = session?.coverImage === p.url;
+              return (
+                <button
                   key={p.id}
+                  type="button"
+                  aria-pressed={selected}
                   onClick={() => { onUpdate({ coverImage: p.url }); setCoverUrl(p.url); }}
                   className={cn(
-                    "group relative aspect-video rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02] hover:shadow-md",
-                    i === 0 && "col-span-2",
-                    session?.coverImage === p.url ? "border-violet-600 shadow-md shadow-violet-600/20" : "border-transparent"
+                    'group relative aspect-video overflow-hidden rounded-xl border-2 transition-all hover:shadow-md',
+                    i === 0 && 'col-span-2',
+                    selected ? 'border-primary shadow-md' : 'border-transparent',
+                    FOCUS_RING
                   )}
                 >
-                  <img src={p.url} className="w-full h-full object-cover" alt={p.name} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-2 flex flex-col justify-end opacity-0 group-hover:opacity-100 transition-opacity text-left">
-                    <p className="text-[11px] font-black text-white uppercase tracking-wider">{p.name}</p>
-                    <p className="text-[10px] text-white/80 uppercase font-bold tracking-tight line-clamp-1 mt-0.5">{p.description}</p>
-                  </div>
-                  {session?.coverImage === p.url && (
-                    <div className="absolute top-1.5 right-1.5 bg-violet-600 text-white p-0.5 rounded-md shadow-lg">
-                      <Check className="h-2.5 w-2.5" />
-                    </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} className="h-full w-full object-cover" alt={p.name} />
+                  <span className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/35 to-transparent p-2 text-left">
+                    <span className="text-xs font-bold text-white">{p.name}</span>
+                    <span className="line-clamp-1 text-xs text-white/80">{p.description}</span>
+                  </span>
+                  {selected && (
+                    <span className="absolute right-1.5 top-1.5 rounded-md bg-primary p-0.5 text-primary-foreground shadow-lg [.theme-totvs:not(.dark)_&]:text-foreground">
+                      <Check className="h-3 w-3" strokeWidth={2} aria-hidden="true" />
+                    </span>
                   )}
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/60">
-            <div className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4 text-violet-500" />
-              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Imagem de fundo por link</h3>
-            </div>
-            <div className="flex gap-2">
-              <Input 
-                value={coverUrl}
-                onChange={(e) => { setCoverUrl(e.target.value); setPreviewError(false); }}
-                placeholder="URL da Imagem..."
-                className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all flex-1"
-              />
-              <Button 
-                onClick={() => {
-                  const safe = toSafeUrl(coverUrl);
-                  setCoverUrl(safe);
-                  onUpdate({ coverImage: safe });
-                }}
-                disabled={!coverUrl}
-                className="h-10 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold uppercase tracking-wider text-[11px] shrink-0"
-              >
-                Aplicar
-              </Button>
-            </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Right Column: Preview */}
-        <div className="md:col-span-5 p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 flex flex-col space-y-3">
-          <div className="flex items-center gap-2">
-            <Palette className="h-4 w-4 text-violet-500" />
-            <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Visualização da Capa</h3>
+        <div className="flex flex-col gap-2 border-t border-border pt-4">
+          <PanelTitle icon={LinkIcon}>Imagem de fundo por link</PanelTitle>
+          <div className="flex gap-2">
+            <input
+              value={coverUrl}
+              onChange={(e) => { setCoverUrl(e.target.value); setPreviewError(false); }}
+              placeholder="URL da imagem..."
+              aria-label="URL da imagem de capa"
+              className={cn(FIELD, 'h-10 flex-1')}
+            />
+            <ModalButton
+              variant="primary"
+              className="shrink-0"
+              disabled={!coverUrl}
+              onClick={() => {
+                const safe = toSafeUrl(coverUrl);
+                setCoverUrl(safe);
+                onUpdate({ coverImage: safe });
+              }}
+            >
+              Aplicar
+            </ModalButton>
           </div>
-
-          {previewError && coverUrl ? (
-            <div className="flex-1 min-h-[160px] p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex flex-col items-center justify-center text-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Erro no Preview</p>
-              <p className="text-[11px] text-slate-400 leading-normal max-w-[180px]">Essa imagem não carregou. Confira se o link está correto e é público — alguns sites bloqueiam exibir a imagem fora deles.</p>
-            </div>
-          ) : coverUrl ? (
-            <div className="flex-1 min-h-[160px] rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 relative bg-slate-950/20 flex items-center justify-center shadow-inner">
-              <img 
-                src={getDirectImageUrl(coverUrl)} 
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover animate-fade-in" 
-                alt="Cover Preview" 
-                onError={() => setPreviewError(true)}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-3.5 flex flex-col justify-end">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-400">Preview</span>
-                <h4 className="text-white text-xs font-black uppercase tracking-tight truncate leading-none mt-1">{session?.name || 'Sua Sprint Review'}</h4>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 min-h-[160px] border-2 border-dashed border-slate-200 dark:border-slate-800/80 rounded-xl flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 gap-2 p-4 text-center">
-              <Sparkles className="h-6 w-6 text-slate-300 dark:text-slate-700" />
-              <span className="text-[11px] font-bold uppercase tracking-wider">Nenhuma capa selecionada</span>
-            </div>
-          )}
         </div>
       </div>
-    </motion.div>
+
+      <div className={cn(PANEL, 'md:col-span-5')}>
+        <PanelTitle icon={Palette}>Visualização da capa</PanelTitle>
+        {previewError && coverUrl ? (
+          <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-center">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-300" strokeWidth={1.5} aria-hidden="true" />
+            <p className="m-0 text-xs font-semibold text-amber-700 dark:text-amber-300">Erro na visualização</p>
+            <p className="m-0 max-w-[200px] text-xs leading-normal text-muted-foreground">Essa imagem não carregou. Confira se o link está correto e é público: alguns sites bloqueiam exibir a imagem fora deles.</p>
+          </div>
+        ) : coverUrl ? (
+          <div className="relative flex min-h-[160px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-border bg-black/10">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={getDirectImageUrl(coverUrl)} referrerPolicy="no-referrer" className="h-full w-full object-cover" alt="Visualização da capa" onError={() => setPreviewError(true)} />
+            <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/20 to-transparent p-3.5">
+              <span className="text-xs font-semibold text-cyan-300">Visualização</span>
+              <h4 className="m-0 mt-1 truncate text-sm font-bold text-white">{session?.name || 'Sua Review'}</h4>
+            </div>
+          </div>
+        ) : (
+          <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-4 text-center text-muted-foreground">
+            <Sparkles className="h-6 w-6 opacity-60" strokeWidth={1.5} aria-hidden="true" />
+            <span className="text-xs font-semibold">Nenhuma capa selecionada</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 
   const renderApresentacao = () => {
-    const filteredPresets = PRESENTATION_PRESETS.filter(p => {
-      if (presetFilter === 'light') return p.category === 'light';
-      if (presetFilter === 'dark') return p.category === 'dark';
-      return true;
-    });
-
+    const filteredPresets = PRESENTATION_PRESETS.filter((p) => (presetFilter === 'all' ? true : p.category === presetFilter));
     const isLightBg = isLightBackground(session?.presentationBackground);
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
-        className="space-y-4"
+    const filterBtn = (id: 'all' | 'light' | 'dark', label: React.ReactNode) => (
+      <button
+        key={id}
+        type="button"
+        aria-pressed={presetFilter === id}
+        onClick={() => setPresetFilter(id)}
+        className={cn(
+          'flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors max-sm:min-h-11',
+          presetFilter === id ? 'bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground' : 'text-muted-foreground hover:text-foreground',
+          FOCUS_RING
+        )}
       >
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-          {/* Coluna esquerda: Controles e Seleção de Fundo */}
-          <div className="md:col-span-6 space-y-4">
-            {/* Bloco 1: Presets Curados */}
-            <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-violet-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Cores do Modo Teatro
-                  </h3>
-                </div>
-                {isLightBg && (
-                  <span className="text-[11px] font-black bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <Sun className="h-2.5 w-2.5" /> Fundo Claro Ativo
-                  </span>
-                )}
-              </div>
-
-              {/* Filtros de Categoria */}
-              <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setPresetFilter('all')}
-                  className={cn(
-                    "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all",
-                    presetFilter === 'all'
-                      ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-sm"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
-                  )}
-                >
-                  Todos ({PRESENTATION_PRESETS.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetFilter('light')}
-                  className={cn(
-                    "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                    presetFilter === 'light'
-                      ? "bg-amber-500 text-white shadow-sm"
-                      : "text-slate-500 hover:text-amber-600 dark:hover:text-amber-400"
-                  )}
-                >
-                  <Sun className="h-3 w-3" /> Fundo Claro ({PRESENTATION_PRESETS.filter(p => p.category === 'light').length})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPresetFilter('dark')}
-                  className={cn(
-                    "flex-1 py-1.5 px-2 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1",
-                    presetFilter === 'dark'
-                      ? "bg-violet-600 text-white shadow-sm"
-                      : "text-slate-500 hover:text-violet-600 dark:hover:text-violet-400"
-                  )}
-                >
-                  <Moon className="h-3 w-3" /> Escuros ({PRESENTATION_PRESETS.filter(p => p.category === 'dark').length})
-                </button>
-              </div>
-
-              {/* Lista de Cards de Presets */}
-              <div className="grid grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-                {filteredPresets.map((p) => {
-                  const isSelected = session?.presentationBackground === p.value;
-                  const isLightPreset = p.isLight;
-
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => onUpdate({ presentationBackground: p.value })}
-                      className={cn(
-                        "group relative p-2.5 rounded-xl border text-left flex items-start gap-2.5 transition-all hover:scale-[1.01] hover:shadow-md",
-                        isSelected
-                          ? "border-violet-600 bg-violet-50/60 dark:bg-violet-950/30 shadow-sm ring-2 ring-violet-500/20"
-                          : "border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-slate-900/70 hover:border-slate-300 dark:hover:border-slate-700"
-                      )}
-                    >
-                      {/* Swatch redondinho com anel de contraste */}
-                      <div
-                        style={isImageBackground(p.value) ? { background: `center / cover no-repeat url(${p.value})` } : { background: p.value }}
-                        className={cn(
-                          "w-9 h-9 rounded-lg shrink-0 flex items-center justify-center relative shadow-inner overflow-hidden",
-                          isLightPreset
-                            ? "border-2 border-slate-300 dark:border-slate-600 shadow-sm"
-                            : "border border-white/15"
-                        )}
-                      >
-                        {isSelected && (
-                          <div className={cn(
-                            "w-4.5 h-4.5 rounded-full flex items-center justify-center shadow-md",
-                            isLightPreset ? "bg-violet-600 text-white" : "bg-white text-slate-900"
-                          )}>
-                            <Check className="h-3 w-3 stroke-[3]" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Títulos e detalhes */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className={cn(
-                            "text-[10px] font-black truncate leading-tight",
-                            isSelected ? "text-violet-700 dark:text-violet-300" : "text-slate-800 dark:text-slate-200"
-                          )}>
-                            {p.name}
-                          </p>
-                          {p.id === 'white' && (
-                            <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-1 py-0.2 rounded shrink-0">
-                              PROJETOR
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium line-clamp-1 mt-0.5 leading-snug">
-                          {p.description}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Seletor Customizado & Paleta Rápida */}
-              <div className="space-y-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Pipette className="h-3.5 w-3.5 text-violet-500" />
-                    <h3 className="text-[9.5px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-400">
-                      Cor Livre ou Link
-                    </h3>
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400">Hexadecimal / CSS</span>
-                </div>
-
-                <div className="flex gap-2 items-center">
-                  <label className="relative flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 cursor-pointer overflow-hidden shrink-0 hover:scale-105 transition-transform shadow-inner" title="Abrir Seletor de Cores">
-                    <input
-                      type="color"
-                      value={session?.presentationBackground?.startsWith('#') && session.presentationBackground.length === 7 ? session.presentationBackground : '#ffffff'}
-                      onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
-                      className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                    />
-                    <div
-                      className="w-full h-full rounded-xl flex items-center justify-center"
-                      style={{ background: session?.presentationBackground || '#050510' }}
-                    >
-                      <Palette className={cn("h-4 w-4 drop-shadow", isLightBg ? "text-slate-800" : "text-white")} />
-                    </div>
-                  </label>
-
-                  <Input
-                    value={session?.presentationBackground || ''}
-                    onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
-                    placeholder="Ex: #ffffff, #0f172a ou https://..."
-                    className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 font-semibold text-xs focus:ring-violet-500/20 dark:text-slate-100 transition-all flex-1"
-                  />
-                </div>
-
-                {/* Chips de Atalho Rápido */}
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider mr-1">Atalhos:</span>
-                  {[
-                    { label: 'Branco Puro', value: '#ffffff', border: true },
-                    { label: 'Studio Off-White', value: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', border: true },
-                    { label: 'Deep Space', value: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)' },
-                    { label: 'Noite Índigo', value: 'linear-gradient(135deg, #0b0f19 0%, #1e1b4b 50%, #0f172a 100%)' },
-                    { label: 'Tech Emerald', value: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)' },
-                  ].map((chip) => {
-                    const isChipActive = session?.presentationBackground === chip.value;
-                    return (
-                      <button
-                        key={chip.label}
-                        type="button"
-                        onClick={() => onUpdate({ presentationBackground: chip.value })}
-                        className={cn(
-                          "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all flex items-center gap-1.5 border",
-                          isChipActive
-                            ? "border-violet-600 bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30 font-black shadow-sm"
-                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
-                        )}
-                      >
-                        <span
-                          className={cn("w-2.5 h-2.5 rounded-full shrink-0", chip.border && "border border-slate-300 dark:border-slate-600")}
-                          style={{ background: chip.value }}
-                        />
-                        {chip.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+        {label}
+      </button>
+    );
+    return (
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-12">
+        <div className="flex flex-col gap-4 md:col-span-6">
+          <div className={PANEL}>
+            <div className="flex items-center justify-between">
+              <PanelTitle icon={Sparkles}>Cores do Modo Teatro</PanelTitle>
+              {isLightBg && (
+                <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  <Sun className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Fundo claro ativo
+                </span>
+              )}
             </div>
 
-            {/* Bloco 2: Temas de Interface */}
-            <div className="p-4 rounded-2xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Layout className="h-4 w-4 text-violet-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Estilo de Interface
-                  </h3>
-                </div>
-                <span className="text-[10px] font-black text-violet-600 dark:text-violet-400 uppercase tracking-widest">
-                  {session?.presentationTheme || 'cinematic'}
-                </span>
-              </div>
+            <div role="group" aria-label="Filtrar os fundos" className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
+              {filterBtn('all', `Todos (${PRESENTATION_PRESETS.length})`)}
+              {filterBtn('light', <><Sun className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Claros ({PRESENTATION_PRESETS.filter((p) => p.category === 'light').length})</>)}
+              {filterBtn('dark', <><Moon className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Escuros ({PRESENTATION_PRESETS.filter((p) => p.category === 'dark').length})</>)}
+            </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: 'cinematic', label: 'Cinematográfico', desc: 'Foco no conteúdo com bordas suaves e presença cênica' },
-                  { id: 'minimalist', label: 'Minimalista', desc: 'Sem divisórias laterais, layout limpo e direto' },
-                  { id: 'corporate', label: 'Corporativo', desc: 'Estrutura sólida executiva para stakeholders' },
-                  { id: 'glass', label: 'Glassmorphism', desc: 'Painéis translúcidos com efeito de desfoque moderno' }
-                ].map((t) => {
-                  const isThemeSelected = (session?.presentationTheme || 'cinematic') === t.id;
+            <div className="scrollbar-thin grid max-h-[220px] grid-cols-2 gap-2 overflow-y-auto pr-1">
+              {filteredPresets.map((p) => {
+                const isSelected = session?.presentationBackground === p.value;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    onClick={() => onUpdate({ presentationBackground: p.value })}
+                    className={cn(
+                      'flex items-start gap-2.5 rounded-xl border p-2.5 text-left transition-all hover:shadow-md',
+                      isSelected ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-border bg-card hover:border-foreground/30',
+                      FOCUS_RING
+                    )}
+                  >
+                    <span
+                      style={isImageBackground(p.value) ? { background: `center / cover no-repeat url(${p.value})` } : { background: p.value }}
+                      className={cn('relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg', p.isLight ? 'border-2 border-border' : 'border border-white/15')}
+                    >
+                      {isSelected && (
+                        <span className={cn('flex h-[18px] w-[18px] items-center justify-center rounded-full shadow-md', p.isLight ? 'bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'bg-white text-slate-900')}>
+                          <Check className="h-3 w-3" strokeWidth={3} aria-hidden="true" />
+                        </span>
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-[13px] font-semibold leading-tight">{p.name}</span>
+                        {p.id === 'white' && <span className="shrink-0 rounded bg-emerald-500/10 px-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">Projetor</span>}
+                      </span>
+                      <span className="line-clamp-1 text-xs leading-snug text-muted-foreground">{p.description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2.5 border-t border-border pt-3">
+              <div className="flex items-center justify-between">
+                <PanelTitle icon={Pipette}>Cor livre ou link</PanelTitle>
+                <span className="text-xs text-muted-foreground">Hexadecimal ou CSS</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="relative flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-border shadow-inner" title="Abrir o seletor de cores">
+                  <input
+                    type="color"
+                    aria-label="Seletor de cores"
+                    value={session?.presentationBackground?.startsWith('#') && session.presentationBackground.length === 7 ? session.presentationBackground : '#ffffff'}
+                    onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  />
+                  <span className="flex h-full w-full items-center justify-center rounded-xl" style={isImageBackground(session?.presentationBackground) ? { background: `center / cover no-repeat url(${session?.presentationBackground})` } : { background: session?.presentationBackground || '#002233' }}>
+                    <Palette className={cn('h-4 w-4 drop-shadow', isLightBg ? 'text-slate-800' : 'text-white')} strokeWidth={1.5} aria-hidden="true" />
+                  </span>
+                </label>
+                <input
+                  value={session?.presentationBackground || ''}
+                  onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
+                  placeholder="Ex.: #ffffff, #0f172a ou https://..."
+                  aria-label="Cor ou link do fundo"
+                  className={cn(FIELD, 'h-10 flex-1')}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-xs font-semibold text-muted-foreground">Atalhos:</span>
+                {QUICK_BACKGROUNDS.map((chip) => {
+                  const active = session?.presentationBackground === chip.value;
                   return (
                     <button
-                      key={t.id}
+                      key={chip.label}
                       type="button"
-                      onClick={() => onUpdate({ presentationTheme: t.id as any })}
+                      aria-pressed={active}
+                      onClick={() => onUpdate({ presentationBackground: chip.value })}
                       className={cn(
-                        "p-2.5 rounded-xl border-2 flex flex-col text-left gap-1 transition-all hover:scale-[1.01]",
-                        isThemeSelected
-                          ? "border-violet-600 bg-violet-50/50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-300 shadow-sm"
-                          : "border-slate-100 dark:border-slate-800 text-slate-500 hover:border-slate-200 dark:hover:border-slate-700 bg-white dark:bg-slate-900/40"
+                        'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-colors max-sm:min-h-11',
+                        active ? 'border-primary bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border bg-card text-muted-foreground hover:border-foreground/30',
+                        FOCUS_RING
                       )}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] font-black uppercase tracking-wider">{t.label}</span>
-                        {isThemeSelected && <Check className="h-3 w-3 text-violet-600" />}
-                      </div>
-                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 line-clamp-1 leading-snug">
-                        {t.desc}
-                      </span>
+                      <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', chip.border && 'border border-border')} style={{ background: chip.value }} />
+                      {chip.label}
                     </button>
                   );
                 })}
@@ -781,126 +560,128 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
             </div>
           </div>
 
-          {/* Coluna direita: Prévia ao vivo em tempo real */}
-          <div className="md:col-span-6 flex flex-col gap-2">
+          <div className={PANEL}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Video className="h-4 w-4 text-violet-500" />
-                <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Pré-visualização
-                </h3>
-              </div>
-              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500">
-                Como a audiência verá
-              </span>
+              <PanelTitle icon={Layout}>Estilo de interface</PanelTitle>
+              <span className="text-xs font-semibold text-muted-foreground">{STYLES.find((s) => s.id === (session?.presentationTheme || 'cinematic'))?.label}</span>
             </div>
-
-            <div className="flex-1 min-h-[380px] rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-inner bg-slate-950/5">
-              <PresentationPreview
-                background={session?.presentationBackground}
-                theme={session?.presentationTheme}
-                task={session?.tasks?.[0]}
-              />
+            <div className="grid grid-cols-2 gap-2">
+              {STYLES.map((t) => {
+                const selected = (session?.presentationTheme || 'cinematic') === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => onUpdate({ presentationTheme: t.id })}
+                    className={cn(
+                      'flex flex-col gap-1 rounded-xl border-2 p-2.5 text-left transition-all',
+                      selected ? 'border-primary bg-primary/5 text-foreground' : 'border-border bg-card text-muted-foreground hover:border-foreground/30',
+                      FOCUS_RING
+                    )}
+                  >
+                    <span className="flex items-center justify-between text-[13px] font-semibold">
+                      {t.label}
+                      {selected && <Check className="h-3.5 w-3.5 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" strokeWidth={2} aria-hidden="true" />}
+                    </span>
+                    <span className="line-clamp-2 text-xs leading-snug text-muted-foreground">{t.desc}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
-      </motion.div>
+
+        <div className="flex flex-col gap-2 md:col-span-6">
+          <div className="flex items-center justify-between">
+            <PanelTitle icon={Video}>Pré-visualização</PanelTitle>
+            <span className="text-xs text-muted-foreground">Como a audiência verá</span>
+          </div>
+          <div className="min-h-[380px] flex-1 overflow-hidden rounded-2xl border border-border shadow-inner">
+            <PresentationPreview background={session?.presentationBackground} theme={session?.presentationTheme} task={session?.tasks?.[0]} />
+          </div>
+        </div>
+      </div>
     );
   };
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) handleDismiss(); }}>
-      <DialogContent className="sm:max-w-[1440px] w-[96vw] h-[92vh] sm:h-[860px] max-h-[94vh] rounded-[2rem] p-0 border border-border shadow-2xl overflow-hidden bg-card text-card-foreground flex flex-col gap-0 focus:outline-none">
-        {/* Cabeçalho: mesmo padrão dos modais do Poker (título, explicação, abas) */}
-        <div className="px-6 pt-6 pb-0 shrink-0">
-          <DialogTitle className="text-2xl font-black tracking-tight text-foreground leading-none pr-8">Configurações da Review</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground mt-1.5">
-            Nome, cards, link da squad, capa e aparência da apresentação. Nada aqui é obrigatório, mas cards, capa e objetivos deixam a Review mais completa.
-          </DialogDescription>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-border">
-            <nav className="flex items-center gap-1" role="tablist" aria-label="Seções das configurações">
-              {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  title={tab.description}
-                  onClick={() => setActiveTab(tab.id as TabType)}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors",
-                    activeTab === tab.id
-                      ? "border-violet-500 text-foreground"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <tab.icon className={cn("h-4 w-4", activeTab === tab.id ? "text-violet-500" : "")} />
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-2 pb-2 text-xs" aria-label="Antes de apresentar">
-              <span className="font-bold text-muted-foreground">Antes de apresentar · {doneCount}/{checklist.length}</span>
-              {checklist.map(c => (
+    <>
+      <Modal
+        open={open}
+        onOpenChange={(next) => { if (!next) handleDismiss(); }}
+        size="lg"
+        icon={SlidersHorizontal}
+        title="Configurações da Review"
+        description="Nome, cards, link da squad, capa e aparência da apresentação. Nada aqui é obrigatório, mas cards, capa e objetivos deixam a Review mais completa."
+        className="sm:h-[760px] sm:max-w-[1000px]"
+        bodyClassName="pt-5"
+        headerExtra={
+          <div className="flex flex-wrap items-end justify-between gap-x-4 border-b border-border">
+            <TabBar<TabType> label="Seções das configurações" idPrefix="cfg" value={activeTab} onChange={setActiveTab} tabs={tabs} className="border-b-0 max-sm:gap-3 max-sm:overflow-x-auto" tabClassName="max-sm:h-11" />
+            <div className="flex flex-wrap items-center gap-1.5 px-6 pb-2" role="group" aria-label="Antes de apresentar">
+              <span className="mr-1 text-[13px] font-semibold text-muted-foreground">Antes de apresentar · {doneCount}/{checklist.length}</span>
+              {checklist.map((c) => (
                 <button
                   key={c.key}
                   type="button"
                   onClick={() => setActiveTab(c.tab)}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 font-semibold transition-colors",
-                    c.done
-                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
-                      : "border-border text-muted-foreground hover:text-foreground hover:border-violet-500/50"
+                    'inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors max-sm:h-9',
+                    c.done ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                    FOCUS_RING
                   )}
                 >
-                  {c.done ? <Check className="h-3 w-3" /> : <span className="h-2.5 w-2.5 rounded-full border border-current opacity-60" />}
+                  {c.done ? <Check className="h-3 w-3" strokeWidth={2} aria-hidden="true" /> : <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border border-current opacity-60" />}
                   {c.label}
                 </button>
               ))}
             </div>
           </div>
-        </div>
-
-        {/* Conteúdo */}
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-          {presentWarning && (
-            <div className="mb-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">Esta Review ainda não tem os objetivos da sprint</p>
-                <p className="text-xs text-amber-600/80 dark:text-amber-400/70 font-medium">Complete agora ou apresente do jeito que está.</p>
-              </div>
-              <Button onClick={onPresentAnyway} variant="outline" className="h-9 px-4 rounded-xl border-amber-500/40 text-amber-600 dark:text-amber-400 font-bold text-xs shrink-0 hover:bg-amber-500/10">
-                Apresentar mesmo assim
-              </Button>
-            </div>
-          )}
-
-          <AnimatePresence mode="wait">
-            {activeTab === 'geral' && renderGeral()}
-            {activeTab === 'tarefas' && renderTarefas()}
-            {activeTab === 'identidade' && renderIdentidade()}
-            {activeTab === 'apresentacao' && renderApresentacao()}
-          </AnimatePresence>
-        </div>
-
-        {/* Rodapé */}
-        <div className="py-3 px-6 border-t border-border flex items-center justify-between gap-3 shrink-0">
-          <p className="hidden md:block text-xs text-muted-foreground">
+        }
+        footerStart={
+          <p className="m-0 hidden max-w-md text-xs text-muted-foreground md:block">
             Vai apresentar em projetor ou sala com muita luz? Em <strong className="font-semibold text-foreground">Apresentação</strong>, escolha o fundo Branco Puro.
           </p>
-          <div className="flex items-center gap-3 ml-auto">
-            <Button onClick={handleDismiss} variant="ghost" className="rounded-xl font-bold text-sm text-muted-foreground hover:text-foreground">
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} className="h-10 px-8 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm shadow-lg shadow-violet-600/25 transition-all active:scale-95">
-              Salvar alterações
-            </Button>
+        }
+        footer={
+          <>
+            <ModalButton onClick={handleDismiss}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={handleSave}>Salvar alterações</ModalButton>
+          </>
+        }
+      >
+        {presentWarning && (
+          <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" strokeWidth={1.5} aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="m-0 text-sm font-bold text-amber-800 dark:text-amber-300">Esta Review ainda não tem os objetivos da sprint</p>
+              <p className="m-0 text-xs text-amber-800/80 dark:text-amber-300/80">Complete agora ou apresente do jeito que está.</p>
+            </div>
+            <ModalButton className="shrink-0 border-amber-500/40 text-amber-800 hover:bg-amber-500/10 dark:text-amber-300" onClick={onPresentAnyway}>
+              Apresentar mesmo assim
+            </ModalButton>
           </div>
+        )}
+        <div role="tabpanel" id={`cfg-panel-${activeTab}`} aria-labelledby={`cfg-tab-${activeTab}`}>
+          {activeTab === 'geral' && renderGeral()}
+          {activeTab === 'tarefas' && renderTarefas()}
+          {activeTab === 'identidade' && renderIdentidade()}
+          {activeTab === 'apresentacao' && renderApresentacao()}
         </div>
-      </DialogContent>
-    </Dialog>
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        onOpenChange={setConfirmDiscard}
+        tone="warn"
+        icon={AlertTriangle}
+        title="Descartar as alterações?"
+        description="Você mudou campos das configurações que ainda não foram salvos. Se sair agora, eles se perdem."
+        cancelLabel="Continuar editando"
+        confirmLabel="Descartar"
+        onConfirm={onClose}
+      />
+    </>
   );
 }

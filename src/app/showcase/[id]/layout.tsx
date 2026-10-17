@@ -1,11 +1,11 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Sprint Review | Sprint Showcase | Portal Tech V&D',
-  description: 'Visualize e apresente suas entregas de sprint de forma profissional e interativa. Sem slides, focado em resultados reais.',
+  title: 'Review | Portal Tech V&D',
+  description: 'Prepare e apresente as entregas da sprint direto dos cards, sem slides e com o aceite do PO registrado na cerimônia.',
   openGraph: {
-    title: 'Sprint Showcase - Apresentação de Entrega Ágil',
-    description: 'Transforme sua Sprint Review em um evento de elite com o Sprint Showcase do Portal Tech V&D.',
+    title: 'Review - Apresentação das entregas da sprint',
+    description: 'Apresente as entregas da sprint com evidências e o aceite do PO no Portal Tech V&D.',
   }
 };
 

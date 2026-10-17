@@ -11,8 +11,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision, DECISION } from './types';
+import { canDecide as roleCanDecide } from './review-room-logic';
 import { ChartRenderer } from './ChartRenderer';
-import { getCategoryColor } from './chartPresets';
+import { getCategoryColor, REVIEW_CHART_COLOR } from './chartPresets';
 import { formatTime, getEmbedUrl, getDirectImageUrl, isPdfUrl, isImageUrl, toSafeUrl, stripWikiMarkup, isLightBackground, getEvidenceUrls, isImageBackground, imageBackgroundCss } from './utils';
 import { TeatroHeader } from './TeatroHeader';
 import { TaskFileEvidence } from './TaskFileEvidence';
@@ -20,14 +21,9 @@ import { ShowcaseCover } from './ShowcaseCover';
 import { useUserContext } from '@/context/UserContext';
 import { useJiraSettings, type JiraSettings } from '@/hooks/useJiraSettings';
 import { fetchJiraAttachmentBlobUrl } from '@/services/jiraService';
-import type { GlobalRole } from '@/lib/types';
 
 const cleanJiraDomain = (d: string) => d.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 
-// Quem pode registrar aceite/ajuste/rejeição — cargo global do perfil
-// (mesmo campo que o Squad Pulse já usa em isSquadLeadershipViewer), não um
-// papel por sessão. Inclui a variante em PT usada em modais de perfil antigos.
-const CAN_DECIDE_ROLES: GlobalRole[] = ['Product Owner', 'Product Owner (PO)', 'SME'];
 
 interface TeatroModeProps {
   session: ShowcaseSession;
@@ -35,17 +31,21 @@ interface TeatroModeProps {
   sortBy?: 'key' | 'type' | 'dev' | 'qa';
   onIndexChange: (i: number) => void;
   onDecision: (id: string, d: Decision, feedback?: string) => void;
+  /** Encerrar a apresentação sem finalizar a Review. */
   onClose: () => void;
+  /** Finalizar a Review (a sala pede a confirmação). Disponível em qualquer card. */
   onFinish: () => void;
+  /** Uma janela da sala (confirmar finalização) está aberta por cima: as teclas não navegam por baixo dela. */
+  keysDisabled?: boolean;
 }
 
-export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish }: TeatroModeProps) {
+export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish, keysDisabled }: TeatroModeProps) {
   const { userProfile } = useUserContext();
   // Levantado aqui (não dentro de TaskSlide) porque TaskSlide remonta a cada
   // troca de card (key={task.id}) — buscar de novo a cada slide seria uma
   // chamada extra por card, sem necessidade.
   const { settings: jiraSettings } = useJiraSettings();
-  const canDecide = !!userProfile && CAN_DECIDE_ROLES.includes(userProfile.role);
+  const canDecide = roleCanDecide(userProfile?.role);
   const isCover = currentIndex === -1;
   const task = !isCover ? session.tasks[currentIndex] : null;
   const [showFeedback, setShowFeedback] = useState(false);
@@ -79,6 +79,8 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   // Navegação por Teclado
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Janela de cima (confirmar finalização): o Esc dela já fechou só ela (o Radix marca o evento) e as setas não trocam de card.
+      if (keysDisabled || e.defaultPrevented) return;
       if (showFeedback) {
         if (e.key === 'Escape') setShowFeedback(false);
         return;
@@ -98,7 +100,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, session.tasks.length, onIndexChange, showFeedback, onClose]);
+  }, [currentIndex, session.tasks.length, onIndexChange, showFeedback, onClose, keysDisabled]);
 
   // Mantém isFullscreen em sincronia mesmo quando o fullscreen é encerrado
   // fora do botão (Escape nativo do navegador, F11, menu de contexto etc.)
@@ -135,8 +137,9 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col selection:bg-violet-500/30",
-        !session.presentationBackground && "bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-slate-900 via-[#050510] to-[#020205]",
+        // z-45: abaixo das janelas (z-50) e dos avisos, para a confirmação de finalizar aparecer por cima da apresentação.
+        "fixed inset-0 z-[45] flex flex-col selection:bg-primary/30",
+        !session.presentationBackground && "bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-[#0A3048] via-[#002233] to-[#001824]",
         isLight ? "text-slate-900 bg-white" : "text-white"
       )}
       style={session.presentationBackground ? {
@@ -148,7 +151,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
       } : undefined}
       role="dialog"
       aria-modal="true"
-      aria-label="Modo Teatro - Apresentação de Sprint Review"
+      aria-label="Modo Teatro: apresentação da Review"
     >
       <TeatroHeader
         session={session}
@@ -202,62 +205,65 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] bg-[#050510]/90 backdrop-blur-2xl flex items-center justify-center p-8"
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-[#001824]/90 p-4 backdrop-blur-2xl sm:p-8"
             role="dialog"
             aria-modal="true"
             aria-labelledby="feedback-title"
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20, rotateX: 10 }}
-              animate={{ scale: 1, y: 0, rotateX: 0 }}
-              exit={{ scale: 0.9, y: 20, rotateX: -10 }}
+              initial={{ scale: 0.95, y: 16 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 16 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className={cn(
-                "rounded-[4rem] border shadow-[0_100px_200px_rgba(0,0,0,0.8)] w-full max-w-xl overflow-hidden p-16 space-y-10",
-                isLight ? "bg-[#fff] border-slate-200" : "bg-[#0f0f1d] border-white/10"
+                "flex w-full max-w-xl flex-col gap-6 overflow-hidden rounded-3xl border p-6 shadow-[0_40px_100px_rgba(0,0,0,0.6)] sm:p-10",
+                isLight ? "border-slate-200 bg-white" : "border-white/10 bg-[#0A3048]"
               )}
             >
-              <div className="text-center space-y-4">
-                <motion.div
-                  initial={{ scale: 0, rotate: -45 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  className={cn("w-20 h-20 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl", pendingDecision === 'rejected' ? 'bg-rose-500/10 text-rose-500' : 'bg-amber-500/10 text-amber-500')}
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div
+                  className={cn("flex h-16 w-16 items-center justify-center rounded-2xl", pendingDecision === 'rejected' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500')}
+                  aria-hidden="true"
                 >
-                  {pendingDecision === 'rejected' ? <Ban className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
-                </motion.div>
-                <h3 id="feedback-title" className={cn("text-3xl font-black tracking-tight leading-none", isLight ? "text-slate-900" : "text-white")}>
-                  {pendingDecision === 'rejected' ? 'Rejeitar Entrega' : 'Solicitar Ajuste'}
+                  {pendingDecision === 'rejected' ? <Ban className="h-8 w-8" strokeWidth={1.5} /> : <AlertTriangle className="h-8 w-8" strokeWidth={1.5} />}
+                </div>
+                <h3 id="feedback-title" className={cn("m-0 text-2xl font-bold tracking-tight", isLight ? "text-slate-900" : "text-white")}>
+                  {pendingDecision === 'rejected' ? 'Rejeitar entrega' : 'Solicitar ajuste'}
                 </h3>
-                <p className={cn("text-[11px] font-black uppercase tracking-[0.3em]", isLight ? "text-slate-400" : "text-white/60")}>
-                  {feedbackTask ? `${feedbackTask.key} — ${feedbackTask.title}` : 'Detalhamento da Revisão Técnica'}
+                <p className={cn("m-0 text-sm", isLight ? "text-slate-500" : "text-white/60")}>
+                  {feedbackTask ? `${feedbackTask.key}: ${feedbackTask.title}` : 'Detalhamento da revisão técnica'}
                 </p>
               </div>
-              <div className="space-y-4">
-                <Textarea
-                  autoFocus
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Digite o feedback detalhado para a squad..."
-                  className={cn(
-                    "min-h-[180px] rounded-[2rem] text-base placeholder:text-white/20 transition-all outline-none p-10 leading-relaxed font-medium border",
-                    isLight ? "bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-300 focus:bg-white" : "bg-white/[0.03] border-white/5 text-white placeholder:text-white/20 focus:bg-white/[0.05] focus:border-white/10"
-                  )}
-                />
-              </div>
-              <div className="flex gap-6 pt-4">
-                <Button
-                  variant="ghost"
+              <Textarea
+                autoFocus
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                aria-label="Feedback para a squad"
+                placeholder="Digite o feedback detalhado para a squad..."
+                className={cn(
+                  "min-h-[160px] rounded-2xl border p-5 text-base leading-relaxed outline-none transition-colors",
+                  isLight ? "border-slate-200 bg-slate-50 text-slate-800 placeholder:text-slate-400 focus:bg-white" : "border-white/10 bg-white/[0.04] text-white placeholder:text-white/30 focus:bg-white/[0.07]"
+                )}
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
                   onClick={() => setShowFeedback(false)}
                   className={cn(
-                    "flex-1 h-14 rounded-2xl font-black uppercase text-[11px] tracking-widest border transition-colors",
-                    isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
-                      : "text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                    "h-12 flex-1 rounded-2xl border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                    isLight ? "border-slate-200 text-slate-700 hover:bg-slate-100" : "border-white/10 text-white/80 hover:bg-white/10"
                   )}
                 >
                   Descartar
-                </Button>
-                <Button disabled={!feedbackTask} onClick={() => { if (!feedbackTask) return; onDecision(feedbackTask.id, pendingDecision, feedbackText); setShowFeedback(false); }} className={cn("flex-1 h-14 rounded-2xl text-white font-black uppercase text-[11px] tracking-widest shadow-2xl", pendingDecision === 'rejected' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700')}>Confirmar Decisão</Button>
+                </button>
+                <button
+                  type="button"
+                  disabled={!feedbackTask}
+                  onClick={() => { if (!feedbackTask) return; onDecision(feedbackTask.id, pendingDecision, feedbackText); setShowFeedback(false); }}
+                  className={cn("h-12 flex-1 rounded-2xl text-sm font-semibold text-white shadow-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50", pendingDecision === 'rejected' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700')}
+                >
+                  Confirmar decisão
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -372,7 +378,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
         isLight
           ? "bg-[#fff] border-slate-200 shadow-[40px_0_100px_rgba(0,0,0,0.05)]"
           : cn(
-            session.presentationTheme === 'glass' ? "bg-white/[0.02] backdrop-blur-3xl" : "bg-[#080812]/95 backdrop-blur-3xl",
+            session.presentationTheme === 'glass' ? "bg-white/[0.02] backdrop-blur-3xl" : "bg-[#001824]/95 backdrop-blur-3xl",
             "border-white/10 shadow-[40px_0_100px_rgba(0,0,0,0.8)]"
           ),
         session.presentationTheme === 'minimalist' && "border-r-0 shadow-none"
@@ -385,12 +391,12 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2 }}>
-                    <Badge className="bg-violet-600/90 text-white border-none font-bold text-[11px] px-2.5 py-1 rounded-full shadow-lg shadow-violet-600/20">{task?.key}</Badge>
+                    <Badge className="rounded-full border-none bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground shadow-lg">{task?.key}</Badge>
                   </motion.div>
-                  <span className={cn("text-[11px]", isLight ? "text-slate-400" : "text-white/40")}>{task?.type}</span>
+                  <span className={cn("text-xs", isLight ? "text-slate-400" : "text-white/40")}>{task?.type}</span>
                 </div>
                 {task && (
-                  <Badge className={cn("border-none font-bold text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0", DECISION[task.decision].cls)}>
+                  <Badge className={cn("border-none font-bold text-xs px-2.5 py-1 rounded-full flex items-center gap-1 shrink-0", DECISION[task.decision].stageCls[isLight ? 'light' : 'dark'])}>
                     {DECISION[task.decision].icon}
                     {DECISION[task.decision].label}
                   </Badge>
@@ -411,8 +417,8 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     <span
                       key={i}
                       className={cn(
-                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border",
-                        isLight ? "bg-violet-50 border-violet-100 text-violet-700" : "bg-violet-500/10 border-violet-500/20 text-violet-300"
+                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border",
+                        isLight ? "border-slate-200 bg-slate-100 text-slate-800" : "border-white/10 bg-white/10 text-white/90"
                       )}
                     >
                       <TrendingUp className="h-3 w-3 opacity-70" />
@@ -443,7 +449,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   href={l.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={cn("flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline", isLight ? "text-violet-600" : "text-violet-300")}
+                  className={cn("flex items-center gap-1.5 font-semibold underline-offset-2 hover:underline", isLight ? "text-slate-900" : "text-cyan-300")}
                 >
                   <FileText className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />{l.label}
                 </a>
@@ -454,7 +460,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             {!isMetricsCard && (
             <button
               onClick={() => setShowDetails(v => !v)}
-              className={cn("flex items-center gap-1.5 text-[11px] font-semibold transition-colors", isLight ? "text-slate-500 hover:text-slate-900" : "text-white/50 hover:text-white")}
+              className={cn("flex items-center gap-1.5 text-xs font-semibold transition-colors", isLight ? "text-slate-500 hover:text-slate-900" : "text-white/50 hover:text-white")}
             >
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
               {showDetails ? 'Ocultar detalhes' : 'Ver detalhes'}
@@ -464,14 +470,14 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             {!isMetricsCard && showDetails && (
               <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-300">
                 <section className="space-y-1.5">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-400">A Solução</p>
+                  <p className="text-xs font-bold text-emerald-400">A solução</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
                     {stripWikiMarkup(task?.evidence.solution) || "Descrição da solução técnica não disponível."}
                   </p>
                 </section>
 
                 <section className="space-y-1.5">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">Critérios de Aceite</p>
+                  <p className="text-xs font-bold text-cyan-300">Critérios de aceite</p>
                   <p className={cn("text-[12px] leading-relaxed break-words whitespace-pre-wrap", isLight ? "text-slate-600" : "text-white/80")}>
                     {stripWikiMarkup(task?.acceptanceCriteria) || "Nenhum critério detalhado para esta issue."}
                   </p>
@@ -479,11 +485,11 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
 
                 {hasVersions && task && (
                   <section className="space-y-1.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-400">Deploy / Versões</p>
+                    <p className="text-xs font-bold text-cyan-300">Deploy e versões</p>
                     <div className={cn("rounded-xl p-3 border space-y-2", isLight ? "bg-slate-50 border-slate-100" : "bg-black/20 border-white/[0.03]")}>
                       {task.project && (
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className={cn("text-[11px] uppercase tracking-wider", isLight ? "text-slate-400" : "text-white/40")}>Projeto</span>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={cn("text-xs", isLight ? "text-slate-400" : "text-white/40")}>Projeto</span>
                           <span className={cn("font-medium truncate max-w-[200px]", isLight ? "text-slate-700" : "text-white")}>{task.project}</span>
                         </div>
                       )}
@@ -491,26 +497,26 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                         <div className={cn("grid grid-cols-4 gap-2 border-t border-dashed pt-2", isLight ? "border-slate-200" : "border-white/5")}>
                           {task.versionSuporte && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Suporte</span>
-                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-rose-400")}>{task.versionSuporte}</span>
+                              <span className={cn("text-xs mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Suporte</span>
+                              <span className={cn("text-xs font-medium truncate", isLight ? "text-slate-700" : "text-red-400")}>{task.versionSuporte}</span>
                             </div>
                           )}
                           {task.versionMaster && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
-                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
+                              <span className={cn("text-xs mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Master</span>
+                              <span className={cn("text-xs font-medium truncate", isLight ? "text-slate-700" : "text-emerald-400")}>{task.versionMaster}</span>
                             </div>
                           )}
                           {task.versionRelease && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
-                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
+                              <span className={cn("text-xs mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Release</span>
+                              <span className={cn("text-xs font-medium truncate", isLight ? "text-slate-700" : "text-cyan-400")}>{task.versionRelease}</span>
                             </div>
                           )}
                           {task.versionDevelop && (
                             <div className="flex flex-col">
-                              <span className={cn("text-[11px] uppercase tracking-wider mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
-                              <span className={cn("text-[11px] font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
+                              <span className={cn("text-xs mb-0.5", isLight ? "text-slate-400" : "text-white/40")}>Develop</span>
+                              <span className={cn("text-xs font-medium truncate", isLight ? "text-slate-700" : "text-amber-400")}>{task.versionDevelop}</span>
                             </div>
                           )}
                         </div>
@@ -523,13 +529,13 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     repetir ele pequeno aqui embaixo seria duplicado. */}
                 {metrics.length > 0 && !isFeaturedChart && (
                   <section className="space-y-1.5">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-violet-400">{task?.chartTitle || 'Métricas de Impacto'}</p>
+                    <p className="text-xs font-bold text-cyan-300">{task?.chartTitle || 'Métricas de impacto'}</p>
                     <ChartRenderer
                       type={task?.chartType}
                       title=""
                       data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))}
                       height={140}
-                      defaultColor="hsl(262, 83%, 65%)"
+                      defaultColor={REVIEW_CHART_COLOR}
                       isLight={isLight}
                     />
                   </section>
@@ -545,13 +551,13 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
         "flex-1 relative flex flex-col overflow-hidden transition-colors",
         isLight
           ? (session.presentationBackground ? "bg-white/40" : "bg-slate-50/90")
-          : (session.presentationBackground ? "bg-transparent" : "bg-[#050510]")
+          : (session.presentationBackground ? "bg-transparent" : "bg-[#001824]")
       )}>
         <div className={cn(
           "absolute inset-0 pointer-events-none",
           isLight
-            ? "bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.04),transparent_70%)]"
-            : "bg-[radial-gradient(circle_at_50%_50%,rgba(139,92,246,0.15),transparent_70%)]"
+            ? "bg-[radial-gradient(circle_at_50%_50%,hsl(var(--primary)/0.05),transparent_70%)]"
+            : "bg-[radial-gradient(circle_at_50%_50%,hsl(var(--primary)/0.15),transparent_70%)]"
         )} aria-hidden="true" />
 
         <div className="flex-1 flex items-center justify-center p-3 sm:p-6 md:p-12 relative z-10 min-h-0">
@@ -571,26 +577,26 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
                   className={cn(
                     "w-full h-full max-w-4xl rounded-[3.5rem] overflow-hidden border p-12 flex flex-col justify-center gap-8",
-                    isLight ? "bg-white border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.06)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+                    isLight ? "bg-white border-slate-200 shadow-[0_30px_90px_rgba(0,0,0,0.06)]" : "bg-[#00202F] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
                   )}
                 >
                   {metrics.length > 0 ? (
                     <>
                       {task.chartTitle && (
-                        <p className={cn("text-center text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-violet-600" : "text-violet-400")}>{task.chartTitle}</p>
+                        <p className={cn("text-center text-xs font-bold tracking-[0.3em]", isLight ? "text-slate-700" : "text-cyan-300")}>{task.chartTitle}</p>
                       )}
                       <div className="flex flex-wrap justify-center gap-4">
                         {metrics.map((m, i) => (
                           <div key={i} className="text-center px-6">
-                            <p className={cn("text-4xl font-black tracking-tight", isLight ? "text-violet-700" : "text-violet-300")}>{(m.value ?? 0).toLocaleString('pt-BR')}</p>
-                            <p className={cn("text-[11px] font-bold uppercase tracking-widest mt-1", isLight ? "text-slate-500" : "text-white/40")}>{m.field}</p>
+                            <p className={cn("text-4xl font-bold tracking-tight", isLight ? "text-slate-900" : "text-cyan-300")}>{(m.value ?? 0).toLocaleString('pt-BR')}</p>
+                            <p className={cn("text-xs font-bold mt-1", isLight ? "text-slate-500" : "text-white/40")}>{m.field}</p>
                           </div>
                         ))}
                       </div>
-                      <ChartRenderer type={task.chartType} title="" data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))} height={280} defaultColor="hsl(262, 83%, 65%)" isLight={isLight} bare />
+                      <ChartRenderer type={task.chartType} title="" data={metrics.map(m => ({ name: m.field, value: m.value, color: getCategoryColor(m.field) }))} height={280} defaultColor={REVIEW_CHART_COLOR} isLight={isLight} bare />
                     </>
                   ) : (
-                    <p className={cn("text-center text-sm font-bold uppercase tracking-widest", isLight ? "text-slate-400" : "text-white/20")}>Sem métricas preenchidas ainda</p>
+                    <p className={cn("text-center text-sm font-bold", isLight ? "text-slate-400" : "text-white/20")}>Sem métricas preenchidas ainda</p>
                   )}
                 </motion.div>
               );
@@ -614,7 +620,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     <Camera className="h-16 w-16" />
                   </div>
                   <div className="space-y-3">
-                    <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/20")}>Sem evidência vinculada</p>
+                    <p className={cn("text-lg font-bold", isLight ? "text-slate-400" : "text-white/20")}>Sem evidência vinculada</p>
                     <p className={cn("text-xs font-bold max-w-xs mx-auto", isLight ? "text-slate-500" : "text-white/40")}>Vincule um link de vídeo ou screenshot, ou anexe um arquivo no card, para demonstrar esta entrega.</p>
                   </div>
                 </motion.div>
@@ -642,7 +648,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     {isPdf && !url.includes('drive.google.com') && (
                       <div className="absolute top-6 right-10 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 pointer-events-none">
                         <FileText className="h-3.5 w-3.5 text-white/70" />
-                        <span className="text-[11px] font-bold text-white/50 uppercase tracking-wide">PDF Mode</span>
+                        <span className="text-xs font-bold text-white/50">Modo PDF</span>
                       </div>
                     )}
                     {/* Saída pra nova aba sempre visível — vários hosts (Drive
@@ -662,12 +668,12 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                       )}
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
-                      <span className="text-[11px] font-bold uppercase tracking-wide">Nova Aba</span>
+                      <span className="text-xs font-bold">Nova aba</span>
                     </a>
                     <iframe
                       src={embedUrl}
                       title={`Evidência da Tarefa: ${task.title}`}
-                      className="w-full h-full border-none z-0 bg-[#0d0d1a]"
+                      className="w-full h-full border-none z-0 bg-[#00202F]"
                       allow="autoplay; fullscreen; picture-in-picture"
                       allowFullScreen
                     />
@@ -696,7 +702,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                       )}>
                         <Camera className="h-16 w-16" />
                       </div>
-                      <p className={cn("text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-slate-300" : "text-white/20")}>Carregando evidência do Jira...</p>
+                      <p className={cn("text-xs font-bold tracking-[0.3em]", isLight ? "text-slate-300" : "text-white/20")}>Carregando evidência do Jira...</p>
                     </motion.div>
                   );
                 }
@@ -709,7 +715,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                     transition={{ duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
                     className={cn(
                       "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border flex items-center justify-center group cursor-zoom-in",
-                      isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+                      isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#00202F] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
                     )}
                     onClick={() => setImageExpanded(true)}
                     title="Clique para ampliar"
@@ -720,10 +726,10 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                       alt={`Evidência visual: ${task.title}`}
                       className="max-w-full max-h-full object-contain transition-all duration-1000 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                     <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <ZoomIn className="h-3.5 w-3.5" />
-                      <span className="text-[11px] font-bold uppercase tracking-wide">Ampliar</span>
+                      <span className="text-xs font-bold">Ampliar</span>
                     </div>
                   </motion.div>
                 );
@@ -745,14 +751,14 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
                   </div>
                   <div className="space-y-4">
                     <div className="space-y-1">
-                      <p className={cn("text-lg font-black tracking-wide", isLight ? "text-slate-400" : "text-white/60")}>Abrir link externo</p>
-                      <p className={cn("text-[11px] font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-code", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
+                      <p className={cn("text-lg font-bold", isLight ? "text-slate-400" : "text-white/60")}>Abrir link externo</p>
+                      <p className={cn("text-xs font-bold max-w-xs mx-auto truncate px-4 opacity-50 font-code", isLight ? "text-slate-500" : "text-white/60")}>{url}</p>
                     </div>
                     <Button
                       asChild
                       variant="outline"
                       className={cn(
-                        "h-12 px-8 rounded-2xl font-bold uppercase text-[11px] tracking-wide border-2 transition-all active:scale-95",
+                        "h-12 px-8 rounded-2xl font-bold text-xs border-2 transition-all active:scale-95",
                         isLight
                           ? "border-slate-200 bg-[#fff] text-slate-600 hover:bg-slate-50 hover:border-slate-300"
                           : "border-white/10 bg-white/5 text-white hover:bg-white/10 hover:border-white/20"
@@ -784,7 +790,7 @@ function TaskSlide({ task, nextTask, session, isLight, jiraSettings, sidebarColl
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <span className={cn("px-2 text-[11px] font-bold uppercase tracking-wide tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
+            <span className={cn("px-2 text-xs font-bold tabular-nums", isLight ? "text-slate-500" : "text-white/60")}>
               Evidência {safeIndex + 1}/{evidenceCount}
             </span>
             <Button
