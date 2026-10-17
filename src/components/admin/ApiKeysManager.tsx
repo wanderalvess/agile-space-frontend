@@ -1,42 +1,80 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { adminApi, ApiKeyData } from '@/app/admin/api';
-import { KeyRound, Plus, Ban, Copy, Check, RefreshCw, AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
-import { logSystemEvent } from '@/lib/audit';
-import { AgileSpinner } from '../ui/AgileSpinner';
-import { cn } from '@/lib/utils';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Ban, Check, Copy, KeyRound, Plus, RefreshCw, UserRound } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useAuth } from '@/context/AuthContext';
+import { adminApi, type ApiKeyData } from '@/app/admin/api';
+import { userApi } from '@/app/users/api';
+import { toast } from '@/hooks/use-toast';
+import { logSystemEvent } from '@/lib/audit';
+import { cn } from '@/lib/utils';
 import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
+import { EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD } from '@/components/page';
+import { ConfirmDialog, FIELD, FOCUS_RING, IconButton, IconTile, ModalButton, SelectField, StatusChip, type Tone } from '@/components/room-kit';
+import { FIELD_LABEL } from './AdminOpsParts';
+import { RENEW_TERMS, buildNameIndex, ownerLabel, renewMessage, type NameIndex } from './admin-ops-utils';
+
+const EXPIRY_TONES: Record<string, Tone> = { expired: 'danger', soon: 'warn', ok: 'neutral', none: 'neutral' };
+
+function ago(iso: string): string {
+  return formatDistanceToNow(new Date(iso), { addSuffix: true, locale: ptBR });
+}
 
 export function ApiKeysManager() {
   const { session } = useAuth();
   const [keys, setKeys] = useState<ApiKeyData[]>([]);
+  const [names, setNames] = useState<NameIndex | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [expiresIn, setExpiresIn] = useState('90');
 
-  const loadKeys = async () => {
+  const [renewTarget, setRenewTarget] = useState<ApiKeyData | null>(null);
+  const [renewTerm, setRenewTerm] = useState('90');
+  const [revokeTarget, setRevokeTarget] = useState<ApiKeyData | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const loadKeys = useCallback(async (initial = false) => {
+    if (initial) {
+      setLoading(true);
+      setLoadError(false);
+    }
     try {
       setKeys(await adminApi.getApiKeys());
+      setLoadError(false);
     } catch (e) {
       console.error('Erro ao carregar API keys:', e);
+      if (initial) setLoadError(true);
+      else toast({ variant: 'destructive', title: 'Não foi possível carregar as chaves' });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadKeys(); }, []);
+  useEffect(() => {
+    loadKeys(true);
+  }, [loadKeys]);
+
+  // Dono da chave: nome pelo cadastro de usuários; sem a lista, aparece o ID.
+  useEffect(() => {
+    let cancelled = false;
+    userApi
+      .getAllUsers()
+      .then((users) => {
+        if (!cancelled) setNames(buildNameIndex(users));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const attention = useMemo(() => keysNeedingAttention(keys), [keys]);
 
   const handleCreate = async () => {
     if (!newKeyName.trim()) return;
@@ -53,194 +91,272 @@ export function ApiKeysManager() {
       });
 
       setRevealedKey(created.rawKey);
+      setCopied(false);
       setNewKeyName('');
       await loadKeys();
-    } catch (e) {
+    } catch {
       toast({ variant: 'destructive', title: 'Erro ao gerar chave' });
     } finally {
       setCreating(false);
     }
   };
 
-  const handleRevoke = async (id: string, name: string) => {
-    if (!confirm(`Revogar a chave "${name}"? Isso não pode ser desfeito.`)) return;
+  const handleRevoke = async () => {
+    const target = revokeTarget;
+    if (!target) return;
+    setBusy(true);
     try {
-      await adminApi.revokeApiKey(id);
+      await adminApi.revokeApiKey(target.id);
       await logSystemEvent({
-        content: `API KEY REVOGADA: "${name}".`,
+        content: `API KEY REVOGADA: "${target.name}".`,
         type: 'admin',
         severity: 'warning',
         userEmail: session?.email,
         module: 'ApiKeys',
       });
       await loadKeys();
-    } catch (e) {
+    } catch {
       toast({ variant: 'destructive', title: 'Erro ao revogar chave' });
+    } finally {
+      setBusy(false);
+      setRevokeTarget(null);
     }
   };
 
-  const handleRenew = async (id: string, name: string) => {
+  const handleRenew = async () => {
+    const target = renewTarget;
+    if (!target) return;
+    setBusy(true);
     try {
-      await adminApi.renewApiKey(id);
-      toast({ title: 'Chave renovada', description: `"${name}" vale por mais 90 dias. O papel e os escopos foram reavaliados com o papel atual do dono.` });
+      await adminApi.renewApiKey(target.id, renewTerm);
+      const termLabel = RENEW_TERMS.find((t) => t.value === renewTerm)?.label ?? renewTerm;
+      toast({ title: 'Chave renovada', description: renewMessage(target.name, renewTerm) });
+      await logSystemEvent({
+        content: `API KEY RENOVADA: "${target.name}" (${termLabel.toLowerCase()}).`,
+        type: 'admin',
+        severity: 'warning',
+        userEmail: session?.email,
+        module: 'ApiKeys',
+      });
       await loadKeys();
-    } catch (e) {
+    } catch {
       toast({ variant: 'destructive', title: 'Erro ao renovar chave' });
+    } finally {
+      setBusy(false);
+      setRenewTarget(null);
     }
   };
 
-  const copyRevealedKey = () => {
+  const copyRevealedKey = async () => {
     if (!revealedKey) return;
-    navigator.clipboard.writeText(revealedKey);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(revealedKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ variant: 'destructive', title: 'Não foi possível copiar', description: 'Selecione a chave e copie manualmente.' });
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center gap-4">
-        <AgileSpinner size="lg" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Carregando API Keys...</p>
-      </div>
-    );
-  }
+  const openRenew = (k: ApiKeyData) => {
+    setRenewTerm('90');
+    setRenewTarget(k);
+  };
+
+  if (loading) return <LoadingSkeleton variant="table" rows={4} label="Carregando API Keys" />;
 
   return (
-    <div className="space-y-6">
-      {keysNeedingAttention(keys).length > 0 && (
-        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
-          <p className="text-[11px] font-bold leading-snug">
-            {keysNeedingAttention(keys).length === 1 ? '1 chave vence' : `${keysNeedingAttention(keys).length} chaves vencem`} em menos de {EXPIRY_WARNING_DAYS} dias
-            (ou já venceram). Renove antes do vencimento: a integração que usa a chave para de funcionar quando ela expira.
+    <div className="flex flex-col gap-4">
+      {attention.length > 0 && (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+          <p className="text-[13px] font-medium leading-snug">
+            {attention.length === 1 ? '1 chave vence' : `${attention.length} chaves vencem`} em menos de {EXPIRY_WARNING_DAYS} dias (ou já venceram). Renove antes do
+            vencimento: a integração que usa a chave para de funcionar quando ela expira.
           </p>
         </div>
       )}
+
       {revealedKey && (
-        <Card className="border-emerald-200 rounded-[2rem] bg-emerald-50/50 shadow-xl shadow-emerald-100/50 overflow-hidden">
-          <CardContent className="p-5 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-              Copie agora — essa chave não será mostrada de novo
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 h-11 flex items-center px-4 bg-white border border-emerald-200 rounded-xl text-xs font-code truncate">
-                {revealedKey}
-              </code>
-              <Button onClick={copyRevealedKey} className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 gap-2">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? 'Copiado' : 'Copiar'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-5" role="status">
+          <p className="text-[13px] font-semibold text-emerald-800 dark:text-emerald-200">Copie agora: essa chave não será mostrada de novo</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="flex min-h-11 min-w-0 flex-1 items-center rounded-[10px] border border-border bg-card px-3.5 font-mono text-xs text-foreground">
+              <span className="truncate" title={revealedKey}>{revealedKey}</span>
+            </code>
+            <ModalButton variant="primary" onClick={copyRevealedKey} className="h-11 gap-2">
+              {copied ? <Check className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> : <Copy className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+              {copied ? 'Copiado' : 'Copiar'}
+            </ModalButton>
+          </div>
+        </div>
       )}
 
-      <Card className="border-slate-200/60 rounded-[2rem] bg-white shadow-xl shadow-slate-200/50 overflow-hidden">
-        <CardHeader className="p-5 border-b border-slate-50 flex items-center gap-4">
-          <div className="p-2.5 bg-primary/10 rounded-xl text-primary"><KeyRound className="h-5 w-5" /></div>
-          <div>
-            <CardTitle className="text-xl font-black uppercase tracking-tighter italic font-headline text-slate-900">API Keys</CardTitle>
-            <CardDescription className="text-[9px] font-black italic text-slate-400 uppercase tracking-widest mt-0.5">Acesso programático à Base de Conhecimento (/api/v1/knowledge)</CardDescription>
+      <section className={cn(PAGE_CARD, 'overflow-clip')} aria-label="Chaves de acesso">
+        <header className="flex items-center gap-3.5 border-b border-border px-6 py-4">
+          <IconTile icon={KeyRound} />
+          <div className="flex min-w-0 flex-col">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Chaves de acesso</h2>
+            <p className="text-[13px] text-muted-foreground">Acesso por programa à Base de Conhecimento, Prompt Hub, Squad e Poker</p>
           </div>
-        </CardHeader>
-        <CardContent className="p-5 space-y-5">
-          <div className="flex gap-3">
-            <Input
-              value={newKeyName}
-              onChange={(e) => setNewKeyName(e.target.value)}
-              placeholder="Nome da chave (ex: MCP Server, Integração X)"
-              className="h-11 bg-slate-50 border-slate-200 rounded-xl font-bold flex-1"
-            />
-            <select
-              value={expiresIn}
-              onChange={(e) => setExpiresIn(e.target.value)}
-              aria-label="Validade da chave"
-              className="h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold"
-            >
-              {EXPIRY_CHOICES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-            <Button
-              onClick={handleCreate}
-              disabled={creating || !newKeyName.trim()}
-              className="h-11 px-6 rounded-xl bg-slate-900 hover:bg-primary text-white font-black uppercase text-[10px] tracking-widest gap-2"
-            >
-              <Plus className="h-4 w-4" /> Gerar
-            </Button>
+        </header>
+        <div className="flex flex-col gap-4 p-5 md:p-6">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex min-w-[220px] flex-1 flex-col gap-1.5">
+              <label htmlFor="api-key-name" className={FIELD_LABEL}>Nome da chave</label>
+              <input
+                id="api-key-name"
+                value={newKeyName}
+                onChange={(e) => setNewKeyName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+                placeholder="Ex.: MCP Server, Integração X"
+                className={cn(FIELD, 'h-11')}
+              />
+            </div>
+            <div className="flex w-full flex-col gap-1.5 sm:w-[260px]">
+              <label htmlFor="api-key-expiry" className={FIELD_LABEL}>Validade</label>
+              <SelectField
+                id="api-key-expiry"
+                aria-label="Validade da chave"
+                value={expiresIn}
+                onChange={setExpiresIn}
+                options={EXPIRY_CHOICES.map((c) => ({ value: c.value, label: c.label }))}
+                className="h-11"
+              />
+            </div>
+            <ModalButton variant="primary" onClick={handleCreate} disabled={creating || !newKeyName.trim()} className="h-11 gap-2 max-sm:w-full">
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> {creating ? 'Gerando…' : 'Gerar'}
+            </ModalButton>
           </div>
 
           {expiresIn === 'never' && (
-            <p role="note" className="text-[10px] font-bold text-amber-700">
+            <p role="note" className="text-[13px] font-medium text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" strokeWidth={1.5} aria-hidden="true" />
               Chave sem expiração continua valendo para sempre se vazar. Prefira 90 dias e renove.
             </p>
           )}
 
-          <div className="space-y-2">
-            {keys.length === 0 && (
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center py-6">Nenhuma chave criada ainda</p>
-            )}
-            {keys.map((k) => (
-              <div
-                key={k.id}
-                className={cn(
-                  "flex items-center justify-between p-4 rounded-2xl border",
-                  k.revokedAt ? "border-slate-100 bg-slate-50/50 opacity-60" : "border-slate-100 bg-slate-50/50"
-                )}
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-black uppercase text-slate-900 truncate">{k.name}</p>
-                    {k.revokedAt ? (
-                      <Badge className="bg-rose-100 text-rose-600 border-none text-[8px] font-black uppercase">Revogada</Badge>
-                    ) : (
-                      <Badge className="bg-emerald-100 text-emerald-600 border-none text-[8px] font-black uppercase">Ativa</Badge>
-                    )}
-                    {!k.revokedAt && (() => {
-                      const exp = describeExpiry(k.expiresAt);
-                      return (
-                        <Badge className={cn(
-                          'border-none text-[8px] font-black uppercase',
-                          exp.level === 'expired' && 'bg-rose-100 text-rose-600',
-                          exp.level === 'soon' && 'bg-amber-100 text-amber-700',
-                          exp.level === 'ok' && 'bg-slate-100 text-slate-500',
-                          exp.level === 'none' && 'bg-slate-100 text-slate-400',
-                        )}>{exp.label}</Badge>
-                      );
-                    })()}
-                  </div>
-                  <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest mt-0.5">
-                    Criada {formatDistanceToNow(new Date(k.createdAt), { addSuffix: true, locale: ptBR })}
-                    {k.lastUsedAt && ` · Último uso ${formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true, locale: ptBR })}`}
-                  </p>
-                </div>
-                {!k.revokedAt && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Renovar a chave ${k.name}`}
-                    onClick={() => handleRenew(k.id, k.name)}
-                    className="h-9 w-9 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5 shrink-0"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                )}
-                {!k.revokedAt && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Revogar a chave ${k.name}`}
-                    onClick={() => handleRevoke(k.id, k.name)}
-                    className="h-9 w-9 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 shrink-0"
-                  >
-                    <Ban className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
+          {loadError ? (
+            <ErrorState embedded title="Não foi possível carregar as chaves" onRetry={() => loadKeys(true)} />
+          ) : keys.length === 0 ? (
+            <EmptyState embedded icon={KeyRound} title="Nenhuma chave criada ainda" description="Crie a primeira para liberar uma integração." />
+          ) : (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-[13px] font-semibold text-muted-foreground">Chaves ({keys.length})</h3>
+              <ul className="flex flex-col gap-2">
+                {keys.map((k) => {
+                  const exp = describeExpiry(k.expiresAt);
+                  const owner = ownerLabel(names, k.ownerUserId);
+                  const revoked = !!k.revokedAt;
+                  return (
+                    <li
+                      key={k.id}
+                      className={cn(
+                        'flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-muted/30 px-4 py-3.5',
+                        revoked && 'opacity-60',
+                      )}
+                    >
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="min-w-0 truncate text-sm font-bold text-foreground">{k.name}</p>
+                          <StatusChip tone={revoked ? 'danger' : 'success'}>{revoked ? 'Revogada' : 'Ativa'}</StatusChip>
+                          {!revoked && <StatusChip tone={EXPIRY_TONES[exp.level]}>{exp.label}</StatusChip>}
+                        </div>
+                        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                          <span>Criada {ago(k.createdAt)}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{k.lastUsedAt ? `Último uso ${ago(k.lastUsedAt)}` : 'Sem uso ainda'}</span>
+                          {k.ownerUserId && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span className="inline-flex items-center gap-1" title={owner ? k.ownerUserId : undefined}>
+                                <UserRound className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                                Dono: {owner ?? <span className="font-mono">{k.ownerUserId}</span>}
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      {!revoked && (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <IconButton size="sm" label={`Renovar a chave ${k.name}`} icon={RefreshCw} onClick={() => openRenew(k)} />
+                          <IconButton
+                            size="sm"
+                            label={`Revogar a chave ${k.name}`}
+                            icon={Ban}
+                            onClick={() => setRevokeTarget(k)}
+                            className="hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <ConfirmDialog
+        open={!!renewTarget}
+        onOpenChange={(open) => { if (!open) setRenewTarget(null); }}
+        tone="brand"
+        icon={RefreshCw}
+        size="md"
+        title={`Renovar a chave “${renewTarget?.name ?? ''}”?`}
+        cancelLabel="Cancelar"
+        confirmLabel="Renovar chave"
+        loading={busy}
+        loadingLabel="Renovando…"
+        keepOpenOnConfirm
+        onConfirm={handleRenew}
+      >
+        <div className="flex flex-col gap-2">
+          <span className={FIELD_LABEL} id="renew-term-label">Novo prazo</span>
+          <div role="radiogroup" aria-labelledby="renew-term-label" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {RENEW_TERMS.map((t) => {
+              const on = renewTerm === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setRenewTerm(t.value)}
+                  className={cn(
+                    'flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left transition-colors',
+                    FOCUS_RING,
+                    on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent',
+                  )}
+                >
+                  <span aria-hidden="true" className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-[1.5px]', on ? 'border-primary' : 'border-muted-foreground/70')}>
+                    {on && <span className="h-2 w-2 rounded-full bg-primary" />}
+                  </span>
+                  <span className="text-[13px] font-semibold text-foreground">{t.label}</span>
+                  {t.hint && <span className="text-xs text-muted-foreground">{t.hint}</span>}
+                </button>
+              );
+            })}
           </div>
-        </CardContent>
-      </Card>
+          <p className="text-[13px] text-muted-foreground">O papel e os escopos são reavaliados com o papel atual do dono.</p>
+        </div>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={!!revokeTarget}
+        onOpenChange={(open) => { if (!open) setRevokeTarget(null); }}
+        tone="danger"
+        icon={Ban}
+        title={`Revogar a chave “${revokeTarget?.name ?? ''}”?`}
+        description="Quem usa essa chave perde o acesso na hora. Isso não pode ser desfeito."
+        cancelLabel="Manter"
+        confirmLabel="Revogar chave"
+        loading={busy}
+        loadingLabel="Revogando…"
+        keepOpenOnConfirm
+        onConfirm={handleRevoke}
+      />
     </div>
   );
 }
