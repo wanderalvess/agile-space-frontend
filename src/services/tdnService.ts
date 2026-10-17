@@ -81,7 +81,7 @@ export async function getTdnPageContent(baseUrl: string, token: string, pageId: 
  */
 export function parseConfluenceMacros(html: string): string {
   if (!html) return '';
-  let content = html;
+  let content = convertConfluenceImages(html);
 
   // Helper to extract a parameter value and return it, while removing it from the macro string so it doesn't leak
   const extractParam = (macroStr: string, paramName: string): { value: string, cleanStr: string } => {
@@ -191,6 +191,14 @@ export function parseConfluenceMacros(html: string): string {
     safetyCounter++;
   }
 
+  // Blocos <pre> guardam código: protege-os com marcadores para que a
+  // normalização de espaços abaixo não apague quebras de linha e indentação.
+  const preBlocks: string[] = [];
+  content = content.replace(/<pre\b[\s\S]*?<\/pre>/gi, (block) => {
+    preBlocks.push(block);
+    return `@@WIKI_PRE_${preBlocks.length - 1}@@`;
+  });
+
   // Final cleaning of all leftover Confluence tags
   content = content
     .replace(/<ac:[^>]*>/gi, '')
@@ -201,7 +209,33 @@ export function parseConfluenceMacros(html: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
-  return content;
+  return content.replace(/@@WIKI_PRE_(\d+)@@/g, (_, i) => preBlocks[Number(i)] ?? '');
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Converte <ac:image> do Confluence. Anexos do TDN não são baixados na importação,
+ * então viram um aviso legível (em vez de sumir em silêncio); imagens por URL viram <img>.
+ */
+function convertConfluenceImages(html: string): string {
+  return html.replace(/<ac:image\b([^>]*)>([\s\S]*?)<\/ac:image>/gi, (_match, attrs: string, inner: string) => {
+    const urlMatch = inner.match(/<ri:url\b[^>]*\bri:value="([^"]*)"/i);
+    if (urlMatch) {
+      const alt = attrs.match(/ac:alt="([^"]*)"/i)?.[1] ?? '';
+      return `<img src="${escapeHtmlAttr(urlMatch[1].replace(/&amp;/g, '&'))}" alt="${escapeHtmlAttr(alt)}">`;
+    }
+    const fileMatch = inner.match(/<ri:attachment\b[^>]*\bri:filename="([^"]*)"/i);
+    const filename = fileMatch ? fileMatch[1] : '';
+    const label = filename ? `Imagem do TDN: ${filename}` : 'Imagem do TDN';
+    return `<p class="wiki-image-missing">${escapeHtmlAttr(label)}</p>`;
+  });
 }
 
 type TdnDocInput = { id: string; title: string; content: string; space?: string; link: string; labels?: string[] };

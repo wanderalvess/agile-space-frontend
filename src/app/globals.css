@@ -890,6 +890,16 @@ html, body {
     background-color: rgba(34, 197, 94, 0.1);
   }
 
+  /* Imagem do TDN que não veio na importação: aviso discreto no lugar do vazio */
+  .wiki-image-missing {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px dashed hsl(var(--border));
+    border-radius: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    font-size: 0.875rem;
+  }
+
   /* Login: aurora ambiente + starfield temático (CSS puro, sem imagem externa) */
   @keyframes aurora-drift {
     0%, 100% { transform: translate(0, 0) scale(1); }
