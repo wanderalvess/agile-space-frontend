@@ -6,6 +6,7 @@ import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { ModalButton, RoleChip, StatusChip } from '@/components/room-kit';
 import { PAGE_CARD } from '@/components/page/styles';
 import { useMyLinks } from '@/components/profile/useMyLinks';
+import { originSummary } from '@/lib/my-links';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { useUserContext } from '@/context/UserContext';
 import type { UserProfile } from '@/lib/types';
@@ -77,14 +78,25 @@ export function ProfileSettings({ profile, onUpdate }: ProfileSettingsProps) {
             <p className="text-sm text-muted-foreground">Você ainda não tem vínculos.</p>
           ) : (
             <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
-              {links.map((l) => (
-                <li key={l.id} className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
-                  <span className="text-[13px] font-semibold text-foreground">{l.name}</span>
-                  {l.role && <RoleChip category={l.role} label={l.role} />}
-                  {l.leadership && <Crown aria-label="Liderança" className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" strokeWidth={1.5} />}
-                  {l.active && <StatusChip tone="success">Ativa</StatusChip>}
-                </li>
-              ))}
+              {links.map((l) => {
+                const derived = l.scope !== 'SQUAD' && !!l.scopeLabel;
+                const origin = derived ? null : originSummary(l);
+                return (
+                  <li key={l.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2">
+                    <span className="text-[13px] font-semibold text-foreground">{l.name}</span>
+                    {derived ? (
+                      <StatusChip tone="warn">{l.scopeLabel}</StatusChip>
+                    ) : l.roles.length > 0 ? (
+                      l.roles.map((r, i) => <RoleChip key={`${r.name}-${i}`} category={r.name} label={r.name} />)
+                    ) : (
+                      l.role && <RoleChip category={l.role} label={l.role} />
+                    )}
+                    {l.leadership && !derived && <Crown aria-label="Liderança" className="h-3.5 w-3.5 text-amber-600 dark:text-amber-300" strokeWidth={1.5} />}
+                    {origin && <span className="text-xs text-muted-foreground">{origin}</span>}
+                    {l.active && <StatusChip tone="success">Ativa</StatusChip>}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

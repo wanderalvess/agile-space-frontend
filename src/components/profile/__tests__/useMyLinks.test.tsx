@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   session: null as Record<string, unknown> | null,
   userProfile: null as Record<string, unknown> | null,
   userSquads: [] as unknown[],
+  memberships: null as unknown,
   switchProject: vi.fn(),
   toast: vi.fn(),
 }));
@@ -14,6 +15,9 @@ vi.mock('../../../context/AuthContext', () => ({
 }));
 vi.mock('../../../context/UserContext', () => ({
   useUserContext: () => ({ userProfile: mocks.userProfile, userSquads: mocks.userSquads }),
+}));
+vi.mock('../../../hooks/useMyMemberships', () => ({
+  useMyMemberships: () => ({ memberships: mocks.memberships, settled: true, stale: mocks.memberships, refresh: vi.fn() }),
 }));
 vi.mock('../../../hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
 
@@ -31,6 +35,7 @@ beforeEach(() => {
   mocks.session = session;
   mocks.userProfile = { id: 'u1', squadId: 'DDWMISSI' };
   mocks.userSquads = [];
+  mocks.memberships = null;
   mocks.switchProject.mockReset().mockResolvedValue(undefined);
   mocks.toast.mockReset();
 });
@@ -80,6 +85,44 @@ describe('useMyLinks', () => {
     });
     expect(ok).toBe(false);
     expect(mocks.switchProject).not.toHaveBeenCalled();
+  });
+
+  it('com /me/memberships, mostra TODOS os papéis por squad e a origem; ele manda mesmo se a sessão diz outra coisa', () => {
+    mocks.memberships = {
+      contractVersion: '1',
+      activeProjectId: 'DDWPRIME',
+      legacyOnly: false,
+      transversalLeader: false,
+      memberships: [
+        {
+          projectId: 'DDWPRIME',
+          projectName: 'Prime',
+          roleName: 'Product Owner',
+          roleKey: 'PRODUCT_OWNER',
+          leadership: true,
+          direct: true,
+          scope: 'SQUAD',
+          source: 'MANUAL',
+          roles: [
+            { roleName: 'Product Owner', roleKey: 'PRODUCT_OWNER', leadership: true, source: 'MANUAL', primary: true },
+            { roleName: 'Developer', roleKey: 'DEVELOPER', leadership: false, source: 'JIRA', primary: false },
+          ],
+        },
+      ],
+    };
+    const { result } = renderHook(() => useMyLinks());
+    expect(result.current.links.map((l) => l.id)).toEqual(['DDWPRIME']);
+    expect(result.current.links[0].roles.map((r) => r.name)).toEqual(['Product Owner', 'Developer']);
+    expect(result.current.links[0].roles.map((r) => r.origin)).toEqual(['Manual', 'Importado do Jira']);
+    // a sessão aponta DDWMISSI, mas ela está fora dos vínculos: a ativa passa a ser a validada
+    expect(result.current.active?.id).toBe('DDWPRIME');
+    expect(result.current.canSwitch).toBe(false);
+  });
+
+  it('sem vínculo nenhum no endpoint, a lista fica vazia (a conta só tem rastro legado)', () => {
+    mocks.memberships = { contractVersion: '1', activeProjectId: null, legacyOnly: true, transversalLeader: false, memberships: [] };
+    const { result } = renderHook(() => useMyLinks());
+    expect(result.current.links).toEqual([]);
   });
 
   it('falha na troca mostra o erro e devolve false', async () => {

@@ -3,22 +3,26 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { useToast } from '@/hooks/use-toast';
+import { resolveActiveSquadId } from '@/lib/memberships';
 import { activeLinkOf, buildMyLinks, type MyLink } from '@/lib/my-links';
 
 /**
- * "Meus vínculos": as squads da pessoa e o papel dela em cada uma, só leitura. A lista vem da sessão
- * (`accessibleProjects` do `/auth/me`) e do `UserContext` (squad ativa e papéis de `/squads/by-user`),
- * sem endpoint próprio. A única escrita é "Tornar ativa", que usa o `switchProject` da sessão.
+ * "Meus vínculos": as squads da pessoa e os papéis dela em cada uma, só leitura. A lista vem de
+ * `GET /me/memberships` (todos os papéis, origem e alcance); sem o endpoint, da sessão (`accessibleProjects`
+ * do `/auth/me`) e do `UserContext` (papéis de `/squads/by-user`). A única escrita é "Tornar ativa", que usa
+ * o `switchProject` da sessão (e ele invalida o cache de vínculos).
  */
 export function useMyLinks() {
   const { session, switchProject } = useAuth();
-  const { userProfile, userSquads } = useUserContext();
+  const { userSquads } = useUserContext();
+  const { memberships } = useMyMemberships();
   const { toast } = useToast();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
-  const activeId = userProfile?.squadId || session?.activeProjectId || '';
-  const links = useMemo(() => buildMyLinks(session, userSquads, activeId), [session, userSquads, activeId]);
+  const activeId = resolveActiveSquadId(session?.activeProjectId, memberships);
+  const links = useMemo(() => buildMyLinks(session, userSquads, activeId, memberships), [session, userSquads, activeId, memberships]);
   const active = useMemo(() => activeLinkOf(links), [links]);
 
   /** Troca a squad ativa. Devolve `true` quando a troca pegou. */
