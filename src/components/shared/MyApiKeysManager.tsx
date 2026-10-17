@@ -1,20 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { KeyRound, Plus, Ban, Copy, Check, ShieldAlert, RefreshCw, RotateCw, AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import React, { useEffect, useId, useState } from 'react';
+import { KeyRound, Plus, Ban, Copy, Check, ShieldAlert, RefreshCw, RotateCw, AlertTriangle, Loader2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
+import { ConfirmDialog, FIELD, IconButton, IconTile, ModalButton, SelectField, StatusChip, type Tone } from '@/components/room-kit';
+import { PAGE_CARD } from '@/components/page/styles';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
 import {
   API_KEY_SCOPES,
@@ -28,17 +24,21 @@ interface MyApiKeysManagerProps {
   compact?: boolean;
 }
 
+type PendingAction = { kind: 'revoke' | 'rotate'; id: string; name: string } | null;
+
+const EXPIRY_TONE: Record<string, Tone> = { expired: 'danger', soon: 'warn', ok: 'neutral', none: 'neutral' };
+
 /**
  * Self-service de API key: lista, cria e revoga só as chaves do usuário
  * logado (/api/api-keys). Escopo oferecido é limitado pelo papel — MEMBER só
  * vê KNOWLEDGE_READ/SQUAD_READ (ver scopesAllowedForRole); squad:read nunca
  * pede squadId, o backend trava na squad do próprio usuário.
  *
- * Usado em dois lugares: ConnectivitySettings.tsx (Workspace → Conexões e
- * Integrações, seção completa) e ModuleIntegrationDialog.tsx (botão "Gerar
- * minha chave", dentro de um Dialog compact) — mesma lógica, sem duplicar.
+ * Usado em dois lugares: ConnectivitySettings.tsx (Meu espaço → Conta → Conectividade, seção completa) e
+ * ModuleIntegrationDialog.tsx (botão "Gerar minha chave", dentro de um Dialog compact) — mesma lógica, sem duplicar.
  */
 export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
+  const uid = useId();
   const { toast } = useToast();
   const { session } = useAuth();
   const { userProfile } = useUserContext();
@@ -51,6 +51,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [expiresIn, setExpiresIn] = useState('90');
+  const [pending, setPending] = useState<PendingAction>(null);
   const isAdmin = session?.role?.toUpperCase() === 'ADMIN';
 
   const allowedScopes = scopesAllowedForRole(session?.role);
@@ -89,8 +90,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
     }
   };
 
-  const handleRevoke = async (id: string, name: string) => {
-    if (!confirm(`Revogar a chave "${name}"? Isso não pode ser desfeito.`)) return;
+  const handleRevoke = async (id: string) => {
     try {
       await myApiKeysApi.revoke(id);
       await loadKeys();
@@ -109,8 +109,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
     }
   };
 
-  const handleRotate = async (id: string, name: string) => {
-    if (!confirm(`Rotacionar "${name}"? Uma chave nova é gerada e a atual deixa de valer na hora: atualize a integração com a nova.`)) return;
+  const handleRotate = async (id: string) => {
     try {
       const created = await myApiKeysApi.rotate(id);
       setRevealedKey(created.rawKey);
@@ -127,55 +126,53 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const attention = keysNeedingAttention(keys);
+
   const body = (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       {revealedKey && (
-        <Card className="border-emerald-200 rounded-2xl bg-emerald-50/50 shadow-lg shadow-emerald-100/50 overflow-hidden">
-          <CardContent className="p-4 space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-              Copie agora — essa chave não será mostrada de novo
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 h-10 flex items-center px-3 bg-white border border-emerald-200 rounded-xl text-[11px] font-code truncate">
-                {revealedKey}
-              </code>
-              <Button onClick={copyRevealedKey} size="sm" className="h-10 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 gap-2 shrink-0">
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div role="status" className="flex flex-col gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+            Copie agora — essa chave não será mostrada de novo
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex h-10 min-w-0 flex-1 items-center rounded-xl border border-border bg-card px-3 font-code text-xs text-foreground">
+              <span className="truncate">{revealedKey}</span>
+            </code>
+            <ModalButton variant="primary" onClick={copyRevealedKey} aria-label="Copiar chave" className="h-10 shrink-0 px-3">
+              {copied ? <Check className="h-4 w-4" strokeWidth={1.5} /> : <Copy className="h-4 w-4" strokeWidth={1.5} />}
+            </ModalButton>
+          </div>
+        </div>
       )}
 
-      <div className="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-        <Input
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/30 p-4">
+        <input
           value={newKeyName}
           onChange={(e) => setNewKeyName(e.target.value)}
           placeholder="Nome da chave (ex: script de backup, bot do Slack)"
-          className="h-10 bg-white border-slate-200 rounded-xl font-bold text-sm"
+          aria-label="Nome da chave"
+          autoComplete="off"
+          className={cn(FIELD, 'h-[42px] text-sm')}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {API_KEY_SCOPES.filter(s => allowedScopes.includes(s.value)).map(scope => {
             const disabled = scope.value === 'SQUAD_READ' && !hasSquad;
+            const on = selectedScopes.includes(scope.value);
             return (
               <label
                 key={scope.value}
                 className={cn(
-                  "flex items-start gap-2 p-2.5 rounded-xl border cursor-pointer transition-colors",
-                  selectedScopes.includes(scope.value) ? "border-primary bg-primary/5" : "border-slate-100 bg-white",
-                  disabled && "opacity-50 cursor-not-allowed"
+                  'flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 transition-colors duration-fast',
+                  on ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border bg-card',
+                  disabled && 'cursor-not-allowed opacity-50',
                 )}
               >
-                <Checkbox
-                  checked={selectedScopes.includes(scope.value)}
-                  disabled={disabled}
-                  onCheckedChange={() => toggleScope(scope.value)}
-                  className="mt-0.5"
-                />
+                <Checkbox checked={on} disabled={disabled} onCheckedChange={() => toggleScope(scope.value)} className="mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase text-slate-700 leading-tight">{scope.label}</p>
-                  <p className="text-[9px] font-medium text-slate-400 leading-tight mt-0.5">{scope.description}</p>
+                  <p className="text-[13px] font-semibold leading-tight text-foreground">{scope.label}</p>
+                  <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{scope.description}</p>
                 </div>
               </label>
             );
@@ -183,121 +180,111 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
         </div>
 
         {selectedScopes.includes('SQUAD_READ') && !hasSquad && (
-          <p className="flex items-center gap-1.5 text-[10px] font-bold text-amber-600">
-            <ShieldAlert className="h-3.5 w-3.5" /> Você ainda não está vinculado a uma squad — entre em uma squad antes de gerar essa chave.
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300">
+            <ShieldAlert className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Você ainda não está vinculado a uma squad — entre em uma squad antes de gerar essa chave.
           </p>
         )}
         {selectedScopes.includes('SQUAD_READ') && hasSquad && (
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-            Essa chave vai ler só a squad <span className="text-slate-600">{mySquadId}</span> — não é escolhível.
+          <p className="text-xs text-muted-foreground">
+            Essa chave vai ler só a squad <strong className="text-foreground">{mySquadId}</strong> — não é escolhível.
           </p>
         )}
 
-        <div className="flex items-center gap-2">
-          <Label htmlFor="api-key-expiry" className="text-[9px] font-black uppercase tracking-widest text-slate-400">Validade</Label>
-          <select
-            id="api-key-expiry"
+        <div className="flex flex-wrap items-center gap-3">
+          <label htmlFor={`${uid}-expiry`} className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Validade</label>
+          <SelectField
+            id={`${uid}-expiry`}
             value={expiresIn}
-            onChange={(e) => setExpiresIn(e.target.value)}
-            className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold"
-          >
-            {EXPIRY_CHOICES.filter(c => !c.adminOnly || isAdmin).map(c => (
-              <option key={c.value} value={c.value}>{c.label}</option>
-            ))}
-          </select>
+            onChange={setExpiresIn}
+            options={EXPIRY_CHOICES.filter(c => !c.adminOnly || isAdmin).map(c => ({ value: String(c.value), label: c.label }))}
+            className="h-9 w-auto min-w-[180px]"
+          />
         </div>
 
-        <Button
+        <ModalButton
+          variant="primary"
           onClick={handleCreate}
           disabled={creating || !newKeyName.trim() || selectedScopes.length === 0 || (selectedScopes.includes('SQUAD_READ') && !hasSquad)}
-          className="w-full h-10 rounded-xl bg-slate-900 hover:bg-primary text-white font-black uppercase text-[10px] tracking-widest gap-2"
+          className="w-full gap-2"
         >
-          {creating ? <AgileSpinner size="xs" /> : <Plus className="h-4 w-4" />} Gerar Chave
-        </Button>
+          {creating ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> : <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />} Gerar chave
+        </ModalButton>
       </div>
 
-      {keysNeedingAttention(keys).length > 0 && (
-        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-800">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
-          <p className="text-[11px] font-bold leading-snug">
-            {keysNeedingAttention(keys).length === 1 ? '1 chave vence' : `${keysNeedingAttention(keys).length} chaves vencem`} em menos de {EXPIRY_WARNING_DAYS} dias
+      {attention.length > 0 && (
+        <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+          <p className="text-[13px] leading-snug">
+            {attention.length === 1 ? '1 chave vence' : `${attention.length} chaves vencem`} em menos de {EXPIRY_WARNING_DAYS} dias
             (ou já venceram). Renove antes do vencimento: a integração que usa a chave para de funcionar quando ela expira.
           </p>
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         {loading ? (
-          <div className="py-8 flex justify-center"><AgileSpinner size="md" /></div>
+          <div role="status" className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> Carregando as chaves
+          </div>
         ) : keys.length === 0 ? (
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center py-6">Nenhuma chave criada ainda</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma chave criada ainda</p>
         ) : (
-          keys.map(k => (
-            <div
-              key={k.id}
-              className={cn(
-                "flex items-center justify-between p-3 rounded-2xl border border-slate-100 bg-slate-50/50",
-                k.revokedAt && "opacity-60"
-              )}
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-[11px] font-black uppercase text-slate-900 truncate">{k.name}</p>
-                  {k.revokedAt ? (
-                    <Badge className="bg-rose-100 text-rose-600 border-none text-[8px] font-black uppercase">Revogada</Badge>
-                  ) : (
-                    <Badge className="bg-emerald-100 text-emerald-600 border-none text-[8px] font-black uppercase">Ativa</Badge>
-                  )}
-                  {!k.revokedAt && (() => {
-                    const exp = describeExpiry(k.expiresAt);
-                    return (
-                      <Badge className={cn(
-                        'border-none text-[8px] font-black uppercase',
-                        exp.level === 'expired' && 'bg-rose-100 text-rose-600',
-                        exp.level === 'soon' && 'bg-amber-100 text-amber-700',
-                        exp.level === 'ok' && 'bg-slate-100 text-slate-500',
-                        exp.level === 'none' && 'bg-slate-100 text-slate-400',
-                      )}>{exp.label}</Badge>
-                    );
-                  })()}
+          keys.map(k => {
+            const exp = describeExpiry(k.expiresAt);
+            return (
+              <div
+                key={k.id}
+                className={cn('flex items-center justify-between gap-3 rounded-2xl border border-border bg-muted/30 p-3.5', k.revokedAt && 'opacity-60')}
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">{k.name}</p>
+                    {k.revokedAt ? <StatusChip tone="danger">Revogada</StatusChip> : <StatusChip tone="success">Ativa</StatusChip>}
+                    {!k.revokedAt && <StatusChip tone={EXPIRY_TONE[exp.level] ?? 'neutral'}>{exp.label}</StatusChip>}
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                    {k.scopes.map(s => (
+                      <span key={s} className="rounded border border-border bg-card px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                        {s}{s === 'SQUAD_READ' && k.squadId ? ` · ${k.squadId}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Criada {formatDistanceToNow(new Date(k.createdAt), { addSuffix: true, locale: ptBR })}
+                    {k.lastUsedAt && ` · Último uso ${formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true, locale: ptBR })}`}
+                  </p>
                 </div>
-                <div className="flex items-center gap-1 flex-wrap mt-1">
-                  {k.scopes.map(s => (
-                    <span key={s} className="text-[8px] font-black uppercase text-slate-400 bg-white border border-slate-100 rounded px-1.5 py-0.5">
-                      {s}{s === 'SQUAD_READ' && k.squadId ? ` · ${k.squadId}` : ''}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-[9px] font-medium text-slate-400 uppercase tracking-widest mt-1">
-                  Criada {formatDistanceToNow(new Date(k.createdAt), { addSuffix: true, locale: ptBR })}
-                  {k.lastUsedAt && ` · Último uso ${formatDistanceToNow(new Date(k.lastUsedAt), { addSuffix: true, locale: ptBR })}`}
-                </p>
+                {!k.revokedAt && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <IconButton size="sm" icon={RefreshCw} label={`Renovar a chave ${k.name}`} onClick={() => handleRenew(k.id, k.name)} />
+                    <IconButton size="sm" icon={RotateCw} label={`Rotacionar a chave ${k.name}`} onClick={() => setPending({ kind: 'rotate', id: k.id, name: k.name })} />
+                    <IconButton size="sm" icon={Ban} label={`Revogar a chave ${k.name}`} onClick={() => setPending({ kind: 'revoke', id: k.id, name: k.name })} className="hover:text-red-700 dark:hover:text-red-300" />
+                  </div>
+                )}
               </div>
-              {!k.revokedAt && (
-                <div className="flex items-center shrink-0">
-                  <Button variant="ghost" size="icon" aria-label={`Renovar a chave ${k.name}`} onClick={() => handleRenew(k.id, k.name)} className="h-8 w-8 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" aria-label={`Rotacionar a chave ${k.name}`} onClick={() => handleRotate(k.id, k.name)} className="h-8 w-8 rounded-lg text-slate-300 hover:text-primary hover:bg-primary/5">
-                    <RotateCw className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-              {!k.revokedAt && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Revogar a chave ${k.name}`}
-                  onClick={() => handleRevoke(k.id, k.name)}
-                  className="h-8 w-8 rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50 shrink-0"
-                >
-                  <Ban className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!pending}
+        onOpenChange={(open) => { if (!open) setPending(null); }}
+        tone={pending?.kind === 'revoke' ? 'danger' : 'warn'}
+        icon={pending?.kind === 'revoke' ? Ban : RotateCw}
+        title={pending?.kind === 'revoke' ? `Revogar a chave "${pending?.name}"?` : `Rotacionar "${pending?.name}"?`}
+        description={
+          pending?.kind === 'revoke'
+            ? 'Isso não pode ser desfeito.'
+            : 'Uma chave nova é gerada e a atual deixa de valer na hora: atualize a integração com a nova.'
+        }
+        confirmLabel={pending?.kind === 'revoke' ? 'Revogar' : 'Rotacionar'}
+        onConfirm={() => {
+          if (!pending) return;
+          if (pending.kind === 'revoke') handleRevoke(pending.id);
+          else handleRotate(pending.id);
+        }}
+      />
     </div>
   );
 
@@ -306,23 +293,18 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
   }
 
   return (
-    <Card className="rounded-[2.5rem] border border-slate-100 bg-white shadow-xl shadow-slate-200/5 p-8 relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
-      <div className="relative z-10 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
-              <KeyRound className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Minhas API Keys</h3>
-              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">Acesso programático (REST + MCP)</p>
-            </div>
+    <section className={cn(PAGE_CARD, 'flex flex-col gap-5 rounded-3xl p-6')}>
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <IconTile icon={KeyRound} size="lg" />
+          <div>
+            <h3 className="text-base font-bold text-foreground">Minhas API Keys</h3>
+            <p className="text-xs text-muted-foreground">Acesso programático (REST + MCP)</p>
           </div>
-          <Badge className="bg-amber-50 text-amber-600 border-none font-black text-[8px] tracking-widest">Self-service</Badge>
         </div>
-        {body}
-      </div>
-    </Card>
+        <StatusChip tone="neutral">Self-service</StatusChip>
+      </header>
+      {body}
+    </section>
   );
 }
