@@ -21,6 +21,7 @@ import type { RetroTemplate } from '@/lib/retro-templates';
 import { isRetroFinished, retroFinishedAt, supportsRetroLifecycle } from '@/lib/retro-lifecycle';
 import type { RetroCard } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { RetroFormatChip } from './RetroFormatChip';
 import { RetroGuide } from './RetroGuide';
 import { dueStatus, formatDueShort } from './retro-room-logic';
 
@@ -169,8 +170,9 @@ export function RetroLobbyView({
               <span className="text-base font-bold">{r.title}</span>
               {supportsRetroLifecycle(r.board) && <StatusChip tone="success" dot>Ao vivo</StatusChip>}
             </span>
-            <span className="text-[13px] text-muted-foreground">
-              {[retroFormatName(r.templateKey), r.board ? `Fase: ${retroLobbyPhaseLabel(r.board)}` : '', r.team].filter(Boolean).join(' · ')}
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
+              <RetroFormatChip templateKey={r.templateKey} />
+              <span>{[r.board ? `Fase: ${retroLobbyPhaseLabel(r.board)}` : '', r.team].filter(Boolean).join(' · ')}</span>
             </span>
           </span>
           <ModalButton variant="primary" className="gap-2" onClick={() => onOpenBoard(r.id)}>Entrar na sala</ModalButton>
@@ -301,7 +303,6 @@ function PastRow({ row, detail, onOpen }: { row: RetroLobbyRow; detail?: RetroBo
   const finished = isRetroFinished(row.board);
   const closedAt = retroFinishedAt(row.board);
   const meta = [
-    retroFormatName(row.templateKey),
     finished && closedAt ? `encerrada em ${shortDate(closedAt.toISOString())}` : shortDate(row.createdAt),
     detail ? `${detail.cards} ${detail.cards === 1 ? 'cartão' : 'cartões'}` : '',
     detail && detail.actions > 0 ? `${detail.actions} ${detail.actions === 1 ? 'ação' : 'ações'} · ${detail.actionsDone} ${detail.actionsDone === 1 ? 'feita' : 'feitas'}` : '',
@@ -317,7 +318,10 @@ function PastRow({ row, detail, onOpen }: { row: RetroLobbyRow; detail?: RetroBo
         <IconTile icon={moduleIcon('retro')} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-bold">{row.title}</span>
-          <span className="truncate text-xs text-muted-foreground">{meta.join(' · ') || row.team}</span>
+          <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+            <RetroFormatChip templateKey={row.templateKey} />
+            <span className="truncate">{meta.join(' · ') || row.team}</span>
+          </span>
         </span>
         {row.board && (finished
           ? <StatusChip tone="success">Encerrada</StatusChip>
