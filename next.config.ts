@@ -1,12 +1,28 @@
 import type {NextConfig} from 'next';
 import { LEGACY_REDIRECTS } from './src/lib/legacy-redirects';
 
+const ONNX_NATIVE_LIBS = [
+  './node_modules/onnxruntime-node/bin/napi-v3/linux/*/libonnxruntime.so.1',
+  './node_modules/onnxruntime-node/bin/napi-v3/linux/*/libonnxruntime_providers_shared.so',
+];
+
 const nextConfig: NextConfig = {
   /* config options here */
   output: 'standalone',
   // Permite subir várias instâncias de dev em portas diferentes (NEXT_DIST_DIR=.next-9003).
   distDir: process.env.NEXT_DIST_DIR || '.next',
   allowedDevOrigins: ['10.62.24.75'],
+  // Embedding local (src/lib/embeddings.ts): o onnxruntime-node carrega binários nativos que
+  // não podem ser empacotados no bundle — ficam como require() de node_modules em runtime.
+  serverExternalPackages: ['@huggingface/transformers', 'onnxruntime-node'],
+  // O tracing do standalone copia só o onnxruntime_binding.node e deixa para trás as
+  // libonnxruntime*.so (carregadas via dlopen, invisíveis ao tracer) — sem elas o container
+  // falha com "Error loading shared library libonnxruntime.so.1". Listamos só o necessário:
+  // o provider CUDA/TensorRT (x64) pesa ~340MB e é inútil em CPU. Rotas que usam embedText:
+  outputFileTracingIncludes: {
+    '/api/knowledge/embed': ONNX_NATIVE_LIBS,
+    '/api/ai/chat': ONNX_NATIVE_LIBS,
+  },
   images: {
     remotePatterns: [
       {
