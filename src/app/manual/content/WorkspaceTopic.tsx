@@ -27,7 +27,7 @@ export function WorkspaceTopic() {
             { title: 'Kanban', text: 'Três colunas: A Fazer, Em Andamento e Concluído. Arraste o cartão para outra coluna para mudar o status, ou clique nele para editar título, descrição, urgência e status. Dentro da coluna os cartões ficam do mais recente para o mais antigo; a ordem manual ainda não é guardada.' },
             { title: 'Notas', text: 'Mural de notas coloridas. O texto é salvo sozinho poucos segundos depois que você para de digitar (e ao trocar de aba). Dá para fixar uma nota no topo, trocar a cor ou promovê-la a tarefa do Kanban.' },
             { title: 'Histórico', text: 'Poker, retrospectivas e radares de saúde da sua squad em que você participou ou que você criou, com link para reabrir cada um.' },
-            { title: 'Perfil', text: 'Seus dados de exibição. Cargo e equipe vêm do Jira ou do convite; você não escolhe papéis de liderança sozinho.' },
+            { title: 'Perfil', text: 'Seus dados de exibição. Cargo e squad vêm do Jira, do convite ou de um pedido de vínculo aprovado; você não escolhe papéis de liderança sozinho.' },
             { title: 'Conectividade', text: 'Domínio e token do Jira, dados do TDN e as suas chaves de API pessoais (X-Api-Key), usadas para integrar scripts e agentes com o mesmo acesso que você tem.' },
             { title: 'Atalhos', text: 'Links rápidos com nome, ícone e cor. Só endereços http:// ou https:// são aceitos; se você digitar sem o início, o sistema completa com https://.' },
             { title: 'Prompts e Snippets', text: 'Prompts mostra os seus itens da Biblioteca de IA. Snippets é o seu caderno de código, com destaque de sintaxe por linguagem e botão de copiar.' },

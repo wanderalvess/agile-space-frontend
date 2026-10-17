@@ -234,8 +234,8 @@ export const MANUAL_TOPICS: ManualTopic[] = [
   {
     id: 'primeiros-passos',
     title: 'Primeiros Passos & Papéis',
-    subtitle: 'Entrar na equipe certa',
-    description: 'Como o primeiro acesso funciona, quem cadastra equipes e como cada pessoa chega à sua equipe sem se declarar líder por conta própria.',
+    subtitle: 'Entrar na squad certa',
+    description: 'Como o primeiro acesso funciona: convite, importação do Jira ou pedido de vínculo aprovado por quem lidera, e como a liderança vem do vínculo com a squad.',
     category: 'governance',
     icon: Compass,
     color: 'text-indigo-600 dark:text-indigo-400',

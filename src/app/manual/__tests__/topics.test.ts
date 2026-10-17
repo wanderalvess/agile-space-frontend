@@ -37,4 +37,18 @@ describe('manual: consistência dos tópicos', () => {
     expect(all).not.toMatch(/purga autom/i);
     expect(all).not.toMatch(/por 30 dias/i);
   });
+
+  it('"Primeiros passos" usa a terminologia vigente: squad, convite, Jira, pedido de vínculo e nível de conta', () => {
+    const contentDir = path.join(appDir, 'manual', 'content');
+    const text = fs.readFileSync(path.join(contentDir, 'PrimeirosPassosTopic.tsx'), 'utf-8');
+    const topic = MANUAL_TOPICS.find(t => t.id === 'primeiros-passos')!;
+    expect(text).not.toMatch(/equipe/i);
+    expect(`${topic.subtitle} ${topic.description}`).not.toMatch(/equipe/i);
+    expect(text).toMatch(/pedido de vínculo/i);
+    expect(text).toMatch(/convite/i);
+    expect(text).toMatch(/importa[çc][ãa]o do Jira/i);
+    expect(text).toMatch(/tela de espera/i);
+    expect(text).toMatch(/Administrador e Membro/);
+    expect(text).toMatch(/Agile Master, Product Owner ou People Lead/);
+  });
 });
