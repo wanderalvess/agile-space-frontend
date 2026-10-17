@@ -114,7 +114,7 @@ function RosterContent() {
   const addForm = useAddMember({ squadId, canManageTeam, refreshMembers: refresh });
   const exportCsv = useRosterExport({ squadId, members, rule: rule.rule, draftOf: edits.draftOf });
 
-  // Convite: o servidor aceita admin/LEAD, liderança da própria squad e liderança de roster. O que a tela sabe:
+  // Convite: o servidor aceita admin, liderança da própria squad e liderança de roster. O que a tela sabe:
   // admin, gestão do time e "esta é a minha squad". Um 403 do servidor esconde a ação de vez.
   const isOwnSquad = !!squadId && (userProfile?.squadId || '').toLowerCase() === squadId.toLowerCase();
   const inviteEligible = permissionLoaded && (isAdminRole || canManageTeam || (isPeopleAdmin && isOwnSquad));

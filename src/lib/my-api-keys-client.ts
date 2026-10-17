@@ -1,4 +1,5 @@
 import { authFetch } from '@/lib/auth-client';
+import { normalizeAuthRole } from '@/lib/types';
 
 /**
  * Cliente do self-service de API key (/api/api-keys no backend Spring) — cada
@@ -7,7 +8,7 @@ import { authFetch } from '@/lib/auth-client';
  * ALLOWED_SCOPES_BY_ROLE abaixo pra já esconder da UI o que o backend recusaria
  * de qualquer jeito — não é a checagem real, só evita a viagem de rede).
  * Diferente de adminApi.getApiKeys/createApiKey/revokeApiKey (/admin/api-keys),
- * que é a visão global de ADMIN/LEAD sobre as chaves de todo mundo.
+ * que é a visão global do ADMIN sobre as chaves de todo mundo.
  */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
@@ -40,7 +41,7 @@ export const API_KEY_SCOPES: { value: string; label: string; description: string
 
 /** Espelha ApiKeyController.allowedScopesFor — só pra UI, a checagem real é no backend. */
 export function scopesAllowedForRole(role: string | undefined | null): string[] {
-  const privileged = role?.toUpperCase() === 'ADMIN' || role?.toUpperCase() === 'LEAD';
+  const privileged = normalizeAuthRole(role) === 'ADMIN';
   if (privileged) return API_KEY_SCOPES.map(s => s.value);
   return ['KNOWLEDGE_READ', 'SQUAD_READ'];
 }

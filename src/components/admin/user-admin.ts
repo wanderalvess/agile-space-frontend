@@ -1,4 +1,4 @@
-import { ROLES, type UserProfile } from '@/lib/types';
+import { ROLES, isLegacyLeadRole, normalizeAuthRole, type AuthRole, type UserProfile } from '@/lib/types';
 
 export type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -71,19 +71,31 @@ export const CARGO_FILTER_OPTIONS: readonly { value: string; label: string }[] =
   ...ROLES.map((r) => ({ value: r, label: r })),
 ];
 
-export type AccessLevel = 'ADMIN' | 'LEAD' | 'MEMBER';
+export type AccessLevel = AuthRole;
 
-/** O que cada nível de acesso permite (mostrado na lista de escolha). LEAD ainda existe nos dados. */
+/** Nome do nível na tela. */
+export const ACCESS_LEVEL_LABEL: Record<AccessLevel, string> = {
+  ADMIN: 'Administrador',
+  MEMBER: 'Membro',
+};
+
+/** O que cada nível permite (mostrado na lista de escolha). A liderança de squad vem do vínculo, não do nível. */
 export const ACCESS_LEVEL_INFO: Record<AccessLevel, string> = {
   ADMIN: 'Abre a Administração e todas as squads',
-  LEAD: 'Todas as squads, sem Administração',
   MEMBER: 'Só as squads em que está',
 };
 
-/** Nível de acesso da conta em maiúsculas; sem papel conhecido vale MEMBER. */
+/** Frase curta sob o seletor: de onde vem a liderança. */
+export const ACCESS_LEVEL_HINT = 'Administrador gerencia o portal inteiro. A liderança de uma squad vem do vínculo.';
+
+/** Nível de acesso da conta. O LEAD antigo (ainda salvo no servidor até migrar) vale como Membro. */
 export function accessLevelOf(u: Pick<UserProfile, 'role'>): AccessLevel {
-  const r = (u.role || '').toUpperCase();
-  return r === 'ADMIN' || r === 'LEAD' ? r : 'MEMBER';
+  return normalizeAuthRole(u.role);
+}
+
+/** A conta ainda guarda o nível LEAD no servidor: aparece como Membro com o selo "Nível antigo (LEAD)". */
+export function hasLegacyLeadLevel(u: Pick<UserProfile, 'role'>): boolean {
+  return isLegacyLeadRole(u.role);
 }
 
 /** Por que o Status ou o Nível desta linha está travado (null = livre). A tela mostra no cadeado; o servidor confere de novo. */
@@ -133,7 +145,30 @@ export function squadsSummary(links: SquadLink[] | null | undefined, activeSquad
   return activeSquadId ? { kind: 'active', squadId: activeSquadId } : { kind: 'none' };
 }
 
-/** Squad mostrada na coluna da lista. */
-export function squadLabelOf(u: Pick<UserProfile, 'squadId'> & { team?: string }): string {
-  return u.squadId || u.team || 'Sem squad';
+/** Vínculo da pessoa com a squad (papel na squad), como a lista e o detalhe mostram. */
+export interface UserLinksView {
+  /** O primeiro vínculo (o principal). */
+  primary: SquadLink;
+  /** Quantos outros vínculos além do principal. */
+  extra: number;
+  all: SquadLink[];
+}
+
+/** Sem vínculos devolve null (a coluna mostra "Sem vínculo"). Repetidos (mesma squad e papel) contam uma vez. */
+export function linksView(links: SquadLink[] | null | undefined): UserLinksView | null {
+  if (!links || links.length === 0) return null;
+  const seen = new Set<string>();
+  const all = links.filter((l) => {
+    const key = `${(l.squadId || '').toLowerCase()}|${(l.role || '').toLowerCase()}`;
+    if (!l.squadId || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (all.length === 0) return null;
+  return { primary: all[0], extra: all.length - 1, all };
+}
+
+/** "DDW · Agile Master" ou só "DDW" quando o papel não veio. */
+export function linkText(l: SquadLink): string {
+  return l.role ? `${l.squadId} · ${l.role}` : l.squadId;
 }

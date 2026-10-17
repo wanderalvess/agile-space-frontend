@@ -14,11 +14,20 @@ export const AUDIENCE_LABELS: Record<AudienceType, string> = {
 
 export const AUDIENCE_ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: 'ADMIN', label: 'Admin' },
-  { value: 'LEAD', label: 'Liderança' },
+  { value: 'LEADERSHIP', label: 'Liderança' },
   { value: 'MEMBER', label: 'Membro' },
   { value: 'AGILE_MASTER', label: 'Agile Master' },
   { value: 'TRIBE_LEAD', label: 'Tribe Lead' },
 ];
+
+/** O papel de audiência "LEAD" (nível antigo) virou a chave derivada "LEADERSHIP"; avisos antigos ainda podem trazer LEAD. */
+export function canonicalAudienceRole(role: string): string {
+  return role === 'LEAD' ? 'LEADERSHIP' : role;
+}
+
+function canonicalAudienceRoles(roles: string[] | null | undefined): string[] {
+  return Array.from(new Set((roles || []).map(canonicalAudienceRole)));
+}
 
 export interface AnnouncementFormState {
   title: string;
@@ -70,7 +79,7 @@ export function formFromAnnouncement(a: AnnouncementDto): AnnouncementFormState 
     type: a.type || 'INFO',
     audienceType: a.audienceType || 'ALL',
     audienceSquadIds: a.audienceSquadIds || [],
-    audienceRoles: a.audienceRoles || [],
+    audienceRoles: canonicalAudienceRoles(a.audienceRoles),
     validFrom: isoToLocalInput(a.validFrom),
     validUntil: isoToLocalInput(a.validUntil),
     link: a.link || '',
@@ -123,7 +132,7 @@ export function audienceSummary(a: Pick<AnnouncementDto, 'audienceType' | 'audie
     return names.length ? `para ${names.join(', ')}` : 'para squads';
   }
   if (a.audienceType === 'ROLES') {
-    const labels = (a.audienceRoles || []).map((r) => AUDIENCE_ROLE_OPTIONS.find((o) => o.value === r)?.label || r);
+    const labels = canonicalAudienceRoles(a.audienceRoles).map((r) => AUDIENCE_ROLE_OPTIONS.find((o) => o.value === r)?.label || r);
     return labels.length ? `para ${labels.join(', ')}` : 'para papéis';
   }
   return 'para todos';
