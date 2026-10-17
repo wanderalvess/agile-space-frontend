@@ -5,6 +5,8 @@
  */
 import type { PhaseStep } from '@/components/room-kit';
 import type { GlobalRole } from '@/lib/types';
+import type { MyMemberships } from '@/lib/memberships-api';
+import { findMembership, hasMemberships } from '@/lib/memberships';
 import type { ShowcaseSession, ShowcaseTask } from './types';
 import { compareText, isTaskContentComplete, formatTime } from './utils';
 
@@ -65,15 +67,53 @@ export function reviewPhase(status: ReviewStatus, presenting: boolean): ReviewPh
 // ───────────────────────── Permissão do PO/SME ─────────────────────────
 
 /**
- * Quem registra aceite, ajuste ou rejeição: cargo global do perfil (o mesmo que o Squad Pulse usa),
- * não um papel por sessão. Inclui a variante em português dos perfis antigos. A trava é só do cliente:
- * o servidor aceita a decisão de qualquer pessoa logada (decisão pendente de backend).
+ * Cargo global do perfil (o mesmo que o Squad Pulse usa) que o cliente aceitava antes dos vínculos. Inclui a variante em
+ * português dos perfis antigos. Hoje só vale como último recurso, quando o servidor não informa os vínculos da pessoa.
  */
 export const CAN_DECIDE_ROLES: readonly GlobalRole[] = ['Product Owner', 'Product Owner (PO)', 'SME'];
 
-export function canDecide(role?: string | null): boolean {
-  return !!role && (CAN_DECIDE_ROLES as readonly string[]).includes(role);
+/** Papéis do VÍNCULO que registram decisão: mesma lista do servidor (`ShowcaseAccessPolicy`). */
+const DECIDER_ROLE_KEYS = ['PRODUCT_OWNER', 'SME'];
+const DECIDER_ROLE_NAMES = ['product owner', 'product owner (po)', 'sme'];
+
+export interface DecideContext {
+  /** Cargo global do perfil: vale só quando não há dados de vínculos (backend antigo). */
+  role?: string | null;
+  /** Administrador do sistema. */
+  isAdmin?: boolean;
+  /** Vínculos da pessoa (`/api/me/memberships`); `null`/vazio = o servidor não informa. */
+  memberships?: MyMemberships | null;
+  /** Squad da Review (a chave guardada em `squadName`). Vazia = Review sem squad. */
+  squadId?: string | null;
+  /** A pessoa criou a Review. */
+  isCreator?: boolean;
 }
+
+const isDeciderRole = (roleKey?: string | null, roleName?: string | null) =>
+  DECIDER_ROLE_KEYS.includes((roleKey ?? '').trim().toUpperCase()) || DECIDER_ROLE_NAMES.includes((roleName ?? '').trim().toLowerCase());
+
+/**
+ * Quem registra aceite, ajuste ou rejeição (veredito e feedback). Mesma regra do servidor, que recusa o resto com 403:
+ * administrador; liderança da squad da Review por vínculo (qualquer papel com poder de liderança); ou vínculo na squad
+ * com o papel PO ou SME. Review sem squad: só administrador e criador.
+ *
+ * Sem dados de vínculos (backend antigo ou conta só com rastro legado) o comportamento é o de antes: cargo global do
+ * perfil (PO ou SME), mais o administrador. Texto, número ou `null` chamam essa regra antiga, como `canDecide(role)`.
+ */
+export function canDecide(input?: string | null | DecideContext): boolean {
+  const ctx: DecideContext = typeof input === 'object' && input !== null ? input : { role: input };
+  if (ctx.isAdmin) return true;
+  if (!hasMemberships(ctx.memberships)) return !!ctx.role && (CAN_DECIDE_ROLES as readonly string[]).includes(ctx.role);
+  const squad = (ctx.squadId ?? '').trim();
+  if (!squad) return !!ctx.isCreator;
+  const membership = findMembership(ctx.memberships, squad);
+  if (!membership) return false;
+  if (membership.leadership || membership.roles.some((r) => r.leadership)) return true;
+  return isDeciderRole(membership.roleKey, membership.roleName) || membership.roles.some((r) => isDeciderRole(r.roleKey, r.roleName));
+}
+
+/** Por que o veredito está travado, para o aviso ao lado dos botões. */
+export const DECISION_LOCK_HINT = 'Só o PO, o SME, a liderança da squad ou um administrador registra decisão.';
 
 // ───────────────────────── Ordem, busca e filtros ─────────────────────────
 

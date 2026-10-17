@@ -92,6 +92,11 @@ export interface ShowcaseTask {
   decidedBy?: string;
   decidedByName?: string;
   decidedAt?: string;
+  // Edição por card (backend com a V81). Ausente = backend antigo: a sala grava a Review inteira, como antes.
+  /** Começa em 1 e sobe a cada mudança de conteúdo do card; o PATCH do card exige a versão lida. */
+  version?: number;
+  /** Só leitura: última mudança do card (nulo em card anterior à V81). */
+  updatedAt?: string | null;
 }
 
 export interface SessionMember {
@@ -122,6 +127,46 @@ export interface ShowcaseSession {
   // localStorage) pra refletir o preparo real do squad, visível pra quem
   // entrar, não só de quem marcou no próprio navegador.
   readinessChecklist?: boolean[];
+  /** Quem criou a Review (login). Usado na trava de decisão de uma Review sem squad. */
+  createdBy?: string | null;
+  // Backend com a V81 (todos opcionais e só leitura):
+  /** Quem esteve na sala quando a Review foi finalizada; vazio ou ausente se não houver o registro. */
+  participants?: ShowcaseParticipant[];
+  /** Quem está apresentando agora; ausente ou nulo = ninguém. */
+  presenter?: ShowcasePresenter | null;
+  /** Só na resposta do POST: cards em que o servidor manteve a versão dele (a nossa estava velha). */
+  staleCardIds?: string[];
+}
+
+/** Pessoa presente na sala quando a Review foi finalizada. */
+export interface ShowcaseParticipant {
+  userId: string;
+  displayName: string;
+}
+
+/** Quem está apresentando agora e o que mostra. `cardId` nulo = só abriu o Teatro (capa). */
+export interface ShowcasePresenter {
+  userId: string;
+  displayName: string;
+  cardId: string | null;
+  step: string | null;
+  presentingAt: string;
+}
+
+/** Consulta JQL guardada no servidor para a squad (o servidor só guarda o texto; a busca roda no navegador). */
+export interface ShowcaseJqlQuery {
+  id: string;
+  squadId: string;
+  name: string;
+  jql: string;
+  visibility: 'SQUAD' | 'PRIVATE';
+  createdBy: string;
+  createdByName: string | null;
+  createdAt: string;
+  /** Fui eu que criei. */
+  mine: boolean;
+  /** Posso apagar (criador, liderança da squad em consulta da squad, ou administrador). */
+  canDelete: boolean;
 }
 
 export const ISSUE_TYPES = [

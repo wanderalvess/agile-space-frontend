@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { copyToClipboard } from '@/lib/copy-to-clipboard';
 import { cn } from '@/lib/utils';
 import { DECISION, type ShowcaseSession, type ShowcaseTask } from './types';
-import { approvalRateOf, buildLinksText, decidedWhen, decisionGroups, efficiencyOf, groupByDecision } from './review-export';
+import { approvalRateOf, buildLinksText, decidedWhen, decisionGroups, efficiencyOf, groupByDecision, participantNames } from './review-export';
 import { formatTime } from './utils';
 
 interface SummaryDialogProps {
@@ -33,6 +33,7 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session, onEx
   const totalSpent = tasks.reduce((acc, t) => acc + (t.evidence.timeSpent || 0), 0);
   const groups = decisionGroups(tasks);
   const links = buildLinksText(groups);
+  const participants = participantNames(session);
 
   const statBoxes: Array<{ label: string; count: number; icon: React.ElementType; wrap: string; text: string }> = [
     { label: 'Aprovadas', count: g.approved.length, icon: CheckCircle2, wrap: 'border-emerald-500/30 bg-emerald-500/5', text: 'text-emerald-700 dark:text-emerald-300' },
@@ -72,10 +73,18 @@ export function SummaryDialog({ open, onClose, tasks, sessionName, session, onEx
       }
     >
       <div className="flex flex-col gap-6">
-        {/* Participantes: só quando a Review traz a lista (hoje nada na tela a preenche). */}
+        {/* Participantes: quem estava na sala ao finalizar (o servidor grava); sem a lista, a linha não aparece. */}
+        {participants.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5" aria-label="Participantes">
+            <span className="mr-1 text-xs font-semibold text-muted-foreground">Participantes:</span>
+            {participants.map((name) => (
+              <span key={name} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{name}</span>
+            ))}
+          </div>
+        )}
         {session?.members && session.members.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-xs font-semibold text-muted-foreground">Participantes:</span>
+            <span className="mr-1 text-xs font-semibold text-muted-foreground">Squad:</span>
             {session.members.map((m) => (
               <span key={m.id} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{m.name}</span>
             ))}

@@ -52,12 +52,30 @@ export function groupByDecision(tasks: readonly ShowcaseTask[]): DecisionGroups 
   };
 }
 
+/**
+ * Nomes de quem esteve na sala quando a Review foi finalizada (campo `participants`, backend com a V81), sem repetir.
+ * Vazio quando o servidor não informa: a linha "Participantes" não aparece.
+ */
+export function participantNames(session: Pick<ShowcaseSession, 'participants'> | null | undefined): string[] {
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const p of session?.participants ?? []) {
+    const name = (p?.displayName ?? '').trim();
+    if (!name || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    names.push(name);
+  }
+  return names;
+}
+
 /** Log em Markdown: participantes (quando houver), aprovadas, pendências com motivo e cards sem decisão. */
-export function buildLogMarkdown(session: Pick<ShowcaseSession, 'members'> | null, sessionName: string, tasks: readonly ShowcaseTask[], now: Date = new Date()): string {
+export function buildLogMarkdown(session: Pick<ShowcaseSession, 'members' | 'participants'> | null, sessionName: string, tasks: readonly ShowcaseTask[], now: Date = new Date()): string {
   const { approved, adjustments, rejected, pending } = groupByDecision(tasks);
+  const participants = participantNames(session);
   return [
     `# Relatório de Sprint Review — ${sessionName}`,
-    `Data: ${now.toLocaleString('pt-BR')}\n`,
+    participants.length > 0 ? `Data: ${now.toLocaleString('pt-BR')}` : `Data: ${now.toLocaleString('pt-BR')}\n`,
+    participants.length > 0 ? `Participantes: ${participants.join(', ')}\n` : '',
     session?.members && session.members.length > 0
       ? `## Squad\n${session.members.map((m) => `- ${m.name} (${m.role})`).join('\n')}\n`
       : '',

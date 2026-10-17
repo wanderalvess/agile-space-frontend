@@ -5,49 +5,53 @@
 import type { CardKind, Decision, ShowcaseSession, ShowcaseTask } from './types';
 
 /**
- * Traz a sessão do servidor para o formato que a UI espera. Campos de evidência só caem para o
+ * Traz um card do servidor para o formato que a UI espera. Campos de evidência só caem para o
  * valor legado quando vierem ausentes (null/undefined): um campo que a pessoa apagou continua
  * vazio em vez de voltar com o texto antigo da descrição.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function normalizeTask(t: any): ShowcaseTask {
+  const ev = t.evidence || {};
+  return {
+    ...t,
+    key: t.key ?? '',
+    title: t.title ?? '',
+    type: t.type ?? '',
+    description: t.description ?? '',
+    acceptanceCriteria: t.acceptanceCriteria ?? '',
+    evidence: {
+      problem: ev.problem ?? t.description ?? '',
+      solution: ev.solution ?? ev.execution ?? '',
+      dev: ev.dev ?? t.assignee ?? '',
+      qa: ev.qa ?? '',
+      screenshot: ev.screenshot ?? ev.docLink ?? '',
+      video: ev.video ?? ev.videoLink ?? '',
+      evidencePreference: ev.evidencePreference,
+      techDocUrl: ev.techDocUrl ?? '',
+      tdnUrl: ev.tdnUrl ?? '',
+      timeSpent: ev.timeSpent || 0,
+      timeEstimate: ev.timeEstimate || 0,
+      planned: ev.planned || null,
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    metrics: t.metrics ? t.metrics.map((m: any) => ({ ...m, field: m.field ?? '', value: m.value ?? 0 })) : t.metrics,
+    attachments: t.attachments || [],
+    project: t.project ?? '',
+    versionSuporte: t.versionSuporte ?? '',
+    versionMaster: t.versionMaster ?? '',
+    versionRelease: t.versionRelease ?? '',
+    versionDevelop: t.versionDevelop ?? '',
+    preparationStatus: t.preparationStatus || 'todo',
+    decision: t.decision || 'open',
+    feedback: t.feedback || '',
+  } as ShowcaseTask;
+}
+
+/** Traz a sessão do servidor para o formato que a UI espera (cada card passa por `normalizeTask`). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function normalizeSession(raw: any): ShowcaseSession {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tasks = (raw.tasks || []).map((t: any) => {
-    const ev = t.evidence || {};
-    return {
-      ...t,
-      key: t.key ?? '',
-      title: t.title ?? '',
-      type: t.type ?? '',
-      description: t.description ?? '',
-      acceptanceCriteria: t.acceptanceCriteria ?? '',
-      evidence: {
-        problem: ev.problem ?? t.description ?? '',
-        solution: ev.solution ?? ev.execution ?? '',
-        dev: ev.dev ?? t.assignee ?? '',
-        qa: ev.qa ?? '',
-        screenshot: ev.screenshot ?? ev.docLink ?? '',
-        video: ev.video ?? ev.videoLink ?? '',
-        evidencePreference: ev.evidencePreference,
-        techDocUrl: ev.techDocUrl ?? '',
-        tdnUrl: ev.tdnUrl ?? '',
-        timeSpent: ev.timeSpent || 0,
-        timeEstimate: ev.timeEstimate || 0,
-        planned: ev.planned || null,
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      metrics: t.metrics ? t.metrics.map((m: any) => ({ ...m, field: m.field ?? '', value: m.value ?? 0 })) : t.metrics,
-      attachments: t.attachments || [],
-      project: t.project ?? '',
-      versionSuporte: t.versionSuporte ?? '',
-      versionMaster: t.versionMaster ?? '',
-      versionRelease: t.versionRelease ?? '',
-      versionDevelop: t.versionDevelop ?? '',
-      preparationStatus: t.preparationStatus || 'todo',
-      decision: t.decision || 'open',
-      feedback: t.feedback || '',
-    };
-  });
+  const tasks = (raw.tasks || []).map((t: any) => normalizeTask(t));
   return {
     ...raw,
     tasks,

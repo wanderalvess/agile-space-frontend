@@ -10,7 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import { ShowcaseSession, Decision, DECISION } from './types';
+import { ShowcaseSession, ShowcasePresenter, Decision, DECISION } from './types';
+import { PresenterChip } from './PresenterChip';
+import { followTarget, isOtherPresenter, type PresenterStep } from './presenter-sync';
 import { canDecide as roleCanDecide } from './review-room-logic';
 import { ChartRenderer } from './ChartRenderer';
 import { getCategoryColor, REVIEW_CHART_COLOR } from './chartPresets';
@@ -37,15 +39,26 @@ interface TeatroModeProps {
   onFinish: () => void;
   /** Uma janela da sala (confirmar finalização) está aberta por cima: as teclas não navegam por baixo dela. */
   keysDisabled?: boolean;
+  /** Quem pode registrar a decisão (regra do servidor, calculada pela sala com os vínculos). Ausente: o cargo do perfil. */
+  canDecide?: boolean;
+  /** Quem está apresentando agora (backend com a V81); `null` ou ausente = ninguém, e nada de acompanhar aparece. */
+  presenter?: ShowcasePresenter | null;
+  /** Login de quem está na sala (para saber se o apresentador sou eu). */
+  meId?: string | null;
+  /** Estou acompanhando: o card do Teatro segue o do apresentador. */
+  following?: boolean;
+  onFollowingChange?: (following: boolean) => void;
+  /** Publica o card que este Teatro mostra (a sala limita a frequência e decide se vale). */
+  onPublishPresenter?: (cardId: string | null, step: PresenterStep) => void;
 }
 
-export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish, keysDisabled }: TeatroModeProps) {
+export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish, keysDisabled, canDecide: canDecideProp, presenter, meId, following = false, onFollowingChange, onPublishPresenter }: TeatroModeProps) {
   const { userProfile } = useUserContext();
   // Levantado aqui (não dentro de TaskSlide) porque TaskSlide remonta a cada
   // troca de card (key={task.id}) — buscar de novo a cada slide seria uma
   // chamada extra por card, sem necessidade.
   const { settings: jiraSettings } = useJiraSettings();
-  const canDecide = roleCanDecide(userProfile?.role);
+  const canDecide = canDecideProp ?? roleCanDecide(userProfile?.role);
   const isCover = currentIndex === -1;
   const task = !isCover ? session.tasks[currentIndex] : null;
   const [showFeedback, setShowFeedback] = useState(false);
@@ -60,6 +73,34 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
   // pedido de quem apresenta, mantém o estado entre slides (não é por card).
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isLight = isLightBackground(session.presentationBackground);
+  const otherPresenter = isOtherPresenter(presenter, meId) ? presenter : null;
+
+  // Navegar com a mão solta o acompanhar; quem segue o apresentador não publica (a sala só deixa publicar quem apresenta).
+  const navigate = React.useCallback((i: number) => {
+    if (following) onFollowingChange?.(false);
+    onIndexChange(i);
+  }, [following, onFollowingChange, onIndexChange]);
+
+  // Quem apresenta publica o card que mostra (a capa é cardId nulo).
+  const shownCardId = task?.id ?? null;
+  useEffect(() => {
+    onPublishPresenter?.(shownCardId, shownCardId === null ? 'cover' : 'card');
+  }, [shownCardId, onPublishPresenter]);
+
+  // Acompanhando: o card segue o do apresentador. Ele parou (ou sou eu): solta sozinho.
+  const currentIndexRef = React.useRef(currentIndex);
+  currentIndexRef.current = currentIndex;
+  const tasksRef = React.useRef(session.tasks);
+  tasksRef.current = session.tasks;
+  const presenterCardId = otherPresenter?.cardId ?? null;
+  const hasOtherPresenter = !!otherPresenter;
+  useEffect(() => {
+    if (!following) return;
+    if (!hasOtherPresenter) { onFollowingChange?.(false); return; }
+    const target = followTarget(tasksRef.current, { cardId: presenterCardId });
+    if (target !== null && target !== currentIndexRef.current) onIndexChange(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [following, hasOtherPresenter, presenterCardId, otherPresenter?.userId]);
 
 
   // Timer da Sessão
@@ -86,9 +127,9 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
         return;
       }
       if (e.key === 'ArrowRight' && currentIndex < session.tasks.length - 1) {
-        onIndexChange(currentIndex + 1);
+        navigate(currentIndex + 1);
       } else if (e.key === 'ArrowLeft' && currentIndex > -1) {
-        onIndexChange(currentIndex - 1);
+        navigate(currentIndex - 1);
       } else if (e.key === 'Escape') {
         // Em fullscreen, o navegador já trata Escape saindo do fullscreen
         // sozinho (dispara fullscreenchange) — não fechamos o Modo Teatro
@@ -100,7 +141,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, session.tasks.length, onIndexChange, showFeedback, onClose, keysDisabled]);
+  }, [currentIndex, session.tasks.length, navigate, showFeedback, onClose, keysDisabled]);
 
   // Mantém isFullscreen em sincronia mesmo quando o fullscreen é encerrado
   // fora do botão (Escape nativo do navegador, F11, menu de contexto etc.)
@@ -163,13 +204,16 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
         sessionTimeLabel={formatSessionTime(sessionTime)}
         isFullscreen={isFullscreen}
         sidebarCollapsed={sidebarCollapsed}
-        onIndexChange={onIndexChange}
+        onIndexChange={navigate}
         onToggleFullscreen={toggleFullscreen}
         onToggleSidebar={() => setSidebarCollapsed(v => !v)}
         onClose={onClose}
         onFinish={onFinish}
         onApprove={(taskId) => onDecision(taskId, 'approved')}
         onRequestFeedback={(d) => { setPendingDecision(d); setFeedbackText(''); setFeedbackTaskId(task?.id ?? null); setShowFeedback(true); }}
+        presenterChip={otherPresenter && onFollowingChange ? (
+          <PresenterChip presenter={otherPresenter} following={following} onToggle={() => onFollowingChange(!following)} surface={isLight ? 'stage-light' : 'stage-dark'} />
+        ) : undefined}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -183,7 +227,7 @@ export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDec
               transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
               className="flex-1"
             >
-              <ShowcaseCover session={session} onStart={() => onIndexChange(0)} onClose={onClose} isLight={isLight} />
+              <ShowcaseCover session={session} onStart={() => navigate(0)} onClose={onClose} isLight={isLight} />
             </motion.div>
           ) : task ? (
             <TaskSlide
