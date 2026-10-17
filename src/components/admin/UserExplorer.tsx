@@ -260,7 +260,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
     {
       id: 'cargo',
       header: 'Cargo',
-      width: '156px',
+      width: '148px',
       cell: (u) => {
         const label = u.name || u.email || 'usuário';
         return (
@@ -288,7 +288,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
     {
       id: 'nivel',
       header: 'Nível de acesso',
-      width: '156px',
+      width: '148px',
       cell: (u) => {
         const label = u.name || u.email || 'usuário';
         const level = accessLevelOf(u);
@@ -326,7 +326,7 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
     {
       id: 'squad',
       header: 'Squad',
-      width: '200px',
+      width: '176px',
       cell: (u) => (
         <UserLinksCell
           name={u.name || u.email || 'usuário'}

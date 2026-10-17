@@ -46,7 +46,7 @@ export function UserLinksCell({
           onMouseEnter={() => { if (state === undefined) onLoad(); }}
           onFocus={() => { if (state === undefined) onLoad(); }}
           className={cn(
-            'flex min-w-0 max-w-full items-center gap-1 rounded-full text-left hover:opacity-80',
+            'flex min-w-0 max-w-full items-center gap-1 rounded-full text-left hover:opacity-80 max-sm:min-h-11',
             FOCUS_RING,
           )}
         >
