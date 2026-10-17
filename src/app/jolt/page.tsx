@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -9,12 +9,10 @@ import {
   Code2,
   FileJson,
   PenLine,
-  Terminal,
   Workflow,
   Wand2,
 } from 'lucide-react';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
+import { PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -88,27 +86,27 @@ const OPERATIONS = [
 
 function ModeCard({ mode }: { mode: Mode }) {
   return (
-    <Card className="group relative flex h-full flex-col overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white/60 p-7 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-primary/40 hover:shadow-2xl dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-none">
+    <Card className="group relative flex h-full flex-col overflow-hidden rounded-[2.5rem] border border-border bg-card/60 p-7 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-primary/40 hover:shadow-2xl dark:shadow-none">
       <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-full bg-primary/5 blur-2xl transition-transform duration-700 group-hover:scale-125 dark:bg-primary/10" />
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">{mode.icon}</div>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/80 dark:bg-slate-950">
+        <span className="rounded-full border border-border bg-background px-2.5 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground">
           {mode.tag}
         </span>
       </div>
-      <h2 className="relative z-10 mt-4 font-headline text-2xl font-black uppercase tracking-tight text-slate-950 transition-colors group-hover:text-primary dark:text-slate-50">
+      <h2 className="relative z-10 mt-4 font-headline text-2xl font-black uppercase tracking-tight text-foreground transition-colors group-hover:text-primary">
         {mode.title}
       </h2>
-      <p className="relative z-10 mt-2 text-[13px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">{mode.summary}</p>
+      <p className="relative z-10 mt-2 text-[13px] font-medium leading-relaxed text-muted-foreground">{mode.summary}</p>
 
       <div className="relative z-10 mt-5 grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 rounded-2xl border border-border bg-background/60 p-3 text-xs">
-        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Você entrega</span>
+        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Você entrega</span>
         <span className="font-semibold text-foreground">{mode.input}</span>
-        <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Você recebe</span>
+        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Você recebe</span>
         <span className="font-semibold text-foreground">{mode.output}</span>
       </div>
 
-      <h3 className="relative z-10 mt-5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Use quando</h3>
+      <h3 className="relative z-10 mt-5 text-xs font-black uppercase tracking-widest text-muted-foreground">Use quando</h3>
       <ul className="relative z-10 mt-2 space-y-1.5">
         {mode.useWhen.map(item => (
           <li key={item} className="flex gap-2 text-[13px] font-medium leading-snug text-foreground">
@@ -123,7 +121,7 @@ function ModeCard({ mode }: { mode: Mode }) {
         ))}
       </ul>
 
-      <Button asChild className="relative z-10 mt-auto h-10 w-full rounded-xl border-none bg-primary text-[10px] font-extrabold uppercase tracking-wider text-primary-foreground hover:bg-orange-600">
+      <Button asChild className="relative z-10 mt-auto h-10 w-full rounded-xl border-none bg-primary text-xs font-extrabold uppercase tracking-wider text-primary-foreground hover:bg-orange-600">
         <Link href={mode.href}>
           {mode.cta} <ArrowUpRight className="ml-1.5 h-3.5 w-3.5" />
         </Link>
@@ -133,80 +131,67 @@ function ModeCard({ mode }: { mode: Mode }) {
 }
 
 export default function JoltHubPage() {
-  useEffect(() => {
-    document.title = 'Jolt | Portal Tech V&D';
-  }, []);
-
   return (
-    <div className="relative min-h-dvh bg-[#fafafa] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-        <div className="absolute left-[-10%] top-[-10%] h-[60%] w-[60%] rounded-full bg-primary/5 blur-[160px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-blue-500/5 blur-[140px]" />
+    <PageShell documentTitle="Jolt">
+      <PageHeader
+        title="Jolt"
+        module="jolt"
+        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Jolt' }]}
+        subtitle="O Jolt descreve, em uma especificação JSON, como converter um JSON de entrada em outro formato. Aqui há dois jeitos de chegar lá: escrever a spec você mesmo ou desenhar o mapa e deixar a spec ser gerada."
+      />
+
+      <div className="space-y-10">
+    <section aria-label="Modos" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {MODES.map(mode => (
+        <ModeCard key={mode.href} mode={mode} />
+      ))}
+    </section>
+
+    <section aria-label="Fluxo recomendado" className="space-y-4">
+      <div>
+        <h2 className="font-headline text-xl font-black uppercase tracking-tight">Os dois juntos funcionam melhor</h2>
+        <p className="text-sm font-medium text-muted-foreground">Quem está começando costuma seguir este caminho.</p>
       </div>
-      <RoomHeader title="Jolt" toolIcon={<Terminal className="h-4 w-4" />} />
+      <ol className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {FLOW.map((step, i) => (
+          <li key={step.title} className="relative rounded-2xl border border-border bg-card p-4">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{i + 1}</span>
+            <h3 className="mt-3 text-sm font-black uppercase tracking-tight">{step.title}</h3>
+            <p className="mt-1 text-xs font-medium leading-relaxed text-muted-foreground">{step.text}</p>
+            {i < FLOW.length - 1 && <ArrowRight className="absolute -right-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-muted-foreground md:block" aria-hidden />}
+          </li>
+        ))}
+      </ol>
+    </section>
 
-      <main className="w-full max-w-none space-y-10 px-4 py-6 md:px-8 lg:px-10">
-        <section className="space-y-2">
-          <h1 className="font-headline text-3xl font-black uppercase tracking-tight sm:text-4xl">Transforme JSON sem escrever código</h1>
-          <p className="max-w-2xl text-sm font-medium text-muted-foreground">
-            O Jolt descreve, em uma especificação JSON, como converter um JSON de entrada em outro formato. Aqui há dois jeitos de chegar lá: escrever a spec
-            você mesmo ou desenhar o mapa e deixar a spec ser gerada.
-          </p>
-        </section>
+    <section aria-label="Referência das operações" className="space-y-4">
+      <div>
+        <h2 className="font-headline text-xl font-black uppercase tracking-tight">As quatro operações do Jolt</h2>
+        <p className="text-sm font-medium text-muted-foreground">Toda spec combina estas operações, aplicadas em ordem.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {OPERATIONS.map(op => (
+          <Card key={op.name} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2">
+              <Code2 className="h-4 w-4 text-primary" aria-hidden />
+              <span className="font-code text-sm font-bold">{op.name}</span>
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-wider">{op.label}</h3>
+            <p className="text-xs font-medium leading-relaxed text-muted-foreground">{op.text}</p>
+            <code className="mt-auto rounded-lg bg-muted px-2 py-1.5 font-code text-xs text-foreground">{op.spec}</code>
+          </Card>
+        ))}
+      </div>
+    </section>
 
-        <section aria-label="Modos" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {MODES.map(mode => (
-            <ModeCard key={mode.href} mode={mode} />
-          ))}
-        </section>
-
-        <section aria-label="Fluxo recomendado" className="space-y-4">
-          <div>
-            <h2 className="font-headline text-xl font-black uppercase tracking-tight">Os dois juntos funcionam melhor</h2>
-            <p className="text-sm font-medium text-muted-foreground">Quem está começando costuma seguir este caminho.</p>
-          </div>
-          <ol className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            {FLOW.map((step, i) => (
-              <li key={step.title} className="relative rounded-2xl border border-border bg-card p-4">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">{i + 1}</span>
-                <h3 className="mt-3 text-sm font-black uppercase tracking-tight">{step.title}</h3>
-                <p className="mt-1 text-xs font-medium leading-relaxed text-muted-foreground">{step.text}</p>
-                {i < FLOW.length - 1 && <ArrowRight className="absolute -right-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-muted-foreground md:block" aria-hidden />}
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section aria-label="Referência das operações" className="space-y-4">
-          <div>
-            <h2 className="font-headline text-xl font-black uppercase tracking-tight">As quatro operações do Jolt</h2>
-            <p className="text-sm font-medium text-muted-foreground">Toda spec combina estas operações, aplicadas em ordem.</p>
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {OPERATIONS.map(op => (
-              <Card key={op.name} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-                <div className="flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-primary" aria-hidden />
-                  <span className="font-code text-sm font-bold">{op.name}</span>
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-wider">{op.label}</h3>
-                <p className="text-xs font-medium leading-relaxed text-muted-foreground">{op.text}</p>
-                <code className="mt-auto rounded-lg bg-muted px-2 py-1.5 font-code text-[11px] text-foreground">{op.spec}</code>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-xs font-medium text-muted-foreground">
-          <FileJson className="h-4 w-4 shrink-0" aria-hidden />
-          <span>Precisa só formatar, validar ou converter JSON?</span>
-          <Link href="/devtools/json" className="inline-flex items-center gap-1 font-bold text-primary hover:underline">
-            <Workflow className="h-3.5 w-3.5" aria-hidden /> Use o JSON Studio no DevTools
-          </Link>
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+    <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-xs font-medium text-muted-foreground">
+      <FileJson className="h-4 w-4 shrink-0" aria-hidden />
+      <span>Precisa só formatar, validar ou converter JSON?</span>
+      <Link href="/devtools/json" className="inline-flex items-center gap-1 font-bold text-primary hover:underline">
+        <Workflow className="h-3.5 w-3.5" aria-hidden /> Use o JSON Studio no DevTools
+      </Link>
+    </section>
+      </div>
+    </PageShell>
   );
 }

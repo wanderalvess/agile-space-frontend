@@ -15,15 +15,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  ArrowLeft,
+import {
   Play, 
   Save, 
   Loader2, 
   Trash2,
   HelpCircle,
   Sparkles,
-  Terminal,
   Workflow,
   GitCompare,
   CheckCircle2,
@@ -59,7 +57,7 @@ import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
 import { cn } from '@/lib/utils';
 import { JoltGuide } from '@/components/jolt/JoltGuide';
-import { RoomHeader } from '@/components/layout/RoomHeader';
+import { PageHeader, PageShell } from '@/components/page';
 import { SandboxPane } from './SandboxPane';
 import { GithubIntegrationBar } from '@/components/jolt/GithubIntegrationBar';
 import { useGithubLayouts, type LoadedGithubLayout } from '@/components/jolt/useGithubLayouts';
@@ -67,7 +65,6 @@ import { JoltMaintenancePanel } from '@/components/jolt/JoltMaintenancePanel';
 import { parseLayoutData, parseLayoutText } from '@/lib/jolt-maintenance';
 import { diffJson, describeValue, type JsonDiff } from '@/lib/jolt-compare';
 import { routeFormFromRecord } from '@/lib/jolt-route-record';
-import Link from 'next/link';
 
 const LAYOUTS_STORAGE_KEY_PREFIX = 'agileSpace_jolt_layouts';
 
@@ -149,7 +146,6 @@ export default function JoltSandboxPage() {
   // Spec vinda do Gerador ("Abrir na Sandbox"): as chaves mantêm o nome antigo do Mapeador Visual.
   useEffect(() => {
     setIsHydrated(true);
-    document.title = `Jolt Sandbox | Portal Tech V&D`;
 
     const specFromVisual = localStorage.getItem('jolt_visual_generated_spec');
     const inputFromVisual = localStorage.getItem('jolt_visual_input_json');
@@ -611,45 +607,42 @@ export default function JoltSandboxPage() {
   const snippetItemClass = 'cursor-pointer rounded-lg text-[10px] font-bold uppercase';
 
   return (
-    <div className="flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
+    <PageShell documentTitle="Jolt Sandbox" width="wide" contentClassName="gap-4">
       <TooltipProvider>
-        <RoomHeader
+        <PageHeader
           title="Jolt Sandbox"
-          toolIcon={<Terminal className="h-4 w-4" />}
+          module="jolt"
+          breadcrumb={[{ label: 'Jolt', href: '/jolt' }, { label: 'Sandbox' }]}
+          subtitle="Escreva a spec, escolha o motor e veja o resultado."
           actions={
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleOpenInGenerator}
-                className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+                className="h-9 gap-1.5 rounded-xl text-xs font-semibold"
                 title="Leva o JSON de entrada para o Gerador de spec: cole a saída esperada e a spec é montada para você"
                 aria-label="Abrir no Gerador de spec"
               >
-                <Workflow className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">Gerador de spec</span>
+                <Workflow className="h-4 w-4" strokeWidth={1.5} />
+                Gerador de spec
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsGuideOpen(true)}
-                className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider"
+                className="h-9 gap-1.5 rounded-xl text-xs font-semibold"
                 aria-label="Abrir guia de operações Jolt"
               >
-                <HelpCircle className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Guia</span>
+                <HelpCircle className="h-4 w-4" strokeWidth={1.5} />
+                Guia
               </Button>
               <JoltGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
-              <Button asChild variant="ghost" size="sm" className="h-8 gap-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider">
-                <Link href="/jolt" aria-label="Voltar ao hub Jolt">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Jolt</span>
-                </Link>
-              </Button>
-            </div>
+            </>
           }
         />
 
+        <div className="flex h-[max(44rem,calc(100dvh-14rem))] flex-col overflow-hidden rounded-2xl border border-border bg-background">
         {/* Barra de controle: layouts salvos, motor e execução */}
         <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 bg-card/40 px-4 py-2 md:px-6">
           <div className="flex min-w-0 items-center gap-1.5">
@@ -847,6 +840,7 @@ export default function JoltSandboxPage() {
             }
           />
         </main>
+        </div>
 
         <JoltMaintenancePanel
           open={isMaintenanceOpen}
@@ -965,6 +959,6 @@ export default function JoltSandboxPage() {
           </AlertDialogContent>
         </AlertDialog>
       </TooltipProvider>
-    </div>
+    </PageShell>
   );
 }
