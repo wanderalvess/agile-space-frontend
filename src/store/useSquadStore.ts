@@ -42,7 +42,6 @@ interface SquadStoreState {
   // o controle de visibilidade é feito no próprio componente (isLeadershipViewer).
   fetchSquadDetail: (squadId: string) => Promise<void>;
   fetchMembers: (squadId: string, uid?: string, userHints?: { email?: string; jiraAccountId?: string; name?: string }) => Promise<boolean>;
-  claimMember: (squadId: string, jiraAccountId: string, uid: string) => Promise<void>;
   saveMemberCapacity: (
     squadId: string,
     jiraAccountId: string,
@@ -190,12 +189,6 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     }
   },
 
-  // "Isso sou eu" — Refaz fetchMembers pra atualizar myClaim local.
-  claimMember: async (squadId, jiraAccountId, uid) => {
-    await squadApi.saveMember(squadId, jiraAccountId, { claimedByUid: uid, updatedAt: new Date().toISOString() });
-    await get().fetchMembers(squadId, uid);
-  },
-
   saveMemberCapacity: async (squadId, jiraAccountId, updates) => {
     const payload = {
       jiraAccountId,
@@ -233,7 +226,7 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
     }));
   },
 
-  // "Minhas issues" — só funciona depois de claimMember; filtra por assigneeId.
+  // "Minhas issues" — só funciona com o vínculo feito (onboarding "Sou eu", convite ou aprovação); filtra por assigneeId.
   // Sempre reflete a sprint ATIVA — pra ver "minhas issues" de uma sprint passada,
   // use selectSprint (viewedMyIssues).
   fetchMyIssues: async (squadId, jiraAccountId) => {
