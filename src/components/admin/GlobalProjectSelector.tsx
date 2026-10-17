@@ -13,21 +13,26 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { findMembership } from '@/lib/memberships';
 import { useToast } from '@/hooks/use-toast';
 
 export function GlobalProjectSelector() {
   const { session, switchProject } = useAuth();
   const { toast } = useToast();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
+  const { memberships } = useMyMemberships();
+  const { squadId: activeId } = useActiveSquad();
 
   const accessibleProjects = session?.accessibleProjects || [];
   if (!session || accessibleProjects.length <= 1) return null;
 
-  const activeProject = accessibleProjects.find((p) => p.projectId === session.activeProjectId);
-  const label = activeProject?.projectName || session.activeProjectId || 'Projeto';
+  const activeProject = accessibleProjects.find((p) => p.projectId.toLowerCase() === activeId.toLowerCase());
+  const label = activeProject?.projectName || activeId || 'Projeto';
 
   const handleSelect = async (projectId: string) => {
-    if (projectId === session.activeProjectId || switchingTo) return;
+    if (projectId.toLowerCase() === activeId.toLowerCase() || switchingTo) return;
     setSwitchingTo(projectId);
     try {
       await switchProject(projectId);
@@ -80,9 +85,9 @@ export function GlobalProjectSelector() {
                 </span>
               )}
             </div>
-            {p.roleName && (
+            {(findMembership(memberships, p.projectId)?.roleName || p.roleName) && (
               <Badge className="text-[8px] font-black uppercase border-none bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0 shrink-0">
-                {p.roleName}
+                {findMembership(memberships, p.projectId)?.roleName || p.roleName}
               </Badge>
             )}
           </DropdownMenuItem>

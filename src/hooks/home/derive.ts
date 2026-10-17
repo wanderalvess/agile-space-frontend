@@ -7,6 +7,8 @@ import type { HealthCheckBoard, BrainstormingBoard, RetroBoard, Room, SquadCerem
 import type { ShowcaseSession } from '@/components/showcase/types';
 import { computeNextOccurrence } from '@/lib/ceremony-schedule';
 import { safeHref } from '@/lib/safe-url';
+import { findMembership } from '@/lib/memberships';
+import type { MyMemberships } from '@/lib/memberships-api';
 import type {
   AnnouncementKind,
   HomeAnnouncement,
@@ -531,17 +533,25 @@ export interface SessionLike {
   activeProjectName?: string;
 }
 
-/** Squads da pessoa. Sem lista de projetos acessíveis (conta de uma squad só), cai na squad ativa. */
-export function squadRefsFromSession(session: SessionLike | null | undefined): Array<SquadRef & { roleName?: string }> {
+/**
+ * Squads da pessoa. Sem lista de projetos acessíveis (conta de uma squad só), cai na squad ativa. Com os vínculos
+ * (`/me/memberships`), o papel mostrado é o PRIMÁRIO do vínculo (liderança antes de contribuidor), não o da linha
+ * que por último chegou na sessão.
+ */
+export function squadRefsFromSession(
+  session: SessionLike | null | undefined,
+  memberships?: MyMemberships | null,
+): Array<SquadRef & { roleName?: string }> {
   if (!session) return [];
+  const roleOf = (id: string, fallback?: string) => findMembership(memberships, id)?.roleName || fallback;
   const list = (session.accessibleProjects ?? []).map((p) => ({
     id: p.projectId,
     name: p.projectName || p.projectId,
-    roleName: p.roleName,
+    roleName: roleOf(p.projectId, p.roleName),
   }));
   if (list.length > 0) return list;
   if (session.activeProjectId && session.activeProjectId !== 'Sem Time') {
-    return [{ id: session.activeProjectId, name: session.activeProjectName || session.activeProjectId }];
+    return [{ id: session.activeProjectId, name: session.activeProjectName || session.activeProjectId, roleName: roleOf(session.activeProjectId) }];
   }
   return [];
 }
