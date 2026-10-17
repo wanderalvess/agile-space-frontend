@@ -1,257 +1,139 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Lightbulb, 
-  Zap, 
-  Target, 
-  Users, 
-  AlertCircle,
-  BrainCircuit,
-  Sparkles,
-  ArrowRight as ArrowRightIcon,
-  Network,
-  BarChart3,
-  ListTodo
-} from 'lucide-react';
-import { brainstormingApi } from './api';
+import { BrainstormLobbyView, type BrainstormLastDetail, type BrainstormLobbyState } from '@/components/brainstorming/BrainstormLobbyView';
+import { CreateBrainstormDialog } from '@/components/brainstorming/CreateBrainstormDialog';
 import { useToast } from '@/hooks/use-toast';
-import { errorMessage } from '@/lib/ceremony-api';
-import { useUserContext } from '@/context/UserContext';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
-import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { useToolHistory } from '@/hooks/useToolHistory';
+import { useUserContext } from '@/context/UserContext';
+import { errorMessage } from '@/lib/ceremony-api';
+import { mergeBrainstormRows, type BrainstormLobbyRow, type HistoryRowLike } from '@/lib/brainstorming-lobby';
+import { ritualsApi } from '@/lib/home-api';
+import type { BrainstormingBoard } from '@/lib/types';
+import { brainstormingApi } from './api';
 
-const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+/** Quantas sessões o histórico da squad devolve (a tabela mostra todas as que vierem). */
+const HISTORY_LIMIT = 50;
 
 export default function BrainstormingHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { userProfile, requestIdentity } = useUserContext();
   const { squadId: activeSquadId } = useActiveSquad();
+  const { history: localHistory, removeRoom } = useToolHistory('brainstorming');
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [title, setTitle] = useState('');
-  const [team, setTeam] = useState('');
 
-  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
-  // async) — só enquanto o campo estiver vazio, para não sobrescrever uma edição manual.
-  useEffect(() => {
-    if (team) return;
-    if (activeSquadId) setTeam(activeSquadId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const [boards, setBoards] = useState<BrainstormingBoard[]>([]);
+  const [history, setHistory] = useState<HistoryRowLike[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [lastDetail, setLastDetail] = useState<BrainstormLastDetail | undefined>();
+  const loadSeq = useRef(0);
+
+  const loadBoards = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    if (!activeSquadId) {
+      // Sem squad não há o que listar: sem isto o esqueleto ficava para sempre.
+      setBoards([]);
+      setHistory([]);
+      setFailed(false);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setFailed(false);
+    try {
+      const [list, ritual] = await Promise.all([
+        brainstormingApi.listBoards(activeSquadId),
+        // As contagens vêm do histórico da squad; se ele falhar a lista aparece do mesmo jeito, sem os números.
+        ritualsApi.history('BRAINSTORMING', { squadId: activeSquadId, limit: HISTORY_LIMIT }).catch(() => []),
+      ]);
+      if (seq !== loadSeq.current) return;
+      setBoards(list);
+      setHistory(ritual.map((r) => ({ id: r.id, participantsCount: r.participantsCount, summary: r.summary, status: r.status })));
+    } catch (error) {
+      if (seq !== loadSeq.current) return;
+      console.error('Erro ao listar brainstormings', error);
+      setFailed(true);
+    } finally {
+      if (seq === loadSeq.current) setLoading(false);
+    }
   }, [activeSquadId]);
 
-  const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
-    try {
-      const saved = localStorage.getItem(ROOMS_META_KEY);
-      const rooms = saved ? JSON.parse(saved) : [];
-      const newMeta = {
-        roomId: id,
-        type,
-        title,
-        team,
-        createdBy: userProfile?.id,
-        createdAt: new Date().toISOString()
-      };
-      localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
-    } catch (e) {
-      console.error("Erro ao salvar metadados da sala", e);
-    }
-  };
+  useEffect(() => {
+    void loadBoards();
+  }, [loadBoards]);
 
-  const handleCreate = async () => {
-    if (isCreating) return;
+  const rows = useMemo(
+    () => mergeBrainstormRows(boards, history, localHistory.map((h) => ({ roomId: h.roomId, title: h.title, team: h.team, createdAt: h.createdAt }))),
+    [boards, history, localHistory]
+  );
 
-    if (!userProfile || !userProfile.id) {
-      console.error("[brainstorming] Criar sala abortado: usuário sem ID.");
-      toast({
-        title: "Perfil Não Identificado",
-        description: "Não foi possível carregar a sua identidade.",
-        variant: "destructive"
+  // Contagens da sessão mais recente da squad: uma leitura de ideias, grupos e pessoas (falha de uma não derruba as outras).
+  const lastId = rows.find((r) => !r.localOnly)?.id;
+  useEffect(() => {
+    setLastDetail(undefined);
+    if (!lastId) return;
+    let cancelled = false;
+    Promise.allSettled([brainstormingApi.getIdeas(lastId), brainstormingApi.getGroups(lastId), brainstormingApi.getParticipants(lastId)]).then(([ideas, groups, people]) => {
+      if (cancelled) return;
+      if (ideas.status !== 'fulfilled' && groups.status !== 'fulfilled' && people.status !== 'fulfilled') return;
+      setLastDetail({
+        ideas: ideas.status === 'fulfilled' ? ideas.value.length : undefined,
+        groups: groups.status === 'fulfilled' ? groups.value.length : undefined,
+        people: people.status === 'fulfilled' ? people.value.length : undefined,
       });
-      return;
-    }
-
-    if (!title.trim()) {
-      toast({
-        title: "Título Obrigatório",
-        description: "Dê um nome ao seu brainstorming antes de iniciar.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsCreating(true);
-
-    const newBoard = {
-      creatorId: userProfile.id,
-      title: title.trim(),
-      team: team.trim() || 'Squad Geral',
-      createdAt: new Date().toISOString(),
-      phase: 'ideation' as const,
-      settings: { isAnonymous: false },
-      timer: { status: 'stopped' as const, endTime: null, initialDuration: 600, remainingOnPause: 600 },
-      participantIds: [userProfile.id]
+    });
+    return () => {
+      cancelled = true;
     };
+  }, [lastId]);
 
-    try {
-      const created = await brainstormingApi.saveOrUpdateBoard(newBoard);
-      if (created && created.id) {
-        saveRoomMeta(created.id, 'brainstorming', title.trim(), team.trim() || 'Squad');
-        setIsSetupOpen(false);
-        router.push(`/brainstorming/${created.id}`);
-      } else {
-        setIsCreating(false);
-      }
-    } catch (error) {
-      console.error("Error creating brainstorming board: ", error);
-      setIsCreating(false);
-      toast({
-        title: "Erro na Criação",
-        description: errorMessage(error, "Não foi possível iniciar o brainstorming no momento."),
-        variant: "destructive"
-      });
-    }
+  const openNew = () => {
+    if (!userProfile) requestIdentity(() => setIsSetupOpen(true));
+    else setIsSetupOpen(true);
   };
 
+  const handleDelete = useCallback(
+    async (row: BrainstormLobbyRow) => {
+      try {
+        await brainstormingApi.deleteBoard(row.id);
+        setBoards((prev) => prev.filter((b) => b.id !== row.id));
+        removeRoom(row.id);
+        toast({ title: 'Brainstorming apagado', description: row.title });
+      } catch (error) {
+        console.error('Erro ao apagar o brainstorming', error);
+        toast({ title: 'Não foi possível apagar o brainstorming', description: errorMessage(error, 'Tente novamente.'), variant: 'destructive' });
+      }
+    },
+    [removeRoom, toast]
+  );
 
-  const tips = [
-    {
-      title: "Zero Julgamento",
-      description: "Na fase de ideação, nenhuma ideia é ruim. O foco é volume e criatividade pura, sem críticas prematuras.",
-      icon: <BrainCircuit className="text-amber-500" />
-    },
-    {
-      title: "Construa sobre Outros",
-      description: "Use as ideias dos colegas como trampolim. 'Sim, e...' é muito mais poderoso do que 'Não, mas...'.",
-      icon: <Target className="text-amber-500" />
-    },
-    {
-      title: "Foco em Quantidade",
-      description: "Quanto mais ideias gerarmos, maior a chance de encontrarmos uma boa solução.",
-      icon: <Zap className="text-amber-500" />
-    }
-  ];
-
-  const referenceSections = [
-    {
-      title: "1. Ideação (Individual)",
-      label: "Modo Mural",
-      description: "O time lança ideias no mural. O facilitador pode ocultar o texto das ideias dos outros até a revelação e esconder os autores. Isso evita que ideias tímidas sejam perdidas.",
-      icon: <BrainCircuit />
-    },
-    {
-      title: "2. Agrupamento",
-      label: "Organização",
-      description: "Crie grupos e arraste as ideias para dentro deles. Para juntar ideias repetidas, use o botão de fusão no card. O objetivo é reduzir a repetição e encontrar grandes temas.",
-      icon: <Network />
-    },
-    {
-      title: "3. Votação",
-      label: "Decisão",
-      description: "Cada pessoa pode votar em quantas ideias quiser (um voto por ideia; votar de novo remove o voto). A democracia aplicada à estratégia.",
-      icon: <Target />
-    },
-    {
-      title: "4. Priorização",
-      label: "Estratégia",
-      description: "O time arrasta as ideias para os quadrantes de Impacto (ROI) vs Esforço. Priorizamos o que dá 'Rápido Retorno'.",
-      icon: <BarChart3 />
-    },
-    {
-      title: "5. Ações",
-      label: "Comprometimento",
-      description: "Selecionamos as ideias vencedoras e definimos quem fará o quê. O fim do brainstorming é o começo da execução real.",
-      icon: <ListTodo />
-    }
-  ];
+  const state: BrainstormLobbyState = !activeSquadId ? 'no-squad' : loading ? 'loading' : failed ? 'error' : 'ready';
 
   return (
-    <>
-      <ToolHubLayout
-        module="brainstorming"
-        title="Brainstorming"
-        description="Espaço criativo para geração de ideias e soluções em squad. Transforme insights em backlog acionável."
-        icon={<Lightbulb />}
-        themeColor="amber"
-        toolType="brainstorming"
-        tips={tips}
-        referenceSections={referenceSections}
-        onNewSession={() => {
-          if (!userProfile) {
-            requestIdentity(() => setIsSetupOpen(true));
-          } else {
-            setIsSetupOpen(true);
-          }
-        }}
-        onJoinSession={(id) => router.push(`/brainstorming/${id}`)}
-        isCreating={isCreating}
+    <BrainstormLobbyView
+      state={state}
+      rows={rows}
+      lastDetail={lastDetail}
+      currentUserId={userProfile?.id}
+      isCreating={isCreating}
+      onRetry={() => void loadBoards()}
+      onNew={openNew}
+      onJoin={(id) => router.push(`/brainstorming/${id}`)}
+      onOpen={(id) => router.push(`/brainstorming/${id}`)}
+      onDelete={handleDelete}
+    >
+      <CreateBrainstormDialog
+        open={isSetupOpen}
+        onOpenChange={setIsSetupOpen}
+        onCreatingChange={setIsCreating}
+        onCreated={(board) => router.push(`/brainstorming/${board.id}`)}
       />
-
-      <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl">
-          <DialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20 text-white">
-               <Sparkles className="h-6 w-6" />
-            </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-none">Iniciar Brainstorming</DialogTitle>
-            <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-2">Configure os detalhes da sua sessão criativa</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-6">
-            <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Título da Sessão</Label>
-              <Input 
-                placeholder="Ex: Refatoração do Dashboard" 
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="h-12 rounded-xl border-border bg-muted text-foreground focus:border-amber-500 font-bold"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Squad / Time (Opcional)</Label>
-              <Input 
-                placeholder="Ex: Flight Core" 
-                value={team}
-                onChange={e => setTeam(e.target.value)}
-                className="h-12 rounded-xl border-border bg-muted text-foreground focus:border-amber-500 font-bold"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="pt-4 border-t border-border flex-col gap-3">
-             <Button 
-               disabled={isCreating}
-               onClick={handleCreate}
-               className="w-full h-14 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-amber-500/10 gap-3"
-             >
-               {isCreating ? 'Sincronizando...' : 'Iniciar Jornada'}
-               <ArrowRightIcon className="h-4 w-4" />
-             </Button>
-             <Button
-               type="button"
-               variant="ghost"
-               onClick={() => setIsSetupOpen(false)}
-               className="h-auto px-2 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-muted-foreground"
-             >
-                Talvez depois
-             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    </BrainstormLobbyView>
   );
 }

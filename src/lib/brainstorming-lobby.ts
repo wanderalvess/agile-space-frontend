@@ -169,3 +169,56 @@ export function filterBrainstormRows(
 export function isLobbyRowLive(row: Pick<BrainstormLobbyRow, 'status'>): boolean {
   return row.status === 'LIVE';
 }
+
+// ───────────────────────── Atalho local ─────────────────────────
+
+/** Mesma chave que os outros hubs usam para "salas abertas neste navegador" (ver `useToolHistory`). */
+export const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+
+/**
+ * Guarda a sala criada na lista local. Continua útil como atalho quando o servidor está fora ou a sala é de outra
+ * squad. Falha do storage nunca atrapalha a criação.
+ */
+export function rememberRoom(
+  storage: Pick<Storage, 'getItem' | 'setItem'> | undefined,
+  meta: { roomId: string; title: string; team: string; createdBy?: string },
+  now: Date = new Date()
+): void {
+  try {
+    if (!storage) return;
+    const saved = storage.getItem(ROOMS_META_KEY);
+    const rooms = saved ? JSON.parse(saved) : [];
+    const list = Array.isArray(rooms) ? rooms : [];
+    storage.setItem(ROOMS_META_KEY, JSON.stringify([...list, { ...meta, type: 'brainstorming', createdAt: now.toISOString() }]));
+  } catch {
+    /* sem storage: só não aparece no atalho */
+  }
+}
+
+// ───────────────────────── Datas ─────────────────────────
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfDay(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+}
+
+/** "hoje", "ontem", "há 3 dias" (até uma semana) ou "30/09" ("30/09/2025" em outro ano). Data inválida dá vazio. */
+export function shortCreated(iso: string, now: number = Date.now()): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const today = new Date(now);
+  const days = Math.round((startOfDay(today) - startOfDay(date)) / DAY_MS);
+  if (days <= 0) return 'hoje';
+  if (days === 1) return 'ontem';
+  if (days < 7) return `há ${days} dias`;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const base = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
+  return date.getFullYear() === today.getFullYear() ? base : `${base}/${date.getFullYear()}`;
+}
+
+/** Para frases ("criada hoje", "criada em 30/09"). */
+export function createdPhrase(iso: string, now: number = Date.now()): string {
+  const short = shortCreated(iso, now);
+  return /^\d/.test(short) ? `em ${short}` : short;
+}

@@ -5,8 +5,12 @@ import {
   isLobbyRowLive,
   lobbyStageLabel,
   mergeBrainstormRows,
+  ROOMS_META_KEY,
   parseRoomCode,
   readRoomCode,
+  rememberRoom,
+  shortCreated,
+  createdPhrase,
 } from '../brainstorming-lobby';
 import type { BrainstormingBoard } from '../types';
 
@@ -138,5 +142,55 @@ describe('lista do hub', () => {
     expect(lobbyStageLabel(undefined)).toBe('');
     expect(isLobbyRowLive({ status: 'LIVE' })).toBe(true);
     expect(isLobbyRowLive({ status: 'FINISHED' })).toBe(false);
+  });
+});
+
+describe('atalho local de salas', () => {
+  const memory = (initial?: string) => {
+    const store = new Map<string, string>(initial ? [[ROOMS_META_KEY, initial]] : []);
+    return { store, getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
+  };
+
+  it('acrescenta a sala sem apagar as que já estavam (de qualquer ferramenta)', () => {
+    const storage = memory(JSON.stringify([{ roomId: 'r1', type: 'retro', title: 'Retro', team: 'X', createdAt: 'a' }]));
+    rememberRoom(storage, { roomId: ID, title: 'Redesenho', team: 'PHOENIX', createdBy: 'u1' }, new Date('2026-10-17T10:00:00Z'));
+    const saved = JSON.parse(storage.store.get(ROOMS_META_KEY)!);
+    expect(saved).toHaveLength(2);
+    expect(saved[0].roomId).toBe('r1');
+    expect(saved[1]).toEqual({ roomId: ID, title: 'Redesenho', team: 'PHOENIX', createdBy: 'u1', type: 'brainstorming', createdAt: '2026-10-17T10:00:00.000Z' });
+  });
+
+  it('lista estragada ou storage que falha não derruba a criação', () => {
+    const broken = memory('{nao e json');
+    expect(() => rememberRoom(broken, { roomId: 'a', title: 't', team: '' })).not.toThrow();
+    expect(() => rememberRoom({ getItem: () => { throw new Error('bloqueado'); }, setItem: () => {} }, { roomId: 'a', title: 't', team: '' })).not.toThrow();
+    expect(() => rememberRoom(undefined, { roomId: 'a', title: 't', team: '' })).not.toThrow();
+    const notArray = memory('{"a":1}');
+    rememberRoom(notArray, { roomId: 'b', title: 't', team: '' });
+    expect(JSON.parse(notArray.store.get(ROOMS_META_KEY)!)).toHaveLength(1);
+  });
+});
+
+describe('datas do hub', () => {
+  const NOW = new Date(2026, 9, 17, 15, 0, 0).getTime(); // 17/10/2026, hora local
+
+  it('hoje, ontem, há N dias e data', () => {
+    expect(shortCreated(new Date(2026, 9, 17, 8, 0).toISOString(), NOW)).toBe('hoje');
+    expect(shortCreated(new Date(2026, 9, 16, 23, 0).toISOString(), NOW)).toBe('ontem');
+    expect(shortCreated(new Date(2026, 9, 14, 10, 0).toISOString(), NOW)).toBe('há 3 dias');
+    expect(shortCreated(new Date(2026, 9, 10, 10, 0).toISOString(), NOW)).toBe('10/10');
+    expect(shortCreated(new Date(2026, 8, 30, 10, 0).toISOString(), NOW)).toBe('30/09');
+    expect(shortCreated(new Date(2025, 7, 5, 10, 0).toISOString(), NOW)).toBe('05/08/2025');
+  });
+
+  it('data no futuro (relógios diferentes) conta como hoje; inválida dá vazio', () => {
+    expect(shortCreated(new Date(2026, 9, 18, 1, 0).toISOString(), NOW)).toBe('hoje');
+    expect(shortCreated('nao e data', NOW)).toBe('');
+  });
+
+  it('frase para "criada ..."', () => {
+    expect(createdPhrase(new Date(2026, 9, 17, 8, 0).toISOString(), NOW)).toBe('hoje');
+    expect(createdPhrase(new Date(2026, 9, 14, 10, 0).toISOString(), NOW)).toBe('há 3 dias');
+    expect(createdPhrase(new Date(2026, 8, 30, 10, 0).toISOString(), NOW)).toBe('em 30/09');
   });
 });
