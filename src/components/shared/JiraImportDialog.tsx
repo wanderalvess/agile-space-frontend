@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Bookmark, ChevronDown, CloudDownload, ExternalLink, FileUp, Globe, Loader2, RotateCcw, Search, Tag, User, X,
+  Bookmark, ChevronDown, CloudDownload, ExternalLink, FileUp, Globe, Loader2, Lock, RotateCcw, Search, Tag, User, Users, X,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FIELD, FOCUS_RING, Modal, ModalButton, TabBar } from '@/components/room-kit';
@@ -12,6 +12,8 @@ import { parseJiraXml, fetchJiraIssues, enrichWithCodificacaoChildren, enrichWit
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useSavedJqls } from '@/hooks/useSavedJqls';
 import { JQL_VISIBILITY_HELP, jqlPresets } from '@/components/showcase/review-room-logic';
+import { SQUAD_JQL_HELP, squadJqlTitle, validateSquadJql } from '@/components/showcase/squad-jql';
+import { useSquadJqls } from '@/components/showcase/useSquadJqls';
 
 interface JiraImportDialogProps {
   open: boolean;
@@ -25,7 +27,15 @@ interface JiraImportDialogProps {
   squadKey?: string;
   /** Sprint ativa da squad (id do Jira), para a predefinição "Review da sprint atual". */
   sprintId?: string;
+  /**
+   * Consultas JQL compartilhadas com a squad (backend com a V81). Sem isto, ou com o backend antigo (404), só as consultas
+   * deste navegador aparecem. O servidor guarda só o texto: a busca continua rodando no navegador de cada pessoa.
+   */
+  squadJql?: { squadId: string; label?: string };
 }
+
+/** Onde guardar a consulta: neste navegador (privada ou pública) ou na squad (compartilhada ou só minha). */
+type SaveDestination = 'local-private' | 'local-public' | 'squad' | 'squad-private';
 
 type SourceTab = 'xml' | 'api';
 
@@ -54,6 +64,7 @@ export function JiraImportDialog({
   existingKeys,
   squadKey,
   sprintId,
+  squadJql,
 }: JiraImportDialogProps) {
   const presets = useMemo(() => jqlPresets({ squadKey, sprintId }), [squadKey, sprintId]);
   const existing = useMemo(() => new Set(existingKeys ?? []), [existingKeys]);
@@ -62,7 +73,9 @@ export function JiraImportDialog({
   const { savedJqls, saveJql, deleteJql } = useSavedJqls();
   const [isSaveJqlOpen, setIsSaveJqlOpen] = useState(false);
   const [newJqlLabel, setNewJqlLabel] = useState('');
-  const [newJqlIsPublic, setNewJqlIsPublic] = useState(false);
+  const [destination, setDestination] = useState<SaveDestination>('local-private');
+  const [savingJql, setSavingJql] = useState(false);
+  const [saveJqlError, setSaveJqlError] = useState<string | null>(null);
   const [tab, setTab] = useState<SourceTab>('xml');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<JiraIssue[]>([]);
@@ -81,6 +94,8 @@ export function JiraImportDialog({
   const [saveDefault, setSaveDefault] = useState(false);
 
   const { settings, saveSettings } = useJiraSettings();
+  const shared = useSquadJqls(squadJql?.squadId, open && tab === 'api');
+  const sharedReady = shared.status === 'ready';
 
   // Auto-populate saved credentials e prioriza API quando token já existe
   useEffect(() => {
@@ -226,6 +241,28 @@ export function JiraImportDialog({
 
   const close = () => { reset(); onClose(); };
 
+  const isSquadDestination = destination === 'squad' || destination === 'squad-private';
+  const squadFormError = isSquadDestination ? validateSquadJql(newJqlLabel, jql) : null;
+
+  /** Guarda a consulta: neste navegador (como sempre) ou na squad (servidor). Falha na squad fica no formulário. */
+  const handleSaveJql = async () => {
+    if (isSquadDestination) {
+      setSavingJql(true);
+      setSaveJqlError(null);
+      const res = await shared.save(newJqlLabel, jql, destination === 'squad' ? 'SQUAD' : 'PRIVATE');
+      setSavingJql(false);
+      if (!res.ok) { setSaveJqlError(res.message); return; }
+      setIsSaveJqlOpen(false);
+      toast({ title: 'Consulta salva na squad!', description: destination === 'squad' ? 'A squad vê o texto da consulta.' : 'Só você vê, em qualquer navegador.' });
+      return;
+    }
+    const isPublic = destination === 'local-public';
+    saveJql({ label: newJqlLabel, jql, isPublic });
+    setIsSaveJqlOpen(false);
+    toast({ title: 'JQL salva com sucesso!', description: isPublic ? 'Salva como Pública, só neste navegador.' : 'Salva como Privada.' });
+  };
+
+
   const fileInput = (cls: string) => (
     <input type="file" accept=".xml" multiple className={cls} onChange={handleXml} disabled={loading} aria-label="Selecionar arquivos XML do Jira" />
   );
@@ -331,7 +368,7 @@ export function JiraImportDialog({
                   <ModalButton
                     className="h-8 gap-1.5 px-3 text-[13px]"
                     disabled={!jql.trim()}
-                    onClick={() => { setNewJqlLabel(''); setNewJqlIsPublic(false); setIsSaveJqlOpen(true); }}
+                    onClick={() => { setNewJqlLabel(''); setDestination('local-private'); setSaveJqlError(null); setIsSaveJqlOpen(true); }}
                   >
                     <Bookmark className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Salvar JQL
                   </ModalButton>
@@ -343,40 +380,85 @@ export function JiraImportDialog({
                   placeholder='Ex.: sprint = 123 AND status = "In Progress"'
                   className={cn(FIELD, 'h-[72px] min-h-[72px] resize-none py-2 font-mono text-xs leading-normal')}
                 />
-                <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label="Consultas salvas e predefinições">
-                  {/* Consultas salvas: ficam só neste navegador */}
-                  {savedJqls.map((sj) => (
-                    <span key={sj.id} className="group relative inline-flex items-center">
+                <div className="mt-1 flex flex-col gap-2" role="group" aria-label="Consultas salvas e predefinições">
+                  {sharedReady && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="mr-1 text-xs font-semibold text-muted-foreground">Da squad</span>
+                      {shared.items.length === 0 && <span className="text-xs text-muted-foreground">Nenhuma consulta salva para a squad.</span>}
+                      {shared.items.map((q) => (
+                        <span key={q.id} className="group relative inline-flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => setJql(q.jql)}
+                            title={squadJqlTitle(q)}
+                            className={cn(CHIP, q.canDelete && 'pr-7', 'border-border bg-card hover:bg-accent', FOCUS_RING)}
+                          >
+                            {q.visibility === 'SQUAD' ? <Users className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" /> : <Lock className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" />}
+                            <span className="max-w-[160px] truncate">{q.name}</span>
+                          </button>
+                          {q.canDelete && (
+                            <button
+                              type="button"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                const res = await shared.remove(q.id);
+                                if (res.ok) toast({ title: 'Consulta da squad excluída.' });
+                                else toast({ title: 'Não foi possível excluir', description: res.message, variant: 'destructive' });
+                              }}
+                              title="Excluir esta consulta da squad"
+                              aria-label={`Excluir a consulta da squad ${q.name}`}
+                              className={cn('absolute right-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-60 transition-opacity hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 max-sm:opacity-100', FOCUS_RING)}
+                            >
+                              <X className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  {shared.status === 'error' && (
+                    <p className="m-0 text-xs text-muted-foreground">
+                      Não foi possível carregar as consultas da squad.{' '}
+                      <button type="button" onClick={() => { void shared.reload(); }} className={cn('font-semibold text-foreground underline underline-offset-2', FOCUS_RING)}>Tentar de novo</button>
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Consultas salvas neste navegador: nada some, continuam aqui */}
+                    {sharedReady && savedJqls.length > 0 && <span className="mr-1 text-xs font-semibold text-muted-foreground">Neste navegador</span>}
+                    {savedJqls.map((sj) => (
+                      <span key={sj.id} className="group relative inline-flex items-center">
+                        <button
+                          type="button"
+                          onClick={() => setJql(sj.jql)}
+                          title={`Consulta ${sj.isPublic ? 'pública (só neste navegador)' : 'privada'} · criada por ${sj.createdBy || 'Usuário'}\n${sj.jql}`}
+                          className={cn(CHIP, 'pr-7 border-border bg-card hover:bg-accent', FOCUS_RING)}
+                        >
+                          {sj.isPublic ? <Globe className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" /> : <User className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" />}
+                          <span className="max-w-[160px] truncate">{sj.label}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); deleteJql(sj.id); toast({ title: 'JQL excluída com sucesso.' }); }}
+                          title="Excluir esta JQL salva"
+                          aria-label={`Excluir a JQL salva ${sj.label}`}
+                          className={cn('absolute right-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-60 transition-opacity hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 max-sm:opacity-100', FOCUS_RING)}
+                        >
+                          <X className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
+                        </button>
+                      </span>
+                    ))}
+                    {presets.map((preset) => (
                       <button
+                        key={preset.id}
                         type="button"
-                        onClick={() => setJql(sj.jql)}
-                        title={`Consulta ${sj.isPublic ? 'pública (só neste navegador)' : 'privada'} · criada por ${sj.createdBy || 'Usuário'}\n${sj.jql}`}
-                        className={cn(CHIP, 'pr-7 border-border bg-card hover:bg-accent', FOCUS_RING)}
+                        onClick={() => setJql(preset.jql)}
+                        className={cn(CHIP, 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
                       >
-                        {sj.isPublic ? <Globe className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" /> : <User className="h-3 w-3 shrink-0" strokeWidth={1.5} aria-hidden="true" />}
-                        <span className="max-w-[160px] truncate">{sj.label}</span>
+                        {preset.label}
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); deleteJql(sj.id); toast({ title: 'JQL excluída com sucesso.' }); }}
-                        title="Excluir esta JQL salva"
-                        aria-label={`Excluir a JQL salva ${sj.label}`}
-                        className={cn('absolute right-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground opacity-60 transition-opacity hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 max-sm:opacity-100', FOCUS_RING)}
-                      >
-                        <X className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />
-                      </button>
-                    </span>
-                  ))}
-                  {presets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => setJql(preset.jql)}
-                      className={cn(CHIP, 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
+                    ))}
+                  </div>
+                  {sharedReady && <p className="m-0 text-xs text-muted-foreground">{SQUAD_JQL_HELP.note}</p>}
                 </div>
               </div>
 
@@ -560,26 +642,25 @@ export function JiraImportDialog({
         </div>
       </Modal>
 
-      {/* Salvar a consulta JQL (fica só neste navegador) */}
+      {/* Salvar a consulta JQL: neste navegador (como sempre) ou, com o backend novo, na squad */}
       <Modal
         open={isSaveJqlOpen}
         onOpenChange={setIsSaveJqlOpen}
         size="md"
         icon={Bookmark}
         title="Salvar consulta JQL"
-        description="Dê um nome e escolha a visibilidade para reutilizar a consulta nas próximas importações."
+        description={sharedReady
+          ? 'Dê um nome e escolha onde guardar. A busca roda no seu navegador; na squad só o texto da consulta é compartilhado.'
+          : 'Dê um nome e escolha a visibilidade para reutilizar a consulta nas próximas importações.'}
         footer={
           <>
             <ModalButton onClick={() => setIsSaveJqlOpen(false)}>Cancelar</ModalButton>
             <ModalButton
               variant="primary"
-              disabled={!newJqlLabel.trim() || !jql.trim()}
-              onClick={() => {
-                saveJql({ label: newJqlLabel, jql, isPublic: newJqlIsPublic });
-                setIsSaveJqlOpen(false);
-                toast({ title: 'JQL salva com sucesso!', description: newJqlIsPublic ? 'Salva como Pública, só neste navegador.' : 'Salva como Privada.' });
-              }}
+              disabled={!newJqlLabel.trim() || !jql.trim() || !!squadFormError || savingJql}
+              onClick={() => { void handleSaveJql(); }}
             >
+              {savingJql && <Loader2 className="h-4 w-4 motion-safe:animate-spin" strokeWidth={1.5} aria-hidden="true" />}
               Salvar filtro
             </ModalButton>
           </>
@@ -597,30 +678,50 @@ export function JiraImportDialog({
             <input id="jql-name" autoFocus value={newJqlLabel} onChange={(e) => setNewJqlLabel(e.target.value)} placeholder="Ex.: Meus bugs, Sprint ativa" className={cn(FIELD, 'h-10')} />
           </div>
           <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
-            <legend className={cn(LABEL, 'mb-2 p-0')}>Visibilidade do filtro</legend>
+            <legend className={cn(LABEL, 'mb-2 p-0')}>{sharedReady ? 'Onde guardar' : 'Visibilidade do filtro'}</legend>
+            {sharedReady && <p className="m-0 text-xs font-semibold text-muted-foreground">Neste navegador</p>}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {([
-                { pub: false, icon: User, name: 'Privada', desc: JQL_VISIBILITY_HELP.private },
-                { pub: true, icon: Globe, name: 'Pública', desc: JQL_VISIBILITY_HELP.public },
-              ] as const).map((o) => {
-                const on = newJqlIsPublic === o.pub;
-                return (
-                  <button
-                    key={o.name}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => setNewJqlIsPublic(o.pub)}
-                    className={cn('flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors', on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40', FOCUS_RING)}
-                  >
-                    <span className="flex items-center gap-1.5 text-[13px] font-semibold"><o.icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />{o.name}</span>
-                    <span className="text-xs leading-snug text-muted-foreground">{o.desc}</span>
-                  </button>
-                );
-              })}
+                { dest: 'local-private', icon: User, name: 'Privada', desc: JQL_VISIBILITY_HELP.private },
+                { dest: 'local-public', icon: Globe, name: 'Pública', desc: JQL_VISIBILITY_HELP.public },
+              ] as const).map((o) => (
+                <DestinationOption key={o.dest} icon={o.icon} name={o.name} desc={o.desc} on={destination === o.dest} onClick={() => setDestination(o.dest)} />
+              ))}
             </div>
+            {sharedReady && (
+              <>
+                <p className="m-0 mt-1 text-xs font-semibold text-muted-foreground">Na squad{squadJql?.label ? ` ${squadJql.label}` : ''}</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {([
+                    { dest: 'squad', icon: Users, name: 'Da squad', desc: SQUAD_JQL_HELP.squad },
+                    { dest: 'squad-private', icon: Lock, name: 'Só minha', desc: SQUAD_JQL_HELP.private },
+                  ] as const).map((o) => (
+                    <DestinationOption key={o.dest} icon={o.icon} name={o.name} desc={o.desc} on={destination === o.dest} onClick={() => setDestination(o.dest)} />
+                  ))}
+                </div>
+              </>
+            )}
           </fieldset>
+          {(saveJqlError || (squadFormError && newJqlLabel.trim())) && (
+            <p role="alert" className="m-0 text-xs font-semibold text-red-700 dark:text-red-300">{saveJqlError || squadFormError}</p>
+          )}
         </div>
       </Modal>
     </>
+  );
+}
+
+/** Cartão de escolha de onde guardar a consulta (neste navegador ou na squad). */
+function DestinationOption({ icon: Icon, name, desc, on, onClick }: { icon: React.ElementType; name: string; desc: string; on: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={onClick}
+      className={cn('flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors', on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40', FOCUS_RING)}
+    >
+      <span className="flex items-center gap-1.5 text-[13px] font-semibold"><Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />{name}</span>
+      <span className="text-xs leading-snug text-muted-foreground">{desc}</span>
+    </button>
   );
 }

@@ -496,6 +496,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         existingKeys={tasks.map((t) => t.key)}
         squadKey={session.squadName || undefined}
         sprintId={jiraSprint?.squad === session.squadName?.trim() ? jiraSprint?.sprintId : undefined}
+        squadJql={session.squadName?.trim() ? { squadId: session.squadName.trim(), label: squadLabel(session.squadName, squadOpts) } : undefined}
       />
 
       <SessionSettingsDialog
