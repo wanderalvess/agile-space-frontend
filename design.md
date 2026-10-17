@@ -39,7 +39,7 @@ graph LR
 | **Hub / Home Bento** | `/` | `src/components/home/HeroWidget.tsx`<br>`src/components/home/BentoGrid.tsx`<br>`src/components/home/ModuleGrid.tsx` | `PublicController.java`<br>`WorkspaceController.java` |
 | **Scrum Poker** | `/room/[id]` | `src/components/poker/PokerRoom.tsx`<br>`src/components/poker/AsyncPokerRoom.tsx`<br>`src/components/poker/VotingArea.tsx` | `PokerRoom.java`<br>`PokerController.java` |
 | **Sprint Planner** | `/sprint-planner` | `src/components/planner/SprintPlannerContent.tsx`<br>`src/components/planner/PlannerGuide.tsx` | `SprintPlanningController.java`<br>`WorkItem.java` |
-| **Retrospectiva** | `/retro/[id]` | `src/components/retro/RetroBoard.tsx`<br>`src/components/retro/RetroCard.tsx`<br>`src/components/retro/RetroColumn.tsx` | `RetroBoard.java`<br>`RetroCard.java`<br>`RetroController.java` |
+| **Retrospectiva** | `/retro/[id]` | `src/components/retro/RetroRoom.tsx`<br>`src/components/retro/RetroCard.tsx`<br>`src/components/retro/RetroColumn.tsx` | `RetroBoard.java`<br>`RetroCard.java`<br>`RetroController.java` |
 | **Sprint Showcase** | `/showcase/[id]` | `src/components/showcase/TeatroMode.tsx`<br>`src/components/showcase/TaskCard.tsx`<br>`src/components/showcase/ShowcaseCover.tsx` | `ShowcaseSession.java`<br>`ShowcaseSessionController.java` |
 | **Daily Flow & Squad** | `/squad?tab=daily` | `src/components/daily-flow/DailyFlowGuide.tsx`<br>`src/app/daily-flow/SquadManagementSheet.tsx` | `SquadDaily.java`<br>`DailyFlowController.java` |
 | **Base de Conhecimento** | `/knowledge/kb` | `src/components/knowledge/GlobalSearch.tsx`<br>`src/components/knowledge/TdnImportDialog.tsx` | `KnowledgeDocument.java`<br>`KnowledgeController.java` |

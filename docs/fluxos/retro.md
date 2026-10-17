@@ -13,9 +13,9 @@ Quadro colaborativo de retrospectiva em tempo real. A equipe escreve cards em co
 
 | Tela | Caminho | O que é |
 |---|---|---|
-| Hub | `/retro` | Cria retrospectivas (guarda um atalho da sala criada no navegador, `localStorage`); não lista as retros da squad |
+| Hub (lobby) | `/retro` | Retro em andamento (criada nas últimas 24 h e sem votação encerrada), retros anteriores da squad (mais as abertas neste navegador), ações em aberto de retros passadas, formatos salvos (`localStorage`), entrar por código e **Nova retro**. Só as 8 retros mais recentes têm os cartões lidos para as contagens |
 | Quadro | `/retro/[id]` | A sessão em si (colunas, controles, chat, participantes) |
-| Modo apresentação | dentro do quadro | Tela cheia por coluna, com timer e controles do facilitador |
+| Visões | dentro do quadro | Quadro (todas as colunas), Foco (uma coluna, navegação em pílula) e Apresentar (todas as colunas, a ativa em destaque, texto maior; timer e fases do facilitador na barra; setas e Esc) |
 | Exportar | menu "⋯" do quadro | Markdown, texto TDN, CSV, PDF |
 | Importar ações pendentes | coluna de ação | Traz ações não concluídas de retros anteriores da mesma squad |
 | Histórico | dentro da visão de desempenho da squad (`SquadPerformanceView`) | Humor médio por retro, ações feitas/total, ações recorrentes |

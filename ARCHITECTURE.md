@@ -23,7 +23,7 @@ O **Portal Tech V&D** é uma aplicação **Next.js 16 (App Router, Turbopack)** 
 
 ### 🔄 Retrospectiva Inteligente (Retro Boards)
 - **Rota Principal**: `src/app/retro/page.tsx` e `src/app/retro/[id]/page.tsx`
-- **Componentes Chave**: `src/components/retro/RetroBoard.tsx`, `src/components/retro/RetroCard.tsx`, `src/components/retro/RetroColumn.tsx`, `src/components/retro/RetroHeader.tsx`, `src/components/retro/RetroMergeModal.tsx`.
+- **Componentes Chave**: `src/components/retro/RetroRoom.tsx`, `src/components/retro/RetroCard.tsx`, `src/components/retro/RetroColumn.tsx`, `src/components/retro/RetroRoomBar.tsx`, `src/components/retro/RetroControlBar.tsx`.
 - **Responsabilidade**: Cerimônia síncrona de retrospectiva com colunas configuráveis (Start/Stop/Continue, Mad/Sad/Glad, 4Ls), controle de limite de votos por participante, fusão inteligente de tópicos similares preservando o histórico integral dos textos originais (`originalTexts`), reações emoji e geração direta de itens para o Plano de Ação.
 
 ### 🎭 Sprint Showcase (Apresentação Executiva & Modo Teatro)
