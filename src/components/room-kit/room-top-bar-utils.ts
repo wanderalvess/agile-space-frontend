@@ -67,6 +67,12 @@ export function presenceLabel(stack: Pick<PresenceStackResult, 'onlineCount' | '
   return `Participantes (${onlineCount} online de ${total})`;
 }
 
+/** Texto acessível do botão de presença quando não se sabe quem está conectado: "9 participantes". */
+export function presenceCountLabel(total: number): string {
+  if (total === 0) return 'Participantes (ninguém na sala)';
+  return `Participantes (${total})`;
+}
+
 /** Camadas de ação por largura: `core` (>= 640 px), `mid` (>= 1536 px), `wide` (>= 1920 px). */
 export type TopBarTier = 'core' | 'mid' | 'wide';
 

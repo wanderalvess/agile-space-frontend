@@ -1,25 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  DndContext, 
-  DragOverlay, 
-  useDraggable, 
-  useDroppable, 
-  PointerSensor, 
-  useSensor, 
+import React, { useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  defaultDropAnimationSideEffects,
+  useDraggable,
+  useDroppable,
+  useSensor,
   useSensors,
-  DragStartEvent,
-  DragEndEvent,
-  defaultDropAnimationSideEffects
+  type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
-import { BrainstormingIdea, BrainstormingGroup } from '@/lib/types';
-import { IdeaCard } from './IdeaCard';
-import { Button } from '@/components/ui/button';
-import { Plus, Trash2, FolderPlus, GripVertical } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { FolderPlus, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { ConfirmDialog, FIELD, FOCUS_RING, IconButton, ModalButton } from '@/components/room-kit';
+import type { BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+import { groupColorOf, NO_GROUP_COLOR } from './brainstorm-room-logic';
+import { IdeaCard } from './IdeaCard';
+import { MoveToMenu, type MoveToOption } from './MoveToMenu';
+
+const UNASSIGNED = 'unassigned';
 
 interface GroupingPhaseProps {
   ideas: BrainstormingIdea[];
@@ -28,167 +31,136 @@ interface GroupingPhaseProps {
   onAddGroup: (title: string) => Promise<boolean> | boolean;
   onDeleteGroup: (id: string) => void;
   onMoveIdeaToGroup: (ideaId: string, groupId: string | null) => void;
-  isAnonymous: boolean;
-  isRevealed?: boolean;
-  currentUserId?: string;
   onVoteIdea: (id: string) => void;
 }
 
-// --- Draggable Idea Item ---
-function DraggableIdea({ idea, isAnonymous, isRevealed, currentUserId, onVote }: { idea: BrainstormingIdea, isAnonymous: boolean, isRevealed?: boolean, currentUserId?: string, onVote: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: idea.id,
-    data: { idea }
-  });
+function DraggableIdea({
+  idea,
+  options,
+  onMove,
+  onVote,
+}: {
+  idea: BrainstormingIdea;
+  options: MoveToOption[];
+  onMove: (groupId: string | null) => void;
+  onVote: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: idea.id, data: { idea } });
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
 
-  const style = transform ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-  } : undefined;
+  const current = idea.groupId ?? UNASSIGNED;
+  const moveOptions = options.map((o) => ({ ...o, current: o.id === current }));
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className={cn(
-        "relative group transition-opacity",
-        isDragging && "opacity-0"
-      )}
-    >
-      <div 
-        {...listeners} {...attributes}
-        aria-label="Arrastar ideia para outro grupo"
-        className="absolute left-2 top-2 z-10 p-1 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-slate-400 hover:text-slate-600 bg-white/50 backdrop-blur-sm rounded-md transition-all"
-      >
-        <GripVertical className="h-4 w-4" />
+    <div ref={setNodeRef} style={style} className={cn('flex items-start gap-1', isDragging && 'opacity-0')}>
+      <div className="flex shrink-0 flex-col items-center gap-0.5 pt-1">
+        <button
+          type="button"
+          {...listeners}
+          {...attributes}
+          aria-label="Arrastar a ideia para outro grupo"
+          title="Arrastar a ideia para outro grupo"
+          className={cn('flex h-8 w-7 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing max-sm:h-11 max-sm:w-9', FOCUS_RING)}
+        >
+          <GripVertical className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+        </button>
+        <MoveToMenu
+          options={moveOptions}
+          label="Mover a ideia para outro grupo"
+          menuLabel="Mover para…"
+          onSelect={(id) => onMove(id === UNASSIGNED ? null : id)}
+          className="h-8 w-7"
+        />
       </div>
-      <IdeaCard 
-        idea={idea}
-        isAnonymous={isAnonymous}
-        isRevealed={isRevealed}
-        currentUserId={currentUserId}
-        onVote={onVote}
-        className="scale-95 origin-top-left"
-      />
+      <div className="min-w-0 flex-1">
+        <IdeaCard idea={idea} onVote={onVote} />
+      </div>
     </div>
   );
 }
 
-// --- Droppable Column ---
-function GroupColumn({ 
-  group, 
-  ideas, 
-  isAnonymous,
-  isRevealed,
-  currentUserId,
+function GroupColumn({
+  group,
+  ideas,
+  options,
+  onMove,
   onVote,
-  onDelete
+  onDelete,
 }: {
-  group: BrainstormingGroup | null,
-  ideas: BrainstormingIdea[],
-  isAnonymous: boolean,
-  isRevealed?: boolean,
-  currentUserId?: string,
-  onVote: (id: string) => void,
-  onDelete?: (id: string) => void
+  group: BrainstormingGroup | null;
+  ideas: BrainstormingIdea[];
+  options: MoveToOption[];
+  onMove: (ideaId: string, groupId: string | null) => void;
+  onVote: (id: string) => void;
+  onDelete?: (group: BrainstormingGroup, count: number) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: group?.id || 'unassigned',
-  });
+  const { setNodeRef, isOver } = useDroppable({ id: group?.id ?? UNASSIGNED });
+  const title = group?.title ?? 'Sem grupo';
 
   return (
-    <div 
+    <section
       ref={setNodeRef}
+      aria-label={title}
       className={cn(
-        "flex flex-col w-[350px] min-h-[500px] rounded-[2.5rem] p-4 transition-all duration-300",
-        isOver ? "bg-amber-100/50 scale-[1.02] border-2 border-dashed border-amber-300" : "bg-white/40 border border-slate-200"
+        'flex min-h-[420px] w-[min(86vw,340px)] shrink-0 flex-col rounded-2xl border p-3 transition-colors duration-fast sm:w-[320px]',
+        isOver ? 'border-dashed border-primary bg-primary/10 dark:bg-primary/15' : 'border-border bg-card/60'
       )}
     >
-      <div className="flex items-center justify-between mb-6 px-4">
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "w-3 h-3 rounded-full",
-            group ? "bg-amber-500" : "bg-slate-300"
-          )} />
-          <h3 className="font-black text-slate-700 uppercase tracking-widest text-[11px]">
-            {group?.title || 'Sem Grupo'} 
-            <span className="ml-2 px-2 py-0.5 bg-slate-100 rounded-full text-[10px] text-slate-500 font-bold">
-              {ideas.length}
-            </span>
-          </h3>
-        </div>
+      <div className="mb-3 flex items-center gap-2 px-1">
+        <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group ? groupColorOf(group) : NO_GROUP_COLOR }} />
+        <h3 className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={title}>{title}</h3>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{ideas.length}</span>
         {group && onDelete && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50"
-            aria-label={`Apagar o grupo ${group.title}`}
-            title="Apagar grupo (as ideias voltam para Sem Grupo)"
-            onClick={() => {
-              const message = ideas.length > 0
-                ? `Apagar o grupo "${group.title}"? As ${ideas.length} ideias dele voltam para "Sem Grupo".`
-                : `Apagar o grupo "${group.title}"?`;
-              if (window.confirm(message)) onDelete(group.id);
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <IconButton
+            size="sm"
+            label={`Apagar o grupo ${group.title}`}
+            icon={Trash2}
+            onClick={() => onDelete(group, ideas.length)}
+            className="border-transparent text-muted-foreground hover:text-red-700 dark:hover:text-red-300 max-sm:h-11 max-sm:w-11"
+          />
         )}
       </div>
 
-      <div className="flex-1 flex flex-col gap-4 overflow-y-auto scrollbar-thin px-1">
-        <AnimatePresence>
-          {ideas.map((idea) => (
-            <motion.div
-              key={idea.id}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              layout
-            >
-              <DraggableIdea idea={idea} isAnonymous={isAnonymous} isRevealed={isRevealed} currentUserId={currentUserId} onVote={onVote} />
-            </motion.div>
-          ))}
-          {ideas.length === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200/50 rounded-[2rem] min-h-[150px] text-slate-300 text-[10px] font-black uppercase tracking-widest italic text-center p-6">
-               <Plus className="h-6 w-6 mb-2 opacity-20" />
-               Arraste ideias aqui para classificar
-            </div>
-          )}
-        </AnimatePresence>
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {ideas.map((idea) => (
+          <DraggableIdea key={idea.id} idea={idea} options={options} onMove={(groupId) => onMove(idea.id, groupId)} onVote={onVote} />
+        ))}
+        {ideas.length === 0 && (
+          <div className="flex min-h-[140px] flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
+            <Plus className="h-5 w-5 opacity-60" strokeWidth={1.5} aria-hidden="true" />
+            {isOver ? 'Solte aqui para mover' : 'Arraste ideias aqui para classificar'}
+          </div>
+        )}
+        {ideas.length > 0 && isOver && <div className="rounded-xl border border-dashed border-primary/60 py-3 text-center text-[13px] text-muted-foreground">Solte aqui para mover</div>}
       </div>
-    </div>
+    </section>
   );
 }
 
-export function GroupingPhase({
-  ideas,
-  groups,
-  onAddGroup,
-  onDeleteGroup,
-  onMoveIdeaToGroup,
-  isAnonymous,
-  isRevealed,
-  currentUserId,
-  onVoteIdea
-}: GroupingPhaseProps) {
+/**
+ * Etapa 3, Grupos: colunas por grupo, com "Sem grupo" à esquerda. Criar grupo, arrastar a ideia pela alça (ou
+ * escolher "Mover para…", que também serve ao toque e ao teclado) e apagar o grupo (as ideias voltam para "Sem grupo").
+ */
+export function GroupingPhase({ ideas, groups, onAddGroup, onDeleteGroup, onMoveIdeaToGroup, onVoteIdea }: GroupingPhaseProps) {
   const [activeIdea, setActiveIdea] = useState<BrainstormingIdea | null>(null);
   const [newGroupTitle, setNewGroupTitle] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [toDelete, setToDelete] = useState<{ group: BrainstormingGroup; count: number } | null>(null);
 
   const submitGroup = async () => {
     const title = newGroupTitle.trim();
-    if (!title) return;
-    const saved = await onAddGroup(title);
-    // só limpa se criou: se falhar, o nome digitado continua no campo
-    if (saved !== false) setNewGroupTitle('');
+    if (!title || creating) return;
+    setCreating(true);
+    try {
+      const saved = await onAddGroup(title);
+      // só limpa se criou: se falhar, o nome digitado continua no campo
+      if (saved !== false) setNewGroupTitle('');
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor));
 
   const handleDragStart = (event: DragStartEvent) => {
     const { idea } = event.active.data.current as { idea: BrainstormingIdea };
@@ -198,104 +170,85 @@ export function GroupingPhase({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveIdea(null);
-
-    if (over) {
-      const ideaId = active.id as string;
-      const groupId = over.id === 'unassigned' ? null : over.id as string;
-      onMoveIdeaToGroup(ideaId, groupId);
-    }
+    if (over) onMoveIdeaToGroup(active.id as string, over.id === UNASSIGNED ? null : (over.id as string));
   };
 
-  const currentGroups = [
-    { id: 'unassigned', title: 'Sem Grupo', ideas: ideas.filter(i => !i.groupId) },
-    ...groups.map(g => ({
-      ...g,
-      ideas: ideas.filter(i => i.groupId === g.id)
-    }))
+  const options = useMemo<MoveToOption[]>(
+    () => [{ id: UNASSIGNED, label: 'Sem grupo', color: NO_GROUP_COLOR }, ...groups.map((g) => ({ id: g.id, label: g.title, color: groupColorOf(g) }))],
+    [groups]
+  );
+
+  const columns = [
+    { group: null as BrainstormingGroup | null, ideas: ideas.filter((i) => !i.groupId) },
+    ...groups.map((g) => ({ group: g as BrainstormingGroup | null, ideas: ideas.filter((i) => i.groupId === g.id) })),
   ];
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden">
-      {/* Header Bar */}
-      <div className="px-8 pt-8 pb-4 flex items-center justify-between shrink-0">
+    <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Classificação</h2>
-          <p className="text-slate-500 text-sm">Organize as ideias em grupos lógicos.</p>
+          <h2 className="m-0 text-xl font-bold text-foreground">Grupos</h2>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">Organize as ideias em grupos lógicos. Arraste pela alça ou use &ldquo;Mover para&rdquo;.</p>
         </div>
-        
-        <div className="flex items-center gap-3">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition-opacity" />
-            <div className="relative flex gap-2 p-1 bg-white rounded-2xl shadow-sm border border-slate-100">
-               <Input 
-                placeholder="Nome da categoria..."
-                value={newGroupTitle}
-                onChange={(e) => setNewGroupTitle(e.target.value)}
-                className="w-64 border-none focus-visible:ring-0 shadow-none bg-transparent font-medium"
-                aria-label="Nome do novo grupo"
-                maxLength={255}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') submitGroup();
-                }}
-              />
-              <Button 
-                size="sm"
-                className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold h-9"
-                onClick={submitGroup}
-              >
-                <FolderPlus className="mr-2 h-4 w-4" />
-                Criar Grupo
-              </Button>
-            </div>
-          </div>
-        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitGroup();
+          }}
+          className="flex w-full items-center gap-2 sm:w-auto"
+        >
+          <input
+            value={newGroupTitle}
+            onChange={(e) => setNewGroupTitle(e.target.value)}
+            placeholder="Nome do novo grupo"
+            aria-label="Nome do novo grupo"
+            maxLength={255}
+            className={cn(FIELD, 'h-11 min-w-0 flex-1 sm:w-64 sm:flex-none')}
+          />
+          <ModalButton type="submit" variant="primary" className="h-11 shrink-0 gap-2" disabled={!newGroupTitle.trim() || creating}>
+            <FolderPlus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar grupo
+          </ModalButton>
+        </form>
       </div>
 
-      <DndContext 
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex-1 overflow-x-auto overflow-y-hidden px-8 pb-8 pt-4">
-          <div className="flex gap-8 h-full min-w-max pb-4">
-            {currentGroups.map((group) => (
-              <GroupColumn 
-                key={group.id}
-                group={group.id === 'unassigned' ? null : group as BrainstormingGroup}
-                ideas={group.ideas}
-                isAnonymous={isAnonymous}
-                isRevealed={isRevealed}
-                currentUserId={currentUserId}
-                onVote={onVoteIdea}
-                onDelete={group.id !== 'unassigned' ? onDeleteGroup : undefined}
-              />
-            ))}
-          </div>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="flex snap-x gap-4 overflow-x-auto pb-3 sm:snap-none">
+          {columns.map(({ group, ideas: columnIdeas }) => (
+            <GroupColumn
+              key={group?.id ?? UNASSIGNED}
+              group={group}
+              ideas={columnIdeas}
+              options={options}
+              onMove={onMoveIdeaToGroup}
+              onVote={onVoteIdea}
+              onDelete={group ? (g, count) => setToDelete({ group: g, count }) : undefined}
+            />
+          ))}
         </div>
+        {groups.length > 1 && <p className="m-0 text-center text-xs text-muted-foreground sm:hidden">Role para os lados para ver mais grupos.</p>}
 
-        <DragOverlay dropAnimation={{
-           sideEffects: defaultDropAnimationSideEffects({
-            styles: {
-              active: {
-                opacity: '0.5',
-              },
-            },
-          }),
-        }}>
+        <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.5' } } }) }}>
           {activeIdea ? (
-            <div className="opacity-90 scale-105 pointer-events-none rotate-3">
-              <IdeaCard 
-                idea={activeIdea}
-                isAnonymous={isAnonymous}
-                isRevealed={isRevealed}
-                currentUserId={currentUserId}
-                onVote={() => {}}  
-                className="shadow-3xl border-2 border-amber-400"
-              />
+            <div className="pointer-events-none w-[300px] rotate-2 opacity-90">
+              <IdeaCard idea={activeIdea} className="border-primary shadow-2xl" />
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(next) => { if (!next) setToDelete(null); }}
+        tone="danger"
+        icon={Trash2}
+        title={`Apagar o grupo "${toDelete?.group.title ?? ''}"?`}
+        description={toDelete && toDelete.count > 0 ? `${toDelete.count === 1 ? 'A ideia dele volta' : `As ${toDelete.count} ideias dele voltam`} para "Sem grupo".` : 'O grupo está vazio.'}
+        cancelLabel="Cancelar"
+        confirmLabel="Apagar grupo"
+        onConfirm={() => {
+          if (toDelete) onDeleteGroup(toDelete.group.id);
+        }}
+      />
     </div>
   );
 }

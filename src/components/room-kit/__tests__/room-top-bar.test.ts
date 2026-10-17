@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeRoomTitle, pendingTiers, presenceLabel, presenceMaxAvatars, presenceStack, type TopBarPerson } from '../room-top-bar-utils';
+import { normalizeRoomTitle, pendingTiers, presenceCountLabel, presenceLabel, presenceMaxAvatars, presenceStack, type TopBarPerson } from '../room-top-bar-utils';
 
 const person = (id: string, online: boolean): TopBarPerson => ({ id, name: `Pessoa ${id}`, online });
 
@@ -64,5 +64,13 @@ describe('pendingTiers', () => {
 
   it('contagem zero não conta como pendente', () => {
     expect(pendingTiers([{ badge: 0 }, { badge: undefined }])).toEqual({ core: false, mid: false, wide: false });
+  });
+});
+
+describe('presença sem dado de conexão', () => {
+  it('texto de quem entrou na sala, sem falar em online', () => {
+    expect(presenceCountLabel(0)).toBe('Participantes (ninguém na sala)');
+    expect(presenceCountLabel(1)).toBe('Participantes (1)');
+    expect(presenceCountLabel(9)).toBe('Participantes (9)');
   });
 });

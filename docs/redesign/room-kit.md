@@ -43,3 +43,13 @@ Ver `docs/redesign/health-check.md`. `HealthRoomShell` monta o `RoomTopBar` (Vot
 - Nos arquivos de teste os imports e os `vi.mock` usam caminho relativo: o alias `@/` não resolve a partir de `__tests__`.
 - O `DropdownMenu` do Radix trava o jsdom ao abrir (mesmo isolado). Nos testes da sala ele é trocado por uma lista simples (ver `RetroRoom.test.tsx`); o `Select` do Radix também (um `<select>` nativo faz o papel).
 - jsdom não traz `matchMedia` nem `ResizeObserver`: o teste cria os dois.
+
+## Como o Brainstorming usa o kit
+
+- Hub (`/brainstorming`): `BrainstormLobbyView` no `PageShell` (começar, última sessão, Como funciona com as cinco etapas reais, dicas e a lista da squad). A lista vem de `listBoards` e o histórico (`ritualsApi.history('BRAINSTORMING')`) dá ideias e pessoas. O campo de entrada aceita o ID ou o link inteiro (`readRoomCode`, em `lib/brainstorming-lobby.ts`; UUID volta em minúsculas). `CreateBrainstormDialog` é um `Modal` com squad fixa/do vínculo e os ajustes do facilitador (anônimo, ocultar ideias, duração).
+- Sala (`/brainstorming/[id]`): a página cuida dos dados e do WebSocket; `BrainstormRoom` desenha com `RoomTopBar` (`BrainstormRoomBar`: cinco etapas, `RoomTimer` com `presets` de 1 a 20 min, presença `unknown`), `StageNav` (travado para quem não é facilitador), `ResponsivePanel` + `PresenceList`, `ShareDialog`, `GuideSheet`, `ExportDialogShell` e `ConfirmDialog` nas exclusões.
+- Etapas: `MuralPhase`, `DiagramPhase` (Teia, React Flow), `GroupingPhase` (dnd-kit + `MoveToMenu`), `PrioritizationPhase` (Matriz: arrastar do navegador + `MoveToMenu`) e `ActionsPhase` (+ `CreatePlanDialog`, com prévia e trava local de duplicidade).
+- `IdeaCard` lê autor e cobertura por contexto (`brainstorm-context.tsx`): o texto some para quem não é autor nem facilitador quando as ideias estão ocultas.
+- Regras sem tela (testadas): `brainstorm-room-logic.ts`, `brainstorm-plan.ts`, `brainstorm-export.ts`.
+- O pedido de imagem (PNG) é um número que a sala incrementa (`useExportRequest`): a etapa nunca baixa um PNG antigo ao ser montada.
+- Mudanças aditivas no kit: `PresenceItem.online` opcional e `presence.unknown` no `RoomTopBar` (sem ponto verde quando o servidor não informa presença), `RoomTimer.presets`, `connectRoomSocket({ onClose })`.
