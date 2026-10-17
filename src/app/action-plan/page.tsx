@@ -1,285 +1,195 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  ListChecks,
-  CheckCircle2,
-  Clock,
-  User,
-  Zap,
-  Target,
-  Sparkles,
-  ArrowRightIcon
-} from 'lucide-react';
 import { actionPlanApi } from './api';
-import { useToast } from '@/hooks/use-toast';
-import { errorMessage } from '@/lib/ceremony-api';
+import { ActionPlanLobbyView, type LatestPlan } from '@/components/action-plan/ActionPlanLobbyView';
+import { NewPlanDialog, type NewPlanValues } from '@/components/action-plan/NewPlanDialog';
 import { useUserContext } from '@/context/UserContext';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
-import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { useToolHistory } from '@/hooks/useToolHistory';
+import { mergePlanRows, planPath, summarizeTasks, type TaskSummary } from '@/lib/action-plan';
+import { errorMessage } from '@/lib/ceremony-api';
+import type { ActionPlanBoard } from '@/lib/types';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
 
+/** Lê um parâmetro da URL (o ciclo da sprint abre o hub com ?squad= e ?sprintId=); no servidor não há URL. */
+function readQueryParam(name: string): string {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get(name) ?? '';
+}
+
+const timeOf = (iso: string) => {
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? 0 : t;
+};
+
+/** Hub do Plano de ação (`/action-plan`): busca os planos da squad e liga os callbacks da tela. */
 export default function ActionPlanHubPage() {
   const router = useRouter();
-  const { toast } = useToast();
   const { userProfile, requestIdentity } = useUserContext();
-  const { squadId: activeSquadId } = useActiveSquad();
+  const { squadId: activeSquadId, squadName } = useActiveSquad();
+  const { memberships } = useMyMemberships();
+  const { history } = useToolHistory('action_plan');
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [title, setTitle] = useState('');
-  const [team, setTeam] = useState('');
-  const [sprintId, setSprintId] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
+  // O ciclo da sprint abre o hub com ?squad= e ?sprintId= (lib/sprintCycleNav.ts)
+  const [urlSquad] = useState(() => readQueryParam('squad'));
+  const [urlSprint] = useState(() => readQueryParam('sprintId'));
 
-  // Preenche o squad com o time do usuário assim que o perfil carregar (chega
-  // async) — só enquanto o campo estiver vazio, para não sobrescrever nem uma
-  // edição manual nem um valor já preenchido pela querystring (?squad=).
+  // O resultado guarda de qual squad é: trocar de squad volta para "carregando" sem limpar nada no efeito.
+  const [result, setResult] = useState<{ squadId: string; boards: ActionPlanBoard[]; failed: boolean } | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  const [latestSummary, setLatestSummary] = useState<{ id: string; summary: TaskSummary } | null>(null);
+
   useEffect(() => {
-    if (team) return;
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const squadParam = urlParams.get('squad');
-      if (squadParam) {
-        setTeam(squadParam);
-        return;
-      }
-    }
-    if (activeSquadId) setTeam(activeSquadId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSquadId]);
+    if (!activeSquadId) return;
+    let alive = true;
+    actionPlanApi
+      .listBoardsBySquad(activeSquadId)
+      .then((list) => {
+        if (alive) setResult({ squadId: activeSquadId, boards: [...list].sort((a, b) => timeOf(b.createdAt) - timeOf(a.createdAt)), failed: false });
+      })
+      .catch((e) => {
+        console.error('[action-plan] falha ao listar os planos da squad', e);
+        if (alive) setResult({ squadId: activeSquadId, boards: [], failed: true });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [activeSquadId, reloadTick]);
 
-  // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
-  // pra ligar o plano novo à sprint já em andamento no restante do ciclo.
+  const current = result && result.squadId === activeSquadId ? result : null;
+  const boards = useMemo(() => current?.boards ?? [], [current]);
+  const loading = !!activeSquadId && !current;
+  const failed = !!current?.failed;
+  const retry = () => {
+    setResult(null);
+    setReloadTick((t) => t + 1);
+  };
+
+  // A lista não traz as ações: só o último plano ganha a contagem, com uma leitura própria.
+  const latestId = boards[0]?.id;
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const urlParams = new URLSearchParams(window.location.search);
-    const sprintIdParam = urlParams.get('sprintId');
-    if (sprintIdParam) setSprintId(sprintIdParam);
-  }, []);
+    if (!latestId) return;
+    let alive = true;
+    actionPlanApi
+      .listTasks(latestId)
+      .then((tasks) => alive && setLatestSummary({ id: latestId, summary: summarizeTasks(tasks) }))
+      .catch(() => { /* o cartão segue sem a contagem */ });
+    return () => {
+      alive = false;
+    };
+  }, [latestId]);
 
-  const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
+  const rows = useMemo(
+    () => mergePlanRows(boards, history.map((h) => ({ roomId: h.roomId, title: h.title, createdAt: h.createdAt }))),
+    [boards, history],
+  );
+
+  const latest: LatestPlan | null = useMemo(() => {
+    const first = boards[0];
+    if (!first) return null;
+    const row = rows.find((r) => r.id === first.id);
+    if (!row) return null;
+    return { row, summary: latestSummary?.id === first.id ? latestSummary.summary : null };
+  }, [boards, rows, latestSummary]);
+
+  const squads = useMemo(() => {
+    const list = memberships?.memberships.map((m) => ({ id: m.projectId, name: m.projectName || m.projectId })) ?? [];
+    if (list.length === 0 && activeSquadId) return [{ id: activeSquadId, name: squadName || activeSquadId }];
+    return list;
+  }, [memberships, activeSquadId, squadName]);
+
+  const saveRoomMeta = (id: string, title: string, team: string) => {
     try {
       const saved = localStorage.getItem(ROOMS_META_KEY);
       const rooms = saved ? JSON.parse(saved) : [];
-      const newMeta = {
-        roomId: id,
-        type,
-        title,
-        team,
-        createdBy: userProfile?.id,
-        createdAt: new Date().toISOString()
-      };
+      const newMeta = { roomId: id, type: 'action_plan', title, team, createdBy: userProfile?.id, createdAt: new Date().toISOString() };
       localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
     } catch (e) {
-      console.error("Erro ao salvar metadados da sala", e);
+      console.error('Erro ao salvar metadados da sala', e);
     }
   };
 
-  const handleCreate = async () => {
+  const handleNew = () => {
+    setCreateError(null);
+    if (!userProfile) {
+      requestIdentity(() => setIsSetupOpen(true));
+    } else {
+      setIsSetupOpen(true);
+    }
+  };
+
+  const handleCreate = async (values: NewPlanValues) => {
     if (isCreating) return;
-
     if (!userProfile || !userProfile.id) {
-      console.error("[action-plan] Criar plano abortado: usuário sem ID.");
-      toast({
-        title: "Perfil Não Identificado",
-        description: "Não foi possível identificar seu perfil.",
-        variant: "destructive"
-      });
+      console.error('[action-plan] Criar plano abortado: usuário sem ID.');
+      setCreateError('Não foi possível identificar seu perfil.');
       return;
     }
-
-    if (!title.trim()) {
-      toast({
-        title: "Título Obrigatório",
-        description: "Dê um nome ao seu plano de ação.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsCreating(true);
-
-    const newPlan = {
-      title: title.trim(),
-      team: team.trim() || 'Squad Geral',
-      sprintId: sprintId || undefined,
-      settings: { isPublic: true },
-      participantIds: [userProfile.id]
-    };
-
+    setCreateError(null);
     try {
-      const doc = await actionPlanApi.createBoard(newPlan);
+      // O servidor só liga o plano à squad pelo ID: `squadId` e `team` levam o mesmo valor. Criador, id e datas
+      // são definidos por ele a partir do login.
+      const doc = await actionPlanApi.createBoard({
+        title: values.title,
+        team: values.squadId || 'Squad Geral',
+        squadId: values.squadId || undefined,
+        sprintId: values.sprintId || undefined,
+        isPublic: !values.isPrivate,
+        participantIds: [userProfile.id],
+      });
       if (doc) {
-        saveRoomMeta(doc.id, 'action_plan', title.trim(), team.trim() || 'Squad');
+        const name = squads.find((s) => s.id === values.squadId)?.name ?? (values.squadId || 'Squad');
+        saveRoomMeta(doc.id, values.title, name);
         setIsSetupOpen(false);
-        router.push(`/action-plan/${doc.id}`);
+        router.push(planPath(doc.id));
       } else {
         setIsCreating(false);
       }
     } catch (error) {
-      console.error("Error creating action plan: ", error);
+      console.error('Error creating action plan: ', error);
       setIsCreating(false);
-      toast({
-        title: "Erro na Criação",
-        description: errorMessage(error, "Não foi possível iniciar a sessão no momento."),
-        variant: "destructive"
-      });
+      setCreateError(errorMessage(error, 'Confira a conexão e tente de novo.'));
     }
   };
 
-  const tips = [
-    {
-      title: "Clareza Acima de Tudo",
-      description: "Um bom plano de ação não deixa margem para dúvidas. A Matriz 5W2H força o detalhamento essencial.",
-      icon: <Target className="text-fuchsia-500" />
-    },
-    {
-      title: "Responsabilidade Única",
-      description: "Cada ação deve ter um e apenas um dono claro (Who). Se é de todo mundo, não é de ninguém.",
-      icon: <User className="text-fuchsia-500" />
-    },
-    {
-      title: "Prazos Realistas",
-      description: "Defina datas (When) que sejam alcançáveis para manter a motivação e credibilidade do time.",
-      icon: <Clock className="text-fuchsia-500" />
-    }
-  ];
-
-  const referenceSections = [
-    {
-      title: "What (O quê)",
-      label: "Ação",
-      description: "O que será feito? Descreva a tarefa de forma clara, preferencialmente começando com um verbo de ação.",
-      icon: <Target />
-    },
-    {
-      title: "Why (Por quê)",
-      label: "Justificativa",
-      description: "Qual o propósito dessa ação? Se não há um bom 'Por quê', talvez a ação não devesse existir.",
-      icon: <Zap />
-    },
-    {
-      title: "Where (Onde)",
-      label: "Local",
-      description: "Onde será feito? (Ex: Ambiente de Produção, Sistema XPTO, Módulo de Vendas).",
-      icon: <ListChecks />
-    },
-    {
-      title: "When (Quando)",
-      label: "Prazo",
-      description: "Qual o cronograma ou data limite para conclusão? É crucial para manter o ritmo.",
-      icon: <Clock />
-    },
-    {
-      title: "Who (Quem)",
-      label: "Responsável",
-      description: "Quem é a pessoa focal responsável por garantir que essa ação aconteça?",
-      icon: <User />
-    },
-    {
-      title: "How (Como)",
-      label: "Método",
-      description: "Quais os passos ou método para realizar a ação? Um mini-guia de execução.",
-      icon: <Sparkles />
-    },
-    {
-      title: "How Much (Quanto)",
-      label: "Custo/Esforço",
-      description: "Qual o custo financeiro ou esforço estimado (em horas ou story points)?",
-      icon: <CheckCircle2 />
-    }
-  ];
-
   return (
-    <>
-      <ToolHubLayout
-        module="action-plan"
-        title="Plano de Ação (5W2H)"
-        description="Estruture a execução de qualquer projeto ou demanda. Transforme ideias em tarefas detalhadas, com donos e prazos claros."
-        icon={<ListChecks />}
-        themeColor="fuchsia"
-        // FLAG: o union toolType (RoomMeta['type'] em src/lib/types.ts) não inclui 'action_plan'.
-        // Cast mantém o valor 'action_plan' em runtime (usado como chave de histórico em ToolHubLayout),
-        // preservando o comportamento. Correção definitiva: adicionar 'action_plan' a RoomMeta['type']
-        // (arquivo fora do escopo permitido).
-        toolType={'action_plan' as unknown as React.ComponentProps<typeof ToolHubLayout>['toolType']}
-        tips={tips}
-        referenceSections={referenceSections}
-        onNewSession={() => {
-          if (!userProfile) {
-            requestIdentity(() => setIsSetupOpen(true));
-          } else {
-            setIsSetupOpen(true);
-          }
-        }}
-        onJoinSession={(id) => router.push(`/action-plan/${id}`)}
-        isCreating={isCreating}
-      />
-
-      <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl">
-          <DialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-fuchsia-500 flex items-center justify-center mb-4 shadow-lg shadow-fuchsia-500/20 text-white">
-               <Sparkles className="h-6 w-6" />
-            </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-none">Criar Plano de Ação</DialogTitle>
-            <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-2">Configure o título da sua Matriz 5W2H</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-6">
-            <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Título do Plano</Label>
-              <Input 
-                placeholder="Ex: Execução do Novo Checkout" 
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="h-12 rounded-xl border-border focus:border-fuchsia-500 font-bold"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Squad / Time (Opcional)</Label>
-              <Input 
-                placeholder="Ex: Squad de Pagamentos" 
-                value={team}
-                onChange={e => setTeam(e.target.value)}
-                className="h-12 rounded-xl border-border focus:border-fuchsia-500 font-bold"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="pt-4 border-t border-border flex-col gap-3">
-             <Button 
-               disabled={isCreating}
-               onClick={handleCreate}
-               className="w-full h-14 bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-xl shadow-fuchsia-500/10 gap-3"
-             >
-               {isCreating ? 'Preparando...' : 'Iniciar Matriz'}
-               <ArrowRightIcon className="h-4 w-4" />
-             </Button>
-             <Button
-               type="button"
-               variant="ghost"
-               onClick={() => setIsSetupOpen(false)}
-               className="h-auto px-2 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-muted-foreground"
-             >
-                Talvez depois
-             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+    <ActionPlanLobbyView
+      hasSquad={!!activeSquadId}
+      rows={rows}
+      loading={loading}
+      failed={failed}
+      onRetry={retry}
+      latest={latest}
+      isCreating={isCreating}
+      onNew={handleNew}
+      onOpen={(id) => router.push(planPath(id))}
+      onSquads={() => router.push('/workspace')}
+    >
+      {isSetupOpen && (
+        <NewPlanDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsSetupOpen(false);
+              setCreateError(null);
+            }
+          }}
+          squads={squads}
+          defaultSquadId={urlSquad || activeSquadId}
+          initialSprintId={urlSprint}
+          busy={isCreating}
+          error={createError}
+          onSubmit={handleCreate}
+        />
+      )}
+    </ActionPlanLobbyView>
   );
 }
