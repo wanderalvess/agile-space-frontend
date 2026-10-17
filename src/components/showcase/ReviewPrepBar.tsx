@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, ChevronDown, CloudDownload, FileText, Filter, Loader2, Plus, RefreshCw, Check, TrendingUp, WifiOff } from 'lucide-react';
+import { AlertTriangle, ChevronDown, CloudDownload, FileText, Filter, Loader2, Plus, RefreshCw, Check, TrendingUp, Users, WifiOff } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { FOCUS_RING, OUTLINE_BUTTON } from '@/components/room-kit';
@@ -17,6 +17,8 @@ export interface ReviewPrepBarProps {
   sessionTotal: number;
   effort: { spentLabel: string; estimateLabel: string };
   connection: RoomConnection;
+  /** Quantas pessoas têm a Review aberta agora; `null`/ausente = o servidor não informa (sem chip). */
+  onlineCount?: number | null;
   saveState: SaveState;
   onToggleTaskStatus: (taskId: string, markAsDone: boolean) => void;
   onAddManualTask: (kind: CardKind) => void;
@@ -116,13 +118,18 @@ function Readiness({ readiness, isFiltered, sessionTotal, onToggleTaskStatus }: 
 }
 
 /** Conexão com a sala e gravação, os dois estados que o código já conhecia e a tela não mostrava. */
-export function SyncIndicator({ connection, saveState, onRetrySave }: Pick<ReviewPrepBarProps, 'connection' | 'saveState' | 'onRetrySave'>) {
+export function SyncIndicator({ connection, saveState, onRetrySave, onlineCount = null }: Pick<ReviewPrepBarProps, 'connection' | 'saveState' | 'onRetrySave' | 'onlineCount'>) {
   const chip = 'inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold whitespace-nowrap';
   return (
     <div className="flex flex-wrap items-center gap-2" role="status" aria-live="polite">
       {connection.state === 'live' && (
         <span className={cn(chip, 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300')} title="Conectado: as alterações dos outros chegam na hora">
           <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" /> Conectado
+        </span>
+      )}
+      {connection.state === 'live' && onlineCount !== null && onlineCount > 0 && (
+        <span className={cn(chip, 'bg-muted text-muted-foreground')} title="Pessoas com esta Review aberta agora">
+          <Users className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> {onlineCount} {onlineCount === 1 ? 'pessoa online' : 'pessoas online'}
         </span>
       )}
       {connection.state === 'connecting' && (
@@ -206,7 +213,7 @@ export function ReviewPrepBar(p: ReviewPrepBarProps) {
         </span>
       </div>
       <span className="hidden flex-1 sm:block" />
-      <SyncIndicator connection={p.connection} saveState={p.saveState} onRetrySave={p.onRetrySave} />
+      <SyncIndicator connection={p.connection} saveState={p.saveState} onRetrySave={p.onRetrySave} onlineCount={p.onlineCount} />
       <AddCardsMenu onOpenJira={p.onOpenJira} onAddManualTask={p.onAddManualTask} />
     </div>
   );

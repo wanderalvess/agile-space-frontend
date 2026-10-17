@@ -10,6 +10,8 @@ import type { JiraIssue } from '@/services/jiraService';
 import type { CardKind, ShowcaseSession, ShowcaseTask } from './types';
 import { appendUnique, buildManualTask, newIssueKeys, nextManualKey, normalizeSession, syncsToWorkItems, workItemSquad, workItemStatusFor } from './session-model';
 import { makeTask } from './utils';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
+import { createPresenceSession, withPresenceParam } from '@/lib/room-presence';
 
 /** Alteração local pendente: reaplicada sobre a versão mais recente do servidor antes de gravar. */
 export type Mutator = (s: ShowcaseSession) => ShowcaseSession;
@@ -50,6 +52,9 @@ export function useShowcaseRoom(id: string) {
   const [loadError, setLoadError] = useState<'notfound' | 'error' | null>(null);
   const [connection, setConnection] = useState<RoomConnection>({ state: 'connecting' });
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  // Quem está com a Review aberta agora (null = o servidor não informa; a tela não mostra contagem).
+  const presence = useRoomPresence({ module: 'showcase', roomId: id });
+  const presenceBindings = presence.bindings;
 
   const isMounted = useRef(false);
   const reloadSeqRef = useRef(0);
@@ -168,10 +173,16 @@ export function useShowcaseRoom(id: string) {
     let socket: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
+    // `PRESENCE_UPDATED` é consumido aqui; o `else` abaixo recarregaria a Review inteira a cada entrada/saída.
+    const presenceSession = createPresenceSession({
+      onPresence: presenceBindings.onPresence,
+      onMissing: presenceBindings.onPresenceMissing,
+    });
 
     const handleMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        if (presenceSession.handle(data)) return;
         if (data.type === 'SESSION_UPDATED' && data.payload) {
           // Enquanto há salvamento local em andamento o resultado do POST é a verdade mais recente.
           if (flushingRef.current || pendingRef.current.length > 0) return;
@@ -191,10 +202,12 @@ export function useShowcaseRoom(id: string) {
 
     const connect = () => {
       if (disposed) return;
-      const ws = new WebSocket(showcaseApi.getWebSocketUrl(id));
+      presenceSession.start(false);
+      const ws = new WebSocket(withPresenceParam(showcaseApi.getWebSocketUrl(id)));
       socket = ws;
       // Ao (re)conectar, ressincroniza: o que mudou enquanto o socket estava fora não chega por evento.
       ws.onopen = () => {
+        presenceSession.start(true);
         attempt = 0;
         if (!disposed) setConnection({ state: 'live' });
         void reloadSession();
@@ -202,6 +215,7 @@ export function useShowcaseRoom(id: string) {
       ws.onmessage = handleMessage;
       ws.onerror = () => ws.close();
       ws.onclose = () => {
+        presenceSession.stop();
         if (disposed) return;
         const delay = Math.min(30_000, 1_000 * 2 ** attempt++);
         setConnection({ state: attempt >= OFFLINE_AFTER_ATTEMPTS ? 'offline' : 'reconnecting', retryInSec: Math.round(delay / 1000) });
@@ -219,11 +233,12 @@ export function useShowcaseRoom(id: string) {
 
     return () => {
       disposed = true;
+      presenceSession.stop();
       document.removeEventListener('visibilitychange', handleVisibility);
       if (retryTimer) clearTimeout(retryTimer);
       socket?.close();
     };
-  }, [id, reloadSession, setSession]);
+  }, [id, reloadSession, setSession, presenceBindings]);
 
   const persist = useCallback(
     (updates: Partial<ShowcaseSession>) => mutate((s) => ({ ...s, ...updates })),
@@ -321,6 +336,8 @@ export function useShowcaseRoom(id: string) {
     loading,
     loadError,
     connection,
+    /** Contas com esta Review aberta agora; `null` = o servidor não informa. */
+    onlineIds: presence.online,
     saveState,
     reload,
     retryLoad,

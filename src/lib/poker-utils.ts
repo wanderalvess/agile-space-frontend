@@ -339,6 +339,20 @@ export function isParticipantOnline(participant: { lastSeen?: string }, nowMs: n
 }
 
 /**
+ * Online agora, com a melhor fonte disponível: se o servidor informa quem tem a sala aberta (`socketOnline`,
+ * presença do WebSocket), ela manda (a saída aparece em segundos); sem ela (backend antigo, ainda sem snapshot)
+ * vale o heartbeat de `lastSeen`, como sempre foi.
+ */
+export function isParticipantPresent(
+  participant: { id: string; lastSeen?: string },
+  nowMs: number,
+  socketOnline?: ReadonlySet<string> | null,
+): boolean {
+  if (socketOnline) return socketOnline.has(participant.id);
+  return isParticipantOnline(participant, nowMs);
+}
+
+/**
  * Fonte única de verdade para "este participante pode votar?".
  * Espectador nunca vota; gestão só vota se o facilitador liberar.
  * Usado tanto pelo gate do Controls quanto pelo denominador de progresso,

@@ -66,7 +66,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const { toast } = useToast();
 
   const room = useShowcaseRoom(id);
-  const { session, loading, loadError, connection, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad } = room;
+  const { session, loading, loadError, connection, onlineIds, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad } = room;
 
   const [isPresenting, setIsPresenting] = useState(false);
   const [currentIndex, setCurrentIndexState] = useState(-1);
@@ -385,6 +385,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               sessionTotal={tasks.length}
               effort={effort}
               connection={connection}
+              onlineCount={onlineIds ? onlineIds.size : null}
               saveState={saveState}
               onToggleTaskStatus={(taskId, markAsDone) => { void updateTask(taskId, { preparationStatus: markAsDone ? 'done' : 'todo' }); }}
               onAddManualTask={addManualTask}

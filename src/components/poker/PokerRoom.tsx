@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Participant, DeckType, Vote, VotingRound, TimerState, Role, Issue, Room } from '@/lib/types';
-import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantOnline, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
+import { calculateRoleEfforts, buildDefaultSettingsPatch, getParticipantCategory, checkConsensus, canParticipantVote, TECHNICAL_CATEGORIES, isParticipantPresent, getEligibleStatsVotes, resolveTshirtHours, computeSessionBreakdown, computeTopicTiming, roundEstimate, resolveRoundingMode } from '@/lib/poker-utils';
 import { summarizeRound, divergenceLabel } from '@/lib/poker-results';
 import { plainSnippet } from '@/lib/poker-table';
 import { ParticipantList } from '@/components/poker/ParticipantList';
@@ -47,6 +47,8 @@ interface PokerRoomProps {
   roomId: string;
   currentUser: Participant;
   participants: Participant[];
+  /** Contas com a sala aberta agora (presença do WebSocket). `null`/ausente = o servidor não informa: vale o heartbeat (`lastSeen`). */
+  socketOnline?: ReadonlySet<string> | null;
   votes: Vote[];
   deck: DeckType;
   votesRevealed: boolean;
@@ -114,6 +116,7 @@ const PokerRoomComponent = ({
   roomId,
   currentUser,
   participants,
+  socketOnline = null,
   votes,
   deck,
   votesRevealed,
@@ -256,8 +259,8 @@ const PokerRoomComponent = ({
     return () => clearInterval(t);
   }, []);
   const onlineIds = useMemo(
-    () => new Set(participants.filter(p => isParticipantOnline(p, presenceTick)).map(p => p.id)),
-    [participants, presenceTick]
+    () => new Set(participants.filter(p => isParticipantPresent(p, presenceTick, socketOnline)).map(p => p.id)),
+    [participants, presenceTick, socketOnline]
   );
 
   // Pede permissão de notificação do navegador assim que o recurso é ligado,
@@ -1144,6 +1147,7 @@ const PokerRoomComponent = ({
         roomId={roomId}
         currentUser={currentUser}
         participants={participants}
+        onlineIds={socketOnline}
         canModerate={isCurrentUserFacilitator}
         isOpen={isTeamChatOpen}
         onClose={() => setIsTeamChatOpen(false)}

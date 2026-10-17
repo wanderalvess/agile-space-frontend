@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { isParticipantOnline } from '@/lib/poker-utils';
+import { isParticipantPresent } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
 import {
   GENERAL_CHANNEL, categoryLabel, dmChannelId, dmPeerId, participantCategory, roleChannelId,
@@ -23,6 +23,8 @@ interface TeamChatProps {
   title?: string;
   currentUser: ChatParticipant;
   participants: ChatParticipant[];
+  /** Contas com a sala aberta agora; `null`/ausente = sem presença do servidor (vale `lastSeen`). */
+  onlineIds?: ReadonlySet<string> | null;
   canModerate: boolean;
   isOpen: boolean;
   onClose: () => void;
@@ -37,6 +39,7 @@ export function TeamChat({
   title = 'Chat da Sala',
   currentUser,
   participants,
+  onlineIds = null,
   canModerate,
   isOpen,
   onClose,
@@ -88,11 +91,11 @@ export function TeamChat({
         channelId,
         lastMessage: msgs?.[msgs.length - 1],
         unread: unreadCount(channelId, msgs),
-        online: isParticipantOnline(p, now),
+        online: isParticipantPresent(p, now, onlineIds),
       };
     })
     .sort((a, b) => (b.lastMessage?.ts ?? '').localeCompare(a.lastMessage?.ts ?? '') || a.participant.nickname.localeCompare(b.participant.nickname)),
-  [others, currentUser.id, messagesByChannel, unreadCount, now]);
+  [others, currentUser.id, messagesByChannel, unreadCount, now, onlineIds]);
 
   const dmUnread = peers.reduce((sum, p) => sum + p.unread, 0);
   const totalUnread = generalUnread + roleUnread + dmUnread;
