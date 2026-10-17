@@ -22,6 +22,8 @@ export interface SupportTicketReply {
   authorId?: string;
   authorName?: string;
   isAdmin: boolean;
+  /** O Jackson serializa o getter `isAdmin()` do Lombok como "admin"; a tela lê os dois (ver replyIsAdmin). */
+  admin?: boolean;
   message: string;
   createdAt: string;
 }

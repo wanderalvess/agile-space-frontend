@@ -85,10 +85,24 @@ export const adminApi = {
   },
 
   async setConfig(key: string, value: string): Promise<void> {
-    await authFetch(`${API_BASE_URL}/admin/configs/${key}`, {
+    const res = await authFetch(`${API_BASE_URL}/admin/configs/${key}`, {
       method: 'POST',
       body: value
     });
+    // Antes a resposta não era conferida: 403 ou 500 virava "salvo".
+    if (!res.ok) throw new Error(`Admin Config error ${res.status}`);
+  },
+
+  /**
+   * Limpa uma configuração (a tela volta à cor do tema). O servidor não tem endpoint de remoção: tenta o
+   * valor vazio e, se ele recusar o corpo vazio, grava um espaço, que as telas leem como vazio.
+   */
+  async clearConfig(key: string): Promise<void> {
+    try {
+      await adminApi.setConfig(key, '');
+    } catch {
+      await adminApi.setConfig(key, ' ');
+    }
   },
 
   getAnnouncements(): Promise<Announcement[]> {
