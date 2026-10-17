@@ -26,6 +26,9 @@ import { ReviewCardsView } from '@/components/showcase/ReviewCardsView';
 import { ReviewEmptyRoom } from '@/components/showcase/ReviewEmptyRoom';
 import { ReviewGuide } from '@/components/showcase/ReviewGuide';
 import { ReviewConflictBar } from '@/components/showcase/ReviewConflictBar';
+import { PresenterChip } from '@/components/showcase/PresenterChip';
+import { isOtherPresenter } from '@/components/showcase/presenter-sync';
+import { useShowcasePresenter } from '@/components/showcase/useShowcasePresenter';
 import { ReviewExportDialog } from '@/components/showcase/ReviewExportDialog';
 import { useShowcaseRoom } from '@/components/showcase/useShowcaseRoom';
 import {
@@ -68,9 +71,12 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const { toast } = useToast();
 
   const room = useShowcaseRoom(id);
-  const { session, loading, loadError, connection, onlineIds, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad, conflicts, resolveConflict, lastFailure } = room;
+  const { session, loading, loadError, connection, onlineIds, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad, conflicts, resolveConflict, lastFailure, presenter, setPresenter } = room;
 
   const [isPresenting, setIsPresenting] = useState(false);
+  // Acompanhando o apresentador: o card do Teatro segue o dele (ligado pelo chip "Acompanhar").
+  const [following, setFollowing] = useState(false);
+  const presenterCtl = useShowcasePresenter({ sessionId: id, meId: authSession?.id, presenter, setPresenter });
   const [currentIndex, setCurrentIndexState] = useState(-1);
   const [isJiraOpen, setIsJiraOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -107,6 +113,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
+
+  const followingRef = React.useRef(false);
+  followingRef.current = following;
 
   const goToIndex = useCallback((i: number) => {
     setCurrentIndexState(i);
@@ -263,12 +272,31 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   };
 
   // ── Apresentar e finalizar ──────────────────────────────────────────────────
-  const beginPresenting = useCallback(() => {
+  const beginPresenting = useCallback((opts: { follower?: boolean } = {}) => {
     setIsPresenting(true);
     goToIndex(-1);
     // Apresentar grava "Ao vivo": é o que o servidor e a Home entendem como em andamento. Sair sem finalizar deixa assim.
-    if (status !== 'finished') void persist({ status: PRESENTING_STATUS });
+    // Quem só entra para acompanhar não grava nada: a Review já está ao vivo.
+    if (status !== 'finished' && !opts.follower) void persist({ status: PRESENTING_STATUS });
   }, [goToIndex, persist, status]);
+
+  // Fechou o Teatro (ou finalizou): para de acompanhar e, se eu apresentava, encerra a apresentação.
+  const stopPresenter = presenterCtl.stop;
+  useEffect(() => {
+    if (isPresenting) return;
+    setFollowing(false);
+    stopPresenter();
+  }, [isPresenting, stopPresenter]);
+
+  const followFromRoom = () => {
+    setFollowing(true);
+    void presenterCtl.refresh();
+    beginPresenting({ follower: true });
+  };
+  const toggleFollowing = (on: boolean) => {
+    setFollowing(on);
+    if (on) void presenterCtl.refresh();
+  };
 
   const startPresenting = () => {
     // A capa já nasce com a imagem padrão: o aviso cobra só os objetivos.
@@ -304,8 +332,9 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
     if (decidedIndex >= 0 && decidedIndex < orderedTasksRef.current.length - 1) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => {
-        // Só avança se a pessoa não navegou para outro card nesse meio-tempo.
-        if (isMounted.current && currentTaskIdRef.current === taskId) goToIndex(decidedIndex + 1);
+        // Só avança se a pessoa não navegou para outro card nesse meio-tempo. Quem acompanha o apresentador
+        // não avança sozinho: quem apresenta é quem muda de card.
+        if (isMounted.current && currentTaskIdRef.current === taskId && !followingRef.current) goToIndex(decidedIndex + 1);
       }, 600);
     }
   };
@@ -392,6 +421,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         />
       )}
 
+      {!isPresenting && isOtherPresenter(presenter, authSession?.id) && status !== 'finished' && (
+        <div className="flex shrink-0 px-3 pt-3 sm:px-4 xl:px-6">
+          <PresenterChip presenter={presenter} following={false} onToggle={followFromRoom} />
+        </div>
+      )}
       {!isPresenting && <ReviewConflictBar conflicts={conflicts} onResolve={(conflictId, action) => { void resolveConflict(conflictId, action); }} />}
 
       <main id="conteudo" className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth">
@@ -447,6 +481,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           onFinish={() => setFinishAsk(true)}
           keysDisabled={finishAsk}
           canDecide={canDecide}
+          presenter={presenter}
+          meId={authSession?.id}
+          following={following}
+          onFollowingChange={toggleFollowing}
+          onPublishPresenter={presenterCtl.publish}
         />
       )}
 

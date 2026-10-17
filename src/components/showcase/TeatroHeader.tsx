@@ -1,5 +1,6 @@
 'use client';
 
+import type React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, X, Ban, AlertTriangle, Maximize2, Minimize2, Check, Lock, PanelLeftClose, PanelLeftOpen, Timer, Flag
@@ -27,6 +28,8 @@ interface TeatroHeaderProps {
   onFinish: () => void;
   onApprove: (taskId: string) => void;
   onRequestFeedback: (decision: Decision) => void;
+  /** "Apresentando: nome" com o botão Acompanhar (só quando outra pessoa apresenta). */
+  presenterChip?: React.ReactNode;
 }
 
 const DECISION_BUTTON_CONFIG = {
@@ -53,7 +56,7 @@ const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 export function TeatroHeader({
   session, currentIndex, sortBy, isCover, isLight, canDecide, sessionTimeLabel,
   isFullscreen, sidebarCollapsed, onIndexChange, onToggleFullscreen, onToggleSidebar,
-  onClose, onFinish, onApprove, onRequestFeedback,
+  onClose, onFinish, onApprove, onRequestFeedback, presenterChip,
 }: TeatroHeaderProps) {
   const task = !isCover ? session.tasks[currentIndex] : null;
   const total = session.tasks.length;
@@ -141,6 +144,7 @@ export function TeatroHeader({
 
           {/* Decisões e utilitários */}
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            {presenterChip}
             {task && (
               <div className="flex items-center gap-1.5" title={canDecide ? undefined : DECISION_LOCK_HINT}>
                 {!canDecide && (
