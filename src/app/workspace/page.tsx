@@ -127,7 +127,7 @@ function WorkspaceView() {
         module="workspace"
         badges={
           data.isSaving ? (
-            <StatusChip tone="brand" dot>
+            <StatusChip tone="brand">
               <span role="status" className="inline-flex items-center gap-1.5">
                 <Loader2 className="h-3 w-3 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> Salvando…
               </span>
@@ -158,7 +158,7 @@ function WorkspaceView() {
         label="Seções do Meu espaço"
         idPrefix="workspace"
         className="overflow-x-auto px-0"
-        tabClassName="whitespace-nowrap max-sm:h-11"
+        tabClassName="whitespace-nowrap max-sm:h-11 [&>span]:text-xs"
       />
 
       <div role="tabpanel" id={`workspace-panel-${aba}`} aria-labelledby={`workspace-tab-${aba}`} tabIndex={-1} className="flex min-w-0 flex-col gap-4 outline-none">

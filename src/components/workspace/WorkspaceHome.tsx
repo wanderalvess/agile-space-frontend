@@ -33,7 +33,7 @@ const TYPE_MODULE: Record<HistoryItem['type'], ModuleKey> = { poker: 'poker', re
 
 function Link2Section({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline [.theme-totvs:not(.dark)_&]:text-foreground">
+    <button type="button" onClick={onClick} className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-[13px] font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:min-h-11 [.theme-totvs:not(.dark)_&]:text-foreground">
       {children}
     </button>
   );
@@ -157,7 +157,7 @@ export function WorkspaceHome({ tasks, history, notes, userProfile, onNavigate, 
                     {HISTORY_TYPE_LABELS[h.type]} · {historyDate(h.createdAt)}
                   </span>
                 </span>
-                <span className={cn('inline-flex h-[22px] shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold', SESSION_CHIP_CLASSES[chip.tone])}>{chip.label}</span>
+                <span className={cn('inline-flex h-[22px] shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold', SESSION_CHIP_CLASSES[chip.tone], chip.tone === 'live' && '[.theme-totvs:not(.dark)_&]:text-foreground')}>{chip.label}</span>
               </Link>
             );
           })}

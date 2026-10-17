@@ -94,7 +94,7 @@ function HistoryEntry({ room, userId, showTeam }: { room: HistoryItem; userId: s
               <span className="font-semibold text-foreground/80">{HISTORY_TYPE_LABELS[room.type]}</span>
             </div>
           </div>
-          <span className={cn('hidden h-[22px] shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold sm:inline-flex', SESSION_CHIP_CLASSES[chip.tone])}>{chip.label}</span>
+          <span className={cn('hidden h-[22px] shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold sm:inline-flex', SESSION_CHIP_CLASSES[chip.tone], chip.tone === 'live' && '[.theme-totvs:not(.dark)_&]:text-foreground')}>{chip.label}</span>
           {showTeam && (
             <StatusChip tone="neutral" className="hidden md:inline-flex">
               <Users className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> {room.team || 'Squad geral'}
