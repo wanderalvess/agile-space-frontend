@@ -10,6 +10,7 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { useToolHistory } from '@/hooks/useToolHistory';
 import { mergePlanRows, planPath, summarizeTasks, type TaskSummary } from '@/lib/action-plan';
+import { planCounts } from '@/lib/action-plan-origin';
 import { errorMessage } from '@/lib/ceremony-api';
 import type { ActionPlanBoard } from '@/lib/types';
 
@@ -72,10 +73,13 @@ export default function ActionPlanHubPage() {
     setReloadTick((t) => t + 1);
   };
 
-  // A lista não traz as ações: só o último plano ganha a contagem, com uma leitura própria.
+  // O servidor novo manda `tasksTotal`/`tasksDone` na lista. Só o servidor antigo, que não manda, faz o último
+  // plano ganhar a contagem com uma leitura própria das ações.
   const latestId = boards[0]?.id;
+  const latestCounts = useMemo(() => (boards[0] ? planCounts(boards[0]) : null), [boards]);
+  const hasLatestCounts = latestCounts !== null;
   useEffect(() => {
-    if (!latestId) return;
+    if (!latestId || hasLatestCounts) return;
     let alive = true;
     actionPlanApi
       .listTasks(latestId)
@@ -84,7 +88,7 @@ export default function ActionPlanHubPage() {
     return () => {
       alive = false;
     };
-  }, [latestId]);
+  }, [latestId, hasLatestCounts]);
 
   const rows = useMemo(
     () => mergePlanRows(boards, history.map((h) => ({ roomId: h.roomId, title: h.title, createdAt: h.createdAt }))),
@@ -96,8 +100,8 @@ export default function ActionPlanHubPage() {
     if (!first) return null;
     const row = rows.find((r) => r.id === first.id);
     if (!row) return null;
-    return { row, summary: latestSummary?.id === first.id ? latestSummary.summary : null };
-  }, [boards, rows, latestSummary]);
+    return { row, summary: latestSummary?.id === first.id ? latestSummary.summary : null, counts: latestCounts };
+  }, [boards, rows, latestSummary, latestCounts]);
 
   const squads = useMemo(() => {
     const list = memberships?.memberships.map((m) => ({ id: m.projectId, name: m.projectName || m.projectId })) ?? [];

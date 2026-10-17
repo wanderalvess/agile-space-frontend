@@ -260,3 +260,95 @@ describe('criar plano', () => {
     expect(h.api.createBoard.mock.calls[0][0]).toMatchObject({ squadId: 'ATLAS', team: 'ATLAS' });
   });
 });
+
+describe('hub: origem e contagens do servidor (V78)', () => {
+  const novo = (over: Partial<ActionPlanBoard>) => plan({ sourceType: 'MANUAL', sourceId: null, sourceTitle: null, tasksTotal: 0, tasksDone: 0, ...over });
+  const LIST = [
+    novo({ id: 'radar', title: 'Plano do radar', createdAt: '2026-10-16T10:00:00Z', sourceType: 'HEALTH_CHECK', sourceId: 'hc1', sourceTitle: 'Sprint 42', tasksTotal: 5, tasksDone: 2 }),
+    novo({ id: 'retro', title: 'Plano da retro', createdAt: '2026-10-10T10:00:00Z', sourceType: 'RETRO', sourceId: 'r1', sourceTitle: 'Retro de outubro', tasksTotal: 3, tasksDone: 3 }),
+    novo({ id: 'mao', title: 'Plano à mão', createdAt: '2026-10-01T10:00:00Z', tasksTotal: 0, tasksDone: 0 }),
+  ];
+  const rowsOf = (table: HTMLElement) => within(table).getAllByRole('row').slice(1);
+
+  it('mostra a origem (com o título da sessão) e as ações concluídas com barra em cada plano', async () => {
+    h.api.listBoardsBySquad.mockResolvedValue(LIST);
+    render(<ActionPlanHubPage />);
+    const table = await screen.findByRole('table', { name: 'Planos da squad' });
+    expect(within(table).getByRole('columnheader', { name: 'Origem' })).toBeTruthy();
+    expect(within(table).getByRole('columnheader', { name: 'Ações concluídas' })).toBeTruthy();
+    const [radar, retro, mao] = rowsOf(table);
+    expect(radar.textContent).toContain('Radar de clima');
+    expect(radar.textContent).toContain('Sprint 42');
+    expect(radar.textContent).toContain('2 de 5');
+    expect(within(radar).getByRole('progressbar', { name: /Ações concluídas de Plano do radar/ }).getAttribute('aria-valuenow')).toBe('40');
+    expect(retro.textContent).toContain('Retro');
+    expect(retro.textContent).toContain('3 de 3');
+    expect(mao.textContent).toContain('Manual');
+    expect(mao.textContent).toContain('0 de 0');
+  });
+
+  it('o último plano usa as contagens da lista e não lê as ações', async () => {
+    h.api.listBoardsBySquad.mockResolvedValue(LIST);
+    render(<ActionPlanHubPage />);
+    const latest = await screen.findByRole('region', { name: 'Último plano' });
+    await within(latest).findByText('2 de 5');
+    expect(within(latest).getByRole('progressbar', { name: 'Ações concluídas' }).getAttribute('aria-valuenow')).toBe('40');
+    expect(within(latest).getByText('Abertas')).toBeTruthy();
+    expect(h.api.listTasks).not.toHaveBeenCalled();
+  });
+
+  it('filtro por origem', async () => {
+    h.api.listBoardsBySquad.mockResolvedValue(LIST);
+    render(<ActionPlanHubPage />);
+    const table = await screen.findByRole('table', { name: 'Planos da squad' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por origem' }), { target: { value: 'RETRO' } });
+    expect(rowsOf(table)).toHaveLength(1);
+    expect(rowsOf(table)[0].textContent).toContain('Plano da retro');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por origem' }), { target: { value: 'MANUAL' } });
+    expect(rowsOf(table)[0].textContent).toContain('Plano à mão');
+  });
+
+  it('filtros "Com ações abertas" e "Concluídos" saem das contagens', async () => {
+    h.api.listBoardsBySquad.mockResolvedValue(LIST);
+    render(<ActionPlanHubPage />);
+    const table = await screen.findByRole('table', { name: 'Planos da squad' });
+    const select = screen.getByRole('combobox', { name: 'Filtrar por andamento' });
+    fireEvent.change(select, { target: { value: 'open' } });
+    expect(rowsOf(table).map((r) => r.textContent)).toEqual([expect.stringContaining('Plano do radar')]);
+    fireEvent.change(select, { target: { value: 'done' } });
+    expect(rowsOf(table).map((r) => r.textContent)).toEqual([expect.stringContaining('Plano da retro')]);
+  });
+
+  it('filtro sem resultado oferece limpar os filtros', async () => {
+    h.api.listBoardsBySquad.mockResolvedValue(LIST);
+    render(<ActionPlanHubPage />);
+    await screen.findByRole('table', { name: 'Planos da squad' });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por origem' }), { target: { value: 'BRAINSTORMING' } });
+    expect(screen.getByText('Nenhum plano neste filtro')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
+    expect(rowsOf(screen.getByRole('table', { name: 'Planos da squad' }))).toHaveLength(3);
+  });
+
+  it('backend antigo (sem origem nem contagens): sem as colunas nem os filtros, e o último plano lê as ações', async () => {
+    h.api.listBoardsBySquad.mockResolvedValue([plan({ id: 'old', title: 'Plano antigo' })]);
+    h.api.listTasks.mockResolvedValue([act('1', 'done'), act('2', 'todo')]);
+    render(<ActionPlanHubPage />);
+    const table = await screen.findByRole('table', { name: 'Planos da squad' });
+    expect(within(table).queryByRole('columnheader', { name: 'Origem' })).toBeNull();
+    expect(within(table).queryByRole('columnheader', { name: 'Ações concluídas' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por origem' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por andamento' })).toBeNull();
+    const latest = screen.getByRole('region', { name: 'Último plano' });
+    await within(latest).findByText('1 de 2');
+    expect(h.api.listTasks).toHaveBeenCalledWith('old');
+  });
+
+  it('histórico local ao lado de planos do servidor novo mostra "—" na origem e nas contagens', async () => {
+    window.localStorage.setItem('agileSpace_rooms_meta', JSON.stringify([{ roomId: 'local-1', type: 'action_plan', title: 'Plano aberto aqui', team: 'X', createdAt: '2026-09-01T10:00:00Z' }]));
+    h.api.listBoardsBySquad.mockResolvedValue(LIST);
+    render(<ActionPlanHubPage />);
+    const table = await screen.findByRole('table', { name: 'Planos da squad' });
+    const local = rowsOf(table).find((r) => r.textContent?.includes('Plano aberto aqui'))!;
+    expect(within(local).getAllByText('—').length).toBeGreaterThanOrEqual(2);
+  });
+});

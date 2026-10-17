@@ -1,11 +1,14 @@
 /**
  * Plano de ação a partir do resultado do Radar de clima, sem React: a criação (com o resultado de cada item),
- * e a trava "plano já criado" guardada neste navegador.
+ * a origem enviada ao servidor e a trava "plano já criado" guardada neste navegador.
  *
- * A trava é só local: o servidor ainda não guarda de qual radar o plano saiu (falta o campo de origem no plano
- * e na ação), então outra pessoa, outro navegador ou outro aparelho podem criar de novo. Quando o backend
- * gravar a origem, a trava passa a vir de lá e esta fica só como atalho.
+ * A trava de verdade está no servidor (V78): o plano guarda `HEALTH_CHECK` + o id do radar, e um segundo plano da
+ * mesma origem na mesma squad volta 409 (`conflict` no resultado). A trava local (`PlanRecord`) fica só de reserva
+ * para o backend antigo, que não guarda a origem: nele outra pessoa, outro navegador ou outro aparelho podem criar de novo.
  */
+
+import { conflictOf, type KnownPlan, type OriginCheck } from '@/lib/action-plan-origin';
+import type { ActionPlanBoard, PlanSourceType } from '@/lib/types';
 
 export type PlanDestination = 'squad' | 'kanban';
 
@@ -58,10 +61,27 @@ export function writePlanRecord(record: PlanRecord, storage: Pick<Storage, 'getI
   }
 }
 
+/** A trava local como "plano conhecido": só o registro do plano da squad serve de aviso (o Kanban pessoal não tem plano). */
+export function recordToLock(record: PlanRecord | null): KnownPlan | null {
+  return record && record.destination === 'squad' && record.planId ? { id: record.planId, title: record.planTitle || 'Plano de ação' } : null;
+}
+
+/**
+ * Este radar já tem plano? Vale o servidor; sem ele, vale o registro deste navegador. Registro de plano da squad que
+ * o servidor diz estar velho (o plano foi apagado) não conta.
+ */
+export function planAlreadyCreated(record: PlanRecord | null, check: OriginCheck | null): boolean {
+  if (check?.kind === 'server') return true;
+  if (!record) return false;
+  return !(record.destination === 'squad' && check?.kind === 'none' && check.stale);
+}
+
 // ───────────────────────── Criação ─────────────────────────
 
 export interface PlanItemInput {
   key: string;
+  /** Nome da dimensão do radar (vai como `sourceLabel` da ação). */
+  label?: string;
   what: string;
   why: string;
   who: string;
@@ -72,8 +92,11 @@ export type ItemOutcome = 'ok' | 'error';
 
 export interface PlanDeps {
   /** Cria o plano da squad (5W2H). */
-  createBoard: (board: { title: string; team: string }) => Promise<{ id: string }>;
-  createTask: (boardId: string, task: { what: string; why: string; where: string; when: string; who: string; how: string; howMuch: string; status: 'todo'; order: number }) => Promise<unknown>;
+  createBoard: (board: { title: string; team: string; sourceType: PlanSourceType; sourceId: string; sourceTitle: string }) => Promise<{ id: string; sourceType?: PlanSourceType }>;
+  createTask: (boardId: string, task: { what: string; why: string; where: string; when: string; who: string; how: string; howMuch: string; status: 'todo'; order: number; sourceItemId?: string; sourceLabel?: string }) => Promise<unknown>;
+  /** Planos que já saíram desta sessão (`?squadId=&sourceType=&sourceId=`). Sem isto a tela só usa a trava local. */
+  listBySource?: (q: { squadId?: string; sourceType: PlanSourceType; sourceId: string }) => Promise<readonly ActionPlanBoard[]>;
+  getBoard?: (id: string) => Promise<ActionPlanBoard>;
   /** Cria um cartão no Kanban pessoal. */
   saveKanbanCard: (card: { title: string; description: string; status: 'todo'; priority: 'critica' | 'media'; tag: string; originLink: string; exportedAt: string }) => Promise<unknown>;
 }
@@ -97,10 +120,15 @@ export interface PlanRunResult {
   planTitle?: string;
   /** O plano da squad não pôde ser criado: nenhuma ação foi tentada. */
   planFailed: boolean;
+  /** O servidor recusou (409): esta sessão já tem plano. `existingPlanId` falta se o plano for privado. Nenhuma ação foi tentada. */
+  conflict?: { existingPlanId?: string };
+  /** O servidor guardou a origem do plano (backend com V78): a trava dele vale. */
+  guarded?: boolean;
   outcomes: Record<string, ItemOutcome>;
 }
 
 export const PLAN_TAG = 'Radar de clima';
+export const PLAN_SOURCE_TYPE: PlanSourceType = 'HEALTH_CHECK';
 
 /** Cria os itens um a um e devolve o que deu certo e o que falhou (a tela mostra os dois, sem esconder falha parcial). */
 export async function runPlan(input: PlanRunInput): Promise<PlanRunResult> {
@@ -131,11 +159,16 @@ export async function runPlan(input: PlanRunInput): Promise<PlanRunResult> {
 
   const planTitle = `Plano de ação: ${radarTitle}`;
   let planId = input.existingPlanId;
+  let guarded = false;
   if (!planId) {
     try {
-      planId = (await deps.createBoard({ title: planTitle, team })).id;
-    } catch {
+      const created = await deps.createBoard({ title: planTitle, team, sourceType: PLAN_SOURCE_TYPE, sourceId: radarId, sourceTitle: radarTitle });
+      planId = created.id;
+      guarded = created.sourceType !== undefined;
+    } catch (e) {
+      const conflict = conflictOf(e);
       for (const item of todo) outcomes[item.key] = 'error';
+      if (conflict) return { planFailed: false, conflict: { existingPlanId: conflict.existingPlanId }, planTitle, outcomes: {} };
       return { planFailed: true, planTitle, outcomes };
     }
   }
@@ -153,11 +186,13 @@ export async function runPlan(input: PlanRunInput): Promise<PlanRunResult> {
         howMuch: '',
         status: 'todo',
         order: order++,
+        sourceItemId: item.key,
+        sourceLabel: item.label || item.what,
       });
       outcomes[item.key] = 'ok';
     } catch {
       outcomes[item.key] = 'error';
     }
   }
-  return { planId, planTitle, planFailed: false, outcomes };
+  return { planId, planTitle, planFailed: false, guarded, outcomes };
 }

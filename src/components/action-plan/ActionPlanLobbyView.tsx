@@ -19,16 +19,20 @@ import {
   User,
   Users,
   CircleHelp,
+  FilterX,
 } from 'lucide-react';
 import { DataTable, DataToolbar, EmptyState, ErrorState, LoadingSkeleton, PAGE_CARD, PageHeader, PageShell, type DataColumn } from '@/components/page';
-import { FOCUS_RING, IconTile, ModalButton, StatusChip } from '@/components/room-kit';
+import { FOCUS_RING, IconTile, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
+import { SOURCE_LABEL, SOURCE_TYPES, type PlanCounts, type ProgressFilter } from '@/lib/action-plan-origin';
 import {
+  FILTER_ALL,
   extractPlanId,
   filterPlanRows,
   formatShortDate,
   planPath,
   visibilityLabel,
   type PlanLobbyRow,
+  type PlanRowFilters,
   type TaskSummary,
 } from '@/lib/action-plan';
 import { cn } from '@/lib/utils';
@@ -38,6 +42,8 @@ export interface LatestPlan {
   row: PlanLobbyRow;
   /** Contagem por status lida das ações desse plano; `null` enquanto carrega ou se a leitura falhou. */
   summary: TaskSummary | null;
+  /** Contagens que o servidor já manda na lista (total e concluídas); dispensam a leitura das ações. */
+  counts?: PlanCounts | null;
 }
 
 export interface ActionPlanLobbyViewProps {
@@ -76,12 +82,30 @@ const TIPS = [
   { title: 'Prazos realistas', desc: 'Defina datas (When) alcançáveis para manter a motivação e a credibilidade do time.', icon: Clock },
 ] as const;
 
+const ORIGIN_OPTIONS = [
+  { value: FILTER_ALL, label: 'Todas as origens' },
+  ...SOURCE_TYPES.map((t) => ({ value: t, label: SOURCE_LABEL[t] })),
+];
+
+const PROGRESS_OPTIONS: { value: ProgressFilter; label: string }[] = [
+  { value: 'all', label: 'Todos os andamentos' },
+  { value: 'open', label: 'Com ações abertas' },
+  { value: 'done', label: 'Concluídos' },
+];
+
 const STATUS_COUNTS: { key: 'todo' | 'doing' | 'done' | 'blocked'; label: string }[] = [
   { key: 'todo', label: 'A fazer' },
   { key: 'doing', label: 'Em andamento' },
   { key: 'done', label: 'Concluído' },
   { key: 'blocked', label: 'Impedido' },
 ];
+
+/** Concluídas sobre o total do último plano: das contagens do servidor, ou das ações lidas (reserva do backend antigo). */
+function progressOf(latest: LatestPlan): { done: number; total: number; pct: number } | null {
+  if (latest.counts) return { done: latest.counts.done, total: latest.counts.total, pct: latest.counts.pct };
+  if (latest.summary) return { done: latest.summary.done, total: latest.summary.total, pct: latest.summary.donePct };
+  return null;
+}
 
 function SectionTitle({ icon, children }: { icon: React.ComponentProps<typeof IconTile>['icon']; children: React.ReactNode }) {
   return (
@@ -100,8 +124,21 @@ function SectionTitle({ icon, children }: { icon: React.ComponentProps<typeof Ic
 export function ActionPlanLobbyView({ hasSquad, rows, loading, failed, onRetry, latest, isCreating, onNew, onOpen, onSquads, children }: ActionPlanLobbyViewProps) {
   const [joinText, setJoinText] = useState('');
   const [query, setQuery] = useState('');
+  const [origin, setOrigin] = useState<PlanRowFilters['origin']>(FILTER_ALL);
+  const [progress, setProgress] = useState<ProgressFilter>('all');
   const joined = extractPlanId(joinText);
-  const visible = filterPlanRows(rows, query);
+  // Origem e contagens só existem num servidor que conhece a V78: sem elas a coluna e o filtro somem.
+  const hasOrigin = rows.some((r) => r.sourceType !== undefined);
+  const hasCounts = rows.some((r) => r.counts !== null);
+  const filterOrigin = hasOrigin ? origin : FILTER_ALL;
+  const filterProgress = hasCounts ? progress : 'all';
+  const visible = filterPlanRows(rows, query, { origin: filterOrigin, progress: filterProgress });
+  const filtering = query.trim() !== '' || filterOrigin !== FILTER_ALL || filterProgress !== 'all';
+  const clearFilters = () => {
+    setQuery('');
+    setOrigin(FILTER_ALL);
+    setProgress('all');
+  };
 
   const columns: DataColumn<PlanLobbyRow>[] = [
     {
@@ -115,6 +152,53 @@ export function ActionPlanLobbyView({ hasSquad, rows, loading, failed, onRetry, 
         </Link>
       ),
     },
+    ...(hasOrigin
+      ? [
+          {
+            id: 'origin',
+            header: 'Origem',
+            width: 'minmax(0,1.3fr)',
+            cell: (r: PlanLobbyRow) =>
+              r.sourceType ? (
+                <div className="flex min-w-0 flex-col items-start gap-0.5">
+                  <StatusChip tone={r.sourceType === 'MANUAL' ? 'neutral' : 'brand'}>{SOURCE_LABEL[r.sourceType]}</StatusChip>
+                  {r.sourceType !== 'MANUAL' && r.sourceTitle?.trim() ? (
+                    <span className="max-w-full truncate text-xs text-muted-foreground" title={r.sourceTitle}>{r.sourceTitle}</span>
+                  ) : null}
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              ),
+          } satisfies DataColumn<PlanLobbyRow>,
+        ]
+      : []),
+    ...(hasCounts
+      ? [
+          {
+            id: 'progress',
+            header: 'Ações concluídas',
+            width: '170px',
+            cell: (r: PlanLobbyRow) =>
+              r.counts ? (
+                <div className="flex min-w-0 flex-col gap-1">
+                  <span className="text-sm tabular-nums text-foreground">{r.counts.done} de {r.counts.total}</span>
+                  <div
+                    role="progressbar"
+                    aria-label={`Ações concluídas de ${r.title || 'o plano'}`}
+                    aria-valuenow={r.counts.pct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    className="h-1.5 w-full max-w-[140px] overflow-hidden rounded-full bg-muted"
+                  >
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${r.counts.pct}%` }} />
+                  </div>
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              ),
+          } satisfies DataColumn<PlanLobbyRow>,
+        ]
+      : []),
     {
       id: 'visibility',
       header: 'Quem vê',
@@ -225,31 +309,38 @@ export function ActionPlanLobbyView({ hasSquad, rows, loading, failed, onRetry, 
                   {formatShortDate(latest.row.createdAt) ? `criado em ${formatShortDate(latest.row.createdAt)}` : 'plano de ação'}
                 </span>
               </div>
-              {latest.summary && (
+              {progressOf(latest) && (
                 <>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-baseline justify-between gap-2 text-[13px]">
                       <span className="text-muted-foreground">Concluídas</span>
-                      <strong className="tabular-nums">{latest.summary.done} de {latest.summary.total}</strong>
+                      <strong className="tabular-nums">{progressOf(latest)!.done} de {progressOf(latest)!.total}</strong>
                     </div>
                     <div
                       role="progressbar"
                       aria-label="Ações concluídas"
-                      aria-valuenow={latest.summary.donePct}
+                      aria-valuenow={progressOf(latest)!.pct}
                       aria-valuemin={0}
                       aria-valuemax={100}
                       className="h-2 overflow-hidden rounded-full bg-muted"
                     >
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${latest.summary.donePct}%` }} />
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${progressOf(latest)!.pct}%` }} />
                     </div>
                   </div>
                   <dl className="m-0 flex flex-wrap gap-x-5 gap-y-2">
-                    {STATUS_COUNTS.map((s) => (
-                      <div key={s.key} className="flex flex-col gap-0.5">
-                        <dt className="text-xs text-muted-foreground">{s.label}</dt>
-                        <dd className="m-0 text-xl font-bold tabular-nums">{latest.summary![s.key]}</dd>
+                    {latest.summary ? (
+                      STATUS_COUNTS.map((s) => (
+                        <div key={s.key} className="flex flex-col gap-0.5">
+                          <dt className="text-xs text-muted-foreground">{s.label}</dt>
+                          <dd className="m-0 text-xl font-bold tabular-nums">{latest.summary![s.key]}</dd>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="text-xs text-muted-foreground">Abertas</dt>
+                        <dd className="m-0 text-xl font-bold tabular-nums">{progressOf(latest)!.total - progressOf(latest)!.done}</dd>
                       </div>
-                    ))}
+                    )}
                   </dl>
                 </>
               )}
@@ -337,6 +428,30 @@ export function ActionPlanLobbyView({ hasSquad, rows, loading, failed, onRetry, 
             <>
               <DataToolbar
                 search={{ value: query, onChange: setQuery, placeholder: 'Buscar por nome' }}
+                filters={
+                  hasOrigin || hasCounts ? (
+                    <>
+                      {hasOrigin && (
+                        <SelectField
+                          aria-label="Filtrar por origem"
+                          value={filterOrigin ?? FILTER_ALL}
+                          onChange={(v) => setOrigin(v as PlanRowFilters['origin'])}
+                          options={ORIGIN_OPTIONS}
+                          className="h-[38px] w-full sm:w-[190px] max-sm:h-11"
+                        />
+                      )}
+                      {hasCounts && (
+                        <SelectField
+                          aria-label="Filtrar por andamento"
+                          value={filterProgress}
+                          onChange={(v) => setProgress(v as ProgressFilter)}
+                          options={PROGRESS_OPTIONS}
+                          className="h-[38px] w-full sm:w-[200px] max-sm:h-11"
+                        />
+                      )}
+                    </>
+                  ) : undefined
+                }
                 count={{ shown: visible.length, total: rows.length, noun: rows.length === 1 ? 'plano' : 'planos' }}
               />
               {failed && (
@@ -356,12 +471,16 @@ export function ActionPlanLobbyView({ hasSquad, rows, loading, failed, onRetry, 
                   <EmptyState
                     embedded
                     icon={ListChecks}
-                    title={rows.length === 0 ? 'Nenhum plano ainda' : 'Nenhum plano com esse nome'}
-                    description={rows.length === 0 ? 'Sem registros ainda. Use o botão de criar para começar; os planos da squad aparecem aqui.' : 'Tente outro trecho do nome.'}
+                    title={rows.length === 0 ? 'Nenhum plano ainda' : hasOrigin || hasCounts ? 'Nenhum plano neste filtro' : 'Nenhum plano com esse nome'}
+                    description={rows.length === 0 ? 'Sem registros ainda. Use o botão de criar para começar; os planos da squad aparecem aqui.' : hasOrigin || hasCounts ? 'Tente outro nome ou limpe os filtros para ver todos os planos.' : 'Tente outro trecho do nome.'}
                     actions={
                       rows.length === 0 ? (
                         <ModalButton variant="primary" className="gap-2" onClick={onNew}>
                           <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo plano
+                        </ModalButton>
+                      ) : filtering ? (
+                        <ModalButton className="gap-2" onClick={clearFilters}>
+                          <FilterX className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Limpar filtros
                         </ModalButton>
                       ) : undefined
                     }

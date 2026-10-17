@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { CalendarDays, ChevronDown, ListChecks, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, ListChecks, Trash2, X } from 'lucide-react';
 import { actionPlanApi } from '@/app/action-plan/api';
 import { useAuth } from '@/context/AuthContext';
 import { errorMessage } from '@/lib/ceremony-api';
@@ -12,6 +12,7 @@ import {
   STATUS_LABEL,
   dateInputToText,
   findPersonByName,
+  taskFormPayload,
   taskToForm,
   validateTaskForm,
   type PlanPerson,
@@ -31,6 +32,8 @@ interface ActionTaskDialogProps {
   onSaveSuccess?: () => void;
   /** Pessoas da squad do plano, para o campo "Quem". */
   people?: readonly PlanPerson[];
+  /** O servidor guarda o prazo como data (V78): o campo "Prazo" é uma data e o "Quando" vira complemento em texto. */
+  dueDates?: boolean;
 }
 
 const LABEL = 'text-[13px] font-semibold text-foreground';
@@ -41,7 +44,7 @@ const ERROR = 'text-xs font-medium text-red-700 dark:text-red-300';
  * Janela da ação 5W2H (nova ou editar): os sete campos, o status (só na edição) e Excluir com confirmação.
  * Erro de campo e falha do servidor ficam na própria janela, com o que foi digitado mantido.
  */
-export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, onSaveSuccess, people = [] }: ActionTaskDialogProps) {
+export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, onSaveSuccess, people = [], dueDates = false }: ActionTaskDialogProps) {
   const { session } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
@@ -78,9 +81,9 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
     setServerError(null);
     try {
       if (task) {
-        await actionPlanApi.updateTask(task.id, form);
+        await actionPlanApi.updateTask(task.id, taskFormPayload(form, task, dueDates));
       } else {
-        await actionPlanApi.createTask(boardId, { ...form, authorId: session.id, order: totalTasks });
+        await actionPlanApi.createTask(boardId, { ...taskFormPayload(form, null, dueDates), authorId: session.id, order: totalTasks });
       }
       onSaveSuccess?.();
       onClose();
@@ -149,6 +152,10 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
             </div>
           )}
 
+          {task?.sourceLabel && (
+            <p className="m-0 text-xs text-muted-foreground md:col-span-2">Esta ação veio de: {task.sourceLabel}</p>
+          )}
+
           <div className="flex flex-col gap-1.5 md:col-span-2">
             <label htmlFor="task-what" className={LABEL}>O quê (What) *</label>
             <input
@@ -184,47 +191,79 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="task-when" className={LABEL}>Quando (When)</label>
+          {dueDates && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="task-due" className={LABEL}>Prazo (data)</label>
+              <div className="flex gap-2">
+                <input
+                  id="task-due"
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(e) => set('dueDate', e.target.value)}
+                  aria-describedby="task-due-hint"
+                  className={cn(FIELD, 'h-11 min-w-0 flex-1 [color-scheme:light] dark:[color-scheme:dark]')}
+                />
+                {form.dueDate && (
+                  <button
+                    type="button"
+                    aria-label="Limpar o prazo"
+                    title="Limpar o prazo"
+                    onClick={() => set('dueDate', '')}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+              <span id="task-due-hint" className={HINT}>Ação não concluída passada desta data aparece como atrasada.</span>
+            </div>
+          )}
+
+          <div className={cn('flex flex-col gap-1.5', dueDates && 'md:col-span-2')}>
+            <label htmlFor="task-when" className={LABEL}>{dueDates ? 'Quando (When): complemento' : 'Quando (When)'}</label>
             <div className="flex gap-2">
               <input
                 id="task-when"
                 value={form.when}
                 onChange={(e) => set('when', e.target.value)}
-                placeholder="Ex.: 15/10 até as 18h"
+                placeholder={dueDates ? 'Ex.: até as 18h, depois da review' : 'Ex.: 15/10 até as 18h'}
                 aria-describedby="task-when-hint"
                 className={cn(FIELD, 'h-11 min-w-0 flex-1')}
               />
-              <button
-                type="button"
-                aria-label="Escolher a data no calendário"
-                title="Escolher a data no calendário"
-                onClick={() => {
-                  const input = dateRef.current;
-                  if (!input) return;
-                  if (typeof input.showPicker === 'function') {
-                    try { input.showPicker(); return; } catch { /* sem gesto do usuário: cai no clique */ }
-                  }
-                  input.click();
-                }}
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <CalendarDays className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-              </button>
-              <input
-                ref={dateRef}
-                type="date"
-                tabIndex={-1}
-                aria-hidden="true"
-                className="sr-only"
-                onChange={(e) => {
-                  const text = dateInputToText(e.target.value);
-                  if (text) set('when', text);
-                  e.target.value = '';
-                }}
-              />
+              {!dueDates && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Escolher a data no calendário"
+                    title="Escolher a data no calendário"
+                    onClick={() => {
+                      const input = dateRef.current;
+                      if (!input) return;
+                      if (typeof input.showPicker === 'function') {
+                        try { input.showPicker(); return; } catch { /* sem gesto do usuário: cai no clique */ }
+                      }
+                      input.click();
+                    }}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <CalendarDays className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                  <input
+                    ref={dateRef}
+                    type="date"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                    className="sr-only"
+                    onChange={(e) => {
+                      const text = dateInputToText(e.target.value);
+                      if (text) set('when', text);
+                      e.target.value = '';
+                    }}
+                  />
+                </>
+              )}
             </div>
-            <span id="task-when-hint" className={HINT}>Texto livre; o calendário preenche a data.</span>
+            <span id="task-when-hint" className={HINT}>{dueDates ? 'Texto livre, junto do prazo em data.' : 'Texto livre; o calendário preenche a data.'}</span>
           </div>
 
           <button

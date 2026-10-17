@@ -11,7 +11,8 @@ import { actionPlanApi } from '@/app/action-plan/api';
 import { workspaceApi } from '@/app/workspace/api';
 import { buildReport } from '@/lib/health-check-export';
 import { compareBoards, previousBoard, summaryOfBoard, type DimensionDiff } from '@/lib/health-check-lobby';
-import { readPlanRecord, writePlanRecord, type PlanDeps, type PlanRecord } from '@/lib/health-check-plan';
+import { checkOrigin, type KnownPlan, type OriginCheck } from '@/lib/action-plan-origin';
+import { PLAN_SOURCE_TYPE, planAlreadyCreated, readPlanRecord, recordToLock, writePlanRecord, type PlanDeps, type PlanRecord } from '@/lib/health-check-plan';
 import {
   formatScore,
   planItems,
@@ -97,11 +98,10 @@ export function HealthCheckResults({
   const [exportOpen, setExportOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
   const [record, setRecord] = useState<PlanRecord | null>(null);
+  // O que o servidor diz sobre "este radar já tem plano?"; null enquanto consulta.
+  const [originCheck, setOriginCheck] = useState<OriginCheck | null>(null);
   const [presenting, setPresenting] = useState(false);
   const [stage, setStage] = useState<PresentationStage>('score');
-
-  // A trava "plano já criado" vive no navegador: lê depois de montar (sem divergência de hidratação).
-  useEffect(() => { setRecord(readPlanRecord(boardId)); }, [boardId]);
 
   const loadCompare = useCallback(async () => {
     if (!board.team) {
@@ -150,8 +150,10 @@ export function HealthCheckResults({
 
   const deps: PlanDeps = useMemo(
     () => ({
-      createBoard: (b) => actionPlanApi.createBoard({ title: b.title, team: b.team, ...(b.team && b.team !== 'Squad Geral' ? { squadId: b.team } : {}) }),
+      createBoard: (b) => actionPlanApi.createBoard({ title: b.title, team: b.team, ...(b.team && b.team !== 'Squad Geral' ? { squadId: b.team } : {}), sourceType: b.sourceType, sourceId: b.sourceId, sourceTitle: b.sourceTitle }),
       createTask: (planId, t) => actionPlanApi.createTask(planId, t),
+      listBySource: (q) => actionPlanApi.listBoards(q),
+      getBoard: (id) => actionPlanApi.getBoardById(id),
       saveKanbanCard: (card) => {
         if (!currentUserId) return Promise.reject(new Error('Sem sessão'));
         return workspaceApi.saveKanbanCard(currentUserId, card);
@@ -160,10 +162,31 @@ export function HealthCheckResults({
     [currentUserId]
   );
 
-  const onRecord = (r: PlanRecord) => {
+  // A trava local vive no navegador: lê depois de montar (sem divergência de hidratação). A de verdade vem do
+  // servidor (plano com origem + 409); a local só vale de reserva quando o servidor é antigo ou não respondeu.
+  const squadKey = board.team && board.team !== 'Squad Geral' ? board.team : undefined;
+  useEffect(() => {
+    const saved = readPlanRecord(boardId);
+    setRecord(saved);
+    let alive = true;
+    checkOrigin({
+      type: PLAN_SOURCE_TYPE,
+      sourceId: boardId,
+      find: () => deps.listBySource!({ squadId: squadKey, sourceType: PLAN_SOURCE_TYPE, sourceId: boardId }),
+      getBoard: deps.getBoard,
+      lock: recordToLock(saved),
+    }).then((r) => { if (alive) setOriginCheck(r); });
+    return () => { alive = false; };
+  }, [boardId, squadKey, deps]);
+
+  const onRecord = (r: PlanRecord, guarded: boolean) => {
     setRecord(r);
     writePlanRecord(r);
+    // plano da squad criado com a origem guardada no servidor: a trava dele já vale, sem recarregar
+    if (guarded && r.destination === 'squad' && r.planId) setOriginCheck({ kind: 'server', plan: { id: r.planId, title: r.planTitle || 'Plano de ação' } });
   };
+  const onExisting = (plan: KnownPlan) => setOriginCheck({ kind: 'server', plan });
+  const planCreated = planAlreadyCreated(record, originCheck);
 
   const sortedDetail = useMemo(
     () => summary.stats.map((s, i) => ({ s, i })).sort((a, b) => (a.s.score ?? 99) - (b.s.score ?? 99) || a.i - b.i),
@@ -214,7 +237,7 @@ export function HealthCheckResults({
       {presenting ? (
         <div className="flex min-h-full flex-col">
           <div className="flex-1">
-            <HealthPresentation stage={stage} summary={summary} scale={scale} votes={votes} dimensionCount={dimensions.length} planCreated={!!record} onPlan={openPlan} />
+            <HealthPresentation stage={stage} summary={summary} scale={scale} votes={votes} dimensionCount={dimensions.length} planCreated={planCreated} onPlan={openPlan} />
           </div>
           <div className="flex flex-col px-4 pb-4">
             <StageNav items={PRESENTATION_STAGES} value={stage} onChange={(id) => setStage(id as PresentationStage)} label="Etapas da apresentação" />
@@ -284,7 +307,7 @@ export function HealthCheckResults({
               <AboutCard rows={aboutRows} />
               <StrongCard stats={summary.strong} />
               <AttentionCard stats={summary.attention} />
-              <FocusCard focus={summary.focus} planCreated={!!record} onPlan={openPlan} />
+              <FocusCard focus={summary.focus} planCreated={planCreated} onPlan={openPlan} />
             </div>
           </div>
 
@@ -311,6 +334,8 @@ export function HealthCheckResults({
         items={items}
         record={record}
         onRecord={onRecord}
+        check={originCheck}
+        onExisting={onExisting}
         deps={deps}
         onOpenPlan={(id) => router.push(`/action-plan/${id}`)}
         onOpenKanban={() => router.push('/workspace?aba=kanban')}

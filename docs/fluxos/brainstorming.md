@@ -131,7 +131,7 @@ Ainda abertos:
 - **Duas pessoas arrastando o mesmo card na teia:** vale a última posição gravada.
 - **Matriz usa arrastar do navegador (HTML5)**, que não funciona em toque; no celular só há os botões Quick Win e Descartar, sem como mandar para Estratégico/Secundário.
 - **Indicador de "pilha" de ideias fundidas nunca aparece** (o card espera um campo `children` que o servidor não envia). Código morto.
-- **"Exportar para 5W2H" não é idempotente:** cada clique cria outro plano.
+- **"Exportar para 5W2H" só é idempotente com a V78 no servidor:** o plano guarda a sessão (`BRAINSTORMING`) e a segunda criação volta 409; no backend anterior cada clique cria outro plano e só vale o aviso deste navegador (ver `docs/redesign/plano-de-acao-origem.md`).
 - **Exportar imagem** da Teia/Mural falha em silêncio para o usuário se o navegador bloquear a captura (só registra no console).
 - **Mural não lista os da squad**: quem perde o link só acha pelo histórico local do navegador ou pelo painel.
 - **Não testado ao vivo:** nada desta rodada foi exercitado no app (exige uma conta logada, e não havia conta de teste nem banco local). Validado por testes unitários (backend: autorização, voto, fusão, patch, eventos pós-commit; frontend: cliente de API, reconexão do WebSocket e regras de lista/quadrante). A migration V40 só cria índices e nunca rodou contra um Postgres real antes do deploy.

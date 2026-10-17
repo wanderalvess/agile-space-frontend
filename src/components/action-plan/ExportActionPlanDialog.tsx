@@ -15,8 +15,8 @@ interface ExportActionPlanDialogProps {
 }
 
 const FORMATS: ExportFormatOption[] = [
-  { id: 'markdown', name: 'Markdown', short: 'MD', desc: 'Uma seção por ação, com os sete campos e o status. Copia para a área de transferência.' },
-  { id: 'csv', name: 'Planilha (CSV)', short: 'CSV', desc: 'Uma linha por ação, com os sete campos e o status em português.' },
+  { id: 'markdown', name: 'Markdown', short: 'MD', desc: 'Uma seção por ação, com os sete campos, o prazo e o status. Copia para a área de transferência.' },
+  { id: 'csv', name: 'Planilha (CSV)', short: 'CSV', desc: 'Uma linha por ação, com os sete campos, o prazo em data e o status em português.' },
 ];
 
 /** Exportar o plano: Markdown (copiar) ou CSV (baixar). O arquivo é gerado aqui; a janela é a do kit. */

@@ -30,6 +30,7 @@ import {
   statusLabel,
   suggestPeople,
   summarizeTasks,
+  taskFormPayload,
   taskToForm,
   toPlanPeople,
   validateTaskForm,
@@ -329,5 +330,78 @@ describe('pessoas da squad', () => {
     expect(findPersonByName(people, ' diego ALVES ')?.userId).toBe('u-diego');
     expect(findPersonByName(people, 'Diego')).toBeUndefined();
     expect(findPersonByName(people, '')).toBeUndefined();
+  });
+});
+
+describe('origem e prazo (V78)', () => {
+  it('o formulário traz o prazo em data; ação antiga (sem dueDate) vem vazia', () => {
+    expect(taskToForm(task({ id: '1', dueDate: '2026-11-05' })).dueDate).toBe('2026-11-05');
+    expect(taskToForm(task({ id: '1' })).dueDate).toBe('');
+    expect(taskToForm(task({ id: '1', dueDate: null })).dueDate).toBe('');
+    expect(taskToForm(null).dueDate).toBe('');
+  });
+
+  it('gravação com servidor novo: manda dueDate; apagou um prazo que existia manda clearDueDate; sem prazo antes nem depois não manda nada', () => {
+    const form = taskToForm(task({ id: '1', dueDate: '2026-11-05' }));
+    expect(taskFormPayload(form, { dueDate: '2026-11-05' }, true)).toMatchObject({ what: 'Criar o checklist', when: '25/10', dueDate: '2026-11-05' });
+    expect(taskFormPayload({ ...form, dueDate: '' }, { dueDate: '2026-11-05' }, true)).toMatchObject({ clearDueDate: true });
+    expect(taskFormPayload({ ...form, dueDate: '' }, { dueDate: '2026-11-05' }, true)).not.toHaveProperty('dueDate');
+    const semPrazo = taskFormPayload({ ...form, dueDate: '' }, { dueDate: null }, true);
+    expect(semPrazo).not.toHaveProperty('dueDate');
+    expect(semPrazo).not.toHaveProperty('clearDueDate');
+    expect(taskFormPayload({ ...form, dueDate: '2026-12-01' }, null, true)).toMatchObject({ dueDate: '2026-12-01' });
+  });
+
+  it('gravação com servidor antigo: dueDate e clearDueDate nem saem (o prazo segue no texto livre)', () => {
+    const form = taskToForm(task({ id: '1', dueDate: '2026-11-05' }));
+    const body = taskFormPayload(form, { dueDate: '2026-11-05' }, false);
+    expect(body).not.toHaveProperty('dueDate');
+    expect(body).not.toHaveProperty('clearDueDate');
+    expect(body.when).toBe('25/10');
+  });
+
+  it('as linhas do lobby levam origem e contagens; sem elas ficam sem origem e sem contagem', () => {
+    const rows = mergePlanRows(
+      [
+        board({ id: 'a', sourceType: 'HEALTH_CHECK', sourceId: 'hc1', sourceTitle: 'Sprint 42', tasksTotal: 4, tasksDone: 1 }),
+        board({ id: 'b', createdAt: '2026-09-01T10:00:00Z' }),
+      ],
+      [{ roomId: 'loc', title: 'Local', createdAt: '2026-08-01T10:00:00Z' }],
+    );
+    const a = rows.find((r) => r.id === 'a')!;
+    expect(a).toMatchObject({ sourceType: 'HEALTH_CHECK', sourceId: 'hc1', sourceTitle: 'Sprint 42', counts: { total: 4, done: 1, open: 3, pct: 25 } });
+    expect(rows.find((r) => r.id === 'b')).toMatchObject({ sourceType: undefined, counts: null });
+    expect(rows.find((r) => r.id === 'loc')?.sourceType).toBeUndefined();
+    expect(rows.find((r) => r.id === 'loc')?.counts).toBeNull();
+  });
+
+  it('filtros da lista: origem e andamento se combinam com a busca por nome', () => {
+    const rows = mergePlanRows(
+      [
+        board({ id: 'r', title: 'Plano da retro', sourceType: 'RETRO', tasksTotal: 3, tasksDone: 3 }),
+        board({ id: 'h', title: 'Plano do radar', sourceType: 'HEALTH_CHECK', tasksTotal: 5, tasksDone: 2 }),
+        board({ id: 'm', title: 'Plano à mão', sourceType: 'MANUAL', tasksTotal: 0, tasksDone: 0 }),
+      ],
+      [],
+    );
+    const ids = (f: Parameters<typeof filterPlanRows>[2], q = '') => filterPlanRows(rows, q, f).map((r) => r.id).sort();
+    expect(ids({ origin: 'RETRO' })).toEqual(['r']);
+    expect(ids({ origin: 'MANUAL' })).toEqual(['m']);
+    expect(ids({ progress: 'open' })).toEqual(['h']);
+    expect(ids({ progress: 'done' })).toEqual(['r']);
+    expect(ids({ origin: 'HEALTH_CHECK', progress: 'done' })).toEqual([]);
+    expect(ids({ origin: FILTER_ALL, progress: 'all' }, 'radar')).toEqual(['h']);
+  });
+
+  it('Markdown e CSV exportam a data do prazo e a origem da ação', () => {
+    const tasks = [task({ id: '1', dueDate: '2026-11-05', sourceLabel: 'Comunicação' }), task({ id: '2' })];
+    const md = planMarkdown(board(), tasks, 'd');
+    expect(md).toContain('- **Prazo:** 05/11/2026');
+    expect(md).toContain('- **Origem:** Comunicação');
+    expect(md.match(/\*\*Prazo:\*\*/g)).toHaveLength(1);
+    const [head, first, second] = planCsv(tasks).split('\n');
+    expect(head.split(',')).toContain('"Prazo (Due date)"');
+    expect(first).toContain('"05/11/2026"');
+    expect(second).toContain('"25/10","","Ana Ribeiro"');
   });
 });
