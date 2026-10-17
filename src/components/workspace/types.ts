@@ -33,3 +33,14 @@ export interface HistoryItem {
   participantIds?: string[];
   summary?: any;
 }
+
+/** Campos que a escrita parcial (PATCH) de uma tarefa aceita; `null` limpa descrição, prazo e etiqueta. */
+export interface KanbanCardPatch {
+  title?: string;
+  description?: string | null;
+  status?: KanbanStatus;
+  priority?: KanbanPriority;
+  tag?: string | null;
+  /** "yyyy-MM-ddT00:00:00" ou null para limpar. */
+  dueDate?: string | null;
+}

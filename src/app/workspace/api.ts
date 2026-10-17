@@ -1,4 +1,4 @@
-import { KanbanCardData, StickyNote } from '@/components/workspace/types';
+import { KanbanCardData, KanbanCardPatch, StickyNote } from '@/components/workspace/types';
 import { authFetch } from '@/lib/auth-client';
 
 export interface QuickLink {
@@ -68,7 +68,7 @@ export const workspaceApi = {
   },
 
   /** Escrita parcial: só os campos enviados mudam (null limpa descrição/etiqueta). */
-  async patchKanbanCard(id: string, changes: Partial<Pick<KanbanCardData, 'title' | 'description' | 'status' | 'priority' | 'tag'>>): Promise<KanbanCardData> {
+  async patchKanbanCard(id: string, changes: KanbanCardPatch): Promise<KanbanCardData> {
     return req<KanbanCardData>(`/workspace/kanban/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(changes)
