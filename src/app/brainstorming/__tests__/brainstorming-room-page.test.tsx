@@ -125,6 +125,16 @@ describe('carga e entrada na sala', () => {
   });
 });
 
+describe('presença em tempo real', () => {
+  it('pede a presença ao conectar; sem snapshot a sala fica sem dado (null) e com snapshot vira a lista', async () => {
+    await mount();
+    expect(state.socket.presence).toBe(true);
+    expect(state.roomProps.onlineIds).toBeNull();
+    await act(async () => { state.socket.onPresence({ online: ['me'], total: 1, version: 1 }); });
+    expect([...state.roomProps.onlineIds]).toEqual(['me']);
+  });
+});
+
 describe('tempo real', () => {
   it('o estado da conexão acompanha abrir e cair do socket', async () => {
     await mount();

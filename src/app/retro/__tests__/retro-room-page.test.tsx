@@ -179,6 +179,16 @@ describe('carga e entrada na sala', () => {
   });
 });
 
+describe('presença em tempo real', () => {
+  it('pede a presença ao conectar; sem snapshot a sala fica sem dado (null) e com snapshot vira a lista', async () => {
+    await mount();
+    expect(state.socket.presence).toBe(true);
+    expect(latest().onlineIds).toBeNull();
+    await call(() => state.socket.onPresence({ online: ['me'], total: 1, version: 1 }));
+    expect([...latest().onlineIds]).toEqual(['me']);
+  });
+});
+
 describe('tempo real (WebSocket)', () => {
   it('a primeira abertura já recarrega, e uma queda e volta recarrega de novo', async () => {
     await mount();

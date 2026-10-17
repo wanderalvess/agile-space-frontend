@@ -22,6 +22,7 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
 import { CeremonyApiError, errorMessage } from '@/lib/ceremony-api';
 import { connectRoomSocket } from '@/lib/room-socket';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { applyGroupDeleted, applyIdeaDeleted, upsertById } from '@/lib/brainstorming-utils';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { squadLabel as resolveSquadLabel, squadOptions } from '@/components/showcase/review-room-logic';
@@ -66,6 +67,9 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const [loadError, setLoadError] = useState<null | 'notfound' | 'failed'>(null);
   const [deleted, setDeleted] = useState(false);
   const [connection, setConnection] = useState<RoomConnectionState>(INITIAL_CONNECTION);
+  // Quem está com a sala aberta agora (null = o servidor não informa; a sala mostra só o total, como antes).
+  const presence = useRoomPresence({ module: 'brainstorming', roomId: boardId });
+  const presenceBindings = presence.bindings;
 
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
@@ -142,6 +146,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
 
     return connectRoomSocket({
       buildUrl: () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''),
+      ...presenceBindings,
       onOpen: () => setConnection((c) => nextConnection(c, 'open')),
       onClose: () => setConnection((c) => nextConnection(c, 'close')),
       onReconnect: reloadBoardData,
@@ -202,7 +207,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
         }
       },
     });
-  }, [boardId, reloadBoardData, isAuthenticated, router, toast]);
+  }, [boardId, reloadBoardData, isAuthenticated, router, toast, presenceBindings]);
 
   // Sessão apagada pelo facilitador: mostra o aviso e volta ao Brainstorming sozinho.
   useEffect(() => {
@@ -469,6 +474,7 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
         ideas={ideas}
         groups={groups}
         participants={participants}
+        onlineIds={presence.online}
         currentUserId={userProfile.id}
         isFacilitator={isFacilitator}
         mergingSourceId={mergingSourceId}

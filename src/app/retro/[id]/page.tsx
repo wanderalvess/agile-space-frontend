@@ -41,6 +41,7 @@ import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi, RetroApiError } from '../api';
 import { getAuthToken } from '@/lib/auth-client';
 import { connectRoomSocket } from '@/lib/room-socket';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
 
 /** Tela cheia centralizada para os estados em que a sala não abre (sem sessão, falha ao carregar). */
@@ -93,6 +94,9 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
 
   const [showStats, setShowStats] = useState(false);
+  // Quem está com a sala aberta agora (null = o servidor não informa; a sala mostra só o total, como antes).
+  const presence = useRoomPresence({ module: 'retro', roomId: boardId });
+  const presenceBindings = presence.bindings;
 
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { optimisticRef.current = optimisticCards; }, [optimisticCards]);
@@ -199,6 +203,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
     return connectRoomSocket({
       buildUrl,
+      ...presenceBindings,
       // Toda abertura (a primeira inclusive) recarrega: o handshake pode ter sido recusado (403) antes de a
       // pessoa virar participante, e eventos entre a carga inicial e o aceite se perderiam. O mesmo vale para
       // eventos perdidos durante uma queda.
@@ -249,7 +254,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         }
       },
     });
-  }, [boardId, isAuthenticated, reloadBoardData]);
+  }, [boardId, isAuthenticated, reloadBoardData, presenceBindings]);
 
   // Esc cancela a fusão em andamento.
   useEffect(() => {
@@ -944,6 +949,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         boardData={boardData}
         cards={optimisticCards}
         participants={participants || []}
+        onlineIds={presence.online}
         currentUserId={userProfile.id}
         currentParticipant={currentUser}
         isCurrentUserCreator={isCurrentUserCreator}

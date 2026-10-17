@@ -32,7 +32,7 @@ const PRIVACY = [
   { title: 'O que é anônimo', desc: 'Quem votou e quem comentou. O servidor remove o seu nome do voto antes de mostrar o resultado.' },
   { title: 'O que a squad vê', desc: 'No resultado, todos os votos e comentários, sem nome. Um comentário muito específico pode revelar quem escreveu: evite detalhes que só você sabe.' },
   { title: 'Enquanto coleta', desc: 'Cada pessoa vê só as próprias respostas. Os votos dos outros não chegam ao seu navegador.' },
-  { title: 'Quem entrou', desc: 'A lista de participantes mostra quem entrou na sala, não quem já respondeu.' },
+  { title: 'Quem entrou', desc: 'A lista de participantes mostra quem entrou na sala, não quem já respondeu. O ponto verde marca quem está com a sala aberta agora; "ausente" é quem entrou mas fechou a página.' },
   { title: 'Quem encerra', desc: 'O facilitador (quem criou) e administradores. Ninguém altera respostas depois do encerramento.' },
 ] as const;
 

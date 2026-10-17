@@ -6,10 +6,13 @@ import { ConfirmDialog, PresenceList, type PresenceItem } from '@/components/roo
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { TEAM_ROLE_DESCRIPTIONS, type RetroParticipant } from '@/lib/types';
+import { presenceOnlineOf } from '@/lib/room-presence';
 import { presenceCategoryOf } from './retro-room-logic';
 
 interface RetroParticipantListProps {
   participants: RetroParticipant[];
+  /** Contas com a sala aberta agora; `null`/ausente = sem dado (sem ponto de online). */
+  onlineIds?: ReadonlySet<string> | null;
   currentUserId: string;
   isCreator: boolean;
   onRemoveParticipant: (id: string) => void;
@@ -25,7 +28,7 @@ const GROUP_ORDER = [
 ] as const;
 
 /** Quem está na retro, por papel. O facilitador remove pessoas; quem não é facilitador pode assumir o controle (com confirmação). */
-export function RetroParticipantList({ participants, currentUserId, isCreator, onRemoveParticipant, onClaimCreator }: RetroParticipantListProps) {
+export function RetroParticipantList({ participants, onlineIds, currentUserId, isCreator, onRemoveParticipant, onClaimCreator }: RetroParticipantListProps) {
   const [toRemove, setToRemove] = useState<RetroParticipant | null>(null);
   const [claimOpen, setClaimOpen] = useState(false);
 
@@ -36,13 +39,13 @@ export function RetroParticipantList({ participants, currentUserId, isCreator, o
         name: p.nickname,
         roleLabel: p.globalRole || (p.role ? TEAM_ROLE_DESCRIPTIONS[p.role]?.name : undefined) || 'Participante',
         category: presenceCategoryOf(p.role),
-        // O quadro não informa quem está conectado: quem está na lista está na retro.
-        online: true,
+        // Sem dado do servidor (`onlineIds` nulo) fica sem ponto: quem está na lista entrou na retro, não necessariamente está aqui.
+        online: presenceOnlineOf(onlineIds, p.id),
         status: 'idle',
         isYou: p.id === currentUserId,
         isHost: p.isCreator,
       })),
-    [participants, currentUserId]
+    [participants, currentUserId, onlineIds]
   );
 
   const renderActions = (item: PresenceItem) => {
