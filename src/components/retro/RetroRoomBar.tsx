@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, BookOpen, Download, Link2, LogOut, MessagesSquare, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { BarChart3, BookOpen, Download, ImageIcon, Link2, LogOut, MessagesSquare, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
 import {
   RoomTopBar,
   type RoomTopBarAction,
@@ -30,6 +30,10 @@ export interface RetroRoomBarProps {
   isSoundEnabled: boolean;
   onToggleSound: () => void;
   onLeave: () => void;
+  /** Abre a preferência pessoal "Cenário da retro" (só existe quando o formato tem cenário). */
+  onOpenScene?: () => void;
+  /** Modo escolhido, por extenso ("Suave"), que acompanha o item do menu. */
+  sceneLabel?: string;
   onOpenFeedback?: () => void;
   /** Retro encerrada pelo facilitador (backend novo): o selo da barra vira "Encerrada". */
   isFinished?: boolean;
@@ -62,6 +66,7 @@ export function RetroRoomBar(p: RetroRoomBarProps) {
       icon: p.isSoundEnabled ? Volume2 : VolumeX,
       onClick: p.onToggleSound,
     },
+    ...(p.onOpenScene ? [{ id: 'scene', label: `Cenário da retro${p.sceneLabel ? `: ${p.sceneLabel}` : ''}`, icon: ImageIcon, onClick: p.onOpenScene }] : []),
     { id: 'leave', label: 'Sair da retro', icon: LogOut, onClick: p.onLeave },
   ];
 

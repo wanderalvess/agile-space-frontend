@@ -25,10 +25,12 @@ interface AddRetroCardProps {
   addLabel?: string;
   /** Avisa que a pessoa está digitando neste campo ("escrevendo…" dos outros). Quem chama limita a frequência. */
   onTyping?: (columnKey: RetroColumnKey) => void;
+  /** Começo de frase do formato (ex.: "O vento a favor foi…"); sem ele, o texto genérico. */
+  placeholder?: string;
 }
 
 /** Campo de novo cartão (ou nova ação). O texto só some depois que o servidor aceitou: se falhar, ele continua ali. */
-export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participants, variant, open = false, onOpenChange, addLabel, onTyping }: AddRetroCardProps) {
+export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participants, variant, open = false, onOpenChange, addLabel, onTyping, placeholder: placeholderProp }: AddRetroCardProps) {
   const [content, setContent] = useState('');
   const [assignee, setAssignee] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -37,7 +39,7 @@ export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participant
   const { toast } = useToast();
   const isOpen = variant === 'field' || open;
   const label = addLabel ?? (isActionColumn ? 'Nova ação' : 'Adicionar cartão');
-  const placeholder = isActionColumn ? 'Nova ação para o time…' : 'Escreva seu feedback aqui…';
+  const placeholder = placeholderProp ?? (isActionColumn ? 'Nova ação para o time…' : 'Escreva seu feedback aqui…');
 
   useEffect(() => {
     if (variant === 'button' && open) textareaRef.current?.focus();

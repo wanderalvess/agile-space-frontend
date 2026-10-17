@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, X } from 'lucide-react';
+import { Plus, SlidersHorizontal, X } from 'lucide-react';
 import { retroApi } from '@/app/retro/api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
@@ -28,6 +28,9 @@ import {
 import { listTemplates, saveTemplate, type RetroTemplate } from '@/lib/retro-templates';
 import { RETRO_TEMPLATES, type RetroTemplateKey } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { retroFormatTheme } from '@/lib/retro-format-themes';
+import { COLUMN_ICONS } from './column-icons';
+import { SceneThumb } from './RetroScene';
 import { columnTone } from './retro-tones';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
@@ -256,6 +259,7 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
                   <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
             {groupFormats.map((f) => {
               const selected = template === f.key;
+              const theme = retroFormatTheme(f.key);
               return (
                 <button
                   key={f.key}
@@ -269,13 +273,25 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
                     selected ? 'border-primary bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/40'
                   )}
                 >
-                  <span aria-hidden="true" className="flex h-[26px] gap-[3px]">
-                    {f.columns ? (
-                      f.columns.map((col) => <span key={col.id} className={cn('flex-1 rounded-[3px] opacity-85', columnTone(col.theme).bar)} />)
-                    ) : (
-                      [0, 1, 2].map((i) => <span key={i} className="flex-1 rounded-[3px] bg-muted-foreground/40" />)
-                    )}
-                  </span>
+                  {theme ? (
+                    // Miniatura do cenário do formato; as colunas viram fichas com o ícone de cada uma.
+                    <SceneThumb sceneKey={theme.cenario} className="h-[68px] rounded-lg border border-border bg-background">
+                      <span className="absolute inset-x-1.5 bottom-1.5 z-10 flex gap-1">
+                        {(f.columns ?? []).map((col) => {
+                          const Icon = COLUMN_ICONS[theme.colunas[col.id]?.icon ?? 'listchecks'];
+                          return (
+                            <span key={col.id} className={cn('flex h-[22px] min-w-0 flex-1 items-center justify-center rounded-md border border-border/60 bg-card/85 backdrop-blur-sm', columnTone(col.theme).text)}>
+                              <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                            </span>
+                          );
+                        })}
+                      </span>
+                    </SceneThumb>
+                  ) : (
+                    <span aria-hidden="true" className="room-halo flex h-[68px] items-center justify-center rounded-lg border border-dashed border-border text-muted-foreground">
+                      <SlidersHorizontal className="h-[22px] w-[22px]" strokeWidth={1.5} />
+                    </span>
+                  )}
                   <span className="text-[13px] font-bold leading-tight">{f.name}</span>
                   <span className="text-xs leading-snug text-muted-foreground">
                     {f.columns ? f.columns.map((c) => c.title.replace(/\s*\(.*\)\s*$/, '')).join(' · ') : 'Você define · de 2 a 6 colunas'}

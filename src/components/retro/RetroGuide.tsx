@@ -2,6 +2,8 @@
 
 import { BookOpen } from 'lucide-react';
 import { GuideSheet, Kbd, type GuideTab } from '@/components/room-kit';
+import { retroFormatName } from '@/lib/retro-formats';
+import { retroFormatTheme } from '@/lib/retro-format-themes';
 import { RETRO_PHASES } from './retro-room-logic';
 
 const PHASE_COPY: Record<(typeof RETRO_PHASES)[number]['id'], string> = {
@@ -36,13 +38,21 @@ const KEYS: { label: string; items: { keys: string[]; desc: string }[] }[] = [
   },
 ];
 
-export function RetroGuide({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+export function RetroGuide({ open, onOpenChange, templateKey }: { open: boolean; onOpenChange: (open: boolean) => void; templateKey?: string | null }) {
+  const theme = retroFormatTheme(templateKey);
+  const formatName = theme ? retroFormatName(templateKey as Parameters<typeof retroFormatName>[0]) : undefined;
   const tabs: GuideTab[] = [
     {
       id: 'flow',
       label: 'Como funciona',
       content: (
         <div className="flex flex-col gap-5">
+          {theme && (
+            <section aria-label="Quebra-gelo" className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+              <h3 className="m-0 text-[13px] font-bold">Para abrir{formatName ? ` · ${formatName}` : ''} ({theme.temposPorFase.ice} min)</h3>
+              <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">{theme.quebraGelo}</p>
+            </section>
+          )}
           <ol className="m-0 flex list-none flex-col p-0">
             {RETRO_PHASES.map((phase, i) => (
               <li key={phase.id} className="flex gap-3.5">
@@ -53,6 +63,7 @@ export function RetroGuide({ open, onOpenChange }: { open: boolean; onOpenChange
                 <div className="flex flex-col gap-1 pb-[18px]">
                   <span className="text-[15px] font-bold">{phase.label}</span>
                   <span className="text-[13px] leading-relaxed text-muted-foreground">{PHASE_COPY[phase.id]}</span>
+                  {theme && <span className="text-xs text-muted-foreground">Tempo sugerido para este formato: <strong className="font-semibold text-foreground">{theme.temposPorFase[phase.id]} min</strong></span>}
                 </div>
               </li>
             ))}
