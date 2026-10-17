@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Check, ChevronDown, ChevronRight, Kanban, ListChecks, Loader2, X } from 'lucide-react';
 import { ConfirmDialog, FIELD, FOCUS_RING, Modal, ModalButton, StatusChip } from '@/components/room-kit';
+import type { KnownPlan, OriginCheck } from '@/lib/action-plan-origin';
 import { runPlan, type ItemOutcome, type PlanDeps, type PlanDestination, type PlanRecord } from '@/lib/health-check-plan';
 import { LEVEL_LABELS, type PlanItem } from '@/lib/health-check-rules';
 import { cn } from '@/lib/utils';
@@ -23,9 +24,14 @@ export interface HealthPlanDialogProps {
   /** Chave da squad do radar (o plano da squad nasce nela). */
   team: string;
   items: PlanItem[];
-  /** Plano já criado a partir deste radar neste navegador (a trava local). */
+  /** Plano já criado a partir deste radar neste navegador (a trava local, reserva do backend antigo). */
   record: PlanRecord | null;
-  onRecord: (record: PlanRecord) => void;
+  /** `guarded`: o servidor guardou a origem do plano (backend novo), então a trava dele vale. */
+  onRecord: (record: PlanRecord, guarded: boolean) => void;
+  /** O que o servidor disse sobre "este radar já tem plano?" (null enquanto consulta ou sem consulta). */
+  check?: OriginCheck | null;
+  /** O servidor recusou a criação porque o radar já tem plano (409): a tela guarda o plano existente. */
+  onExisting?: (plan: KnownPlan) => void;
   deps: PlanDeps;
   onOpenPlan: (planId: string) => void;
   onOpenKanban: () => void;
@@ -39,10 +45,11 @@ function draftsOf(items: PlanItem[]): Record<string, ItemDraft> {
 
 /**
  * Criar o plano de ação a partir do que está em atenção: escolha o destino (plano da squad ou Kanban pessoal),
- * revise os itens e crie. Mostra o que foi criado e o que faltou; depois de criado, o botão do resultado vira
- * "Plano criado" mesmo ao recarregar (a trava é local; a real depende de o servidor guardar a origem).
+ * revise os itens e crie. Mostra o que foi criado e o que faltou. Radar que já gerou plano (o servidor guarda um por
+ * radar e squad) mostra "Esta sessão já gerou o plano «X»" com "Abrir o plano", sem oferecer criar outro; o aviso
+ * deste navegador só vale de reserva quando o servidor é antigo e não guarda a origem.
  */
-export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team, items, record, onRecord, deps, onOpenPlan, onOpenKanban }: HealthPlanDialogProps) {
+export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team, items, record, onRecord, check, onExisting, deps, onOpenPlan, onOpenKanban }: HealthPlanDialogProps) {
   const required = useMemo(() => items.filter((i) => i.level !== 'ok'), [items]);
   const optional = useMemo(() => items.filter((i) => i.level === 'ok'), [items]);
   const [destination, setDestination] = useState<PlanDestination>('squad');
@@ -54,6 +61,11 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
   const [planFailed, setPlanFailed] = useState(false);
   const [view, setView] = useState<'form' | 'done'>('form');
   const [again, setAgain] = useState(false);
+  const [hiddenConflict, setHiddenConflict] = useState(false);
+  const [kanbanOnly, setKanbanOnly] = useState(false);
+
+  const serverPlan = check?.kind === 'server' ? check.plan : null;
+  const staleRecord = !!record && record.destination === 'squad' && check?.kind === 'none' && check.stale;
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +75,9 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
     setShowOptional(false);
     setDestination('squad');
     setPlanId(undefined);
-    setView(record ? 'done' : 'form');
+    setHiddenConflict(false);
+    setKanbanOnly(false);
+    setView(record && !staleRecord ? 'done' : 'form');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -80,7 +94,7 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
     try {
       const result = await runPlan({
         destination,
-        items: chosen.map((i) => ({ key: i.key, what: drafts[i.key].what.trim() || i.what, why: drafts[i.key].why.trim() || i.why, who: drafts[i.key].who.trim(), priority: i.priority })),
+        items: chosen.map((i) => ({ key: i.key, label: i.title, what: drafts[i.key].what.trim() || i.what, why: drafts[i.key].why.trim() || i.why, who: drafts[i.key].who.trim(), priority: i.priority })),
         radarId,
         radarTitle,
         team,
@@ -88,6 +102,18 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
         alreadyDone: okKeys,
         deps,
       });
+      if (result.conflict) {
+        // o servidor já tem plano deste radar nesta squad: leva ao plano existente em vez de criar outro
+        if (result.conflict.existingPlanId) {
+          const existingId = result.conflict.existingPlanId;
+          const title = await deps.getBoard?.(existingId).then((b) => b.title).catch(() => '');
+          onExisting?.({ id: existingId, title: title || 'Plano de ação' });
+        } else {
+          setHiddenConflict(true);
+        }
+        setOutcomes({});
+        return;
+      }
       setOutcomes(result.outcomes);
       setPlanId(result.planId);
       setPlanFailed(result.planFailed);
@@ -100,7 +126,7 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
           planTitle: result.planTitle,
           items: done.map((i) => ({ key: i.key, what: drafts[i.key].what.trim() || i.what })),
           createdAt: new Date().toISOString(),
-        });
+        }, !!result.guarded);
       }
       if (!result.planFailed && chosen.every((i) => result.outcomes[i.key] === 'ok')) setView('done');
     } finally {
@@ -109,6 +135,37 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
   };
 
   const shown = view === 'done' && record ? record : null;
+
+  if (view === 'form' && !kanbanOnly && (serverPlan || hiddenConflict)) {
+    return (
+      <Modal
+        open={open}
+        onOpenChange={onOpenChange}
+        size="md"
+        tone="warn"
+        icon={ListChecks}
+        title="Este radar já tem plano"
+        description="O portal guarda um plano de ação por radar em cada squad."
+        footerStart={<ModalButton variant="ghost" onClick={() => { setKanbanOnly(true); setDestination('kanban'); }}>Só no meu Kanban</ModalButton>}
+        footer={
+          serverPlan ? (
+            <ModalButton variant="primary" className="gap-1.5" onClick={() => onOpenPlan(serverPlan.id)}>Abrir o plano <ChevronRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /></ModalButton>
+          ) : (
+            <ModalButton onClick={() => onOpenChange(false)}>Fechar</ModalButton>
+          )
+        }
+      >
+        <p className="m-0 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-3 text-sm text-amber-900 dark:text-amber-100">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+          {serverPlan ? (
+            <span>Esta sessão já gerou o plano <strong>«{serverPlan.title}»</strong>. Abra o plano para acompanhar as ações.</span>
+          ) : (
+            <span>Esta sessão já gerou um plano, mas ele é privado e você não tem acesso. Peça a quem criou para convidar você.</span>
+          )}
+        </p>
+      </Modal>
+    );
+  }
 
   if (view === 'done' && shown) {
     return (
@@ -121,7 +178,7 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
           icon={ListChecks}
           title="Plano de ação criado"
           description="Pronto para acompanhar na próxima sprint."
-          footerStart={<ModalButton variant="ghost" onClick={() => setAgain(true)}>Criar outro plano</ModalButton>}
+          footerStart={serverPlan ? undefined : <ModalButton variant="ghost" onClick={() => setAgain(true)}>Criar outro plano</ModalButton>}
           footer={
             shown.destination === 'squad' && shown.planId ? (
               <>
@@ -144,9 +201,11 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
             <ul className="m-0 flex list-none flex-col gap-1.5 rounded-xl border border-border p-3.5 text-sm">
               {shown.items.map((i) => <li key={i.key} className="font-semibold">{i.what}</li>)}
             </ul>
-            <p className="m-0 text-xs text-muted-foreground">
-              Este aviso vale só neste navegador: o servidor ainda não guarda de qual radar o plano saiu, então outra pessoa pode criar de novo.
-            </p>
+            {!serverPlan && (
+              <p className="m-0 text-xs text-muted-foreground">
+                Este aviso vale só neste navegador: este servidor não guarda de qual radar o plano saiu, então outra pessoa pode criar de novo.
+              </p>
+            )}
           </div>
         </Modal>
         <ConfirmDialog
@@ -223,7 +282,7 @@ export function HealthPlanDialog({ open, onOpenChange, radarId, radarTitle, team
       }
     >
       <div className="flex flex-col gap-5">
-        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0" disabled={running || okKeys.size > 0}>
+        <fieldset className="m-0 flex flex-col gap-2 border-0 p-0" disabled={running || okKeys.size > 0 || kanbanOnly}>
           <legend className="mb-1 p-0 text-[13px] font-semibold text-muted-foreground">Destino</legend>
           <div role="radiogroup" aria-label="Destino do plano" className="flex flex-col gap-2">
             {([

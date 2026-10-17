@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HealthCheckBoard, HealthCheckDimension, HealthCheckParticipant, HealthCheckVote } from '../../../lib/types';
@@ -15,7 +15,8 @@ vi.mock('../../../hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }
 vi.mock('../../../hooks/useActiveSquad', () => ({ useActiveSquad: () => ({ squadId: 'PHX', squadName: 'Phoenix', roleName: '' }) }));
 vi.mock('../../../hooks/useMyMemberships', () => ({ useMyMemberships: () => ({ memberships: null }) }));
 vi.mock('../../../app/health-check/api', () => ({ healthCheckApi: { listBoards: vi.fn(async () => []) } }));
-vi.mock('../../../app/action-plan/api', () => ({ actionPlanApi: { createBoard: vi.fn(), createTask: vi.fn() } }));
+const planApi = vi.hoisted(() => ({ createBoard: vi.fn(), createTask: vi.fn(), listBoards: vi.fn(), getBoardById: vi.fn() }));
+vi.mock('../../../app/action-plan/api', () => ({ actionPlanApi: planApi }));
 vi.mock('../../../app/workspace/api', () => ({ workspaceApi: { saveKanbanCard: vi.fn() } }));
 vi.mock('../../room-kit/SelectField', () => ({
   SelectField: ({ value, onChange, options, ...rest }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; 'aria-label'?: string }) => (
@@ -74,7 +75,12 @@ beforeAll(() => {
   (Element.prototype as any).scrollIntoView = (Element.prototype as any).scrollIntoView || (() => {});
   (Element.prototype as any).hasPointerCapture = (Element.prototype as any).hasPointerCapture || (() => false);
 });
-beforeEach(() => { window.localStorage.clear(); pushMock.mockClear(); });
+beforeEach(() => {
+  window.localStorage.clear();
+  pushMock.mockClear();
+  Object.values(planApi).forEach((f) => f.mockReset());
+  planApi.listBoards.mockResolvedValue([]);
+});
 afterEach(cleanup);
 
 const DIMS: HealthCheckDimension[] = [
@@ -220,6 +226,89 @@ describe('resultado', () => {
     window.localStorage.setItem('healthCheck.plans.v1', JSON.stringify({ b1: { boardId: 'b1', destination: 'kanban', items: [{ key: 'p', what: 'Melhorar: Processos' }], createdAt: 'x' } }));
     render(<HealthCheckResults {...props()} />);
     expect(screen.getAllByRole('button', { name: /Plano criado/ }).length).toBeGreaterThan(0);
+  });
+
+  describe('origem do plano (servidor)', () => {
+    const serverPlan = { id: 'plano-9', creatorId: 'fac', title: 'Plano de ação: Radar Sprint 42', team: 'PHX', squadId: 'PHX', createdAt: 'x', sourceType: 'HEALTH_CHECK' as const, sourceId: 'b1', sourceTitle: 'Radar Sprint 42' };
+
+    it('consulta o plano deste radar pela squad e pela origem', async () => {
+      render(<HealthCheckResults {...props()} />);
+      await waitFor(() => expect(planApi.listBoards).toHaveBeenCalledWith({ squadId: 'PHX', sourceType: 'HEALTH_CHECK', sourceId: 'b1' }));
+    });
+
+    it('o servidor já tem plano deste radar: o botão vira "Plano criado" e a janela oferece Abrir o plano, sem criar outro', async () => {
+      planApi.listBoards.mockResolvedValue([serverPlan]);
+      render(<HealthCheckResults {...props()} />);
+      const button = (await screen.findAllByRole('button', { name: /Plano criado/ }))[0];
+      fireEvent.click(button);
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog.textContent).toContain('Esta sessão já gerou o plano');
+      expect(dialog.textContent).toContain('Plano de ação: Radar Sprint 42');
+      expect(within(dialog).queryByRole('button', { name: /Criar outro/ })).toBeNull();
+      expect(within(dialog).queryByRole('checkbox')).toBeNull();
+      fireEvent.click(within(dialog).getByRole('button', { name: /Abrir o plano/ }));
+      expect(pushMock).toHaveBeenCalledWith('/action-plan/plano-9');
+    });
+
+    it('lista devolvida por servidor antigo (planos sem origem) não conta como plano deste radar', async () => {
+      planApi.listBoards.mockResolvedValue([{ ...serverPlan, sourceType: undefined, sourceId: undefined }]);
+      render(<HealthCheckResults {...props()} />);
+      await waitFor(() => expect(planApi.listBoards).toHaveBeenCalled());
+      expect(screen.queryByRole('button', { name: /Plano criado/ })).toBeNull();
+    });
+
+    it('criar envia a origem do radar e a dimensão em cada ação', async () => {
+      planApi.createBoard.mockResolvedValue({ id: 'novo', sourceType: 'HEALTH_CHECK' });
+      planApi.createTask.mockResolvedValue({});
+      render(<HealthCheckResults {...props()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Criar plano de ação/ }));
+      await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Criar 1 ação' })); });
+      await waitFor(() => expect(planApi.createTask).toHaveBeenCalled());
+      expect(planApi.createBoard).toHaveBeenCalledWith(expect.objectContaining({ squadId: 'PHX', sourceType: 'HEALTH_CHECK', sourceId: 'b1', sourceTitle: 'Radar Sprint 42' }));
+      expect(planApi.createTask).toHaveBeenCalledWith('novo', expect.objectContaining({ sourceItemId: 'p', sourceLabel: 'Processos' }));
+    });
+
+    it('409 ao criar (outra pessoa criou antes): mostra o plano que já existe em vez de falhar', async () => {
+      planApi.createBoard.mockRejectedValue(Object.assign(new Error('Já existe.'), { status: 409, existingPlanId: 'plano-7' }));
+      planApi.getBoardById.mockResolvedValue({ ...serverPlan, id: 'plano-7', title: 'Plano da Carla' });
+      render(<HealthCheckResults {...props()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Criar plano de ação/ }));
+      await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Criar 1 ação' })); });
+      const message = await screen.findByText(/Esta sessão já gerou o plano/);
+      expect(message.textContent).toContain('Plano da Carla');
+      expect(planApi.createTask).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole('button', { name: /Abrir o plano/ }));
+      expect(pushMock).toHaveBeenCalledWith('/action-plan/plano-7');
+    });
+
+    it('409 de plano privado (sem id): explica e não oferece abrir', async () => {
+      planApi.createBoard.mockRejectedValue(Object.assign(new Error('Já existe.'), { status: 409 }));
+      render(<HealthCheckResults {...props()} />);
+      fireEvent.click(screen.getByRole('button', { name: /Criar plano de ação/ }));
+      await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Criar 1 ação' })); });
+      expect((await screen.findByText(/ele é privado e você não tem acesso/)).textContent).toContain('Esta sessão já gerou um plano');
+      expect(screen.queryByRole('button', { name: /Abrir o plano/ })).toBeNull();
+    });
+
+    it('servidor antigo: o aviso deste navegador continua valendo, com "Criar outro plano"', async () => {
+      window.localStorage.setItem('healthCheck.plans.v1', JSON.stringify({ b1: { boardId: 'b1', destination: 'squad', planId: 'velho', planTitle: 'Plano velho', items: [{ key: 'p', what: 'Melhorar: Processos' }], createdAt: 'x' } }));
+      planApi.getBoardById.mockResolvedValue({ id: 'velho', creatorId: 'fac', title: 'Plano velho', team: 'PHX', createdAt: 'x' });
+      render(<HealthCheckResults {...props()} />);
+      fireEvent.click((await screen.findAllByRole('button', { name: /Plano criado/ }))[0]);
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByRole('button', { name: 'Criar outro plano' })).toBeTruthy();
+      expect(dialog.textContent).toContain('este servidor não guarda de qual radar');
+    });
+
+    it('servidor novo e o plano do aviso local foi apagado: o aviso fica velho e deixa criar', async () => {
+      window.localStorage.setItem('healthCheck.plans.v1', JSON.stringify({ b1: { boardId: 'b1', destination: 'squad', planId: 'apagado', planTitle: 'Plano apagado', items: [{ key: 'p', what: 'x' }], createdAt: 'x' } }));
+      planApi.getBoardById.mockRejectedValue(Object.assign(new Error('Plano de ação não encontrado.'), { status: 404 }));
+      render(<HealthCheckResults {...props()} />);
+      await waitFor(() => expect(planApi.getBoardById).toHaveBeenCalledWith('apagado'));
+      await waitFor(() => expect(screen.queryByRole('button', { name: /Plano criado/ })).toBeNull());
+      fireEvent.click(screen.getByRole('button', { name: /Criar plano de ação/ }));
+      expect(await screen.findByText('Itens propostos (1 de 2)')).toBeTruthy();
+    });
   });
 
   it('apresentar troca o cabeçalho pela faixa "Apresentando" e Esc sai', () => {

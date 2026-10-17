@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { buildCsv, buildMarkdown, buildReport, exportFileName, respondentsText } from '../health-check-export';
-import { readPlanRecord, runPlan, writePlanRecord, type PlanDeps, type PlanItemInput } from '../health-check-plan';
+import { planAlreadyCreated, readPlanRecord, recordToLock, runPlan, writePlanRecord, type PlanDeps, type PlanItemInput } from '../health-check-plan';
 import type { HealthCheckBoard, HealthCheckDimension, HealthCheckVote } from '../types';
 
 const NOW = new Date(2026, 9, 16, 12, 0, 0);
@@ -128,10 +128,54 @@ describe('plano de ação', () => {
   it('plano da squad: cria o plano e uma ação por item, com quem e por quê', async () => {
     const d = deps();
     const r = await runPlan({ destination: 'squad', items, radarId: 'r1', radarTitle: 'Radar Sprint 42', team: 'PHX', deps: d });
-    expect(d.createBoard).toHaveBeenCalledWith({ title: 'Plano de ação: Radar Sprint 42', team: 'PHX' });
+    expect(d.createBoard).toHaveBeenCalledWith({ title: 'Plano de ação: Radar Sprint 42', team: 'PHX', sourceType: 'HEALTH_CHECK', sourceId: 'r1', sourceTitle: 'Radar Sprint 42' });
     expect(d.createTask).toHaveBeenCalledTimes(2);
     expect(d.createTask).toHaveBeenNthCalledWith(1, 'plano-1', expect.objectContaining({ what: 'Melhorar: Processos', who: 'Ana', order: 0 }));
     expect(r).toMatchObject({ planId: 'plano-1', planFailed: false, outcomes: { p: 'ok', v: 'ok' } });
+  });
+
+  it('cada ação leva a dimensão do radar como origem (sourceItemId e sourceLabel)', async () => {
+    const d = deps();
+    await runPlan({ destination: 'squad', items: [{ ...items[0], label: 'Processos' }, items[1]], radarId: 'r1', radarTitle: 'R', team: 'PHX', deps: d });
+    expect(d.createTask).toHaveBeenNthCalledWith(1, 'plano-1', expect.objectContaining({ sourceItemId: 'p', sourceLabel: 'Processos' }));
+    // sem o nome da dimensão, o rótulo cai no texto da ação
+    expect(d.createTask).toHaveBeenNthCalledWith(2, 'plano-1', expect.objectContaining({ sourceItemId: 'v', sourceLabel: 'Melhorar: Velocidade' }));
+  });
+
+  it('servidor novo (devolve sourceType) marca o plano como guardado; servidor antigo não', async () => {
+    const novo = await runPlan({ destination: 'squad', items, radarId: 'r1', radarTitle: 'R', team: 'PHX', deps: deps({ createBoard: vi.fn(async () => ({ id: 'p', sourceType: 'HEALTH_CHECK' as const })) }) });
+    const antigo = await runPlan({ destination: 'squad', items, radarId: 'r1', radarTitle: 'R', team: 'PHX', deps: deps() });
+    expect(novo.guarded).toBe(true);
+    expect(antigo.guarded).toBe(false);
+  });
+
+  it('409 na criação do plano: devolve o plano existente e não tenta as ações nem conta como falha', async () => {
+    const conflict = Object.assign(new Error('Já existe.'), { status: 409, existingPlanId: 'ja-existe' });
+    const d = deps({ createBoard: vi.fn(async () => { throw conflict; }) });
+    const r = await runPlan({ destination: 'squad', items, radarId: 'r1', radarTitle: 'R', team: 'PHX', deps: d });
+    expect(r.conflict).toEqual({ existingPlanId: 'ja-existe' });
+    expect(r.planFailed).toBe(false);
+    expect(r.outcomes).toEqual({});
+    expect(d.createTask).not.toHaveBeenCalled();
+  });
+
+  it('409 de plano privado vem sem existingPlanId', async () => {
+    const d = deps({ createBoard: vi.fn(async () => { throw Object.assign(new Error('Já existe.'), { status: 409 }); }) });
+    const r = await runPlan({ destination: 'squad', items, radarId: 'r1', radarTitle: 'R', team: 'PHX', deps: d });
+    expect(r.conflict).toEqual({ existingPlanId: undefined });
+  });
+
+  it('planAlreadyCreated: o servidor manda; o registro local vale de reserva e some se ficou velho', () => {
+    const rec = { boardId: 'r1', destination: 'squad' as const, planId: 'p1', items: [], createdAt: 'x' };
+    const kanban = { ...rec, destination: 'kanban' as const, planId: undefined };
+    expect(planAlreadyCreated(null, null)).toBe(false);
+    expect(planAlreadyCreated(null, { kind: 'server', plan: { id: 'p', title: 'T' } })).toBe(true);
+    expect(planAlreadyCreated(rec, null)).toBe(true);
+    expect(planAlreadyCreated(rec, { kind: 'local', plan: { id: 'p1', title: 'T' } })).toBe(true);
+    expect(planAlreadyCreated(rec, { kind: 'none', stale: true })).toBe(false);
+    expect(planAlreadyCreated(kanban, { kind: 'none', stale: false })).toBe(true);
+    expect(recordToLock(rec)).toEqual({ id: 'p1', title: 'Plano de ação' });
+    expect(recordToLock(kanban)).toBeNull();
   });
 
   it('falha no meio: mostra o que foi criado e o que falta, e a nova tentativa só refaz o que faltou', async () => {
