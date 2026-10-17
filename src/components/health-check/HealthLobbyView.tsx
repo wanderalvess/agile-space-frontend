@@ -177,7 +177,7 @@ function LastCard({ row, loading, onOpen }: { row: HealthRow | null; loading?: b
       <div className="flex flex-col gap-0.5">
         <h3 className="m-0 truncate text-xl font-bold leading-tight" title={row.title}>{row.title}</h3>
         <p className="m-0 text-[13px] text-muted-foreground">
-          {[row.scale ? scaleLabel(row.scale) : '', row.dimensionCount ? `${row.dimensionCount} ${row.dimensionCount === 1 ? 'dimensão' : 'dimensões'}` : '', `criada ${ago(row.createdAt)}`].filter(Boolean).join(' · ')}
+          {[row.scale ? scaleLabel(row.scale) : '', row.dimensionCount ? `${row.dimensionCount} ${row.dimensionCount === 1 ? 'dimensão' : 'dimensões'}` : '', finished && row.finishedAt ? `encerrada ${ago(row.finishedAt)}` : `criada ${ago(row.createdAt)}`].filter(Boolean).join(' · ')}
         </p>
       </div>
       {finished && summary && summary.climate !== null ? (
@@ -201,8 +201,8 @@ function LastCard({ row, loading, onOpen }: { row: HealthRow | null; loading?: b
         <div className="flex flex-col gap-1 text-[13px]">
           {row.answers !== null && (
             <p className="m-0 flex items-baseline justify-between gap-3">
-              <span className="text-muted-foreground">Respostas até agora</span>
-              <span className="text-lg font-bold tabular-nums">{row.answers}</span>
+              <span className="text-muted-foreground">{row.participants != null ? 'Já responderam' : 'Respostas até agora'}</span>
+              <span className="text-lg font-bold tabular-nums">{row.participants != null ? `${row.answers} de ${row.participants}` : row.answers}</span>
             </p>
           )}
           <p className="m-0 text-muted-foreground">O resultado fica oculto até o facilitador encerrar.</p>
@@ -345,7 +345,7 @@ function SurveysCard({ rows, onOpen, currentUserId, onAskDelete }: { rows: Healt
         <p className="m-0 rounded-xl border border-dashed border-border px-5 py-9 text-center text-sm text-muted-foreground">Nenhuma pesquisa com esse filtro.</p>
       ) : (
         <div role="table" aria-label="Pesquisas da squad">
-          <div role="row" className="hidden grid-cols-[minmax(0,2fr)_8.5rem_4.5rem_3rem_5.5rem_7rem_2.25rem] gap-3 border-b border-border px-3 pb-2 text-xs font-bold text-muted-foreground xl:grid">
+          <div role="row" className="hidden grid-cols-[minmax(0,2fr)_8.5rem_5.5rem_3rem_5.5rem_7rem_2.25rem] gap-3 border-b border-border px-3 pb-2 text-xs font-bold text-muted-foreground xl:grid">
             <span role="columnheader">Pesquisa</span>
             <span role="columnheader">Status</span>
             <span role="columnheader">Respostas</span>
@@ -363,7 +363,7 @@ function SurveysCard({ rows, onOpen, currentUserId, onAskDelete }: { rows: Healt
                   <Link
                     href={`/health-check/${encodeURIComponent(r.id)}`}
                     onClick={(e) => { e.preventDefault(); onOpen(r.id); }}
-                    className={cn('grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-3 transition-colors hover:bg-accent/40 xl:grid-cols-[minmax(0,2fr)_8.5rem_4.5rem_3rem_5.5rem_7rem]', FOCUS_RING)}
+                    className={cn('grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-3 transition-colors hover:bg-accent/40 xl:grid-cols-[minmax(0,2fr)_8.5rem_5.5rem_3rem_5.5rem_7rem]', FOCUS_RING)}
                   >
                     <span role="cell" className="col-span-2 flex min-w-0 flex-col xl:col-span-1">
                       <span className="truncate text-sm font-bold" title={r.title}>{r.title}</span>
@@ -372,7 +372,7 @@ function SurveysCard({ rows, onOpen, currentUserId, onAskDelete }: { rows: Healt
                       </span>
                     </span>
                     <span role="cell">{r.status ? <StatusChip tone={statusTone(r.status)}>{HEALTH_STATUS_LABELS[r.status]}</StatusChip> : <span className="text-[13px] text-muted-foreground">—</span>}</span>
-                    <span role="cell" className="text-[13px] tabular-nums"><span className="text-muted-foreground xl:hidden">Respostas: </span>{r.answers ?? '—'}</span>
+                    <span role="cell" className="text-[13px] tabular-nums"><span className="text-muted-foreground xl:hidden">Respostas: </span>{r.answers === null ? '—' : r.participants != null ? `${r.answers} de ${r.participants}` : r.answers}</span>
                     <span role="cell" className={cn('text-[13px] font-bold tabular-nums', r.score === null && 'font-normal text-muted-foreground')}><span className="font-normal text-muted-foreground xl:hidden">Nota: </span>{formatScore(r.score)}</span>
                     <span role="cell" className="text-[13px] text-muted-foreground">{ago(r.createdAt)}</span>
                     <span role="cell" className={cn('flex items-center justify-end gap-1 text-[13px] font-semibold', BRAND_TEXT)}>

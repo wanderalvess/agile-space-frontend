@@ -18,6 +18,7 @@ import { buildInviteText } from '@/lib/health-check-export';
 import { moduleIcon } from '@/lib/modules-registry';
 import { TEAM_ROLE_DESCRIPTIONS, type HealthCheckParticipant, type TeamRole } from '@/lib/types';
 import { presenceOnlineOf } from '@/lib/room-presence';
+import { respondedLabel, type ResponseCounts } from '@/lib/health-check-progress';
 import { HealthGuide } from './HealthGuide';
 import { ConnectionChip, type HealthConnection } from './health-ui';
 
@@ -59,6 +60,8 @@ export interface HealthRoomShellProps {
   onExport?: () => void;
   /** Modo apresentação: a barra da sala dá lugar a esta faixa. */
   presentationBar?: ReactNode;
+  /** "N de M já responderam" (backend novo); sem isto o painel diz só que mostra quem entrou. */
+  responseCounts?: ResponseCounts | null;
   children: ReactNode;
 }
 
@@ -155,7 +158,11 @@ export function HealthRoomShell(p: HealthRoomShellProps) {
           title="Participantes"
           icon={Users}
           count={<span className="text-xs tabular-nums text-muted-foreground">{p.participants.length}</span>}
-          subheader={<p className="m-0 px-4 pb-2 text-xs text-muted-foreground">Mostra quem entrou na sala, não quem já respondeu.</p>}
+          subheader={
+            <p className="m-0 px-4 pb-2 text-xs text-muted-foreground">
+              {p.responseCounts ? `${respondedLabel(p.responseCounts)}. A lista mostra quem entrou na sala.` : 'Mostra quem entrou na sala, não quem já respondeu.'}
+            </p>
+          }
           footer={
             <ModalButton className="w-full gap-2" onClick={() => { setInviteDraft(null); setShareOpen(true); }}>
               <Link2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Convidar pelo link

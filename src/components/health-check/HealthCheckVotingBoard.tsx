@@ -4,10 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Check, EyeOff, Loader2, MessageSquare, Timer } from 'lucide-react';
 import { ConfirmDialog, FIELD, FOCUS_RING, ModalButton, StatusChip } from '@/components/room-kit';
 import { scaleOptions, type ScaleOption } from '@/lib/health-check-rules';
+import type { PendingPerson, ResponseCounts } from '@/lib/health-check-progress';
 import type { HealthCheckBoard, HealthCheckDimension, HealthCheckParticipant, HealthCheckVote, HealthCheckVoteValue } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { HealthRoomShell } from './HealthRoomShell';
 import { ConnectionChip, TONE_SELECTED, ValueGlyph, type HealthConnection, type SaveState } from './health-ui';
+import { ResponseProgress } from './HealthResponseProgress';
 
 export interface FinishResult {
   ok: boolean;
@@ -32,6 +34,10 @@ interface HealthCheckVotingBoardProps {
   connection: HealthConnection;
   onDeleteBoard: () => Promise<void>;
   onOpenFeedback: () => void;
+  /** "N de M já responderam" (backend novo). `null`/ausente = o servidor não informa: o bloco não aparece. */
+  responseCounts?: ResponseCounts | null;
+  /** "Ainda não votaram" (só criador/ADMIN, vindo do servidor). */
+  pendingPeople?: PendingPerson[] | null;
 }
 
 /** Quanto tempo depois da última tecla o comentário é enviado. */
@@ -124,6 +130,8 @@ export function HealthCheckVotingBoard({
   connection,
   onDeleteBoard,
   onOpenFeedback,
+  responseCounts = null,
+  pendingPeople = null,
 }: HealthCheckVotingBoardProps) {
   const scale = board.scaleType ?? 'traffic_light';
   const [finishOpen, setFinishOpen] = useState(false);
@@ -235,6 +243,7 @@ export function HealthCheckVotingBoard({
       connection={connection}
       onOpenFeedback={onOpenFeedback}
       onDeleteBoard={onDeleteBoard}
+      responseCounts={responseCounts}
       primaryAction={
         isCreator ? (
           <ModalButton variant="primary" className="gap-2" disabled={isFinishing} onClick={() => { setFinishError(null); setFinishOpen(true); }}>
@@ -247,7 +256,10 @@ export function HealthCheckVotingBoard({
       <div className="mx-auto flex w-full max-w-[1750px] flex-col gap-4 px-4 py-4 md:px-6 md:py-5">
         <p className="m-0 flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-[13px] leading-relaxed dark:bg-primary/15">
           <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" strokeWidth={1.5} aria-hidden="true" />
-          <span><strong>Respostas anônimas.</strong> Você só vê as suas até o facilitador encerrar; no resultado, votos e comentários aparecem sem nome.</span>
+          <span>
+            <strong>Votos anônimos.</strong> Você só vê os seus até o facilitador encerrar; no resultado, votos e comentários aparecem sem nome.
+            {responseCounts && <> O facilitador vê quem ainda não votou, nunca o que cada pessoa votou.</>}
+          </span>
         </p>
 
         <section aria-label="Seu progresso" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-border bg-card px-5 py-4">
@@ -270,6 +282,8 @@ export function HealthCheckVotingBoard({
           </div>
           {!isCreator && <span className="basis-full text-xs text-muted-foreground sm:basis-auto">O resultado é liberado quando o facilitador encerrar.</span>}
         </section>
+
+        {responseCounts && <ResponseProgress counts={responseCounts} pending={pendingPeople} />}
 
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-4 p-0">
           {dimensions.map((dim) => {

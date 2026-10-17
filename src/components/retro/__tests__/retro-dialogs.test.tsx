@@ -396,3 +396,104 @@ describe('números da sprint', () => {
     expect(await screen.findByText(/Não foi possível carregar os números desta sprint/)).toBeTruthy();
   });
 });
+
+describe('check-in com nota livre e números da sprint (backend novo)', () => {
+  it('check-in: sem allowNote o campo não existe e a resposta é a de sempre', () => {
+    render(<RetroHealthCheckGate onAnswer={vi.fn()} />);
+    expect(screen.queryByLabelText(/Quer contar mais/)).toBeNull();
+  });
+
+  it('check-in: a nota (até 500) vai junto com a resposta, e vazia não vai', async () => {
+    const onAnswer = vi.fn();
+    const { unmount } = render(<RetroHealthCheckGate allowNote onAnswer={onAnswer} />);
+    const field = screen.getByLabelText(/Quer contar mais/) as HTMLTextAreaElement;
+    expect(field.maxLength).toBe(500);
+    fireEvent.change(field, { target: { value: '  Dia puxado.  ' } });
+    expect(screen.getByText('15/500')).toBeTruthy();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cansado' })); });
+    expect(onAnswer).toHaveBeenCalledWith('tired', 'Dia puxado.');
+    unmount();
+    const second = vi.fn();
+    render(<RetroHealthCheckGate allowNote onAnswer={second} />);
+    fireEvent.change(screen.getByLabelText(/Quer contar mais/), { target: { value: '   ' } });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Bem' })); });
+    expect(second).toHaveBeenCalledWith('good');
+  });
+
+  it('check-in: a nota que passa de 500 caracteres é cortada', () => {
+    render(<RetroHealthCheckGate allowNote onAnswer={vi.fn()} />);
+    const field = screen.getByLabelText(/Quer contar mais/) as HTMLTextAreaElement;
+    fireEvent.change(field, { target: { value: 'x'.repeat(520) } });
+    expect(field.value).toHaveLength(500);
+  });
+
+  it('números da sprint: mostra os quatro campos novos quando vierem', async () => {
+    h.stats.mockResolvedValue({ entregue: 20, previsto: 30, carryOvers: 4, totalItens: 42, concluidosJira: 30, bugs: 3, carryOverPontos: 12 });
+    render(<SprintStatsDialog open onClose={vi.fn()} squadId="PHOENIX" sprintId="s42" />);
+    const group = await screen.findByRole('group', { name: 'Itens da sprint no Jira' });
+    expect(group.textContent).toContain('Itens na sprint');
+    expect(group.textContent).toContain('42');
+    expect(group.textContent).toContain('Concluídos no Jira');
+    expect(group.textContent).toContain('Bugs na sprint');
+    expect(group.textContent).toContain('Pontos que ficaram para a próxima');
+    expect(screen.getByText('Entregue na sprint')).toBeTruthy();
+  });
+
+  it('números da sprint: o que não vier fica oculto (nada de zero inventado) e backend antigo mostra só os três de hoje', async () => {
+    h.stats.mockResolvedValueOnce({ entregue: 20, previsto: 30, carryOvers: 4 });
+    const { unmount } = render(<SprintStatsDialog open onClose={vi.fn()} squadId="PHOENIX" sprintId="s42" />);
+    await screen.findByText('Entregue na sprint');
+    expect(screen.queryByRole('group', { name: 'Itens da sprint no Jira' })).toBeNull();
+    unmount();
+    h.stats.mockResolvedValueOnce({ entregue: 0, previsto: 0, carryOvers: 0, bugs: 5 });
+    render(<SprintStatsDialog open onClose={vi.fn()} squadId="PHOENIX" sprintId="s42" />);
+    const group = await screen.findByRole('group', { name: 'Itens da sprint no Jira' });
+    expect(group.textContent).toContain('Bugs na sprint');
+    expect(group.textContent).not.toContain('Itens na sprint');
+    expect(group.textContent).not.toContain('Concluídos no Jira');
+    expect(screen.queryByText(/Ainda não há dados desta sprint/)).toBeNull();
+  });
+});
+
+describe('lobby da Retro: status real Ao vivo / Encerrada (backend novo)', () => {
+  const NOW = Date.parse('2025-10-17T18:00:00Z');
+  const live = board({ id: 'L1', title: 'Retro Sprint 42', createdAt: '2025-10-17T10:00:00Z', votingStatus: 'finished', lifecycleStatus: 'OPEN' });
+  const closed = board({ id: 'B41', title: 'Retro Sprint 41', createdAt: '2025-10-03T10:00:00Z', lifecycleStatus: 'FINISHED', finishedAt: '2025-10-03T16:30:00' });
+  const stale = board({ id: 'B39', title: 'Retro Sprint 39', createdAt: '2025-08-03T10:00:00Z', lifecycleStatus: 'OPEN' });
+  const rows = [live, closed, stale].map((b) => ({ id: b.id, title: b.title!, team: 'Phoenix', createdAt: b.createdAt, templateKey: 'classic' as const, board: b }));
+  const base = { squadName: 'Phoenix', rows, loading: false, failed: false, onRetry: vi.fn(), details: {}, savedFormats: [], isCreating: false, onNew: vi.fn(), onJoin: vi.fn(), onOpenBoard: vi.fn(), now: NOW };
+
+  it('aberta e recente: "Ao vivo", mesmo com a votação encerrada; encerrada pelo facilitador: "Encerrada" com a data', () => {
+    render(<RetroLobbyView {...base} />);
+    const andamento = screen.getByRole('region', { name: 'Em andamento' });
+    expect(within(andamento).getByText('Ao vivo')).toBeTruthy();
+    expect(within(andamento).getByText('Retro Sprint 42')).toBeTruthy();
+    const anteriores = screen.getByRole('region', { name: 'Retros anteriores' });
+    const row = within(anteriores).getByText('Retro Sprint 41').closest('li')!;
+    expect(row.textContent).toContain('Encerrada');
+    expect(row.textContent).toMatch(/encerrada em 03 de/);
+  });
+
+  it('retro antiga que ninguém encerrou não vira "Ao vivo" nem "Encerrada": segue com a fase', () => {
+    render(<RetroLobbyView {...base} />);
+    const row = within(screen.getByRole('region', { name: 'Retros anteriores' })).getByText('Retro Sprint 39').closest('li')!;
+    expect(row.textContent).not.toContain('Encerrada');
+    expect(row.textContent).toContain('Votação encerrada');
+  });
+
+  it('o filtro "Encerradas" lista só as encerradas', () => {
+    render(<RetroLobbyView {...base} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Encerradas' }));
+    const anteriores = screen.getByRole('region', { name: 'Retros anteriores' });
+    expect(within(anteriores).getByText('Retro Sprint 41')).toBeTruthy();
+    expect(within(anteriores).queryByText('Retro Sprint 39')).toBeNull();
+  });
+
+  it('backend antigo: sem selo "Ao vivo" e sem o filtro "Encerradas"', () => {
+    const old = [board({ id: 'L1', title: 'Retro Sprint 42', createdAt: '2025-10-17T10:00:00Z', votingStatus: 'active' })].map((b) => ({ id: b.id, title: b.title!, team: 'Phoenix', createdAt: b.createdAt, board: b }));
+    render(<RetroLobbyView {...base} rows={old} />);
+    expect(screen.queryByText('Ao vivo')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Encerradas' })).toBeNull();
+    expect(within(screen.getByRole('region', { name: 'Em andamento' })).getByText('Retro Sprint 42')).toBeTruthy();
+  });
+});

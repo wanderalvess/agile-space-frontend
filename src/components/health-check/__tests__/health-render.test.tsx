@@ -117,7 +117,7 @@ describe('votação', () => {
     expect(screen.getByText('Apoio e suporte')).toBeTruthy();
     expect(screen.getByText('Recebemos ajuda de fora do time?')).toBeTruthy();
     expect(screen.getByText('Você respondeu 0 de 2')).toBeTruthy();
-    expect(container.textContent).toContain('Respostas anônimas.');
+    expect(container.textContent).toContain('Votos anônimos.');
     expect(screen.getAllByText('Aguardando a sua resposta')).toHaveLength(2);
     expectNoTinyText(container);
   });
@@ -541,5 +541,133 @@ describe('presença em tempo real', () => {
       />,
     );
     expect(screen.getByRole('button', { name: /^Participantes/ }).getAttribute('aria-label')).toBe('Participantes (1 online de 2)');
+  });
+});
+
+describe('contagens, encerramento real e apresentação sincronizada (backend novo)', () => {
+  const votingProps = (over: Record<string, unknown> = {}) => ({
+    board: board(), squadLabel: 'Phoenix', participants: people, currentUserId: 'fac', userVotes: [] as HealthCheckVote[],
+    onVote: vi.fn(async () => true), isCreator: true, onFinish: vi.fn(async () => ({ ok: true })), isFinishing: false, dimensions: DIMS,
+    connection: { state: 'live' } as const, onDeleteBoard: vi.fn(async () => {}), onOpenFeedback: vi.fn(), ...over,
+  });
+  const results = [
+    { dimensionKey: 'a', values: { green: 6, yellow: 3, red: 1 } },
+    { dimensionKey: 'p', values: { green: 2, yellow: 5, red: 3 } },
+  ];
+  const resultProps = (over: Record<string, unknown> = {}) => ({
+    boardId: 'b1', board: board({ status: 'finished', summary: { topMetrics: [], lowMetrics: [], results } }), squadLabel: 'Phoenix', creatorName: 'Carla Mendes',
+    participants: people, currentUserId: 'me', isCreator: false, dimensions: DIMS, votes: [vote('p', 'red', 'Muita reunião')], results,
+    connection: { state: 'live' } as const, onDeleteBoard: vi.fn(async () => {}), onOpenFeedback: vi.fn(), ...over,
+  });
+
+  it('votação: "N de M já responderam" e a lista "Ainda não votaram" só com nomes, para o facilitador', () => {
+    const { container } = render(<HealthCheckVotingBoard {...votingProps({ responseCounts: { responded: 1, completed: 0, participants: 2 }, pendingPeople: [{ id: 'me', name: 'Ana Souza' }] })} />);
+    expect(screen.getByTestId('responded-label').textContent).toBe('1 de 2 já responderam');
+    const progress = screen.getByRole('region', { name: 'Andamento das respostas' });
+    expect(progress.textContent).toContain('Ainda não votaram (1)');
+    expect(progress.textContent).toContain('Ana Souza');
+    expect(container.textContent).toContain('nunca o que cada pessoa votou');
+    expect(container.textContent).not.toMatch(/participação anônima/i);
+    expectNoTinyText(container);
+  });
+
+  it('votação de quem não é facilitador: vê a contagem, não a lista de pendentes', () => {
+    render(<HealthCheckVotingBoard {...votingProps({ isCreator: false, currentUserId: 'me', responseCounts: { responded: 1, completed: 0, participants: 2 }, pendingPeople: null })} />);
+    expect(screen.getByTestId('responded-label').textContent).toBe('1 de 2 já responderam');
+    expect(screen.queryByText(/Ainda não votaram/)).toBeNull();
+  });
+
+  it('backend antigo (sem contagens): nada de "já responderam" nem de lista', () => {
+    const { container } = render(<HealthCheckVotingBoard {...votingProps()} />);
+    expect(screen.queryByRole('region', { name: 'Andamento das respostas' })).toBeNull();
+    expect(container.textContent).not.toContain('já responderam');
+    expect(container.textContent).toContain('Votos anônimos.');
+  });
+
+  it('resultado: "Encerrada em {data}" real e a participação', () => {
+    const { container } = render(<HealthCheckResults {...resultProps({ board: board({ status: 'finished', finishedAt: '2026-10-14T12:00:00Z', summary: { topMetrics: [], lowMetrics: [], results } }), responseCounts: { responded: 2, completed: 2, participants: 3 } })} />);
+    expect(container.textContent).toMatch(/Encerrada em\s*14\/10\/2026 às \d{2}:\d{2}/);
+    expect(screen.getByTestId('responded-label').textContent).toBe('2 de 3 já responderam');
+  });
+
+  it('resultado sem finishedAt (antigo ou encerrado antes da migração): só "Situação: Encerrada", sem data inventada', () => {
+    const { container } = render(<HealthCheckResults {...resultProps()} />);
+    expect(container.textContent).not.toContain('Encerrada em');
+    expect(screen.getByText('Situação')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Andamento das respostas' })).toBeNull();
+  });
+
+  it('o facilitador publica a etapa ao apresentar, a cada troca, e limpa ao sair', async () => {
+    const publish = vi.fn(async () => 'ok' as const);
+    render(<HealthCheckResults {...resultProps({ isCreator: true, presentation: { published: null, canPublish: true, publish } })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Apresentar/ }));
+    await waitFor(() => expect(publish).toHaveBeenLastCalledWith('score'));
+    expect(screen.getByText('A squad acompanha esta etapa')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(publish).toHaveBeenLastCalledWith('radar'));
+    fireEvent.click(screen.getByRole('button', { name: /Sair da apresentação/ }));
+    await waitFor(() => expect(publish).toHaveBeenLastCalledWith(null));
+    expect(publish.mock.calls.map((c) => c[0])).toEqual(['score', 'radar', null]);
+  });
+
+  it('o servidor sem a rota (404/405): o facilitador para de publicar e a tela volta a "cada pessoa navega na sua"', async () => {
+    const publish = vi.fn(async () => 'unavailable' as const);
+    render(<HealthCheckResults {...resultProps({ isCreator: true, presentation: { published: null, canPublish: true, publish } })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Apresentar/ }));
+    await waitFor(() => expect(publish).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByText('A squad acompanha esta etapa')).toBeNull());
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.click(screen.getByRole('button', { name: /Sair da apresentação/ }));
+    await act(async () => { await Promise.resolve(); });
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it('participante acompanha a etapa publicada, com a navegação travada, e solta no botão', () => {
+    const view = resultProps({ presentation: { published: 'radar', canPublish: false, publish: vi.fn() } });
+    const { rerender } = render(<HealthCheckResults {...view} />);
+    expect(screen.getByText('Acompanhando o facilitador')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Radar' }).getAttribute('aria-pressed')).toBe('true');
+    expect((screen.getByRole('button', { name: 'Frequência' }) as HTMLButtonElement).disabled).toBe(true);
+
+    // o facilitador muda de etapa: a tela vai junto
+    rerender(<HealthCheckResults {...resultProps({ presentation: { published: 'comments', canPublish: false, publish: vi.fn() } })} />);
+    expect(screen.getByRole('button', { name: 'Comentários' }).getAttribute('aria-pressed')).toBe('true');
+
+    // soltar: continua na apresentação, agora livre
+    fireEvent.click(screen.getByRole('button', { name: /Soltar/ }));
+    expect(screen.queryByText('Acompanhando o facilitador')).toBeNull();
+    expect((screen.getByRole('button', { name: 'Frequência' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Frequência' }));
+    expect(screen.getByRole('button', { name: 'Frequência' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: /Acompanhar o facilitador/ })).toBeTruthy();
+  });
+
+  it('participante: quando o facilitador encerra a apresentação, quem estava seguindo sai dela', () => {
+    const { rerender } = render(<HealthCheckResults {...resultProps({ presentation: { published: 'score', canPublish: false, publish: vi.fn() } })} />);
+    expect(screen.getByText('Acompanhando o facilitador')).toBeTruthy();
+    rerender(<HealthCheckResults {...resultProps({ presentation: { published: null, canPublish: false, publish: vi.fn() } })} />);
+    expect(screen.queryByText('Acompanhando o facilitador')).toBeNull();
+    expect(screen.getByRole('img', { name: /Nota de clima/ })).toBeTruthy();
+  });
+
+  it('participante que saiu da apresentação do facilitador não é puxado de volta, e pode voltar a acompanhar', () => {
+    render(<HealthCheckResults {...resultProps({ presentation: { published: 'score', canPublish: false, publish: vi.fn() } })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sair da apresentação/ }));
+    expect(screen.queryByText('Acompanhando o facilitador')).toBeNull();
+    expect(screen.getByText('O facilitador está apresentando agora.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Acompanhar o facilitador' }));
+    expect(screen.getByText('Acompanhando o facilitador')).toBeTruthy();
+  });
+
+  it('backend antigo (sem presentationStage): ninguém segue ninguém', () => {
+    render(<HealthCheckResults {...resultProps({ presentation: { published: undefined, canPublish: false, publish: vi.fn() } })} />);
+    expect(screen.queryByText('Acompanhando o facilitador')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Apresentar/ }));
+    expect(screen.getByText(/Cada pessoa navega na própria tela/)).toBeTruthy();
+  });
+
+  it('etapa publicada que esta versão não conhece é ignorada', () => {
+    render(<HealthCheckResults {...resultProps({ presentation: { published: 'etapa-do-futuro', canPublish: false, publish: vi.fn() } })} />);
+    expect(screen.queryByText('Acompanhando o facilitador')).toBeNull();
   });
 });

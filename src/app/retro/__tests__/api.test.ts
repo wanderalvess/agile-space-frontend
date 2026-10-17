@@ -71,3 +71,53 @@ describe('retroApi', () => {
     );
   });
 });
+
+describe('retroApi: encerrar e reabrir (backend novo)', () => {
+  beforeEach(() => authFetch.mockReset());
+
+  it('finishBoard faz POST em /finish e devolve o quadro', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'b1', lifecycleStatus: 'FINISHED', finishedAt: '2026-10-17T15:00:00' }));
+    const board = await retroApi.finishBoard('b1');
+    expect(board.lifecycleStatus).toBe('FINISHED');
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/retros\/b1\/finish$/);
+    expect(authFetch.mock.calls[0][1].method).toBe('POST');
+  });
+
+  it('reopenBoard faz POST em /reopen', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'b1', lifecycleStatus: 'OPEN', finishedAt: null }));
+    await retroApi.reopenBoard('b1');
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/retros\/b1\/reopen$/);
+  });
+
+  it('403 (não é facilitador) lança com a mensagem do servidor', async () => {
+    authFetch.mockResolvedValue(response(403, { message: 'Só o facilitador pode encerrar a retro.' }));
+    const error = await retroApi.finishBoard('b1').catch((e) => e);
+    expect(error).toBeInstanceOf(RetroApiError);
+    expect(error.status).toBe(403);
+    expect(error.message).toBe('Só o facilitador pode encerrar a retro.');
+  });
+
+  it('404/405 (backend antigo) lançam com o texto padrão, sem vazar corpo cru', async () => {
+    authFetch.mockResolvedValue(response(405, '<html>nope</html>', true));
+    const error = await retroApi.reopenBoard('b1').catch((e) => e);
+    expect(error).toBeInstanceOf(RetroApiError);
+    expect(error.status).toBe(405);
+    expect(error.message).toBe('Não foi possível reabrir a retro');
+  });
+
+  it('escrever em retro encerrada (409) devolve a mensagem do servidor em cartão, voto, fusão e importação', async () => {
+    const message = 'Esta retrospectiva foi encerrada. Só o facilitador pode alterá-la.';
+    authFetch.mockResolvedValue(response(409, { message }));
+    await expect(retroApi.saveOrUpdateCard('b1', { id: 'c1' })).rejects.toMatchObject({ status: 409, message });
+    await expect(retroApi.toggleVote('b1', 'c1')).rejects.toMatchObject({ status: 409, message });
+    await expect(retroApi.mergeCards('b1', 'c1', 'c2')).rejects.toMatchObject({ status: 409, message });
+    await expect(retroApi.importActions('b1', [])).rejects.toMatchObject({ status: 409, message });
+    await expect(retroApi.deleteCard('b1', 'c1')).rejects.toMatchObject({ status: 409, message });
+  });
+
+  it('o check-in leva a nota só quando existe (campo ausente não apaga no servidor)', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'u1' }));
+    await retroApi.addOrUpdateParticipant('b1', { id: 'u1', checkinNote: 'Dia puxado' });
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toMatchObject({ checkinNote: 'Dia puxado' });
+  });
+});

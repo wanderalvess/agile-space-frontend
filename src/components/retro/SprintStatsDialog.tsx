@@ -22,6 +22,26 @@ const UNIT_SUFFIX: Record<EstimationUnit, string> = {
   COUNT: 'itens',
 };
 
+/** Número que o servidor mandou, ou `null`: campo ausente (backend antigo) não vira zero. */
+export function statNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/** Os quatro números novos do Jira (itens, concluídos, bugs, pontos que ficaram), só os que vieram. */
+export function jiraExtras(stats: Record<string, unknown> | null | undefined, suffix: string): { key: string; value: number; suffix?: string; label: string }[] {
+  if (!stats) return [];
+  const total = statNumber(stats.totalItens);
+  const done = statNumber(stats.concluidosJira);
+  const bugs = statNumber(stats.bugs);
+  const carryPoints = statNumber(stats.carryOverPontos);
+  return [
+    ...(total !== null ? [{ key: 'totalItens', value: total, label: 'Itens na sprint' }] : []),
+    ...(done !== null ? [{ key: 'concluidosJira', value: done, label: 'Concluídos no Jira' }] : []),
+    ...(bugs !== null ? [{ key: 'bugs', value: bugs, label: 'Bugs na sprint' }] : []),
+    ...(carryPoints !== null ? [{ key: 'carryOverPontos', value: carryPoints, suffix: suffix || undefined, label: 'Pontos que ficaram para a próxima' }] : []),
+  ];
+}
+
 function Stat({ value, suffix, label }: { value: React.ReactNode; suffix?: string; label: string }) {
   return (
     <div className="rounded-xl border border-border bg-muted/40 p-3.5">
@@ -59,7 +79,8 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
 
   const delivered = stats ? (stats.entregue ?? stats.velocityReal ?? 0) : 0;
   const planned = stats?.previsto || 0;
-  const hasAnyData = !!stats && (delivered > 0 || planned > 0 || (stats.carryOvers || 0) > 0);
+  const extras = jiraExtras(stats, suffix);
+  const hasAnyData = !!stats && (delivered > 0 || planned > 0 || (stats.carryOvers || 0) > 0 || extras.some((e) => e.value > 0));
 
   return (
     <Modal
@@ -84,6 +105,12 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
             <Stat value={delivered} suffix={`de ${planned}`} label="Entregue do previsto" />
             <Stat value={stats.carryOvers || 0} suffix={suffix} label="Ficou para a próxima" />
           </div>
+
+          {extras.length > 0 && (
+            <div aria-label="Itens da sprint no Jira" role="group" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {extras.map((e) => <Stat key={e.key} value={e.value} suffix={e.suffix} label={e.label} />)}
+            </div>
+          )}
 
           {planned > 0 && (
             <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-sm">

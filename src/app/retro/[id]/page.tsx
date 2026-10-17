@@ -43,6 +43,8 @@ import { getAuthToken } from '@/lib/auth-client';
 import { connectRoomSocket } from '@/lib/room-socket';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { SprintStatsDialog } from '@/components/retro/SprintStatsDialog';
+import { isRetroFinished, isRetroReadOnly, readOnlyToast, supportsRetroLifecycle } from '@/lib/retro-lifecycle';
+import { useRetroTyping } from '@/hooks/useRetroTyping';
 
 /** Tela cheia centralizada para os estados em que a sala não abre (sem sessão, falha ao carregar). */
 function RoomMessage({ title, children, action }: { title: string; children: React.ReactNode; action: React.ReactNode }) {
@@ -94,6 +96,18 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const isCurrentUserCreator = useMemo(() => !!(userProfile && boardData && userProfile.id === boardData.creatorId), [userProfile, boardData]);
 
   const [showStats, setShowStats] = useState(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  // Conexão atual da sala: o "escrevendo…" envia por ela.
+  const socketRef = useRef<{ send: (message: unknown) => boolean } | null>(null);
+  const readOnlyRef = useRef(false);
+
+  // Encerrar/reabrir é do facilitador (criador) ou ADMIN; quem não é, numa retro encerrada, só lê.
+  const canManageLifecycle = isCurrentUserCreator || userProfile?.role === 'admin';
+  const isFinished = isRetroFinished(boardData);
+  const readOnly = isRetroReadOnly(boardData, canManageLifecycle);
+  // Backend novo (V79): quem informa o ciclo de vida também entende o "escrevendo…", o encerrar/reabrir e a nota do check-in. No antigo nada disso aparece e nada é enviado.
+  const newBackend = supportsRetroLifecycle(boardData);
+  const typing = useRetroTyping({ enabled: newBackend, selfId: userProfile?.id, socketRef });
   // Quem está com a sala aberta agora (null = o servidor não informa; a sala mostra só o total, como antes).
   const presence = useRoomPresence({ module: 'retro', roomId: boardId });
   const presenceBindings = presence.bindings;
@@ -101,6 +115,10 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   useEffect(() => { cardsRef.current = cards; }, [cards]);
   useEffect(() => { optimisticRef.current = optimisticCards; }, [optimisticCards]);
   useEffect(() => { boardRef.current = boardData; }, [boardData]);
+  useEffect(() => { readOnlyRef.current = readOnly; }, [readOnly]);
+  // O socket é criado uma vez por sala: o tratador do evento lê sempre a versão mais recente.
+  const onTypingEventRef = useRef(typing.onTypingEvent);
+  useEffect(() => { onTypingEventRef.current = typing.onTypingEvent; }, [typing.onTypingEvent]);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
@@ -201,9 +219,11 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     // O token é relido a cada tentativa: numa sessão longa o antigo expira e a reconexão nunca voltaria sem recarregar.
     const buildUrl = () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || '');
 
-    return connectRoomSocket({
+    const handle = connectRoomSocket({
       buildUrl,
       ...presenceBindings,
+      // "Escrevendo…" (backend antigo ignora o parâmetro e nunca envia o evento).
+      typing: true,
       // Toda abertura (a primeira inclusive) recarrega: o handshake pode ter sido recusado (403) antes de a
       // pessoa virar participante, e eventos entre a carga inicial e o aceite se perderiam. O mesmo vale para
       // eventos perdidos durante uma queda.
@@ -247,6 +267,10 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
               setChatByChannel((prev) => ({ ...prev, [channelId]: (prev[channelId] || []).filter((m) => m.id !== messageId) }));
             }
             break;
+          case 'TYPING':
+            // Efêmero: nunca recarrega a sala (o tipo desconhecido recarregaria).
+            onTypingEventRef.current(payload);
+            break;
           case 'REFRESH_BOARD':
           default:
             void reloadBoardData();
@@ -254,6 +278,11 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         }
       },
     });
+    socketRef.current = handle;
+    return () => {
+      if (socketRef.current === handle) socketRef.current = null;
+      handle();
+    };
   }, [boardId, isAuthenticated, reloadBoardData, presenceBindings]);
 
   // Esc cancela a fusão em andamento.
@@ -444,6 +473,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleAddCard = useCallback(async (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string): Promise<boolean> => {
     if (!isAuthenticated || !userProfile || !boardId) return false;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return false; }
     const text = content.trim();
     if (!text) return false;
 
@@ -476,6 +506,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleDeleteCard = useCallback((cardId: string) => {
     if (!boardId) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
     retroApi.deleteCard(boardId, cardId)
       .then(() => {
         setCards((prev) => removeById(prev, cardId));
@@ -489,6 +520,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleUpdateCard = useCallback((cardId: string, newContent: string, assignee?: string, dueDate?: string) => {
     if (!boardId) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
     const current = optimisticRef.current.find((c) => c.id === cardId) || cardsRef.current.find((c) => c.id === cardId);
     if (!current) return;
     const text = newContent.trim();
@@ -545,6 +577,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleToggleVote = useCallback((cardId: string) => {
     if (!boardId || !isAuthenticated || !userProfile || !boardData) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
     const check = checkVote({ board: boardData, cards: optimisticRef.current, cardId, userId: userProfile.id });
     if (!check.ok) {
       if (check.reason === 'closed') {
@@ -570,6 +603,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleToggleReaction = useCallback((cardId: string, type: RetroReactionType, currentUserIds: string[]) => {
     if (!boardId || !isAuthenticated || !userProfile) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
     // Base em optimisticRef: duas reações em sequência rápida no mesmo card não perdem uma delas.
     const current = optimisticRef.current.find((c) => c.id === cardId) || cardsRef.current.find((c) => c.id === cardId);
     if (!current) return;
@@ -600,6 +634,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleToggleActionDone = useCallback((cardId: string, isDone: boolean) => {
     if (!boardId) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
     const current = optimisticRef.current.find((c) => c.id === cardId) || cardsRef.current.find((c) => c.id === cardId);
     if (!current) return;
 
@@ -618,6 +653,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const handleImportActions = useCallback(async (entries: RetroImportEntry[]) => {
     const total = entries.reduce((n, e) => n + e.cards.length, 0);
     if (!boardId || !isAuthenticated || !userProfile || !boardData || total === 0) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
 
     const destActionColumn = resolveColumns(boardData).find((c) => c.theme === 'action');
     if (!destActionColumn) {
@@ -673,6 +709,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
 
   const handleMergeCards = useCallback(async (sourceId: string, targetId: string) => {
     if (!boardId || !boardData) return;
+    if (readOnlyRef.current) { toast(readOnlyToast()); return; }
 
     if (!boardData.isCardsRevealed) {
       toast({ title: 'Ação bloqueada', description: 'Não é possível juntar cartões durante a fase anônima.', variant: 'destructive' });
@@ -704,6 +741,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || !boardId || !userProfile) return;
+    if (readOnlyRef.current) return;
 
     const plan = planCardMove({
       allCards: cardsRef.current,
@@ -835,19 +873,47 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const handleToggleHealthCheck = useCallback((enabled: boolean) => { patchBoard({ healthCheckEnabled: enabled }); }, [patchBoard]);
   const handleHealthCheckQuestionChange = useCallback((question: string) => { patchBoard({ healthCheckQuestion: question }); }, [patchBoard]);
 
-  const handleSubmitHealthCheckAnswer = useCallback(async (answer: HealthCheckAnswer) => {
+  const handleSubmitHealthCheckAnswer = useCallback(async (answer: HealthCheckAnswer, note?: string) => {
     if (!boardId || !currentUser) return;
     // Aplica na hora: a trava some sem depender do eco do WebSocket (que pode se perder).
     const previous = currentUser;
-    setParticipants((prev) => prev.map((p) => (p.id === currentUser.id ? { ...p, healthCheckAnswer: answer } : p)));
+    // A nota só vai quando foi escrita (campo ausente não apaga no servidor).
+    const checkinNote = note?.trim() ? note.trim().slice(0, 500) : undefined;
+    setParticipants((prev) => prev.map((p) => (p.id === currentUser.id ? { ...p, healthCheckAnswer: answer, ...(checkinNote ? { checkinNote } : {}) } : p)));
     try {
-      await retroApi.addOrUpdateParticipant(boardId, { ...currentUser, healthCheckAnswer: answer });
+      await retroApi.addOrUpdateParticipant(boardId, { ...currentUser, healthCheckAnswer: answer, ...(checkinNote ? { checkinNote } : {}) });
     } catch (err: any) {
       console.error('Erro ao registrar check-in inicial:', err);
       setParticipants((prev) => prev.map((p) => (p.id === previous.id ? previous : p)));
       toast({ title: 'Não foi possível registrar sua resposta', description: err?.message || 'Tente de novo.', variant: 'destructive' });
     }
   }, [boardId, currentUser, toast]);
+
+  /** Encerrar e reabrir: o servidor devolve o quadro (e avisa as outras telas por BOARD_UPDATED). 403/409 vêm com a mensagem dele. */
+  const runLifecycle = useCallback(async (action: 'finish' | 'reopen') => {
+    setLifecycleBusy(true);
+    try {
+      const updated = action === 'finish' ? await retroApi.finishBoard(boardId) : await retroApi.reopenBoard(boardId);
+      if (updated?.id) setBoardData(updated);
+      toast(action === 'finish'
+        ? { title: 'Retro encerrada', description: 'As outras pessoas agora só leem o quadro. Você pode reabrir quando quiser.' }
+        : { title: 'Retro reaberta', description: 'Todas as pessoas voltam a poder escrever, votar e mover cartões.' });
+    } catch (err: any) {
+      console.error(err);
+      toast({ title: action === 'finish' ? 'Não foi possível encerrar a retro' : 'Não foi possível reabrir a retro', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }, [boardId, toast]);
+  const handleFinishRetro = useCallback(() => runLifecycle('finish'), [runLifecycle]);
+  const handleReopenRetro = useCallback(() => runLifecycle('reopen'), [runLifecycle]);
+
+  // "Fulana está escrevendo…" por coluna e por canal do chat (com a autoria oculta, só "Alguém").
+  const nicknameOf = useCallback((userId: string) => participants.find((p) => p.id === userId)?.nickname, [participants]);
+  const authorsRevealed = boardData?.isAuthorsRevealed === true;
+  const { labelFor: typingLabelFor } = typing;
+  const typingLabelForColumn = useCallback((columnKey: string) => typingLabelFor('card', columnKey, nicknameOf, { authorsRevealed }), [typingLabelFor, nicknameOf, authorsRevealed]);
+  const typingLabelForChannel = useCallback((channelId: string) => typingLabelFor('chat', channelId, nicknameOf), [typingLabelFor, nicknameOf]);
 
   const handleToggleColumnSort = useCallback((columnKey: string, isSorted: boolean) => {
     const currentSorts = boardRef.current?.columnSorts || {};
@@ -942,7 +1008,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   return (
     <>
       {needsHealthCheck && (
-        <RetroHealthCheckGate question={boardData.healthCheckQuestion} onAnswer={handleSubmitHealthCheckAnswer} />
+        <RetroHealthCheckGate question={boardData.healthCheckQuestion} onAnswer={handleSubmitHealthCheckAnswer} allowNote={newBackend} />
       )}
       <RetroRoom
         boardId={boardId}
@@ -999,6 +1065,15 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onOpenStats={() => setShowStats(true)}
         onSendChatMessage={handleSendChatMessage}
         onDeleteChatMessage={handleDeleteChatMessage}
+        isFinished={isFinished}
+        readOnly={readOnly}
+        onFinishRetro={newBackend && canManageLifecycle ? handleFinishRetro : undefined}
+        onReopenRetro={newBackend && canManageLifecycle ? handleReopenRetro : undefined}
+        lifecycleBusy={lifecycleBusy}
+        typingLabelForColumn={newBackend ? typingLabelForColumn : undefined}
+        typingLabelForChannel={newBackend ? typingLabelForChannel : undefined}
+        onTypingCard={newBackend ? typing.notifyCard : undefined}
+        onTypingChat={newBackend ? typing.notifyChat : undefined}
       />
       <FeedbackWidget
         toolName={`Retrospectiva: ${boardData?.title || 'Agile'}`}

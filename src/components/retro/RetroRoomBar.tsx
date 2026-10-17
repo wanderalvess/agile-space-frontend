@@ -31,6 +31,8 @@ export interface RetroRoomBarProps {
   onToggleSound: () => void;
   onLeave: () => void;
   onOpenFeedback?: () => void;
+  /** Retro encerrada pelo facilitador (backend novo): o selo da barra vira "Encerrada". */
+  isFinished?: boolean;
 }
 
 /**
@@ -68,7 +70,8 @@ export function RetroRoomBar(p: RetroRoomBarProps) {
       toolName="Retrospectiva"
       toolIcon={moduleIcon('retro')}
       title={p.boardData.title || 'Retrospectiva'}
-      status="live"
+      status={p.isFinished ? 'done' : 'live'}
+      statusLabel={p.isFinished ? 'Encerrada' : undefined}
       chips={chips}
       phases={{ steps: RETRO_PHASES, current: retroPhase(p.boardData), label: 'Fases da retro' }}
       presence={{ people: p.people, open: p.isParticipantsOpen, onClick: p.onToggleParticipants }}

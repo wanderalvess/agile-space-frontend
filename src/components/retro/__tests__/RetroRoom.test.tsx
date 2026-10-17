@@ -505,3 +505,98 @@ describe('sala da Retro: presença em tempo real', () => {
     expect(painel.querySelector('.bg-emerald-500')).toBeNull();
   });
 });
+
+describe('sala da Retro: encerrar, somente leitura, escrevendo… e notas do check-in (backend novo)', () => {
+  const closed = { lifecycleStatus: 'FINISHED' as const, finishedAt: '2026-10-17T15:00:00', isCardsRevealed: true, votingStatus: 'active' as const };
+  const feedback = [card({ id: 'k1', columnKey: 'wentWell', authorId: 'u3' })];
+
+  it('participante numa retro encerrada só lê: aviso, selo "Encerrada", sem campo de novo cartão, sem votar nem reagir', () => {
+    setup({ me: 'me', board: closed, cards: feedback, props: { isFinished: true, readOnly: true } });
+    expect(screen.getByText(/O facilitador encerrou esta retro/)).toBeTruthy();
+    expect(screen.getAllByText('Encerrada').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Adicionar cartão' })).toBeNull();
+    expect((screen.getByRole('button', { name: /Votar neste cartão/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Concordo' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Mais ações do cartão' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Arrastar cartão' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Encerrar retro|Reabrir/ })).toBeNull();
+  });
+
+  it('facilitador numa retro encerrada continua podendo tudo e vê "Reabrir"', () => {
+    const onReopenRetro = vi.fn();
+    setup({ me: 'fac', board: closed, cards: feedback, props: { isFinished: true, readOnly: false, onFinishRetro: vi.fn(), onReopenRetro } });
+    expect(screen.queryByText(/O facilitador encerrou esta retro/)).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Adicionar cartão' }).length).toBeGreaterThan(0);
+    expect((screen.getByRole('button', { name: 'Concordo' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Reabrir' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Reabrir retro' }));
+    expect(onReopenRetro).toHaveBeenCalledTimes(1);
+  });
+
+  it('"Encerrar retro" pede confirmação e só então chama o servidor', () => {
+    const onFinishRetro = vi.fn();
+    setup({ me: 'fac', props: { onFinishRetro, onReopenRetro: vi.fn() } });
+    fireEvent.click(screen.getByRole('button', { name: 'Encerrar retro' }));
+    expect(onFinishRetro).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog.textContent).toContain('não escrevem, votam nem movem cartões');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Encerrar retro' }));
+    expect(onFinishRetro).toHaveBeenCalledTimes(1);
+  });
+
+  it('participante comum nunca vê "Encerrar retro"; backend antigo (sem os callbacks) também não', () => {
+    setup({ me: 'me', props: { onFinishRetro: undefined, onReopenRetro: undefined } });
+    expect(screen.queryByRole('button', { name: 'Encerrar retro' })).toBeNull();
+    cleanup();
+    setup({ me: 'fac' });
+    expect(screen.queryByRole('button', { name: 'Encerrar retro' })).toBeNull();
+    expect(screen.queryByText('Encerrada')).toBeNull();
+  });
+
+  it('"Fulana está escrevendo…" aparece só na coluna certa; com autoria oculta vem sem nome', () => {
+    const labelFor = (key: string) => (key === 'wentWell' ? 'Bruno Lima está escrevendo…' : key === 'toImprove' ? 'Alguém está escrevendo…' : null);
+    setup({ me: 'me', props: { typingLabelForColumn: labelFor } });
+    const well = screen.getByRole('region', { name: 'O que funcionou?' });
+    const improve = screen.getByRole('region', { name: 'O que melhorar?' });
+    const action = screen.getByRole('region', { name: 'Plano de Ação' });
+    expect(within(well).getByRole('status').textContent).toBe('Bruno Lima está escrevendo…');
+    expect(within(improve).getByRole('status').textContent).toBe('Alguém está escrevendo…');
+    expect(within(action).queryByRole('status')).toBeNull();
+  });
+
+  it('sem backend novo nada de "escrevendo…" aparece', () => {
+    const { container } = setup({ me: 'me' });
+    expect(container.textContent).not.toContain('escrevendo…');
+  });
+
+  it('digitar num novo cartão avisa a coluna (o limite de 2 s é de quem chama)', () => {
+    const onTypingCard = vi.fn();
+    setup({ me: 'me', props: { onTypingCard } });
+    const well = screen.getByRole('region', { name: 'O que funcionou?' });
+    fireEvent.click(within(well).getByRole('button', { name: 'Adicionar cartão' }));
+    fireEvent.change(within(well).getByLabelText('Escreva seu feedback'), { target: { value: 'O deploy' } });
+    expect(onTypingCard).toHaveBeenCalledWith('wentWell');
+    fireEvent.change(within(well).getByLabelText('Escreva seu feedback'), { target: { value: '   ' } });
+    expect(onTypingCard).toHaveBeenCalledTimes(1);
+  });
+
+  it('notas do check-in: o facilitador vê nome, humor e texto; participante não', async () => {
+    const withNotes: RetroParticipant[] = [
+      { ...people[0] },
+      { ...people[1], healthCheckAnswer: 'tired', checkinNote: 'Semana puxada, mas animada.' },
+      { ...people[2], healthCheckAnswer: 'great' },
+    ];
+    setup({ me: 'fac', props: { participants: withNotes } });
+    fireEvent.click(screen.getByRole('button', { name: /^Participantes/ }));
+    const notes = await screen.findByRole('region', { name: 'Notas do check-in' });
+    expect(notes.textContent).toContain('Ana Souza');
+    expect(notes.textContent).toContain('Cansado');
+    expect(notes.textContent).toContain('Semana puxada, mas animada.');
+    expect(notes.textContent).not.toContain('Bruno Lima');
+    cleanup();
+    setup({ me: 'me', props: { participants: withNotes } });
+    fireEvent.click(screen.getByRole('button', { name: /^Participantes/ }));
+    await screen.findByRole('region', { name: 'Participantes' });
+    expect(screen.queryByRole('region', { name: 'Notas do check-in' })).toBeNull();
+  });
+});

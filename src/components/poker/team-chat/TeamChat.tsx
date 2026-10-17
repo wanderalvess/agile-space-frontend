@@ -32,6 +32,10 @@ interface TeamChatProps {
   messagesByChannel: Record<string, ChatMessage[]>;
   onSendMessage: (text: string, kind: ChatMessageKind, channelId: string) => void;
   onDeleteMessage: (messageId: string, channelId: string) => void;
+  /** Avisa que a pessoa digita no canal (a Retro usa para o "escrevendo…"; o Poker não passa). */
+  onTyping?: (channelId: string) => void;
+  /** "Fulana está escrevendo…" de um canal; `null` = ninguém. */
+  typingLabelFor?: (channelId: string) => string | null;
 }
 
 export function TeamChat({
@@ -47,6 +51,8 @@ export function TeamChat({
   messagesByChannel,
   onSendMessage,
   onDeleteMessage,
+  onTyping,
+  typingLabelFor,
 }: TeamChatProps) {
   const [tab, setTab] = useState<Tab>('geral');
   const [activeDm, setActiveDm] = useState<string | null>(null);
@@ -194,7 +200,13 @@ export function TeamChat({
                   emptyHint={emptyHint}
                   onDelete={handleDelete}
                 />
-                <ChatComposer key={`composer-${activeChannel}`} placeholder={placeholder} onSend={handleSend} />
+                <ChatComposer
+                  key={`composer-${activeChannel}`}
+                  placeholder={placeholder}
+                  onSend={handleSend}
+                  onTyping={onTyping && activeChannel ? () => onTyping(activeChannel) : undefined}
+                  typingLabel={typingLabelFor && activeChannel ? typingLabelFor(activeChannel) : null}
+                />
               </>
             )}
           </div>

@@ -97,6 +97,23 @@ export const retroApi = {
     return res.json();
   },
 
+  /**
+   * Encerra a retro (facilitador ou ADMIN): vira somente leitura para os demais. Idempotente. Backend antigo: 404/405.
+   * 403 = não é o facilitador; a mensagem do servidor vem no erro.
+   */
+  async finishBoard(boardId: string): Promise<RetroBoard> {
+    const res = await authFetch(`${API_BASE_URL}/retros/${encodeURIComponent(boardId)}/finish`, { method: 'POST' });
+    await ensureOk(res, 'Não foi possível encerrar a retro');
+    return res.json();
+  },
+
+  /** Reabre a retro encerrada (facilitador ou ADMIN). Idempotente. */
+  async reopenBoard(boardId: string): Promise<RetroBoard> {
+    const res = await authFetch(`${API_BASE_URL}/retros/${encodeURIComponent(boardId)}/reopen`, { method: 'POST' });
+    await ensureOk(res, 'Não foi possível reabrir a retro');
+    return res.json();
+  },
+
   /** A própria pessoa assume o controle do quadro (uma única flag de facilitador). */
   async transferControl(boardId: string): Promise<RetroBoard> {
     const res = await authFetch(`${API_BASE_URL}/retros/${boardId}/transfer-control`, { method: 'POST' });

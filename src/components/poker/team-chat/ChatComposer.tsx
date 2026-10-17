@@ -9,9 +9,15 @@ import { MAX_MESSAGE_LENGTH, type ChatMessageKind } from './chatChannels';
 export function ChatComposer({
   placeholder,
   onSend,
+  onTyping,
+  typingLabel = null,
 }: {
   placeholder: string;
   onSend: (text: string, kind: ChatMessageKind) => void;
+  /** Avisa que a pessoa está digitando (a Retro usa para o "escrevendo…"; o Poker não passa). */
+  onTyping?: () => void;
+  /** "Fulana está escrevendo…" neste canal. */
+  typingLabel?: string | null;
 }) {
   const [text, setText] = useState('');
   const [isCodeMode, setIsCodeMode] = useState(false);
@@ -67,7 +73,10 @@ export function ChatComposer({
           id="chat-input"
           ref={textareaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (e.target.value.trim()) onTyping?.();
+          }}
           onKeyDown={handleKeyDown}
           rows={1}
           maxLength={MAX_MESSAGE_LENGTH}
@@ -84,6 +93,7 @@ export function ChatComposer({
           <Send className="h-4 w-4" strokeWidth={1.5} />
         </button>
       </div>
+      {typingLabel && <p role="status" className="m-0 px-1 text-xs text-muted-foreground motion-safe:animate-pulse">{typingLabel}</p>}
       <p className="m-0 px-1 text-[11px] text-muted-foreground">
         {isCodeMode ? 'Ctrl+Enter envia · Enter quebra linha' : 'Enter envia · Shift+Enter quebra linha · ``` para código'}
       </p>
