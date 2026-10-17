@@ -1,25 +1,87 @@
-import React, { useState } from 'react';
-import { ActionPlanBoard as IActionPlanBoard, ActionPlanTask, ActionPlanTaskStatus } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Plus, ListChecks, Target, Clock, User, Sparkles, LayoutGrid, CheckCircle2 } from 'lucide-react';
-import { ActionTaskDialog } from './ActionTaskDialog';
-import { Badge } from '@/components/ui/badge';
+'use client';
+
+import React, { useMemo, useState } from 'react';
+import { CircleAlert, CircleCheck, CircleDashed, CircleDot, FilterX, ListChecks, Pencil, Plus, RefreshCw } from 'lucide-react';
 import { actionPlanApi } from '@/app/action-plan/api';
-import { cn } from '@/lib/utils';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
+import { DataTable, DataToolbar, EmptyState, KpiCard, KpiRow, PAGE_CARD, type DataColumn } from '@/components/page';
+import { IconButton, ModalButton, SelectField, StatusChip, type Tone } from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
+import {
+  FILTER_ALL,
+  FILTER_UNASSIGNED,
+  NO_FILTERS,
+  STATUS_LABEL,
+  TASK_STATUSES,
+  filterTasks,
+  formatAgo,
+  formatClock,
+  hasActiveFilters,
+  nextStatus,
+  normalizeStatus,
+  numberTasks,
+  responsibleOptions,
+  summarizeTasks,
+  type PlanPerson,
+  type TaskFilters,
+} from '@/lib/action-plan';
 import { errorMessage } from '@/lib/ceremony-api';
+import type { ActionPlanBoard as IActionPlanBoard, ActionPlanTask } from '@/lib/types';
+import { ActionPlanCell } from './ActionPlanCell';
+import { ActionTaskDialog } from './ActionTaskDialog';
+
+/** Situação da releitura automática das ações (o plano não tem WebSocket). */
+export interface RefreshStatus {
+  phase: 'idle' | 'loading' | 'error';
+  /** Quando a última leitura deu certo (ms). */
+  lastOkAt: number | null;
+}
 
 interface ActionPlanBoardProps {
   board: IActionPlanBoard;
   tasks: ActionPlanTask[];
   onRefresh?: () => void;
+  /** Pessoas da squad do plano (campo "Quem"). */
+  people?: readonly PlanPerson[];
+  refreshStatus?: RefreshStatus;
+  /** "Tentar agora" na faixa de atualização. */
+  onRefreshNow?: () => void;
+  /** Hora atual (ms) para o texto "Atualizado há N s"; a página repõe a cada poucos segundos. */
+  now?: number;
 }
 
-export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProps) {
+const STATUS_TONE: Record<ActionPlanTask['status'], Tone> = {
+  todo: 'neutral',
+  doing: 'brand',
+  done: 'success',
+  blocked: 'danger',
+};
+
+const STATUS_FILTER_OPTIONS = [
+  { value: FILTER_ALL, label: 'Todos os status' },
+  ...TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
+];
+
+/** Resumo por status, busca e filtros, e a tabela 5W2H editável no lugar (cartões abaixo de 1280 px). */
+export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshStatus, onRefreshNow, now }: ActionPlanBoardProps) {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ActionPlanTask | null>(null);
+  const [filters, setFilters] = useState<TaskFilters>(NO_FILTERS);
+
+  const summary = useMemo(() => summarizeTasks(tasks), [tasks]);
+  const numbers = useMemo(() => numberTasks(tasks), [tasks]);
+  const visible = useMemo(() => filterTasks(tasks, filters), [tasks, filters]);
+  const who = useMemo(() => responsibleOptions(tasks), [tasks]);
+  const whoOptions = useMemo(
+    () => [
+      { value: FILTER_ALL, label: 'Todos os responsáveis' },
+      ...who.names.map((n) => ({ value: n, label: n })),
+      ...(who.hasUnassigned ? [{ value: FILTER_UNASSIGNED, label: 'Sem responsável' }] : []),
+    ],
+    [who],
+  );
+  const filtering = hasActiveFilters(filters);
 
   const handleOpenNew = () => {
     setEditingTask(null);
@@ -31,312 +93,244 @@ export function ActionPlanBoard({ board, tasks, onRefresh }: ActionPlanBoardProp
     setIsDialogOpen(true);
   };
 
-  /** Devolve true quando salvou; a célula só sai da edição nesse caso (o texto digitado não se perde se falhar). */
-  const handleUpdateField = async (taskId: string, field: string, value: string): Promise<boolean> => {
+  /** Grava só o campo editado. Devolve a mensagem do servidor quando falha, para a célula mostrá-la. */
+  const handleUpdateField = async (taskId: string, field: string, value: string): Promise<true | string> => {
     try {
       await actionPlanApi.updateTask(taskId, { [field]: value });
       onRefresh?.();
       return true;
     } catch (e) {
-      console.error("Erro ao salvar o campo da ação", e);
-      toast({ title: "Não foi possível salvar", description: errorMessage(e, "A alteração não foi gravada. O texto continua na célula."), variant: "destructive" });
-      return false;
+      console.error('Erro ao salvar o campo da ação', e);
+      return errorMessage(e, 'Não foi possível salvar. O texto continua na célula.');
     }
   };
 
-  const handleUpdateStatus = async (taskId: string, currentStatus: ActionPlanTaskStatus) => {
-    const statuses: ActionPlanTaskStatus[] = ['todo', 'doing', 'done', 'blocked'];
-    const currentIndex = statuses.indexOf(currentStatus);
-    const nextStatus = statuses[(currentIndex + 1) % statuses.length];
-
+  const handleUpdateStatus = async (task: ActionPlanTask) => {
     try {
-      await actionPlanApi.updateTask(taskId, { status: nextStatus });
+      await actionPlanApi.updateTask(task.id, { status: nextStatus(task.status) });
       onRefresh?.();
     } catch (e) {
-      console.error("Erro ao mudar o status da ação", e);
-      toast({ title: "Não foi possível mudar o status", description: errorMessage(e, "Tente novamente."), variant: "destructive" });
+      console.error('Erro ao mudar o status da ação', e);
+      toast({ title: 'Não foi possível mudar o status', description: errorMessage(e, 'Tente novamente.'), variant: 'destructive' });
     }
   };
 
+  const columns: DataColumn<ActionPlanTask>[] = [
+    {
+      id: 'what',
+      header: 'O quê',
+      width: 'minmax(0,1.5fr)',
+      primary: true,
+      cell: (t) => (
+        <div className="flex min-w-0 items-start gap-2">
+          <span aria-label={`Ação ${numbers.get(t.id)}`} className="w-5 shrink-0 pt-1 text-[13px] font-semibold tabular-nums text-muted-foreground">{numbers.get(t.id)}</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <ActionPlanCell value={t.what} onSave={(v) => handleUpdateField(t.id, 'what', v)} placeholder="O que será feito?" className="font-semibold" />
+            {t.howMuch && <span className="px-1.5 text-xs font-medium text-muted-foreground">Custo: {t.howMuch}</span>}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'why',
+      header: 'Por quê',
+      width: 'minmax(0,1.1fr)',
+      cell: (t) => <ActionPlanCell value={t.why} onSave={(v) => handleUpdateField(t.id, 'why', v)} placeholder="Por quê?" />,
+    },
+    {
+      id: 'how',
+      header: 'Como',
+      width: 'minmax(0,1.1fr)',
+      cell: (t) => <ActionPlanCell value={t.how} onSave={(v) => handleUpdateField(t.id, 'how', v)} placeholder="Como?" />,
+    },
+    {
+      id: 'where',
+      header: 'Onde',
+      width: 'minmax(0,0.8fr)',
+      cell: (t) => <ActionPlanCell value={t.where} onSave={(v) => handleUpdateField(t.id, 'where', v)} placeholder="Onde?" />,
+    },
+    {
+      id: 'when',
+      header: 'Quando',
+      width: 'minmax(0,0.8fr)',
+      cell: (t) => <ActionPlanCell value={t.when} onSave={(v) => handleUpdateField(t.id, 'when', v)} placeholder="Quando?" />,
+    },
+    {
+      id: 'who',
+      header: 'Quem',
+      width: 'minmax(0,1fr)',
+      cell: (t) => (
+        <div className="flex min-w-0 items-start gap-1.5">
+          {t.who ? (
+            <InitialsAvatar name={t.who} className="mt-0.5 h-6 w-6 shrink-0 text-xs" />
+          ) : (
+            <span aria-hidden="true" className="mt-0.5 h-6 w-6 shrink-0 rounded-full bg-muted" />
+          )}
+          <ActionPlanCell value={t.who} onSave={(v) => handleUpdateField(t.id, 'who', v)} placeholder="Sem responsável" className="flex-1" />
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      width: '172px',
+      cell: (t) => {
+        const status = normalizeStatus(t.status);
+        return (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleUpdateStatus(t)}
+              aria-label={`Status: ${STATUS_LABEL[status]}. Clique para avançar para o próximo status`}
+              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-xl:min-h-11 max-xl:items-center max-xl:inline-flex"
+            >
+              <StatusChip tone={STATUS_TONE[status]} className="h-7 cursor-pointer px-3 text-[13px] transition-opacity hover:opacity-80">
+                {STATUS_LABEL[status]}
+              </StatusChip>
+            </button>
+            <IconButton
+              size="sm"
+              icon={Pencil}
+              label={`Editar detalhes da ação ${numbers.get(t.id)}`}
+              onClick={() => handleEdit(t)}
+              className="max-xl:h-11 max-xl:w-11"
+            />
+          </div>
+        );
+      },
+    },
+  ];
+
+  const status = refreshStatus ?? { phase: 'idle' as const, lastOkAt: null };
+  const refreshText = (() => {
+    if (status.phase === 'loading') return 'Atualizando…';
+    if (status.phase === 'error') return status.lastOkAt ? `Sem atualizar desde ${formatClock(status.lastOkAt)}` : 'Sem atualizar';
+    if (status.lastOkAt) return `Atualizado ${formatAgo((now ?? status.lastOkAt) - status.lastOkAt)}`;
+    return null;
+  })();
+
   return (
-    <div className="h-full w-full flex flex-col bg-slate-50/50 p-8 overflow-hidden">
-      {/* HEADER ROW */}
-      <div className="flex items-center justify-between mb-8 shrink-0">
-        <div>
-           <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Matriz de Execução</h2>
-           <p className="text-slate-500 text-sm">Gerencie o 5W2H para {board.title}</p>
-        </div>
-        
-        <div className="flex items-center gap-4">
-           <Button 
-             onClick={handleOpenNew}
-             className="h-12 bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-xl shadow-fuchsia-500/20 gap-2 px-6"
-           >
-             <Plus className="h-4 w-4" /> Nova Ação
-           </Button>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4 max-md:pb-20">
+      <KpiRow className="grid-cols-2">
+        {(
+          [
+            ['todo', summary.todo, CircleDashed, 'neutral'],
+            ['doing', summary.doing, CircleDot, 'brand'],
+            ['done', summary.done, CircleCheck, 'success'],
+            ['blocked', summary.blocked, CircleAlert, 'danger'],
+          ] as const
+        ).map(([key, value, icon, tone]) => (
+          <KpiCard key={key} label={STATUS_LABEL[key]} value={value} icon={icon} tone={tone} />
+        ))}
+      </KpiRow>
 
-      {/* MATRIX / TABLE */}
-      <div className="flex-1 overflow-auto bg-white rounded-[2rem] border border-slate-200/60 shadow-xl shadow-slate-200/50">
-        <table className="w-full text-left border-collapse table-fixed">
-          <thead className="bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
-            <tr>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-10 text-center">#</th>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-[30%]">
-                <div className="flex items-center gap-2"><Target className="h-3 w-3 text-fuchsia-500"/> What (O quê)</div>
-              </th>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-[22%]">
-                <div className="flex items-center gap-2"><Sparkles className="h-3 w-3 text-amber-500"/> Why / How</div>
-              </th>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-28">
-                <div className="flex items-center gap-2"><LayoutGrid className="h-3 w-3 text-indigo-500"/> Where</div>
-              </th>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-32">
-                <div className="flex items-center gap-2"><Clock className="h-3 w-3 text-rose-500"/> When</div>
-              </th>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 w-40">
-                <div className="flex items-center gap-2"><User className="h-3 w-3 text-cyan-500"/> Who</div>
-              </th>
-              <th className="p-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-28">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {tasks.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="p-12 text-center text-slate-400">
-                   <ListChecks className="h-12 w-12 mx-auto text-slate-200 mb-4" />
-                   <p className="font-bold text-sm">Nenhuma ação definida ainda.</p>
-                   <p className="text-xs">Comece adicionando o primeiro item do plano.</p>
-                </td>
-              </tr>
-            ) : (
-              tasks.map((task, idx) => (
-                <tr 
-                  key={task.id} 
-                  className="hover:bg-fuchsia-50/20 transition-colors group border-b border-slate-50 last:border-0"
-                >
-                  <td className="p-4 text-xs font-black text-slate-300 text-center border-r border-slate-50">{idx + 1}</td>
-                  
-                  {/* WHAT */}
-                  <td className="p-2 border-r border-slate-50 min-w-[240px]">
-                    <div className="flex flex-col gap-1">
-                      <InPlaceInput 
-                        value={task.what} 
-                        onSave={(val) => handleUpdateField(task.id, 'what', val)}
-                        className="text-xs font-bold text-slate-800 leading-snug line-clamp-2"
-                        placeholder="O que será feito?"
-                      />
-                      {task.howMuch && (
-                        <div className="flex items-center px-2">
-                           <span className="text-[8px] font-black text-emerald-500 uppercase">Custo: {task.howMuch}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* WHY / HOW */}
-                  <td className="p-2 border-r border-slate-50 min-w-[280px]">
-                    <div className="space-y-3 p-1">
-                       <div>
-                         <span className="text-[7px] font-black text-slate-400 uppercase flex items-center gap-1 mb-1 px-1">
-                           <Sparkles className="h-2 w-2" /> Why
-                         </span>
-                         <InPlaceInput 
-                           value={task.why} 
-                           onSave={(val) => handleUpdateField(task.id, 'why', val)}
-                           className="text-[10px] text-slate-600 leading-snug line-clamp-1"
-                           placeholder="Por que?"
-                         />
-                       </div>
-                       <div>
-                         <span className="text-[7px] font-black text-slate-400 uppercase flex items-center gap-1 mb-1 px-1">
-                           <CheckCircle2 className="h-2 w-2" /> How
-                         </span>
-                         <InPlaceInput 
-                           value={task.how} 
-                           onSave={(val) => handleUpdateField(task.id, 'how', val)}
-                           className="text-[10px] text-slate-600 leading-snug line-clamp-1"
-                           placeholder="Como?"
-                         />
-                       </div>
-                    </div>
-                  </td>
-
-                  {/* WHERE */}
-                  <td className="p-2 border-r border-slate-50">
-                    <div className="px-1">
-                      <InPlaceInput 
-                        value={task.where} 
-                        onSave={(val) => handleUpdateField(task.id, 'where', val)}
-                        className="text-[10px] font-bold text-indigo-600 bg-indigo-50/50 px-2 py-1 rounded-lg inline-block w-full truncate"
-                        placeholder="Onde?"
-                      />
-                    </div>
-                  </td>
-
-                  {/* WHEN */}
-                  <td className="p-2 border-r border-slate-50">
-                    <div className="flex items-center gap-1 px-1">
-                      <Clock className="h-3 w-3 text-rose-400 shrink-0" />
-                      <InPlaceInput 
-                        value={task.when} 
-                        onSave={(val) => handleUpdateField(task.id, 'when', val)}
-                        className="text-[10px] font-bold text-rose-600 w-full truncate"
-                        placeholder="Quando?"
-                      />
-                    </div>
-                  </td>
-
-                  {/* WHO */}
-                  <td className="p-2 border-r border-slate-50">
-                    <div className="flex items-center gap-2 px-1 group/who">
-                      {task.who ? (
-                        <InitialsAvatar name={task.who} className="h-6 w-6 text-[10px]" />
-                      ) : (
-                        <span aria-hidden="true" className="h-6 w-6 shrink-0 rounded-full bg-muted" />
-                      )}
-                      <InPlaceInput 
-                        value={task.who} 
-                        onSave={(val) => handleUpdateField(task.id, 'who', val)}
-                        className="text-[10px] font-bold text-slate-700 w-full truncate"
-                        placeholder="Quem?"
-                      />
-                    </div>
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="p-2 text-center min-w-[120px]">
-                    <button
-                      onClick={() => handleUpdateStatus(task.id, task.status)}
-                      className="w-full text-left"
-                      aria-label={`Status: ${STATUS_INFO[task.status]?.label ?? 'Indefinido'}. Clique para avançar para o próximo status`}
-                    >
-                      <StatusBadge status={task.status} interactive />
-                    </button>
-                    
-                    {/* Tiny Edit Button for Modal Access */}
-                    <button 
-                      onClick={() => handleEdit(task)}
-                      className="mt-2 text-[8px] font-black text-slate-300 hover:text-fuchsia-500 uppercase tracking-tighter opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                    >
-                      Editar Detalhes
-                    </button>
-                  </td>
-                </tr>
-              ))
+      <DataToolbar
+        search={{
+          value: filters.query,
+          onChange: (query) => setFilters((f) => ({ ...f, query })),
+          placeholder: 'Buscar nas ações',
+        }}
+        filters={
+          <>
+            <SelectField
+              aria-label="Filtrar por status"
+              value={filters.status}
+              onChange={(status) => setFilters((f) => ({ ...f, status: status as TaskFilters['status'] }))}
+              options={STATUS_FILTER_OPTIONS}
+              className="h-[38px] w-full sm:w-[180px] max-sm:h-11"
+            />
+            <SelectField
+              aria-label="Filtrar por responsável"
+              value={filters.who}
+              onChange={(who) => setFilters((f) => ({ ...f, who }))}
+              options={whoOptions}
+              className="h-[38px] w-full sm:w-[210px] max-sm:h-11"
+            />
+          </>
+        }
+        count={{ shown: visible.length, total: tasks.length, noun: tasks.length === 1 ? 'ação' : 'ações' }}
+        actions={
+          <>
+            {refreshText && (
+              <span
+                role={status.phase === 'error' ? 'status' : undefined}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+              >
+                {status.phase === 'error' && onRefreshNow && (
+                  <button
+                    type="button"
+                    onClick={onRefreshNow}
+                    className="inline-flex min-h-8 items-center gap-1 rounded-md px-1.5 font-semibold text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Tentar agora
+                  </button>
+                )}
+                {refreshText}
+              </span>
             )}
-          </tbody>
-        </table>
+            <ModalButton variant="primary" className="hidden gap-2 md:inline-flex" onClick={handleOpenNew}>
+              <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Nova ação
+            </ModalButton>
+          </>
+        }
+      />
+
+      {tasks.length === 0 ? (
+        <div className={PAGE_CARD}>
+          <EmptyState
+            embedded
+            icon={ListChecks}
+            title="Nenhuma ação definida ainda"
+            description="Comece pelo primeiro item do plano: o que será feito e quem faz. O resto do 5W2H vocês completam na própria tabela."
+            actions={
+              <ModalButton variant="primary" className="gap-2" onClick={handleOpenNew}>
+                <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Nova ação
+              </ModalButton>
+            }
+          />
+        </div>
+      ) : (
+        <DataTable
+          ariaLabel="Ações do plano (5W2H)"
+          columns={columns}
+          rows={visible}
+          getRowId={(t) => t.id}
+          empty={
+            <EmptyState
+              embedded
+              icon={FilterX}
+              title="Nenhuma ação neste filtro"
+              description="Tente outro texto ou limpe os filtros para ver as ações todas."
+              actions={
+                filtering ? (
+                  <ModalButton className="gap-2" onClick={() => setFilters(NO_FILTERS)}>
+                    <FilterX className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Limpar filtros
+                  </ModalButton>
+                ) : undefined
+              }
+            />
+          }
+        />
+      )}
+
+      {/* Celular: Nova ação fixa no pé */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:hidden">
+        <ModalButton variant="primary" className="h-12 w-full gap-2 text-base" onClick={handleOpenNew}>
+          <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Nova ação
+        </ModalButton>
       </div>
 
       {isDialogOpen && (
-        <ActionTaskDialog 
+        <ActionTaskDialog
           boardId={board.id}
           task={editingTask}
           isOpen={isDialogOpen}
           onClose={() => setIsDialogOpen(false)}
           totalTasks={tasks.length}
           onSaveSuccess={onRefresh}
+          people={people}
         />
       )}
-    </div>
-  );
-}
-
-const STATUS_INFO: Record<ActionPlanTask['status'], { label: string, color: string }> = {
-  todo: { label: 'A Fazer', color: 'bg-slate-100 text-slate-600 border-slate-200' },
-  doing: { label: 'Em Andamento', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  done: { label: 'Concluído', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  blocked: { label: 'Impedido', color: 'bg-rose-100 text-rose-700 border-rose-200' },
-};
-
-function StatusBadge({ status, interactive = false }: { status: ActionPlanTask['status'], interactive?: boolean }) {
-  // status desconhecido (dado antigo ou nulo) não pode derrubar a tabela inteira
-  const info = STATUS_INFO[status] ?? STATUS_INFO.todo;
-  return (
-    <div className={cn(
-      "px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all flex items-center justify-between group/status",
-      info.color,
-      interactive && "hover:shadow-md hover:scale-[1.02] cursor-pointer"
-    )}>
-      <span>{info.label}</span>
-      {interactive && <Plus className="h-2 w-2 opacity-0 group-hover/status:opacity-50" />}
-    </div>
-  );
-}
-
-function InPlaceInput({ value, onSave, className, placeholder }: { value: string | null | undefined, onSave: (val: string) => Promise<boolean | void> | boolean | void, className?: string, placeholder?: string }) {
-  const current = value ?? '';
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentValue, setCurrentValue] = useState(current);
-  const savingRef = React.useRef(false);
-
-  const startEditing = () => {
-    // sempre parte do valor atual do servidor (outra pessoa pode ter editado desde a montagem da célula)
-    setCurrentValue(current);
-    setIsEditing(true);
-  };
-
-  const handleBlur = async () => {
-    // Enter e perda de foco disparam as duas: salva uma vez só
-    if (savingRef.current) return;
-    if (currentValue === current) {
-      setIsEditing(false);
-      return;
-    }
-    savingRef.current = true;
-    try {
-      const saved = await onSave(currentValue);
-      // se não salvou, continua em edição com o texto digitado
-      if (saved !== false) setIsEditing(false);
-    } finally {
-      savingRef.current = false;
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleBlur();
-    }
-    if (e.key === 'Escape') {
-      setCurrentValue(current);
-      setIsEditing(false);
-    }
-  };
-
-  if (isEditing) {
-    return (
-      <input
-        autoFocus
-        value={currentValue}
-        onChange={e => setCurrentValue(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        className={cn(
-          "w-full bg-white border-b-2 border-fuchsia-500 outline-none px-1 py-0.5",
-          className
-        )}
-      />
-    );
-  }
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={`${placeholder ?? 'Campo'}: ${current || 'vazio'}. Pressione Enter para editar`}
-      onClick={startEditing}
-      onKeyDown={(e) => { if (e.key === 'Enter') startEditing(); }}
-      className={cn(
-        "cursor-text hover:bg-slate-50 px-1 py-0.5 rounded transition-colors min-h-[1.5em] break-words overflow-hidden",
-        !current && "text-slate-300 italic",
-        className
-      )}
-    >
-      {current || placeholder}
     </div>
   );
 }

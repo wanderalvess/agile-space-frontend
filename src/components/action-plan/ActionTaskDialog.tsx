@@ -1,23 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { ActionPlanTask, ActionPlanTaskStatus } from '@/lib/types';
-import { useAuth } from '@/context/AuthContext';
+import React, { useEffect, useRef, useState } from 'react';
+import { CalendarDays, ChevronDown, ListChecks, Trash2 } from 'lucide-react';
 import { actionPlanApi } from '@/app/action-plan/api';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { errorMessage } from '@/lib/ceremony-api';
+import { ConfirmDialog, FIELD, Modal, ModalButton } from '@/components/room-kit';
+import { useToast } from '@/hooks/use-toast';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Target, Sparkles, LayoutGrid, Clock, User, CheckCircle2, Trash2 } from 'lucide-react';
+  TASK_STATUSES,
+  STATUS_LABEL,
+  dateInputToText,
+  findPersonByName,
+  taskToForm,
+  validateTaskForm,
+  type PlanPerson,
+  type TaskForm,
+  type TaskFormErrors,
+} from '@/lib/action-plan';
+import type { ActionPlanTask } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { WhoField } from './WhoField';
 
 interface ActionTaskDialogProps {
   boardId: string;
@@ -26,76 +29,65 @@ interface ActionTaskDialogProps {
   onClose: () => void;
   totalTasks: number;
   onSaveSuccess?: () => void;
+  /** Pessoas da squad do plano, para o campo "Quem". */
+  people?: readonly PlanPerson[];
 }
 
-export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, onSaveSuccess }: ActionTaskDialogProps) {
+const LABEL = 'text-[13px] font-semibold text-foreground';
+const HINT = 'text-xs text-muted-foreground';
+const ERROR = 'text-xs font-medium text-red-700 dark:text-red-300';
+
+/**
+ * Janela da ação 5W2H (nova ou editar): os sete campos, o status (só na edição) e Excluir com confirmação.
+ * Erro de campo e falha do servidor ficam na própria janela, com o que foi digitado mantido.
+ */
+export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, onSaveSuccess, people = [] }: ActionTaskDialogProps) {
   const { session } = useAuth();
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [form, setForm] = useState<TaskForm>(() => taskToForm(task));
+  const [errors, setErrors] = useState<TaskFormErrors>({});
+  const [serverError, setServerError] = useState<string | null>(null);
+  // No celular os campos de apoio ficam atrás de "Mais campos"; editando uma ação que já os tem, abrem de saída.
+  const [showMore, setShowMore] = useState(() => !!task && !!(task.why || task.how || task.where || task.howMuch));
+  const dateRef = useRef<HTMLInputElement>(null);
+  const whatRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
-    what: '',
-    why: '',
-    where: '',
-    when: '',
-    who: '',
-    how: '',
-    howMuch: '',
-    status: 'todo' as ActionPlanTaskStatus
-  });
-
+  // Ação nova: o cursor já entra no "O quê" (depois que o modal assume o foco).
   useEffect(() => {
-    if (task) {
-      setFormData({
-        what: task.what ?? '',
-        why: task.why ?? '',
-        where: task.where ?? '',
-        when: task.when ?? '',
-        who: task.who ?? '',
-        how: task.how ?? '',
-        howMuch: task.howMuch || '',
-        status: task.status || 'todo'
-      });
-    } else {
-      setFormData({
-        what: '', why: '', where: '', when: '', who: '', how: '', howMuch: '', status: 'todo'
-      });
-    }
-  }, [task, isOpen]);
+    if (task) return;
+    const t = setTimeout(() => whatRef.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, [task]);
+
+  const set = <K extends keyof TaskForm>(key: K, value: TaskForm[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    if (key === 'what' || key === 'who') setErrors((e) => ({ ...e, [key]: undefined }));
+  };
 
   const handleSave = async () => {
     if (!session) return;
-    
-    if (!formData.what.trim() || !formData.who.trim()) {
-      toast({
-        title: "Campos Obrigatórios",
-        description: "Preencha pelo menos 'O quê' e 'Quem' para salvar a tarefa.",
-        variant: "destructive"
-      });
+    const found = validateTaskForm(form);
+    if (found.what || found.who) {
+      setErrors(found);
       return;
     }
-
     setIsSaving(true);
-
+    setServerError(null);
     try {
       if (task) {
-        // Update
-        await actionPlanApi.updateTask(task.id, formData);
+        await actionPlanApi.updateTask(task.id, form);
       } else {
-        // Create
-        await actionPlanApi.createTask(boardId, {
-          ...formData,
-          authorId: session.id,
-          order: totalTasks
-        });
+        await actionPlanApi.createTask(boardId, { ...form, authorId: session.id, order: totalTasks });
       }
       onSaveSuccess?.();
       onClose();
     } catch (e) {
-      console.error("Erro ao salvar tarefa", e);
-      // o diálogo continua aberto com o que foi digitado
-      toast({ title: "Não foi possível salvar", description: errorMessage(e, "Não foi possível salvar a tarefa. O que você digitou foi mantido."), variant: "destructive" });
+      console.error('Erro ao salvar tarefa', e);
+      // a janela continua aberta com o que foi digitado
+      setServerError(errorMessage(e, 'Confira a conexão e tente de novo.'));
     } finally {
       setIsSaving(false);
     }
@@ -103,166 +95,236 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
 
   const handleDelete = async () => {
     if (!task) return;
-    if (!window.confirm("Excluir esta ação? Não dá para desfazer.")) return;
     setIsDeleting(true);
     try {
       await actionPlanApi.deleteTask(task.id);
       onSaveSuccess?.();
       onClose();
     } catch (e) {
-      toast({ title: "Não foi possível excluir", description: errorMessage(e, "Não foi possível excluir a tarefa."), variant: "destructive" });
+      setConfirmDelete(false);
+      toast({ title: 'Não foi possível excluir', description: errorMessage(e, 'Não foi possível excluir a ação.'), variant: 'destructive' });
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const FieldIcon = ({ icon: Icon, color }: { icon: any, color: string }) => (
-    <div className={`p-1.5 rounded-lg bg-${color}-50 text-${color}-500 mr-2 shrink-0`}>
-      <Icon className="h-3 w-3" />
-    </div>
-  );
+  const picked = findPersonByName(people, form.who);
+  const moreOnPhone = showMore ? '' : 'max-md:hidden';
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent aria-describedby={undefined} className="sm:max-w-[700px] rounded-[2rem] border-none shadow-2xl bg-white/95 backdrop-blur-xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="mb-4">
-          <DialogTitle className="text-xl font-black uppercase tracking-tighter text-slate-800">
-            {task ? 'Editar Ação' : 'Nova Ação 5W2H'}
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Modal
+        open={isOpen && !confirmDelete}
+        onOpenChange={(next) => { if (!next) onClose(); }}
+        size="lg"
+        icon={ListChecks}
+        title={task ? 'Editar ação' : 'Nova ação 5W2H'}
+        description="O quê e Quem são obrigatórios na tela; o servidor só exige o quê."
+        preventClose={isSaving}
+        footerStart={
+          task ? (
+            <ModalButton variant="ghost" onClick={() => setConfirmDelete(true)} disabled={isSaving || isDeleting} className="gap-2 text-red-700 hover:bg-red-500/10 hover:text-red-700 dark:text-red-300 dark:hover:text-red-300">
+              <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Excluir ação
+            </ModalButton>
+          ) : undefined
+        }
+        footer={
+          <>
+            <ModalButton onClick={onClose} disabled={isSaving}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Salvando…' : 'Salvar ação'}
+            </ModalButton>
+          </>
+        }
+      >
+        <form
+          className="grid grid-cols-1 gap-4 md:grid-cols-2"
+          onSubmit={(e) => { e.preventDefault(); void handleSave(); }}
+          noValidate
+        >
+          {serverError && (
+            <div role="alert" className="flex flex-col gap-0.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-3 text-sm text-red-700 dark:text-red-300 md:col-span-2">
+              <span className="font-semibold">Não foi possível salvar a ação.</span>
+              <span>{serverError} O que você digitou foi mantido.</span>
+            </div>
+          )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* WHAT */}
-          <div className="space-y-2 md:col-span-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={Target} color="fuchsia" /> What (O que será feito?) *
-            </Label>
-            <Input 
-              value={formData.what} onChange={e => setFormData({...formData, what: e.target.value})}
-              placeholder="Ex: Criar endpoint de pagamento" 
-              className="h-12 border-slate-200 focus:border-fuchsia-500 rounded-xl"
+          <div className="flex flex-col gap-1.5 md:col-span-2">
+            <label htmlFor="task-what" className={LABEL}>O quê (What) *</label>
+            <input
+              id="task-what"
+              ref={whatRef}
+              value={form.what}
+              onChange={(e) => set('what', e.target.value)}
+              placeholder="Ex.: Criar o endpoint de pagamento"
+              aria-invalid={errors.what ? true : undefined}
+              aria-describedby={errors.what ? 'task-what-error' : undefined}
+              className={cn(FIELD, 'h-11', errors.what && 'border-red-500/70')}
+            />
+            {errors.what && <span id="task-what-error" role="alert" className={ERROR}>{errors.what}</span>}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="task-who" className={LABEL}>Quem (Who) *</label>
+            <WhoField
+              id="task-who"
+              value={form.who}
+              onChange={(v) => set('who', v)}
+              people={people}
+              placeholder={people.length > 0 ? 'Escolha ou digite um nome' : 'Ex.: João Silva'}
+              invalid={!!errors.who}
+              describedBy={errors.who ? 'task-who-error' : 'task-who-hint'}
+            />
+            {errors.who ? (
+              <span id="task-who-error" role="alert" className={ERROR}>{errors.who}</span>
+            ) : (
+              <span id="task-who-hint" className={HINT}>
+                {picked ? `${picked.name} é avisada quando vira responsável.` : 'Se o nome bater com alguém da squad, a pessoa é avisada.'}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="task-when" className={LABEL}>Quando (When)</label>
+            <div className="flex gap-2">
+              <input
+                id="task-when"
+                value={form.when}
+                onChange={(e) => set('when', e.target.value)}
+                placeholder="Ex.: 15/10 até as 18h"
+                aria-describedby="task-when-hint"
+                className={cn(FIELD, 'h-11 min-w-0 flex-1')}
+              />
+              <button
+                type="button"
+                aria-label="Escolher a data no calendário"
+                title="Escolher a data no calendário"
+                onClick={() => {
+                  const input = dateRef.current;
+                  if (!input) return;
+                  if (typeof input.showPicker === 'function') {
+                    try { input.showPicker(); return; } catch { /* sem gesto do usuário: cai no clique */ }
+                  }
+                  input.click();
+                }}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-border text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CalendarDays className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+              <input
+                ref={dateRef}
+                type="date"
+                tabIndex={-1}
+                aria-hidden="true"
+                className="sr-only"
+                onChange={(e) => {
+                  const text = dateInputToText(e.target.value);
+                  if (text) set('when', text);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+            <span id="task-when-hint" className={HINT}>Texto livre; o calendário preenche a data.</span>
+          </div>
+
+          <button
+            type="button"
+            aria-expanded={showMore}
+            onClick={() => setShowMore((v) => !v)}
+            className="inline-flex h-11 items-center justify-between gap-2 rounded-[10px] border border-border px-3.5 text-sm font-semibold text-foreground hover:bg-accent md:hidden"
+          >
+            Mais campos: por quê, como, onde, quanto
+            <ChevronDown className={cn('h-4 w-4 transition-transform', showMore && 'rotate-180')} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+
+          <div className={cn('flex flex-col gap-1.5', moreOnPhone)}>
+            <label htmlFor="task-why" className={LABEL}>Por quê (Why)</label>
+            <textarea
+              id="task-why"
+              value={form.why}
+              onChange={(e) => set('why', e.target.value)}
+              placeholder="Ex.: Para permitir pagamentos por PIX"
+              rows={3}
+              className={cn(FIELD, 'resize-none py-2.5 leading-relaxed')}
             />
           </div>
 
-          {/* WHY */}
-          <div className="space-y-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={Sparkles} color="amber" /> Why (Por que será feito?)
-            </Label>
-            <Textarea 
-              value={formData.why} onChange={e => setFormData({...formData, why: e.target.value})}
-              placeholder="Ex: Para permitir transações via PIX" 
-              className="resize-none h-24 border-slate-200 focus:border-amber-500 rounded-xl text-sm"
+          <div className={cn('flex flex-col gap-1.5', moreOnPhone)}>
+            <label htmlFor="task-how" className={LABEL}>Como (How)</label>
+            <textarea
+              id="task-how"
+              value={form.how}
+              onChange={(e) => set('how', e.target.value)}
+              placeholder="Ex.: Usando a API do provedor v2"
+              rows={3}
+              className={cn(FIELD, 'resize-none py-2.5 leading-relaxed')}
             />
           </div>
 
-          {/* HOW */}
-          <div className="space-y-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={CheckCircle2} color="emerald" /> How (Como será feito?)
-            </Label>
-            <Textarea 
-              value={formData.how} onChange={e => setFormData({...formData, how: e.target.value})}
-              placeholder="Ex: Usando a API da Stripe v2" 
-              className="resize-none h-24 border-slate-200 focus:border-emerald-500 rounded-xl text-sm"
+          <div className={cn('flex flex-col gap-1.5', moreOnPhone)}>
+            <label htmlFor="task-where" className={LABEL}>Onde (Where)</label>
+            <input
+              id="task-where"
+              value={form.where}
+              onChange={(e) => set('where', e.target.value)}
+              placeholder="Ex.: Repositório backend-core"
+              className={cn(FIELD, 'h-11')}
             />
           </div>
 
-          {/* WHO & WHEN */}
-          <div className="space-y-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={User} color="cyan" /> Who (Responsável) *
-            </Label>
-            <Input 
-              value={formData.who} onChange={e => setFormData({...formData, who: e.target.value})}
-              placeholder="Ex: João Silva" 
-              className="h-12 border-slate-200 focus:border-cyan-500 rounded-xl"
+          <div className={cn('flex flex-col gap-1.5', moreOnPhone)}>
+            <label htmlFor="task-howmuch" className={LABEL}>Quanto (How Much)</label>
+            <input
+              id="task-howmuch"
+              value={form.howMuch}
+              onChange={(e) => set('howMuch', e.target.value)}
+              placeholder="Ex.: 8 horas ou R$ 500"
+              className={cn(FIELD, 'h-11')}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={Clock} color="rose" /> When (Prazo)
-            </Label>
-            <Input 
-              value={formData.when} onChange={e => setFormData({...formData, when: e.target.value})}
-              placeholder="Ex: 15/Out até as 18h" 
-              className="h-12 border-slate-200 focus:border-rose-500 rounded-xl"
-            />
-          </div>
-
-          {/* WHERE & HOW MUCH */}
-          <div className="space-y-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={LayoutGrid} color="indigo" /> Where (Onde?)
-            </Label>
-            <Input 
-              value={formData.where} onChange={e => setFormData({...formData, where: e.target.value})}
-              placeholder="Ex: Repositório Backend-Core" 
-              className="h-12 border-slate-200 focus:border-indigo-500 rounded-xl"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label className="flex items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
-              <FieldIcon icon={Target} color="slate" /> How Much (Custo/Esforço)
-            </Label>
-            <Input 
-              value={formData.howMuch} onChange={e => setFormData({...formData, howMuch: e.target.value})}
-              placeholder="Ex: 8 Horas / R$ 500" 
-              className="h-12 border-slate-200 focus:border-slate-500 rounded-xl"
-            />
-          </div>
-          
-          {/* STATUS - ONLY ON EDIT */}
           {task && (
-            <div className="space-y-2 md:col-span-2 pt-4 border-t border-slate-100">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status da Tarefa</Label>
-              <div className="flex gap-2">
-                {(['todo', 'doing', 'done', 'blocked'] as ActionPlanTaskStatus[]).map(status => (
-                   <button
-                     key={status}
-                     type="button"
-                     aria-pressed={formData.status === status}
-                     onClick={() => setFormData({...formData, status})}
-                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                       formData.status === status 
-                         ? 'bg-slate-800 text-white shadow-md' 
-                         : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                     }`}
-                   >
-                     {status.toUpperCase()}
-                   </button>
-                ))}
+            <div role="group" aria-labelledby="task-status-label" className="border-t border-border pt-4 md:col-span-2">
+              <span id="task-status-label" className={cn(LABEL, 'mb-2 block')}>Status</span>
+              <div className="flex flex-wrap gap-2">
+                {TASK_STATUSES.map((status) => {
+                  const on = form.status === status;
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => set('status', status)}
+                      className={cn(
+                        'inline-flex h-10 items-center rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:h-11',
+                        on ? 'border-primary/60 bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent/60',
+                      )}
+                    >
+                      {STATUS_LABEL[status]}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
-        </div>
+          {/* Enter dentro de um campo envia o formulário */}
+          <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true">Salvar</button>
+        </form>
+      </Modal>
 
-        <DialogFooter className="mt-8 pt-4 border-t border-slate-100 sm:justify-between">
-          {task ? (
-             <Button
-               variant="ghost"
-               onClick={handleDelete}
-               disabled={isDeleting}
-               className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 font-bold"
-             >
-               <Trash2 className="h-4 w-4 mr-2" /> Excluir
-             </Button>
-          ) : <div></div>}
-          
-          <div className="flex gap-3">
-            <Button variant="ghost" onClick={onClose} className="font-bold text-slate-500">Cancelar</Button>
-            <Button 
-              onClick={handleSave} 
-              disabled={isSaving}
-              className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-black uppercase tracking-widest text-xs px-8 shadow-xl shadow-fuchsia-500/20"
-            >
-              {isSaving ? 'Salvando...' : 'Salvar Ação'}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDialog
+        open={isOpen && confirmDelete}
+        onOpenChange={setConfirmDelete}
+        tone="danger"
+        icon={Trash2}
+        title="Excluir esta ação?"
+        description={<>A ação “{task?.what}” some do plano. Não dá para desfazer.</>}
+        confirmLabel="Excluir ação"
+        loading={isDeleting}
+        loadingLabel="Excluindo…"
+        keepOpenOnConfirm
+        onConfirm={handleDelete}
+      />
+    </>
   );
 }
