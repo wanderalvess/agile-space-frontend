@@ -1,76 +1,55 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  GitBranch,
-  Loader2,
-  Flag,
-  Zap,
-  Sparkles,
-  ShieldCheck,
-  Layers,
-  RefreshCw,
-  Plus,
-  Trash2,
-  Edit2,
-  Search,
-  CheckCircle2,
-  AlertCircle,
-  Database,
   Code2,
   Cpu,
+  Database,
+  FileText,
+  Flag,
+  GitBranch,
   Globe,
+  History,
+  Layers,
+  ListChecks,
+  Lock,
   Monitor,
   Layout,
-  Lock,
   MessageSquareHeart,
+  Pencil,
+  Plus,
+  RefreshCw,
   Shield,
-  ListChecks,
-  History,
-  X,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
   UploadCloud,
-  FileText
+  X,
+  Zap,
+  type LucideIcon,
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { changelogApi, AppReleaseItem } from '@/services/changelogApi';
+import { changelogApi, type AppReleaseItem } from '@/services/changelogApi';
 import rawVersions from '@/app/changelog/versions.json';
+import { DataToolbar, EmptyState, ErrorState, KpiCard, KpiRow, LoadingSkeleton, PAGE_CARD } from '@/components/page';
+import { BRAND_TINT, ConfirmDialog, FIELD, FOCUS_RING, IconButton, Modal, ModalButton, StatusChip } from '@/components/room-kit';
+import { moduleIcon } from '@/lib/modules-registry';
+import { cn } from '@/lib/utils';
+import { ChipGroup, FIELD_HINT, FIELD_LABEL } from './AdminOpsParts';
+import {
+  RELEASE_FILTERS,
+  RELEASE_ICONS,
+  canonicalIconName,
+  computeNextTag,
+  filterReleases,
+  getTodayFormatted,
+  parseBulkChanges,
+  releaseStats,
+  type ReleaseType,
+} from './admin-platform-utils';
 
-const AVAILABLE_ICONS = [
-  { name: 'Zap', label: 'Raio (Patch / Fix)', className: 'h-5 w-5 text-indigo-500', defaultFor: 'patch' },
-  { name: 'Sparkles', label: 'Brilho (Feature / Minor)', className: 'h-5 w-5 text-emerald-500', defaultFor: 'minor' },
-  { name: 'Flag', label: 'Bandeira (Major / Lançamento)', className: 'h-5 w-5 text-primary', defaultFor: 'major' },
-  { name: 'ShieldCheck', label: 'Segurança & Validação', className: 'h-5 w-5 text-emerald-600' },
-  { name: 'Layers', label: 'Arquitetura / Módulos', className: 'h-5 w-5 text-blue-500' },
-  { name: 'Code2', label: 'Código', className: 'h-5 w-5 text-amber-500' },
-  { name: 'Database', label: 'Banco de Dados', className: 'h-5 w-5 text-cyan-500' },
-  { name: 'Cpu', label: 'Performance & Backend', className: 'h-5 w-5 text-rose-500' },
-  { name: 'Globe', label: 'Integrações Web', className: 'h-5 w-5 text-teal-500' },
-  { name: 'ListChecks', label: 'Checklist / Qualidade', className: 'h-5 w-5 text-purple-500' },
-];
-
-const iconComponentMap: Record<string, React.ComponentType<any>> = {
+const ICON_COMPONENTS: Record<string, LucideIcon> = {
   Zap,
   Sparkles,
   Flag,
@@ -88,64 +67,62 @@ const iconComponentMap: Record<string, React.ComponentType<any>> = {
   MessageSquareHeart,
   Shield,
   History,
-  GitBranch
+  GitBranch,
 };
 
-function renderIcon(name?: string, className?: string) {
-  const IconComp = (name && iconComponentMap[name]) || Sparkles;
-  return <IconComp className={className || 'h-5 w-5 text-primary'} />;
+/** Ícone do release com cor do tema (a classe colorida gravada no dado é do Changelog público). */
+function ReleaseIcon({ name, className }: { name?: string; className?: string }) {
+  const Comp = (name && ICON_COMPONENTS[name]) || Sparkles;
+  return <Comp className={cn('h-5 w-5', className)} strokeWidth={1.5} aria-hidden="true" />;
 }
 
-function getTodayFormatted(): string {
-  const months = [
-    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
-  const now = new Date();
-  return `${now.getDate()} de ${months[now.getMonth()]}, ${now.getFullYear()}`;
+const TYPE_LABELS: Record<ReleaseType, string> = { major: 'Major', minor: 'Minor', patch: 'Patch' };
+
+function TagChip({ tag, type }: { tag: string; type?: string | null }) {
+  const t = (type as ReleaseType) || 'patch';
+  return (
+    <span
+      title={TYPE_LABELS[t] ?? 'Patch'}
+      className={cn(
+        'inline-flex h-6 items-center rounded-md px-2 text-xs font-bold tabular-nums',
+        t === 'major'
+          ? 'bg-primary text-primary-foreground'
+          : t === 'minor'
+            ? cn(BRAND_TINT, 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground')
+            : 'border border-border bg-muted text-muted-foreground',
+      )}
+    >
+      {tag}
+    </span>
+  );
 }
 
-function computeNextTag(currentTag: string | undefined, bumpType: 'patch' | 'minor' | 'major'): string {
-  if (!currentTag) {
-    if (bumpType === 'major') return 'v1.0.0';
-    if (bumpType === 'minor') return 'v0.1.0';
-    return 'v0.0.1';
-  }
-
-  const clean = currentTag.replace(/^v/, '');
-  const parts = clean.split('.').map((p) => parseInt(p, 10) || 0);
-
-  while (parts.length < 3) parts.push(0);
-
-  if (bumpType === 'major') {
-    parts[0] += 1;
-    parts[1] = 0;
-    parts[2] = 0;
-  } else if (bumpType === 'minor') {
-    parts[1] += 1;
-    parts[2] = 0;
-  } else {
-    parts[2] += 1;
-  }
-
-  return `v${parts.join('.')}`;
-}
+const SEMVER_TYPES: Array<{ type: ReleaseType; title: string; desc: string }> = [
+  { type: 'patch', title: 'Patch (+0.0.1)', desc: 'Correções e melhorias leves' },
+  { type: 'minor', title: 'Minor (+0.1.0)', desc: 'Novas funcionalidades e módulos' },
+  { type: 'major', title: 'Major (+1.0.0)', desc: 'Mudanças estruturais e grandes marcos' },
+];
 
 export function ChangelogManager() {
   const { toast } = useToast();
   const [releases, setReleases] = useState<AppReleaseItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
 
-  // Modal State
+  // Diálogos
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AppReleaseItem | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<AppReleaseItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
 
-  // Form State
+  // Formulário
   const [formTag, setFormTag] = useState('');
-  const [formType, setFormType] = useState<'patch' | 'minor' | 'major'>('patch');
+  const [formType, setFormType] = useState<ReleaseType>('patch');
   const [formTitle, setFormTitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formDate, setFormDate] = useState('');
@@ -157,51 +134,63 @@ export function ChangelogManager() {
   const [bulkChangeInput, setBulkChangeInput] = useState('');
   const [showBulkAdd, setShowBulkAdd] = useState(false);
 
-  // Load Releases
-  const loadReleases = async () => {
+  const loadReleases = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const data = await changelogApi.getAdminReleases();
       setReleases(data || []);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('Erro ao carregar versões do backend:', err);
       setReleases([]);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadReleases();
-  }, []);
+  }, [loadReleases]);
 
-  const latestTag = useMemo(() => {
-    return releases[0]?.tag || 'v3.117.1';
-  }, [releases]);
+  const stats = useMemo(() => releaseStats(releases), [releases]);
+  /** Tag da versão mais recente; sem versão nenhuma, a próxima tag começa do zero. */
+  const latestTag = stats.latestTag ?? undefined;
 
-  // Open Dialog for Create
+  const filteredReleases = useMemo(() => filterReleases(releases, search, typeFilter), [releases, search, typeFilter]);
+  const hasFilters = search.trim() !== '' || typeFilter !== 'all';
+
+  const resetFormFields = () => {
+    setNewChangeInput('');
+    setBulkChangeInput('');
+    setShowBulkAdd(false);
+  };
+
   const handleImportLegacy = async () => {
-    if (!confirm(`Deseja importar ${rawVersions.length} versões do histórico para o banco de dados?`)) return;
+    setImporting(true);
     try {
       const res = await changelogApi.importLegacyReleases(rawVersions);
       toast({
         title: 'Importação concluída',
-        description: `${res.imported} novas versões foram salvas no banco de dados (${res.skipped} existentes mantidas).`
+        description: `${res.imported} novas versões foram salvas (${res.skipped} existentes mantidas).`,
       });
+      setImportOpen(false);
       await loadReleases();
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: 'Erro na importação',
-        description: err.message || 'Falha ao importar histórico.',
-        variant: 'destructive'
+        description: (err as Error)?.message || 'Falha ao importar histórico.',
+        variant: 'destructive',
       });
+      setImportOpen(false);
+    } finally {
+      setImporting(false);
     }
   };
 
   const handleOpenCreate = () => {
     setEditingItem(null);
-    const calculatedTag = computeNextTag(latestTag, 'patch');
-    setFormTag(calculatedTag);
+    setFormTag(computeNextTag(latestTag, 'patch'));
     setFormType('patch');
     setFormTitle('');
     setFormDescription('');
@@ -210,17 +199,14 @@ export function ChangelogManager() {
     setFormIconClass('h-5 w-5 text-indigo-500');
     setFormIsPublished(true);
     setFormChanges([]);
-    setNewChangeInput('');
-    setBulkChangeInput('');
-    setShowBulkAdd(false);
+    resetFormFields();
     setIsDialogOpen(true);
   };
 
-  // Open Dialog for Edit
   const handleOpenEdit = (item: AppReleaseItem) => {
     setEditingItem(item);
     setFormTag(item.tag);
-    setFormType((item.type as any) || 'patch');
+    setFormType((item.type as ReleaseType) || 'patch');
     setFormTitle(item.title);
     setFormDescription(item.description);
     setFormDate(item.displayDate || item.date || getTodayFormatted());
@@ -228,71 +214,57 @@ export function ChangelogManager() {
     setFormIconClass(item.iconClass || item.icon?.className || 'h-5 w-5 text-primary');
     setFormIsPublished(item.isPublished !== false);
     setFormChanges([...(item.changes || [])]);
-    setNewChangeInput('');
-    setBulkChangeInput('');
-    setShowBulkAdd(false);
+    resetFormFields();
     setIsDialogOpen(true);
   };
 
-  // Auto update tag when changing type in create mode
-  const handleTypeChange = (newType: 'patch' | 'minor' | 'major') => {
+  // Troca de tipo no modo "nova": recalcula a tag e o ícone padrão. Editando, a tag não muda.
+  const handleTypeChange = (newType: ReleaseType) => {
     setFormType(newType);
     if (!editingItem) {
       setFormTag(computeNextTag(latestTag, newType));
-      const foundIcon = AVAILABLE_ICONS.find((i) => i.defaultFor === newType);
-      if (foundIcon) {
-        setFormIconName(foundIcon.name);
-        setFormIconClass(foundIcon.className);
+      const found = RELEASE_ICONS.find((i) => i.defaultFor === newType);
+      if (found) {
+        setFormIconName(found.name);
+        setFormIconClass(found.className);
       }
     }
   };
 
-  // Icon Selection
   const handleSelectIcon = (iconName: string) => {
-    const found = AVAILABLE_ICONS.find((i) => i.name === iconName);
+    const found = RELEASE_ICONS.find((i) => i.name === iconName);
     if (found) {
       setFormIconName(found.name);
       setFormIconClass(found.className);
     }
   };
 
-  // Changes Management
   const handleAddChange = () => {
     if (!newChangeInput.trim()) return;
     setFormChanges([...formChanges, newChangeInput.trim()]);
     setNewChangeInput('');
   };
 
-  const handleRemoveChange = (index: number) => {
-    setFormChanges(formChanges.filter((_, idx) => idx !== index));
-  };
+  const handleRemoveChange = (index: number) => setFormChanges(formChanges.filter((_, idx) => idx !== index));
 
   const handleParseBulkChanges = () => {
     if (!bulkChangeInput.trim()) return;
-    const lines = bulkChangeInput
-      .split(/[\n;]+/)
-      .map((l) => l.trim().replace(/^[-*•]\s*/, ''))
-      .filter((l) => l.length > 0);
-
+    const lines = parseBulkChanges(bulkChangeInput);
     if (lines.length > 0) {
       setFormChanges([...formChanges, ...lines]);
       setBulkChangeInput('');
       setShowBulkAdd(false);
-      toast({
-        title: 'Itens adicionados',
-        description: `${lines.length} itens foram inseridos na lista de alterações.`
-      });
+      toast({ title: 'Itens adicionados', description: `${lines.length} itens foram inseridos na lista de alterações.` });
     }
   };
 
-  // Save Release
   const handleSave = async () => {
     if (!formTag.trim()) {
-      toast({ title: 'Tag obrigatória', description: 'Por favor, informe a tag da versão (ex: v3.118.0)', variant: 'destructive' });
+      toast({ title: 'Tag obrigatória', description: 'Informe a tag da versão (ex.: v3.118.0).', variant: 'destructive' });
       return;
     }
     if (!formTitle.trim()) {
-      toast({ title: 'Título obrigatório', description: 'Por favor, informe um título descritivo para a versão.', variant: 'destructive' });
+      toast({ title: 'Título obrigatório', description: 'Informe um título descritivo para a versão.', variant: 'destructive' });
       return;
     }
 
@@ -315,511 +287,390 @@ export function ChangelogManager() {
         toast({ title: 'Versão atualizada!', description: `A versão ${formTag} foi atualizada com sucesso.` });
       } else {
         await changelogApi.createRelease(payload);
-        toast({ title: 'Versão criada!', description: `A versão ${formTag} foi cadastrada no banco de dados.` });
+        toast({ title: 'Versão criada!', description: `A versão ${formTag} foi cadastrada.` });
       }
 
       setIsDialogOpen(false);
       await loadReleases();
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: 'Erro ao salvar versão',
-        description: err.message || 'Falha na comunicação com o servidor.',
-        variant: 'destructive'
+        description: (err as Error)?.message || 'Falha na comunicação com o servidor.',
+        variant: 'destructive',
       });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Delete Release
-  const handleDelete = async (item: AppReleaseItem) => {
-    if (!confirm(`Tem certeza que deseja remover a versão ${item.tag}?`)) return;
-
+  const handleDelete = async () => {
+    const item = pendingDelete;
+    if (!item) return;
+    setDeleting(true);
     try {
       if (item.id && !item.id.startsWith('legacy-')) {
         await changelogApi.deleteRelease(item.id);
         toast({ title: 'Versão excluída', description: `A versão ${item.tag} foi removida.` });
       }
-      setReleases(releases.filter((r) => r.id !== item.id && r.tag !== item.tag));
-    } catch (err: any) {
+      setReleases((prev) => prev.filter((r) => r.id !== item.id && r.tag !== item.tag));
+    } catch (err) {
       toast({
         title: 'Erro ao excluir',
-        description: err.message || 'Não foi possível excluir a versão.',
-        variant: 'destructive'
+        description: (err as Error)?.message || 'Não foi possível excluir a versão.',
+        variant: 'destructive',
       });
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
     }
   };
 
-  // Filtered List
-  const filteredReleases = useMemo(() => {
-    return releases.filter((r) => {
-      const matchSearch =
-        search === '' ||
-        r.tag.toLowerCase().includes(search.toLowerCase()) ||
-        r.title.toLowerCase().includes(search.toLowerCase()) ||
-        r.description.toLowerCase().includes(search.toLowerCase()) ||
-        r.changes?.some((c) => c.toLowerCase().includes(search.toLowerCase()));
+  const clearFilters = () => {
+    setSearch('');
+    setTypeFilter('all');
+  };
 
-      const matchType =
-        typeFilter === 'all' ||
-        (typeFilter === 'draft' && !r.isPublished) ||
-        r.type?.toLowerCase() === typeFilter.toLowerCase();
+  const headerActions = (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <ModalButton variant="secondary" onClick={() => setImportOpen(true)} title="Traz as versões do arquivo de histórico (versions.json)">
+        <UploadCloud className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar histórico
+      </ModalButton>
+      <ModalButton variant="primary" onClick={handleOpenCreate}>
+        <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Nova versão
+      </ModalButton>
+    </div>
+  );
 
-      return matchSearch && matchType;
-    });
-  }, [releases, search, typeFilter]);
+  if (loading && releases.length === 0 && !loadError) {
+    return (
+      <div className="flex flex-col gap-4">
+        {headerActions}
+        <LoadingSkeleton variant="page" rows={4} label="Carregando versões" />
+      </div>
+    );
+  }
+
+  const selectedIconName = canonicalIconName(formIconName);
 
   return (
-    <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900/60 p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-              <GitBranch className="h-5 w-5" />
-            </div>
-            <h2 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white font-headline">
-              Changelog & <span className="text-primary">Gestão de Versões</span>
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            Gerencie o histórico de lançamentos, builds e notas de versão armazenadas no banco de dados.
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      {headerActions}
 
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="h-10 px-4 rounded-xl text-xs font-bold gap-2 border-slate-200 dark:border-slate-800"
-            onClick={handleImportLegacy}
-            title="Sincronizar todas as versões do arquivo de histórico com o banco de dados"
-          >
-            <UploadCloud className="h-4 w-4 text-primary" />
-            <span>Importar Histórico</span>
-          </Button>
+      <KpiRow>
+        <KpiCard label="Build mais recente" value={stats.latestTag ?? '—'} icon={GitBranch} />
+        <KpiCard label="Total de releases" value={stats.total} icon={moduleIcon('changelog')} />
+        <KpiCard label="Major releases" value={stats.majors} icon={Flag} />
+        <KpiCard label="Patches e fixes" value={stats.patches} icon={Zap} />
+      </KpiRow>
 
-          <Button
-            className="h-10 px-5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider gap-2 shadow-lg shadow-primary/20"
-            onClick={handleOpenCreate}
-          >
-            <Plus className="h-4 w-4" />
-            <span>Nova Versão</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats and Filter Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-2xl p-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Build Mais Recente</span>
-          <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1">{latestTag}</p>
-        </Card>
-        <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-2xl p-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total de Releases</span>
-          <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mt-1">{releases.length}</p>
-        </Card>
-        <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-2xl p-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Major Releases</span>
-          <p className="text-2xl font-black text-primary tracking-tight mt-1">
-            {releases.filter((r) => r.type === 'major').length}
-          </p>
-        </Card>
-        <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-2xl p-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Patches & Fixes</span>
-          <p className="text-2xl font-black text-indigo-500 tracking-tight mt-1">
-            {releases.filter((r) => r.type === 'patch').length}
-          </p>
-        </Card>
-      </div>
-
-      {/* Filter and Search */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Buscar por tag, título ou alteração..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10 h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs font-medium"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-          {[
-            { id: 'all', label: 'Todas' },
-            { id: 'patch', label: 'Patches' },
-            { id: 'minor', label: 'Minors' },
-            { id: 'major', label: 'Majors' },
-            { id: 'draft', label: 'Rascunhos' },
-          ].map((f) => (
-            <Button
-              key={f.id}
-              variant={typeFilter === f.id ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setTypeFilter(f.id)}
-              className={`h-8 px-3 rounded-lg text-xs font-bold ${
-                typeFilter === f.id
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                  : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              {f.label}
-            </Button>
-          ))}
-
-          <Button
-            variant="ghost"
-            size="sm"
+      <DataToolbar
+        search={{ value: search, onChange: setSearch, placeholder: 'Buscar por tag, título ou alteração...', ariaLabel: 'Buscar versões por tag, título ou alteração' }}
+        filters={<ChipGroup options={RELEASE_FILTERS} value={typeFilter as (typeof RELEASE_FILTERS)[number]['id']} onChange={setTypeFilter} ariaLabel="Tipo de versão" />}
+        actions={
+          <IconButton
+            label="Recarregar"
+            icon={RefreshCw}
             onClick={loadReleases}
-            className="h-8 px-2 text-slate-400 hover:text-slate-900 dark:hover:text-white"
-            title="Recarregar"
-          >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
-        </div>
-      </div>
+            disabled={loading}
+            className={cn(loading && '[&_svg]:animate-spin motion-reduce:[&_svg]:animate-none')}
+          />
+        }
+      />
 
-      {/* Releases List */}
-      <div className="space-y-4">
-        {loading ? (
-          <div className="p-12 text-center text-slate-400 text-sm font-medium">
-            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-            Carregando versões do banco de dados...
-          </div>
-        ) : filteredReleases.length === 0 ? (
-          <div className="p-12 text-center bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 text-slate-400 text-sm font-medium">
-            Nenhuma versão encontrada para os filtros selecionados.
-          </div>
-        ) : (
-          filteredReleases.map((release) => (
-            <Card
-              key={release.id || release.tag}
-              className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-3xl p-5 hover:border-primary/30 transition-all shadow-sm group"
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform">
-                    {renderIcon(release.iconName || release.icon?.name, release.iconClass || release.icon?.className)}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] font-black uppercase tracking-wider py-0.5 px-2 rounded-md ${
-                          release.type === 'major'
-                            ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900'
-                            : release.type === 'minor'
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900'
-                            : 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900'
-                        }`}
-                      >
-                        {release.tag}
-                      </Badge>
-
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        {release.displayDate || release.date}
-                      </span>
-
-                      {!release.isPublished && (
-                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 text-[9px] uppercase font-black">
-                          Rascunho
-                        </Badge>
-                      )}
+      {loadError ? (
+        <ErrorState title="Não foi possível carregar as versões" onRetry={loadReleases} />
+      ) : releases.length === 0 ? (
+        <EmptyState
+          title="Nenhuma versão cadastrada"
+          description="Crie a primeira ou traga o histórico antigo."
+          actions={
+            <>
+              <ModalButton variant="primary" onClick={handleOpenCreate}>
+                <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Nova versão
+              </ModalButton>
+              <ModalButton variant="secondary" onClick={() => setImportOpen(true)}>
+                <UploadCloud className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar histórico
+              </ModalButton>
+            </>
+          }
+        />
+      ) : filteredReleases.length === 0 ? (
+        <EmptyState
+          title="Nenhuma versão encontrada para os filtros selecionados"
+          actions={hasFilters ? <ModalButton variant="secondary" onClick={clearFilters}>Limpar filtros</ModalButton> : undefined}
+        />
+      ) : (
+        <ul className="flex flex-col gap-3" aria-label="Versões">
+          {filteredReleases.map((release) => (
+            <li key={release.id || release.tag} className={cn(PAGE_CARD, 'p-5 transition-colors hover:border-primary/30')}>
+              <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+                <div className="flex min-w-0 items-start gap-4">
+                  <span aria-hidden="true" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-border bg-muted text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+                    <ReleaseIcon name={release.iconName || release.icon?.name} />
+                  </span>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <TagChip tag={release.tag} type={release.type} />
+                      <span className="text-xs text-muted-foreground">{release.displayDate || release.date}</span>
+                      {!release.isPublished && <StatusChip tone="warn">Rascunho</StatusChip>}
                     </div>
-
-                    <h3 className="text-base font-black text-slate-900 dark:text-white tracking-tight leading-snug">
-                      {release.title}
-                    </h3>
-
+                    <h3 className="text-base font-bold leading-snug text-foreground">{release.title}</h3>
                     {release.description && release.description !== release.title && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
-                        {release.description}
-                      </p>
+                      <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">{release.description}</p>
                     )}
-
                     {release.changes && release.changes.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         {release.changes.slice(0, 3).map((change, cIdx) => (
-                          <span
-                            key={cIdx}
-                            className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-100 dark:border-slate-800"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <span key={cIdx} className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground">
+                            <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                             <span className="truncate max-w-[280px]">{change}</span>
                           </span>
                         ))}
-                        {release.changes.length > 3 && (
-                          <span className="text-[10px] font-bold text-slate-400 py-1 px-1">
-                            +{release.changes.length - 3} mais
-                          </span>
-                        )}
+                        {release.changes.length > 3 && <span className="text-xs font-semibold text-muted-foreground">+{release.changes.length - 3} mais</span>}
                       </div>
                     )}
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
-                  <Button
+                <div className="flex shrink-0 items-center gap-2 self-end lg:self-center">
+                  <ModalButton variant="ghost" className="h-9 gap-1.5 px-3 text-[13px]" onClick={() => handleOpenEdit(release)} aria-label={`Editar a versão ${release.tag}`}>
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Editar
+                  </ModalButton>
+                  <ModalButton
                     variant="ghost"
-                    size="sm"
-                    className="h-8 px-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white text-xs font-bold gap-1.5"
-                    onClick={() => handleOpenEdit(release)}
+                    className="h-9 gap-1.5 px-3 text-[13px] text-red-700 hover:bg-red-500/10 hover:text-red-700 dark:text-red-300 dark:hover:text-red-300"
+                    onClick={() => setPendingDelete(release)}
+                    aria-label={`Excluir a versão ${release.tag}`}
                   >
-                    <Edit2 className="h-3.5 w-3.5" />
-                    <span>Editar</span>
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-3 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/50 text-rose-500 hover:text-rose-600 text-xs font-bold gap-1.5"
-                    onClick={() => handleDelete(release)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    <span>Excluir</span>
-                  </Button>
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Excluir
+                  </ModalButton>
                 </div>
               </div>
-            </Card>
-          ))
-        )}
-      </div>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      {/* Modal: Nova / Editar Versão */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-6 sm:p-8">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black uppercase tracking-tight font-headline flex items-center gap-3">
-              <div className="w-9 h-9 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                {renderIcon(formIconName, formIconClass)}
-              </div>
-              <span>{editingItem ? 'Editar Versão' : 'Nova Versão & Release'}</span>
-            </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-              Preencha os dados da nova versão para alimentar a timeline pública do Changelog.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 py-4">
-            {/* SemVer Type Selector */}
-            <div>
-              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 block">
-                Tipo de Incremento SemVer
-              </Label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { type: 'patch', title: 'Patch (+0.0.1)', desc: 'Correções de bugs e melhorias leves' },
-                  { type: 'minor', title: 'Minor (+0.1.0)', desc: 'Novas funcionalidades e módulos' },
-                  { type: 'major', title: 'Major (+1.0.0)', desc: 'Mudanças estruturais e grandes marcos' },
-                ].map((t) => (
+      {/* Nova / editar versão */}
+      <Modal
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        size="lg"
+        icon={moduleIcon('changelog')}
+        title={editingItem ? 'Editar versão' : 'Nova versão e release'}
+        description="Alimenta a linha do tempo pública do Changelog."
+        preventClose={isSaving}
+        footer={
+          <>
+            <ModalButton variant="secondary" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</ModalButton>
+            <ModalButton variant="primary" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? 'Salvando…' : editingItem ? 'Salvar alterações' : 'Publicar versão'}
+            </ModalButton>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-5 pt-1">
+          <fieldset className="flex flex-col gap-2">
+            <legend className={cn(FIELD_LABEL, 'mb-2')}>Tipo de incremento (SemVer)</legend>
+            <div role="radiogroup" aria-label="Tipo de incremento" className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              {SEMVER_TYPES.map((t) => {
+                const on = formType === t.type;
+                return (
                   <button
                     key={t.type}
                     type="button"
-                    onClick={() => handleTypeChange(t.type as any)}
-                    className={`p-3 rounded-2xl border text-left transition-all ${
-                      formType === t.type
-                        ? 'border-primary bg-primary/5 text-primary ring-2 ring-primary/20'
-                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
-                    }`}
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => handleTypeChange(t.type)}
+                    className={cn(
+                      'flex flex-col gap-0.5 rounded-xl border p-3 text-left transition-colors',
+                      FOCUS_RING,
+                      on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent',
+                    )}
                   >
-                    <div className="text-xs font-black uppercase tracking-wide mb-0.5">{t.title}</div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">{t.desc}</div>
+                    <span className="text-[13px] font-bold text-foreground">{t.title}</span>
+                    <span className="text-xs leading-snug text-muted-foreground">{t.desc}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
+          </fieldset>
 
-            {/* Tag and Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 block">
-                  Tag da Versão
-                </Label>
-                <Input
-                  value={formTag}
-                  onChange={(e) => setFormTag(e.target.value)}
-                  placeholder="v3.118.0"
-                  className="h-10 rounded-xl font-code text-sm"
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 block">
-                  Data de Lançamento
-                </Label>
-                <Input
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  placeholder="17 de Agosto, 2026"
-                  className="h-10 rounded-xl text-sm"
-                />
-              </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="rel-tag" className={FIELD_LABEL}>Tag da versão</label>
+              <input id="rel-tag" value={formTag} onChange={(e) => setFormTag(e.target.value)} placeholder="v3.118.0" className={cn(FIELD, 'h-10 font-mono')} />
+              <span className={FIELD_HINT}>
+                {editingItem ? 'A tag não muda ao trocar o tipo' : latestTag ? `Calculada sobre ${latestTag} (${TYPE_LABELS[formType].toLowerCase()})` : 'Sem versão anterior: a tag começa do zero'}
+              </span>
             </div>
-
-            {/* Title */}
-            <div>
-              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 block">
-                Título do Release
-              </Label>
-              <Input
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="Ex: feat(squad): Squad Pulse — dashboard de produtividade integrado ao Jira"
-                className="h-10 rounded-xl text-sm font-semibold"
-              />
-            </div>
-
-            {/* Description */}
-            <div>
-              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 block">
-                Resumo / Descrição
-              </Label>
-              <Textarea
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Breve resumo destacando os objetivos alcançados nesta entrega..."
-                rows={2}
-                className="rounded-xl text-sm"
-              />
-            </div>
-
-            {/* Icon Picker */}
-            <div>
-              <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5 block">
-                Ícone do Release
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_ICONS.map((icon) => (
-                  <button
-                    key={icon.name}
-                    type="button"
-                    onClick={() => handleSelectIcon(icon.name)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all ${
-                      formIconName === icon.name
-                        ? 'border-primary bg-primary/10 text-primary shadow-sm'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                    }`}
-                  >
-                    {renderIcon(icon.name, icon.className)}
-                    <span>{icon.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Changes List */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                  Lista de Alterações ({formChanges.length})
-                </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowBulkAdd(!showBulkAdd)}
-                  className="h-7 text-[11px] font-bold text-primary hover:text-primary/80"
-                >
-                  <FileText className="h-3.5 w-3.5 mr-1" />
-                  {showBulkAdd ? 'Ocultar inserção em massa' : 'Inserir em lote'}
-                </Button>
-              </div>
-
-              {showBulkAdd ? (
-                <div className="space-y-2 mb-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <Textarea
-                    placeholder="Cole múltiplas alterações separadas por quebra de linha ou ponto e vírgula (;)..."
-                    value={bulkChangeInput}
-                    onChange={(e) => setBulkChangeInput(e.target.value)}
-                    rows={3}
-                    className="text-xs rounded-xl"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleParseBulkChanges}
-                      className="h-8 px-4 text-xs font-bold"
-                    >
-                      Processar Itens
-                    </Button>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex gap-2 mb-3">
-                <Input
-                  placeholder="Adicionar item de alteração..."
-                  value={newChangeInput}
-                  onChange={(e) => setNewChangeInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddChange();
-                    }
-                  }}
-                  className="h-9 rounded-xl text-xs"
-                />
-                <Button
-                  type="button"
-                  onClick={handleAddChange}
-                  className="h-9 px-4 rounded-xl text-xs font-bold shrink-0"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Adicionar
-                </Button>
-              </div>
-
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {formChanges.map((change, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 font-medium"
-                  >
-                    <span className="truncate flex-1">{change}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveChange(idx)}
-                      className="text-slate-400 hover:text-rose-500 p-1"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Published toggle */}
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-              <div>
-                <div className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Publicar Imediatamente</div>
-                <div className="text-[11px] text-slate-500">Se desativado, o registro ficará salvo como rascunho visível apenas para administradores.</div>
-              </div>
-              <Switch checked={formIsPublished} onCheckedChange={setFormIsPublished} />
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="rel-date" className={FIELD_LABEL}>Data de lançamento</label>
+              <input id="rel-date" value={formDate} onChange={(e) => setFormDate(e.target.value)} placeholder="17 de Agosto, 2026" className={cn(FIELD, 'h-10')} />
+              <span className={FIELD_HINT}>Texto livre, como aparece no Changelog</span>
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              className="rounded-xl h-10 px-5 text-xs font-bold"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="rounded-xl h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-wider shadow-md"
-            >
-              {isSaving ? 'Salvando...' : editingItem ? 'Salvar Alterações' : 'Publicar Versão'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="rel-title" className={FIELD_LABEL}>Título do release</label>
+            <input
+              id="rel-title"
+              value={formTitle}
+              onChange={(e) => setFormTitle(e.target.value)}
+              placeholder="Ex.: feat(squad): Squad Pulse, dashboard de produtividade"
+              className={cn(FIELD, 'h-10 font-semibold')}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="rel-desc" className={FIELD_LABEL}>Resumo</label>
+            <textarea
+              id="rel-desc"
+              value={formDescription}
+              onChange={(e) => setFormDescription(e.target.value)}
+              placeholder="Breve resumo destacando os objetivos alcançados nesta entrega..."
+              rows={2}
+              className={cn(FIELD, 'py-2.5')}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <span className={FIELD_LABEL} id="rel-icon-label">Ícone do release</span>
+            <div role="radiogroup" aria-labelledby="rel-icon-label" className="flex flex-wrap gap-2">
+              {RELEASE_ICONS.map((icon) => {
+                const on = selectedIconName === icon.name;
+                return (
+                  <button
+                    key={icon.name}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => handleSelectIcon(icon.name)}
+                    className={cn(
+                      'flex h-9 items-center gap-2 rounded-xl border px-3 text-[13px] font-semibold transition-colors',
+                      FOCUS_RING,
+                      on ? 'border-primary/60 bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    )}
+                  >
+                    <ReleaseIcon name={icon.name} className="h-4 w-4" />
+                    {icon.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className={FIELD_LABEL}>Lista de alterações ({formChanges.length})</span>
+              <ModalButton variant="ghost" className="h-8 gap-1.5 px-2.5 text-[13px] text-primary [.theme-totvs:not(.dark)_&]:text-foreground" onClick={() => setShowBulkAdd(!showBulkAdd)}>
+                <FileText className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                {showBulkAdd ? 'Ocultar inserção em lote' : 'Inserir em lote'}
+              </ModalButton>
+            </div>
+
+            {showBulkAdd && (
+              <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/40 p-3">
+                <textarea
+                  aria-label="Alterações em lote"
+                  placeholder="Cole várias alterações, uma por linha."
+                  value={bulkChangeInput}
+                  onChange={(e) => setBulkChangeInput(e.target.value)}
+                  rows={3}
+                  className={cn(FIELD, 'py-2.5')}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className={FIELD_HINT}>Separe por quebra de linha ou ponto e vírgula (;). Marcadores - * • são removidos.</span>
+                  <ModalButton variant="primary" className="h-9" onClick={handleParseBulkChanges}>Processar itens</ModalButton>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                aria-label="Adicionar item de alteração"
+                placeholder="Adicionar item de alteração..."
+                value={newChangeInput}
+                onChange={(e) => setNewChangeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddChange();
+                  }
+                }}
+                className={cn(FIELD, 'h-10')}
+              />
+              <ModalButton variant="secondary" className="shrink-0 gap-1.5" onClick={handleAddChange}>
+                <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Adicionar
+              </ModalButton>
+            </div>
+
+            {formChanges.length > 0 && (
+              <ul className="scrollbar-thin flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-1">
+                {formChanges.map((change, idx) => (
+                  <li key={idx} className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-[13px] text-foreground">
+                    <span className="min-w-0 flex-1 truncate" title={change}>{change}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChange(idx)}
+                      aria-label={`Remover o item ${change}`}
+                      className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300', FOCUS_RING)}
+                    >
+                      <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 p-4">
+            <div className="flex flex-col gap-0.5">
+              <label htmlFor="rel-published" className="text-[13px] font-semibold text-foreground">Publicar imediatamente</label>
+              <span className={FIELD_HINT}>Desligado, fica como rascunho, visível só para administradores</span>
+            </div>
+            <Switch id="rel-published" checked={formIsPublished} onCheckedChange={setFormIsPublished} />
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        tone="danger"
+        icon={Trash2}
+        title={`Excluir a versão ${pendingDelete?.tag ?? ''}?`}
+        description="Some do Changelog público. Esta ação é irreversível."
+        cancelLabel="Manter"
+        confirmLabel="Excluir versão"
+        loading={deleting}
+        loadingLabel="Excluindo…"
+        keepOpenOnConfirm
+        onConfirm={handleDelete}
+      >
+        {pendingDelete && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+            <TagChip tag={pendingDelete.tag} type={pendingDelete.type} />
+            <span className="min-w-0 text-[13px] font-medium text-foreground">{pendingDelete.title}</span>
+          </div>
+        )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        tone="brand"
+        icon={UploadCloud}
+        title="Importar o histórico de versões?"
+        description={`Traz as ${rawVersions.length} versões do arquivo de histórico (versions.json). As que já existem são mantidas.`}
+        cancelLabel="Cancelar"
+        confirmLabel="Importar histórico"
+        loading={importing}
+        loadingLabel="Importando…"
+        keepOpenOnConfirm
+        onConfirm={handleImportLegacy}
+      >
+        <p className={FIELD_HINT}>Depois diz quantas entraram e quantas já existiam.</p>
+      </ConfirmDialog>
     </div>
   );
 }
