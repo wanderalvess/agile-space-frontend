@@ -7,6 +7,7 @@ import { votesOf } from '@/lib/brainstorming-utils';
 import type { BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useIdeaPresentation, useIdeaView } from './brainstorm-context';
+import { editedBadge } from './brainstorm-ceremony';
 import { isHotIdea } from './brainstorm-room-logic';
 
 export const IDEA_MAX_LENGTH = 5000;
@@ -50,7 +51,7 @@ export function IdeaCard({
   className,
 }: IdeaCardProps) {
   const view = useIdeaView();
-  const { author, masked, isMine } = useIdeaPresentation(idea);
+  const { author, masked, isMine, canEditText, canVote, quota, readOnly } = useIdeaPresentation(idea);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -59,7 +60,10 @@ export function IdeaCard({
   const votes = votesOf(idea);
   const hasVoted = !!view.currentUserId && votes.includes(view.currentUserId);
   const hot = !masked && isHotIdea(idea);
-  const canDelete = !masked && !!onDelete && (isMine || view.isFacilitator);
+  const canDelete = !masked && !readOnly && !!onDelete && (isMine || view.isFacilitator);
+  const edited = !masked ? editedBadge(idea) : null;
+  const voteHint = hasVoted ? 'Remover meu voto' : 'Votar nesta ideia';
+  const voteBlockedHint = readOnly ? 'Brainstorming encerrado' : quota.reached ? 'Você usou todos os seus votos' : voteHint;
 
   const startEditing = () => {
     // sempre parte do texto atual (outra pessoa pode ter editado desde que o cartão foi montado)
@@ -91,7 +95,7 @@ export function IdeaCard({
     className
   );
 
-  if (isEditing) {
+  if (isEditing && canEditText) {
     return (
       <article className={cn(surface, 'border-primary/50')}>
         <textarea
@@ -154,7 +158,7 @@ export function IdeaCard({
           ) : author.kind === 'unknown' ? (
             <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">?</span>
           ) : (
-            <PersonAvatar name={(idea.authorId && view.names.get(idea.authorId)) || author.label} size="sm" />
+            <PersonAvatar name={idea.authorName || (idea.authorId && view.names.get(idea.authorId)) || author.label} size="sm" />
           )}
           <span className="truncate text-xs font-semibold text-muted-foreground">{author.label}</span>
         </span>
@@ -184,12 +188,13 @@ export function IdeaCard({
           <button
             type="button"
             aria-pressed={hasVoted}
-            aria-label={hasVoted ? 'Remover meu voto' : 'Votar nesta ideia'}
-            title={hasVoted ? 'Remover meu voto' : 'Votar nesta ideia'}
+            aria-label={canVote ? voteHint : `${voteHint}. ${voteBlockedHint}`}
+            title={canVote ? voteHint : voteBlockedHint}
+            disabled={!canVote}
             onClick={(e) => { e.stopPropagation(); onVote(idea.id); }}
             className={cn(
-              'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[13px] font-semibold tabular-nums transition-colors max-sm:h-11 max-sm:px-3',
-              hasVoted ? 'border-transparent bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+              'inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[13px] font-semibold tabular-nums transition-colors max-sm:h-11 max-sm:px-3 disabled:cursor-not-allowed disabled:opacity-60',
+              hasVoted ? 'border-transparent bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground enabled:hover:bg-accent enabled:hover:text-foreground',
               FOCUS_RING
             )}
           >
@@ -197,14 +202,17 @@ export function IdeaCard({
             {votes.length}
           </button>
         )}
-        {onUpdate && <IconButton size="sm" label="Editar a ideia" icon={Pencil} onClick={(e) => { e.stopPropagation(); startEditing(); }} className="border-transparent text-muted-foreground max-sm:h-11 max-sm:w-11" />}
-        {onStartMerge && !isMergingSource && (
+        {onUpdate && canEditText && <IconButton size="sm" label="Editar a ideia" icon={Pencil} onClick={(e) => { e.stopPropagation(); startEditing(); }} className="border-transparent text-muted-foreground max-sm:h-11 max-sm:w-11" />}
+        {onStartMerge && !isMergingSource && !readOnly && (
           <IconButton size="sm" label="Juntar com outra ideia" icon={GitMerge} onClick={(e) => { e.stopPropagation(); onStartMerge(idea.id); }} className="border-transparent text-muted-foreground max-sm:h-11 max-sm:w-11" />
         )}
         {canDelete && (
           <IconButton size="sm" label="Excluir a ideia" icon={Trash2} onClick={(e) => { e.stopPropagation(); onDelete?.(idea); }} className="border-transparent text-muted-foreground hover:text-red-700 dark:hover:text-red-300 max-sm:h-11 max-sm:w-11" />
         )}
         {actionsExtra}
+        {edited && (
+          <span title={edited.title} className="ml-auto truncate text-xs italic text-muted-foreground">{edited.label}</span>
+        )}
       </footer>
     </article>
   );

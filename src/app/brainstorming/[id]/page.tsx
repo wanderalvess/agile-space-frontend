@@ -28,6 +28,7 @@ import { FeedbackWidget } from '@/components/feedback-widget';
 import { squadLabel as resolveSquadLabel, squadOptions } from '@/components/showcase/review-room-logic';
 import { BrainstormRoom } from '@/components/brainstorming/BrainstormRoom';
 import { BrainstormRoomState } from '@/components/brainstorming/BrainstormRoomState';
+import { effectiveFacilitatorId, isEndpointUnavailable, type CeremonyAction } from '@/components/brainstorming/brainstorm-ceremony';
 import {
   INITIAL_CONNECTION,
   nextConnection,
@@ -72,6 +73,9 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const presenceBindings = presence.bindings;
 
   const [mergingSourceId, setMergingSourceId] = useState<string | null>(null);
+  // Encerrar/assumir/passar: ocupado enquanto a chamada roda; indisponível quando o servidor não tem a rota (backend antigo).
+  const [ceremonyBusy, setCeremonyBusy] = useState(false);
+  const [ceremonyUnavailable, setCeremonyUnavailable] = useState(false);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
   // Só a recarga mais recente vale: uma resposta lenta de uma recarga antiga não pode sobrescrever a nova.
@@ -80,7 +84,9 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const boardLoaded = useRef(false);
   // O facilitador que apaga o mural também recebe BOARD_DELETED: para ele não é "a sessão foi encerrada".
   const deletingSelf = useRef(false);
-  const isFacilitator = !!userProfile && boardData?.creatorId === userProfile.id;
+  // Facilitador atual: `facilitatorId` (backend novo, muda ao assumir/passar), ou o criador (mural e servidor antigos).
+  const isFacilitator = !!userProfile && !!boardData && effectiveFacilitatorId(boardData) === userProfile.id;
+  const isAdmin = userProfile?.role?.toLowerCase() === 'admin';
 
   useEffect(() => {
     // O estado da sala não pode vazar de uma sala para outra ao trocar o id na URL.
@@ -93,6 +99,8 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     setLoadError(null);
     setDeleted(false);
     setConnection(INITIAL_CONNECTION);
+    setCeremonyBusy(false);
+    setCeremonyUnavailable(false);
     setIsBoardLoading(true);
     setAreIdeasLoading(true);
     setAreGroupsLoading(true);
@@ -234,9 +242,10 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
     });
   }, [isAuthenticated, boardData, userProfile, participants, areParticipantsLoading, boardId, toast]);
 
-  // Revelar/ocultar ideias ou autores muda o que o servidor envia a cada pessoa: recarrega só as ideias, trocando a
-  // lista inteira de uma vez (sem piscar). Não roda na primeira carga.
-  const visibilityKey = boardData ? `${boardData.settings.isRevealed === false}|${!!boardData.settings.isAnonymous}` : null;
+  // Revelar/ocultar ideias, autores anônimos ou trocar o facilitador muda o que o servidor envia a cada pessoa (o texto
+  // das ideias ocultas vai para o facilitador): recarrega só as ideias, trocando a lista inteira de uma vez (sem piscar).
+  // Não roda na primeira carga.
+  const visibilityKey = boardData ? `${boardData.settings.isRevealed === false}|${!!boardData.settings.isAnonymous}|${effectiveFacilitatorId(boardData) ?? ''}` : null;
   const lastVisibilityKey = useRef<string | null>(null);
   useEffect(() => {
     if (!isAuthenticated || visibilityKey === null) return;
@@ -269,10 +278,16 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   // useStableCallback: identidade fixa e sempre a versão mais recente (nada de closure velha sobre `ideas`),
   // então a teia e as listas não re-renderizam à toa nem agem sobre um estado antigo.
 
-  /** Erro vira aviso na tela (com a mensagem do servidor), nunca só console. */
+  /**
+   * Erro vira aviso na tela (com a mensagem do servidor), nunca só console. Um 409 pode ser o mural encerrado, o limite
+   * de votos ou a facilitação que mudou: recarrega só o mural para a tela alcançar o estado do servidor.
+   */
   const fail = (title: string, error: unknown, fallback = 'Tente novamente.') => {
     console.error(title, error);
     toast({ title, description: errorMessage(error, fallback), variant: 'destructive' });
+    if (error instanceof CeremonyApiError && error.status === 409) {
+      brainstormingApi.getBoard(boardId).then((board) => { if (board?.id) setBoardData(board); }).catch(() => undefined);
+    }
   };
 
   const applyIdea = (idea: BrainstormingIdea) => setIdeas(prev => upsertById(prev, idea));
@@ -418,6 +433,42 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
   const handleToggleReveal = useStableCallback(() =>
     patchBoard({ settings: { isRevealed: boardData?.settings.isRevealed === false } }));
 
+  const handleVoteLimitChange = useStableCallback((value: number | null) => patchBoard({ votesPerParticipant: value }));
+
+  const handleRestrictEditsChange = useStableCallback((value: boolean) => patchBoard({ settings: { restrictEdits: value } }));
+
+  /**
+   * Encerrar, reabrir, assumir e passar: o servidor devolve o mural novo. 404/405 = backend antigo (a função some, sem
+   * erro na tela); 403/409 mostram a mensagem do servidor em português ("O facilitador está online.", etc.).
+   */
+  const runCeremony = async (action: CeremonyAction, call: () => Promise<BrainstormingBoard>, errorTitle: string, doneTitle: string) => {
+    setCeremonyBusy(true);
+    try {
+      const updated = await call();
+      if (updated?.id) setBoardData(updated);
+      toast({ title: doneTitle });
+    } catch (e) {
+      if (isEndpointUnavailable(action, e)) {
+        setCeremonyUnavailable(true);
+        toast({ title: 'Função indisponível neste servidor', description: 'Ela entra quando o servidor for atualizado.' });
+      } else {
+        fail(errorTitle, e);
+      }
+    } finally {
+      setCeremonyBusy(false);
+    }
+  };
+
+  const handleFinish = useStableCallback(() => runCeremony('finish', () => brainstormingApi.finishBoard(boardId), 'Não foi possível encerrar o brainstorming', 'Brainstorming encerrado'));
+
+  const handleReopen = useStableCallback(() => runCeremony('reopen', () => brainstormingApi.reopenBoard(boardId), 'Não foi possível reabrir o brainstorming', 'Brainstorming reaberto'));
+
+  const handleClaimFacilitation = useStableCallback(() =>
+    runCeremony('claim', () => brainstormingApi.claimFacilitation(boardId), 'Não foi possível assumir a facilitação', 'Você agora facilita a sessão'));
+
+  const handleTransferFacilitation = useStableCallback((userId: string) =>
+    runCeremony('transfer', () => brainstormingApi.transferFacilitation(boardId, userId), 'Não foi possível passar a facilitação', 'Facilitação passada'));
+
   const handleRemoveParticipant = useStableCallback(async (participantId: string) => {
     try {
       await brainstormingApi.leaveBoard(boardId, participantId);
@@ -506,6 +557,15 @@ export default function BrainstormingRoomPage({ params }: { params: Promise<{ id
         onRemoveParticipant={handleRemoveParticipant}
         onDeleteBoard={handleDeleteBoard}
         onOpenFeedback={handleOpenFeedback}
+        isAdmin={isAdmin}
+        ceremonyBusy={ceremonyBusy}
+        ceremonyUnavailable={ceremonyUnavailable}
+        onFinish={handleFinish}
+        onReopen={handleReopen}
+        onClaimFacilitation={handleClaimFacilitation}
+        onTransferFacilitation={handleTransferFacilitation}
+        onVoteLimitChange={handleVoteLimitChange}
+        onRestrictEditsChange={handleRestrictEditsChange}
       />
       <FeedbackWidget toolName="Brainstorming" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </>

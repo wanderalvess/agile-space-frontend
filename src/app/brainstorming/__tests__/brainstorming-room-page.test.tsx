@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
     getBoard: vi.fn(), getIdeas: vi.fn(), getGroups: vi.fn(), getParticipants: vi.fn(), patchBoard: vi.fn(), deleteBoard: vi.fn(),
     joinBoard: vi.fn(), leaveBoard: vi.fn(), saveOrUpdateIdea: vi.fn(), patchIdea: vi.fn(), toggleVote: vi.fn(), mergeIdeas: vi.fn(),
     deleteIdea: vi.fn(), saveOrUpdateGroup: vi.fn(), deleteGroup: vi.fn(),
+    finishBoard: vi.fn(), reopenBoard: vi.fn(), claimFacilitation: vi.fn(), transferFacilitation: vi.fn(),
   },
 }));
 const { router, state, toast, api } = h;
@@ -264,5 +265,119 @@ describe('ações da sala', () => {
     await call(() => latest().onDeleteIdea('i1'));
     expect(api.deleteIdea).toHaveBeenCalledWith('b1', 'i1');
     expect(latest().ideas).toHaveLength(0);
+  });
+});
+
+describe('cerimônia: facilitador, encerrar e facilitação (backend novo)', () => {
+  it('o facilitador é o facilitatorId; o criador que passou a facilitação deixa de ser', async () => {
+    board = { ...board, creatorId: 'me', facilitatorId: 'bia', status: 'OPEN' };
+    await mount();
+    expect(latest().isFacilitator).toBe(false);
+    await emit('BOARD_UPDATED', { ...board, facilitatorId: 'me' });
+    expect(latest().isFacilitator).toBe(true);
+  });
+
+  it('mural antigo (sem facilitatorId) continua valendo o criador', async () => {
+    await mount();
+    expect(latest().isFacilitator).toBe(true);
+    expect(latest().isAdmin).toBe(false);
+  });
+
+  it('conta admin chega à sala como isAdmin', async () => {
+    state.profile = { id: 'adm', name: 'Admin', role: 'admin' };
+    board = { ...board, creatorId: 'outra', status: 'OPEN', facilitatorId: 'outra' };
+    await mount();
+    expect(latest().isAdmin).toBe(true);
+    expect(latest().isFacilitator).toBe(false);
+  });
+
+  it('trocar o facilitador recarrega as ideias (o texto das ocultas muda de mãos)', async () => {
+    board = { ...board, creatorId: 'outra', facilitatorId: 'outra', status: 'OPEN' };
+    await mount();
+    api.getIdeas.mockClear();
+    await emit('BOARD_UPDATED', { ...board, facilitatorId: 'me' });
+    await waitFor(() => expect(api.getIdeas).toHaveBeenCalledTimes(1));
+  });
+
+  it('encerrar e reabrir aplicam o mural devolvido pelo servidor', async () => {
+    api.finishBoard.mockImplementation(async () => ({ ...board, status: 'FINISHED', finishedAt: '2026-10-17T14:00:00Z' }));
+    api.reopenBoard.mockImplementation(async () => ({ ...board, status: 'OPEN', finishedAt: null }));
+    board = { ...board, status: 'OPEN', facilitatorId: 'me' };
+    await mount();
+    await call(() => latest().onFinish());
+    expect(api.finishBoard).toHaveBeenCalledWith('b1');
+    expect(latest().boardData.status).toBe('FINISHED');
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Brainstorming encerrado' }));
+    await call(() => latest().onReopen());
+    expect(api.reopenBoard).toHaveBeenCalledWith('b1');
+    expect(latest().boardData.status).toBe('OPEN');
+    expect(latest().ceremonyBusy).toBe(false);
+  });
+
+  it('assumir e passar chamam as rotas de facilitação', async () => {
+    api.claimFacilitation.mockImplementation(async () => ({ ...board, facilitatorId: 'me', status: 'OPEN' }));
+    api.transferFacilitation.mockImplementation(async () => ({ ...board, facilitatorId: 'bia', status: 'OPEN' }));
+    board = { ...board, creatorId: 'outra', facilitatorId: 'outra', status: 'OPEN' };
+    await mount();
+    await call(() => latest().onClaimFacilitation());
+    expect(api.claimFacilitation).toHaveBeenCalledWith('b1');
+    expect(latest().isFacilitator).toBe(true);
+    await call(() => latest().onTransferFacilitation('bia'));
+    expect(api.transferFacilitation).toHaveBeenCalledWith('b1', 'bia');
+    expect(latest().isFacilitator).toBe(false);
+  });
+
+  it('409 do servidor ("O facilitador está online.") vira aviso e recarrega o mural', async () => {
+    api.claimFacilitation.mockImplementation(async () => { throw new CeremonyApiError('O facilitador está online.', 409); });
+    board = { ...board, creatorId: 'outra', facilitatorId: 'outra', status: 'OPEN' };
+    await mount();
+    api.getBoard.mockClear();
+    await call(() => latest().onClaimFacilitation());
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'Não foi possível assumir a facilitação', description: 'O facilitador está online.', variant: 'destructive' }));
+    await waitFor(() => expect(api.getBoard).toHaveBeenCalledTimes(1));
+    expect(latest().ceremonyUnavailable).toBe(false);
+  });
+
+  it('403 ao encerrar mostra a mensagem; 404 (backend antigo) esconde a função sem erro na tela', async () => {
+    api.finishBoard.mockImplementation(async () => { throw new CeremonyApiError('Apenas o facilitador pode encerrar o brainstorming.', 403); });
+    board = { ...board, status: 'OPEN', facilitatorId: 'me' };
+    await mount();
+    await call(() => latest().onFinish());
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Apenas o facilitador pode encerrar o brainstorming.', variant: 'destructive' }));
+    expect(latest().ceremonyUnavailable).toBe(false);
+
+    toast.mockClear();
+    api.finishBoard.mockImplementation(async () => { throw new CeremonyApiError('No static resource', 404); });
+    await call(() => latest().onFinish());
+    expect(latest().ceremonyUnavailable).toBe(true);
+    expect(toast).not.toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
+  });
+
+  it('votar além do limite (409) avisa com a mensagem do servidor e ressincroniza o mural', async () => {
+    api.toggleVote.mockRejectedValue(new CeremonyApiError('Você já usou seus 3 votos. Remova um voto para votar em outra ideia.', 409));
+    await mount();
+    api.getBoard.mockClear();
+    await call(() => latest().onVoteIdea('i1'));
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: expect.stringContaining('3 votos'), variant: 'destructive' }));
+    await waitFor(() => expect(api.getBoard).toHaveBeenCalled());
+  });
+
+  it('editar o texto sem permissão (403) mostra a mensagem do servidor', async () => {
+    api.patchIdea.mockRejectedValue(new CeremonyApiError('Só o autor da ideia ou o facilitador podem editar o texto.', 403));
+    await mount();
+    let saved: unknown;
+    await act(async () => { saved = await latest().onUpdateIdea('i1', 'novo'); });
+    expect(saved).toBe(false);
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'Só o autor da ideia ou o facilitador podem editar o texto.' }));
+  });
+
+  it('limite de votos e edição restrita vão no PATCH (null tira o limite)', async () => {
+    await mount();
+    await call(() => latest().onVoteLimitChange(4));
+    expect(api.patchBoard).toHaveBeenLastCalledWith('b1', { votesPerParticipant: 4 });
+    await call(() => latest().onVoteLimitChange(null));
+    expect(api.patchBoard).toHaveBeenLastCalledWith('b1', { votesPerParticipant: null });
+    await call(() => latest().onRestrictEditsChange(true));
+    expect(api.patchBoard).toHaveBeenLastCalledWith('b1', { settings: { restrictEdits: true } });
   });
 });

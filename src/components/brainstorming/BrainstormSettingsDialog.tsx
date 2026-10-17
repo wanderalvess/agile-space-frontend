@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { Flag, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { FIELD, Modal, ModalButton, SettingRow, normalizeRoomTitle } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
+import { VoteLimitField } from './VoteLimitField';
 
 export interface BrainstormSettingsDialogProps {
   open: boolean;
@@ -20,6 +21,19 @@ export interface BrainstormSettingsDialogProps {
   onTogglePresentation: () => void;
   onRename: (title: string) => void;
   onSoundChange: (enabled: boolean) => void;
+  /** Mural encerrado: os ajustes que o servidor recusa ficam desabilitados (só o nome muda). */
+  finished?: boolean;
+  /** O backend conhece as funções novas: aparecem votos por pessoa, edição restrita e encerrar. */
+  ceremonyApi?: boolean;
+  /** Votos por pessoa; `null` = sem limite. */
+  voteLimit?: number | null;
+  onVoteLimitChange?: (value: number | null) => void;
+  restrictEdits?: boolean;
+  onRestrictEditsChange?: (value: boolean) => void;
+  /** Encerrar ou reabrir (facilitador, criador ou ADMIN). */
+  canFinish?: boolean;
+  onFinish?: () => void;
+  onReopen?: () => void;
 }
 
 /**
@@ -41,6 +55,15 @@ export function BrainstormSettingsDialog({
   onTogglePresentation,
   onRename,
   onSoundChange,
+  finished = false,
+  ceremonyApi = false,
+  voteLimit = null,
+  onVoteLimitChange,
+  restrictEdits = false,
+  onRestrictEditsChange,
+  canFinish = false,
+  onFinish,
+  onReopen,
 }: BrainstormSettingsDialogProps) {
   // Rascunho do nome: enquanto não se digita nada vale o título atual (que outra pessoa pode ter mudado).
   const [draft, setDraft] = useState<string | null>(null);
@@ -72,6 +95,7 @@ export function BrainstormSettingsDialog({
               desc="Ninguém vê quem lançou cada ideia, nem o facilitador. O servidor só diz o autor ao próprio autor."
               checked={anonymous}
               onChange={() => onToggleAnonymous()}
+              disabled={finished}
             />
             <SettingRow
               id="brain-set-hide"
@@ -79,6 +103,7 @@ export function BrainstormSettingsDialog({
               desc="Cada pessoa só vê as próprias até o facilitador revelar. Revelar e ocultar vale na hora para todos."
               checked={ideasHidden}
               onChange={() => onToggleReveal()}
+              disabled={finished}
             />
             <SettingRow
               id="brain-set-present"
@@ -86,7 +111,19 @@ export function BrainstormSettingsDialog({
               desc="Esconde o campo de nova ideia para projetar o mural sem distrações."
               checked={presentation}
               onChange={() => onTogglePresentation()}
+              disabled={finished}
             />
+            {ceremonyApi && onVoteLimitChange && <VoteLimitField idPrefix="brain-set" value={voteLimit} onChange={onVoteLimitChange} disabled={finished} />}
+            {ceremonyApi && onRestrictEditsChange && (
+              <SettingRow
+                id="brain-set-restrict"
+                title="Só o autor e a facilitação editam o texto"
+                desc="Mover, agrupar, votar e juntar ideias continuam livres para todos."
+                checked={restrictEdits}
+                onChange={onRestrictEditsChange}
+                disabled={finished}
+              />
+            )}
             <div className="flex flex-col gap-1.5 py-3">
               <label htmlFor="brain-set-name" className="text-sm font-semibold text-foreground">Nome da sessão</label>
               <div className="flex gap-2">
@@ -103,6 +140,21 @@ export function BrainstormSettingsDialog({
                 />
               </div>
             </div>
+          </section>
+        )}
+
+        {ceremonyApi && canFinish && (
+          <section aria-label="Encerramento" className="flex flex-col gap-2">
+            <h3 className="m-0 text-[13px] font-bold text-muted-foreground">Encerramento</h3>
+            {finished ? (
+              <ModalButton className="h-10 w-fit gap-2" onClick={() => { onOpenChange(false); onReopen?.(); }}>
+                <RotateCcw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Reabrir brainstorming
+              </ModalButton>
+            ) : (
+              <ModalButton className="h-10 w-fit gap-2" onClick={() => { onOpenChange(false); onFinish?.(); }}>
+                <Flag className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Encerrar brainstorming
+              </ModalButton>
+            )}
           </section>
         )}
 

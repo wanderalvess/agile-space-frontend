@@ -5,6 +5,7 @@ import { GitMerge, Lightbulb, Plus, Search, X } from 'lucide-react';
 import { FIELD, IconTile, ModalButton, Segmented, StatusChip } from '@/components/room-kit';
 import type { BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useIdeaView } from './brainstorm-context';
 import { downloadElementAsPng, useExportRequest } from './brainstorm-image';
 import { IDEA_ORDERS, filterAndSortIdeas, type IdeaOrder } from './brainstorm-room-logic';
 import { IDEA_MAX_LENGTH, IdeaCard } from './IdeaCard';
@@ -44,6 +45,7 @@ export function MuralPhase({
   onExportDone,
 }: MuralPhaseProps) {
   const gridRef = useRef<HTMLDivElement>(null);
+  const { readOnly = false } = useIdeaView();
   const [newIdea, setNewIdea] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [order, setOrder] = useState<IdeaOrder>('recent');
@@ -54,7 +56,7 @@ export function MuralPhase({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = newIdea.trim();
-    if (!text || isSubmitting) return;
+    if (!text || isSubmitting || readOnly) return;
     setIsSubmitting(true);
     try {
       const saved = await onAddIdea(text);
@@ -80,10 +82,11 @@ export function MuralPhase({
             onChange={(e) => setNewIdea(e.target.value)}
             aria-label="Escreva uma ideia"
             maxLength={IDEA_MAX_LENGTH}
-            placeholder="O que você está pensando? Escreva e lance"
-            className={cn(FIELD, 'h-11 min-w-0 flex-1 border-transparent bg-transparent')}
+            disabled={readOnly}
+            placeholder={readOnly ? 'Encerrado: só leitura' : 'O que você está pensando? Escreva e lance'}
+            className={cn(FIELD, 'h-11 min-w-0 flex-1 border-transparent bg-transparent disabled:cursor-not-allowed')}
           />
-          <ModalButton type="submit" variant="primary" className="h-11 shrink-0 gap-1.5 px-5" disabled={!newIdea.trim() || isSubmitting}>
+          <ModalButton type="submit" variant="primary" className="h-11 shrink-0 gap-1.5 px-5" disabled={!newIdea.trim() || isSubmitting || readOnly}>
             Lançar ideia <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
           </ModalButton>
         </form>

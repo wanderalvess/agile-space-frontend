@@ -51,6 +51,29 @@ describe('hub do Brainstorming', () => {
     expect(handlers.onOpen).toHaveBeenCalledWith('a');
   });
 
+  it('mostra Aberto/Encerrado de verdade e filtra por eles', () => {
+    const withStatus: BrainstormLobbyRow[] = [
+      { ...rows[0], boardStatus: 'OPEN', facilitatorId: 'me' },
+      { ...rows[1], boardStatus: 'FINISHED', status: 'FINISHED' },
+    ];
+    setup({ rows: withStatus });
+    const table = screen.getByRole('table', { name: 'Brainstormings da squad' });
+    expect(within(table).getAllByText('Encerrado').length).toBeGreaterThan(0);
+    expect(within(table).getAllByText('Aberto').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Encerrados' }));
+    expect(within(table).queryByText('Redesenho do onboarding')).toBeNull();
+    expect(within(table).getByText('Ideias para o Dia do Cliente')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Abertos' }));
+    expect(within(table).getByText('Redesenho do onboarding')).toBeTruthy();
+    expect(within(table).queryByText('Ideias para o Dia do Cliente')).toBeNull();
+  });
+
+  it('apagar e "você facilita" seguem o facilitador atual, não o criador', () => {
+    setup({ rows: [{ ...rows[0], creatorId: 'me', facilitatorId: 'bia', boardStatus: 'OPEN' }, { ...rows[1], creatorId: 'outra', facilitatorId: 'me', boardStatus: 'OPEN' }] });
+    expect(screen.queryByRole('button', { name: 'Apagar Redesenho do onboarding' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Apagar Ideias para o Dia do Cliente' })).toBeTruthy();
+  });
+
   it('entrar por link colado extrai o ID em minúsculas', () => {
     const { handlers } = setup();
     const input = screen.getByLabelText('Entrar com o ID ou link do brainstorming');

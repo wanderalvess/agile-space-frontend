@@ -323,6 +323,9 @@ export type Participant = {
   // Heartbeat de presença (ISO). Atualizado periodicamente pelo próprio
   // participante; ausência/valor stale => considerado offline.
   lastSeen?: string;
+  /** Brainstorming (backend novo): nome para exibir e marca do facilitador atual. */
+  displayName?: string;
+  facilitator?: boolean;
 };
 
 export type Vote = {
@@ -698,10 +701,23 @@ export type BrainstormingBoard = {
     isAnonymous: boolean;
     isPresentationMode?: boolean;
     isRevealed?: boolean;
+    /** Só autor, facilitação e ADMIN editam o TEXTO da ideia (mover, agrupar, votar e fundir seguem livres). Ausente = livre. */
+    restrictEdits?: boolean;
   };
   participantIds?: string[];
   timer?: TimerState;
+  /** Backend novo (V80): `OPEN` ou `FINISHED`. Ausente (backend antigo) = aberto. */
+  status?: BrainstormingStatus;
+  /** ISO do encerramento; nulo ao reabrir. */
+  finishedAt?: string | null;
+  /** Facilitador atual. Ausente (backend antigo) = o criador. */
+  facilitatorId?: string;
+  facilitatorName?: string | null;
+  /** Votos por pessoa (1 a 100); nulo ou ausente = sem limite. */
+  votesPerParticipant?: number | null;
 };
+
+export type BrainstormingStatus = 'OPEN' | 'FINISHED';
 
 export type BrainstormingIdea = {
   id: string;
@@ -716,6 +732,12 @@ export type BrainstormingIdea = {
   parentId: string | null;
   groupId: string | null;
   createdAt: string;
+  /** Só em mural não anônimo, com a ideia legível para quem lê. */
+  authorName?: string | null;
+  /** Texto alterado depois de criada (mover, agrupar e votar não contam). */
+  editedAt?: string | null;
+  editedBy?: string | null;
+  editedByName?: string | null;
   color?: string; // Para diferenciação visual opcional
   qualifiers?: {
     roi?: number;

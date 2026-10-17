@@ -26,9 +26,9 @@ export function normalizeStage(phase: string | undefined | null): BrainstormingP
   return BRAIN_STAGES.find((s) => s.id === phase)?.id ?? 'ideation';
 }
 
-/** Só o facilitador troca de etapa: para os demais a navegação fica travada (com cadeado). */
-export function isStageNavLocked(isFacilitator: boolean): boolean {
-  return !isFacilitator;
+/** Só o facilitador troca de etapa (para os demais a navegação fica travada, com cadeado); mural encerrado trava para todos. */
+export function isStageNavLocked(isFacilitator: boolean, finished = false): boolean {
+  return !isFacilitator || finished;
 }
 
 /** Só o Mural e a Teia sabem gerar a imagem (PNG). */
@@ -80,19 +80,23 @@ export interface AuthorInfo {
  * já saiu da sala, "Participante".
  */
 export function authorInfo(
-  idea: Pick<BrainstormingIdea, 'authorId'>,
+  idea: Pick<BrainstormingIdea, 'authorId' | 'authorName'>,
   ctx: { currentUserId?: string; anonymous: boolean; names: ReadonlyMap<string, string> }
 ): AuthorInfo {
   if (idea.authorId && ctx.currentUserId && idea.authorId === ctx.currentUserId) return { kind: 'you', label: 'Você' };
   if (ctx.anonymous) return { kind: 'anonymous', label: 'Anônimo' };
-  const name = idea.authorId ? firstName(ctx.names.get(idea.authorId)) : '';
+  // `authorName` (backend novo, só em mural não anônimo) vale antes da lista de participantes.
+  const name = firstName(idea.authorName) || (idea.authorId ? firstName(ctx.names.get(idea.authorId)) : '');
   return name ? { kind: 'person', label: name } : { kind: 'unknown', label: 'Participante' };
 }
 
 /** Mapa id -> apelido dos participantes (nome completo; quem mostra o primeiro nome é `authorInfo`). */
-export function participantNames(participants: readonly { id: string; nickname?: string }[]): Map<string, string> {
+export function participantNames(participants: readonly { id: string; nickname?: string; displayName?: string }[]): Map<string, string> {
   const map = new Map<string, string>();
-  for (const p of participants) if (p.nickname) map.set(p.id, p.nickname);
+  for (const p of participants) {
+    const name = p.displayName || p.nickname;
+    if (name) map.set(p.id, name);
+  }
   return map;
 }
 

@@ -68,6 +68,68 @@ describe('brainstormingApi', () => {
     await expect(brainstormingApi.deleteGroup('b1', 'g1')).rejects.toBeInstanceOf(CeremonyApiError);
   });
 
+  describe('cerimônia: encerrar, reabrir e facilitação', () => {
+    it('finish e reopen: POST sem corpo nas rotas /finish e /reopen e devolvem o mural', async () => {
+      authFetch.mockResolvedValue(response(200, { id: 'b1', status: 'FINISHED' }));
+
+      const finished = await brainstormingApi.finishBoard('b1');
+      await brainstormingApi.reopenBoard('b1');
+
+      expect(finished.status).toBe('FINISHED');
+      expect(String(authFetch.mock.calls[0][0])).toContain('/brainstormings/b1/finish');
+      expect(String(authFetch.mock.calls[1][0])).toContain('/brainstormings/b1/reopen');
+      for (const [, init] of authFetch.mock.calls) {
+        expect(init.method).toBe('POST');
+        expect(init.body).toBeUndefined();
+      }
+    });
+
+    it('claim: POST em /facilitation/claim; transfer: POST em /facilitation/transfer com { userId }', async () => {
+      authFetch.mockResolvedValue(response(200, { id: 'b1', facilitatorId: 'bia' }));
+
+      await brainstormingApi.claimFacilitation('b1');
+      const moved = await brainstormingApi.transferFacilitation('b1', 'bia');
+
+      expect(moved.facilitatorId).toBe('bia');
+      expect(String(authFetch.mock.calls[0][0])).toContain('/brainstormings/b1/facilitation/claim');
+      expect(authFetch.mock.calls[0][1].method).toBe('POST');
+      expect(String(authFetch.mock.calls[1][0])).toContain('/brainstormings/b1/facilitation/transfer');
+      expect(JSON.parse(authFetch.mock.calls[1][1].body)).toEqual({ userId: 'bia' });
+    });
+
+    it('403 e 409 chegam com a mensagem do servidor; 404 de backend antigo vira CeremonyApiError 404', async () => {
+      authFetch.mockResolvedValueOnce(response(403, { message: 'Apenas o facilitador pode encerrar o brainstorming.' }));
+      await expect(brainstormingApi.finishBoard('b1')).rejects.toMatchObject({ status: 403, message: 'Apenas o facilitador pode encerrar o brainstorming.' });
+
+      authFetch.mockResolvedValueOnce(response(409, { message: 'O facilitador está online.' }));
+      await expect(brainstormingApi.claimFacilitation('b1')).rejects.toMatchObject({ status: 409, message: 'O facilitador está online.' });
+
+      authFetch.mockResolvedValueOnce(response(404, { error: 'Not Found' }));
+      const error = await brainstormingApi.reopenBoard('b1').catch((e) => e);
+      expect(error).toBeInstanceOf(CeremonyApiError);
+      expect(error.status).toBe(404);
+      expect(error.message).toBe('Não foi possível reabrir o brainstorming');
+    });
+
+    it('limite de votos e edição restrita seguem no PATCH do mural (null tira o limite)', async () => {
+      authFetch.mockResolvedValue(response(200, { id: 'b1' }));
+
+      await brainstormingApi.patchBoard('b1', { votesPerParticipant: 4 });
+      await brainstormingApi.patchBoard('b1', { votesPerParticipant: null, settings: { restrictEdits: true } });
+
+      expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ votesPerParticipant: 4 });
+      expect(JSON.parse(authFetch.mock.calls[1][1].body)).toEqual({ votesPerParticipant: null, settings: { restrictEdits: true } });
+    });
+
+    it('voto recusado pelo limite (409) e edição recusada (403) mostram a mensagem do servidor', async () => {
+      authFetch.mockResolvedValueOnce(response(409, { message: 'Você já usou seus 3 votos. Remova um voto para votar em outra ideia.' }));
+      await expect(brainstormingApi.toggleVote('b1', 'i1')).rejects.toMatchObject({ status: 409, message: expect.stringContaining('3 votos') });
+
+      authFetch.mockResolvedValueOnce(response(403, { message: 'Só o autor da ideia ou o facilitador podem editar o texto.' }));
+      await expect(brainstormingApi.patchIdea('b1', 'i1', { content: 'novo' })).rejects.toMatchObject({ status: 403 });
+    });
+  });
+
   it('falha 5xx usa o texto padrão da chamada', async () => {
     authFetch.mockResolvedValue(response(500, { message: 'stack' }));
 

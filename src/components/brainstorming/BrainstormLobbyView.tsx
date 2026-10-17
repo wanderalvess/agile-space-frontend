@@ -9,7 +9,9 @@ import {
   BRAINSTORM_LOBBY_FILTERS,
   createdPhrase,
   filterBrainstormRows,
+  isLobbyRowFinished,
   isLobbyRowLive,
+  lobbyRowFacilitator,
   lobbyStageLabel,
   readRoomCode,
   shortCreated,
@@ -153,7 +155,8 @@ function StepList({ phase }: { phase: BrainstormLobbyRow['phase'] }) {
 
 function LastSession({ row, detail, currentUserId, onOpen, now }: { row: BrainstormLobbyRow; detail?: BrainstormLastDetail; currentUserId?: string; onOpen: (id: string) => void; now?: number }) {
   const live = isLobbyRowLive(row);
-  const mine = !!currentUserId && row.creatorId === currentUserId;
+  const finished = isLobbyRowFinished(row);
+  const mine = !!currentUserId && lobbyRowFacilitator(row) === currentUserId;
   const ideas = detail?.ideas ?? row.ideas;
   const people = detail?.people ?? row.people;
   const stats = [
@@ -165,7 +168,9 @@ function LastSession({ row, detail, currentUserId, onOpen, now }: { row: Brainst
     <section aria-label="Última sessão" className={SECTION}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <SectionTitle icon={History} title="Última sessão" />
-        {live ? (
+        {finished ? (
+          <StatusChip tone="warn">Encerrado</StatusChip>
+        ) : live ? (
           <StatusChip tone="success" dot>Em andamento</StatusChip>
         ) : (
           <StatusChip tone="neutral">Concluída</StatusChip>
@@ -238,12 +243,18 @@ export function BrainstormLobbyView({
           {r.localOnly ? (
             <span className="text-xs text-muted-foreground">aberta neste navegador</span>
           ) : (
-            !!currentUserId && r.creatorId === currentUserId && <span className="text-xs text-muted-foreground">você facilita</span>
+            !!currentUserId && lobbyRowFacilitator(r) === currentUserId && <span className="text-xs text-muted-foreground">você facilita</span>
           )}
         </span>
       ),
     },
     { id: 'stage', header: 'Etapa', width: '120px', cell: (r) => <StatusChip tone={isLobbyRowLive(r) ? 'brand' : 'neutral'} className="self-start">{lobbyStageLabel(r.phase) || '—'}</StatusChip> },
+    {
+      id: 'status',
+      header: 'Status',
+      width: '110px',
+      cell: (r) => (r.localOnly ? <span className="text-sm text-muted-foreground">—</span> : isLobbyRowFinished(r) ? <StatusChip tone="warn" className="self-start">Encerrado</StatusChip> : <StatusChip tone="success" className="self-start">Aberto</StatusChip>),
+    },
     { id: 'ideas', header: 'Ideias', width: '80px', cell: (r) => <span className="text-sm tabular-nums">{r.ideas ?? '—'}</span> },
     { id: 'people', header: 'Pessoas', width: '90px', cell: (r) => <span className="text-sm tabular-nums">{r.people ?? '—'}</span> },
     { id: 'created', header: 'Criada', width: '120px', cell: (r) => <span className="text-sm text-muted-foreground">{shortCreated(r.createdAt, now)}</span> },
@@ -257,7 +268,7 @@ export function BrainstormLobbyView({
           <ModalButton className="h-8 gap-1.5 px-3 text-[13px]" onClick={() => onOpen(r.id)} aria-label={`${isLobbyRowLive(r) ? 'Retomar' : 'Abrir'} ${r.title}`}>
             {isLobbyRowLive(r) ? 'Retomar' : 'Abrir'} <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
           </ModalButton>
-          {!!currentUserId && r.creatorId === currentUserId && (
+          {!!currentUserId && lobbyRowFacilitator(r) === currentUserId && (
             <IconButton size="sm" label={`Apagar ${r.title}`} icon={Trash2} onClick={() => setToDelete(r)} className="text-red-700 dark:text-red-300" />
           )}
         </span>

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { UserX } from 'lucide-react';
-import { IconButton, PresenceList, type PresenceItem } from '@/components/room-kit';
+import { ArrowRightLeft, Hand, UserX } from 'lucide-react';
+import { IconButton, ModalButton, PresenceList, type PresenceItem } from '@/components/room-kit';
 import type { Participant } from '@/lib/types';
 import { presenceOnlineOf } from '@/lib/room-presence';
+import { participantName, type ClaimState } from './brainstorm-ceremony';
 import { firstName } from './brainstorm-room-logic';
 
 export function participantRoleLabel(p: Pick<Participant, 'globalRole' | 'role'>): string {
@@ -17,15 +18,15 @@ export function participantRoleLabel(p: Pick<Participant, 'globalRole' | 'role'>
  */
 export function toPresenceItems(
   participants: readonly Participant[],
-  creatorId: string,
+  facilitatorId: string,
   currentUserId: string,
   onlineIds: ReadonlySet<string> | null = null,
 ): PresenceItem[] {
   return participants.map((p) => {
-    const host = p.id === creatorId;
+    const host = p.id === facilitatorId;
     return {
       id: p.id,
-      name: p.nickname || 'Participante',
+      name: participantName(p),
       roleLabel: host ? `${participantRoleLabel(p)} · facilitador` : participantRoleLabel(p),
       category: (p.globalRole || p.role) as string,
       online: presenceOnlineOf(onlineIds, p.id),
@@ -38,20 +39,35 @@ export function toPresenceItems(
 /** Lista do painel: o facilitador no topo e os demais abaixo; o facilitador remove pessoas (com confirmação da sala). */
 export function BrainstormParticipants({
   participants,
-  creatorId,
+  facilitatorId,
+  facilitatorName = '',
   currentUserId,
   isFacilitator,
   onRequestRemove,
   onlineIds = null,
+  claim,
+  claiming = false,
+  onClaim,
+  canTransfer = false,
+  onTransfer,
 }: {
   participants: readonly Participant[];
   onlineIds?: ReadonlySet<string> | null;
-  creatorId: string;
+  /** O facilitador atual (`facilitatorId`, ou o criador em mural antigo). */
+  facilitatorId: string;
+  /** Nome do facilitador (vazio quando nenhum é conhecido). */
+  facilitatorName?: string;
   currentUserId: string;
   isFacilitator: boolean;
   onRequestRemove: (participant: Participant) => void;
+  /** "Assumir a facilitação" (backend novo): visível/habilitado conforme `claimState`. */
+  claim?: ClaimState;
+  claiming?: boolean;
+  onClaim?: () => void;
+  canTransfer?: boolean;
+  onTransfer?: () => void;
 }) {
-  const items = useMemo(() => toPresenceItems(participants, creatorId, currentUserId, onlineIds), [participants, creatorId, currentUserId, onlineIds]);
+  const items = useMemo(() => toPresenceItems(participants, facilitatorId, currentUserId, onlineIds), [participants, facilitatorId, currentUserId, onlineIds]);
   const host = items.filter((i) => i.isHost);
   const others = items.filter((i) => !i.isHost);
 
@@ -74,9 +90,29 @@ export function BrainstormParticipants({
     <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pb-3">
       {host.length > 0 && (
         <section aria-label="Facilitação" className="flex flex-col">
-          <h3 className="m-0 px-4 pb-1 pt-1 text-xs font-semibold text-muted-foreground">Facilitação</h3>
+          <h3 className="m-0 px-4 pb-1 pt-1 text-xs font-semibold text-muted-foreground">
+            Facilitação
+            {facilitatorName && <span className="font-semibold text-foreground">: {facilitatorName}</span>}
+          </h3>
           <PresenceList items={host} renderActions={actions} className="flex-none overflow-visible pb-1" />
         </section>
+      )}
+      {((claim?.visible && onClaim) || (canTransfer && onTransfer)) && (
+        <div className="flex flex-col gap-2 px-4 pb-2">
+          {claim?.visible && onClaim && (
+            <ModalButton className="h-9 w-full gap-2" onClick={onClaim} disabled={!claim.enabled || claiming}>
+              <Hand className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              Assumir a facilitação
+              {!claim.enabled && claim.waitSeconds > 0 && <span className="text-xs font-normal text-muted-foreground">em {claim.waitSeconds} s</span>}
+            </ModalButton>
+          )}
+          {canTransfer && onTransfer && (
+            <ModalButton className="h-9 w-full gap-2" onClick={onTransfer}>
+              <ArrowRightLeft className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              Passar a facilitação…
+            </ModalButton>
+          )}
+        </div>
       )}
       <section aria-label="Participantes da sessão" className="flex flex-col">
         <h3 className="m-0 flex items-center gap-2 px-4 pb-1 pt-1 text-xs font-semibold text-muted-foreground">

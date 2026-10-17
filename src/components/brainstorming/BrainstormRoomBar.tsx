@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { BookOpen, Copy, Download, Eye, EyeOff, Ghost, Link2, Monitor, SlidersHorizontal, Trash2, User, Volume2, VolumeX } from 'lucide-react';
+import { ArrowRightLeft, BookOpen, Copy, Download, Eye, EyeOff, Flag, Ghost, Link2, Monitor, RotateCcw, SlidersHorizontal, Trash2, User, Volume2, VolumeX } from 'lucide-react';
 import {
   ModalButton,
   RoomTopBar,
@@ -38,6 +38,15 @@ export interface BrainstormRoomBarProps {
   onToggleSound: () => void;
   onDeleteBoard: () => void;
   onOpenFeedback?: () => void;
+  /** Mural encerrado (somente leitura): o cabeçalho mostra "Encerrado" e esconde os atalhos que escrevem. */
+  finished?: boolean;
+  /** Encerrar ou reabrir (facilitador, criador ou ADMIN, com o backend novo). */
+  canFinish?: boolean;
+  onFinish?: () => void;
+  onReopen?: () => void;
+  /** Passar a facilitação (facilitador ou ADMIN, com o backend novo). */
+  canTransfer?: boolean;
+  onTransfer?: () => void;
 }
 
 /**
@@ -49,13 +58,17 @@ export function BrainstormRoomBar(p: BrainstormRoomBarProps) {
   const ideasHidden = settings.isRevealed === false;
   const anonymous = !!settings.isAnonymous;
   const presentation = !!settings.isPresentationMode;
+  const finished = !!p.finished;
 
-  const chips: RoomTopBarChip[] = p.squadLabel ? [{ id: 'squad', label: p.squadLabel, secondary: true }] : [];
+  const chips: RoomTopBarChip[] = [
+    ...(p.squadLabel ? [{ id: 'squad', label: p.squadLabel, secondary: true }] : []),
+    ...(finished ? [{ id: 'finished', label: 'Encerrado', tone: 'warn' as const }] : []),
+  ];
 
   const actions: RoomTopBarAction[] = [
     { id: 'share', label: 'Compartilhar', icon: Link2, onClick: p.onShare },
     { id: 'export', label: 'Exportar', icon: Download, onClick: p.onExport },
-    ...(p.isFacilitator
+    ...(p.isFacilitator && !finished
       ? [
           { id: 'reveal', label: ideasHidden ? 'Revelar ideias' : 'Ocultar ideias', icon: ideasHidden ? EyeOff : Eye, pressed: ideasHidden, tier: 'mid' as const, onClick: p.onToggleReveal },
           { id: 'present', label: presentation ? 'Sair do modo apresentação' : 'Modo apresentação', icon: Monitor, pressed: presentation, tier: 'mid' as const, onClick: p.onTogglePresentation },
@@ -74,6 +87,9 @@ export function BrainstormRoomBar(p: BrainstormRoomBarProps) {
       icon: p.isSoundEnabled ? Volume2 : VolumeX,
       onClick: p.onToggleSound,
     },
+    ...(p.canTransfer && p.onTransfer ? [{ id: 'transfer', label: 'Passar a facilitação…', icon: ArrowRightLeft, onClick: p.onTransfer }] : []),
+    ...(p.canFinish && !finished && p.onFinish ? [{ id: 'finish', label: 'Encerrar brainstorming', icon: Flag, onClick: p.onFinish }] : []),
+    ...(p.canFinish && finished && p.onReopen ? [{ id: 'reopen', label: 'Reabrir brainstorming', icon: RotateCcw, onClick: p.onReopen }] : []),
     ...(p.isFacilitator ? [{ id: 'delete', label: 'Apagar este brainstorming', icon: Trash2, onClick: p.onDeleteBoard }] : []),
   ];
 
@@ -85,13 +101,13 @@ export function BrainstormRoomBar(p: BrainstormRoomBarProps) {
       onTitleChange={p.isFacilitator ? p.onRename : undefined}
       homeHref="/brainstorming"
       homeLabel="Voltar para o Brainstorming"
-      status={p.connection === 'live' ? 'live' : 'waiting'}
-      statusLabel={p.connection === 'live' ? undefined : connectionLabel(p.connection)}
+      status={p.connection !== 'live' ? 'waiting' : finished ? 'done' : 'live'}
+      statusLabel={p.connection !== 'live' ? connectionLabel(p.connection) : finished ? 'Somente leitura' : undefined}
       chips={chips}
       phases={{ steps: BRAIN_STAGES, current: p.boardData.phase, label: 'Fases do brainstorming' }}
       timer={p.timer}
       primaryAction={
-        p.isFacilitator && ideasHidden ? (
+        p.isFacilitator && ideasHidden && !finished ? (
           <ModalButton variant="primary" className="gap-2" onClick={p.onToggleReveal}>
             <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Revelar ideias
           </ModalButton>
