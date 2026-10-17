@@ -21,7 +21,6 @@ import '@xyflow/react/dist/style.css';
 import { toPng } from 'html-to-image';
 import { Maximize2, Unlink, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { ConfirmDialog, IconButton, ModalButton } from '@/components/room-kit';
-import { useTheme } from '@/context/ThemeContext';
 import { ideaSignature } from '@/lib/brainstorming-utils';
 import type { BrainstormingIdea } from '@/lib/types';
 import { pageBackground, useExportRequest } from './brainstorm-image';
@@ -34,17 +33,19 @@ interface IdeaNodeData extends Record<string, unknown> {
 }
 
 /** Bolinhas de ligar: sempre visíveis (no toque não existe passar o mouse por cima). */
-const HANDLE = '!h-3 !w-10 !rounded-full !border-2 !border-card !bg-primary';
-const SIDE_HANDLE = '!h-3 !w-3 !border-2 !border-card !bg-muted-foreground';
+const HANDLE = '!h-2.5 !w-8 !rounded-full !border-2 !border-card';
+const HANDLE_STYLE = { background: 'hsl(var(--primary))' } as const;
+const SIDE_STYLE = { background: 'hsl(var(--muted-foreground))' } as const;
+const SIDE_HANDLE = '!h-3 !w-3 !border-2 !border-card';
 
 function IdeaNode({ data }: NodeProps<Node<IdeaNodeData>>) {
   return (
     <div className="w-[300px]">
-      <Handle type="target" position={Position.Top} className={`${HANDLE} !-top-1.5`} aria-label="Receber ligação" />
+      <Handle type="target" position={Position.Top} style={HANDLE_STYLE} className={`${HANDLE} !-top-1.5`} aria-label="Receber ligação" />
       <IdeaCard idea={data.idea} onVote={data.onVote} onUpdate={data.onUpdate} className="shadow-2xl" />
-      <Handle type="source" position={Position.Bottom} className={`${HANDLE} !-bottom-1.5`} aria-label="Puxar ligação para outra ideia" />
-      <Handle type="source" position={Position.Right} className={SIDE_HANDLE} />
-      <Handle type="target" position={Position.Left} className={SIDE_HANDLE} />
+      <Handle type="source" position={Position.Bottom} style={HANDLE_STYLE} className={`${HANDLE} !-bottom-1.5`} aria-label="Puxar ligação para outra ideia" />
+      <Handle type="source" position={Position.Right} style={SIDE_STYLE} className={SIDE_HANDLE} />
+      <Handle type="target" position={Position.Left} style={SIDE_STYLE} className={SIDE_HANDLE} />
     </div>
   );
 }
@@ -85,7 +86,6 @@ export function DiagramPhase({
   exportRequest,
   onExportDone,
 }: DiagramPhaseProps) {
-  const { resolvedMode } = useTheme();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<IdeaNodeData>>([]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [confirmEdgeId, setConfirmEdgeId] = useState<string | null>(null);
@@ -190,8 +190,9 @@ export function DiagramPhase({
         onInit={(instance) => {
           rfInstance.current = instance;
         }}
-        colorMode={resolvedMode}
+        // Sem colorMode: o React Flow poria a classe "dark" no quadro e ela redefine as cores do tema (a do tema padrão).
         fitView
+        fitViewOptions={{ padding: 0.2 }}
         // A rolagem move o quadro; Ctrl + rolagem aproxima; o botão do meio ou o direito arrasta o quadro.
         panOnScroll
         selectionOnDrag
@@ -200,9 +201,9 @@ export function DiagramPhase({
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={20} />
-        <MiniMap pannable zoomable ariaLabel="Mapa da teia" style={{ width: 150, height: 100 }} className="max-sm:!hidden" />
+        <MiniMap pannable zoomable ariaLabel="Mapa da teia" bgColor="hsl(var(--card))" maskColor="hsl(var(--background) / 0.7)" nodeColor="hsl(var(--primary))" nodeStrokeWidth={0} style={{ width: 150, height: 100 }} className="max-sm:!hidden" />
 
-        <Panel position="top-right" className="max-w-[17rem] rounded-xl border border-border bg-card/95 p-3 text-xs leading-relaxed text-muted-foreground shadow-md max-md:hidden">
+        <Panel position="bottom-left" className="mb-3 max-w-[20rem] rounded-xl border border-border bg-card/95 p-2.5 text-xs leading-relaxed text-muted-foreground shadow-md max-2xl:hidden">
           <strong className="block text-[13px] font-semibold text-foreground">Como mexer</strong>
           Arraste uma ideia para movê-la. Puxe da bolinha de baixo até outra ideia para ligar.{' '}
           <kbd className="rounded border border-border px-1">Ctrl</kbd> + rolagem aproxima; botão do meio ou direito arrasta o quadro.

@@ -119,7 +119,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
               onDrop={(e) => handleDrop(e, col.id)}
               className={cn(
                 'flex min-h-[320px] flex-col rounded-2xl border bg-card/60 transition-colors duration-fast',
-                compact ? 'w-full' : 'w-[290px] shrink-0',
+                compact ? 'w-full' : 'min-w-[250px] flex-1',
                 isOver ? 'border-dashed border-primary bg-primary/10 dark:bg-primary/15' : 'border-border'
               )}
             >
@@ -127,7 +127,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
                 <IconTile icon={style.icon} tone={style.tone} size="sm" />
                 <div className="min-w-0 flex-1">
                   <h3 className="m-0 truncate text-sm font-semibold text-foreground">{col.title}</h3>
-                  <p className="m-0 truncate text-xs text-muted-foreground">{col.hint}</p>
+                  <p className="m-0 text-xs text-muted-foreground">{col.hint}</p>
                 </div>
                 <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', TONES[style.tone].chip)}>{colIdeas.length}</span>
               </header>

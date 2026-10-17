@@ -154,7 +154,7 @@ export function IdeaCard({
           ) : author.kind === 'unknown' ? (
             <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">?</span>
           ) : (
-            <PersonAvatar name={author.kind === 'you' ? view.names.get(view.currentUserId ?? '') || 'Você' : author.label} size="sm" />
+            <PersonAvatar name={(idea.authorId && view.names.get(idea.authorId)) || author.label} size="sm" />
           )}
           <span className="truncate text-xs font-semibold text-muted-foreground">{author.label}</span>
         </span>

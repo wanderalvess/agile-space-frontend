@@ -243,7 +243,7 @@ export function BrainstormLobbyView({
         </span>
       ),
     },
-    { id: 'stage', header: 'Etapa', width: '120px', cell: (r) => <StatusChip tone={isLobbyRowLive(r) ? 'brand' : 'neutral'}>{lobbyStageLabel(r.phase) || '—'}</StatusChip> },
+    { id: 'stage', header: 'Etapa', width: '120px', cell: (r) => <StatusChip tone={isLobbyRowLive(r) ? 'brand' : 'neutral'} className="self-start">{lobbyStageLabel(r.phase) || '—'}</StatusChip> },
     { id: 'ideas', header: 'Ideias', width: '80px', cell: (r) => <span className="text-sm tabular-nums">{r.ideas ?? '—'}</span> },
     { id: 'people', header: 'Pessoas', width: '90px', cell: (r) => <span className="text-sm tabular-nums">{r.people ?? '—'}</span> },
     { id: 'created', header: 'Criada', width: '120px', cell: (r) => <span className="text-sm text-muted-foreground">{shortCreated(r.createdAt, now)}</span> },
@@ -288,7 +288,7 @@ export function BrainstormLobbyView({
       />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        <section aria-label="Iniciar" className={cn(SECTION, 'lg:col-span-7')}>
+        <section aria-label="Iniciar" className={cn(SECTION, 'lg:col-span-7 lg:justify-between')}>
           <div className="flex items-start gap-3">
             <IconTile icon={brainstormIcon} />
             <div className="min-w-0">
