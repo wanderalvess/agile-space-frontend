@@ -56,6 +56,20 @@ describe('connectRoomSocket', () => {
     expect(onReconnect).not.toHaveBeenCalled();
   });
 
+  it('avisa a queda com a tentativa e o tempo até a próxima, e não avisa o fechamento deliberado', () => {
+    const onClose = vi.fn();
+    const stop = connectRoomSocket({ buildUrl: () => 'ws://x', onMessage: vi.fn(), onReconnect: vi.fn(), onClose, WebSocketImpl: Impl, baseDelayMs: 1000, maxDelayMs: 4000 });
+    FakeSocket.instances[0].onclose?.();
+    expect(onClose).toHaveBeenLastCalledWith({ attempt: 1, retryInMs: 1000 });
+    vi.advanceTimersByTime(1000);
+    FakeSocket.instances[1].onclose?.();
+    expect(onClose).toHaveBeenLastCalledWith({ attempt: 2, retryInMs: 2000 });
+    stop();
+    onClose.mockClear();
+    FakeSocket.instances[1].onclose?.();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('só ressincroniza quando reabre depois de uma queda (não na primeira abertura)', () => {
     const onReconnect = vi.fn();
     connectRoomSocket({ buildUrl: () => 'ws://x', onMessage: vi.fn(), onReconnect, WebSocketImpl: Impl, baseDelayMs: 10 });
