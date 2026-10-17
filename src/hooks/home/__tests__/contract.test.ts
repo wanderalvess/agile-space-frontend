@@ -90,6 +90,15 @@ describe('notificações do servidor', () => {
     expect(n).toMatchObject({ who: 'Gabriela Nunes', personName: 'Gabriela Nunes', unread: false, cta: undefined });
   });
 
+  it('LINK_REQUEST: os dois destinos do backend (aba Pedidos da squad e Admin) viram o botão "Ver pedido"', () => {
+    const request = { ...base, kind: 'LINK_REQUEST' as const, actorName: 'Ana Paula' };
+    expect(mapNotificationDto({ ...request, link: '/squad/roster?tab=pedidos&squadId=DDWMISSI' }, 'foryou').cta).toEqual({
+      label: 'Ver pedido',
+      href: '/squad/roster?tab=pedidos&squadId=DDWMISSI',
+    });
+    expect(mapNotificationDto({ ...request, link: '/admin?tab=aprovacoes' }, 'foryou').cta).toEqual({ label: 'Ver pedido', href: '/admin?tab=aprovacoes' });
+  });
+
   it('feed: contadores do servidor valem; sem eles, calcula', () => {
     const forYou = [base, { ...base, id: 'n2', readAt: 'x' }];
     expect(buildNotificationFeed(forYou, [], { forYou: 5, messages: 3, announcements: 1, total: 9 }).unread).toEqual({ foryou: 5, messages: 3, announcements: 1, total: 9 });
