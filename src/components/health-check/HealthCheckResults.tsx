@@ -147,7 +147,7 @@ export function HealthCheckResults({
 
   const deps: PlanDeps = useMemo(
     () => ({
-      createBoard: (b) => actionPlanApi.createBoard({ title: b.title, team: b.team }),
+      createBoard: (b) => actionPlanApi.createBoard({ title: b.title, team: b.team, ...(b.team && b.team !== 'Squad Geral' ? { squadId: b.team } : {}) }),
       createTask: (planId, t) => actionPlanApi.createTask(planId, t),
       saveKanbanCard: (card) => {
         if (!currentUserId) return Promise.reject(new Error('Sem sessão'));

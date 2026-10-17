@@ -76,7 +76,7 @@ export function CreatePlanDialog({ open, onOpenChange, boardId, boardTitle, team
     setCreating(true);
     try {
       // criador, id, datas e autor são definidos pelo servidor a partir do login
-      const plan = await actionPlanApi.createBoard({ title: planName, team: team || 'Squad Geral' });
+      const plan = await actionPlanApi.createBoard({ title: planName, team: team || 'Squad Geral', ...(team ? { squadId: team } : {}) });
       if (!plan?.id) throw new Error('Falha ao criar o plano de ação.');
 
       let failed = 0;
