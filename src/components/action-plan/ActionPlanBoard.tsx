@@ -25,10 +25,21 @@ import {
   type PlanPerson,
   type TaskFilters,
 } from '@/lib/action-plan';
+import {
+  DUE_FILTER_OPTIONS,
+  dueDateOf,
+  hasOriginContract,
+  isOverdue,
+  matchesDueFilter,
+  sortByDue,
+  type DueFilter,
+  type TaskSort,
+} from '@/lib/action-plan-origin';
 import { errorMessage } from '@/lib/ceremony-api';
 import type { ActionPlanBoard as IActionPlanBoard, ActionPlanTask } from '@/lib/types';
 import { ActionPlanCell } from './ActionPlanCell';
 import { ActionTaskDialog } from './ActionTaskDialog';
+import { DueDateCell } from './DueDateCell';
 
 /** Situação da releitura automática das ações (o plano não tem WebSocket). */
 export interface RefreshStatus {
@@ -57,6 +68,11 @@ const STATUS_TONE: Record<ActionPlanTask['status'], Tone> = {
   blocked: 'danger',
 };
 
+const SORT_OPTIONS: { value: TaskSort; label: string }[] = [
+  { value: 'plan', label: 'Ordem do plano' },
+  { value: 'due', label: 'Prazo mais próximo' },
+];
+
 const STATUS_FILTER_OPTIONS = [
   { value: FILTER_ALL, label: 'Todos os status' },
   ...TASK_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] })),
@@ -68,10 +84,25 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ActionPlanTask | null>(null);
   const [filters, setFilters] = useState<TaskFilters>(NO_FILTERS);
+  const [due, setDue] = useState<DueFilter>('all');
+  const [sort, setSort] = useState<TaskSort>('plan');
+  // Hora de referência do "Atrasada" quando a página não repõe `now` (testes e usos soltos).
+  const [mountedAt] = useState(() => Date.now());
+  const clock = now ?? mountedAt;
+  // O prazo como data só existe num servidor que conhece a origem/prazo (V78); no antigo o "Quando" segue texto livre.
+  const dueDates = hasOriginContract(board);
 
   const summary = useMemo(() => summarizeTasks(tasks), [tasks]);
   const numbers = useMemo(() => numberTasks(tasks), [tasks]);
-  const visible = useMemo(() => filterTasks(tasks, filters), [tasks, filters]);
+  const visible = useMemo(() => {
+    const byFilters = filterTasks(tasks, filters).filter((t) => matchesDueFilter(t, dueDates ? due : 'all', clock));
+    return dueDates && sort === 'due' ? sortByDue(byFilters) : byFilters;
+  }, [tasks, filters, due, sort, dueDates, clock]);
+  const overdueCount = useMemo(() => (dueDates ? tasks.filter((t) => isOverdue(t, clock)).length : 0), [tasks, dueDates, clock]);
+  const dueOptions = useMemo(
+    () => DUE_FILTER_OPTIONS.map((o) => (o.value === 'overdue' && overdueCount > 0 ? { ...o, label: `${o.label} (${overdueCount})` } : o)),
+    [overdueCount],
+  );
   const who = useMemo(() => responsibleOptions(tasks), [tasks]);
   const whoOptions = useMemo(
     () => [
@@ -81,7 +112,7 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
     ],
     [who],
   );
-  const filtering = hasActiveFilters(filters);
+  const filtering = hasActiveFilters(filters) || (dueDates && due !== 'all');
 
   const handleOpenNew = () => {
     setEditingTask(null);
@@ -102,6 +133,19 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
     } catch (e) {
       console.error('Erro ao salvar o campo da ação', e);
       return errorMessage(e, 'Não foi possível salvar. O texto continua na célula.');
+    }
+  };
+
+  /** Grava o prazo da ação (`''` limpa, com `clearDueDate`). Devolve `false` quando falha, para o campo voltar. */
+  const handleUpdateDue = async (taskId: string, value: string): Promise<boolean> => {
+    try {
+      await actionPlanApi.updateTask(taskId, value ? { dueDate: value } : { clearDueDate: true });
+      onRefresh?.();
+      return true;
+    } catch (e) {
+      console.error('Erro ao salvar o prazo da ação', e);
+      toast({ title: 'Não foi possível salvar o prazo', description: errorMessage(e, 'Tente novamente.'), variant: 'destructive' });
+      return false;
     }
   };
 
@@ -127,6 +171,7 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <ActionPlanCell value={t.what} onSave={(v) => handleUpdateField(t.id, 'what', v)} placeholder="O que será feito?" className="font-semibold" />
             {t.howMuch && <span className="px-1.5 text-xs font-medium text-muted-foreground">Custo: {t.howMuch}</span>}
+            {t.sourceLabel && <span className="px-1.5 text-xs text-muted-foreground">de: {t.sourceLabel}</span>}
           </div>
         </div>
       ),
@@ -152,8 +197,16 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
     {
       id: 'when',
       header: 'Quando',
-      width: 'minmax(0,0.8fr)',
-      cell: (t) => <ActionPlanCell value={t.when} onSave={(v) => handleUpdateField(t.id, 'when', v)} placeholder="Quando?" />,
+      width: dueDates ? 'minmax(0,1.1fr)' : 'minmax(0,0.8fr)',
+      cell: (t) =>
+        dueDates ? (
+          <div className="flex min-w-0 flex-col gap-1">
+            <DueDateCell value={dueDateOf(t)} number={numbers.get(t.id)} overdue={isOverdue(t, clock)} onSave={(v) => handleUpdateDue(t.id, v)} />
+            <ActionPlanCell value={t.when} onSave={(v) => handleUpdateField(t.id, 'when', v)} placeholder="Observação do prazo" />
+          </div>
+        ) : (
+          <ActionPlanCell value={t.when} onSave={(v) => handleUpdateField(t.id, 'when', v)} placeholder="Quando?" />
+        ),
     },
     {
       id: 'who',
@@ -246,6 +299,24 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
               options={whoOptions}
               className="h-[38px] w-full sm:w-[210px] max-sm:h-11"
             />
+            {dueDates && (
+              <>
+                <SelectField
+                  aria-label="Filtrar por prazo"
+                  value={due}
+                  onChange={(v) => setDue(v as DueFilter)}
+                  options={dueOptions}
+                  className="h-[38px] w-full sm:w-[190px] max-sm:h-11"
+                />
+                <SelectField
+                  aria-label="Ordenar as ações"
+                  value={sort}
+                  onChange={(v) => setSort(v as TaskSort)}
+                  options={SORT_OPTIONS}
+                  className="h-[38px] w-full sm:w-[190px] max-sm:h-11"
+                />
+              </>
+            )}
           </>
         }
         count={{ shown: visible.length, total: tasks.length, noun: tasks.length === 1 ? 'ação' : 'ações' }}
@@ -303,7 +374,7 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
               description="Tente outro texto ou limpe os filtros para ver as ações todas."
               actions={
                 filtering ? (
-                  <ModalButton className="gap-2" onClick={() => setFilters(NO_FILTERS)}>
+                  <ModalButton className="gap-2" onClick={() => { setFilters(NO_FILTERS); setDue('all'); }}>
                     <FilterX className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Limpar filtros
                   </ModalButton>
                 ) : undefined
@@ -329,6 +400,7 @@ export function ActionPlanBoard({ board, tasks, onRefresh, people = [], refreshS
           totalTasks={tasks.length}
           onSaveSuccess={onRefresh}
           people={people}
+          dueDates={dueDates}
         />
       )}
     </div>

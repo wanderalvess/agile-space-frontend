@@ -16,9 +16,11 @@ import { useUserContext } from '@/context/UserContext';
 import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { ActionPlanGuide } from '@/components/action-plan/ActionPlanGuide';
 import { ExportActionPlanDialog } from '@/components/action-plan/ExportActionPlanDialog';
+import { PlanOriginBanner } from '@/components/action-plan/PlanOriginBanner';
 import { PlanSettingsDialog } from '@/components/action-plan/PlanSettingsDialog';
 import { CeremonyApiError } from '@/lib/ceremony-api';
 import { boardIsPublic, inviteText, planUrl, toPlanPeople } from '@/lib/action-plan';
+import { boardOrigin } from '@/lib/action-plan-origin';
 import { findMembership } from '@/lib/memberships';
 import type { SquadMember } from '@/lib/types';
 
@@ -245,6 +247,8 @@ export default function ActionPlanSessionPage() {
           </>
         }
       />
+
+      <PlanOriginBanner origin={boardOrigin(board)} />
 
       <ActionPlanBoardComponent
         board={board}
