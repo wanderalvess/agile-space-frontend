@@ -1,4 +1,4 @@
-import mammoth from 'mammoth';
+import { buildImportResult, extractDocx } from '@/lib/knowledge-import';
 import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/verify-auth';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -11,7 +11,6 @@ export const dynamic = 'force-dynamic';
 
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20MB
 const TEXT_EXTENSIONS = ['.txt', '.json', '.md', '.csv'];
-const MAX_TEXT_CHARS = 1_500_000; // o servidor aceita documentos de até 2 milhões de caracteres
 const PARSE_TIMEOUT_MS = 60_000;
 
 function withTimeout<T>(work: Promise<T>, label: string): Promise<T> {
@@ -60,14 +59,16 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     const fileName = file.name.toLowerCase();
     let text = "";
+    let html: string | undefined;
 
     if (fileName.endsWith('.docx')) {
       // O tipo vale pelo conteúdo, não pelo nome: docx é um zip.
       if (!isZipBuffer(buffer)) {
         return Response.json({ error: 'O arquivo não parece ser um documento Word (.docx) válido.' }, { status: 415 });
       }
-      const result = await withTimeout(mammoth.extractRawText({ buffer }), 'o documento Word');
-      text = result.value;
+      const result = await withTimeout(extractDocx(buffer), 'o documento Word');
+      text = result.text;
+      html = result.html;
     } else if (file.type === 'application/pdf' || fileName.endsWith('.pdf')) {
       if (!isPdfBuffer(buffer)) {
         return Response.json({ error: 'O arquivo não parece ser um PDF válido.' }, { status: 415 });
@@ -89,14 +90,11 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: `Tipo de arquivo não suportado: ${file.type || fileName}. Envie PDF, DOCX, TXT, JSON, MD ou CSV.` }, { status: 415 });
     }
 
-    const cleanedText = text.replace(/\n\s*\n/g, '\n\n').trim();
-    if (!cleanedText) {
-      return Response.json({ error: 'Não encontramos texto neste arquivo (PDF escaneado precisa de OCR).' }, { status: 422 });
+    const result = buildImportResult(text, html);
+    if (!result.ok) {
+      return Response.json({ error: result.error }, { status: result.status });
     }
-    if (cleanedText.length > MAX_TEXT_CHARS) {
-      return Response.json({ error: `O texto extraído passa de ${MAX_TEXT_CHARS.toLocaleString('pt-BR')} caracteres. Divida o arquivo.` }, { status: 413 });
-    }
-    return Response.json({ text: cleanedText });
+    return Response.json(result.html === undefined ? { text: result.text } : { text: result.text, html: result.html });
 
   } catch (error: any) {
     console.error("Ingestion Error:", error?.message);
