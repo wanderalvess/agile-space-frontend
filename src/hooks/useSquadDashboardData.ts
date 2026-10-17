@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@/context/UserContext";
 import { squadApi } from "@/app/squad/api";
 import { projectService } from "@/services/projectService";
-import { isAssignedTo, isBugIssue, isDoneIssue, isInProgressIssue, issuesOfSprint } from "@/lib/squad-metrics";
+import { useSquadConfig } from "@/hooks/useSquadConfig";
+import { formatShortDate, isAssignedTo, isBugIssue, isDoneIssue, isInProgressIssue, issuesOfSprint } from "@/lib/squad-metrics";
 import type {
   SquadMetricsRollup,
   SquadIssueSnapshot,
   SquadMember,
+  SquadSprintHistoryEntry,
 } from "@/lib/types";
 
 export interface SquadDashboardData {
@@ -43,6 +45,45 @@ function rollupFromIssues(squadId: string, sprintId: string, sprintName: string,
   } as SquadMetricsRollup;
 }
 
+export type SprintOption = { label: string; value: string };
+
+/**
+ * Lista do seletor de sprint: a atual, depois o histórico da squad (a mesma lista do Squad Hub, com a data de
+ * encerramento) e, por fim, sprints que só aparecem nas issues sincronizadas.
+ */
+export function buildSprintOptions(args: {
+  currentSprintId: string;
+  currentSprintName?: string;
+  history?: SquadSprintHistoryEntry[];
+  issues: { sprintId?: string | null; sprintName?: string | null }[];
+}): SprintOption[] {
+  const { currentSprintId, currentSprintName, history = [], issues } = args;
+  const options: SprintOption[] = [];
+  const has = (value: string) => options.some((o) => o.value === value);
+
+  options.push(
+    currentSprintName
+      ? { label: `${currentSprintName} (Atual)`, value: currentSprintId || "current" }
+      : { label: "Sprint atual", value: "current" },
+  );
+
+  for (const h of history) {
+    if (!h.sprintId || h.sprintId === UNMAPPED || has(h.sprintId)) continue;
+    const closed = h.closedAt ? formatShortDate(h.closedAt) : "";
+    const name = h.sprintName || `Sprint ${h.sprintId}`;
+    options.push({ label: closed ? `${name} (${closed})` : name, value: h.sprintId });
+  }
+
+  const fromIssues = new Map<string, string>();
+  for (const iss of issues) {
+    if (iss.sprintName && iss.sprintId && iss.sprintId !== UNMAPPED) fromIssues.set(iss.sprintId, iss.sprintName);
+  }
+  fromIssues.forEach((name, id) => {
+    if (!has(id)) options.push({ label: name, value: id });
+  });
+  return options;
+}
+
 export function useSquadDashboardData(): SquadDashboardData {
   const { userProfile } = useUser();
   const rawSquadId = userProfile?.squadId || "";
@@ -55,6 +96,7 @@ export function useSquadDashboardData(): SquadDashboardData {
   const [allIssues, setAllIssues] = useState<SquadIssueSnapshot[]>([]);
   const [members, setMembers] = useState<SquadMember[]>([]);
   const [selectedSprint, setSelectedSprint] = useState<string>("current");
+  const { config: squadConfig } = useSquadConfig(squadId);
   const [pastRollup, setPastRollup] = useState<{ sprintId: string; rollup: SquadMetricsRollup | null } | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -109,30 +151,17 @@ export function useSquadDashboardData(): SquadDashboardData {
   const currentSprintId = rawRollup?.sprintId && rawRollup.sprintId !== UNMAPPED ? rawRollup.sprintId : "";
   const isCurrentSelected = !selectedSprint || selectedSprint === "current" || (!!currentSprintId && selectedSprint === currentSprintId);
 
-  // Lista de sprints a partir das issues (a sprint "ainda sem sprint" do Jira não entra)
-  const sprintOptions = useMemo(() => {
-    const sprintMap = new Map<string, string>();
-    allIssues.forEach((iss) => {
-      if (iss.sprintName && iss.sprintId && iss.sprintId !== UNMAPPED) {
-        sprintMap.set(iss.sprintId, iss.sprintName);
-      }
-    });
-
-    const options: { label: string; value: string }[] = [];
-    if (rawRollup?.sprintName) {
-      options.push({ label: `${rawRollup.sprintName} (Atual)`, value: currentSprintId || "current" });
-    } else {
-      options.push({ label: "Sprint atual", value: "current" });
-    }
-
-    sprintMap.forEach((name, id) => {
-      if (!options.some((opt) => opt.value === id)) {
-        options.push({ label: name, value: id });
-      }
-    });
-
-    return options;
-  }, [allIssues, rawRollup, currentSprintId]);
+  // Mesma lista do seletor do Squad Hub (histórico da squad), mais o que só aparece nas issues sincronizadas.
+  const sprintOptions = useMemo(
+    () =>
+      buildSprintOptions({
+        currentSprintId,
+        currentSprintName: rawRollup?.sprintName,
+        history: squadConfig?.sprintHistory,
+        issues: allIssues,
+      }),
+    [allIssues, rawRollup, currentSprintId, squadConfig?.sprintHistory],
+  );
 
   // Sprint escolhida que não é a atual: busca o placar gravado dela no servidor.
   useEffect(() => {
