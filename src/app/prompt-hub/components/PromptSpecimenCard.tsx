@@ -30,6 +30,8 @@ interface PromptSpecimenCardProps {
   prompt: PromptItem;
   isOwner: boolean;
   isReadOnly?: boolean;
+  /** Esconde a estrela de favorito (favoritos vivem no navegador e nem toda tela os carrega). */
+  hideFavorite?: boolean;
   featured?: boolean;
   onFork: (prompt: PromptItem) => void;
   onEdit?: (prompt: PromptItem) => void;
@@ -52,6 +54,7 @@ export function PromptSpecimenCard({
   prompt,
   isOwner,
   isReadOnly = false,
+  hideFavorite = false,
   featured = false,
   onFork,
   onEdit,
@@ -195,7 +198,7 @@ export function PromptSpecimenCard({
             <Share2 className="h-3.5 w-3.5" />
           </Button>
 
-          {!isReadOnly && (
+          {!isReadOnly && !hideFavorite && (
             <Button
               variant="ghost"
               size="icon"

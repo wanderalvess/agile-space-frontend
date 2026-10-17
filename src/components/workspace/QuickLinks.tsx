@@ -1,84 +1,115 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ExternalLink, 
-  Plus, 
-  Globe, 
-  Github, 
-  Figma, 
-  Trello, 
-  Layout,
-  Trash2,
-  Link2,
+import React, { useEffect, useId, useState } from 'react';
+import {
   Book,
+  Briefcase,
   Code2,
-  Briefcase
+  ExternalLink,
+  Figma,
+  Github,
+  Globe,
+  Layout,
+  Link2,
+  Pencil,
+  Plus,
+  Trash2,
+  Trello,
+  type LucideIcon,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter,
-  DialogTrigger 
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
+import { IconButton, Modal, ModalButton } from '@/components/room-kit';
+import { EmptyState, ErrorState } from '@/components/page';
+import { PAGE_CARD } from '@/components/page/styles';
 import { normalizeHttpUrl, safeHref } from '@/lib/safe-url';
-interface QuickLinkData {
+import { cn } from '@/lib/utils';
+import { Field, TEXT_INPUT, WorkspaceSectionHeader } from './workspace-ui';
+
+export interface QuickLinkData {
   id: string;
   name: string;
   url: string;
   iconType: string;
   color: string;
+  createdAt?: string;
+}
+
+export interface QuickLinkInput {
+  id?: string;
+  name: string;
+  url: string;
+  iconType: string;
+  color: string;
+  createdAt?: string;
 }
 
 interface QuickLinksProps {
   links: QuickLinkData[];
+  loadError?: boolean;
+  onRetry?: () => void;
   /** Devolve true quando salvou; em falha o diálogo continua aberto com o que foi digitado. */
-  onAddLink: (name: string, url: string, iconType: string, color: string) => Promise<boolean | void> | boolean | void;
+  onSaveLink: (link: QuickLinkInput) => Promise<boolean | void> | boolean | void;
   onDeleteLink: (id: string) => void;
+  /** Pedido de abrir "Novo atalho" (vindo da paleta de comandos). */
+  openNew?: boolean;
+  onOpenNewHandled?: () => void;
 }
 
-const ICON_MAP: Record<string, any> = {
-  globe: Globe,
-  github: Github,
-  figma: Figma,
-  trello: Trello,
-  layout: Layout,
-  book: Book,
-  code: Code2,
-  briefcase: Briefcase,
-  link: Link2
-};
-
-const COLOR_PRESETS = [
-  { name: 'Blue', class: 'text-blue-500 bg-blue-50' },
-  { name: 'Green', class: 'text-emerald-500 bg-emerald-50' },
-  { name: 'Purple', class: 'text-purple-500 bg-purple-50' },
-  { name: 'Orange', class: 'text-orange-500 bg-orange-50' },
-  { name: 'Slate', class: 'text-slate-900 bg-slate-100' },
+const ICONS: { key: string; label: string; Icon: LucideIcon }[] = [
+  { key: 'globe', label: 'Globo', Icon: Globe },
+  { key: 'github', label: 'GitHub', Icon: Github },
+  { key: 'figma', label: 'Figma', Icon: Figma },
+  { key: 'trello', label: 'Trello', Icon: Trello },
+  { key: 'layout', label: 'Layout', Icon: Layout },
+  { key: 'book', label: 'Livro', Icon: Book },
+  { key: 'code', label: 'Código', Icon: Code2 },
+  { key: 'briefcase', label: 'Pasta', Icon: Briefcase },
+  { key: 'link', label: 'Link', Icon: Link2 },
 ];
 
-export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) {
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newUrl, setNewUrl] = useState('');
-  const [selectedIcon, setSelectedIcon] = useState('globe');
-  const [selectedColor, setSelectedColor] = useState(COLOR_PRESETS[0].class);
+/**
+ * As 5 cores. `value` é o que fica gravado (atalhos antigos continuam casando); `tile` é como aparece, com par
+ * claro/escuro para valer nos dois modos.
+ */
+const COLORS = [
+  { name: 'Azul', value: 'text-blue-500 bg-blue-50', tile: 'bg-blue-500/15 text-blue-700 dark:text-blue-300', swatch: 'bg-blue-500' },
+  { name: 'Verde', value: 'text-emerald-500 bg-emerald-50', tile: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300', swatch: 'bg-emerald-500' },
+  { name: 'Roxo', value: 'text-purple-500 bg-purple-50', tile: 'bg-purple-500/15 text-purple-700 dark:text-purple-300', swatch: 'bg-purple-500' },
+  { name: 'Laranja', value: 'text-orange-500 bg-orange-50', tile: 'bg-orange-500/15 text-orange-700 dark:text-orange-300', swatch: 'bg-orange-500' },
+  { name: 'Cinza', value: 'text-slate-900 bg-slate-100', tile: 'bg-muted text-foreground', swatch: 'bg-slate-500' },
+];
 
+function colorFor(stored: string) {
+  return COLORS.find((c) => c.value === stored) ?? COLORS[0];
+}
+
+const EMPTY_FORM = { name: '', url: '', iconType: 'globe', color: COLORS[0].value };
+
+export function QuickLinks({ links, loadError, onRetry, onSaveLink, onDeleteLink, openNew, onOpenNewHandled }: QuickLinksProps) {
+  const uid = useId();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<QuickLinkData | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
   const [urlError, setUrlError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAddLink = async () => {
-    if (!newName.trim() || !newUrl.trim() || isSubmitting) return;
+  const openDialog = (link?: QuickLinkData) => {
+    setEditing(link ?? null);
+    setForm(link ? { name: link.name, url: link.url, iconType: link.iconType || 'globe', color: colorFor(link.color).value } : EMPTY_FORM);
+    setUrlError('');
+    setDialogOpen(true);
+  };
 
-    const url = normalizeHttpUrl(newUrl);
+  useEffect(() => {
+    if (!openNew) return;
+    openDialog();
+    onOpenNewHandled?.();
+  }, [openNew]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canSubmit = form.name.trim().length > 0 && form.url.trim().length > 0 && !isSubmitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    const url = normalizeHttpUrl(form.url);
     if (!url) {
       setUrlError('Informe um endereço válido, como jira.suaempresa.com/board.');
       return;
@@ -86,166 +117,173 @@ export function QuickLinks({ links, onAddLink, onDeleteLink }: QuickLinksProps) 
     setUrlError('');
     setIsSubmitting(true);
     try {
-      const ok = await onAddLink(newName.trim(), url, selectedIcon, selectedColor);
+      const ok = await onSaveLink({
+        ...(editing ? { id: editing.id, createdAt: editing.createdAt } : {}),
+        name: form.name.trim(),
+        url,
+        iconType: form.iconType,
+        color: form.color,
+      });
       if (ok === false) return;
-      setNewName('');
-      setNewUrl('');
-      setIsAddOpen(false);
+      setDialogOpen(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onDeleteLink(id);
-  };
-
   return (
-    <div className="w-full space-y-6">
+    <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
-        kicker="Atalhos"
-        accent="orange"
-        title="Meus"
-        titleAccent="Atalhos"
-        subtitle="Links rápidos da sua squad"
+        title="Meus atalhos"
+        subtitle="Seus links rápidos"
         action={
-          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl shadow-md shadow-primary/20 gap-2 active:scale-95 transition-all">
-                <Plus className="h-4 w-4" /> Novo Link
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[460px] rounded-3xl border border-border bg-card text-card-foreground shadow-2xl p-6">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-black font-headline uppercase tracking-tight italic text-foreground">
-                  Adicionar <span className="text-primary not-italic">Atalho</span>
-                </DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-5 py-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Nome do Atalho</Label>
-                  <Input 
-                    value={newName} 
-                    onChange={(e) => setNewName(e.target.value)} 
-                    placeholder="Ex: Jira Board da Squad" 
-                    className="h-11 rounded-xl font-medium border-border bg-background focus-visible:ring-primary/20" 
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">URL (Endereço)</Label>
-                  <Input 
-                    value={newUrl} 
-                    onChange={(e) => { setNewUrl(e.target.value); setUrlError(''); }} 
-                    placeholder="Ex: jira.suaempresa.com/board" 
-                    aria-invalid={!!urlError}
-                    className="h-11 rounded-xl font-medium border-border bg-background focus-visible:ring-primary/20" 
-                  />
-                  {urlError && <p role="alert" className="text-xs font-medium text-destructive ml-1">{urlError}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Ícone</Label>
-                  <div className="flex flex-wrap gap-2 p-3 bg-muted/40 rounded-2xl border border-border/60">
-                    {Object.entries(ICON_MAP).map(([key, Icon]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        aria-label={`Ícone ${key}`}
-                        aria-pressed={selectedIcon === key}
-                        onClick={() => setSelectedIcon(key)}
-                        className={cn(
-                          "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
-                          selectedIcon === key ? "bg-primary text-primary-foreground scale-105 shadow-xs" : "bg-card text-muted-foreground hover:text-foreground border border-border/60"
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Cor de Destaque</Label>
-                  <div className="flex gap-3 p-3 bg-muted/40 rounded-2xl border border-border/60">
-                    {COLOR_PRESETS.map((color) => (
-                      <button
-                        key={color.name}
-                        type="button"
-                        aria-label={`Cor ${color.name}`}
-                        aria-pressed={selectedColor === color.class}
-                        onClick={() => setSelectedColor(color.class)}
-                        className={cn(
-                          "w-7 h-7 rounded-full border-2 transition-all",
-                          selectedColor === color.class ? "border-primary scale-110 shadow-xs ring-2 ring-primary/20" : "border-border/60",
-                          color.class.split(' ')[1]
-                        )}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button 
-                  onClick={handleAddLink} 
-                  disabled={!newName.trim() || !newUrl.trim() || isSubmitting}
-                  className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-xs uppercase tracking-wider shadow-md shadow-primary/20"
-                >
-                  Salvar Atalho
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ModalButton variant="primary" onClick={() => openDialog()}>
+            <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo link
+          </ModalButton>
         }
       />
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
-        {links.length > 0 ? (
-          links.map((link) => {
-            const Icon = ICON_MAP[link.iconType] || Link2;
+      {loadError ? (
+        <ErrorState title="Não foi possível carregar os atalhos" description="Verifique a conexão e tente de novo." onRetry={onRetry} />
+      ) : links.length === 0 ? (
+        <EmptyState
+          icon={Link2}
+          title="Nenhum atalho configurado"
+          description="Guarde aqui o Jira, o board de métricas, a wiki: um clique e abre."
+          actions={
+            <ModalButton variant="primary" onClick={() => openDialog()}>
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo link
+            </ModalButton>
+          }
+        />
+      ) : (
+        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3.5 p-0">
+          {links.map((link) => {
+            const Icon = ICONS.find((i) => i.key === link.iconType)?.Icon ?? Link2;
             return (
-              <motion.a
-                key={link.id}
-                href={safeHref(link.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                whileHover={{ y: -2 }}
-                className="relative group flex items-center gap-3.5 p-4 bg-card text-card-foreground border border-border/80 rounded-2xl transition-all hover:border-primary/40 hover:shadow-md shadow-xs"
-              >
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105", link.color)}>
-                  <Icon className="h-6 w-6" />
-                </div>
-                <div className="flex flex-col min-w-0 pr-6">
-                   <span className="text-xs font-bold text-foreground truncate leading-tight tracking-tight group-hover:text-primary transition-colors">
-                     {link.name}
-                   </span>
-                   <div className="flex items-center gap-1 mt-1 text-[10px] font-bold uppercase tracking-wider text-primary">
-                      <span>Acessar</span>
-                      <ExternalLink className="h-3 w-3" />
-                   </div>
-                </div>
-                
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => handleDelete(e, link.id)}
-                  className="absolute top-3 right-3 h-7 w-7 rounded-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-90"
-                  title="Excluir atalho"
-                  aria-label={`Excluir atalho ${link.name}`}
+              <li key={link.id} className={cn(PAGE_CARD, 'group relative rounded-2xl transition-[border-color,box-shadow] duration-fast hover:border-primary/40 hover:shadow-md')}>
+                <a
+                  href={safeHref(link.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3.5 rounded-2xl p-4 pr-14 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </motion.a>
+                  <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', colorFor(link.color).tile)}>
+                    <Icon className="h-6 w-6" strokeWidth={1.5} aria-hidden="true" />
+                  </span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm font-semibold text-foreground">{link.name}</span>
+                    <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+                      Acessar <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+                    </span>
+                  </span>
+                </a>
+                <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 flex-col gap-1">
+                  <IconButton size="sm" icon={Pencil} label={`Editar atalho ${link.name}`} onClick={() => openDialog(link)} />
+                  <IconButton size="sm" icon={Trash2} label={`Excluir atalho ${link.name}`} onClick={() => onDeleteLink(link.id)} className="hover:text-red-700 dark:hover:text-red-300" />
+                </div>
+              </li>
             );
-          })
-        ) : (
-          <div className="col-span-full py-16 bg-muted/20 rounded-3xl border border-dashed border-border/80 flex flex-col items-center justify-center space-y-3 text-muted-foreground">
-             <Link2 className="h-8 w-8 opacity-50" />
-             <p className="text-xs font-bold uppercase tracking-wider">Nenhum atalho configurado</p>
-          </div>
-        )}
-      </div>
+          })}
+        </ul>
+      )}
+
+      <Modal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        size="md"
+        icon={Link2}
+        title={editing ? 'Editar atalho' : 'Adicionar atalho'}
+        preventClose={isSubmitting}
+        footer={
+          <>
+            <ModalButton onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
+              Cancelar
+            </ModalButton>
+            <ModalButton variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
+              Salvar atalho
+            </ModalButton>
+          </>
+        }
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex flex-col gap-4 pt-2"
+        >
+          <Field label="Nome do atalho" htmlFor={`${uid}-name`}>
+            <input
+              id={`${uid}-name`}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              maxLength={255}
+              autoComplete="off"
+              placeholder="Ex: Jira Board da Squad"
+              className={TEXT_INPUT}
+            />
+          </Field>
+          <Field label="URL (endereço)" htmlFor={`${uid}-url`} error={urlError}>
+            <input
+              id={`${uid}-url`}
+              value={form.url}
+              onChange={(e) => {
+                setForm({ ...form, url: e.target.value });
+                setUrlError('');
+              }}
+              autoComplete="off"
+              inputMode="url"
+              placeholder="Ex: jira.suaempresa.com/board"
+              aria-invalid={!!urlError}
+              className={cn(TEXT_INPUT, urlError && 'border-red-500/70')}
+            />
+          </Field>
+
+          <fieldset className="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
+            <legend className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Ícone</legend>
+            <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-muted/30 p-3">
+              {ICONS.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-label={`Ícone ${label}`}
+                  title={label}
+                  aria-pressed={form.iconType === key}
+                  onClick={() => setForm({ ...form, iconType: key })}
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-xl border transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    form.iconType === key ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
+            <legend className="mb-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">Cor de destaque</legend>
+            <div className="flex gap-3 rounded-2xl border border-border bg-muted/30 p-3">
+              {COLORS.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  aria-label={`Cor ${c.name}`}
+                  title={c.name}
+                  aria-pressed={form.color === c.value}
+                  onClick={() => setForm({ ...form, color: c.value })}
+                  className={cn(
+                    'h-8 w-8 rounded-full border-2 transition-all duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                    c.swatch,
+                    form.color === c.value ? 'scale-110 border-foreground' : 'border-transparent',
+                  )}
+                />
+              ))}
+            </div>
+          </fieldset>
+        </form>
+      </Modal>
     </div>
   );
 }
