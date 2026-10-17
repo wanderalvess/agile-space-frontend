@@ -272,7 +272,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   };
 
   const handleLeaveRoom = () => {
-    router.push('/workspace');
+    router.push('/workspace?aba=kanban');
   };
 
   // --- Render Logic ---

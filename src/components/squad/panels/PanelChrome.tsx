@@ -189,7 +189,7 @@ export function EstimationChip({ unitLabel }: { unitLabel: string | null }) {
         </span>
       ) : (
         <Link
-          href="/painel"
+          href="/squad?tab=resumo"
           className={cn('inline-flex h-9 items-center gap-2 rounded-xl border border-dashed border-border px-3.5 text-[13px] font-bold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground', FOCUS_RING)}
         >
           <Layers className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />

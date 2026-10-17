@@ -45,7 +45,7 @@ import { SuggestionStep } from './SuggestionStep';
 import { Spinner, StepCard, StepHeading } from './ui';
 
 /** Destino de todo caminho concluído: a squad por dentro, sem tarefa no meio. */
-export const DONE_ROUTE = '/painel';
+export const DONE_ROUTE = '/squad?tab=resumo';
 
 export function OnboardingFlow() {
   const router = useRouter();

@@ -88,7 +88,7 @@ export function RituaisCard({ config, loading }: { config: SquadConfig | null; l
         <p className="text-[13px] text-muted-foreground">
           {fromGoogle ? 'Os rituais desta squad vêm da agenda do Google de cada pessoa.' : 'Nenhum ritual cadastrado para esta squad.'}
         </p>
-        <Link href="/painel" className={cn('text-[13px] font-bold hover:underline', BRAND_TEXT)}>
+        <Link href="/squad?tab=resumo" className={cn('text-[13px] font-bold hover:underline', BRAND_TEXT)}>
           {fromGoogle ? 'Ver próxima cerimônia no Painel' : 'Configurar rituais no Painel'}
         </Link>
       </div>

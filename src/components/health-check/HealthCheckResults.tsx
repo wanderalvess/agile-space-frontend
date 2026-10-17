@@ -136,7 +136,7 @@ export function HealthCheckResults({
         description: `${attentionResults.length} tarefas foram criadas no seu Kanban pessoal.`,
         action: {
           label: "Acessar Kanban",
-          onClick: () => router.push('/workspace'),
+          onClick: () => router.push('/workspace?aba=kanban'),
         },
       });
       setHasExported(true);
@@ -480,7 +480,7 @@ export function HealthCheckResults({
                 </Button>
               ) : (
                 <Button 
-                  onClick={() => router.push('/workspace')}
+                  onClick={() => router.push('/workspace?aba=kanban')}
                   className="h-12 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-700 flex-1 sm:flex-initial rounded-2xl transition-all active:scale-95 animate-in zoom-in-95 duration-300"
                 >
                   <ExternalLink className="mr-2 h-4 w-4" />

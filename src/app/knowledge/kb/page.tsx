@@ -815,7 +815,7 @@ function KBExplorerContent() {
                             onClick={() => {
                               if (!tdnSettings?.baseUrl || !tdnSettings?.token) {
                                 toast.error('Configure a URL e o Token do TDN primeiro em Configurações > Conexões.', {
-                                  action: { label: 'Configurar', onClick: () => router.push('/workspace') },
+                                  action: { label: 'Configurar', onClick: () => router.push('/workspace?aba=conta&sub=conectividade') },
                                 });
                                 return;
                               }

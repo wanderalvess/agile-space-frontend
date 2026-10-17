@@ -211,7 +211,7 @@ describe('textos corrigidos', () => {
 
   it('unidade não definida vira link para configurar', () => {
     view('Developer', false, 'member', { config: { estimationUnit: undefined } as never });
-    expect((screen.getByRole('link', { name: /Não definida · Configurar/ })).getAttribute('href')).toBe('/painel');
+    expect((screen.getByRole('link', { name: /Não definida · Configurar/ })).getAttribute('href')).toBe('/squad?tab=resumo');
   });
 
   it('Rituais: cadastrados aparecem; sem cadastro mostra como configurar', () => {
@@ -221,6 +221,6 @@ describe('textos corrigidos', () => {
     unmount();
     view('Developer', false, 'member', { config: { ceremonyMode: 'manual', ceremonies: [] } as never });
     expect(screen.getByText('Nenhum ritual cadastrado para esta squad.')).toBeTruthy();
-    expect((screen.getByRole('link', { name: 'Configurar rituais no Painel' })).getAttribute('href')).toBe('/painel');
+    expect((screen.getByRole('link', { name: 'Configurar rituais no Painel' })).getAttribute('href')).toBe('/squad?tab=resumo');
   });
 });
