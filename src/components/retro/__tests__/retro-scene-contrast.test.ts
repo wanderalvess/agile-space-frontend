@@ -11,7 +11,8 @@ import {
   type SceneTokens,
 } from '../retro-scene-contrast';
 
-const CSS = readFileSync(join(__dirname, '../../../app/globals.css'), 'utf8');
+// O arquivo pode vir com CRLF no Windows (autocrlf): normaliza para as buscas por trecho abaixo.
+const CSS = readFileSync(join(__dirname, '../../../app/globals.css'), 'utf8').replace(/\r\n/g, '\n');
 
 /** Blocos "seletor { declarações }" do globals.css (só os que têm declarações diretas), com o último valor de cada token. */
 function parseBlocks(css: string): Map<string, Record<string, string>> {
