@@ -12,8 +12,9 @@ import { deriveMustOnboard, findMembership, isLegacyOnly, leadershipOfActiveSqua
 
 interface UserContextType {
   userProfile: UserProfile | null;
-  setGuestProfile: (name: string, role: GlobalRole, squadId: string, email?: string) => void;
-  updateProfile: (updates: Partial<UserProfile>) => void;
+  setGuestProfile: (name: string, role: GlobalRole, email?: string) => void;
+  /** Atualiza o perfil da pessoa (nome, avatar). A squad ativa NÃO se grava aqui: vem dos vínculos e muda pelo `switchProject`. */
+  updateProfile: (updates: Partial<Omit<UserProfile, 'squadId'>>) => void;
   logout: () => void;
   isInitializing: boolean;
   isIdentityRequested: boolean;
@@ -40,7 +41,8 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 const GUEST_STORAGE_KEY = 'agileSpace_guest_profile';
 const PUBLIC_EXPLORATION_KEY = 'agileSpace_public_exploration';
 
-type CachedProfile = { uid: string | null; profile: UserProfile };
+/** Cache local só de campos da pessoa (avatar, carga horária). A squad nunca entra: é derivada dos vínculos. */
+type CachedProfile = { uid: string | null; profile: Omit<UserProfile, 'squadId'> };
 
 function readCachedProfile(): CachedProfile | null {
   if (typeof window === 'undefined') return null;
@@ -59,7 +61,11 @@ function readCachedProfile(): CachedProfile | null {
 
 function writeCachedProfile(uid: string | null, profile: UserProfile) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ uid, profile }));
+  // Descarta `squadId` (e o antigo `team`): cache de uma versão anterior também é limpo na próxima gravação.
+  const { squadId: _squadId, team: _team, ...rest } = profile as UserProfile & { team?: string };
+  try {
+    localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify({ uid, profile: rest }));
+  } catch {}
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
@@ -131,11 +137,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
       name: session.name,
       email: session.email,
       role: (isSystemAdmin ? 'admin' : session.activeProjectRole || cachedForUser?.role || 'user') as GlobalRole,
-      squadId: session.activeProjectId || cachedForUser?.squadId || '',
+      // Sem cache local aqui: a squad vem só da sessão (e dos vínculos, no memo `userProfile`).
+      squadId: session.activeProjectId || '',
       isGuest: false,
       avatarSeed: cachedForUser?.avatarSeed || session.avatarSeed || 'Felix',
       dailyHours: cachedForUser?.dailyHours,
     };
+
+    // Migração silenciosa: cache antigo que guardava `squadId`/`team` é reescrito sem eles.
+    if (cached && cachedForUser && ('squadId' in cachedForUser || 'team' in cachedForUser)) {
+      writeCachedProfile(cached.uid, cachedForUser as UserProfile);
+    }
 
     setUserProfile(profile);
     setIsInitializing(false);
@@ -186,9 +198,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Mantido pela assinatura consumida pelo UserProfileModal e pela tela de login
   // (conclusão de onboarding pós-login); e-mail não é aceito aqui — a identidade
   // vem da sessão autenticada, não de texto livre.
-  const setGuestProfile = async (name: string, role: GlobalRole, squadId: string, _email?: string) => {
+  const setGuestProfile = async (name: string, role: GlobalRole, _email?: string) => {
     // O avatarSeed já gravado no perfil não é exibido nem editado; segue como está (o merge em updateProfile o preserva).
-    await updateProfile({ name, role, squadId });
+    await updateProfile({ name, role });
     if (pendingCallback.current) {
       const cb = pendingCallback.current;
       pendingCallback.current = null;
@@ -196,13 +208,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateProfile = async (updates: Partial<UserProfile>) => {
+  const updateProfile = async (updates: Partial<Omit<UserProfile, 'squadId'>>) => {
     if (!userProfile) return;
 
-    // id/email são a identidade autenticada (JWT) — não editáveis via este formulário
-    const { id: _ignoredId, email: _ignoredEmail, ...safeUpdates } = updates;
+    // id/email são a identidade autenticada (JWT) — não editáveis via este formulário. `squadId` (e o antigo `team`)
+    // também não: o vínculo é a fonte da verdade, então nunca vai para a base nem para o cache local.
+    const { id: _ignoredId, email: _ignoredEmail, squadId: _ignoredSquad, team: _ignoredTeam, ...safeUpdates } = updates as typeof updates & {
+      id?: string;
+      squadId?: string;
+      team?: string;
+    };
     const newProfile = { ...userProfile, ...safeUpdates };
-    setUserProfile(newProfile);
+    setUserProfile((prev) => (prev ? { ...prev, ...safeUpdates } : prev));
     setIsIdentityRequested(false);
     setIsEditProfileOpen(false);
     setIsPublicExploration(true);
@@ -213,7 +230,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
         id: newProfile.id,
         name: newProfile.name,
         role: newProfile.role,
-        squadId: newProfile.squadId,
         email: newProfile.email,
         isGuest: false,
         avatarSeed: newProfile.avatarSeed,

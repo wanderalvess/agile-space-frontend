@@ -222,3 +222,78 @@ describe('UserProvider - isLeadership da squad ativa', () => {
     expect(latest.isLeadership).toBe(false);
   });
 });
+
+describe('UserProvider - updateProfile não grava squadId nem team', () => {
+  it('saveUser recebe nome/papel/avatar, nunca squadId nem team, mesmo se a tela mandar', async () => {
+    mocks.memberships = data([ms('DDWMISSI'), ms('DDWPRIME')]);
+    mount();
+    await waitFor(() => expect(latest.userProfile?.squadId).toBe('DDWMISSI'));
+
+    await latest.updateProfile({ name: 'Ana S.', squadId: 'OUTRA', team: 'OUTRO' } as never);
+
+    await waitFor(() => expect(mocks.saveUser).toHaveBeenCalledTimes(1));
+    const sent = mocks.saveUser.mock.calls[0][0] as Record<string, unknown>;
+    expect(sent).toMatchObject({ id: 'u1', name: 'Ana S.', email: 'ana@totvs.com.br' });
+    expect(sent).not.toHaveProperty('squadId');
+    expect(sent).not.toHaveProperty('team');
+    // a squad ativa continua a dos vínculos
+    await waitFor(() => expect(latest.userProfile?.name).toBe('Ana S.'));
+    expect(latest.userProfile?.squadId).toBe('DDWMISSI');
+    expect(latest.activeSquadId).toBe('DDWMISSI');
+  });
+
+  it('o cache local do perfil não guarda a squad', async () => {
+    mount();
+    await waitFor(() => expect(latest.userProfile?.squadId).toBe('DDWMISSI'));
+    await latest.updateProfile({ name: 'Ana S.' });
+    const cached = JSON.parse(localStorage.getItem('agileSpace_guest_profile') as string);
+    expect(cached.uid).toBe('u1');
+    expect(cached.profile.name).toBe('Ana S.');
+    expect(cached.profile).not.toHaveProperty('squadId');
+    expect(cached.profile).not.toHaveProperty('team');
+  });
+
+  it('setGuestProfile também não envia a squad', async () => {
+    mount();
+    await waitFor(() => expect(latest.userProfile).not.toBeNull());
+    await latest.setGuestProfile('Ana S.', 'Developer');
+    await waitFor(() => expect(mocks.saveUser).toHaveBeenCalledTimes(1));
+    expect(mocks.saveUser.mock.calls[0][0]).not.toHaveProperty('squadId');
+  });
+});
+
+describe('UserProvider - cache local antigo não é fonte de squad', () => {
+  const legacyCache = (squadId: string) =>
+    localStorage.setItem(
+      'agileSpace_guest_profile',
+      JSON.stringify({ uid: 'u1', profile: { id: 'u1', name: 'Ana', role: 'Developer', squadId, team: 'ANTIGA', isGuest: false, avatarSeed: 'Zed', dailyHours: 6 } }),
+    );
+
+  it('sessão sem squad e cache com squadId: continua sem squad (precisa de onboarding)', async () => {
+    legacyCache('ANTIGA');
+    mocks.session = sessionOf({ activeProjectId: '', activeProjectRole: undefined, accessibleProjects: [] });
+    mount();
+    await waitFor(() => expect(latest.userProfile).not.toBeNull());
+    expect(latest.userProfile?.squadId).toBe('');
+    expect(latest.activeSquadId).toBe('');
+    expect(latest.mustOnboard).toBe(true);
+  });
+
+  it('migra em silêncio: reescreve o cache sem squadId/team e preserva avatar e carga horária', async () => {
+    legacyCache('ANTIGA');
+    mount();
+    await waitFor(() => expect(latest.userProfile?.squadId).toBe('DDWMISSI'));
+    const cached = JSON.parse(localStorage.getItem('agileSpace_guest_profile') as string);
+    expect(cached.profile).not.toHaveProperty('squadId');
+    expect(cached.profile).not.toHaveProperty('team');
+    expect(cached.profile).toMatchObject({ avatarSeed: 'Zed', dailyHours: 6 });
+    expect(latest.userProfile?.dailyHours).toBe(6);
+    expect(mocks.saveUser).not.toHaveBeenCalled();
+  });
+
+  it('cache corrompido não quebra', async () => {
+    localStorage.setItem('agileSpace_guest_profile', '{nao-json');
+    mount();
+    await waitFor(() => expect(latest.userProfile?.squadId).toBe('DDWMISSI'));
+  });
+});

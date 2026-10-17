@@ -110,8 +110,8 @@ export interface UserProfile {
   /** Cargo de negócio autodeclarado (ex: "Tech Lead"). Só existe na listagem admin
    *  (GET /api/users, entidade crua) — auto-serviço, sem efeito de autorização. */
   jobTitle?: GlobalRole;
+  /** Squad ativa, DERIVADA dos vínculos (sessão validada). Só leitura: o cliente não grava mais `squadId` do usuário. */
   squadId: string;
-  team?: string; // Mantido temporariamente para compatibilidade
   isGuest: boolean;
   email?: string;
   /** Semente do avatar ilustrado antigo. Não é mais exibida nem editada; o backend ainda guarda o valor. */

@@ -20,7 +20,7 @@ export interface ActiveSquad {
 /**
  * A squad ativa da pessoa, num lugar só: `session.activeProjectId` validada contra os vínculos
  * (`/me/memberships`). Sem o endpoint, é a da sessão como está. As telas usam isto em vez de misturar
- * `userProfile.squadId`, `userProfile.team` e `session.activeProjectId`.
+ * `userProfile.squadId` e `session.activeProjectId`.
  */
 export function useActiveSquad(): ActiveSquad {
   const { session } = useAuth();

@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { squadApi } from '@/app/squad/api';
-import { userApi } from '@/app/users/api';
 import type {
   SquadConfig, SquadIssueSnapshot, SquadMetricsRollup, SquadMemberMetric, SquadMember,
   SquadDailySnapshot, SquadWorkflowPhase
@@ -299,12 +298,11 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
   // de segurança contra apagar em massa) roda inteiro no backend agora
   // (SquadSyncService) — este action só dispara e refaz fetch do que mudou.
   // Ver plano de unificação Squad Pulse, Fase 2.
-  syncSquad: async (uid, squadId, forceFull) => {
+  // O 1º argumento (quem sincroniza) ficou só pela assinatura: sincronizar não grava mais a squad do usuário
+  // (o vínculo é a fonte da verdade; a troca da squad ativa é do `switchProject`).
+  syncSquad: async (_uid, squadId, forceFull) => {
     set({ isSyncing: true, syncError: null });
     try {
-      if (uid && squadId && squadId !== 'Sem Time') {
-        userApi.saveUser({ id: uid, squadId }).catch(() => {});
-      }
       await squadApi.sync(squadId, forceFull);
 
       const [config, rollup, memberMetrics] = await Promise.all([

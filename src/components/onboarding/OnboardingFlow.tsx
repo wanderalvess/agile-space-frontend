@@ -52,7 +52,7 @@ export function OnboardingFlow() {
   const router = useRouter();
   const { toast } = useToast();
   const { createProject, joinProject, claimRosterMember } = useAuth();
-  const { mustOnboard, legacyOnly, isInitializing, userProfile, updateProfile } = useUserContext();
+  const { mustOnboard, legacyOnly, isInitializing, userProfile } = useUserContext();
 
   const [step, setStep] = useState<OnboardingStep>('suggestion');
   /** Durante a prévia da importação a tela precisa de largura: some a trilha e o conteúdo ocupa tudo. */
@@ -168,7 +168,6 @@ export function OnboardingFlow() {
       setAccessRefused(false);
       try {
         await joinProject(roster.projectId, roleName);
-        await updateProfile({ squadId: roster.projectId });
         finish(`Você entrou em ${roster.projectId}`, `Como ${roleName}. A squad pode ajustar isso depois.`);
       } catch (err: any) {
         const status = httpStatusOf(err);
@@ -182,7 +181,7 @@ export function OnboardingFlow() {
         setBusy(null);
       }
     },
-    [roster, joinProject, updateProfile, finish, toast],
+    [roster, joinProject, finish, toast],
   );
 
   const handleCreate = useCallback(
@@ -190,7 +189,6 @@ export function OnboardingFlow() {
       setBusy('create');
       try {
         await createProject({ id: key, name });
-        await updateProfile({ squadId: key });
         try {
           localStorage.setItem(`agileSpace_newSquad_${key}`, '1');
         } catch {
@@ -209,7 +207,7 @@ export function OnboardingFlow() {
         setBusy(null);
       }
     },
-    [createProject, updateProfile, finish, toast],
+    [createProject, finish, toast],
   );
 
   const handleInvite = useCallback(
