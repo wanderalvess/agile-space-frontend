@@ -138,30 +138,31 @@ export function Calmaria() {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="fixed bottom-6 right-6 z-[9999] w-[350px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl text-slate-900 dark:text-white shadow-2xl rounded-[2.5rem] border border-primary/20 dark:border-primary/30 shadow-[0_20px_50px_rgba(249,115,22,0.1)] dark:shadow-[0_20px_50px_rgba(249,115,22,0.05)] p-5 overflow-hidden flex flex-col justify-between select-none cursor-default"
+        className="fixed bottom-6 right-6 z-[9999] w-[350px] max-w-[calc(100vw-2rem)] bg-card/95 backdrop-blur-xl text-card-foreground rounded-3xl border border-border shadow-[0_24px_64px_rgba(15,23,42,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.6)] p-5 overflow-hidden flex flex-col justify-between select-none cursor-default"
         style={{ touchAction: 'none' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center">
-              <Moon className="h-4.5 w-4.5" />
+            <div className="w-8 h-8 rounded-[10px] bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground flex items-center justify-center">
+              <Moon className="h-[18px] w-[18px]" strokeWidth={1.5} aria-hidden="true" />
             </div>
-             <span className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">Calmaria</span>
+             <span className="text-sm font-bold text-foreground">Calmaria</span>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               onClick={handleStopAll}
-              className="h-auto bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl px-3.5 py-1.5 text-[10px] font-black uppercase tracking-wider"
+              className="h-auto rounded-[10px] border border-border bg-transparent px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-accent"
             >
               Parar
             </Button>
             <button 
               onClick={() => setMinimized(true)}
-              className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 transition-colors flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+              aria-label="Minimizar"
+              className="w-8 h-8 rounded-[10px] border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" strokeWidth={1.5} />
             </button>
           </div>
         </div>
@@ -178,10 +179,11 @@ export function Calmaria() {
                   <button
                     key={sound.id}
                     onClick={() => toggleSound(sound.id)}
-                    className={`rounded-2xl flex flex-col items-center justify-center p-2.5 h-16 w-full transition-all active:scale-95 border ${isActive ? sound.activeColor + ' border-transparent shadow-lg' : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800/60 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-slate-200'}`}
+                    aria-pressed={isActive}
+                    className={`rounded-2xl flex flex-col items-center justify-center p-2.5 h-16 w-full transition-all active:scale-95 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'bg-primary text-primary-foreground border-transparent' : 'bg-muted/40 border-border text-muted-foreground hover:bg-accent hover:text-foreground'}`}
                   >
-                    <Icon className="h-5 w-5 mb-1" />
-                    <span className="text-[8px] font-black uppercase tracking-wider">{sound.name}</span>
+                    <Icon className="h-5 w-5 mb-1" strokeWidth={1.5} />
+                    <span className="text-xs font-semibold">{sound.name}</span>
                   </button>
                 );
               })}
@@ -189,8 +191,8 @@ export function Calmaria() {
 
             {/* Volume Mixer Controls */}
             {Object.keys(activeSounds).length > 0 && (
-              <div className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-3 space-y-2.5">
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mixer de Volumes</span>
+              <div className="bg-muted/40 border border-border rounded-2xl p-3 space-y-2.5">
+                <span className="text-xs font-bold text-muted-foreground">Mixer de volumes</span>
                 <div className="space-y-2 max-h-[120px] overflow-y-auto no-scrollbar">
                   {SOUNDSCAPES.map(sound => {
                     const vol = activeSounds[sound.id] || 0;
@@ -198,14 +200,15 @@ export function Calmaria() {
                     const Icon = sound.icon;
                     return (
                       <div key={sound.id} className="flex items-center gap-3">
-                        <Icon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" strokeWidth={1.5} />
                         <input 
                           type="range" 
                           min="0" 
                           max="100" 
                           value={vol}
                           onChange={(e) => setSoundVolume(sound.id, Number(e.target.value))}
-                          className="flex-1 h-1 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none outline-none cursor-pointer accent-orange-500 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:appearance-none"
+                          aria-label={`Volume: ${sound.name}`}
+                          className="flex-1 h-1 bg-muted rounded-full appearance-none outline-none cursor-pointer accent-primary [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:appearance-none"
                         />
                       </div>
                     );
@@ -215,12 +218,13 @@ export function Calmaria() {
             )}
 
             {/* Master Volume */}
-            <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 rounded-2xl p-3">
+            <div className="flex items-center gap-3 bg-muted/40 border border-border rounded-2xl p-3">
               <button 
                 onClick={toggleMute}
-                className="text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+                aria-label={isMuted ? 'Ativar o som' : 'Silenciar'}
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                {isMuted ? <VolumeX className="h-4 w-4" strokeWidth={1.5} /> : <Volume2 className="h-4 w-4" strokeWidth={1.5} />}
               </button>
               <input 
                 type="range" 
@@ -228,9 +232,10 @@ export function Calmaria() {
                 max="100" 
                 value={masterVolume}
                 onChange={(e) => setMasterVolume(Number(e.target.value))}
-                className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full appearance-none outline-none cursor-pointer accent-orange-500 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500 [&::-webkit-slider-thumb]:appearance-none"
+                aria-label="Volume geral"
+                className="flex-1 h-1.5 bg-muted rounded-full appearance-none outline-none cursor-pointer accent-primary [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:appearance-none"
               />
-              <span className="text-[10px] font-black font-code w-6 text-right text-slate-500 dark:text-slate-400">{masterVolume}</span>
+              <span className="text-xs font-semibold font-code w-7 text-right text-muted-foreground">{masterVolume}</span>
             </div>
           </div>
         </div>
