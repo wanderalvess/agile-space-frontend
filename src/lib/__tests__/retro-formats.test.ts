@@ -3,6 +3,7 @@ import { RETRO_TEMPLATES } from '../types';
 import {
   DEFAULT_SETUP_SETTINGS,
   RETRO_FORMATS,
+  RETRO_FORMAT_GROUPS,
   SETUP_TOGGLES,
   buildNewRetroBoard,
   formatColumns,
@@ -18,6 +19,27 @@ describe('formatos de retro', () => {
     for (const f of RETRO_FORMATS) {
       if (f.key === 'custom') expect(formatColumns(f.key)).toBeNull();
       else expect(formatColumns(f.key)?.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('cada formato tem grupo conhecido, chave única e colunas com ids únicos e uma coluna de ação (quando não é só comparação)', () => {
+    const groups = new Set(RETRO_FORMAT_GROUPS.map((g) => g.id));
+    const keys = RETRO_FORMATS.map((f) => f.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const f of RETRO_FORMATS) {
+      expect(groups.has(f.group)).toBe(true);
+      if (f.key === 'custom') continue;
+      const cols = formatColumns(f.key) ?? [];
+      expect(new Set(cols.map((c) => c.id)).size).toBe(cols.length);
+      expect(cols.map((c) => c.order)).toEqual(cols.map((_, i) => i));
+      expect(cols.some((c) => c.theme === 'action' || c.id === 'actionItems') || ['start_stop_continue', 'starfish', 'mad_sad_glad', 'rose_thorn_bud'].includes(f.key)).toBe(true);
+    }
+  });
+
+  it('os formatos novos estão no seletor, em grupos', () => {
+    for (const key of ['lean_coffee', 'rose_thorn_bud', 'hot_air_balloon', 'plus_delta', 'kudos', 'incident', 'workflow', 'sprint_goal'] as const) {
+      expect(RETRO_FORMATS.some((f) => f.key === key)).toBe(true);
+      expect(formatColumns(key)?.length).toBeGreaterThanOrEqual(3 - (key === 'plus_delta' ? 1 : 0));
     }
   });
 

@@ -417,7 +417,7 @@ export type RetroColumnDef = {
 };
 
 /** Templates pré-configurados para retrospectivas */
-export type RetroTemplateKey = 'classic' | 'start_stop_continue' | 'mad_sad_glad' | 'starfish' | 'four_ls' | 'daki' | 'sailboat' | 'three_little_pigs' | 'speed_car' | 'custom';
+export type RetroTemplateKey = 'classic' | 'start_stop_continue' | 'mad_sad_glad' | 'starfish' | 'four_ls' | 'daki' | 'sailboat' | 'three_little_pigs' | 'speed_car' | 'lean_coffee' | 'rose_thorn_bud' | 'hot_air_balloon' | 'plus_delta' | 'kudos' | 'incident' | 'workflow' | 'sprint_goal' | 'custom';
 
 export const RETRO_TEMPLATES: Record<Exclude<RetroTemplateKey, 'custom'>, RetroColumnDef[]> = {
   classic: [
@@ -473,6 +473,57 @@ export const RETRO_TEMPLATES: Record<Exclude<RetroTemplateKey, 'custom'>, RetroC
     { id: 'engine', title: 'Motor (Aceleradores)', theme: 'success', order: 0 },
     { id: 'parachute', title: 'Paraquedas (Freadores)', theme: 'warning', order: 1 },
     { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 2 },
+  ],
+  lean_coffee: [
+    { id: 'toDiscuss', title: 'Para discutir', theme: 'purple', order: 0 },
+    { id: 'discussing', title: 'Discutindo agora', theme: 'cyan', order: 1 },
+    { id: 'discussed', title: 'Discutido', theme: 'success', order: 2 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 3 },
+  ],
+  rose_thorn_bud: [
+    { id: 'rose', title: 'Rosa (O que floresceu)', theme: 'success', order: 0 },
+    { id: 'thorn', title: 'Espinho (O que machucou)', theme: 'warning', order: 1 },
+    { id: 'bud', title: 'Broto (Oportunidades)', theme: 'cyan', order: 2 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 3 },
+  ],
+  hot_air_balloon: [
+    { id: 'hotAir', title: 'Ar quente (O que nos faz subir)', theme: 'success', order: 0 },
+    { id: 'ballast', title: 'Lastro (O que nos segura)', theme: 'warning', order: 1 },
+    { id: 'storm', title: 'Tempestade (Riscos à frente)', theme: 'pink', order: 2 },
+    { id: 'sky', title: 'Céu (Aonde queremos chegar)', theme: 'cyan', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
+  plus_delta: [
+    { id: 'plus', title: 'Mais (Repetir)', theme: 'success', order: 0 },
+    { id: 'delta', title: 'Delta (Mudar)', theme: 'warning', order: 1 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 2 },
+  ],
+  kudos: [
+    { id: 'thanks', title: 'Agradecimentos', theme: 'pink', order: 0 },
+    { id: 'learned', title: 'Aprendizados', theme: 'purple', order: 1 },
+    { id: 'help', title: 'Pedidos de ajuda', theme: 'cyan', order: 2 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 3 },
+  ],
+  incident: [
+    { id: 'happened', title: 'O que aconteceu', theme: 'neutral', order: 0 },
+    { id: 'factors', title: 'Por que aconteceu (fatores)', theme: 'warning', order: 1 },
+    { id: 'wentWell', title: 'O que ajudou na resposta', theme: 'success', order: 2 },
+    { id: 'prevent', title: 'Como evitar de novo', theme: 'purple', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
+  workflow: [
+    { id: 'fast', title: 'Fluiu rápido', theme: 'success', order: 0 },
+    { id: 'stuck', title: 'Ficou parado (esperas e bloqueios)', theme: 'warning', order: 1 },
+    { id: 'rework', title: 'Retrabalho', theme: 'pink', order: 2 },
+    { id: 'tryNext', title: 'Para testar na próxima sprint', theme: 'cyan', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
+  ],
+  sprint_goal: [
+    { id: 'goal', title: 'A meta foi atingida? Por quê?', theme: 'success', order: 0 },
+    { id: 'blockers', title: 'O que atrapalhou a meta', theme: 'warning', order: 1 },
+    { id: 'helped', title: 'O que ajudou a meta', theme: 'purple', order: 2 },
+    { id: 'nextGoal', title: 'Para a próxima meta', theme: 'cyan', order: 3 },
+    { id: 'actionItems', title: 'Plano de Ação', theme: 'action', order: 4 },
   ],
 };
 

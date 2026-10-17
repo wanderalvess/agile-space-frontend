@@ -17,6 +17,7 @@ import {
   MAX_CUSTOM_COLUMNS,
   MIN_CUSTOM_COLUMNS,
   RETRO_FORMATS,
+  RETRO_FORMAT_GROUPS,
   SETUP_TOGGLES,
   buildNewRetroBoard,
   formatColumns,
@@ -245,8 +246,15 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
         {/* Formato */}
         <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
           <legend className="mb-2.5 p-0 text-[13px] font-semibold">Formato</legend>
-          <div role="radiogroup" aria-label="Formato das colunas" className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
-            {formats.map((f) => {
+          <div role="radiogroup" aria-label="Formato das colunas" className="flex flex-col gap-4">
+            {RETRO_FORMAT_GROUPS.map((group) => {
+              const groupFormats = formats.filter((f) => f.group === group.id);
+              if (groupFormats.length === 0) return null;
+              return (
+                <div key={group.id} role="group" aria-label={group.label} className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">{group.label}</span>
+                  <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-5">
+            {groupFormats.map((f) => {
               const selected = template === f.key;
               return (
                 <button
@@ -273,6 +281,10 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
                     {f.columns ? f.columns.map((c) => c.title.replace(/\s*\(.*\)\s*$/, '')).join(' · ') : 'Você define · de 2 a 6 colunas'}
                   </span>
                 </button>
+              );
+            })}
+                  </div>
+                </div>
               );
             })}
           </div>
