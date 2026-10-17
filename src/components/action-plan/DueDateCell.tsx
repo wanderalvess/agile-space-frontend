@@ -45,7 +45,7 @@ export function DueDateCell({ value, number, overdue, onSave }: DueDateCellProps
           defaultValue={value}
           aria-label={`Prazo da ação ${number ?? ''}`.trim()}
           onChange={(e) => void save(e.currentTarget.value)}
-          className="h-8 w-[9.5rem] rounded-md border border-border bg-background px-1.5 text-[13px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-xl:h-11"
+          className="h-8 w-[9.5rem] rounded-md [color-scheme:light] dark:[color-scheme:dark] border border-border bg-background px-1.5 text-[13px] text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-xl:h-11"
         />
         {value && (
           <button

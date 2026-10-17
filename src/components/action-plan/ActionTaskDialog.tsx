@@ -201,7 +201,7 @@ export function ActionTaskDialog({ boardId, task, isOpen, onClose, totalTasks, o
                   value={form.dueDate}
                   onChange={(e) => set('dueDate', e.target.value)}
                   aria-describedby="task-due-hint"
-                  className={cn(FIELD, 'h-11 min-w-0 flex-1')}
+                  className={cn(FIELD, 'h-11 min-w-0 flex-1 [color-scheme:light] dark:[color-scheme:dark]')}
                 />
                 {form.dueDate && (
                   <button
