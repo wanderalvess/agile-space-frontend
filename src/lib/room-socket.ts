@@ -1,3 +1,5 @@
+import { createPresenceSession, withPresenceParam, type PresenceUpdate } from './room-presence';
+
 export interface RoomSocketOptions {
   /** Monta a URL a cada tentativa (o token é relido: numa sessão longa o antigo expira e a reconexão nunca voltaria). */
   buildUrl: () => string;
@@ -17,6 +19,19 @@ export interface RoomSocketOptions {
   onClose?: (info: { attempt: number; retryInMs: number }) => void;
   /** Mensagem que não é JSON válido ou handler que lançou: a tela recarrega tudo por segurança. */
   onError?: (error: unknown) => void;
+  /**
+   * Pede ao servidor a presença da sala (`presence=1` na URL). O servidor passa a enviar `PRESENCE_UPDATED`
+   * (snapshot logo na abertura e a cada mudança). Um backend antigo ignora o parâmetro e nunca envia o evento.
+   */
+  presence?: boolean;
+  /**
+   * Estado completo de quem está online (`online` = ids das contas). Só chega versão MAIOR que a última vista
+   * nesta conexão; a versão é zerada a cada nova conexão. `PRESENCE_UPDATED` nunca chega a `onMessage`.
+   */
+  onPresence?: (update: PresenceUpdate) => void;
+  /** Com `presence`, chamado quando a conexão abriu e nenhum snapshot veio em `presenceWaitMs` (a tela usa o REST). */
+  onPresenceMissing?: () => void;
+  presenceWaitMs?: number;
   WebSocketImpl?: typeof WebSocket;
   /** Atraso inicial da reconexão (ms); cresce até `maxDelayMs`. */
   baseDelayMs?: number;
@@ -29,7 +44,7 @@ export interface RoomSocketOptions {
  */
 export function connectRoomSocket(options: RoomSocketOptions): () => void {
   const {
-    buildUrl, onMessage, onReconnect, onOpen, onClose, onError,
+    buildUrl, onMessage, onReconnect, onOpen, onClose, onError, presence = false, onPresence, onPresenceMissing, presenceWaitMs,
     WebSocketImpl = typeof WebSocket !== 'undefined' ? WebSocket : undefined,
     baseDelayMs = 1500, maxDelayMs = 15000,
   } = options;
@@ -40,11 +55,15 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let hadConnection = false;
   let attempt = 0;
+  // O evento de presença é consumido aqui, mesmo sem opt-in: as telas tratam tipo desconhecido como "recarrega tudo".
+  const presenceSession = createPresenceSession({ onPresence, onMissing: onPresenceMissing, waitMs: presenceWaitMs });
 
   const connect = () => {
     if (stopped) return;
+    presenceSession.start(false);
     try {
-      socket = new WebSocketImpl(buildUrl());
+      const url = buildUrl();
+      socket = new WebSocketImpl(presence ? withPresenceParam(url) : url);
     } catch (error) {
       onError?.(error);
       schedule();
@@ -52,18 +71,22 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
     }
     socket.onopen = () => {
       attempt = 0;
+      if (presence) presenceSession.start(true);
       onOpen?.();
       if (hadConnection) onReconnect();
       hadConnection = true;
     };
     socket.onmessage = (event: MessageEvent) => {
       try {
-        onMessage(JSON.parse(event.data));
+        const message = JSON.parse(event.data);
+        if (presenceSession.handle(message)) return;
+        onMessage(message);
       } catch (error) {
         onError?.(error);
       }
     };
     socket.onclose = () => {
+      presenceSession.stop();
       if (!stopped) {
         const retryInMs = schedule();
         onClose?.({ attempt, retryInMs });
@@ -86,6 +109,7 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
 
   return () => {
     stopped = true;
+    presenceSession.stop();
     clearTimeout(timer);
     try {
       socket?.close();
