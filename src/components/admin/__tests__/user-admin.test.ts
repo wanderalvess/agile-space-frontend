@@ -1,6 +1,20 @@
 import { describe, it, expect } from 'vitest';
 import type { UserProfile } from '@/lib/types';
-import { activeAdminCount, apiErrorMessage, describeLastAccess, filterUsers } from '../user-admin';
+import {
+  ACCESS_LEVEL_INFO,
+  CARGO_FILTER_OPTIONS,
+  accessLevelOf,
+  activeAdminCount,
+  apiErrorMessage,
+  describeLastAccess,
+  filterUsers,
+  hasActiveFilters,
+  lockReasons,
+  needsAdminConfirm,
+  squadLabelOf,
+  squadsSummary,
+  usersCountLabel,
+} from '../user-admin';
 
 const u = (over: Partial<UserProfile>): UserProfile =>
   ({ id: 'x', name: 'Ana', role: 'MEMBER', squadId: '', isGuest: false, ...over }) as UserProfile;
@@ -45,5 +59,80 @@ describe('gestão de usuários (painel admin)', () => {
     expect(describeLastAccess('2026-10-09T08:00:00Z', now)).toBe('Hoje');
     expect(describeLastAccess('2026-10-08T08:00:00Z', now)).toBe('Ontem');
     expect(describeLastAccess('2026-10-04T12:00:00Z', now)).toBe('Há 5 dias');
+  });
+});
+
+describe('travas, filtros e detalhes (painel admin)', () => {
+  const admin = (id: string, over: Partial<UserProfile> = {}) => u({ id, role: 'ADMIN' as any, active: true, ...over });
+
+  it('a própria conta não desativa nem muda o próprio nível', () => {
+    const me = admin('me');
+    expect(lockReasons(me, { currentUserId: 'me', adminCount: 3 })).toEqual({
+      status: 'você não pode desativar a própria conta',
+      nivel: 'você não pode mudar o próprio nível',
+    });
+  });
+
+  it('o último administrador ativo fica travado nos dois controles', () => {
+    expect(lockReasons(admin('x'), { currentUserId: 'me', adminCount: 1 })).toEqual({
+      status: 'é o último administrador ativo',
+      nivel: 'é o último administrador ativo',
+    });
+  });
+
+  it('admin que não é o último e membro comum ficam livres; membro que é "você" só trava o Status', () => {
+    expect(lockReasons(admin('x'), { currentUserId: 'me', adminCount: 2 })).toEqual({ status: null, nivel: null });
+    expect(lockReasons(u({ id: 'm' }), { currentUserId: 'me', adminCount: 1 })).toEqual({ status: null, nivel: null });
+    expect(lockReasons(u({ id: 'me' }), { currentUserId: 'me', adminCount: 1 })).toEqual({
+      status: 'você não pode desativar a própria conta',
+      nivel: null,
+    });
+  });
+
+  it('só dar ADMIN a quem não é admin pede confirmação', () => {
+    expect(needsAdminConfirm(u({}), 'ADMIN')).toBe(true);
+    expect(needsAdminConfirm(admin('a'), 'ADMIN')).toBe(false);
+    expect(needsAdminConfirm(u({}), 'LEAD')).toBe(false);
+  });
+
+  it('nível de acesso: papel desconhecido vale MEMBER', () => {
+    expect(accessLevelOf(u({ role: 'admin' as any }))).toBe('ADMIN');
+    expect(accessLevelOf(u({ role: 'lead' as any }))).toBe('LEAD');
+    expect(accessLevelOf(u({ role: 'Developer' }))).toBe('MEMBER');
+    expect(ACCESS_LEVEL_INFO.LEAD).toContain('Todas as squads');
+  });
+
+  it('o filtro de cargo traz todos os 15 cargos além de "todos" e "administradores"', () => {
+    expect(CARGO_FILTER_OPTIONS).toHaveLength(17);
+    expect(CARGO_FILTER_OPTIONS.map((o) => o.value)).toContain('Scrum Master');
+    const sm = filterUsers(
+      [u({ id: 'a', jobTitle: 'Scrum Master' }), u({ id: 'b', jobTitle: 'Agile Master' })],
+      { search: '', status: 'all', role: 'Scrum Master' },
+    );
+    expect(sm.map((x) => x.id)).toEqual(['a']);
+  });
+
+  it('detecta filtro aplicado e monta o contador', () => {
+    expect(hasActiveFilters({ search: ' ', status: 'all', role: 'all' })).toBe(false);
+    expect(hasActiveFilters({ search: 'a', status: 'all', role: 'all' })).toBe(true);
+    expect(hasActiveFilters({ search: '', status: 'inactive', role: 'all' })).toBe(true);
+    expect(usersCountLabel(30, 112, 112)).toBe('Exibindo 30 de 112 usuários');
+    expect(usersCountLabel(1, 1, 112)).toBe('Exibindo 1 de 112 usuários · 1 corresponde aos filtros');
+    expect(usersCountLabel(0, 0, 112)).toBe('Exibindo 0 de 112 usuários · 0 correspondem aos filtros');
+  });
+
+  it('squads dos detalhes: erro não vira "sem vínculo"', () => {
+    expect(squadsSummary(undefined, 'X')).toEqual({ kind: 'loading' });
+    expect(squadsSummary(null, 'X')).toEqual({ kind: 'error' });
+    expect(squadsSummary([{ squadId: 'A', role: 'Agile Master' }], 'X')).toEqual({ kind: 'links', links: [{ squadId: 'A', role: 'Agile Master' }] });
+    expect(squadsSummary([], 'DDWMISSI')).toEqual({ kind: 'active', squadId: 'DDWMISSI' });
+    expect(squadsSummary([], '')).toEqual({ kind: 'none' });
+    expect(squadsSummary([], undefined)).toEqual({ kind: 'none' });
+  });
+
+  it('squad da lista: squad ativa, depois o time antigo, depois "Sem squad"', () => {
+    expect(squadLabelOf({ squadId: 'A', team: 'B' })).toBe('A');
+    expect(squadLabelOf({ squadId: '', team: 'B' })).toBe('B');
+    expect(squadLabelOf({ squadId: '' })).toBe('Sem squad');
   });
 });

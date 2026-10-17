@@ -1,4 +1,4 @@
-import type { UserProfile } from '@/lib/types';
+import { ROLES, type UserProfile } from '@/lib/types';
 
 export type StatusFilter = 'all' | 'active' | 'inactive';
 
@@ -62,4 +62,78 @@ export function describeLastAccess(lastLoginAt?: string | null, now: Date = new 
   if (days === 1) return 'Ontem';
   if (days < 30) return `Há ${days} dias`;
   return new Date(t).toLocaleDateString('pt-BR');
+}
+
+/** Opções do filtro "Cargo": todos, administradores (pelo nível de acesso) e a lista completa de cargos. */
+export const CARGO_FILTER_OPTIONS: readonly { value: string; label: string }[] = [
+  { value: 'all', label: 'Todos os cargos' },
+  { value: 'admin', label: 'Administradores' },
+  ...ROLES.map((r) => ({ value: r, label: r })),
+];
+
+export type AccessLevel = 'ADMIN' | 'LEAD' | 'MEMBER';
+
+/** O que cada nível de acesso permite (mostrado na lista de escolha). LEAD ainda existe nos dados. */
+export const ACCESS_LEVEL_INFO: Record<AccessLevel, string> = {
+  ADMIN: 'Abre a Administração e todas as squads',
+  LEAD: 'Todas as squads, sem Administração',
+  MEMBER: 'Só as squads em que está',
+};
+
+/** Nível de acesso da conta em maiúsculas; sem papel conhecido vale MEMBER. */
+export function accessLevelOf(u: Pick<UserProfile, 'role'>): AccessLevel {
+  const r = (u.role || '').toUpperCase();
+  return r === 'ADMIN' || r === 'LEAD' ? r : 'MEMBER';
+}
+
+/** Por que o Status ou o Nível desta linha está travado (null = livre). A tela mostra no cadeado; o servidor confere de novo. */
+export function lockReasons(
+  u: Pick<UserProfile, 'id' | 'role' | 'active'>,
+  ctx: { currentUserId?: string | null; adminCount: number },
+): { status: string | null; nivel: string | null } {
+  const self = !!ctx.currentUserId && u.id === ctx.currentUserId;
+  const lastAdmin = isAdminUser(u) && isActiveUser(u) && ctx.adminCount <= 1;
+  return {
+    status: self ? 'você não pode desativar a própria conta' : lastAdmin ? 'é o último administrador ativo' : null,
+    nivel: isAdminUser(u) ? (self ? 'você não pode mudar o próprio nível' : lastAdmin ? 'é o último administrador ativo' : null) : null,
+  };
+}
+
+/** Dar ADMIN a quem ainda não é pede confirmação (não há desfazer automático). */
+export function needsAdminConfirm(u: Pick<UserProfile, 'role'>, nextLevel: string): boolean {
+  return nextLevel === 'ADMIN' && !isAdminUser(u);
+}
+
+/** Há busca, cargo ou status aplicado? (habilita "Limpar filtros") */
+export function hasActiveFilters(f: { search: string; status: StatusFilter; role: string }): boolean {
+  return f.search.trim() !== '' || f.status !== 'all' || f.role !== 'all';
+}
+
+/** "Exibindo 30 de 112 usuários", com o total filtrado quando há filtro. */
+export function usersCountLabel(shown: number, matched: number, total: number): string {
+  const base = `Exibindo ${shown} de ${total} ${total === 1 ? 'usuário' : 'usuários'}`;
+  return matched === total ? base : `${base} · ${matched} ${matched === 1 ? 'corresponde' : 'correspondem'} aos filtros`;
+}
+
+export type SquadLink = { squadId: string; role?: string };
+
+/** O que a linha "Squads" dos detalhes mostra: vínculos reais, só a squad ativa, nenhum vínculo ou erro. */
+export type SquadsSummary =
+  | { kind: 'loading' }
+  | { kind: 'error' }
+  | { kind: 'links'; links: SquadLink[] }
+  | { kind: 'active'; squadId: string }
+  | { kind: 'none' };
+
+/** `links === undefined` = carregando, `null` = a chamada falhou (não é "sem vínculo"). */
+export function squadsSummary(links: SquadLink[] | null | undefined, activeSquadId?: string | null): SquadsSummary {
+  if (links === undefined) return { kind: 'loading' };
+  if (links === null) return { kind: 'error' };
+  if (links.length > 0) return { kind: 'links', links };
+  return activeSquadId ? { kind: 'active', squadId: activeSquadId } : { kind: 'none' };
+}
+
+/** Squad mostrada na coluna da lista. */
+export function squadLabelOf(u: Pick<UserProfile, 'squadId' | 'team'>): string {
+  return u.squadId || u.team || 'Sem squad';
 }

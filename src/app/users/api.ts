@@ -74,6 +74,14 @@ export const userApi = {
     }
   },
 
+  /**
+   * Lista da administração: ao contrário de getAllUsers, NÃO engole o erro. A tela precisa distinguir
+   * "não há usuários" de "não consegui carregar" (e oferecer "Tentar de novo").
+   */
+  async listUsersOrThrow(): Promise<UserProfile[]> {
+    return req<UserProfile[]>('/users');
+  },
+
   async getUser(id: string): Promise<UserProfile | null> {
     try {
       return await req<UserProfile>(`/users/${id}`);
