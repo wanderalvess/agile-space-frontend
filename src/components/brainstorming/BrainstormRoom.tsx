@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Ghost, Monitor, Trash2, UserX, Users, WifiOff } from 'lucide-react';
+import { Eye, EyeOff, Flag, Ghost, Hand, Monitor, RotateCcw, Trash2, UserX, Users, WifiOff } from 'lucide-react';
 import {
   ConfirmDialog,
   ModalButton,
@@ -24,6 +24,23 @@ import { presenceOnlineOf } from '@/lib/room-presence';
 import { BrainstormParticipants } from './BrainstormParticipants';
 import { BrainstormRoomBar } from './BrainstormRoomBar';
 import { BrainstormSettingsDialog } from './BrainstormSettingsDialog';
+import { TransferFacilitationDialog } from './TransferFacilitationDialog';
+import { useOfflineElapsed } from './useOfflineElapsed';
+import {
+  FACILITATOR_OFFLINE_SECONDS,
+  boardVoteLimit,
+  canFinishOrReopen,
+  canTransferFacilitation,
+  claimState,
+  effectiveFacilitatorId,
+  facilitatorDisplayName,
+  isBoardFinished,
+  participantName,
+  quotaLabel,
+  supportsCeremonyApi,
+  transferCandidates,
+  voteQuota,
+} from './brainstorm-ceremony';
 import { IdeaViewProvider, type IdeaViewValue } from './brainstorm-context';
 import {
   BRAIN_STAGES,
@@ -86,6 +103,20 @@ export interface BrainstormRoomProps {
   onRemoveParticipant: (participantId: string) => void;
   onDeleteBoard: () => void;
   onOpenFeedback: () => void;
+
+  /** Conta ADMIN: encerra, reabre, assume e passa a facilitação, e edita texto mesmo com a edição restrita. */
+  isAdmin?: boolean;
+  /** Uma rota nova respondeu 404/405 (backend antigo): encerrar, assumir e passar somem. */
+  ceremonyUnavailable?: boolean;
+  /** Uma chamada de encerrar, reabrir, assumir ou passar está em andamento. */
+  ceremonyBusy?: boolean;
+  onFinish?: () => void;
+  onReopen?: () => void;
+  onClaimFacilitation?: () => void;
+  onTransferFacilitation?: (userId: string) => void;
+  /** `null` tira o limite. */
+  onVoteLimitChange?: (value: number | null) => void;
+  onRestrictEditsChange?: (value: boolean) => void;
 }
 
 const isTypingTarget = (t: EventTarget | null) => {
@@ -96,11 +127,12 @@ const isTypingTarget = (t: EventTarget | null) => {
 /** Há uma janela, menu ou lista aberta por cima? Então Esc é dela, não da apresentação. */
 const hasOverlayOpen = () => !!document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]');
 
-function Notice({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+function Notice({ icon: Icon, children, action }: { icon: React.ElementType; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <div role="status" className="flex items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground sm:px-4 xl:px-6">
+    <div role="status" className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-[13px] text-muted-foreground sm:px-4 xl:px-6">
       <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
       <span className="min-w-0">{children}</span>
+      {action && <span className="ml-auto flex shrink-0 items-center">{action}</span>}
     </div>
   );
 }
@@ -111,7 +143,7 @@ function Notice({ icon: Icon, children }: { icon: React.ElementType; children: R
  * confirmações). Os dados e as chamadas ao servidor ficam na página; aqui só se desenha e se pergunta.
  */
 function BrainstormRoomComponent(props: BrainstormRoomProps) {
-  const { boardId, boardData, ideas, groups, participants, onlineIds = null, currentUserId, isFacilitator, mergingSourceId, connection, squadLabel } = props;
+  const { boardId, boardData, ideas, groups, participants, onlineIds = null, currentUserId, isFacilitator, mergingSourceId, connection, squadLabel, isAdmin = false, ceremonyBusy = false } = props;
   const { toast } = useToast();
 
   const phase = normalizeStage(boardData.phase);
@@ -132,16 +164,38 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
   const [deleteBoardOpen, setDeleteBoardOpen] = useState(false);
   const [ideaToDelete, setIdeaToDelete] = useState<BrainstormingIdea | null>(null);
   const [personToRemove, setPersonToRemove] = useState<Participant | null>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [imageRequest, setImageRequest] = useState(0);
   const [expiredEnd, setExpiredEnd] = useState<number | null>(null);
   const [inviteText, setInviteText] = useState('');
 
-  const names = useMemo(() => participantNames(participants), [participants]);
-  const people = useMemo<TopBarPerson[]>(() => participants.map((p) => ({ id: p.id, name: p.nickname || 'Participante', online: presenceOnlineOf(onlineIds, p.id) })), [participants, onlineIds]);
-  const viewValue = useMemo<IdeaViewValue>(
-    () => ({ currentUserId, isFacilitator, anonymous, revealed: settings.isRevealed, names }),
-    [currentUserId, isFacilitator, anonymous, settings.isRevealed, names]
+  // Cerimônia (backend novo): encerrar, facilitação e limite de votos. Sem os campos novos nada disto aparece.
+  const finished = isBoardFinished(boardData);
+  const ceremonyApi = supportsCeremonyApi(boardData) && !props.ceremonyUnavailable;
+  const facilitatorId = effectiveFacilitatorId(boardData) ?? '';
+  const canFinish = ceremonyApi && canFinishOrReopen({ board: boardData, userId: currentUserId, isAdmin });
+  const canTransfer = ceremonyApi && canTransferFacilitation({ board: boardData, userId: currentUserId, isAdmin });
+  const facilitatorOnline = presenceOnlineOf(onlineIds, facilitatorId);
+  const offlineMs = useOfflineElapsed(ceremonyApi && !isFacilitator && facilitatorOnline === false, facilitatorId, FACILITATOR_OFFLINE_SECONDS * 1000);
+  const claim = useMemo(
+    () =>
+      ceremonyApi
+        ? claimState({ board: boardData, userId: currentUserId, isAdmin, isParticipant: participants.some((p) => p.id === currentUserId), facilitatorOnline, offlineForMs: offlineMs })
+        : { visible: false, enabled: false, waitSeconds: 0 },
+    [ceremonyApi, boardData, currentUserId, isAdmin, participants, facilitatorOnline, offlineMs]
   );
+  const facilitatorName = facilitatorDisplayName(boardData, participants);
+  const voteLimit = ceremonyApi ? boardVoteLimit(boardData) : null;
+  const quota = useMemo(() => voteQuota(voteLimit, ideas, currentUserId), [voteLimit, ideas, currentUserId]);
+
+  const names = useMemo(() => participantNames(participants), [participants]);
+  const people = useMemo<TopBarPerson[]>(() => participants.map((p) => ({ id: p.id, name: participantName(p), online: presenceOnlineOf(onlineIds, p.id) })), [participants, onlineIds]);
+  const viewValue = useMemo<IdeaViewValue>(
+    () => ({ currentUserId, isFacilitator, anonymous, revealed: settings.isRevealed, names, readOnly: finished, restrictEdits: !!settings.restrictEdits, isAdmin, quota }),
+    [currentUserId, isFacilitator, anonymous, settings.isRevealed, settings.restrictEdits, names, finished, isAdmin, quota]
+  );
+  const transferPeople = useMemo(() => transferCandidates(boardData, participants), [boardData, participants]);
 
   const roomUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/brainstorming/${boardId}`;
 
@@ -181,7 +235,7 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
     <>
       <RoomTimer
         timer={timer}
-        isFacilitator={isFacilitator}
+        isFacilitator={isFacilitator && !finished}
         onStart={props.onStartTimer}
         onPause={props.onPauseTimer}
         onResume={props.onResumeTimer}
@@ -295,7 +349,41 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
               onToggleSound={() => setSoundEnabled(!soundEnabled)}
               onDeleteBoard={() => setDeleteBoardOpen(true)}
               onOpenFeedback={props.onOpenFeedback}
+              finished={finished}
+              canFinish={canFinish}
+              onFinish={() => setFinishOpen(true)}
+              onReopen={props.onReopen}
+              canTransfer={canTransfer}
+              onTransfer={() => setTransferOpen(true)}
             />
+            {finished && (
+              <Notice
+                icon={Flag}
+                action={
+                  canFinish && props.onReopen ? (
+                    <ModalButton className="h-8 gap-1.5 px-3 text-[13px]" onClick={props.onReopen} disabled={ceremonyBusy}>
+                      <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Reabrir
+                    </ModalButton>
+                  ) : undefined
+                }
+              >
+                <strong className="font-semibold text-foreground">Brainstorming encerrado.</strong> A sala está só para leitura{canFinish ? '' : '; quem facilita pode reabrir'}.
+              </Notice>
+            )}
+            {!finished && claim.visible && facilitatorOnline === false && !isFacilitator && (
+              <Notice
+                icon={Hand}
+                action={
+                  props.onClaimFacilitation ? (
+                    <ModalButton className="h-8 gap-1.5 px-3 text-[13px]" onClick={props.onClaimFacilitation} disabled={!claim.enabled || ceremonyBusy}>
+                      Assumir a facilitação{!claim.enabled && claim.waitSeconds > 0 ? ` (em ${claim.waitSeconds} s)` : ''}
+                    </ModalButton>
+                  ) : undefined
+                }
+              >
+                <strong className="font-semibold text-foreground">{facilitatorName ? `${facilitatorName} saiu da sala.` : 'A facilitação está sem ninguém na sala.'}</strong>
+              </Notice>
+            )}
             {connection === 'offline' && <Notice icon={WifiOff}><strong className="font-semibold text-foreground">Sem conexão:</strong> as mudanças não serão salvas. Tentando reconectar.</Notice>}
             {ideasHidden && isFacilitator && <Notice icon={EyeOff}><strong className="font-semibold text-foreground">Ideias ocultas para a sala.</strong> Só você, como facilitador, vê o texto de todas. Revele quando a escrita terminar.</Notice>}
             {ideasHidden && !isFacilitator && <Notice icon={EyeOff}><strong className="font-semibold text-foreground">As ideias estão ocultas.</strong> Você vê só as suas até o facilitador revelar. Votar e juntar ficam bloqueados.</Notice>}
@@ -308,13 +396,18 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
           <main className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <div aria-hidden="true" className="room-halo pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]" />
             <div className={cn('min-h-0 flex-1 p-3 lg:px-5', phase === 'diagram' ? 'overflow-hidden' : 'overflow-y-auto')}>{stage}</div>
-            <div className="flex shrink-0 justify-center px-3 pb-3 pt-1">
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 px-3 pb-3 pt-1">
+              {quota.limit !== null && !finished && (
+                <StatusChip tone={quota.reached ? 'warn' : 'neutral'} className="h-8 px-3 text-[13px]">
+                  <span role="status" aria-live="polite">{quotaLabel(quota)}</span>
+                </StatusChip>
+              )}
               <StageNav
                 label="Etapas do brainstorming"
                 items={BRAIN_STAGES}
                 value={phase}
                 onChange={(id) => props.onPhaseChange(id as BrainstormingPhase)}
-                locked={isStageNavLocked(isFacilitator)}
+                locked={isStageNavLocked(isFacilitator, finished)}
               />
             </div>
           </main>
@@ -334,10 +427,16 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
               <BrainstormParticipants
                 onlineIds={onlineIds}
                 participants={participants}
-                creatorId={boardData.creatorId}
+                facilitatorId={facilitatorId}
+                facilitatorName={facilitatorName}
                 currentUserId={currentUserId}
                 isFacilitator={isFacilitator}
                 onRequestRemove={setPersonToRemove}
+                claim={claim}
+                claiming={ceremonyBusy}
+                onClaim={props.onClaimFacilitation}
+                canTransfer={canTransfer}
+                onTransfer={() => setTransferOpen(true)}
               />
             </ResponsivePanel>
           )}
@@ -359,6 +458,15 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
           onTogglePresentation={props.onTogglePresentation}
           onRename={props.onRename}
           onSoundChange={setSoundEnabled}
+          finished={finished}
+          ceremonyApi={ceremonyApi}
+          voteLimit={voteLimit}
+          onVoteLimitChange={props.onVoteLimitChange}
+          restrictEdits={!!settings.restrictEdits}
+          onRestrictEditsChange={props.onRestrictEditsChange}
+          canFinish={canFinish}
+          onFinish={() => setFinishOpen(true)}
+          onReopen={props.onReopen}
         />
 
         <ShareDialog
@@ -402,11 +510,35 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
         />
 
         <ConfirmDialog
+          open={finishOpen}
+          onOpenChange={setFinishOpen}
+          tone="warn"
+          icon={Flag}
+          title="Encerrar este brainstorming?"
+          description="A sala fica só para leitura: ninguém lança, edita nem vota. Quem facilita pode reabrir depois."
+          cancelLabel="Cancelar"
+          confirmLabel="Encerrar brainstorming"
+          onConfirm={() => props.onFinish?.()}
+        />
+
+        <TransferFacilitationDialog
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
+          candidates={transferPeople}
+          onlineIds={onlineIds}
+          busy={ceremonyBusy}
+          onConfirm={(userId) => {
+            props.onTransferFacilitation?.(userId);
+            setTransferOpen(false);
+          }}
+        />
+
+        <ConfirmDialog
           open={!!personToRemove}
           onOpenChange={(next) => { if (!next) setPersonToRemove(null); }}
           tone="warn"
           icon={UserX}
-          title={`Remover ${personToRemove?.nickname || 'esta pessoa'} da sessão?`}
+          title={`Remover ${personToRemove ? participantName(personToRemove) : 'esta pessoa'} da sessão?`}
           description="Ela sai da lista de participantes. As ideias dela continuam no mural, e quem tem o link pode voltar a entrar."
           cancelLabel="Cancelar"
           confirmLabel="Remover pessoa"

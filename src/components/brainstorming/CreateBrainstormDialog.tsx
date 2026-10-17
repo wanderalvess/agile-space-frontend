@@ -14,7 +14,9 @@ import { moduleIcon } from '@/lib/modules-registry';
 import type { BrainstormingBoard } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { brainstormingApi } from '@/app/brainstorming/api';
+import { supportsCeremonyApi } from './brainstorm-ceremony';
 import { BRAIN_TIMER_PRESETS, DEFAULT_TIMER_SECONDS, durationLabel, stoppedTimer } from './brainstorm-room-logic';
+import { VoteLimitField } from './VoteLimitField';
 
 const LABEL = 'text-[13px] font-semibold text-foreground';
 
@@ -27,6 +29,8 @@ export interface CreateBrainstormDialogProps {
   onCreatingChange?: (creating: boolean) => void;
   /** Sessão criada: a página leva a pessoa para a sala. */
   onCreated: (board: BrainstormingBoard) => void;
+  /** O servidor conhece votos por pessoa e edição restrita? `false` (backend antigo) esconde os dois ajustes; ausente = mostra. */
+  ceremonySupported?: boolean;
 }
 
 /**
@@ -34,7 +38,7 @@ export interface CreateBrainstormDialogProps {
  * facilitador já pode escolher na criação (autores anônimos, ideias ocultas até revelar, duração do cronômetro).
  * Título vazio e falha do servidor aparecem no próprio diálogo e o que foi digitado fica.
  */
-export function CreateBrainstormDialog({ open, onOpenChange, onCreatingChange, onCreated }: CreateBrainstormDialogProps) {
+export function CreateBrainstormDialog({ open, onOpenChange, onCreatingChange, onCreated, ceremonySupported = true }: CreateBrainstormDialogProps) {
   const { toast } = useToast();
   const { userProfile } = useUserContext();
   const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
@@ -49,6 +53,8 @@ export function CreateBrainstormDialog({ open, onOpenChange, onCreatingChange, o
   const [chosenSquad, setChosenSquad] = useState('');
   const [anonymous, setAnonymous] = useState(false);
   const [hideIdeas, setHideIdeas] = useState(false);
+  const [voteLimit, setVoteLimit] = useState<number | null>(null);
+  const [restrictEdits, setRestrictEdits] = useState(false);
   const [duration, setDuration] = useState(String(DEFAULT_TIMER_SECONDS));
   const [creating, setCreating] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -61,6 +67,8 @@ export function CreateBrainstormDialog({ open, onOpenChange, onCreatingChange, o
     setTitleError(false);
     setAnonymous(false);
     setHideIdeas(false);
+    setVoteLimit(null);
+    setRestrictEdits(false);
     setDuration(String(DEFAULT_TIMER_SECONDS));
     setFailure(null);
   };
@@ -93,13 +101,18 @@ export function CreateBrainstormDialog({ open, onOpenChange, onCreatingChange, o
         team: squad || undefined,
         createdAt: new Date().toISOString(),
         phase: 'ideation',
-        settings: { isAnonymous: anonymous, ...(hideIdeas ? { isRevealed: false } : {}) },
+        settings: { isAnonymous: anonymous, ...(hideIdeas ? { isRevealed: false } : {}), ...(ceremonySupported && restrictEdits ? { restrictEdits: true } : {}) },
+        ...(ceremonySupported && voteLimit !== null ? { votesPerParticipant: voteLimit } : {}),
         timer: stoppedTimer(Number(duration) || DEFAULT_TIMER_SECONDS),
         participantIds: [userProfile.id],
       });
       if (!created?.id) {
         setFailure('O servidor não devolveu a sessão. O que você digitou foi mantido; tente de novo.');
         return;
+      }
+      // Backend antigo ignora os campos novos em silêncio: avisa em vez de deixar a pessoa achar que o limite vale.
+      if (ceremonySupported && (voteLimit !== null || restrictEdits) && !supportsCeremonyApi(created)) {
+        toast({ title: 'O servidor ainda não aplica esses ajustes', description: 'O limite de votos e a edição restrita entram quando o servidor for atualizado.' });
       }
       rememberRoom(typeof window === 'undefined' ? undefined : window.localStorage, { roomId: created.id, title: name, team: squad, createdBy: userProfile.id });
       onOpenChange(false);
@@ -180,6 +193,10 @@ export function CreateBrainstormDialog({ open, onOpenChange, onCreatingChange, o
           <legend className="mb-1 flex items-center gap-2 p-0 text-[13px] font-semibold text-foreground">Ajustes do facilitador</legend>
           <SettingRow id="brain-new-anon" title="Autores anônimos" desc="Ninguém vê quem lançou cada ideia, nem o facilitador." checked={anonymous} onChange={setAnonymous} disabled={creating} />
           <SettingRow id="brain-new-hide" title="Ocultar as ideias até revelar" desc="Cada pessoa só vê as próprias ideias até o facilitador revelar." checked={hideIdeas} onChange={setHideIdeas} disabled={creating} />
+          {ceremonySupported && <VoteLimitField idPrefix="brain-new" value={voteLimit} onChange={setVoteLimit} disabled={creating} />}
+          {ceremonySupported && (
+            <SettingRow id="brain-new-restrict" title="Só o autor e a facilitação editam o texto" desc="Mover, agrupar, votar e juntar ideias continuam livres." checked={restrictEdits} onChange={setRestrictEdits} disabled={creating} />
+          )}
           <div className="flex items-center justify-between gap-4 py-3">
             <label htmlFor="brain-duration" className="flex min-w-0 flex-col gap-0.5">
               <span className="text-sm font-semibold text-foreground">Duração do cronômetro</span>

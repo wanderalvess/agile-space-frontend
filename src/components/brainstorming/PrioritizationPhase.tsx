@@ -6,6 +6,7 @@ import { IconTile, ModalButton, StatusChip, TONES, TabBar, useBelowBreakpoint, t
 import { getQuadrant, ideaText, votesOf } from '@/lib/brainstorming-utils';
 import type { BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useIdeaView } from './brainstorm-context';
 import { MATRIX_COLUMNS, groupColorOf, matrixColumn, matrixColumnIdeas, NO_GROUP_COLOR, type MatrixColumn } from './brainstorm-room-logic';
 import { MoveToMenu } from './MoveToMenu';
 
@@ -28,6 +29,7 @@ const COLUMN_STYLE: Record<MatrixColumn['id'], { icon: LucideIcon; tone: Tone }>
  * Arrastar o cartão (mouse) grava retorno e esforço da coluna; "Mover para…" faz o mesmo no toque e no teclado.
  */
 export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: PrioritizationPhaseProps) {
+  const { readOnly = false } = useIdeaView();
   const [draggedIdeaId, setDraggedIdeaId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const [mobileColumn, setMobileColumn] = useState<MatrixColumn['id']>('unclassified');
@@ -36,7 +38,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
   const moveToColumn = (ideaId: string, columnId: string) => {
     const column = matrixColumn(columnId);
     const idea = ideas.find((i) => i.id === ideaId);
-    if (!column || !idea) return;
+    if (!column || !idea || readOnly) return;
     // Já está nessa coluna: nada a gravar.
     if (getQuadrant(idea.qualifiers) === column.id) return;
     onUpdateQualifiers(ideaId, column.qualifiers);
@@ -83,7 +85,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="m-0 text-xl font-bold text-foreground">Matriz de priorização</h2>
-          <p className="m-0 mt-1 text-sm text-muted-foreground">Arraste as ideias para a coluna certa{compact ? ' ou use o botão de mover' : ''}.</p>
+          <p className="m-0 mt-1 text-sm text-muted-foreground">{readOnly ? 'Brainstorming encerrado: só leitura.' : <>Arraste as ideias para a coluna certa{compact ? ' ou use o botão de mover' : ''}.</>}</p>
         </div>
         <StatusChip tone="brand" className="h-8 gap-1.5 px-3 text-[13px]">
           <Info className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Dica: o foco do time são os Quick wins
@@ -140,11 +142,12 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
                   return (
                     <li
                       key={idea.id}
-                      draggable
+                      draggable={!readOnly}
                       onDragStart={(e) => handleDragStart(e, idea.id)}
                       onDragEnd={handleDragEnd}
                       className={cn(
-                        'flex cursor-grab flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-[box-shadow,opacity] duration-fast hover:shadow-md active:cursor-grabbing',
+                        'flex flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-sm transition-[box-shadow,opacity] duration-fast hover:shadow-md',
+                        !readOnly && 'cursor-grab active:cursor-grabbing',
                         draggedIdeaId === idea.id && 'opacity-50'
                       )}
                     >
@@ -165,7 +168,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
                           </>
                         )}
                       </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      {!readOnly && <div className="flex flex-wrap items-center gap-1.5">
                         {col.id !== 'quick_wins' && (
                           <ModalButton className="h-8 gap-1.5 px-2.5 text-xs max-sm:h-11" aria-label="Mover para Quick wins" onClick={() => moveToColumn(idea.id, 'quick_wins')}>
                             <Zap className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Quick wins
@@ -177,7 +180,7 @@ export function PrioritizationPhase({ ideas, groups, onUpdateQualifiers }: Prior
                           </ModalButton>
                         )}
                         <MoveToMenu options={columnOptions(idea)} onSelect={(id) => moveToColumn(idea.id, id)} label="Mover para outra coluna" className="ml-auto" />
-                      </div>
+                      </div>}
                     </li>
                   );
                 })}

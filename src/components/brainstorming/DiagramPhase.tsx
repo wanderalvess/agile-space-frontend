@@ -23,6 +23,7 @@ import { Maximize2, Unlink, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { ConfirmDialog, IconButton, ModalButton } from '@/components/room-kit';
 import { ideaSignature } from '@/lib/brainstorming-utils';
 import type { BrainstormingIdea } from '@/lib/types';
+import { useIdeaView } from './brainstorm-context';
 import { pageBackground, useExportRequest } from './brainstorm-image';
 import { IdeaCard } from './IdeaCard';
 
@@ -86,6 +87,7 @@ export function DiagramPhase({
   exportRequest,
   onExportDone,
 }: DiagramPhaseProps) {
+  const { readOnly = false } = useIdeaView();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<IdeaNodeData>>([]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [confirmEdgeId, setConfirmEdgeId] = useState<string | null>(null);
@@ -127,13 +129,13 @@ export function DiagramPhase({
     [ideas, selectedEdgeId]
   );
 
-  const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => onUpdatePosition(node.id, node.position.x, node.position.y), [onUpdatePosition]);
+  const onNodeDragStop = useCallback((_: React.MouseEvent, node: Node) => { if (!readOnly) onUpdatePosition(node.id, node.position.x, node.position.y); }, [onUpdatePosition, readOnly]);
 
   const onConnect = useCallback(
     (params: Connection) => {
-      if (params.source && params.target) onConnectIdeas(params.source, params.target);
+      if (params.source && params.target && !readOnly) onConnectIdeas(params.source, params.target);
     },
-    [onConnectIdeas]
+    [onConnectIdeas, readOnly]
   );
 
   const confirmEdge = edges.find((e) => e.id === confirmEdgeId);
@@ -184,6 +186,8 @@ export function DiagramPhase({
         onNodesChange={onNodesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
         onEdgeClick={(_, edge) => setSelectedEdgeId(edge.id)}
         onPaneClick={() => setSelectedEdgeId(null)}
         nodeTypes={nodeTypes}
@@ -205,16 +209,18 @@ export function DiagramPhase({
 
         <Panel position="bottom-left" className="mb-3 max-w-[20rem] rounded-xl border border-border bg-card/95 p-2.5 text-xs leading-relaxed text-muted-foreground shadow-md max-2xl:hidden">
           <strong className="block text-[13px] font-semibold text-foreground">Como mexer</strong>
-          Arraste uma ideia para movê-la. Puxe da bolinha de baixo até outra ideia para ligar.{' '}
+          {readOnly ? 'Brainstorming encerrado: só leitura.' : 'Arraste uma ideia para movê-la. Puxe da bolinha de baixo até outra ideia para ligar.'}{' '}
           <kbd className="rounded border border-border px-1">Ctrl</kbd> + rolagem aproxima; botão do meio ou direito arrasta o quadro.
         </Panel>
 
         {selectedEdgeId && (
           <Panel position="top-center" className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-lg">
             <span className="px-2 text-[13px] font-medium text-foreground">Ligação entre duas ideias</span>
-            <ModalButton className="h-9 gap-1.5 px-3 text-[13px]" onClick={() => setConfirmEdgeId(selectedEdgeId)}>
-              <Unlink className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Remover ligação
-            </ModalButton>
+            {!readOnly && (
+              <ModalButton className="h-9 gap-1.5 px-3 text-[13px]" onClick={() => setConfirmEdgeId(selectedEdgeId)}>
+                <Unlink className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Remover ligação
+              </ModalButton>
+            )}
             <IconButton size="sm" label="Fechar" icon={X} onClick={() => setSelectedEdgeId(null)} className="border-transparent" />
           </Panel>
         )}

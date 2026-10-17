@@ -18,6 +18,7 @@ import { FolderPlus, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { ConfirmDialog, FIELD, FOCUS_RING, IconButton, ModalButton } from '@/components/room-kit';
 import type { BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useIdeaView } from './brainstorm-context';
 import { groupColorOf, NO_GROUP_COLOR } from './brainstorm-room-logic';
 import { IdeaCard } from './IdeaCard';
 import { MoveToMenu, type MoveToOption } from './MoveToMenu';
@@ -45,7 +46,8 @@ function DraggableIdea({
   onMove: (groupId: string | null) => void;
   onVote: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: idea.id, data: { idea } });
+  const { readOnly = false } = useIdeaView();
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: idea.id, data: { idea }, disabled: readOnly });
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
 
   const current = idea.groupId ?? UNASSIGNED;
@@ -53,7 +55,7 @@ function DraggableIdea({
 
   return (
     <div ref={setNodeRef} style={style} className={cn('flex items-start gap-1', isDragging && 'opacity-0')}>
-      <div className="flex shrink-0 flex-col items-center gap-0.5 pt-1">
+      {!readOnly && <div className="flex shrink-0 flex-col items-center gap-0.5 pt-1">
         <button
           type="button"
           {...listeners}
@@ -71,7 +73,7 @@ function DraggableIdea({
           onSelect={(id) => onMove(id === UNASSIGNED ? null : id)}
           className="h-8 w-7"
         />
-      </div>
+      </div>}
       <div className="min-w-0 flex-1">
         <IdeaCard idea={idea} onVote={onVote} />
       </div>
@@ -94,7 +96,8 @@ function GroupColumn({
   onVote: (id: string) => void;
   onDelete?: (group: BrainstormingGroup, count: number) => void;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: group?.id ?? UNASSIGNED });
+  const { readOnly = false } = useIdeaView();
+  const { setNodeRef, isOver } = useDroppable({ id: group?.id ?? UNASSIGNED, disabled: readOnly });
   const title = group?.title ?? 'Sem grupo';
 
   return (
@@ -110,7 +113,7 @@ function GroupColumn({
         <span aria-hidden="true" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: group ? groupColorOf(group) : NO_GROUP_COLOR }} />
         <h3 className="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-foreground" title={title}>{title}</h3>
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{ideas.length}</span>
-        {group && onDelete && (
+        {group && onDelete && !readOnly && (
           <IconButton
             size="sm"
             label={`Apagar o grupo ${group.title}`}
@@ -142,6 +145,7 @@ function GroupColumn({
  * escolher "Mover para…", que também serve ao toque e ao teclado) e apagar o grupo (as ideias voltam para "Sem grupo").
  */
 export function GroupingPhase({ ideas, groups, onAddGroup, onDeleteGroup, onMoveIdeaToGroup, onVoteIdea }: GroupingPhaseProps) {
+  const { readOnly = false } = useIdeaView();
   const [activeIdea, setActiveIdea] = useState<BrainstormingIdea | null>(null);
   const [newGroupTitle, setNewGroupTitle] = useState('');
   const [creating, setCreating] = useState(false);
@@ -149,7 +153,7 @@ export function GroupingPhase({ ideas, groups, onAddGroup, onDeleteGroup, onMove
 
   const submitGroup = async () => {
     const title = newGroupTitle.trim();
-    if (!title || creating) return;
+    if (!title || creating || readOnly) return;
     setCreating(true);
     try {
       const saved = await onAddGroup(title);
@@ -203,9 +207,10 @@ export function GroupingPhase({ ideas, groups, onAddGroup, onDeleteGroup, onMove
             placeholder="Nome do novo grupo"
             aria-label="Nome do novo grupo"
             maxLength={255}
-            className={cn(FIELD, 'h-11 min-w-0 flex-1 sm:w-64 sm:flex-none')}
+            disabled={readOnly}
+            className={cn(FIELD, 'h-11 min-w-0 flex-1 sm:w-64 sm:flex-none disabled:cursor-not-allowed')}
           />
-          <ModalButton type="submit" variant="primary" className="h-11 shrink-0 gap-2" disabled={!newGroupTitle.trim() || creating}>
+          <ModalButton type="submit" variant="primary" className="h-11 shrink-0 gap-2" disabled={!newGroupTitle.trim() || creating || readOnly}>
             <FolderPlus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar grupo
           </ModalButton>
         </form>

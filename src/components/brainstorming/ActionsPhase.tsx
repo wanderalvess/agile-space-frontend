@@ -6,6 +6,8 @@ import { IconTile, ModalButton, SelectField, StatusChip } from '@/components/roo
 import { getQuadrant, ideaText, votesOf } from '@/lib/brainstorming-utils';
 import type { BrainstormingBoard, BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useIdeaView } from './brainstorm-context';
+import { canEditIdeaText } from './brainstorm-ceremony';
 import { CreatePlanDialog } from './CreatePlanDialog';
 import { NO_GROUP_COLOR, groupColorOf, quadrantLabel, sortByVotes } from './brainstorm-room-logic';
 
@@ -152,6 +154,9 @@ function ActionCard({
   onUpdate: (id: string, content: string) => Promise<boolean | void> | boolean | void;
   onMove: (id: string, groupId: string | null) => void;
 }) {
+  const view = useIdeaView();
+  const readOnly = !!view.readOnly;
+  const canEditText = canEditIdeaText({ idea, userId: view.currentUserId, isFacilitator: view.isFacilitator, isAdmin: view.isAdmin, restrictEdits: view.restrictEdits, readOnly });
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(idea.content);
@@ -189,7 +194,7 @@ function ActionCard({
       </div>
 
       <div className="min-w-0 flex-1">
-        {isEditing ? (
+        {isEditing && canEditText ? (
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -210,6 +215,8 @@ function ActionCard({
           <p className="m-0 flex items-center gap-1.5 text-[13px] italic text-muted-foreground">
             <Lock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> {ideaText(idea)}
           </p>
+        ) : !canEditText ? (
+          <p className={cn('m-0 whitespace-pre-wrap break-words text-[13px] font-medium leading-snug text-foreground', !isExpanded && 'line-clamp-4')}>{idea.content}</p>
         ) : (
           <button
             type="button"
@@ -238,6 +245,7 @@ function ActionCard({
             value={idea.groupId || NO_GROUP}
             onChange={(v) => onMove(idea.id, v === NO_GROUP ? null : v)}
             options={options}
+            disabled={readOnly}
             className="h-8 min-w-0 max-w-[10rem] border-transparent bg-transparent px-2 text-xs"
           />
         </div>
