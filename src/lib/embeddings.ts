@@ -18,9 +18,11 @@ async function getEmbedder(): Promise<FeatureExtractionPipeline> {
     embedderPromise = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers');
       // Path explícito (não confia no default implícito da lib) — precisa ser
-      // gravável pelo usuário do container (ver Dockerfile) e está no .gitignore
-      // porque o modelo baixado tem ~470MB.
-      env.cacheDir = path.join(process.cwd(), '.cache', 'transformers-cache');
+      // gravável pelo usuário do container (ver Dockerfile, que define
+      // EMBEDDING_CACHE_DIR) e está no .gitignore porque o modelo baixado tem ~470MB.
+      env.cacheDir =
+        process.env.EMBEDDING_CACHE_DIR ||
+        path.join(process.cwd(), '.cache', 'transformers-cache');
       return (await pipeline('feature-extraction', MODEL_ID)) as unknown as FeatureExtractionPipeline;
     })();
     // Falha (ex.: download do modelo) não pode ficar em cache: a próxima chamada tenta de novo.
