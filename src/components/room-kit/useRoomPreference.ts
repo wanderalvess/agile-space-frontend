@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useStableCallback } from '@/hooks/use-stable-callback';
 
 /**
  * Preferência pessoal da sala guardada no navegador (visão quadro/foco, som do timer, aviso dispensado).
@@ -13,35 +14,40 @@ export function useRoomPreference<T>(
   initial: T,
   parse: (raw: string) => T | undefined,
   serialize: (value: T) => string = String
-): [T, (value: T) => void] {
+): [T, (value: T) => void, boolean] {
   const [value, setValue] = React.useState<T>(initial);
-  const parseRef = React.useRef(parse);
-  parseRef.current = parse;
-  const serializeRef = React.useRef(serialize);
-  serializeRef.current = serialize;
+  // `loaded` fica verdadeiro depois da primeira leitura do storage: quem decide abrir algo conforme a
+  // preferência (aviso dispensado) espera por ele para não piscar o padrão antes do valor salvo.
+  const [loaded, setLoaded] = React.useState(false);
+  const parseStable = useStableCallback(parse);
+  const serializeStable = useStableCallback(serialize);
 
   React.useEffect(() => {
+    /* O storage só existe no navegador: ler depois de montar evita divergência de hidratação. */
     try {
       const raw = window.localStorage.getItem(key);
-      if (raw === null) return;
-      const parsed = parseRef.current(raw);
-      if (parsed !== undefined) setValue(parsed);
+      if (raw !== null) {
+        const parsed = parseStable(raw);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura única do storage depois de montar
+        if (parsed !== undefined) setValue(parsed);
+      }
     } catch {
       /* storage indisponível: fica o padrão */
     }
-  }, [key]);
+    setLoaded(true);
+  }, [key, parseStable]);
 
   const update = React.useCallback(
     (next: T) => {
       setValue(next);
       try {
-        window.localStorage.setItem(key, serializeRef.current(next));
+        window.localStorage.setItem(key, serializeStable(next));
       } catch {
         /* sem storage: vale só nesta sessão */
       }
     },
-    [key]
+    [key, serializeStable]
   );
 
-  return [value, update];
+  return [value, update, loaded];
 }

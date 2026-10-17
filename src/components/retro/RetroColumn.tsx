@@ -1,546 +1,363 @@
 'use client';
 
-import { useMemo, useState, useRef, useEffect, memo } from 'react';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import type { RetroCard as RetroCardType, RetroColumnKey, RetroBoard as RetroBoardType, RetroParticipant, RetroColumnTheme, RetroColumnDef, RetroReactionType } from "@/lib/types";
-import { AddRetroCard } from "./AddRetroCard";
-import { RetroCard } from "./RetroCard";
-import { RetroActionImportDialog } from "./RetroActionImportDialog";
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { ArrowDownWideNarrow, ClipboardCheck, EyeOff, Lock, PackageOpen, Pencil, PenLine, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, AlertCircle, ListTodo, LayoutGrid, Star, History, Pencil, CircleDot, Zap, Heart, Info, PackageOpen, Lock, PenLine, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { retroApi } from '../../app/retro/api';
+import { FOCUS_RING, ModalButton } from '@/components/room-kit';
+import type { RetroBoard, RetroCard as RetroCardType, RetroColumnDef, RetroParticipant, RetroReactionType } from '@/lib/types';
+import { AddRetroCard } from './AddRetroCard';
+import { RetroCard } from './RetroCard';
+import { COLUMN_EMPTY_COPY, columnTone } from './retro-tones';
+import { isActionTheme, isColumnSortedByVotes, sortColumnCards, votesUsedInColumn } from './retro-room-logic';
 
-// Theme-based configuration mapping
-export const THEME_CONFIG: Record<RetroColumnTheme, {
-  color: string;
-  accent: string;
-  icon: typeof CheckCircle2;
-  border: string;
-  shadowPulse: string;
-  hoverBg: string;
-}> = {
-  success: {
-    color: 'bg-emerald-500',
-    accent: 'bg-emerald-50 text-emerald-600',
-    icon: CheckCircle2,
-    border: 'border-emerald-100',
-    shadowPulse: 'animate-shadow-pulse-green border-emerald-200 shadow-emerald-500/20',
-    hoverBg: 'hover:bg-emerald-50 hover:text-emerald-600',
-  },
-  warning: {
-    color: 'bg-amber-500',
-    accent: 'bg-amber-50 text-amber-600',
-    icon: AlertCircle,
-    border: 'border-amber-100',
-    shadowPulse: 'animate-shadow-pulse-orange border-amber-200 shadow-amber-500/20',
-    hoverBg: 'hover:bg-amber-50 hover:text-amber-600',
-  },
-  action: {
-    color: 'bg-indigo-600',
-    accent: 'bg-indigo-50 text-indigo-600',
-    icon: ListTodo,
-    border: 'border-indigo-100',
-    shadowPulse: 'animate-shadow-pulse-indigo border-indigo-200 shadow-indigo-500/20',
-    hoverBg: 'hover:bg-indigo-50 hover:text-indigo-600',
-  },
-  neutral: {
-    color: 'bg-slate-500',
-    accent: 'bg-slate-50 text-slate-600',
-    icon: CircleDot,
-    border: 'border-slate-100',
-    shadowPulse: 'border-slate-200 shadow-slate-500/10',
-    hoverBg: 'hover:bg-slate-50 hover:text-slate-600',
-  },
-  purple: {
-    color: 'bg-violet-500',
-    accent: 'bg-violet-50 text-violet-600',
-    icon: Zap,
-    border: 'border-violet-100',
-    shadowPulse: 'animate-shadow-pulse-violet border-violet-200 shadow-violet-500/20',
-    hoverBg: 'hover:bg-violet-50 hover:text-violet-600',
-  },
-  pink: {
-    color: 'bg-pink-500',
-    accent: 'bg-pink-50 text-pink-600',
-    icon: Heart,
-    border: 'border-pink-100',
-    shadowPulse: 'animate-shadow-pulse-pink border-pink-200 shadow-pink-500/20',
-    hoverBg: 'hover:bg-pink-50 hover:text-pink-600',
-  },
-  cyan: {
-    color: 'bg-cyan-500',
-    accent: 'bg-cyan-50 text-cyan-600',
-    icon: Info,
-    border: 'border-cyan-100',
-    shadowPulse: 'animate-shadow-pulse-cyan border-cyan-200 shadow-cyan-500/20',
-    hoverBg: 'hover:bg-cyan-50 hover:text-cyan-600',
-  },
-};
+export type RetroColumnView = 'board' | 'focus' | 'present';
 
-// Convite do estado vazio por tema: diz o que escrever ali, em vez de um
-// "silêncio" genérico igual em todas as colunas.
-const EMPTY_COPY: Record<RetroColumnTheme, { title: string; hint: string }> = {
-  success: { title: 'Nenhuma vitória ainda', hint: 'O que deu certo e merece ser repetido?' },
-  warning: { title: 'Nada travando por aqui', hint: 'O que atrapalhou ou pode melhorar?' },
-  action: { title: 'Sem ações definidas', hint: 'Transforme os temas votados em ações com responsável.' },
-  neutral: { title: 'Coluna vazia', hint: 'Compartilhe o primeiro ponto desta coluna.' },
-  purple: { title: 'Nenhuma ideia ainda', hint: 'Que novas ideias o time quer experimentar?' },
-  pink: { title: 'Nenhum reconhecimento ainda', hint: 'Quem ou o que merece um agradecimento?' },
-  cyan: { title: 'Nenhuma nota ainda', hint: 'Algum contexto que o time precisa saber?' },
-};
-
-interface RetroColumnProps {
-  title: string;
-  columnKey: RetroColumnKey;
-  theme?: RetroColumnTheme;
+export interface RetroColumnProps {
+  column: RetroColumnDef;
   cards: RetroCardType[];
-  allCards: RetroCardType[];
-  boardId: string;
-  boardData: RetroBoardType;
-  currentUser: { uid: string };
+  boardData: RetroBoard;
+  currentUserId: string;
+  participants: RetroParticipant[];
   isCreator: boolean;
-  isCardsRevealed: boolean;
-  onAddCard: (content: string, columnKey: RetroColumnKey, assignee?: string, dueDate?: string) => Promise<boolean> | void;
+  view: RetroColumnView;
+  /** Coluna da etapa ativa: leva o realce quando a sincronização ou a apresentação estão ligadas. */
+  isActiveStage: boolean;
+  /** Mostra o realce da etapa ativa (sincronização ligada ou apresentação). */
+  highlightStage: boolean;
+  /** Só o facilitador troca de coluna (sincronização ligada). */
+  isNavLocked: boolean;
+  /** Foco e apresentação: só os cartões que receberam voto. */
+  onlyVoted: boolean;
+  onToggleOnlyVoted: () => void;
+  mergingSourceId: string | null;
+  onFocus: (columnId: string) => void;
+  onAddCard: (content: string, columnKey: string, assignee?: string, dueDate?: string) => Promise<boolean> | void;
   onDeleteCard: (cardId: string) => void;
   onUpdateCard: (cardId: string, newContent: string, assignee?: string, dueDate?: string) => void;
   onToggleVote: (cardId: string, currentVotes: string[]) => void;
   onToggleReaction: (cardId: string, type: RetroReactionType, currentUserIds: string[]) => void;
   onToggleDone: (cardId: string, isDone: boolean) => void;
-  onImportActions: (board: RetroBoardType, pendingCards: RetroCardType[]) => void;
-  votingStatus: RetroBoardType['votingStatus'];
-  participants: RetroParticipant[];
-  isAuthorsRevealed: boolean;
   onToggleColumnSort: (columnKey: string, isSorted: boolean) => void;
-  isFocused?: boolean;
-  onFocus?: () => void;
-  mergingSourceId: string | null;
+  onRenameColumn: (columnId: string, title: string) => void;
+  onSyncSummary: () => void;
+  onOpenImport: () => void;
   onStartMerge: (cardId: string | null) => void;
   onExecuteMerge: (targetId: string) => void;
-  isFocusMode?: boolean;
-  onToggleFocusMode?: (value: boolean) => void;
-  columns?: RetroColumnDef[];
-  layoutMode?: 'board' | 'focus';
 }
 
 function RetroColumnComponent({
-  title,
-  columnKey,
-  theme = 'neutral',
+  column,
   cards,
-  allCards,
-  boardId,
   boardData,
-  currentUser,
-  isCreator,
-  isCardsRevealed,
+  currentUserId,
   participants,
+  isCreator,
+  view,
+  isActiveStage,
+  highlightStage,
+  isNavLocked,
+  onlyVoted,
+  onToggleOnlyVoted,
+  mergingSourceId,
+  onFocus,
   onAddCard,
   onDeleteCard,
   onUpdateCard,
   onToggleVote,
   onToggleReaction,
   onToggleDone,
-  onImportActions,
-  votingStatus,
-  isAuthorsRevealed,
   onToggleColumnSort,
+  onRenameColumn,
+  onSyncSummary,
+  onOpenImport,
   onStartMerge,
   onExecuteMerge,
-  mergingSourceId,
-  isFocused,
-  onFocus,
-  isFocusMode,
-  onToggleFocusMode,
-  columns,
-  layoutMode = 'board',
 }: RetroColumnProps) {
-  const isBoardMode = layoutMode === 'board';
-  const showFullColumn = isBoardMode || isFocused;
+  const { id: columnKey, title, theme } = column;
+  const tone = columnTone(theme);
+  const Icon = tone.icon;
+  const isActionColumn = isActionTheme(theme);
+  const isFeedbackColumn = !isActionColumn;
+  const present = view === 'present';
+  const focus = view === 'focus';
+  const big = focus || present;
+  const { votingStatus, isCardsRevealed } = boardData;
 
-  // Se houver preferência explícita na coluna salva pelo facilitador, respeita;
-  // senão, durante votação ativa ou encerrada, ordena automaticamente pelos mais votados
-  const explicitSort = boardData.columnSorts?.[columnKey];
-  const isSortedByVotes = explicitSort !== undefined
-    ? explicitSort
-    : (votingStatus === 'active' || votingStatus === 'finished');
-  const { toast } = useToast();
-  const [isImportOpen, setIsImportOpen] = useState(false);
+  const sortedByVotes = isColumnSortedByVotes(boardData, columnKey, theme);
+  const maxVotes = boardData.maxVotesPerParticipant || 0;
+  const showVoteCounter = isFeedbackColumn && maxVotes > 0 && (votingStatus === 'active' || votingStatus === 'finished');
+  const votesUsed = useMemo(() => votesUsedInColumn(cards, columnKey, currentUserId), [cards, columnKey, currentUserId]);
 
-  // Inline title editing state
+  const sortedCards = useMemo(() => sortColumnCards(cards, sortedByVotes && isFeedbackColumn), [cards, sortedByVotes, isFeedbackColumn]);
+  const visibleCards = useMemo(
+    () => (onlyVoted && isFeedbackColumn ? sortedCards.filter((c) => c.votes.length > 0) : sortedCards),
+    [onlyVoted, isFeedbackColumn, sortedCards]
+  );
+  const cardIds = useMemo(() => visibleCards.map((c) => c.id), [visibleCards]);
+
+  // Mais votados da coluna (destaque): só durante e depois da votação.
+  const topVotes = useMemo(() => {
+    if (!isFeedbackColumn || (votingStatus !== 'active' && votingStatus !== 'finished')) return 0;
+    return cards.reduce((max, c) => Math.max(max, c.votes.length), 0);
+  }, [cards, isFeedbackColumn, votingStatus]);
+
+  const { setNodeRef, isOver } = useDroppable({ id: columnKey, data: { type: 'column' } });
+
+  // Título editável (só o facilitador). Enter e Esc desmontam o campo e isso dispara o blur logo depois:
+  // sem a trava, salvava duas vezes (Enter) ou salvava o texto digitado mesmo cancelando com Esc.
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(title);
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const composerRef = useRef<HTMLDivElement>(null);
-  const focusComposer = () => composerRef.current?.querySelector('textarea')?.focus();
-
-  useEffect(() => {
-    setEditedTitle(title);
-  }, [title]);
-
-  useEffect(() => {
-    if (isEditingTitle) skipBlurSaveRef.current = false;
-    if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
-    }
-  }, [isEditingTitle]);
-
-  // Enter e Escape desmontam o campo, e isso dispara o blur logo depois: sem a trava, salvava duas vezes
-  // (Enter) ou salvava o texto digitado mesmo cancelando com Esc.
   const skipBlurSaveRef = useRef(false);
-
-  const handleTitleSave = () => {
+  useEffect(() => { setEditedTitle(title); }, [title]);
+  useEffect(() => {
+    if (!isEditingTitle) return;
+    skipBlurSaveRef.current = false;
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+  }, [isEditingTitle]);
+  const saveTitle = () => {
     setIsEditingTitle(false);
-    const newTitle = editedTitle.trim();
-    if (!newTitle || newTitle === title || !boardData.columns) return;
-
-    // Só a lista de colunas vai ao servidor: gravar o quadro inteiro desfazia o que o facilitador mudou no meio tempo.
-    const updatedColumns = boardData.columns.map(col =>
-      col.id === columnKey ? { ...col, title: newTitle } : col
-    );
-    retroApi.patchBoard(boardData.id, { columns: updatedColumns })
-      .then(() => toast({ title: "Título atualizado!", description: `Coluna renomeada para "${newTitle}".` }))
-      .catch(err => {
-        console.error(err);
-        toast({ title: "Não foi possível renomear a coluna", description: err?.message, variant: "destructive" });
-      });
+    const next = editedTitle.trim();
+    if (!next || next === title) return;
+    onRenameColumn(columnKey, next);
   };
 
-  const { setNodeRef, isOver } = useDroppable({
-    id: columnKey,
-    data: { type: 'column' }
-  });
+  const [composerOpen, setComposerOpen] = useState(false);
+  const empty = visibleCards.length === 0;
+  const emptyCopy = COLUMN_EMPTY_COPY[theme] ?? COLUMN_EMPTY_COPY.neutral;
+  const filteredEmpty = onlyVoted && isFeedbackColumn && cards.length > 0 && empty;
 
-  const config = THEME_CONFIG[theme] || THEME_CONFIG.neutral;
-  const Icon = config.icon;
-
-  // Determine if this column is a "feedback" column (non-action) for voting
-  const isActionColumn = theme === 'action';
-  const isFeedbackColumn = !isActionColumn;
-
-  // Cada painel é uma votação separada: o limite de votos vale por coluna.
-  const maxVotes = boardData.maxVotesPerParticipant || 0;
-  const showVoteCounter = isFeedbackColumn && maxVotes > 0 && (votingStatus === 'active' || votingStatus === 'finished');
-  const votesUsedHere = useMemo(
-    () => cards.filter(c => c.votes.includes(currentUser.uid)).length,
-    [cards, currentUser.uid]
-  );
-
-  const sortedCards = useMemo(() => {
-    // Filtro de segurança contra duplicatas
-    const uniqueCards = Array.from(new Map(cards.map(c => [c.id, c])).values());
-    const tempCards = [...uniqueCards];
-    const shouldSortByVotes = isSortedByVotes && isFeedbackColumn;
-    
-    if (shouldSortByVotes) {
-      tempCards.sort((a, b) => {
-        const votesA = a.votes?.length || 0;
-        const votesB = b.votes?.length || 0;
-        if (votesB !== votesA) {
-          return votesB - votesA; // Mais votados sobem automaticamente para cima
-        }
-        return a.order - b.order; // Desempate estável pela ordem original
-      });
-    } else {
-      tempCards.sort((a, b) => a.order - b.order);
-    }
-    return tempCards;
-  }, [cards, isSortedByVotes, isFeedbackColumn]);
-
-  const cardIds = useMemo(() => sortedCards.map(c => c.id), [sortedCards]);
-
-  const handleExportToWorkspace = () => {
-    if (cards.length === 0) {
-      toast({ title: "Nenhuma ação para exportar", variant: "destructive" });
-      return;
-    }
-
-    const roomTitle = boardData.title || "Retrospectiva";
-    const roomTeam = boardData.team || "Squad Geral";
-
-    // Use dynamic columns for counts
-    const feedbackColumns = (columns || []).filter(c => c.theme !== 'action');
-    const actionColumns = (columns || []).filter(c => c.theme === 'action');
-
-    const feedbackCount = feedbackColumns.reduce((count, col) => {
-      return count + allCards.filter(c => c.columnKey === col.id).length;
-    }, 0);
-    const actionItems = cards.map(c => c.content);
-
-    const summary = {
-      feedbackCount,
-      actionItems
-    };
-
-    retroApi.patchBoard(boardData.id, { summary })
-      .then(() => toast({
-        title: "Resumo sincronizado!",
-        description: "O histórico da cerimônia foi salvo para todos os participantes.",
-      }))
-      .catch(err => {
-        console.error(err);
-        toast({ title: "Não foi possível sincronizar o resumo", description: err?.message, variant: "destructive" });
-      });
-  };
-
-  // Navegação sincronizada: quando o facilitador liga "Sincronizar Coluna",
-  // só ele pode focar outra coluna — o resto do time fica preso na dele.
-  const isNavLocked = !!(boardData.syncStageEnabled && !isCreator);
+  const sortLabel = isCreator ? 'Ordenar por votos' : 'Ordenado por votos';
 
   return (
-    <div
+    <section
       ref={setNodeRef}
-      onClick={!isFocused && !isNavLocked ? onFocus : undefined}
+      aria-label={title}
       className={cn(
-        "flex flex-col bg-white/40 dark:!bg-slate-900/40 backdrop-blur-xl border border-white/60 dark:!border-slate-700/50 rounded-[2rem] h-full overflow-hidden transition-all duration-500 relative",
-        isFocused && isFocusMode
-          ? "fixed inset-x-0 top-14 bottom-0 z-[100] m-0 rounded-none bg-white dark:!bg-slate-950"
-          : isBoardMode
-            ? cn(
-                "flex-1 min-w-[310px] xl:min-w-[360px] 2xl:min-w-[400px] max-w-full",
-                isFocused ? cn("ring-2 ring-emerald-500/40 shadow-xl border-emerald-300 dark:!border-emerald-700", config.shadowPulse) : "hover:border-white/80 dark:hover:!border-slate-600/60"
-              )
-            : isFocused
-              ? cn("flex-[6] z-10", config.shadowPulse)
-              : isFocusMode
-                ? "hidden"
-                : cn("flex-none w-[60px] group/col grayscale", isNavLocked ? "cursor-not-allowed" : "cursor-pointer hover:bg-white/60 dark:hover:!bg-slate-800/60"),
-        isOver && "ring-2 ring-emerald-500/30 bg-emerald-50/20"
+        'flex min-w-0 flex-col gap-2.5 rounded-2xl border border-t-[3px] border-border bg-muted/30 p-3 transition-[border-color,box-shadow,opacity] duration-base',
+        tone.top,
+        view === 'board' && 'min-w-[min(86vw,320px)] flex-1 snap-start sm:min-w-[300px] 2xl:min-w-[340px]',
+        highlightStage && isActiveStage && 'ring-2 ring-primary/50',
+        present && !isActiveStage && 'opacity-55',
+        isOver && 'ring-2 ring-primary/60 bg-primary/5'
       )}
     >
-      {/* HEADER: FOCUSED OR FULL BOARD MODE */}
-      {showFullColumn ? (
-        <>
-          <div className={cn(
-            "flex items-center shrink-0 gap-2",
-            isFocused && isFocusMode ? "justify-end px-4 py-2" : "justify-between px-3 py-2.5 sm:px-4 sm:py-3"
-          )}>
-            {!(isFocused && isFocusMode) && (
-              <div className="flex items-center gap-2 min-w-0">
-                <div className={cn("p-1.5 rounded-lg text-white shadow-md shrink-0", config.color)}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col justify-center min-w-0">
-                  {/* Inline Title Edit */}
-                  {isEditingTitle ? (
-                    <input
-                      ref={titleInputRef}
-                      value={editedTitle}
-                      onChange={e => setEditedTitle(e.target.value)}
-                      onBlur={() => { if (skipBlurSaveRef.current) { skipBlurSaveRef.current = false; return; } handleTitleSave(); }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { skipBlurSaveRef.current = true; handleTitleSave(); }
-                        if (e.key === 'Escape') { skipBlurSaveRef.current = true; setEditedTitle(title); setIsEditingTitle(false); }
-                      }}
-                      className="text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-none bg-transparent border-b-2 border-dashed border-slate-300 focus:border-orange-400 outline-none w-full max-w-[400px] transition-colors"
-                    />
-                  ) : (
-                    <div className="flex items-center gap-2 group/title min-w-0">
-                      <h2 className="min-w-0 flex-1 text-sm font-bold tracking-tight text-slate-800 dark:!text-slate-100 leading-tight line-clamp-2" title={title}>{title}</h2>
-                      {isCreator && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
-                          className="opacity-0 group-hover/title:opacity-100 transition-opacity p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 shrink-0"
-                          title="Editar título"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+      {/* Cabeçalho */}
+      <div
+        className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 py-0.5', !isNavLocked && view === 'board' && 'cursor-pointer')}
+        onClick={view === 'board' && !isNavLocked ? () => onFocus(columnKey) : undefined}
+      >
+        {big && (
+          <span aria-hidden="true" className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]', tone.tint)}>
+            <Icon className="h-[17px] w-[17px]" strokeWidth={1.5} />
+          </span>
+        )}
+
+        {isEditingTitle ? (
+          <input
+            ref={titleInputRef}
+            value={editedTitle}
+            maxLength={60}
+            aria-label="Nome da coluna"
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => setEditedTitle(e.target.value)}
+            onBlur={() => {
+              if (skipBlurSaveRef.current) { skipBlurSaveRef.current = false; return; }
+              saveTitle();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { skipBlurSaveRef.current = true; saveTitle(); }
+              if (e.key === 'Escape') { e.stopPropagation(); skipBlurSaveRef.current = true; setEditedTitle(title); setIsEditingTitle(false); }
+            }}
+            className={cn('h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 font-bold', present ? 'text-xl' : 'text-[15px]', FOCUS_RING)}
+          />
+        ) : (
+          <>
+            <h2 title={title} className={cn('m-0 min-w-0 truncate font-bold leading-tight text-foreground', present ? 'text-xl' : 'text-[15px]')}>{title}</h2>
+            {isCreator && !present && (
+              <button
+                type="button"
+                title="Editar o nome da coluna"
+                aria-label={`Editar o nome da coluna ${title}`}
+                onClick={(e) => { e.stopPropagation(); setIsEditingTitle(true); }}
+                className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent focus-visible:opacity-100 sm:opacity-0 sm:hover:opacity-100 [section:hover_&]:opacity-100', FOCUS_RING)}
+              >
+                <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              </button>
             )}
+          </>
+        )}
 
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              {showVoteCounter && (
-                <span
-                  className={cn(
-                    "flex items-center gap-1 font-code text-xs font-black tabular-nums",
-                    votesUsedHere >= maxVotes ? "text-amber-600" : "text-slate-600 dark:text-slate-300"
-                  )}
-                  title="Seus votos usados neste painel / limite por pessoa"
-                  aria-label={`Você usou ${votesUsedHere} de ${maxVotes} votos neste painel`}
-                >
-                  <Star className="h-3 w-3" />
-                  {votesUsedHere}/{maxVotes}
-                </span>
-              )}
-              {isActionColumn && isCreator && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); setIsImportOpen(true); }}
-                  className="h-8 w-8 p-0 border-emerald-200/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
-                  title="Importar ações pendentes de uma retro anterior do mesmo squad"
-                  aria-label="Importar ações pendentes"
-                >
-                  <PackageOpen className="w-3.5 h-3.5" />
-                </Button>
-              )}
+        {!big && <span className="text-xs font-semibold tabular-nums text-muted-foreground">{cards.length}</span>}
+        <span className="flex-1" />
 
-              {isActionColumn && isCreator && cards.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportToWorkspace}
-                  className="h-8 w-8 p-0 border-emerald-200/60 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 rounded-xl transition-all"
-                  title="Sincronizar resumo com o histórico"
-                  aria-label="Sincronizar resumo"
-                >
-                  <History className="w-3.5 h-3.5" />
-                </Button>
-              )}
+        {showVoteCounter && (
+          <span
+            title="Seus votos usados neste painel / limite por pessoa"
+            aria-label={`Você usou ${votesUsed} de ${maxVotes} votos neste painel`}
+            className={cn('inline-flex items-center gap-1 text-xs font-semibold tabular-nums', votesUsed >= maxVotes ? 'text-amber-700 dark:text-amber-300' : 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground')}
+          >
+            <Star className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            {Math.max(0, maxVotes - votesUsed)} {maxVotes - votesUsed === 1 ? 'voto' : 'votos'}
+          </span>
+        )}
 
-              {isFeedbackColumn && (isCreator || isSortedByVotes) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); isCreator && onToggleColumnSort(columnKey, !isSortedByVotes); }}
-                  disabled={!isCreator}
-                  className={cn(
-                    "h-8 w-8 p-0 rounded-xl transition-all",
-                    isSortedByVotes ? "bg-emerald-100 text-emerald-600 shadow-sm" : "text-slate-500 hover:bg-slate-50",
-                    !isCreator && "pointer-events-none"
-                  )}
-                  aria-label={isCreator ? "Ordenar por votos" : "Ordenado por votos"}
-                  aria-pressed={isSortedByVotes}
-                  title={isCreator ? "Ordenar por votos" : "Ordenado por votos"}
-                >
-                  <Star className={cn("h-3.5 w-3.5", isSortedByVotes && "fill-current")} />
-                </Button>
-              )}
+        {highlightStage && focus && (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Todos veem a mesma coluna
+          </span>
+        )}
 
-              <div className={cn("px-2.5 py-1 rounded-xl text-[10px] font-black border", config.accent)}>
-                {cards.length}
-              </div>
-            </div>
-          </div>
+        {isActionColumn && isCreator && cards.length > 0 && !present && (
+          <button
+            type="button"
+            title="Salvar o resumo da retro no histórico"
+            aria-label="Salvar o resumo da retro no histórico"
+            onClick={(e) => { e.stopPropagation(); onSyncSummary(); }}
+            className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-accent', FOCUS_RING)}
+          >
+            <ClipboardCheck className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
 
-          {!isFocusMode && (
-            <div ref={composerRef} className="px-5 pb-3 shrink-0">
-              <AddRetroCard columnKey={columnKey} theme={theme} onAddCard={onAddCard} participants={participants} />
-            </div>
-          )}
+        {isFeedbackColumn && (isCreator || sortedByVotes) && (
+          <button
+            type="button"
+            aria-pressed={sortedByVotes}
+            aria-label={sortLabel}
+            title={sortLabel}
+            disabled={!isCreator}
+            onClick={(e) => { e.stopPropagation(); if (isCreator) onToggleColumnSort(columnKey, !sortedByVotes); }}
+            className={cn(
+              'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors disabled:pointer-events-none',
+              sortedByVotes ? 'border-primary/50 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent',
+              FOCUS_RING
+            )}
+          >
+            <ArrowDownWideNarrow className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
 
-          <ScrollArea className={cn("flex-1 px-4 sm:px-5 pb-6 custom-scrollbar", isFocusMode && "px-10 py-6 bg-slate-50/30")}>
-            <SortableContext items={cardIds} strategy={rectSortingStrategy}>
-              <div className={cn(
-                "grid min-h-[100px] transition-all duration-500 pb-20 sm:pb-6",
-                isFocusMode
-                  ? "grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-5 [&_p]:text-[19px] [&_p]:leading-snug"
-                  : isBoardMode
-                    ? "grid-cols-1 2xl:grid-cols-2 gap-3"
-                    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"
-              )}>
-                {sortedCards.length === 0 && (
-                  <div className={cn(
-                    "col-span-full flex flex-col items-center justify-center text-center gap-4",
-                    isFocusMode ? "py-32" : "py-14"
-                  )}>
-                    <div className={cn("rounded-3xl flex items-center justify-center", config.accent, isFocusMode ? "p-8" : "p-5")}>
-                      <Icon className={isFocusMode ? "h-14 w-14" : "h-8 w-8"} />
-                    </div>
-                    <div className="space-y-1 max-w-[240px]">
-                      <p className={cn("font-black uppercase tracking-[0.15em] text-slate-700 dark:!text-slate-200", isFocusMode ? "text-sm" : "text-[11px]")}>
-                        {EMPTY_COPY[theme]?.title ?? EMPTY_COPY.neutral.title}
-                      </p>
-                      <p className={cn("font-medium text-slate-500 dark:!text-slate-400 leading-snug", isFocusMode ? "text-base" : "text-[11px]")}>
-                        {EMPTY_COPY[theme]?.hint ?? EMPTY_COPY.neutral.hint}
-                      </p>
-                    </div>
-                    {!isFocusMode && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); focusComposer(); }}
-                        className={cn("h-8 px-3.5 rounded-xl text-[9px] font-black uppercase tracking-widest gap-1.5", config.accent, config.hoverBg)}
-                      >
-                        <PenLine className="h-3.5 w-3.5" />
-                        Escrever
-                      </Button>
-                    )}
-                    {!isFocusMode && !isCardsRevealed && !isActionColumn && (
-                      <p className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 dark:!text-slate-500">
-                        <EyeOff className="h-3 w-3" />
-                        Seus cards ficam ocultos até a revelação
-                      </p>
-                    )}
-                  </div>
-                )}
-                {sortedCards.map(card => (
-                  <RetroCard
-                    key={card.id}
-                    card={card}
-                    isCardsRevealed={isCardsRevealed}
-                    isAuthor={card.authorId === currentUser?.uid}
-                    isCreator={isCreator}
-                    onDelete={onDeleteCard}
-                    onUpdate={onUpdateCard}
-                    onToggleVote={onToggleVote}
-                    onToggleReaction={onToggleReaction}
-                    onToggleDone={onToggleDone}
-                    currentUser={currentUser}
-                    theme={theme}
-                    votingStatus={votingStatus}
-                    participants={participants}
-                    isAuthorsRevealed={isAuthorsRevealed}
-                    mergingSourceId={mergingSourceId}
-                    onStartMerge={onStartMerge}
-                    onExecuteMerge={onExecuteMerge}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </ScrollArea>
-        </>
-      ) : (
-        /* MINIMIZED MODE */
-        <div className={cn(
-          "flex flex-col items-center justify-between h-full py-10 gap-8 transition-all duration-300",
-          config.hoverBg
-        )}>
-           <div className={cn(
-             "p-2.5 rounded-xl text-white shadow-lg transition-transform group-hover/col:scale-110", 
-             config.color
-           )}>
-              <Icon className="h-5 w-5" />
-           </div>
-           
-           <h2 className="[writing-mode:vertical-lr] rotate-180 text-[11px] font-black uppercase tracking-[0.4em] transition-colors">
-              {title}
-           </h2>
-           {isNavLocked && (
-             <span title="Navegação controlada pelo facilitador">
-               <Lock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-             </span>
-           )}
-           <div className="flex-1" /> {/* Spacer */}
-           <div className={cn(
-             "w-12 h-12 flex items-center justify-center rounded-2xl text-[12px] font-black border-2 transition-all", 
-             config.accent,
-             "group-hover/col:shadow-lg group-hover/col:scale-105"
-           )}>
-              {cards.length}
-           </div>
-        </div>
+        {big && isFeedbackColumn && votingStatus !== 'disabled' && (
+          <button
+            type="button"
+            aria-pressed={onlyVoted}
+            aria-label="Só cartões com voto"
+            title="Só cartões com voto"
+            onClick={onToggleOnlyVoted}
+            className={cn(
+              'inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-colors',
+              onlyVoted ? 'border-primary/50 bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border text-muted-foreground hover:bg-accent',
+              FOCUS_RING
+            )}
+          >
+            <Star className={cn('h-4 w-4', onlyVoted && 'fill-current')} strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
+
+        {big && (
+          <span className={cn('inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2.5 text-[13px] font-bold tabular-nums', tone.tint)}>{cards.length}</span>
+        )}
+      </div>
+
+      {/* Campo fixo no topo (visão foco) */}
+      {focus && (
+        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} />
       )}
 
-      {isActionColumn && (
-        <RetroActionImportDialog
-          isOpen={isImportOpen}
-          onClose={() => setIsImportOpen(false)}
-          team={boardData.team || ''}
-          squadId={boardData.squadId}
-          currentBoardId={boardId}
-          onImport={onImportActions}
+      {/* Cartões */}
+      {empty ? (
+        big ? (
+          <div className={cn('flex flex-col items-center gap-2.5 text-center', present ? 'py-16' : 'px-5 pb-16 pt-12')}>
+            <span aria-hidden="true" className={cn('flex h-[72px] w-[72px] items-center justify-center rounded-[22px]', tone.tint)}>
+              <Icon className="h-8 w-8" strokeWidth={1.5} />
+            </span>
+            <p className="m-0 mt-1.5 text-base font-bold text-foreground">{filteredEmpty ? 'Nenhum cartão com voto' : emptyCopy.title}</p>
+            <p className="m-0 text-sm text-muted-foreground">{filteredEmpty ? 'Tire o filtro para ver todos os cartões.' : emptyCopy.hint}</p>
+            {focus && !filteredEmpty && (
+              <ModalButton
+                className="mt-2 gap-2"
+                onClick={(e) => {
+                  (e.currentTarget.closest('section')?.querySelector('textarea') as HTMLTextAreaElement | null)?.focus();
+                }}
+              >
+                <PenLine className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Escrever
+              </ModalButton>
+            )}
+            {!isCardsRevealed && isFeedbackColumn && !filteredEmpty && (
+              <p className="m-0 mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <EyeOff className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Seus cartões ficam ocultos até a revelação
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-[10px] border border-dashed border-border p-3.5 text-center text-[13px] text-muted-foreground">Nenhum cartão ainda</div>
+        )
+      ) : null}
+
+      <SortableContext items={cardIds} strategy={focus || present ? rectSortingStrategy : verticalListSortingStrategy}>
+        <div
+          className={cn(
+            'min-h-2',
+            view === 'board' && 'flex flex-col gap-2.5',
+            focus && 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3',
+            present && 'grid grid-cols-1 gap-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,22rem),1fr))]'
+          )}
+        >
+          {visibleCards.map((card) => (
+            <RetroCard
+              key={card.id}
+              card={card}
+              isActionColumn={isActionColumn}
+              isCardsRevealed={isCardsRevealed}
+              isAuthor={!!card.authorId && card.authorId === currentUserId}
+              isCreator={isCreator}
+              currentUserId={currentUserId}
+              votingStatus={votingStatus}
+              participants={participants}
+              isAuthorsRevealed={boardData.isAuthorsRevealed === true}
+              mergingSourceId={mergingSourceId}
+              isTopVoted={topVotes > 0 && card.votes.length === topVotes}
+              large={present}
+              onDelete={onDeleteCard}
+              onUpdate={onUpdateCard}
+              onToggleVote={onToggleVote}
+              onToggleReaction={onToggleReaction}
+              onToggleDone={onToggleDone}
+              onStartMerge={onStartMerge}
+              onExecuteMerge={onExecuteMerge}
+            />
+          ))}
+        </div>
+      </SortableContext>
+
+      {/* Rodapé da coluna (visão em quadro) */}
+      {view === 'board' && (
+        <AddRetroCard
+          columnKey={columnKey}
+          isActionColumn={isActionColumn}
+          variant="button"
+          open={composerOpen}
+          onOpenChange={setComposerOpen}
+          onAddCard={onAddCard}
+          participants={participants}
         />
       )}
-    </div>
+
+      {isActionColumn && isCreator && !present && (
+        <button
+          type="button"
+          onClick={onOpenImport}
+          className={cn('inline-flex h-9 items-center justify-center gap-2 rounded-[10px] bg-primary/10 text-[13px] font-semibold text-primary transition-colors hover:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
+        >
+          <PackageOpen className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          Importar ações pendentes
+        </button>
+      )}
+    </section>
   );
 }
 

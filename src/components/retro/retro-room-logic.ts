@@ -290,7 +290,7 @@ export function resetTimer(timer: TimerState | undefined): TimerState | null {
 }
 
 /** Timer da tela (com padrões) a partir do que veio no quadro. */
-export function timerFromBoard(timer: RetroBoard['timer'] | undefined): TimerState {
+export function timerFromBoard(timer: Partial<TimerState> | undefined): TimerState {
   return {
     status: (timer?.status || 'stopped') as TimerState['status'],
     initialDuration: timer?.initialDuration || 300,

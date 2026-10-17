@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useStableCallback } from '@/hooks/use-stable-callback';
 import type { TimerState } from '@/lib/types';
 import { FOCUS_RING } from './tokens';
 import { TIMER_PRESETS, formatTimer, isLateExpiry, remainingSeconds, timerFraction, timerPhase, type TimerPhase } from './timer-utils';
@@ -75,8 +76,7 @@ export function RoomTimer({
   // endTime cujo fim já foi comunicado a `onExpire`: cada fim dispara uma única vez.
   const expiredEndRef = React.useRef<number | null>(null);
   // Sempre o callback mais recente, sem reiniciar o intervalo a cada render da sala.
-  const onExpireRef = React.useRef(onExpire);
-  onExpireRef.current = onExpire;
+  const notifyExpire = useStableCallback((info: { late: boolean }) => onExpire?.(info));
 
   React.useEffect(() => {
     const tick = () => {
@@ -95,14 +95,14 @@ export function RoomTimer({
       }
       if (ended && timer.endTime && expiredEndRef.current !== timer.endTime) {
         expiredEndRef.current = timer.endTime;
-        onExpireRef.current?.({ late });
+        notifyExpire({ late });
       }
     };
     tick();
     if (timer?.status !== 'running') return;
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [timer, isSoundEnabled, serverOffset, lateGraceMs]);
+  }, [timer, isSoundEnabled, serverOffset, lateGraceMs, notifyExpire]);
 
   const phase = timerPhase(timer, remaining);
   const initial = timer?.initialDuration ?? 120;
