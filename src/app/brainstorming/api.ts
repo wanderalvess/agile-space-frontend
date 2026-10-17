@@ -10,6 +10,8 @@ export type BrainstormingBoardPatch = {
   phase?: BrainstormingBoard['phase'];
   timer?: BrainstormingBoard['timer'];
   settings?: Partial<BrainstormingBoard['settings']>;
+  /** Backend novo: 1 a 100, ou `null` para tirar o limite. Campo ausente não mexe. */
+  votesPerParticipant?: number | null;
 };
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
@@ -41,6 +43,38 @@ export const brainstormingApi = {
       body: JSON.stringify(patch),
     });
     await ensureOk(res, 'Não foi possível salvar a alteração da sessão');
+    return res.json();
+  },
+
+  /** Encerra o mural (facilitador, criador ou ADMIN): a sala vira somente leitura. Idempotente. Backend antigo: 404/405. */
+  async finishBoard(id: string): Promise<BrainstormingBoard> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}/finish`, { method: 'POST' });
+    await ensureOk(res, 'Não foi possível encerrar o brainstorming');
+    return res.json();
+  },
+
+  /** Reabre um mural encerrado (mesmas pessoas que encerram). Idempotente. */
+  async reopenBoard(id: string): Promise<BrainstormingBoard> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}/reopen`, { method: 'POST' });
+    await ensureOk(res, 'Não foi possível reabrir o brainstorming');
+    return res.json();
+  },
+
+  /** Assume a facilitação. O servidor decide: criador/ADMIN sempre; participante só com o facilitador fora há um tempo (409 com a mensagem). */
+  async claimFacilitation(id: string): Promise<BrainstormingBoard> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}/facilitation/claim`, { method: 'POST' });
+    await ensureOk(res, 'Não foi possível assumir a facilitação');
+    return res.json();
+  },
+
+  /** Passa a facilitação a um participante da sala (facilitador atual ou ADMIN). */
+  async transferFacilitation(id: string, userId: string): Promise<BrainstormingBoard> {
+    const res = await authFetch(`${API_BASE_URL}/brainstormings/${id}/facilitation/transfer`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ userId }),
+    });
+    await ensureOk(res, 'Não foi possível passar a facilitação');
     return res.json();
   },
 
