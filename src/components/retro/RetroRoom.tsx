@@ -173,6 +173,8 @@ function RetroRoomComponent(props: RetroRoomProps) {
   // Visão e som são preferências pessoais do navegador.
   const [layoutMode, setLayoutMode] = useRoomPreference<RetroLayoutMode>('agile_retro_layout_mode', 'board', (raw) => (raw === 'board' || raw === 'focus' ? raw : undefined));
   const [soundEnabled, setSoundEnabled] = useRoomPreference<boolean>('retro_sound_enabled', true, (raw) => raw !== 'false');
+  // Na apresentação: uma coluna por vez ocupando a tela (padrão) ou todas lado a lado.
+  const [presentLayout, setPresentLayout] = useRoomPreference<'spotlight' | 'all'>('agile_retro_present_layout', 'spotlight', (raw) => (raw === 'spotlight' || raw === 'all' ? raw : undefined));
 
   const [presenting, setPresenting] = useState(false);
   const [onlyVoted, setOnlyVoted] = useState(false);
@@ -257,8 +259,9 @@ function RetroRoomComponent(props: RetroRoomProps) {
   const handleOpenImport = useCallback(() => setImportOpen(true), []);
 
   const view: RetroColumnView = presenting ? 'present' : layoutMode === 'focus' ? 'focus' : 'board';
-  const shownColumns = view === 'focus' ? columns.filter((c) => c.id === stage) : columns;
-  const showStageNav = !presenting && (layoutMode === 'focus' || syncOn);
+  const spotlight = presenting && presentLayout === 'spotlight';
+  const shownColumns = view === 'focus' || spotlight ? columns.filter((c) => c.id === stage) : columns;
+  const showStageNav = spotlight || (!presenting && (layoutMode === 'focus' || syncOn));
 
   const columnNodes = shownColumns.map((col) => (
     <RetroColumn
@@ -330,6 +333,24 @@ function RetroRoomComponent(props: RetroRoomProps) {
               <RetroPhaseActions boardData={boardData} onToggleCardsRevealed={onToggleCardsRevealed} onSetVotingStatus={onSetVotingStatus} />
             </>
           )}
+          <div role="group" aria-label="Como mostrar as colunas" className="flex items-center gap-1">
+            <ModalButton
+              variant={presentLayout === 'spotlight' ? 'primary' : 'secondary'}
+              aria-pressed={presentLayout === 'spotlight'}
+              className="px-3"
+              onClick={() => setPresentLayout('spotlight')}
+            >
+              Em destaque
+            </ModalButton>
+            <ModalButton
+              variant={presentLayout === 'all' ? 'primary' : 'secondary'}
+              aria-pressed={presentLayout === 'all'}
+              className="px-3"
+              onClick={() => setPresentLayout('all')}
+            >
+              Todas
+            </ModalButton>
+          </div>
           <div className="flex items-center gap-1.5">
             <ModalButton className="gap-1.5 px-3" disabled={navLocked} onClick={() => onStageChange(neighborStage(columns, stage, -1))}>
               <ChevronLeft className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Anterior
@@ -401,7 +422,8 @@ function RetroRoomComponent(props: RetroRoomProps) {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={props.onDragEnd}>
               {view === 'board' && <div className="flex snap-x snap-mandatory items-start gap-3.5 overflow-x-auto pb-2 sm:snap-none">{columnNodes}</div>}
               {view === 'focus' && <div className="mx-auto flex w-full max-w-[1680px] flex-col">{columnNodes}</div>}
-              {view === 'present' && (
+              {view === 'present' && spotlight && <div className="mx-auto flex w-full max-w-[1680px] flex-col">{columnNodes}</div>}
+              {view === 'present' && !spotlight && (
                 <div
                   className="grid items-start gap-3.5 overflow-x-auto pb-2"
                   style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(min(86vw, 300px), 1fr))` }}
