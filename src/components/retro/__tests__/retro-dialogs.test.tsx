@@ -15,6 +15,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: h.push }) }));
 vi.mock('../../../hooks/use-toast', () => ({ useToast: () => ({ toast: h.toast }) }));
 vi.mock('../../../context/UserContext', () => ({ useUserContext: () => h.user }));
 vi.mock('../../../hooks/useActiveSquad', () => ({ useActiveSquad: () => ({ squadId: 'PHOENIX', squadName: 'Phoenix' }) }));
+vi.mock('../../../hooks/useMyMemberships', () => ({ useMyMemberships: () => ({ memberships: null, settled: true, stale: false, refresh: () => {} }) }));
 vi.mock('../../../app/retro/api', () => ({ retroApi: h.api }));
 vi.mock('../../../app/work-items-api', () => ({ workItemsApi: { getSprintStats: h.stats } }));
 vi.mock('../../ui/DashboardFilters', () => ({ useProjectEstimationUnit: () => ({ unit: 'HOURS', isConfigured: true }) }));

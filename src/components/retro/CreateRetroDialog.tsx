@@ -6,6 +6,7 @@ import { Plus, X } from 'lucide-react';
 import { retroApi } from '@/app/retro/api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
+import { SquadChoiceField } from '@/components/shared/SquadChoiceField';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { FIELD, FOCUS_RING, IconButton, Modal, ModalButton, SelectField, SettingRow } from '@/components/room-kit';
 import { moduleIcon } from '@/lib/modules-registry';
@@ -225,10 +226,7 @@ export function CreateRetroDialog({ open, onOpenChange, onCreatingChange, preset
             />
             {titleError && <span id="nr-title-error" className="text-xs text-red-700 dark:text-red-300">Dê um nome à retro.</span>}
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="nr-squad" className="text-[13px] font-semibold">Squad</label>
-            <input id="nr-squad" value={team} onChange={(e) => { setTeam(e.target.value); setTeamTouched(true); }} placeholder="Ex.: Phoenix" className={cn(FIELD, 'h-10')} />
-          </div>
+          <SquadChoiceField id="nr-squad" ariaLabel="Squad da retro" value={team} onChange={(v) => { setTeam(v); setTeamTouched(true); }} />
           {savedFormats.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="nr-saved" className="text-[13px] font-semibold">Formato salvo</label>

@@ -9,6 +9,7 @@ import { HOURS_MAX_DEFAULT, effectiveMaxHours, getDeckCards } from '@/lib/poker-
 import { DEFAULT_ROOM_SETTINGS } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { SquadChoiceField } from '@/components/shared/SquadChoiceField';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useToast } from '@/hooks/use-toast';
 import { pokerApi } from '@/app/room/api';
@@ -310,10 +311,7 @@ export function CreateSessionModal({
             />
             {titleError && <span id="ns-name-error" className="text-xs text-red-700 dark:text-red-300">Dê um nome à sala.</span>}
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="ns-squad" className="text-[13px] font-semibold">Squad</label>
-            <input id="ns-squad" value={team} onChange={(e) => { setTeam(e.target.value); setTeamTouched(true); }} placeholder="Ex.: Phoenix" className={cn(FIELD, 'h-10')} />
-          </div>
+          <SquadChoiceField id="ns-squad" ariaLabel="Squad da sala" value={team} onChange={(v) => { setTeam(v); setTeamTouched(true); }} />
           <div className="flex flex-col gap-1.5">
             <label htmlFor="ns-tpl" className="text-[13px] font-semibold">Template</label>
             <div className="flex items-center gap-2">
