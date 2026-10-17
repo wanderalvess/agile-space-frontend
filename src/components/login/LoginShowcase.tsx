@@ -5,18 +5,11 @@ import { BrandWordmark } from '@/components/layout/BrandWordmark';
 import { cn } from '@/lib/utils';
 import packageInfo from '../../../package.json';
 import { FOCUS_RING, TINT_TEXT } from './login-fields';
+import { LoginBackdrop } from './LoginBackdrop';
 import { LOGIN_MODULES, ROTATION_INTERVAL_MS } from './login-modules';
 import { nextIndex } from './login-utils';
 import { ModuleMiniature } from './ModuleMiniature';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
-
-/** Estrelas do painel: posições fixas (sem aleatório, para não divergir entre servidor e navegador). */
-const STARS = Array.from({ length: 22 }, (_, i) => ({
-  x: (i * 37) % 97,
-  y: (i * 61) % 93,
-  big: i % 4 === 0,
-  delay: (i * 310) % 4000,
-}));
 
 /** Passa os módulos sozinho a cada poucos segundos. Parado com "reduzir movimento" e enquanto a pessoa está sobre a vitrine. */
 function useRotation(total: number, paused: boolean) {
@@ -57,19 +50,7 @@ export function LoginShowcase({ className }: { className?: string }) {
       aria-label="Portal Tech V&D"
       className={cn('relative flex-col gap-6 overflow-hidden border-r border-border bg-background px-10 py-9 [@media(max-height:760px)]:gap-4 [@media(max-height:760px)]:py-7', className)}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_15%_95%,hsl(var(--primary)/0.10),transparent_65%)] dark:bg-[radial-gradient(ellipse_90%_70%_at_15%_95%,hsl(var(--primary)/0.16),transparent_65%)] [.theme-leitura_&]:hidden"
-      />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 [.theme-leitura_&]:hidden">
-        {STARS.map((s, i) => (
-          <span
-            key={i}
-            className={cn('absolute rounded-full bg-foreground/40 motion-safe:animate-twinkle', s.big ? 'h-0.5 w-0.5' : 'h-px w-px')}
-            style={{ left: `${s.x}%`, top: `${s.y}%`, animationDelay: `${s.delay}ms` }}
-          />
-        ))}
-      </div>
+      <LoginBackdrop />
 
       <BrandWordmark className="relative [&>span:first-child]:text-lg" />
 

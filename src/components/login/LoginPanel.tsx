@@ -5,6 +5,7 @@ import { BrandWordmark } from '@/components/layout/BrandWordmark';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { LoginBackdrop } from './LoginBackdrop';
 import { ForgotForm, LoginForm, RegisterForm } from './AuthForms';
 import { TINT_TEXT } from './login-fields';
 import type { LoginMode } from './login-utils';
@@ -42,15 +43,18 @@ export function LoginPanel({ flow, className }: { flow: LoginFlow; className?: s
   return (
     <section
       className={cn(
-        'relative flex flex-col justify-center bg-card px-6 py-8 text-card-foreground sm:px-12 sm:py-12 [@media(max-height:760px)]:sm:py-6',
+        'relative flex flex-col justify-center overflow-hidden bg-background px-6 py-8 text-card-foreground sm:px-12 sm:py-12 lg:bg-card [@media(max-height:760px)]:sm:py-6',
         className,
       )}
     >
+      {/* Celular e tablet: o mesmo fundo da vitrine (halo e estrelas) atrás do formulário. */}
+      <LoginBackdrop className="lg:hidden" />
+
       <div className="absolute right-4 top-4 sm:right-5 sm:top-5">
         <ThemeToggle className="h-10 w-10 rounded-[11px]" />
       </div>
 
-      <div className="mx-auto flex w-full max-w-[380px] flex-col gap-4 [@media(max-height:760px)]:gap-3">
+      <div className="relative mx-auto flex w-full max-w-[380px] flex-col gap-4 [@media(max-height:760px)]:gap-3">
         {/* No celular e no tablet a vitrine some; a marca fica aqui. */}
         <BrandWordmark className="lg:hidden" />
 
