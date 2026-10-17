@@ -2,23 +2,21 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Ban,
-  CheckCircle2,
   Clock,
   KeyRound,
   Link2,
   Loader2,
   RefreshCw,
   ShieldCheck,
-  type LucideIcon,
 } from 'lucide-react';
 import type { PasswordResetRequest } from '@/app/admin/api';
 import type { LinkRequest } from '@/lib/admin-link-requests-api';
 import { cn } from '@/lib/utils';
-import { CARD_SHADOW, FIELD, FOCUS_RING, TONES, type Tone } from '@/components/room-kit/tokens';
+import { CARD_SHADOW, FOCUS_RING } from '@/components/room-kit/tokens';
 import { IconTile } from '@/components/room-kit/primitives';
 import { ModalButton } from '@/components/room-kit/Modal';
-import { ConfirmDialog } from '@/components/room-kit/ConfirmDialog';
+import { ApprovalErrorLine, ApprovalListRow, ApprovalSpinner, EmptyText, HistoryLine, HistoryTitle } from '@/components/approvals/parts';
+import { RejectRequestDialog } from '@/components/approvals/RejectDialog';
 import {
   approvalCounts,
   buildApprovalRows,
@@ -38,53 +36,9 @@ type Tab = 'all' | 'links' | 'resets';
 
 const UNAVAILABLE_TEXT = 'Pedidos de vínculo ainda não estão disponíveis neste ambiente';
 
-function Spinner() {
-  return (
-    <div className="flex items-center justify-center py-7" role="status" aria-label="Carregando">
-      <Loader2 className="h-7 w-7 animate-spin text-primary motion-reduce:animate-none [.theme-totvs:not(.dark)_&]:text-foreground" strokeWidth={1.5} />
-    </div>
-  );
-}
-
-function EmptyText({ children }: { children: React.ReactNode }) {
-  return <p className="py-1.5 text-[13px] italic text-muted-foreground">{children}</p>;
-}
-
-/** Uma linha de pedido pendente: placa do tipo, quem, detalhe, quando e as ações. */
-function Row({
-  icon,
-  tone,
-  who,
-  kind,
-  detail,
-  when,
-  actions,
-}: {
-  icon: LucideIcon;
-  tone: Tone;
-  who: string;
-  kind: string;
-  detail: string;
-  when: string;
-  actions: React.ReactNode;
-}) {
-  return (
-    <div className="grid grid-cols-[38px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2.5 border-b border-border p-4 last:border-b-0 lg:grid-cols-[38px_minmax(0,1.3fr)_minmax(0,1.6fr)_170px_auto]">
-      <IconTile icon={icon} tone={tone} size="lg" className="h-[38px] w-[38px] rounded-xl" />
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="break-words text-sm font-bold text-foreground">{who}</span>
-        <span className="break-words text-xs text-muted-foreground">{kind}</span>
-      </div>
-      <p className="col-start-2 text-[13px] leading-snug text-muted-foreground lg:col-start-auto">{detail}</p>
-      <span className="col-start-2 text-xs text-muted-foreground lg:col-start-auto">{when}</span>
-      <div className="col-start-2 flex flex-wrap gap-2 lg:col-start-auto lg:justify-end">{actions}</div>
-    </div>
-  );
-}
-
 function LinkRow({ req, busy, onApprove, onReject }: { req: LinkRequest; busy: boolean; onApprove: () => void; onReject: () => void }) {
   return (
-    <Row
+    <ApprovalListRow
       icon={Link2}
       tone="brand"
       who={req.requester.name || req.requester.email}
@@ -108,7 +62,7 @@ function LinkRow({ req, busy, onApprove, onReject }: { req: LinkRequest; busy: b
 
 function ResetRow({ req, busy, onApprove }: { req: PasswordResetRequest; busy: boolean; onApprove: () => void }) {
   return (
-    <Row
+    <ApprovalListRow
       icon={KeyRound}
       tone="warn"
       who={req.userName || req.userEmail}
@@ -133,23 +87,6 @@ function ApproveResetButton({ busy, onClick }: { busy: boolean; onClick: () => v
   );
 }
 
-function HistoryTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{children}</h3>;
-}
-
-function HistoryLine({ left, status, right }: { left: string; status: string; right: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-[10px] border border-border bg-foreground/[0.04] px-3 py-2.5 text-xs">
-      <span className="flex min-w-0 flex-wrap items-center gap-2">
-        <CheckCircle2 className={cn('h-4 w-4 shrink-0', TONES.success.text)} strokeWidth={1.5} aria-hidden="true" />
-        <span className="break-all font-semibold text-foreground">{left}</span>
-        <span className="inline-flex h-5 items-center rounded-full border border-border px-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{status}</span>
-      </span>
-      <span className="text-muted-foreground">{right}</span>
-    </div>
-  );
-}
-
 /** Aviso de que o backend deste ambiente ainda não tem os pedidos de vínculo. */
 function UnavailableNote({ compact = false }: { compact?: boolean }) {
   return (
@@ -165,7 +102,6 @@ export function ApprovalsHub() {
   const [tab, setTab] = useState<Tab>('all');
   const [link, setLink] = useState<ResetLink | null>(null);
   const [rejecting, setRejecting] = useState<LinkRequest | null>(null);
-  const [reason, setReason] = useState('');
 
   const onLink = useCallback((l: ResetLink) => setLink(l), []);
   const resets = useResetRequests(onLink);
@@ -193,12 +129,10 @@ export function ApprovalsHub() {
     e.preventDefault();
   };
 
-  const confirmReject = () => {
+  const confirmReject = (text: string) => {
     if (!rejecting) return;
     const target = rejecting;
-    const text = reason;
     setRejecting(null);
-    setReason('');
     void links.reject(target, text);
   };
 
@@ -209,7 +143,7 @@ export function ApprovalsHub() {
         req={req}
         busy={links.busyId === req.id}
         onApprove={() => void links.approve(req)}
-        onReject={() => { setReason(''); setRejecting(req); }}
+        onReject={() => setRejecting(req)}
       />
     ));
 
@@ -254,7 +188,7 @@ export function ApprovalsHub() {
         {tab === 'all' && (
           <>
             {allLoading ? (
-              <Spinner />
+              <ApprovalSpinner />
             ) : rows.length > 0 ? (
               <div className="overflow-hidden rounded-[14px] border border-border">
                 {rows.map((row) =>
@@ -264,7 +198,7 @@ export function ApprovalsHub() {
                       req={row.request}
                       busy={links.busyId === row.request.id}
                       onApprove={() => void links.approve(row.request)}
-                      onReject={() => { setReason(''); setRejecting(row.request); }}
+                      onReject={() => setRejecting(row.request)}
                     />
                   ) : (
                     <ResetRow key={row.id} req={row.request} busy={resets.approvingId === row.request.id} onApprove={() => void resets.approve(row.request)} />
@@ -274,17 +208,17 @@ export function ApprovalsHub() {
             ) : (
               <EmptyText>Nada aguardando aprovação.</EmptyText>
             )}
-            {resets.error && <ErrorLine text={resets.error} onRetry={resets.reload} />}
+            {resets.error && <ApprovalErrorLine text={resets.error} onRetry={resets.reload} />}
             {links.state === 'unavailable' && <UnavailableNote compact />}
-            {links.state === 'error' && <ErrorLine text={links.error ?? ''} onRetry={links.reload} />}
+            {links.state === 'error' && <ApprovalErrorLine text={links.error ?? ''} onRetry={links.reload} />}
           </>
         )}
 
         {tab === 'links' && (
           <>
-            {links.state === 'loading' && <Spinner />}
+            {links.state === 'loading' && <ApprovalSpinner />}
             {links.state === 'unavailable' && <UnavailableNote />}
-            {links.state === 'error' && <ErrorLine text={links.error ?? ''} onRetry={links.reload} />}
+            {links.state === 'error' && <ApprovalErrorLine text={links.error ?? ''} onRetry={links.reload} />}
             {links.state === 'ready' && (
               <>
                 {linkSplit.pending.length === 0 ? (
@@ -340,9 +274,9 @@ export function ApprovalsHub() {
             </div>
             <div className="flex flex-col gap-3.5 px-4 py-4 sm:px-[18px]">
               {resets.loading && resets.requests.length === 0 && !resets.error ? (
-                <Spinner />
+                <ApprovalSpinner />
               ) : resets.error && resets.requests.length === 0 ? (
-                <ErrorLine text={resets.error} onRetry={resets.reload} />
+                <ApprovalErrorLine text={resets.error} onRetry={resets.reload} />
               ) : resetSplit.pending.length === 0 && resetSplit.history.length === 0 ? (
                 <EmptyText>Nenhuma solicitação de redefinição de senha registrada no momento.</EmptyText>
               ) : (
@@ -403,40 +337,11 @@ export function ApprovalsHub() {
         )}
       </div>
 
-      <ConfirmDialog
-        open={!!rejecting}
-        onOpenChange={(open) => { if (!open) { setRejecting(null); setReason(''); } }}
-        tone="warn"
-        icon={Ban}
-        title={`Recusar o pedido de ${rejecting?.requester.name || rejecting?.requester.email || ''}?`}
-        description="A pessoa continua sem o vínculo. O motivo, se houver, fica registrado no pedido."
-        confirmLabel="Recusar pedido"
+      <RejectRequestDialog
+        name={rejecting ? rejecting.requester.name || rejecting.requester.email : null}
+        onCancel={() => setRejecting(null)}
         onConfirm={confirmReject}
-        keepOpenOnConfirm
-      >
-        <label htmlFor="reject-reason" className="mt-1 flex flex-col gap-1.5 text-[13px] font-semibold text-foreground">
-          Motivo (opcional)
-          <textarea
-            id="reject-reason"
-            rows={3}
-            maxLength={300}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className={cn(FIELD, 'resize-none py-2.5 font-normal')}
-          />
-        </label>
-      </ConfirmDialog>
+      />
     </section>
-  );
-}
-
-function ErrorLine({ text, onRetry }: { text: string; onRetry: () => void | Promise<void> }) {
-  return (
-    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-3.5 py-3 text-[13px]">
-      <span className={TONES.danger.text}>{text || 'Não foi possível carregar.'}</span>
-      <ModalButton className="h-8 px-3 text-[13px]" onClick={() => void onRetry()}>
-        Tentar de novo
-      </ModalButton>
-    </div>
   );
 }
