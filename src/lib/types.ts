@@ -721,6 +721,9 @@ export interface GoogleCalendarEvent {
 
 // --- Action Plan (5W2H) ---
 
+/** De onde o plano nasceu (V78 do backend). Plano antigo e plano feito à mão são `MANUAL`. */
+export type PlanSourceType = 'MANUAL' | 'RETRO' | 'HEALTH_CHECK' | 'BRAINSTORMING' | 'SHOWCASE';
+
 export type ActionPlanBoard = {
   id: string;
   creatorId: string;
@@ -737,6 +740,16 @@ export type ActionPlanBoard = {
   settings?: {
     isPublic: boolean;
   };
+  /** Origem do plano. Ausente quando o backend é anterior à V78 (o front trata como "sem informação"). */
+  sourceType?: PlanSourceType;
+  /** Id da sessão que originou o plano (radar, retro, brainstorming...). Nulo em MANUAL. */
+  sourceId?: string | null;
+  /** Título da sessão de origem, para exibir. */
+  sourceTitle?: string | null;
+  /** Só nas listas: total de ações do plano. */
+  tasksTotal?: number;
+  /** Só nas listas: ações com status `done`. */
+  tasksDone?: number;
 };
 
 export type ActionPlanTaskStatus = 'todo' | 'doing' | 'done' | 'blocked';
@@ -756,7 +769,16 @@ export type ActionPlanTask = {
   updatedAt: string;
   authorId: string;
   order: number;
+  /** Id do item de origem (cartão da retro, dimensão do radar, ideia do brainstorming). Imutável. */
+  sourceItemId?: string | null;
+  /** Rótulo do item de origem ("Comunicação"). Imutável. */
+  sourceLabel?: string | null;
+  /** Prazo de verdade, `yyyy-MM-dd` (sem hora nem fuso). `when` segue como texto livre. */
+  dueDate?: string | null;
 };
+
+/** O que vai no corpo ao criar/editar uma ação: campos opcionais, mais `clearDueDate` para limpar o prazo. */
+export type ActionPlanTaskInput = Partial<ActionPlanTask> & { clearDueDate?: boolean };
 
 // --- Squad Pulse (dashboard de produtividade de time via Jira) ---
 

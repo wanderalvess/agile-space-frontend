@@ -1,30 +1,56 @@
-import { ActionPlanBoard, ActionPlanTask } from '@/lib/types';
+import { ActionPlanBoard, ActionPlanTask, ActionPlanTaskInput, PlanSourceType } from '@/lib/types';
 import { authFetch } from '@/lib/auth-client';
 import { ensureOk } from '@/lib/ceremony-api';
+import { PlanSourceConflictError } from '@/lib/action-plan-origin';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export const actionPlanApi = {
-  async listBoards(sprintId: string): Promise<ActionPlanBoard[]> {
-    const res = await authFetch(`${API_BASE_URL}/action-plans?sprintId=${encodeURIComponent(sprintId)}`);
+  /**
+   * Lista planos. Com uma `sprintId` (texto) é a lista da sprint, como sempre. Com um objeto: por squad e/ou por
+   * origem (`sourceType` + `sourceId` = "o plano desta sessão"). Cada plano da lista traz `tasksTotal`/`tasksDone`
+   * quando o backend é o novo; no antigo os filtros de origem são ignorados (use `findPlanBySource` no resultado).
+   */
+  async listBoards(
+    filter: string | { sprintId?: string; squadId?: string; sourceType?: PlanSourceType; sourceId?: string },
+  ): Promise<ActionPlanBoard[]> {
+    const f = typeof filter === 'string' ? { sprintId: filter } : filter;
+    const qs = new URLSearchParams();
+    if (f.sprintId) qs.set('sprintId', f.sprintId);
+    if (f.squadId) qs.set('squadId', f.squadId);
+    if (f.sourceType) qs.set('sourceType', f.sourceType);
+    if (f.sourceId) qs.set('sourceId', f.sourceId);
+    const res = await authFetch(`${API_BASE_URL}/action-plans?${qs.toString()}`);
     await ensureOk(res, 'Falha ao listar planos de ação');
     return res.json();
   },
 
   /** Planos de ação da squad (todas as sprints). */
   async listBoardsBySquad(squadId: string): Promise<ActionPlanBoard[]> {
-    const res = await authFetch(`${API_BASE_URL}/action-plans?squadId=${encodeURIComponent(squadId)}`);
-    await ensureOk(res, 'Falha ao listar planos de ação');
-    return res.json();
+    return actionPlanApi.listBoards({ squadId });
   },
 
-  /** Criador, id e datas são definidos pelo servidor a partir do login; o que vier no corpo é ignorado. */
+  /**
+   * Criador, id e datas são definidos pelo servidor a partir do login; o que vier no corpo é ignorado.
+   * Com `sourceType` + `sourceId` (+ `sourceTitle`) o plano guarda de onde veio; origem repetida na mesma squad
+   * volta 409, que sai daqui como `PlanSourceConflictError` (com `existingPlanId` quando o plano é visível).
+   */
   async createBoard(board: Partial<ActionPlanBoard>): Promise<ActionPlanBoard> {
     const res = await authFetch(`${API_BASE_URL}/action-plans`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(board),
     });
+    if (res.status === 409) {
+      let message = 'Já existe um plano de ação criado a partir desta origem.';
+      let existingPlanId: string | undefined;
+      try {
+        const json = JSON.parse(await res.text());
+        if (typeof json?.message === 'string' && json.message.trim()) message = json.message;
+        if (typeof json?.existingPlanId === 'string' && json.existingPlanId) existingPlanId = json.existingPlanId;
+      } catch { /* corpo ilegível: fica o texto padrão */ }
+      throw new PlanSourceConflictError(message, existingPlanId);
+    }
     await ensureOk(res, 'Falha ao criar o plano de ação');
     return res.json();
   },
@@ -71,7 +97,7 @@ export const actionPlanApi = {
     return res.json();
   },
 
-  async createTask(boardId: string, task: Partial<ActionPlanTask>): Promise<ActionPlanTask> {
+  async createTask(boardId: string, task: ActionPlanTaskInput): Promise<ActionPlanTask> {
     const res = await authFetch(`${API_BASE_URL}/action-plans/${boardId}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -81,8 +107,11 @@ export const actionPlanApi = {
     return res.json();
   },
 
-  /** Edição parcial: só os campos enviados mudam; texto vazio ("") limpa o campo. */
-  async updateTask(taskId: string, task: Partial<ActionPlanTask>): Promise<ActionPlanTask> {
+  /**
+   * Edição parcial: só os campos enviados mudam; texto vazio ("") limpa o campo. `dueDate` (yyyy-MM-dd) muda o
+   * prazo; para limpar, `clearDueDate: true`. A origem da ação (`sourceItemId`, `sourceLabel`) não muda depois de criada.
+   */
+  async updateTask(taskId: string, task: ActionPlanTaskInput): Promise<ActionPlanTask> {
     const res = await authFetch(`${API_BASE_URL}/action-plans/tasks/${taskId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
