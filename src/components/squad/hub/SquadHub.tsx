@@ -54,7 +54,7 @@ const SquadPanelsTab = dynamic(() => import('@/components/squad/panels/SquadPane
   loading: () => <LoadingSkeleton variant="cards" rows={3} label="Carregando os painéis" />,
 });
 
-const ACTION = 'h-9 gap-2 px-2.5 text-[13px] xl:px-3';
+const ACTION = 'h-9 gap-2 px-2.5 text-[13px] max-sm:min-h-11 max-sm:min-w-11 xl:px-3';
 const LABEL = 'hidden xl:inline';
 
 export function SquadHub() {

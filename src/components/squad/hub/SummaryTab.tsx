@@ -159,7 +159,7 @@ export function SummaryTab({
         <ModalButton
           onClick={() => setJiraImportOpen(true)}
           disabled={!hasSquad}
-          className="h-9 gap-2 px-3 text-[13px]"
+          className="h-9 gap-2 px-3 text-[13px] max-sm:min-h-11"
           title="Importar ou atualizar pessoas, cargos e fotos a partir do Jira"
         >
           <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar do Jira
@@ -167,7 +167,7 @@ export function SummaryTab({
         <ModalButton
           onClick={handleRefresh}
           disabled={isRefreshing || !hasSquad}
-          className="h-9 gap-2 px-3 text-[13px]"
+          className="h-9 gap-2 px-3 text-[13px] max-sm:min-h-11"
           title="Recarregar os dados da squad"
         >
           <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin motion-reduce:animate-none')} strokeWidth={1.5} aria-hidden="true" /> Atualizar

@@ -10,7 +10,7 @@ Três entradas que parecem módulos mas são, na maior parte, **atalhos**:
 |---|---|
 | `/governance` | Página **estática** de transparência: pilares de segurança, limitações conhecidas, inventário de dados, avisos legais, links para `/support` e `/manual`. Sem dado do servidor, sem controle de acesso |
 | `/governance/product-owner` | **Redireciona** para `/squad/dashboards/product-owner` |
-| `/projects` | **Redireciona** para `/admin?tab=governance` (aba de sincronização do Jira, área de admin) |
+| `/projects` | **Redireciona** (308, `next.config`) para `/admin` |
 
 O cadastro e a hierarquia de projetos de verdade moram no backend (`/api/projects`) e são usados pelo onboarding, pelo seletor de equipes e pela importação do Jira.
 

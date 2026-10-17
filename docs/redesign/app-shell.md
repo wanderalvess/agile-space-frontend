@@ -145,9 +145,7 @@ Na prática:
 
 ### Ocorrências ainda a tratar (outras páginas)
 
-- `/painel`: título do `RoomHeader` `Painel · {squadId}` e `document.title` repetem a squad que o seletor do cabeçalho já mostra.
-- `/squad`: título `Squad Hub · {squadId}` (mesmo caso) e `SquadOverview` (`config?.name || squadId` seguido do selo `{squadId}`: repete lado a lado quando o nome é igual ao ID).
-- `components/painel/PainelWelcome.tsx`: `<h1>{teamName}</h1>` seguido do selo `{squadId}`.
+- `/painel` virou a aba Resumo de `/squad` (hub em `PageShell`, título "Squad", sem selo da squad; `SummaryWelcome` só mostra a chave quando difere do nome). Resolvido.
 - `layout/RoomHeader.tsx` e `layout/Header.tsx` ainda embutem o `GlobalProjectSelector` (um segundo seletor de squad). Sai quando a página migra para o `AppHeader`.
 
 ## Checklist para migrar uma página
