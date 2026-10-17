@@ -78,6 +78,8 @@ export interface RoomTopBarProps {
   onTitleChange?: (title: string) => void;
   /** Para onde o botão de voltar leva. Padrão: Home. */
   homeHref?: string;
+  /** Nome acessível do botão de voltar. Padrão: "Voltar para a página inicial". */
+  homeLabel?: string;
   /** Estado da sessão: ponto pulsante em "Ao vivo". */
   status?: RoomTopBarStatus;
   /** Texto do selo no lugar do padrão ("Em preparação" em vez de "Aguardando"). */
@@ -288,6 +290,7 @@ export function RoomTopBar({
   title,
   onTitleChange,
   homeHref = '/',
+  homeLabel = 'Voltar para a página inicial',
   status,
   statusLabel,
   chips = [],
@@ -317,8 +320,8 @@ export function RoomTopBar({
         <div className="order-1 flex min-w-0 flex-1 items-center gap-2.5 xl:min-w-[15rem]">
           <Link
             href={homeHref}
-            aria-label="Voltar para a página inicial"
-            title="Voltar para a página inicial"
+            aria-label={homeLabel}
+            title={homeLabel}
             className={cn(
               'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-foreground transition-colors duration-fast hover:bg-accent max-sm:h-11 max-sm:w-11',
               FOCUS_RING

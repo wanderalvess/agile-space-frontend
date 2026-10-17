@@ -3,7 +3,7 @@
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft, X, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ModalButton } from '@/components/room-kit';
 
 interface TourStep {
   target: string | null; // valor do atributo data-tour; null = passo de boas-vindas, sem alvo
@@ -14,31 +14,32 @@ interface TourStep {
 const STEPS: TourStep[] = [
   {
     target: null,
-    title: 'Bem-vindo à sessão',
-    desc: 'Tour rápido de 4 passos pra você já saber de onde vem cada informação e o que fazer nos seus cards.',
+    title: 'Bem-vindo à Review',
+    desc: 'Tour rápido de 5 passos para você saber de onde vem cada informação e o que fazer nos seus cards.',
   },
   {
     target: 'search',
     title: 'Ache os seus cards',
-    desc: 'Busque por chave, título ou dev — ou use os filtros "Dev"/"QA" ao lado pra ver só o que é seu.',
+    desc: 'Busque por chave, título, dev ou QA, ou use os filtros de Dev, QA e Tipo ao lado para ver só o que é seu.',
   },
   {
     target: 'first-card-status',
-    title: 'Problema e Solução já vêm do Jira',
-    desc: 'O sistema tenta extrair isso sozinho da descrição da issue. Complete a evidência (print/vídeo) e marque o status aqui conforme avança. Quando marcar "Pronta", o card recolhe sozinho — clique nele pra reabrir se precisar reconferir algo.',
+    title: 'Problema e solução já vêm do Jira',
+    desc: 'O sistema tenta extrair isso sozinho da descrição da issue. Complete a evidência (print ou vídeo) e marque o status aqui conforme avança. Quando marcar "Pronta", o card recolhe sozinho; clique nele para reabrir se precisar reconferir algo.',
   },
   {
     target: 'jira-import',
     title: 'Importação do Jira',
-    desc: 'Normalmente o PO ou o Agile já trouxe as issues pra cá. Em "Adicionar" você importa mais issues do Jira ou cria um card manual, se precisar.',
+    desc: 'Normalmente o PO ou o agilista já trouxe as issues para cá. Em "Adicionar" você importa mais issues do Jira ou cria um card manual, se precisar.',
   },
   {
     target: 'start-teatro',
     title: 'Apresente no Modo Teatro',
-    desc: 'Com os cards prontos, clique aqui pra apresentar em tela cheia, sem sair da ferramenta.',
+    desc: 'Com os cards prontos, clique aqui para apresentar em tela cheia, sem sair da ferramenta.',
   },
 ];
 
+/** Guarda no navegador que o tour já foi visto (o tour abre sozinho na primeira vez com cards). */
 export const TOUR_STORAGE_KEY = 'agileSpace_showcase_tour_v1';
 
 const PAD = 8;
@@ -131,16 +132,16 @@ export function ShowcaseTour({ open, onClose }: ShowcaseTourProps) {
 
       {rect ? (
         <motion.div
-          className="fixed rounded-2xl ring-2 ring-violet-500 pointer-events-none"
+          className="pointer-events-none fixed rounded-2xl ring-2 ring-primary"
           animate={{
             top: rect.top - PAD, left: rect.left - PAD,
             width: rect.width + PAD * 2, height: rect.height + PAD * 2,
           }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          style={{ boxShadow: '0 0 0 9999px rgba(2, 6, 23, 0.78)' }}
+          style={{ boxShadow: '0 0 0 9999px rgba(0, 24, 36, 0.78)' }}
         />
       ) : (
-        <div className="fixed inset-0 bg-slate-950/78" />
+        <div className="fixed inset-0 bg-[#001824]/80" />
       )}
 
       <AnimatePresence mode="wait">
@@ -150,33 +151,33 @@ export function ShowcaseTour({ open, onClose }: ShowcaseTourProps) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.18 }}
-          className="fixed bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-5 space-y-3 border border-slate-200 dark:border-slate-800"
+          role="dialog" aria-label="Tour da Review" className="fixed flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-2xl"
           style={tooltipStyle}
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
-              <Sparkles className="h-4 w-4" />
-              <span className="text-[11px] font-bold uppercase tracking-wide">{stepIndex + 1} / {STEPS.length}</span>
+            <div className="flex items-center gap-2 text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+              <Sparkles className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              <span className="text-xs font-semibold tabular-nums">{stepIndex + 1} / {STEPS.length}</span>
             </div>
-            <button onClick={finish} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" title="Pular tour">
-              <X className="h-4 w-4" />
+            <button onClick={finish} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" title="Pular tour" aria-label="Pular tour">
+              <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </button>
           </div>
-          <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">{step.title}</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">{step.desc}</p>
+          <h4 className="m-0 text-base font-bold text-foreground">{step.title}</h4>
+          <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">{step.desc}</p>
           <div className="flex items-center justify-between pt-2">
-            <button onClick={finish} className="text-[11px] font-bold uppercase text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+            <button onClick={finish} className="rounded-md px-1 text-[13px] font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:min-h-11">
               Pular tour
             </button>
             <div className="flex items-center gap-2">
               {stepIndex > 0 && (
-                <Button variant="ghost" size="sm" onClick={prev} className="h-8 px-3 text-[11px] font-bold uppercase gap-1.5">
-                  <ArrowLeft className="h-3 w-3" /> Voltar
-                </Button>
+                <ModalButton variant="ghost" className="h-9 gap-1.5 px-3 text-[13px]" onClick={prev}>
+                  <ArrowLeft className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Voltar
+                </ModalButton>
               )}
-              <Button size="sm" onClick={next} className="h-8 px-4 bg-violet-600 hover:bg-violet-700 text-white text-[11px] font-bold uppercase gap-1.5">
-                {stepIndex < STEPS.length - 1 ? <>Próximo <ArrowRight className="h-3 w-3" /></> : 'Concluir'}
-              </Button>
+              <ModalButton variant="primary" className="h-9 gap-1.5 px-4 text-[13px]" onClick={next}>
+                {stepIndex < STEPS.length - 1 ? <>Próximo <ArrowRight className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /></> : 'Concluir'}
+              </ModalButton>
             </div>
           </div>
         </motion.div>

@@ -37,7 +37,7 @@ export function TaskFileEvidence({ sessionId, file, title, isLight }: TaskFileEv
         )}>
           <Camera className="h-16 w-16" />
         </div>
-        <p className={cn("text-xs font-black uppercase tracking-[0.3em]", isLight ? "text-slate-400" : "text-white/30")}>
+        <p className={cn("text-xs font-bold tracking-[0.3em]", isLight ? "text-slate-400" : "text-white/30")}>
           {status === 'error' ? `Não foi possível abrir ${file.name}` : 'Carregando evidência...'}
         </p>
       </motion.div>
@@ -68,13 +68,13 @@ export function TaskFileEvidence({ sessionId, file, title, isLight }: TaskFileEv
           )}
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          <span className="text-[11px] font-bold uppercase tracking-wide">Nova Aba</span>
+          <span className="text-xs font-bold">Nova aba</span>
         </a>
         <div className="absolute top-6 right-10 z-20 flex items-center gap-2 px-3 py-1.5 bg-black/50 backdrop-blur-md rounded-full border border-white/10 pointer-events-none max-w-[40%]">
           <FileText className="h-3.5 w-3.5 text-white/70 shrink-0" />
-          <span className="text-[11px] font-bold text-white/70 truncate">{file.name}</span>
+          <span className="text-xs font-bold text-white/70 truncate">{file.name}</span>
         </div>
-        <iframe src={url} title={`Evidência da Tarefa: ${title}`} className="w-full h-full border-none bg-[#0d0d1a]" />
+        <iframe src={url} title={`Evidência da Tarefa: ${title}`} className="w-full h-full border-none bg-[#00202F]" />
       </motion.div>
     );
   }
@@ -89,7 +89,7 @@ export function TaskFileEvidence({ sessionId, file, title, isLight }: TaskFileEv
         transition={{ duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
         className={cn(
           "w-full h-full max-w-6xl rounded-[3.5rem] overflow-hidden border flex items-center justify-center group cursor-zoom-in relative",
-          isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#0d0d1a] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
+          isLight ? "bg-[#fff] border-slate-200 shadow-[0_50px_150px_rgba(0,0,0,0.1)]" : "bg-[#00202F] border-white/10 shadow-[0_50px_150px_rgba(0,0,0,0.8)]"
         )}
         onClick={() => setExpanded(true)}
         title="Clique para ampliar"
@@ -97,7 +97,7 @@ export function TaskFileEvidence({ sessionId, file, title, isLight }: TaskFileEv
         <img src={url} alt={`Evidência visual: ${title} (${file.name})`} className="max-w-full max-h-full object-contain" />
         <div className="absolute bottom-6 right-8 z-20 flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
           <ZoomIn className="h-3.5 w-3.5" />
-          <span className="text-[11px] font-bold uppercase tracking-wide">Ampliar</span>
+          <span className="text-xs font-bold">Ampliar</span>
         </div>
       </motion.div>
 

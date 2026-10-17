@@ -4,50 +4,47 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { ControlledInput, ControlledTextarea } from './ControlledFields';
 
-export function FieldLabel({ icon: Icon, label, color }: { icon: React.ElementType; label: string; color: string }) {
+/** Campo de uma linha dentro do card (dev, QA, versões, links, métricas). */
+export const CARD_INPUT =
+  'h-9 w-full rounded-lg border border-border bg-background px-2.5 text-[13px] text-foreground placeholder:text-muted-foreground ' +
+  'transition-colors focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+/** Bloco com fundo suave que agrupa campos (execução, métricas). */
+export const CARD_PANEL = 'rounded-xl border border-border bg-muted/30 p-4';
+
+/** Rótulo de um campo: ícone de linha e texto de 13 px, na cor do tom (problema, solução, critérios). */
+export function FieldLabel({ icon: Icon, label, color = 'text-muted-foreground' }: { icon: React.ElementType; label: string; color?: string }) {
   return (
-    <p className={cn('flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em]', color)}>
-      <Icon className="h-3 w-3 shrink-0" />
+    <p className={cn('m-0 flex items-center gap-1.5 text-[13px] font-semibold', color)}>
+      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} aria-hidden="true" />
       {label}
     </p>
   );
 }
 
 export function TextField({
-  id, label, icon, value, onChange, placeholder, colorScheme, multiline = false, minRows = 3,
+  id, label, icon, value, onChange, placeholder, labelColor, multiline = false, minRows = 3,
 }: {
   id: string; label: string; icon: React.ElementType; value: string;
   onChange: (v: string) => void; placeholder: string;
-  colorScheme: { label: string; focus: string; ring: string };
+  /** Cor do rótulo (token do tom: erro para o problema, sucesso para a solução, marca para os critérios). */
+  labelColor?: string;
   multiline?: boolean; minRows?: number;
 }) {
   const baseClass = cn(
-    'w-full text-[11px] text-slate-700 dark:text-slate-200 font-medium bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl px-3 transition-all',
-    'placeholder:text-slate-300 dark:placeholder:text-slate-700',
-    'focus:bg-white dark:focus:bg-slate-950 focus:outline-none',
-    colorScheme.focus, colorScheme.ring,
+    'w-full rounded-xl border border-border bg-muted/40 px-3 text-sm leading-relaxed text-foreground transition-colors',
+    'placeholder:text-muted-foreground focus:bg-background focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
   );
 
   return (
-    <div className="space-y-1.5">
-      <FieldLabel icon={icon} label={label} color={colorScheme.label} />
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="contents">
+        <FieldLabel icon={icon} label={label} color={labelColor} />
+      </label>
       {multiline ? (
-        <ControlledTextarea
-          id={id}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          rows={minRows}
-          className={cn(baseClass, 'py-2.5 resize-none leading-relaxed')}
-        />
+        <ControlledTextarea id={id} value={value} onChange={onChange} placeholder={placeholder} rows={minRows} className={cn(baseClass, 'resize-none py-2.5')} />
       ) : (
-        <ControlledInput
-          id={id}
-          value={value}
-          onChange={onChange}
-          placeholder={placeholder}
-          className={cn(baseClass, 'h-9 py-0')}
-        />
+        <ControlledInput id={id} value={value} onChange={onChange} placeholder={placeholder} className={cn(baseClass, 'h-9 py-0')} />
       )}
     </div>
   );

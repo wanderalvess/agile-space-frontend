@@ -1,5 +1,8 @@
 import { ChartType, ImpactMetric } from './types';
 
+/** Cor padrão dos gráficos da Review: ciano escuro da paleta TOTVS (lê bem em fundo claro e escuro). */
+export const REVIEW_CHART_COLOR = 'hsl(190, 100%, 38%)';
+
 /**
  * Cor fixa por nome de categoria (normalizado: minúsculo, sem acento) — cobre
  * os dois vocabulários mais comuns que um dev team relata (severidade de bug,
