@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -113,6 +114,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const searchParams = useSearchParams();
   const { session: authSession } = useAuth();
   const { userProfile } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
   const { toast } = useToast();
 
   const [session, setSessionState] = useState<ShowcaseSession | null>(null);
@@ -444,7 +446,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       else if (task.decision === 'needs_adjustment') backendStatus = 'carried_over';
 
       const issueProjectKey = task.key.split('-')[0].toUpperCase();
-      const activeSquad = sessionRef.current?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+      const activeSquad = sessionRef.current?.squadName || issueProjectKey || activeSquadId;
       if (activeSquad) {
         try {
           const { workItemsApi } = await import('@/app/work-items-api');
@@ -460,7 +462,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       }
     }
     return true;
-  }, [mutate, toast, userProfile?.squadId, authSession?.activeProjectId]);
+  }, [mutate, toast, activeSquadId]);
 
   // Anexos: o servidor avisa a sala toda por WebSocket; recarregar aqui garante que quem enviou veja na hora.
   const uploadTaskFile = useCallback(async (taskId: string, file: File) => {
@@ -478,7 +480,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const handleOpenRetro = async () => {
     const firstTaskKey = session?.tasks?.[0]?.key;
     const issueProjectKey = firstTaskKey?.includes('-') ? firstTaskKey.split('-')[0].toUpperCase() : '';
-    const squadId = session?.squadName || issueProjectKey || userProfile?.squadId || authSession?.activeProjectId || '';
+    const squadId = session?.squadName || issueProjectKey || activeSquadId;
     if (!squadId) {
       toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta review.", variant: "destructive" });
       return;

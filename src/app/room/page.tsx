@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { RoomHeader } from '@/components/layout/RoomHeader';
 import { Footer } from '@/components/layout/Footer';
 import { FeedbackWidget } from '@/components/feedback-widget';
@@ -155,7 +156,8 @@ export default function PokerHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session } = useAuth();
-  const { userProfile, requestIdentity } = useUserContext();
+  const { requestIdentity } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -171,7 +173,7 @@ export default function PokerHubPage() {
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const { history: localHistory, loading: loadingHistory } = useToolHistory('poker');
 
-  const currentSquadId = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
+  const currentSquadId = activeSquadId;
 
   const loadRooms = useCallback(async () => {
     if (!currentSquadId) {

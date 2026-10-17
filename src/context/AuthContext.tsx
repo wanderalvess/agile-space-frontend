@@ -15,6 +15,7 @@ import {
   type AuthResponse,
 } from '@/lib/auth-client';
 import { clearJustSignedUp } from '@/lib/team-welcome';
+import { invalidateMyMemberships, resetMyMemberships } from '@/lib/memberships-store';
 import { ApiError } from '@/lib/api-error';
 
 /** Tempo máximo esperando o backend responder na abertura do app; passado isso o spinner não pode ficar eterno. */
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSessionLocally = useCallback(() => {
     clearAuthToken();
     clearUserScopedStorage();
+    resetMyMemberships();
     setSession(null);
   }, []);
 
@@ -283,6 +285,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(await parseErrorMessage(res, 'Não foi possível trocar de projeto'));
     }
     const data: AuthResponse = await res.json();
+    // Os vínculos não mudam com a troca, mas a squad ativa validada sim: refaz a leitura.
+    invalidateMyMemberships();
     setSession(data);
   }, []);
 
@@ -296,6 +300,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new ApiError(await parseErrorMessage(res, 'Não foi possível criar o projeto'), res.status);
     }
     const data: AuthResponse = await res.json();
+    invalidateMyMemberships();
     setSession(data);
     return data;
   }, []);
@@ -311,6 +316,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data: AuthResponse = await res.json();
     // Entrou por escolha própria: o aviso "encontramos o seu e-mail" só vale pro vínculo automático do cadastro.
     clearJustSignedUp();
+    invalidateMyMemberships();
     setSession(data);
     return data;
   }, []);
@@ -329,6 +335,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const data: AuthResponse = await res.json();
     clearJustSignedUp();
+    invalidateMyMemberships();
     setSession(data);
     return data;
   }, []);
@@ -342,6 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data: AuthResponse = await res.json();
     clearJustSignedUp();
     if (data.token) setAuthToken(data.token);
+    invalidateMyMemberships();
     setSession(data);
     return data;
   }, []);

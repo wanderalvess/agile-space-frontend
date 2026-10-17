@@ -1,8 +1,8 @@
 'use client';
 
-import { Check, Crown, Loader2, UserRound } from 'lucide-react';
+import { Check, Crown, Loader2, Network, UserRound } from 'lucide-react';
 import { ModalButton, RoleChip, StatusChip, TONES } from '@/components/room-kit';
-import { linkKindLabel, squadBadge, type MyLink } from '@/lib/my-links';
+import { linkKindLabel, originSummary, squadBadge, type MyLink } from '@/lib/my-links';
 import { cn } from '@/lib/utils';
 
 export interface LinkCardProps {
@@ -15,9 +15,14 @@ export interface LinkCardProps {
   onActivate: (link: MyLink) => void;
 }
 
-/** Um vínculo (Pessoa × Squad × Papel): placa da squad, nome, chave, papel, tipo e a ação de tornar ativa. */
+/**
+ * Um vínculo (Pessoa × Squad × Papel): placa da squad, nome, chave, TODOS os papéis nela, tipo, origem e a ação
+ * de tornar ativa. Vínculo derivado de liderança transversal mostra "Liderança da tribo/segmento" no lugar dos papéis.
+ */
 export function LinkCard({ link, canSwitch, switching, busy, onActivate }: LinkCardProps) {
   const meta = link.via ? `via ${link.via}` : [link.tribe, link.segment].filter(Boolean).join(' · ');
+  const derived = link.scope !== 'SQUAD' && !!link.scopeLabel;
+  const origin = derived ? null : originSummary(link);
   return (
     <li
       aria-label={`${link.name}${link.active ? ', squad ativa' : ''}`}
@@ -36,13 +41,33 @@ export function LinkCard({ link, canSwitch, switching, busy, onActivate }: LinkC
           <span className="font-code text-xs text-muted-foreground">{link.id}</span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {link.role && <RoleChip category={link.role} label={link.role} className="max-w-full truncate" />}
-          <StatusChip tone={link.leadership ? 'warn' : 'neutral'} className="gap-1">
-            {link.leadership ? <Crown aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} /> : <UserRound aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} />}
-            {linkKindLabel(link)}
-          </StatusChip>
+          {derived ? (
+            <StatusChip tone="warn" className="gap-1">
+              <Network aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} />
+              {link.scopeLabel}
+            </StatusChip>
+          ) : (
+            <>
+              {link.roles.length > 0 ? (
+                <ul aria-label="Papéis nesta squad" className="m-0 flex list-none flex-wrap items-center gap-1.5 p-0">
+                  {link.roles.map((r, i) => (
+                    <li key={`${r.name}-${i}`} className="inline-flex">
+                      <RoleChip category={r.name} label={r.name} className="max-w-full truncate" />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                link.role && <RoleChip category={link.role} label={link.role} className="max-w-full truncate" />
+              )}
+              <StatusChip tone={link.leadership ? 'warn' : 'neutral'} className="gap-1">
+                {link.leadership ? <Crown aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} /> : <UserRound aria-hidden="true" className="h-3 w-3" strokeWidth={1.5} />}
+                {linkKindLabel(link)}
+              </StatusChip>
+            </>
+          )}
         </div>
         {meta && <span className="truncate text-xs text-muted-foreground">{meta}</span>}
+        {origin && <span className="text-xs text-muted-foreground">Origem: {origin}</span>}
       </div>
 
       {link.active ? (

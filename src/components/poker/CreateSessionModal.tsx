@@ -9,7 +9,7 @@ import { HOURS_MAX_DEFAULT, effectiveMaxHours, getDeckCards } from '@/lib/poker-
 import { DEFAULT_ROOM_SETTINGS } from '@/lib/poker-utils';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
-import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useToast } from '@/hooks/use-toast';
 import { pokerApi } from '@/app/room/api';
 import { FIELD, FOCUS_RING, IconButton, IconTile, Modal, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
@@ -116,7 +116,7 @@ export function CreateSessionModal({
   const router = useRouter();
   const { toast } = useToast();
   const { session } = useAuth();
-  const { userProfile } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [isCreating, setIsCreatingState] = useState(false);
   const setIsCreating = (v: boolean) => { setIsCreatingState(v); onCreatingChange?.(v); };
@@ -148,9 +148,8 @@ export function CreateSessionModal({
   // Squad do usuário assim que o perfil chega (async) — só se o campo não foi editado à mão.
   useEffect(() => {
     if (teamTouched) return;
-    const userTeam = session?.activeProjectId || userProfile?.squadId || userProfile?.team;
-    if (userTeam) setTeam(userTeam);
-  }, [session, userProfile, teamTouched]);
+    if (activeSquadId) setTeam(activeSquadId);
+  }, [activeSquadId, teamTouched]);
 
   const activeSetupCount = Object.values(setupSettings).filter(Boolean).length;
   const allItems: ReadonlyArray<{ key: string; title: string; desc: string }> = SETUP_GROUPS.flatMap((g) => [...g.items]);
@@ -237,7 +236,7 @@ export function CreateSessionModal({
       creatorId: session.id,
       timer: { status: 'stopped' as const, endTime: null, initialDuration: 120, remainingOnPause: 120 },
       title: title.trim(),
-      team: team.trim() || session?.activeProjectId || userProfile?.squadId || 'Squad Geral',
+      team: team.trim() || activeSquadId || 'Squad Geral',
       createdAt: new Date().toISOString(),
       issuesQueue: backlogIssues,
       activeIssueId: backlogIssues[0]?.id || null,

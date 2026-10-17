@@ -294,6 +294,32 @@ describe('squads, sprint e cerimônias', () => {
     expect(squadRefsFromSession(null)).toEqual([]);
   });
 
+  it('squads da sessão com vínculos: o papel mostrado é o primário do vínculo', () => {
+    const memberships = {
+      contractVersion: '1',
+      activeProjectId: 'a',
+      legacyOnly: false,
+      transversalLeader: false,
+      memberships: [
+        {
+          projectId: 'A',
+          projectName: 'Alfa',
+          roleName: 'Product Owner',
+          roleKey: 'PRODUCT_OWNER',
+          leadership: true,
+          direct: true,
+          scope: 'SQUAD' as const,
+          source: null,
+          roles: [],
+        },
+      ],
+    };
+    const refs = squadRefsFromSession({ accessibleProjects: [{ projectId: 'a', projectName: 'Alfa', roleName: 'Developer' }, { projectId: 'b', roleName: 'QA' }] }, memberships);
+    expect(refs.map((r) => r.roleName)).toEqual(['Product Owner', 'QA']);
+    // sem vínculos (endpoint ausente) é como antes
+    expect(squadRefsFromSession({ accessibleProjects: [{ projectId: 'a', roleName: 'Developer' }] }, null)[0].roleName).toBe('Developer');
+  });
+
   it('escolhe quais squads consultar: escopo, ativa primeiro e teto', () => {
     const refs = Array.from({ length: 12 }, (_, i) => ({ id: `s${i}`, name: `S${i}` }));
     expect(pickSquadsToQuery(refs, 's5', 's9').map((r) => r.id)).toEqual(['s9']);

@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useUserContext } from '@/context/UserContext';
 import { UserProfileModal } from '@/components/layout/UserProfileModal';
+import { LegacyOnlyNotice } from '@/components/onboarding/LegacyOnlyNotice';
 import { cn } from '@/lib/utils';
 
 export const ONBOARDING_EXEMPT_ROUTES = ['/onboarding', '/login', '/reset-password'];
@@ -19,10 +20,32 @@ export const isCollaborativeRoute = (path: string) => {
   );
 };
 
+const LEGACY_NOTICE_DISMISSED_KEY = 'agileSpace_legacyNoticeDismissed';
+
+/** Rotas onde o aviso de "sem vínculo" não aparece: o próprio fluxo de vínculo, login, salas e convites. */
+export function hidesLegacyNotice(path: string): boolean {
+  return ONBOARDING_EXEMPT_ROUTES.includes(path) || isCollaborativeRoute(path) || path.startsWith('/invite/');
+}
+
 export function IdentityGatekeeper({ children }: { children: React.ReactNode }) {
-  const { mustOnboard, isInitializing, isIdentityRequested, isPublicExploration } = useUserContext();
+  const { mustOnboard, legacyOnly, isInitializing, isIdentityRequested, isPublicExploration } = useUserContext();
   const pathname = usePathname();
   const router = useRouter();
+  const [noticeDismissed, setNoticeDismissed] = useState(() => {
+    try {
+      return typeof window !== 'undefined' && sessionStorage.getItem(LEGACY_NOTICE_DISMISSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const dismissNotice = useCallback(() => {
+    setNoticeDismissed(true);
+    try {
+      sessionStorage.setItem(LEGACY_NOTICE_DISMISSED_KEY, '1');
+    } catch {
+      /* sem storage: some só até recarregar */
+    }
+  }, []);
 
   // Sem projeto vinculado ainda: manda direto pro fluxo de onboarding (criar/entrar/sincronizar)
   // a menos que o usuário esteja acessando uma cerimônia colaborativa para a qual foi convidado.
@@ -54,6 +77,11 @@ export function IdentityGatekeeper({ children }: { children: React.ReactNode }) 
         shouldBlock && "blur-sm",
         shouldPreventEvents && "pointer-events-none"
       )}>
+        {legacyOnly && !mustOnboard && !noticeDismissed && !hidesLegacyNotice(pathname) && (
+          <div className="px-4 pt-3 sm:px-6">
+            <LegacyOnlyNotice onAction={() => router.push('/onboarding')} onDismiss={dismissNotice} />
+          </div>
+        )}
         {children}
       </div>
 

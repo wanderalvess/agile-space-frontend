@@ -6,8 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { authFetch } from '@/lib/auth-client';
-import { useUserContext } from '@/context/UserContext';
-import { useAuth } from '@/context/AuthContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { PAGE_CARD } from '@/components/page';
 import { ConfirmDialog, FIELD, IconButton, IconTile, Modal, ModalButton, SelectField, StatusChip } from '@/components/room-kit';
@@ -52,8 +51,7 @@ interface SyncResult {
 }
 
 export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
-  const { userProfile } = useUserContext();
-  const { session } = useAuth();
+  const { squadId: activeSquadId } = useActiveSquad();
   const { toast } = useToast();
   const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
   const [projectKey, setProjectKey] = useState('');
@@ -76,14 +74,14 @@ export function JiraSyncPanel({ onSyncSuccess }: JiraSyncPanelProps) {
   // Carrega chave de projeto / unidade de estimativa (locais deste painel) ao montar.
   React.useEffect(() => {
     try {
-      const activeProject = userProfile?.squadId || session?.activeProjectId || localStorage.getItem('agileSpace_activeSquadId') || '';
+      const activeProject = activeSquadId || localStorage.getItem('agileSpace_activeSquadId') || '';
       const savedKey = localStorage.getItem('agileSpace_jiraSync_projectKey') || activeProject;
       const savedUnit = localStorage.getItem('agileSpace_projectEstimationUnit') || 'SP';
 
       setProjectKey(savedKey);
       setEstimationUnit(savedUnit);
     } catch {}
-  }, [userProfile?.squadId, session?.activeProjectId]);
+  }, [activeSquadId]);
 
   // Domínio/token do Jira vêm da fonte única (useJiraSettings) — mesmo slot usado em
   // ConnectivitySettings/JiraImportDialog, sem localStorage próprio deste painel.

@@ -9,7 +9,7 @@ import { ConfirmDialog, FIELD, IconButton, IconTile, ModalButton, SelectField, S
 import { PAGE_CARD } from '@/components/page/styles';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { cn } from '@/lib/utils';
 import { describeExpiry, keysNeedingAttention, EXPIRY_CHOICES, EXPIRY_WARNING_DAYS } from '@/lib/api-key-expiry';
 import {
@@ -41,7 +41,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
   const uid = useId();
   const { toast } = useToast();
   const { session } = useAuth();
-  const { userProfile } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [keys, setKeys] = useState<MyApiKeyData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +55,7 @@ export function MyApiKeysManager({ compact = false }: MyApiKeysManagerProps) {
   const isAdmin = session?.role?.toUpperCase() === 'ADMIN';
 
   const allowedScopes = scopesAllowedForRole(session?.role);
-  const mySquadId = session?.activeProjectId || userProfile?.squadId || '';
+  const mySquadId = activeSquadId;
   const hasSquad = !!mySquadId;
 
   const loadKeys = async () => {

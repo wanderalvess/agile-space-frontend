@@ -18,6 +18,7 @@ import type { ChatMessage, ChatMessageKind } from '@/components/poker/team-chat/
 import { participantCategory } from '@/components/poker/team-chat/chatChannels';
 import { chatChannelsFor, mergeChatHistory, toChatParticipant, upsertChatMessage } from '@/components/retro/retro-chat';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { retroApi, RetroApiError } from '../api';
 import { getAuthToken } from '@/lib/auth-client';
@@ -31,6 +32,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [boardData, setBoardData] = useState<RetroBoardType | null>(null);
   const [cards, setCards] = useState<RetroCardType[]>([]);
@@ -1209,7 +1211,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
       <SprintStatsDialog
         open={showStats && !needsHealthCheck}
         onClose={() => setShowStats(false)}
-        squadId={boardData?.squadId || userProfile?.squadId || ''}
+        squadId={boardData?.squadId || activeSquadId}
         sprintId={boardData?.sprintId || undefined}
       />
     </>

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { NotFound } from '@/components/NotFound';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
@@ -36,6 +37,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   const { toast } = useToast();
   const { session, isLoading } = useAuth();
   const { userProfile, requestIdentity, isInitializing } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   useEffect(() => {
     // isInitializing precisa estar false também, senão requestIdentity() dispara
@@ -119,7 +121,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const issueProjectKey = activeIssue?.key?.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
     const squadId = (roomData?.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
       ? roomData.team
-      : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+      : (issueProjectKey || activeSquadId);
     if (!squadId) {
       toast({ title: "Squad não identificada", description: "Não foi possível resolver a squad desta sala.", variant: "destructive" });
       return;
@@ -136,7 +138,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       console.error('[Poker] Falha ao resolver sprint ativa da squad:', err);
       toast({ title: "Erro", description: "Não foi possível abrir a retrospectiva.", variant: "destructive" });
     }
-  }, [roomData?.team, roomData?.issuesQueue, roomData?.activeIssueId, userProfile?.squadId, session?.activeProjectId, router, toast]);
+  }, [roomData?.team, roomData?.issuesQueue, roomData?.activeIssueId, activeSquadId, router, toast]);
 
   // Versão otimista da sala já aplicada: um eco do WebSocket ou um GET que chegam atrasados
   // (versão menor) não podem desfazer um estado mais novo.
@@ -1200,7 +1202,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     const issueProjectKey = issueKey.includes('-') ? issueKey.split('-')[0].toUpperCase() : '';
     const targetSquad = (roomData.team && roomData.team !== 'Squad Geral' && roomData.team !== 'Geral')
       ? roomData.team
-      : (issueProjectKey || userProfile?.squadId || session?.activeProjectId || '');
+      : (issueProjectKey || activeSquadId);
     if (!targetSquad) return;
     try {
       const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api'}/work-items/${encodeURIComponent(targetSquad)}/${encodeURIComponent(issueKey)}/estimate`;
@@ -1218,7 +1220,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         variant: 'destructive',
       });
     }
-  }, [roomData, userProfile?.squadId, session?.activeProjectId, toast]);
+  }, [roomData, activeSquadId, toast]);
 
   const handleCompleteIssue = useCallback((points: string, devPoints?: string, qaPoints?: string, rolePoints?: Record<string, string>) => {
     if (!roomData || !roomData.issuesQueue || !roomData.activeIssueId || !isCurrentUserFacilitator) return;

@@ -2,13 +2,15 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { useToast } from '@/hooks/use-toast';
 import { squadRefsFromSession } from '@/hooks/home/derive';
 import type { SquadSummary } from '@/hooks/home/types';
 
 /**
- * Squad ativa e troca de squad para o cabeçalho de toda tela. Lê só a sessão (sem chamar o servidor), então
- * é barato em qualquer página. A troca usa `switchProject` do AuthContext; se falhar, avisa e mantém a atual.
+ * Squad ativa e troca de squad para o cabeçalho de toda tela. Lê a sessão e o cache compartilhado de vínculos (uma consulta só
+ * para a página inteira), então é barato em qualquer página. A troca usa `switchProject` do AuthContext; se falhar, avisa e mantém a atual.
  * A Home tem a versão dela (`useMySquads`), que acrescenta o resumo de sprint e o escopo "Todas as squads".
  */
 export function useSquadSwitcher() {
@@ -16,8 +18,10 @@ export function useSquadSwitcher() {
   const { toast } = useToast();
   const [switchingTo, setSwitchingTo] = useState<string | null>(null);
 
-  const refs = useMemo(() => squadRefsFromSession(session), [session]);
-  const activeId = session?.activeProjectId;
+  const { memberships } = useMyMemberships();
+  const refs = useMemo(() => squadRefsFromSession(session, memberships), [session, memberships]);
+  // Squad ativa = a da sessão validada pelos vínculos. Com vínculos, o papel mostrado é o primário da squad.
+  const activeId = useActiveSquad().squadId || undefined;
 
   const squads = useMemo<SquadSummary[]>(
     () =>

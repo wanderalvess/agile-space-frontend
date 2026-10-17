@@ -30,7 +30,7 @@ type TabId = 'profile' | 'links' | 'jira' | 'security';
  */
 export function UserProfileModal() {
   const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
-  const { userProfile, updateProfile, isEditProfileOpen, setIsEditProfileOpen, mustOnboard, isIdentityRequested, setIsIdentityRequested, isPublicExploration } =
+  const { userProfile, updateProfile, isEditProfileOpen, setIsEditProfileOpen, mustOnboard, legacyOnly, isIdentityRequested, setIsIdentityRequested, isPublicExploration } =
     useUserContext();
 
   const { toast } = useToast();
@@ -311,6 +311,7 @@ export function UserProfileModal() {
                 onActivate={(link) => void activate(link)}
                 email={email}
                 mustOnboard={mustOnboard}
+                legacyOnly={legacyOnly}
                 onNavigate={closeModal}
               />
             )}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { workItemsApi } from '@/app/work-items-api';
-import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useProjectEstimationUnit, type EstimationUnit } from '@/components/ui/DashboardFilters';
 import { TrendingUp, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 
@@ -21,12 +21,12 @@ const UNIT_SUFFIX: Record<EstimationUnit, string> = {
 };
 
 export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintStatsDialogProps) {
-  const { userProfile } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
   const { unit, isConfigured } = useProjectEstimationUnit();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const activeSquad = squadId || userProfile?.squadId || '';
+  const activeSquad = squadId || activeSquadId;
   const activeSprint = sprintId || 'active';
   // Sem unidade configurada pela squad, não assume "pts": mostra só o número.
   const suffix = isConfigured ? UNIT_SUFFIX[unit] : '';

@@ -16,6 +16,7 @@ import {
 import { retroApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { RETRO_TEMPLATES, RetroTemplateKey, RetroColumnDef, RetroColumnTheme } from '@/lib/types';
 import { CreateRetroDialog, DEFAULT_SETUP_SETTINGS, SetupSettings } from '@/components/retro/CreateRetroDialog';
@@ -26,6 +27,7 @@ export default function RetroHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { userProfile, requestIdentity } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -69,10 +71,9 @@ export default function RetroHubPage() {
         return;
       }
     }
-    const userTeam = userProfile?.squadId || userProfile?.team;
-    if (userTeam) setTeam(userTeam);
+    if (activeSquadId) setTeam(activeSquadId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile]);
+  }, [activeSquadId]);
 
   // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
   // pra ligar o board novo à sprint já em andamento no restante do ciclo.
@@ -180,7 +181,7 @@ export default function RetroHubPage() {
       columns,
       templateKey: template,
       ...(healthCheckQuestion.trim() ? { healthCheckQuestion: healthCheckQuestion.trim() } : {}),
-      ...(userProfile.squadId ? { squadId: userProfile.squadId } : {}),
+      ...(activeSquadId ? { squadId: activeSquadId } : {}),
       ...(sprintId ? { sprintId } : {}),
     };
 

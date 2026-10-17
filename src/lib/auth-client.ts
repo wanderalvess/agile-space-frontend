@@ -31,6 +31,11 @@ export interface AuthResponse {
   segmentName?: string;
   tribeName?: string;
   transversalLeader: boolean;
+  /**
+   * Sem nenhum vínculo, mas com rastro do modelo antigo. O backend só manda (com `true`) no modo `new`;
+   * nos demais, o valor vem de `GET /me/memberships`.
+   */
+  legacyOnly?: boolean;
   accessibleProjects: Array<{
     projectId: string;
     projectName: string;

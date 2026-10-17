@@ -10,6 +10,7 @@ import { filterMyLinks, countLabel, type MyLink } from '@/lib/my-links';
 import { parseInviteToken } from '@/lib/onboarding';
 import { FOCUS_RING, IconTile, ModalButton } from '@/components/room-kit';
 import { InviteFooter } from '@/components/onboarding/InviteFooter';
+import { LegacyOnlyNotice } from '@/components/onboarding/LegacyOnlyNotice';
 import { MyRequests } from '@/components/onboarding/MyRequests';
 import { LinkCard } from './LinkCard';
 import { LinkRequestFlow } from './LinkRequestFlow';
@@ -27,6 +28,8 @@ export interface LinksSectionProps {
   email: string;
   /** Sem squad definida: o caminho de cadastro é o `/onboarding`. */
   mustOnboard: boolean;
+  /** Sem vínculo nenhum, só com rastro do modelo antigo: mostra o aviso "peça à liderança da squad". */
+  legacyOnly?: boolean;
   /** Fecha o modal antes de seguir para outra página. */
   onNavigate: () => void;
 }
@@ -36,7 +39,7 @@ export interface LinksSectionProps {
  * para ganhar um vínculo novo (pedir vínculo, usar convite). O vínculo nasce por Jira, convite ou pedido
  * aprovado; aqui ninguém escolhe projeto, squad ou papel à mão.
  */
-export function LinksSection({ links, canSwitch, switchingTo, onActivate, email, mustOnboard, onNavigate }: LinksSectionProps) {
+export function LinksSection({ links, canSwitch, switchingTo, onActivate, email, mustOnboard, legacyOnly = false, onNavigate }: LinksSectionProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { requests, reload } = useMyLinkRequests();
@@ -81,6 +84,7 @@ export function LinksSection({ links, canSwitch, switchingTo, onActivate, email,
   if (links.length === 0) {
     return (
       <div className="flex flex-col gap-4">
+        {legacyOnly && <LegacyOnlyNotice />}
         <section
           aria-labelledby="identity-vazio"
           className="flex flex-col items-start gap-4 rounded-2xl border border-dashed border-border bg-card p-5 sm:p-6"
