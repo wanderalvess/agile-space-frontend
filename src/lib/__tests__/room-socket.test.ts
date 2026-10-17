@@ -90,4 +90,18 @@ describe('connectRoomSocket', () => {
     vi.advanceTimersByTime(1000);
     expect(FakeSocket.instances).toHaveLength(1);
   });
+  it('onOpen avisa em toda abertura, inclusive a primeira (onReconnect só depois de uma queda)', () => {
+    const onOpen = vi.fn();
+    const onReconnect = vi.fn();
+    connectRoomSocket({ buildUrl: () => 'ws://x/room', onMessage: vi.fn(), onOpen, onReconnect, WebSocketImpl: Impl, baseDelayMs: 100 });
+    FakeSocket.instances[0].onopen?.();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onReconnect).not.toHaveBeenCalled();
+
+    FakeSocket.instances[0].onclose?.();
+    vi.advanceTimersByTime(100);
+    FakeSocket.instances[1].onopen?.();
+    expect(onOpen).toHaveBeenCalledTimes(2);
+    expect(onReconnect).toHaveBeenCalledTimes(1);
+  });
 });

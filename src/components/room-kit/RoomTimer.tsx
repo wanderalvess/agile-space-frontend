@@ -10,9 +10,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { useStableCallback } from '@/hooks/use-stable-callback';
 import type { TimerState } from '@/lib/types';
 import { FOCUS_RING } from './tokens';
-import { TIMER_PRESETS, formatTimer, remainingSeconds, timerFraction, timerPhase, type TimerPhase } from './timer-utils';
+import { TIMER_PRESETS, formatTimer, isLateExpiry, remainingSeconds, timerFraction, timerPhase, type TimerPhase } from './timer-utils';
 
 export interface RoomTimerProps {
   timer: TimerState | undefined;
@@ -28,6 +29,14 @@ export interface RoomTimerProps {
   /** 'compact' vive no cabeçalho; 'large' é o anel do modo apresentação. */
   variant?: 'compact' | 'large';
   className?: string;
+  /**
+   * Chamado uma vez por `endTime` quando o tempo zera com a tela aberta (em todos os clientes: quem age
+   * só como facilitador decide dentro do callback). `late` é verdadeiro quando o fim já passou há mais de
+   * `lateGraceMs` (tela aberta ou recarregada depois do fim).
+   */
+  onExpire?: (info: { late: boolean }) => void;
+  /** Tolerância (ms) para um fim contar como "agora". Com ela, fim atrasado não toca o alarme. Sem ela, comportamento antigo. */
+  lateGraceMs?: number;
 }
 
 const ALARM_URL = 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3';
@@ -57,17 +66,26 @@ export function RoomTimer({
   serverOffset = 0,
   variant = 'compact',
   className,
+  onExpire,
+  lateGraceMs,
 }: RoomTimerProps) {
   const [remaining, setRemaining] = React.useState(() => remainingSeconds(timer, Date.now(), serverOffset));
   // Guarda o endTime que já tocou o alarme: trocar a referência de `timer` sem
   // mudar o endTime não pode repetir o som.
   const alertedEndRef = React.useRef<number | null>(null);
+  // endTime cujo fim já foi comunicado a `onExpire`: cada fim dispara uma única vez.
+  const expiredEndRef = React.useRef<number | null>(null);
+  // Sempre o callback mais recente, sem reiniciar o intervalo a cada render da sala.
+  const notifyExpire = useStableCallback((info: { late: boolean }) => onExpire?.(info));
 
   React.useEffect(() => {
     const tick = () => {
-      const next = remainingSeconds(timer, Date.now(), serverOffset);
+      const now = Date.now();
+      const next = remainingSeconds(timer, now, serverOffset);
       setRemaining(next);
-      if (timer?.status === 'running' && timer.endTime && next <= 0 && alertedEndRef.current !== timer.endTime && isSoundEnabled) {
+      const ended = timer?.status === 'running' && !!timer.endTime && next <= 0;
+      const late = ended && lateGraceMs !== undefined && isLateExpiry(timer, now, lateGraceMs, serverOffset);
+      if (ended && timer.endTime && alertedEndRef.current !== timer.endTime && isSoundEnabled && !late) {
         alertedEndRef.current = timer.endTime;
         try {
           new Audio(ALARM_URL).play().catch(() => {});
@@ -75,12 +93,16 @@ export function RoomTimer({
           /* sem áudio disponível */
         }
       }
+      if (ended && timer.endTime && expiredEndRef.current !== timer.endTime) {
+        expiredEndRef.current = timer.endTime;
+        notifyExpire({ late });
+      }
     };
     tick();
     if (timer?.status !== 'running') return;
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [timer, isSoundEnabled, serverOffset]);
+  }, [timer, isSoundEnabled, serverOffset, lateGraceMs, notifyExpire]);
 
   const phase = timerPhase(timer, remaining);
   const initial = timer?.initialDuration ?? 120;

@@ -1,86 +1,61 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { PenLine, Eye, Vote, ListChecks, X, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { Eye, ListChecks, PenLine, Vote, type LucideIcon } from 'lucide-react';
+import { Modal, ModalButton, useRoomPreference } from '@/components/room-kit';
 
-const DISMISS_KEY = 'agile_retro_welcome_dismissed';
+export const RETRO_WELCOME_KEY = 'agile_retro_welcome_dismissed';
 
-interface RetroWelcomeProps {
-  isFacilitator: boolean;
-}
-
-const STEPS = [
-  { icon: PenLine, label: 'Escrever', hint: 'Cada pessoa escreve em silêncio. Os cards ficam ocultos para os outros.' },
-  { icon: Eye, label: 'Revelar', hint: 'O facilitador revela os cards e o time funde ideias repetidas.' },
-  { icon: Vote, label: 'Votar', hint: 'Cada pessoa vota nos temas que mais merecem a discussão.' },
-  { icon: ListChecks, label: 'Agir', hint: 'Os temas mais votados viram ações com responsável e prazo.' },
+const STEPS: { icon: LucideIcon; label: string; hint: string }[] = [
+  { icon: PenLine, label: 'Escrever', hint: 'Cada pessoa escreve sem ver os outros cartões.' },
+  { icon: Eye, label: 'Revelar', hint: 'O facilitador mostra tudo de uma vez.' },
+  { icon: Vote, label: 'Votar', hint: 'Cada pessoa distribui os votos que tem.' },
+  { icon: ListChecks, label: 'Agir', hint: 'Os mais votados viram ações com dono e prazo.' },
 ];
 
-// Faixa de boas-vindas do quadro vazio: mostra o fluxo da cerimônia em uma
-// linha. Some sozinha quando o primeiro card aparece (o pai só a renderiza com
-// o quadro vazio) e pode ser dispensada de vez.
-export function RetroWelcome({ isFacilitator }: RetroWelcomeProps) {
-  const [dismissed, setDismissed] = useState(true);
+/**
+ * Boas-vindas da retro vazia: os quatro passos na ordem em que a sala acontece. "Não mostrar de novo" guarda a
+ * escolha no navegador; "Começar" só fecha por esta visita.
+ */
+export function RetroWelcome({ title, isFacilitator, disabled = false }: { title: string; isFacilitator: boolean; disabled?: boolean }) {
+  const [dismissedForever, setDismissedForever, loaded] = useRoomPreference<boolean>(RETRO_WELCOME_KEY, false, (raw) => raw === 'true');
+  const [closed, setClosed] = useState(false);
+  const [never, setNever] = useState(false);
 
-  useEffect(() => {
-    try {
-      setDismissed(localStorage.getItem(DISMISS_KEY) === 'true');
-    } catch {
-      setDismissed(false);
-    }
-  }, []);
-
-  if (dismissed) return null;
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    try {
-      localStorage.setItem(DISMISS_KEY, 'true');
-    } catch {
-      /* sem storage: some só nesta sessão */
-    }
+  const open = loaded && !dismissedForever && !closed && !disabled;
+  const close = () => {
+    if (never) setDismissedForever(true);
+    setClosed(true);
   };
 
   return (
-    <div className="shrink-0 mb-3 flex items-center gap-3 rounded-2xl border border-emerald-200/60 dark:!border-emerald-800/40 bg-emerald-50/60 dark:!bg-emerald-950/20 backdrop-blur-xl pl-4 pr-2 py-2.5 animate-in fade-in slide-in-from-top-2 duration-500">
-      <div className="hidden md:flex flex-col shrink-0 pr-3 mr-1 border-r border-emerald-200/60 dark:!border-emerald-800/40">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:!text-emerald-400">Como funciona</span>
-        <span className="text-[11px] font-bold text-slate-500 dark:!text-slate-400">
-          {isFacilitator ? 'Você conduz as etapas' : 'O facilitador conduz as etapas'}
-        </span>
-      </div>
-
-      <ol className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none">
+    <Modal
+      open={open}
+      onOpenChange={(next) => { if (!next) close(); }}
+      size="lg"
+      className="sm:max-w-[640px]"
+      title={title}
+      description={isFacilitator ? 'Quatro passos, e você conduz cada um.' : 'Quatro passos, na ordem em que a sala acontece.'}
+      footerStart={
+        <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted-foreground">
+          <input type="checkbox" checked={never} onChange={(e) => setNever(e.target.checked)} className="h-4 w-4 accent-[hsl(var(--primary))]" />
+          Não mostrar de novo
+        </label>
+      }
+      footer={<ModalButton variant="primary" onClick={close}>Começar</ModalButton>}
+    >
+      <ol className="m-0 grid list-none grid-cols-1 gap-2.5 p-0 pt-1 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map(({ icon: Icon, label, hint }, i) => (
-          <li key={label} className="flex items-center gap-1 shrink-0">
-            {i > 0 && <ChevronRight className="h-3 w-3 text-emerald-400/70 shrink-0" />}
-            <div
-              title={hint}
-              className={cn(
-                'flex items-center gap-1.5 h-8 px-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest cursor-default',
-                i === 0
-                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20'
-                  : 'bg-white/70 dark:!bg-slate-800/50 border-slate-200/70 dark:!border-slate-600/50 text-slate-500 dark:!text-slate-300'
-              )}
-            >
-              <Icon className="h-3.5 w-3.5 shrink-0" />
-              <span className="text-[11px] opacity-60 tabular-nums">{i + 1}</span>
-              {label}
-            </div>
+          <li key={label} className="flex flex-col gap-1.5 rounded-xl border border-border bg-muted/40 p-3.5">
+            <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+              <Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+              <span className="sr-only">{i + 1}</span>
+            </span>
+            <span className="text-[15px] font-bold">{i + 1}. {label}</span>
+            <span className="text-xs leading-relaxed text-muted-foreground">{hint}</span>
           </li>
         ))}
       </ol>
-
-      <button
-        type="button"
-        onClick={handleDismiss}
-        className="h-7 w-7 shrink-0 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white/70 dark:hover:!bg-slate-800/60 transition-all"
-        title="Não mostrar de novo"
-        aria-label="Dispensar boas-vindas"
-      >
-        <X className="h-3.5 w-3.5" />
-      </button>
-    </div>
+    </Modal>
   );
 }

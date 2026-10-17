@@ -41,3 +41,12 @@ export function remainingSeconds(timer: TimerState | undefined, nowMs: number, s
   if (timer.status !== 'running' || !timer.endTime) return timer.initialDuration ?? 0;
   return Math.max(0, Math.round((timer.endTime - (nowMs + serverOffset)) / 1000));
 }
+
+/**
+ * O fim do timer ficou para trás? `true` quando o relógio já passou do `endTime` por `graceMs` ou mais — quem
+ * abre a sala bem depois do fim não deve ouvir o alarme nem disparar a automação de fim de tempo de novo.
+ */
+export function isLateExpiry(timer: TimerState | undefined, nowMs: number, graceMs: number, serverOffset = 0): boolean {
+  if (!timer || timer.status !== 'running' || !timer.endTime) return false;
+  return nowMs + serverOffset - timer.endTime >= graceMs;
+}
