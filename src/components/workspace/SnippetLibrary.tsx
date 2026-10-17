@@ -157,7 +157,7 @@ export function SnippetLibrary({ openNew, onOpenNewHandled }: SnippetLibraryProp
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar snippet por título, linguagem ou código..."
+                placeholder="Buscar por título, linguagem ou código"
                 aria-label="Buscar snippet"
                 className={cn(FIELD, 'h-[42px] pl-9 text-sm')}
               />
@@ -210,7 +210,7 @@ export function SnippetLibrary({ openNew, onOpenNewHandled }: SnippetLibraryProp
                 </div>
               </header>
               <div className="relative overflow-hidden rounded-xl border border-border bg-slate-950 p-3.5 font-code text-xs text-slate-300">
-                <pre className="m-0 max-h-40 overflow-hidden whitespace-pre-wrap break-all leading-snug [mask-image:linear-gradient(to_bottom,black_70%,transparent_100%)]">{snippet.content}</pre>
+                <pre className="m-0 max-h-40 overflow-hidden pr-9 whitespace-pre-wrap break-all leading-snug [mask-image:linear-gradient(to_bottom,black_70%,transparent_100%)]">{snippet.content}</pre>
                 <button
                   type="button"
                   onClick={() => handleCopyCode(snippet.content)}
