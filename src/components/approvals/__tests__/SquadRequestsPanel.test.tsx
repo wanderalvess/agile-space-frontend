@@ -1,6 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApprovalAccess, SquadLinkRequest } from '../../../lib/squad-link-requests-api';
+vi.mock('../../../services/onboardingService', () => ({
+  onboardingService: { roster: vi.fn().mockResolvedValue({ projectId: 'p', projectName: 'Missi', memberCount: 0, members: [] }) },
+}));
+
 import { SquadRequestsPanel } from '../SquadRequestsPanel';
 import type { useSquadLinkRequests } from '../useSquadLinkRequests';
 
@@ -89,7 +93,16 @@ describe('SquadRequestsPanel: decidir', () => {
     expect(within(dialog).getByText('Ana Paula passa a ter acesso à squad como Developer.')).toBeTruthy();
     expect(fns.approve).not.toHaveBeenCalled();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Aprovar pedido' }));
-    expect(fns.approve).toHaveBeenCalledWith(contributor);
+    expect(fns.approve).toHaveBeenCalledWith(contributor, undefined);
+  });
+
+  it('pedido antigo sem linha e sem papel: Aprovar está disponível e abre o seletor da linha', async () => {
+    const old: SquadLinkRequest = { ...contributor, id: 'r3', requestedRoleName: undefined };
+    renderPanel(requests({ items: [old], pendingCount: 1 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(await within(dialog).findByText(/Todas as linhas do time já têm conta/)).toBeTruthy();
+    expect((within(dialog).getByRole('button', { name: 'Aprovar pedido' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('cancelar a confirmação não aprova', async () => {

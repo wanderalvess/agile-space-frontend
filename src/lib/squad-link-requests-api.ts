@@ -126,8 +126,12 @@ export async function listSquadLinkRequests(squadId: string, status: SquadReques
   return data.map(normalizeSquadLinkRequest).filter((r): r is SquadLinkRequest => r !== null);
 }
 
-export async function approveSquadLinkRequest(squadId: string, requestId: string): Promise<void> {
-  const res = await authFetch(`${squadPath(squadId)}/${encodeURIComponent(requestId)}/approve`, { method: 'POST' });
+/** `memberId` (linha do roster que quem aprova escolheu) só vai no corpo quando existe; sem ele o corpo some. */
+export async function approveSquadLinkRequest(squadId: string, requestId: string, memberId?: string): Promise<void> {
+  const res = await authFetch(`${squadPath(squadId)}/${encodeURIComponent(requestId)}/approve`, {
+    method: 'POST',
+    ...(memberId ? { body: JSON.stringify({ memberId }) } : {}),
+  });
   if (!res.ok) throw await failure(res, 'Não foi possível aprovar o pedido.');
 }
 

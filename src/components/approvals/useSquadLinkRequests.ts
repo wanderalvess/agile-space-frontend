@@ -86,11 +86,11 @@ export function useSquadLinkRequests(squadId: string | undefined, enabled: boole
   }, [load]);
 
   const approve = useCallback(
-    async (req: SquadLinkRequest) => {
+    async (req: SquadLinkRequest, memberId?: string) => {
       if (!squadId) return;
       setBusyId(req.id);
       try {
-        await approveSquadLinkRequest(squadId, req.id);
+        await approveSquadLinkRequest(squadId, req.id, memberId);
         toast('Pedido aprovado', { description: `${requesterName(req)} agora tem acesso à squad.` });
       } catch (e) {
         toast.error('Não foi possível aprovar o pedido', { description: decisionErrorMessage(e) });

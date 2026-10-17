@@ -36,3 +36,9 @@ describe('useSquadStore.syncSquad', () => {
     expect(mocks.saveUser).not.toHaveBeenCalled();
   });
 });
+
+describe('useSquadStore: vínculo', () => {
+  it('não grava mais o claim da pessoa no roster (o vínculo nasce no onboarding, no convite e na aprovação)', () => {
+    expect('claimMember' in useSquadStore.getState()).toBe(false);
+  });
+});

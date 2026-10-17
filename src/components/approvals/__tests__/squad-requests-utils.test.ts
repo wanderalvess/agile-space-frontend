@@ -3,10 +3,10 @@ import type { ApprovalAccess, SquadLinkRequest } from '../../../lib/squad-link-r
 import {
   NOTE_CANNOT,
   NOTE_LEADERSHIP,
-  NOTE_NO_LINE,
   NOTE_SELF,
   approveEffect,
   decisionAbility,
+  needsRowPick,
   requestDetail,
   resolveRosterTab,
 } from '../squad-requests-utils';
@@ -70,15 +70,19 @@ describe('decisionAbility (nunca mostrar botão que o servidor recusa)', () => {
     expect(decisionAbility(req({ canDecide: false, kind: 'LEADERSHIP' }), peopleLead, 'u-me').approve).toBe(false);
   });
 
-  it('pedido sem linha e sem papel só pode ser recusado (aprovar daria 422)', () => {
-    expect(decisionAbility(req({ requestedRoleName: undefined }), am, 'u-me')).toEqual({ approve: false, reject: true, note: NOTE_NO_LINE });
-    expect(decisionAbility(req({ requestedRoleName: undefined, memberId: 'm1' }), am, 'u-me').approve).toBe(true);
+  it('pedido sem linha e sem papel também se aprova (quem aprova escolhe a linha)', () => {
+    const old = req({ requestedRoleName: undefined });
+    expect(needsRowPick(old)).toBe(true);
+    expect(decisionAbility(old, am, 'u-me')).toEqual({ approve: true, reject: true, note: null });
+    expect(needsRowPick(req({ requestedRoleName: undefined, memberId: 'm1' }))).toBe(false);
+    expect(needsRowPick(req())).toBe(false);
   });
 });
 
 describe('textos do pedido', () => {
   it('o efeito da aprovação diz quem passa a ter acesso e com que papel', () => {
     expect(approveEffect(req())).toBe('Ana Paula passa a ter acesso à squad como Developer.');
+    expect(approveEffect(req({ requestedRoleName: undefined }))).toMatch(/Escolha com quem ligar a conta/);
     expect(approveEffect(req({ requestedRoleName: undefined, memberName: 'Ana P.' }))).toBe('Ana Paula passa a ter acesso à squad na linha “Ana P.” do time.');
   });
 

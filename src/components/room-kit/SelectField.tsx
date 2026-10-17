@@ -19,6 +19,8 @@ export interface SelectFieldProps {
   'aria-label'?: string;
   disabled?: boolean;
   className?: string;
+  /** Texto quando `value` está vazio. */
+  placeholder?: string;
 }
 
 /**
@@ -26,7 +28,7 @@ export interface SelectFieldProps {
  * navegador (fundo branco e texto de sistema) e ignora o tema. Esta lista usa os tokens do
  * tema (popover, borda, destaque), então vale nos 7 temas x claro/escuro.
  */
-export function SelectField({ value, onChange, options, id, disabled, className, ...rest }: SelectFieldProps) {
+export function SelectField({ value, onChange, options, id, disabled, className, placeholder, ...rest }: SelectFieldProps) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger
@@ -34,7 +36,7 @@ export function SelectField({ value, onChange, options, id, disabled, className,
         aria-label={rest['aria-label']}
         className={cn(FIELD, 'h-9 gap-2 bg-muted/40 px-3 text-[13px] ring-offset-0 focus:ring-offset-0', className)}
       >
-        <SelectValue />
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent className="border-border bg-popover text-popover-foreground">
         {options.map((o) => (
