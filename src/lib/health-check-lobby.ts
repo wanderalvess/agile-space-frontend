@@ -4,6 +4,7 @@
  */
 import type { HealthCheckBoard, HealthCheckScaleType } from './types';
 import { summarizeResults, type HealthSummary } from './health-check-rules';
+import { isBoardFinished } from './health-check-progress';
 
 // ───────────────────────── Entrar por ID ou link ─────────────────────────
 
@@ -57,8 +58,12 @@ export interface HealthRow {
   dimensionCount?: number;
   /** Nota de clima (0 a 10) de radar encerrado. */
   score: number | null;
-  /** Quantas respostas o servidor já contou (histórico da Home); `null` quando não veio. */
+  /** Quantas pessoas já responderam (histórico da Home ou `respondedCount` do quadro); `null` quando não veio. */
   answers: number | null;
+  /** Pessoas na sala (`participantsCount`, backend novo); `null` quando não veio: a tela mostra só `answers`. */
+  participants?: number | null;
+  /** Encerramento real (backend novo); `null` quando desconhecido. */
+  finishedAt?: string | null;
   board?: HealthCheckBoard;
 }
 
@@ -70,8 +75,8 @@ interface LocalRoomMeta {
 }
 
 /** Resumo calculado com a regra única; `null` se o radar ainda coleta ou não tem resumo. */
-export function summaryOfBoard(board: Pick<HealthCheckBoard, 'status' | 'dimensions' | 'summary' | 'scaleType'>): HealthSummary | null {
-  if (board.status !== 'finished' || !board.summary) return null;
+export function summaryOfBoard(board: Pick<HealthCheckBoard, 'status' | 'lifecycleStatus' | 'dimensions' | 'summary' | 'scaleType'>): HealthSummary | null {
+  if (!isBoardFinished(board) || !board.summary) return null;
   return summarizeResults(board.dimensions ?? [], board.summary.results, board.scaleType);
 }
 
@@ -81,11 +86,14 @@ export function rowFromBoard(board: HealthCheckBoard, answers: number | null = n
     title: board.sprintName?.trim() || 'Radar sem título',
     team: board.team || '',
     createdAt: board.createdAt,
-    status: board.status === 'finished' ? 'finished' : 'collecting',
+    status: isBoardFinished(board) ? 'finished' : 'collecting',
     scale: board.scaleType,
     dimensionCount: board.dimensions?.length ?? 0,
     score: summaryOfBoard(board)?.climate ?? null,
-    answers,
+    // O histórico da Home manda; sem ele, a contagem do próprio quadro (backend novo).
+    answers: answers ?? (typeof board.respondedCount === 'number' ? board.respondedCount : null),
+    participants: typeof board.participantsCount === 'number' ? board.participantsCount : null,
+    finishedAt: board.finishedAt ?? null,
     board,
   };
 }
@@ -187,7 +195,7 @@ export function sameQuestion(a: { key: string; title: string }, b: { key: string
 export function previousBoard(current: Pick<HealthCheckBoard, 'id' | 'createdAt' | 'dimensions'>, boards: readonly HealthCheckBoard[]): HealthCheckBoard | null {
   const now = Date.parse(current.createdAt) || 0;
   const candidates = boards
-    .filter((b) => b.id !== current.id && b.status === 'finished' && !!b.summary && (Date.parse(b.createdAt) || 0) < now)
+    .filter((b) => b.id !== current.id && isBoardFinished(b) && !!b.summary && (Date.parse(b.createdAt) || 0) < now)
     .filter((b) => (b.dimensions ?? []).some((d) => current.dimensions.some((c) => sameQuestion(c, d))))
     .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
   return candidates[0] ?? null;

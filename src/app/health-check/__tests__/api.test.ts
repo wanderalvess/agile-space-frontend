@@ -64,3 +64,60 @@ describe('healthCheckApi', () => {
     await expect(healthCheckApi.leaveBoard('hc1', 'u1')).rejects.toBeInstanceOf(CeremonyApiError);
   });
 });
+
+describe('healthCheckApi: rotas do backend novo', () => {
+  beforeEach(() => authFetch.mockReset());
+
+  it('getProgress devolve os dados; a lista de pendentes só existe para o facilitador', async () => {
+    authFetch.mockResolvedValue(response(200, { boardId: 'hc1', participantsCount: 3, respondedCount: 1, completedCount: 0, pendingParticipantIds: ['u2'] }));
+    const result = await healthCheckApi.getProgress('hc1');
+    expect(result).toEqual({ status: 'ok', data: expect.objectContaining({ respondedCount: 1, pendingParticipantIds: ['u2'] }) });
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/health-checks\/hc1\/progress$/);
+  });
+
+  it('getProgress em backend antigo (404/405) é "indisponível", sem lançar', async () => {
+    authFetch.mockResolvedValueOnce(response(404, { message: 'Not Found' }));
+    expect(await healthCheckApi.getProgress('hc1')).toEqual({ status: 'unavailable' });
+    authFetch.mockResolvedValueOnce(response(405));
+    expect(await healthCheckApi.getProgress('hc1')).toEqual({ status: 'unavailable' });
+  });
+
+  it('getProgress com erro de servidor lança (a tela só registra e tenta na próxima mudança)', async () => {
+    authFetch.mockResolvedValue(response(500, { message: 'x' }));
+    await expect(healthCheckApi.getProgress('hc1')).rejects.toBeInstanceOf(CeremonyApiError);
+  });
+
+  it('setPresentationStage faz PUT com a etapa', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'hc1', presentationStage: 'radar' }));
+    const result = await healthCheckApi.setPresentationStage('hc1', 'radar');
+    expect(result.status).toBe('ok');
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/health-checks\/hc1\/presentation$/);
+    expect(authFetch.mock.calls[0][1].method).toBe('PUT');
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ stage: 'radar' });
+  });
+
+  it('clearPresentationStage faz DELETE', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'hc1', presentationStage: null }));
+    expect((await healthCheckApi.clearPresentationStage('hc1')).status).toBe('ok');
+    expect(authFetch.mock.calls[0][1].method).toBe('DELETE');
+  });
+
+  it('apresentação: 404/405 = indisponível; 403 = sem permissão; 409 (radar ainda aberto) lança com a mensagem do servidor', async () => {
+    authFetch.mockResolvedValueOnce(response(404));
+    expect(await healthCheckApi.setPresentationStage('hc1', 'radar')).toEqual({ status: 'unavailable' });
+    authFetch.mockResolvedValueOnce(response(405));
+    expect(await healthCheckApi.clearPresentationStage('hc1')).toEqual({ status: 'unavailable' });
+    authFetch.mockResolvedValueOnce(response(403, { message: 'Só o facilitador.' }));
+    expect(await healthCheckApi.setPresentationStage('hc1', 'radar')).toEqual({ status: 'forbidden' });
+    authFetch.mockResolvedValueOnce(response(409, { message: 'O radar ainda não foi encerrado.' }));
+    const error = await healthCheckApi.setPresentationStage('hc1', 'radar').catch((e) => e);
+    expect(error).toBeInstanceOf(CeremonyApiError);
+    expect(error.status).toBe(409);
+    expect(error.message).toBe('O radar ainda não foi encerrado.');
+  });
+
+  it('resposta 200 sem corpo na apresentação não quebra', async () => {
+    authFetch.mockResolvedValue(response(200));
+    expect(await healthCheckApi.clearPresentationStage('hc1')).toEqual({ status: 'ok', data: null });
+  });
+});

@@ -4,12 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Loader2, Presentation, RefreshCw } from 'lucide-react';
-import { ModalButton, PresentationBar, StageNav, TabBar, type TabBarItem } from '@/components/room-kit';
+import { Loader2, Presentation, RefreshCw, Unlock, Users } from 'lucide-react';
+import { ModalButton, PresentationBar, StageNav, StatusChip, TabBar, type TabBarItem } from '@/components/room-kit';
 import { healthCheckApi } from '@/app/health-check/api';
 import { actionPlanApi } from '@/app/action-plan/api';
 import { workspaceApi } from '@/app/workspace/api';
 import { buildReport } from '@/lib/health-check-export';
+import { finishedAtOf, type ResponseCounts } from '@/lib/health-check-progress';
+import { useHealthPresentationSync, type PublishResult } from '@/hooks/useHealthPresentationSync';
 import { compareBoards, previousBoard, summaryOfBoard, type DimensionDiff } from '@/lib/health-check-lobby';
 import { checkOrigin, type KnownPlan, type OriginCheck } from '@/lib/action-plan-origin';
 import { PLAN_SOURCE_TYPE, planAlreadyCreated, readPlanRecord, recordToLock, writePlanRecord, type PlanDeps, type PlanRecord } from '@/lib/health-check-plan';
@@ -29,6 +31,7 @@ import { HealthPlanDialog } from './HealthPlanDialog';
 import { HealthPresentation, PRESENTATION_STAGES, type PresentationStage } from './HealthPresentation';
 import { AboutCard, AttentionCard, DimensionDetail, FocusCard, FrequencyChart, ScoreHero, StrongCard } from './HealthResultParts';
 import { HealthRoomShell } from './HealthRoomShell';
+import { ResponseProgress } from './HealthResponseProgress';
 import type { HealthConnection } from './health-ui';
 
 interface HealthCheckResultsProps {
@@ -50,6 +53,17 @@ interface HealthCheckResultsProps {
   connection: HealthConnection;
   onDeleteBoard: () => Promise<void>;
   onOpenFeedback: () => void;
+  /** "N de M responderam" (backend novo). `null`/ausente = o servidor não informa. */
+  responseCounts?: ResponseCounts | null;
+  /**
+   * Apresentação sincronizada (backend novo). `published`: etapa publicada pelo facilitador (`null` = nenhuma;
+   * `undefined` = o servidor não conhece o recurso: cada pessoa navega na sua, como antes). `canPublish`: criador/ADMIN.
+   */
+  presentation?: {
+    published: string | null | undefined;
+    canPublish: boolean;
+    publish: (stage: string | null) => Promise<PublishResult>;
+  };
 }
 
 type CompareState =
@@ -84,11 +98,14 @@ export function HealthCheckResults({
   connection,
   onDeleteBoard,
   onOpenFeedback,
+  responseCounts = null,
+  presentation,
 }: HealthCheckResultsProps) {
   const router = useRouter();
   const scale = board.scaleType ?? 'traffic_light';
   const title = board.sprintName?.trim() || 'Radar de clima';
 
+  const finishedAt = finishedAtOf(board);
   const summary = useMemo(() => summarizeResults(dimensions, results ?? resultsFromVotes(dimensions, votes), scale), [dimensions, results, votes, scale]);
   const items = useMemo(() => planItems(summary, title), [summary, title]);
   const report = useMemo(() => buildReport({ board, dimensions, votes, squadName: squadLabel }), [board, dimensions, votes, squadLabel]);
@@ -100,8 +117,12 @@ export function HealthCheckResults({
   const [record, setRecord] = useState<PlanRecord | null>(null);
   // O que o servidor diz sobre "este radar já tem plano?"; null enquanto consulta.
   const [originCheck, setOriginCheck] = useState<OriginCheck | null>(null);
-  const [presenting, setPresenting] = useState(false);
-  const [stage, setStage] = useState<PresentationStage>('score');
+  const sync = useHealthPresentationSync({
+    isFacilitator: presentation?.canPublish ?? false,
+    published: presentation?.published,
+    publish: presentation?.canPublish ? presentation.publish : undefined,
+  });
+  const { presenting, stage } = sync;
 
   const loadCompare = useCallback(async () => {
     if (!board.team) {
@@ -139,14 +160,13 @@ export function HealthCheckResults({
   useEffect(() => {
     if (!presenting || planOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPresenting(false);
-      const i = PRESENTATION_STAGES.findIndex((s) => s.id === stage);
-      if (e.key === 'ArrowRight' && i < PRESENTATION_STAGES.length - 1) setStage(PRESENTATION_STAGES[i + 1].id);
-      if (e.key === 'ArrowLeft' && i > 0) setStage(PRESENTATION_STAGES[i - 1].id);
+      if (e.key === 'Escape') sync.exit();
+      if (e.key === 'ArrowRight') sync.step(1);
+      if (e.key === 'ArrowLeft') sync.step(-1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [presenting, planOpen, stage]);
+  }, [presenting, planOpen, sync]);
 
   const deps: PlanDeps = useMemo(
     () => ({
@@ -198,7 +218,11 @@ export function HealthCheckResults({
     { label: 'Escala', value: scaleLabel(scale) },
     ...(squadLabel ? [{ label: 'Squad', value: squadLabel }] : []),
     { label: 'Criado em', value: format(new Date(board.createdAt), 'dd/MM/yyyy') },
-    { label: 'Situação', value: 'Encerrada' },
+    // Data real do encerramento (backend novo); radar antigo ou encerrado antes da migração: só a situação.
+    finishedAt
+      ? { label: 'Encerrada em', value: format(finishedAt, "dd/MM/yyyy 'às' HH:mm") }
+      : { label: 'Situação', value: 'Encerrada' },
+    ...(responseCounts ? [{ label: 'Participação', value: `${responseCounts.responded} de ${responseCounts.participants} responderam` }] : []),
   ];
 
   const previous: RadarPrevious | undefined = compare.status === 'ready' ? { label: compare.label, scores: compare.scores } : undefined;
@@ -222,14 +246,31 @@ export function HealthCheckResults({
       onDeleteBoard={onDeleteBoard}
       onExport={votes.length > 0 ? () => setExportOpen(true) : undefined}
       primaryAction={
-        <ModalButton variant="primary" className="gap-2" onClick={() => { setStage('score'); setPresenting(true); }}>
+        <ModalButton variant="primary" className="gap-2" onClick={sync.start}>
           <Presentation className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Apresentar
         </ModalButton>
       }
+      responseCounts={responseCounts}
       presentationBar={
         presenting ? (
-          <PresentationBar title={title} onExit={() => setPresenting(false)}>
+          <PresentationBar title={title} onExit={sync.exit}>
             <span className="text-sm tabular-nums text-muted-foreground">Nota {formatScore(summary.climate)} de 10</span>
+            {sync.broadcasting && (
+              <StatusChip tone="brand"><Users className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> A squad acompanha esta etapa</StatusChip>
+            )}
+            {sync.following && (
+              <>
+                <StatusChip tone="brand"><Users className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Acompanhando o facilitador</StatusChip>
+                <ModalButton className="h-9 gap-1.5 px-3" onClick={sync.release}>
+                  <Unlock className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Soltar
+                </ModalButton>
+              </>
+            )}
+            {!sync.following && sync.facilitatorPresenting && (
+              <ModalButton className="h-9 gap-1.5 px-3" onClick={sync.rejoin}>
+                <Users className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Acompanhar o facilitador
+              </ModalButton>
+            )}
           </PresentationBar>
         ) : undefined
       }
@@ -240,12 +281,32 @@ export function HealthCheckResults({
             <HealthPresentation stage={stage} summary={summary} scale={scale} votes={votes} dimensionCount={dimensions.length} planCreated={planCreated} onPlan={openPlan} />
           </div>
           <div className="flex flex-col px-4 pb-4">
-            <StageNav items={PRESENTATION_STAGES} value={stage} onChange={(id) => setStage(id as PresentationStage)} label="Etapas da apresentação" />
-            <p className="m-0 mt-2 text-center text-xs text-muted-foreground">Use as setas para trocar de etapa. Cada pessoa navega na própria tela.</p>
+            <StageNav
+              items={PRESENTATION_STAGES}
+              value={stage}
+              onChange={(id) => sync.goTo(id as PresentationStage)}
+              label="Etapas da apresentação"
+              locked={sync.following}
+              lockedLabel="A etapa é controlada pelo facilitador. Use Soltar para navegar sozinho."
+            />
+            <p className="m-0 mt-2 text-center text-xs text-muted-foreground">
+              {sync.following
+                ? 'A etapa segue o facilitador. Use Soltar para navegar sozinho.'
+                : sync.broadcasting
+                  ? 'Use as setas para trocar de etapa. Quem acompanha vê a mesma etapa.'
+                  : 'Use as setas para trocar de etapa. Cada pessoa navega na própria tela.'}
+            </p>
           </div>
         </div>
       ) : (
         <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-4 py-4 md:px-6 md:py-5">
+          {sync.facilitatorPresenting && (
+            <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 px-5 py-3 text-sm dark:bg-primary/15">
+              <Users className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+              <span className="min-w-0 flex-1 font-semibold">O facilitador está apresentando agora.</span>
+              <ModalButton variant="primary" className="h-9 gap-1.5 px-3" onClick={sync.rejoin}>Acompanhar o facilitador</ModalButton>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
             <div className="flex min-w-0 flex-col gap-4 xl:col-span-8">
               <ScoreHero summary={summary} dimensionCount={dimensions.length} />
@@ -305,6 +366,7 @@ export function HealthCheckResults({
 
             <div className="flex min-w-0 flex-col gap-4 xl:col-span-4">
               <AboutCard rows={aboutRows} />
+              {responseCounts && <ResponseProgress counts={responseCounts} />}
               <StrongCard stats={summary.strong} />
               <AttentionCard stats={summary.attention} />
               <FocusCard focus={summary.focus} planCreated={planCreated} onPlan={openPlan} />

@@ -32,23 +32,47 @@ export interface RoomSocketOptions {
   /** Com `presence`, chamado quando a conexão abriu e nenhum snapshot veio em `presenceWaitMs` (a tela usa o REST). */
   onPresenceMissing?: () => void;
   presenceWaitMs?: number;
+  /**
+   * Pede o evento `PRESENTATION_STAGE` (`presentation=1` na URL): a etapa da apresentação publicada pelo
+   * facilitador. Backend antigo ignora o parâmetro e nunca envia o evento.
+   */
+  presentation?: boolean;
+  /**
+   * Liga o "escrevendo…" (`typing=1` na URL): a sessão passa a poder enviar `TYPING` (via `send`) e a receber o
+   * de quem digita. Backend antigo ignora o parâmetro e nunca envia o evento.
+   */
+  typing?: boolean;
   WebSocketImpl?: typeof WebSocket;
   /** Atraso inicial da reconexão (ms); cresce até `maxDelayMs`. */
   baseDelayMs?: number;
   maxDelayMs?: number;
 }
 
+/** Acrescenta `nome=1` (opt-in do servidor) à URL de um WebSocket, com `?` ou `&` conforme já houver query. */
+export function withFlagParam(url: string, name: string): string {
+  if (new RegExp(`[?&]${name}=`).test(url)) return url;
+  return url + (url.includes('?') ? '&' : '?') + name + '=1';
+}
+
+/** O que `connectRoomSocket` devolve: chamar encerra tudo (como antes); `send` manda uma mensagem se a conexão estiver aberta. */
+export type RoomSocketHandle = (() => void) & {
+  /** Envia JSON (ou texto) pela conexão atual. Devolve `false` se não há conexão aberta (a mensagem é descartada, sem fila). */
+  send: (message: unknown) => boolean;
+};
+
 /**
- * Conexão de sala com reconexão automática (backoff) e ressincronização. Retorna a função que encerra tudo.
+ * Conexão de sala com reconexão automática (backoff) e ressincronização. Retorna a função que encerra tudo
+ * (com `send` anexado, para as telas que falam com o servidor, como o "escrevendo…").
  * O fechamento deliberado (desmontar a tela) nunca agenda reconexão.
  */
-export function connectRoomSocket(options: RoomSocketOptions): () => void {
+export function connectRoomSocket(options: RoomSocketOptions): RoomSocketHandle {
   const {
     buildUrl, onMessage, onReconnect, onOpen, onClose, onError, presence = false, onPresence, onPresenceMissing, presenceWaitMs,
+    presentation = false, typing = false,
     WebSocketImpl = typeof WebSocket !== 'undefined' ? WebSocket : undefined,
     baseDelayMs = 1500, maxDelayMs = 15000,
   } = options;
-  if (!WebSocketImpl) return () => {};
+  if (!WebSocketImpl) return Object.assign(() => {}, { send: () => false });
 
   let stopped = false;
   let socket: WebSocket | undefined;
@@ -62,8 +86,11 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
     if (stopped) return;
     presenceSession.start(false);
     try {
-      const url = buildUrl();
-      socket = new WebSocketImpl(presence ? withPresenceParam(url) : url);
+      let url = buildUrl();
+      if (presence) url = withPresenceParam(url);
+      if (presentation) url = withFlagParam(url, 'presentation');
+      if (typing) url = withFlagParam(url, 'typing');
+      socket = new WebSocketImpl(url);
     } catch (error) {
       onError?.(error);
       schedule();
@@ -107,7 +134,19 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
 
   connect();
 
-  return () => {
+  const send = (message: unknown): boolean => {
+    const current = socket;
+    // 1 = OPEN (o valor é o mesmo em toda implementação; a constante estática pode não existir num WebSocket de teste)
+    if (stopped || !current || current.readyState !== 1) return false;
+    try {
+      current.send(typeof message === 'string' ? message : JSON.stringify(message));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const close = () => {
     stopped = true;
     presenceSession.stop();
     clearTimeout(timer);
@@ -115,4 +154,6 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
       socket?.close();
     } catch { /* já fechado */ }
   };
+
+  return Object.assign(close, { send });
 }

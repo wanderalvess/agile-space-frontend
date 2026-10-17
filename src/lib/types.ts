@@ -551,6 +551,10 @@ export type RetroBoard = {
   maxVotesPerParticipant?: number; // 0/undefined = sem limite
   healthCheckEnabled?: boolean;
   healthCheckQuestion?: string;
+  /** Encerramento real da sessão (LocalDateTime ISO). Ausente no backend antigo; nulo = aberta. */
+  finishedAt?: string | null;
+  /** Ciclo de vida da sessão inteira (não confundir com `votingStatus`). Ausente no backend antigo. */
+  lifecycleStatus?: 'OPEN' | 'FINISHED';
 }
 
 // Reações rápidas no card — independentes do voto de priorização (votes).
@@ -595,6 +599,8 @@ export type RetroParticipant = {
   isCreator: boolean;
   globalRole?: GlobalRole;
   healthCheckAnswer?: HealthCheckAnswer;
+  /** Texto livre do check-in (até 500 caracteres). Ausente no backend antigo. */
+  checkinNote?: string | null;
 };
 
 // --- Team Health Check ---
@@ -641,6 +647,17 @@ export type HealthCheckBoard = {
       average?: number;
     }[];
   };
+  // Campos do backend novo (todos opcionais: o backend antigo não os envia).
+  /** Instante do encerramento (ISO, UTC). Nulo nos radares encerrados antes da migração. */
+  finishedAt?: string | null;
+  /** Ciclo de vida derivado de `status`. Prefira ler este; `status` segue `collecting|finished`. */
+  lifecycleStatus?: 'OPEN' | 'FINISHED';
+  /** Etapa da apresentação publicada pelo facilitador; nulo = sem apresentação. */
+  presentationStage?: string | null;
+  /** Só contagens, nunca quem votou o quê. */
+  respondedCount?: number;
+  completedCount?: number;
+  participantsCount?: number;
 }
 
 export type HealthCheckParticipant = {

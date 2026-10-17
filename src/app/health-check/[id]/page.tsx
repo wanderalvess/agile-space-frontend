@@ -22,6 +22,15 @@ import { CeremonyApiError, errorMessage } from '@/lib/ceremony-api';
 import { connectRoomSocket } from '@/lib/room-socket';
 import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { FeedbackWidget } from '@/components/feedback-widget';
+import {
+  isBoardFinished,
+  pendingPeople as pendingPeopleOf,
+  publishedStageOf,
+  responseCounts as responseCountsOf,
+  shouldRefetchProgress,
+  type HealthProgress,
+} from '@/lib/health-check-progress';
+import type { PublishResult } from '@/hooks/useHealthPresentationSync';
 
 function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
   const idx = list.findIndex(x => x.id === item.id);
@@ -88,6 +97,13 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   const [connection, setConnection] = useState<HealthConnection>({ state: 'connecting' });
   const [isFinishing, setIsFinishing] = useState(false);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
+  // Etapa da apresentação publicada pelo facilitador. undefined = o servidor não conhece o recurso (backend antigo).
+  const [presentationStage, setPresentationStage] = useState<string | null | undefined>(undefined);
+  // "Ainda não votaram" (só o facilitador recebe a lista) e o respondedCount para o qual ela foi buscada.
+  const [progress, setProgress] = useState<HealthProgress | null>(null);
+  const progressFor = useRef<number | null>(null);
+  const progressSeq = useRef(0);
+  const progressUnavailable = useRef(false);
 
   // Só a recarga mais recente vale: uma resposta lenta de uma recarga antiga não pode sobrescrever a nova.
   const reloadSeq = useRef(0);
@@ -111,6 +127,8 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     if (!userProfile || !boardData) return false;
     return userProfile.id === boardData.creatorId;
   }, [userProfile, boardData]);
+  // Criador ou ADMIN (o backend aceita os dois): vê quem ainda não votou e publica a etapa da apresentação.
+  const canFacilitate = isCurrentUserCreator || userProfile?.role === 'admin';
 
   const boardDimensions = boardData?.dimensions || DEFAULT_HEALTH_CHECK_DIMENSIONS;
 
@@ -126,6 +144,11 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     setBoardData(null);
     setParticipants([]);
     setVotes([]);
+    setPresentationStage(undefined);
+    setProgress(null);
+    progressFor.current = null;
+    progressSeq.current += 1;
+    progressUnavailable.current = false;
     setIsBoardLoading(true);
     setAreParticipantsLoading(true);
     setLoadError(null);
@@ -147,10 +170,11 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
       ]);
       if (seq !== reloadSeq.current) return;
       setBoardData(board);
+      setPresentationStage(publishedStageOf(board));
       setParticipants(partsList);
       setVotes(votesList);
       setLoadError(null);
-      lastFinishedLoad.current = board.status === 'finished' ? board.id : null;
+      lastFinishedLoad.current = isBoardFinished(board) ? board.id : null;
     } catch (e) {
       if (seq !== reloadSeq.current) return;
       console.error("Erro ao carregar dados do Radar de clima:", e);
@@ -183,6 +207,8 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     return connectRoomSocket({
       buildUrl: () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''),
       ...presenceBindings,
+      // Etapa da apresentação do facilitador (backend antigo ignora o parâmetro e nunca envia o evento).
+      presentation: true,
       onOpen: () => setConnection({ state: 'live' }),
       onClose: ({ attempt, retryInMs }) =>
         setConnection({ state: attempt >= OFFLINE_AFTER_ATTEMPTS ? 'offline' : 'reconnecting', retryInSec: Math.max(1, Math.round(retryInMs / 1000)) }),
@@ -192,7 +218,16 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
         const payload = message.payload as any;
         switch (message.type) {
           case 'BOARD_UPDATED':
-            if (payload) setBoardData(payload);
+            if (payload) {
+              setBoardData(payload);
+              const published = publishedStageOf(payload);
+              if (published !== undefined) setPresentationStage(published);
+            }
+            break;
+
+          case 'PRESENTATION_STAGE':
+            // Estado completo: a etapa atual (ou null quando o facilitador encerrou a apresentação).
+            if (payload && typeof payload === 'object') setPresentationStage(typeof payload.stage === 'string' ? payload.stage : null);
             break;
 
           case 'BOARD_DELETED':
@@ -226,7 +261,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
   // Ao encerrar, a lista de votos muda de "só os meus" para "todos, sem identificação": recarrega uma vez.
   useEffect(() => {
-    if (!isAuthenticated || boardData?.status !== 'finished') return;
+    if (!isAuthenticated || !boardData || !isBoardFinished(boardData)) return;
     if (lastFinishedLoad.current === boardData.id) return;
     lastFinishedLoad.current = boardData.id;
     healthCheckApi.getVotes(boardId)
@@ -235,7 +270,36 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
         lastFinishedLoad.current = null;
         console.error("Erro ao carregar os votos do radar encerrado:", e);
       });
-  }, [isAuthenticated, boardData?.id, boardData?.status, boardId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, boardData?.id, boardData?.status, boardData?.lifecycleStatus, boardId]);
+
+  // "Ainda não votaram": só o facilitador lê a lista, refeita quando o número de respondentes muda (uma chamada leve).
+  const respondedNow = boardData?.respondedCount;
+  const boardFinishedNow = boardData ? isBoardFinished(boardData) : true;
+  useEffect(() => {
+    if (!isAuthenticated || progressUnavailable.current) return;
+    if (!shouldRefetchProgress({ enabled: canFacilitate, finished: boardFinishedNow, respondedCount: respondedNow, lastFetchedFor: progressFor.current })) return;
+    progressFor.current = respondedNow ?? null;
+    const seq = ++progressSeq.current;
+    healthCheckApi.getProgress(boardId)
+      .then((result) => {
+        if (seq !== progressSeq.current) return;
+        if (result.status === 'ok') setProgress(result.data);
+        else progressUnavailable.current = true; // 404/405 (backend antigo) ou 403: some o bloco, sem erro na tela
+      })
+      .catch((e) => {
+        if (seq === progressSeq.current) progressFor.current = null;
+        console.warn('Não foi possível carregar quem ainda não votou', e);
+      });
+  }, [isAuthenticated, canFacilitate, boardFinishedNow, respondedNow, boardId]);
+
+  const responseCounts = useMemo(() => (boardData ? responseCountsOf(boardData, participants) : null), [boardData, participants]);
+  const pendingPeople = useMemo(() => (canFacilitate ? pendingPeopleOf(progress, participants) : null), [canFacilitate, progress, participants]);
+
+  const publishStage = useCallback(async (stage: string | null): Promise<PublishResult> => {
+    const result = stage === null ? await healthCheckApi.clearPresentationStage(boardId) : await healthCheckApi.setPresentationStage(boardId, stage);
+    return result.status === 'ok' ? 'ok' : result.status;
+  }, [boardId]);
 
   // Auto-join como participante (uma vez por sala; o servidor usa a identidade do login)
   useEffect(() => {
@@ -296,6 +360,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
       // médias, contagens e destaques são calculados no servidor com todos os votos já gravados
       const finished = await healthCheckApi.finishBoard(boardId);
       setBoardData(finished);
+      setPresentationStage(publishedStageOf(finished));
       toast({ title: "Radar finalizado!" });
       return { ok: true };
     } catch (error) {
@@ -341,11 +406,12 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     connection,
     onDeleteBoard: handleDeleteBoard,
     onOpenFeedback: handleOpenFeedback,
+    responseCounts,
   };
 
   return (
     <>
-      {boardData.status === 'finished' ? (
+      {isBoardFinished(boardData) ? (
         <HealthCheckResults
           {...shared}
           boardId={boardId}
@@ -354,6 +420,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
           dimensions={boardDimensions}
           votes={votes}
           results={boardData.summary?.results}
+          presentation={{ published: presentationStage, canPublish: canFacilitate && presentationStage !== undefined, publish: publishStage }}
         />
       ) : (
         <HealthCheckVotingBoard
@@ -364,6 +431,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
           onFinish={handleFinish}
           isFinishing={isFinishing}
           dimensions={boardDimensions}
+          pendingPeople={pendingPeople}
         />
       )}
       <FeedbackWidget toolName="Radar de clima" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
