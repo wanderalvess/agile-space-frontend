@@ -4,6 +4,12 @@ export interface RoomSocketOptions {
   onMessage: (data: { type?: string; payload?: unknown; [key: string]: unknown }) => void;
   /** Chamado ao reconectar depois de uma queda: eventos perdidos não voltam sozinhos, a tela precisa recarregar. */
   onReconnect: () => void;
+  /**
+   * Chamado em TODA conexão aberta, inclusive a primeira (antes de `onReconnect`, que só vale depois de uma queda).
+   * Serve a telas cujo primeiro handshake pode ser recusado antes de a pessoa virar participante: o que
+   * aconteceu até a conexão firmar precisa ser recarregado.
+   */
+  onOpen?: () => void;
   /** Mensagem que não é JSON válido ou handler que lançou: a tela recarrega tudo por segurança. */
   onError?: (error: unknown) => void;
   WebSocketImpl?: typeof WebSocket;
@@ -18,7 +24,7 @@ export interface RoomSocketOptions {
  */
 export function connectRoomSocket(options: RoomSocketOptions): () => void {
   const {
-    buildUrl, onMessage, onReconnect, onError,
+    buildUrl, onMessage, onReconnect, onOpen, onError,
     WebSocketImpl = typeof WebSocket !== 'undefined' ? WebSocket : undefined,
     baseDelayMs = 1500, maxDelayMs = 15000,
   } = options;
@@ -41,6 +47,7 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
     }
     socket.onopen = () => {
       attempt = 0;
+      onOpen?.();
       if (hadConnection) onReconnect();
       hadConnection = true;
     };

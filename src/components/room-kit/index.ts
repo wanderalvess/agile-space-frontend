@@ -23,3 +23,7 @@ export * from './RoomQr';
 export * from './SelectField';
 export * from './RoomTopBar';
 export * from './room-top-bar-utils';
+export * from './SettingRow';
+export * from './PresentationBar';
+export * from './StageNav';
+export * from './useRoomPreference';

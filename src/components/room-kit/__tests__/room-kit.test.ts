@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatTimer, remainingSeconds, timerFraction, timerPhase } from '../timer-utils';
+import { formatTimer, isLateExpiry, remainingSeconds, timerFraction, timerPhase } from '../timer-utils';
 import { POKER_PHASES, pokerPhase } from '../PhaseStepper';
 import { groupPresence, type PresenceItem } from '../PresenceList';
 import { reactionKindOf, REACTION_KINDS, shortSeatName } from '../VoteKit';
@@ -126,5 +126,24 @@ describe('carta do assento', () => {
     const block = /@keyframes room-land \{[\s\S]*?\n\}/.exec(css)?.[0] ?? '';
     expect(block).toContain('room-land');
     expect(block).not.toMatch(/rotate/);
+  });
+});
+
+describe('fim do timer atrasado', () => {
+  const now = 1_000_000;
+  it('dentro da tolerância o fim conta como "agora"', () => {
+    expect(isLateExpiry(running(now - 1_000), now, 3_000)).toBe(false);
+  });
+  it('depois da tolerância o fim ficou para trás', () => {
+    expect(isLateExpiry(running(now - 3_000), now, 3_000)).toBe(true);
+    expect(isLateExpiry(running(now - 60_000), now, 3_000)).toBe(true);
+  });
+  it('aplica o offset do relógio do servidor', () => {
+    expect(isLateExpiry(running(now - 1_000), now, 3_000, 2_500)).toBe(true);
+  });
+  it('timer parado, pausado ou sem fim nunca está atrasado', () => {
+    expect(isLateExpiry(undefined, now, 3_000)).toBe(false);
+    expect(isLateExpiry({ status: 'stopped', endTime: null, initialDuration: 60, remainingOnPause: 60 }, now, 3_000)).toBe(false);
+    expect(isLateExpiry({ status: 'paused', endTime: now - 99_000, initialDuration: 60, remainingOnPause: 10 }, now, 3_000)).toBe(false);
   });
 });
