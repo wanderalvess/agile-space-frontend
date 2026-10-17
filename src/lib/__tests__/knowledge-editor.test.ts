@@ -9,10 +9,13 @@ import {
   formatKb,
   formatReadingTime,
   formatWords,
+  headerStatus,
   htmlToText,
   isContentEmpty,
   isDirty,
+  latestVersions,
   normalizeLinkHref,
+  primaryAction,
   readingMinutes,
   saveIndicator,
   statusToSend,
@@ -221,5 +224,30 @@ describe('payload de salvamento', () => {
   it('mantém "indexed" ao publicar um artigo importado', () => {
     const payload = buildSavePayload({ title: 'T', category: 'Técnico', fullPath: '', content: '<p>x</p>', tags: [], status: 'published', originalStatus: 'indexed', userId: 'u1' });
     expect(payload.status).toBe('indexed');
+  });
+});
+
+describe('versões', () => {
+  it('devolve as mais recentes primeiro, sem mexer na lista original', () => {
+    const lista = [{ versionNumber: 1 }, { versionNumber: 4 }, { versionNumber: 2 }, { versionNumber: 3 }];
+    expect(latestVersions(lista).map((v) => v.versionNumber)).toEqual([4, 3, 2]);
+    expect(lista[0].versionNumber).toBe(1);
+    expect(latestVersions(null)).toEqual([]);
+  });
+});
+
+describe('topo do editor', () => {
+  it('etiqueta de situação', () => {
+    expect(headerStatus('published', false, false)).toEqual({ label: 'Publicado', tone: 'success' });
+    expect(headerStatus('published', true, false)).toEqual({ label: 'Novo', tone: 'neutral' });
+    expect(headerStatus('draft', true, true)).toEqual({ label: 'Rascunho', tone: 'warn' });
+    expect(headerStatus('archived', false, true)).toEqual({ label: 'Arquivado', tone: 'neutral' });
+  });
+
+  it('botão principal diz o que vai acontecer', () => {
+    expect(primaryAction('published', true)).toEqual({ label: 'Atualizar artigo', target: 'published' });
+    expect(primaryAction('published', false)).toEqual({ label: 'Publicar', target: 'published' });
+    expect(primaryAction('draft', true)).toEqual({ label: 'Publicar', target: 'published' });
+    expect(primaryAction('archived', true)).toEqual({ label: 'Salvar como arquivado', target: 'archived' });
   });
 });

@@ -105,6 +105,21 @@ export function formatReadingTime(words: number): string {
   return min === 0 ? 'Sem texto ainda' : `Leitura de ${min} min`;
 }
 
+export type ChipTone = 'success' | 'warn' | 'neutral';
+
+/** Etiqueta de situação do topo. Artigo novo, sem rascunho no servidor, ainda não é "Publicado": mostra "Novo". */
+export function headerStatus(status: EditorStatus, isNew: boolean, allowDraftArchived: boolean): { label: string; tone: ChipTone } {
+  if (isNew && !allowDraftArchived) return { label: 'Novo', tone: 'neutral' };
+  return { label: STATUS_LABEL[status], tone: status === 'published' ? 'success' : status === 'draft' ? 'warn' : 'neutral' };
+}
+
+/** Botão principal do topo: o que diz e que situação grava. Rascunho grava pelo botão próprio. */
+export function primaryAction(status: EditorStatus, isEditing: boolean): { label: string; target: EditorStatus } {
+  if (status === 'archived') return { label: 'Salvar como arquivado', target: 'archived' };
+  if (status === 'published' && isEditing) return { label: 'Atualizar artigo', target: 'published' };
+  return { label: 'Publicar', target: 'published' };
+}
+
 // ---------------------------------------------------------------------------
 // Estado "sujo" e indicador de salvamento
 
@@ -218,6 +233,14 @@ export function addTags(existing: readonly string[], raw: string): string[] {
     result.push(tag);
   }
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Versões
+
+/** As `limit` versões mais recentes (maior número primeiro), sem alterar a lista recebida. */
+export function latestVersions<T extends { versionNumber: number }>(versions: readonly T[] | null | undefined, limit = 3): T[] {
+  return [...(versions ?? [])].sort((a, b) => b.versionNumber - a.versionNumber).slice(0, limit);
 }
 
 // ---------------------------------------------------------------------------
