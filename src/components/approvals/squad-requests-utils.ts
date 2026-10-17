@@ -35,18 +35,19 @@ export interface DecisionAbility {
 export const NOTE_LEADERSHIP = 'Só People Lead ou Tribe Lead aprovam liderança';
 export const NOTE_SELF = 'Outra pessoa da liderança precisa decidir o seu pedido';
 export const NOTE_CANNOT = 'Você não pode decidir este pedido';
-export const NOTE_NO_LINE = 'Sem linha do time para vincular. Um admin escolhe a linha';
+
+/** Pedido antigo, sem linha e sem papel: quem aprova escolhe a linha do time no diálogo de aprovar. */
+export const needsRowPick = (req: SquadLinkRequest): boolean => !req.memberId && !req.requestedRoleName;
 
 /**
  * O que a pessoa pode fazer neste pedido (nunca mostre um botão que o servidor vai recusar): liderança exige
- * `canApproveLeadership`, ninguém decide o próprio pedido, `canDecide` do servidor manda quando vem, e um
- * pedido sem linha e sem papel pedido só pode ser recusado (aprovar daria 422).
+ * `canApproveLeadership`, ninguém decide o próprio pedido e `canDecide` do servidor manda quando vem.
+ * Pedido sem linha e sem papel também se aprova: quem aprova escolhe a linha (`needsRowPick`).
  */
 export function decisionAbility(req: SquadLinkRequest, access: ApprovalAccess, currentUserId?: string | null): DecisionAbility {
   if (currentUserId && req.requester.id && req.requester.id === currentUserId) return { approve: false, reject: false, note: NOTE_SELF };
   if (req.kind === 'LEADERSHIP' && !access.canApproveLeadership) return { approve: false, reject: false, note: NOTE_LEADERSHIP };
   if (req.canDecide === false) return { approve: false, reject: false, note: req.kind === 'LEADERSHIP' ? NOTE_LEADERSHIP : NOTE_CANNOT };
-  if (!req.memberId && !req.requestedRoleName) return { approve: false, reject: true, note: NOTE_NO_LINE };
   return { approve: true, reject: true, note: null };
 }
 
@@ -55,6 +56,7 @@ export function approveEffect(req: SquadLinkRequest): string {
   const name = requesterName(req);
   if (req.requestedRoleName) return `${name} passa a ter acesso à squad como ${req.requestedRoleName}.`;
   if (req.memberName) return `${name} passa a ter acesso à squad na linha “${req.memberName}” do time.`;
+  if (needsRowPick(req)) return `${name} não indicou a linha do time. Escolha com quem ligar a conta.`;
   return `${name} passa a ter acesso à squad como ${requestedRole(req)}.`;
 }
 

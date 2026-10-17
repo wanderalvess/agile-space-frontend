@@ -1,20 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Loader2, ShieldAlert, UserCheck, UserRoundCheck } from 'lucide-react';
+import { Loader2, ShieldAlert, UserRoundCheck } from 'lucide-react';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
-import { ConfirmDialog } from '@/components/room-kit/ConfirmDialog';
 import { ModalButton } from '@/components/room-kit/Modal';
 import { CARD_SHADOW, FOCUS_RING } from '@/components/room-kit/tokens';
 import { EmptyState } from '@/components/page';
 import type { ApprovalAccess, SquadLinkRequest, SquadRequestStatus } from '@/lib/squad-link-requests-api';
 import { cn } from '@/lib/utils';
+import { ApproveRequestDialog } from './ApproveDialog';
 import { ApprovalErrorLine, ApprovalListRow, ApprovalSpinner, HistoryLine, HistoryTitle } from './parts';
 import { RejectRequestDialog } from './RejectDialog';
 import {
   KIND_LABEL,
   STATUS_FILTERS,
-  approveEffect,
   decisionAbility,
   requestDetail,
   requesterName,
@@ -171,20 +170,13 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
         )}
       </div>
 
-      <ConfirmDialog
-        open={!!approving}
-        onOpenChange={(open) => {
-          if (!open) setApproving(null);
-        }}
-        tone="brand"
-        icon={UserCheck}
-        title={`Aprovar o pedido de ${approving ? requesterName(approving) : ''}?`}
-        description={approving ? approveEffect(approving) : undefined}
-        confirmLabel="Aprovar pedido"
-        onConfirm={() => {
-          const target = approving;
+      <ApproveRequestDialog
+        request={approving}
+        canApproveLeadership={access.canApproveLeadership}
+        onCancel={() => setApproving(null)}
+        onConfirm={(target, memberId) => {
           setApproving(null);
-          if (target) void requests.approve(target);
+          void requests.approve(target, memberId);
         }}
       />
 

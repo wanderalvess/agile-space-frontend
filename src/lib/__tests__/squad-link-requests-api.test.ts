@@ -98,6 +98,13 @@ describe('approve / reject', () => {
     const [url, init] = authFetch.mock.calls[0];
     expect(String(url)).toMatch(/\/squads\/DDWMISSI\/link-requests\/r1\/approve$/);
     expect(init.method).toBe('POST');
+    expect(init.body).toBeUndefined();
+  });
+
+  it('approve com a linha escolhida manda { memberId } no corpo', async () => {
+    authFetch.mockResolvedValue(json(200, {}));
+    await approveSquadLinkRequest('DDWMISSI', 'r1', 'm7');
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ memberId: 'm7' });
   });
 
   it('reject manda o motivo aparado, ou corpo vazio sem motivo', async () => {

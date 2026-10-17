@@ -94,9 +94,18 @@ describe('useSquadLinkRequests', () => {
     await act(async () => {
       await result.current.approve(req('a'));
     });
-    expect(mocks.approveSquadLinkRequest).toHaveBeenCalledWith('DDWMISSI', 'a');
+    expect(mocks.approveSquadLinkRequest).toHaveBeenCalledWith('DDWMISSI', 'a', undefined);
     expect(result.current.pendingCount).toBe(1);
     expect(mocks.toast).toHaveBeenCalledWith('Pedido aprovado', expect.anything());
+  });
+
+  it('aprovar com a linha escolhida repassa o memberId', async () => {
+    const { result } = renderHook(() => useSquadLinkRequests('DDWMISSI', true));
+    await waitFor(() => expect(result.current.state).toBe('ready'));
+    await act(async () => {
+      await result.current.approve(req('a'), 'm7');
+    });
+    expect(mocks.approveSquadLinkRequest).toHaveBeenCalledWith('DDWMISSI', 'a', 'm7');
   });
 
   it('409 (já decidido) avisa com texto amigável e relê a lista', async () => {
