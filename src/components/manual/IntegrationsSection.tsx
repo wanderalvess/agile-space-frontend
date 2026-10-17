@@ -152,7 +152,7 @@ export function IntegrationsSection() {
               </div>
               <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
-                  ADMIN/LEAD (visão global)
+                  Administrador (visão global)
                 </h4>
                 <p className="text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   <Link href={API_KEY_ADMIN_PATH} className="font-black text-cyan-700 dark:text-cyan-400 hover:underline">
@@ -221,7 +221,7 @@ export function IntegrationsSection() {
                         {s.memberCanSelfIssue ? (
                           <span className="text-emerald-600 dark:text-emerald-400">Sim</span>
                         ) : (
-                          <span className="text-slate-400 dark:text-slate-500">Só ADMIN/LEAD</span>
+                          <span className="text-slate-400 dark:text-slate-500">Só administrador</span>
                         )}
                       </td>
                     </tr>
@@ -234,7 +234,7 @@ export function IntegrationsSection() {
                 <span className="font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">SQUAD_READ nunca é livre:</span>{' '}
                 uma chave self-service com esse escopo é travada na squad de quem a criou — pedir dados de outra squad
                 dá erro, não devolve vazio. Sem squad vinculada, o backend recusa gerar a chave (400) até você entrar
-                numa squad. Só ADMIN/LEAD gera chave sem essa restrição.
+                numa squad. Só o administrador gera chave sem essa restrição.
               </p>
               <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
                 Chave criada antes desse mecanismo existir (nenhum escopo salvo) continua com acesso total, pra não

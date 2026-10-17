@@ -18,7 +18,7 @@ import { moduleLabel, type ModuleKey } from './modules-registry';
 export const API_KEY_HEADER = 'X-Api-Key';
 
 /**
- * Onde ADMIN/LEAD cria/revoga qualquer chave (visão global). Sem hash de
+ * Onde o administrador cria/revoga qualquer chave (visão global). Sem hash de
  * propósito: a página /admin ignora o fragmento da URL e sempre abre na
  * primeira aba, então um '#api-keys' aqui daria a impressão errada de deep link.
  */
@@ -27,7 +27,7 @@ export const API_KEY_ADMIN_PATH = '/admin';
 /**
  * Onde qualquer usuário autenticado gera/revoga as próprias chaves — Meu espaço,
  * aba Conta, subaba Conectividade (a aba vem do parâmetro ?aba=&sub= da URL).
- * Único caminho pra quem não é ADMIN/LEAD; sem passar por /admin em nenhum momento.
+ * Único caminho pra quem não é administrador; sem passar por /admin em nenhum momento.
  */
 export const API_KEY_SELF_SERVICE_PATH = '/workspace?aba=conta&sub=conectividade';
 
@@ -320,7 +320,7 @@ curl -X POST "${EXAMPLE_HOST}/api/v1/prompt-hub/items" \\
     notes: [
       'Só leitura: nenhuma tool altera squad, membro ou issue.',
       'As issues devolvidas são o snapshot da última sincronização com o Jira, não uma consulta ao vivo.',
-      'Chave com squadId travado (toda chave self-service com SQUAD_READ) só lê a própria squad — pedir squadId de outra squad dá erro, não devolve vazio. Chave sem squadId (as de ADMIN/LEAD) lê qualquer squad, igual antes.',
+      'Chave com squadId travado (toda chave self-service com SQUAD_READ) só lê a própria squad — pedir squadId de outra squad dá erro, não devolve vazio. Chave sem squadId (as de administrador) lê qualquer squad, igual antes.',
     ],
   },
   {

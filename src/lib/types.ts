@@ -78,8 +78,22 @@ export const CONTRIBUTOR_ROLES: GlobalRole[] = [
  * Nunca confundir com GlobalRole (cargo de negócio, ex "Tech Lead"): campos e propósitos
  * diferentes. Ver UserProfile.jobTitle para o cargo de negócio autodeclarado.
  */
-export type AuthRole = 'ADMIN' | 'LEAD' | 'MEMBER';
-export const AUTH_ROLES: AuthRole[] = ['ADMIN', 'LEAD', 'MEMBER'];
+export type AuthRole = 'ADMIN' | 'MEMBER';
+export const AUTH_ROLES: AuthRole[] = ['ADMIN', 'MEMBER'];
+
+/**
+ * Nível de acesso da conta. LEAD deixou de existir: a liderança de uma squad vem do vínculo (papel com
+ * `leadership`), não do nível. Contas antigas ainda podem chegar do servidor com "LEAD" durante a migração,
+ * e valem como MEMBER; qualquer valor desconhecido também.
+ */
+export function normalizeAuthRole(roleInput?: string | null): AuthRole {
+  return (roleInput || '').trim().toUpperCase() === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+}
+
+/** A conta ainda está com o nível antigo LEAD no servidor (aparece como Membro até migrar). */
+export function isLegacyLeadRole(roleInput?: string | null): boolean {
+  return (roleInput || '').trim().toUpperCase() === 'LEAD';
+}
 
 export function normalizeRole(roleInput?: string): GlobalRole {
   if (!roleInput) return 'Developer';

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUDIENCE_ROLE_OPTIONS,
   EMPTY_ANNOUNCEMENT_FORM,
+  canonicalAudienceRole,
   audienceSummary,
   formFromAnnouncement,
   inputFromForm,
@@ -61,5 +63,29 @@ describe('audienceSummary', () => {
     expect(audienceSummary({ audienceType: 'ALL', audienceSquadIds: [], audienceRoles: [] })).toBe('para todos');
     expect(audienceSummary({ audienceType: 'SQUADS', audienceSquadIds: ['S1'], audienceRoles: [] }, { S1: 'Phoenix' })).toBe('para Phoenix');
     expect(audienceSummary({ audienceType: 'ROLES', audienceSquadIds: [], audienceRoles: ['AGILE_MASTER', 'X'] })).toBe('para Agile Master, X');
+  });
+});
+
+describe('audiência por liderança (LEAD virou LEADERSHIP)', () => {
+  const iso = new Date('2026-10-20T23:00').toISOString();
+  const ann = (roles: string[]) => ({
+    id: 'a', title: 'T', content: 'C', type: 'INFO' as const, audienceType: 'ROLES' as const, audienceSquadIds: [], audienceRoles: roles,
+    validFrom: iso, validUntil: null, link: null, createdBy: 'u', createdByName: 'Admin', createdAt: iso, dismissed: false,
+  });
+
+  it('oferece Liderança com a chave LEADERSHIP e não oferece LEAD', () => {
+    expect(AUDIENCE_ROLE_OPTIONS.find((o) => o.value === 'LEADERSHIP')?.label).toBe('Liderança');
+    expect(AUDIENCE_ROLE_OPTIONS.some((o) => o.value === 'LEAD')).toBe(false);
+  });
+
+  it('lê o LEAD antigo como liderança, sem duplicar', () => {
+    expect(canonicalAudienceRole('LEAD')).toBe('LEADERSHIP');
+    expect(canonicalAudienceRole('MEMBER')).toBe('MEMBER');
+    expect(formFromAnnouncement(ann(['LEAD', 'MEMBER'])).audienceRoles).toEqual(['LEADERSHIP', 'MEMBER']);
+    expect(formFromAnnouncement(ann(['LEAD', 'LEADERSHIP'])).audienceRoles).toEqual(['LEADERSHIP']);
+  });
+
+  it('o resumo do público mostra "Liderança" para aviso antigo com LEAD', () => {
+    expect(audienceSummary(ann(['LEAD']))).toBe('para Liderança');
   });
 });
