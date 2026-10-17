@@ -332,3 +332,21 @@ describe('sala do Brainstorming: Grupos e Matriz', () => {
     expect(within(dialog).getByRole('button', { name: /Criar plano com 5 ações/ })).toBeTruthy();
   });
 });
+
+describe('sala do Brainstorming: presença em tempo real', () => {
+  it('com a presença do servidor: online, ponto verde e "ausente"', () => {
+    setup({ props: { onlineIds: new Set(['fac']) } });
+    const botao = screen.getByRole('button', { name: /^Participantes/ });
+    expect(botao.getAttribute('aria-label')).toMatch(/^Participantes \(1 online de \d+\)$/);
+    fireEvent.click(botao);
+    expect(screen.getAllByText(/ausente/).length).toBeGreaterThan(0);
+  });
+
+  it('sem presença (backend antigo): só o total, sem "ausente"', () => {
+    setup({ props: { onlineIds: null } });
+    const botao = screen.getByRole('button', { name: /^Participantes/ });
+    expect(botao.getAttribute('aria-label')).toMatch(/^Participantes \(\d+\)$/);
+    fireEvent.click(botao);
+    expect(screen.queryByText(/ausente/)).toBeNull();
+  });
+});

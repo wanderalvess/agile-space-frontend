@@ -19,6 +19,8 @@ interface HealthCheckVotingBoardProps {
   board: HealthCheckBoard;
   squadLabel: string;
   participants: HealthCheckParticipant[];
+  /** Contas com a sala aberta agora; `null`/ausente = o servidor não informa (sem ponto de online). */
+  onlineIds?: ReadonlySet<string> | null;
   currentUserId?: string;
   userVotes: HealthCheckVote[];
   /** Devolve true quando o servidor gravou; o comentário digitado fica na tela de qualquer forma. */
@@ -111,6 +113,7 @@ export function HealthCheckVotingBoard({
   board,
   squadLabel,
   participants,
+  onlineIds,
   currentUserId,
   userVotes,
   onVote,
@@ -227,6 +230,7 @@ export function HealthCheckVotingBoard({
       isCreator={isCreator}
       creatorId={board.creatorId}
       participants={participants}
+      onlineIds={onlineIds}
       currentUserId={currentUserId}
       connection={connection}
       onOpenFeedback={onOpenFeedback}

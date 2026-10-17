@@ -20,6 +20,7 @@ import { useUserContext } from '@/context/UserContext';
 import { getAuthToken } from '@/lib/auth-client';
 import { CeremonyApiError, errorMessage } from '@/lib/ceremony-api';
 import { connectRoomSocket } from '@/lib/room-socket';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { FeedbackWidget } from '@/components/feedback-widget';
 
 function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
@@ -99,6 +100,10 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     setFeedbackSignal(Date.now());
   }, []);
 
+  // Quem está com a sala aberta agora (null = o servidor não informa; a sala mostra só o total, como antes).
+  const presence = useRoomPresence({ module: 'health-check', roomId: boardId });
+  const presenceBindings = presence.bindings;
+
   const currentUser = useMemo(() => participants?.find(p => p.id === userProfile?.id) || null, [participants, userProfile?.id]);
   const userVotes = useMemo(() => votes.filter(v => v.participantId === currentUser?.id), [votes, currentUser?.id]);
 
@@ -177,6 +182,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
     return connectRoomSocket({
       buildUrl: () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''),
+      ...presenceBindings,
       onOpen: () => setConnection({ state: 'live' }),
       onClose: ({ attempt, retryInMs }) =>
         setConnection({ state: attempt >= OFFLINE_AFTER_ATTEMPTS ? 'offline' : 'reconnecting', retryInSec: Math.max(1, Math.round(retryInMs / 1000)) }),
@@ -216,7 +222,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
         }
       },
     });
-  }, [boardId, reloadBoardData, isAuthenticated]);
+  }, [boardId, reloadBoardData, isAuthenticated, presenceBindings]);
 
   // Ao encerrar, a lista de votos muda de "só os meus" para "todos, sem identificação": recarrega uma vez.
   useEffect(() => {
@@ -330,6 +336,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     board: boardData,
     squadLabel,
     participants,
+    onlineIds: presence.online,
     currentUserId: userProfile.id,
     connection,
     onDeleteBoard: handleDeleteBoard,

@@ -36,7 +36,7 @@ Em negrito, o que nasceu com a Retro. `connectRoomSocket` (`src/lib/room-socket.
 
 ## Como o Radar de clima usa o kit
 
-Ver `docs/redesign/health-check.md`. `HealthRoomShell` monta o `RoomTopBar` (Votar e Resultado), a lista de participantes (`ResponsivePanel` + `PresenceList`), `ShareDialog`, `GuideSheet` e `ConfirmDialog`; o resultado usa `ExportDialogShell`, `PresentationBar` e `StageNav`; a nova pesquisa usa `Modal`, `TabBar` e `SelectField`. Salas sem presença real (o servidor só avisa entrada e saída) passam `online` sem valor em `TopBarPerson` e `PresenceItem`: não há ponto verde nem "ausente", e o botão diz "Participantes (N)".
+Ver `docs/redesign/health-check.md`. `HealthRoomShell` monta o `RoomTopBar` (Votar e Resultado), a lista de participantes (`ResponsivePanel` + `PresenceList`), `ShareDialog`, `GuideSheet` e `ConfirmDialog`; o resultado usa `ExportDialogShell`, `PresentationBar` e `StageNav`; a nova pesquisa usa `Modal`, `TabBar` e `SelectField`. Sem dado de presença do servidor (backend antigo; ver "Presença em tempo real" abaixo) as salas passam `online` sem valor em `TopBarPerson` e `PresenceItem`: não há ponto verde nem "ausente", e o botão diz "Participantes (N)".
 
 ## Testes de sala
 
@@ -53,3 +53,33 @@ Ver `docs/redesign/health-check.md`. `HealthRoomShell` monta o `RoomTopBar` (Vot
 - Regras sem tela (testadas): `brainstorm-room-logic.ts`, `brainstorm-plan.ts`, `brainstorm-export.ts`.
 - O pedido de imagem (PNG) é um número que a sala incrementa (`useExportRequest`): a etapa nunca baixa um PNG antigo ao ser montada.
 - Mudanças aditivas no kit: `PresenceItem.online` opcional e `presence.unknown` no `RoomTopBar` (sem ponto verde quando o servidor não informa presença), `RoomTimer.presets`, `connectRoomSocket({ onClose })`.
+
+## Presença em tempo real (quem está online)
+
+O backend (`docs/presence-api.md`, no repositório do backend) informa quem tem a sala aberta. É opt-in e aditivo; o frontend consome assim.
+
+**Contrato consumido**
+
+- `connectRoomSocket({ presence: true })` acrescenta `presence=1` à URL do WebSocket (a cada tentativa, com o token relido). Sem a opção a URL não muda.
+- O servidor responde com `PRESENCE_UPDATED` (`payload: { online: userId[], total, version }`): estado COMPLETO, snapshot logo ao abrir e a cada mudança. O envelope varia por módulo (`roomId` no Poker, `boardId` em Retro/Brainstorming/Radar, `sessionId` na Review), mas o tratamento é por `type`.
+- `version` só cresce por processo do servidor: o cliente descarta versão menor ou igual à última vista na conexão e zera a versão a cada nova conexão (`createPresenceSession`, em `src/lib/room-presence.ts`).
+- O evento é consumido na camada do socket (`connectRoomSocket` e, nos sockets próprios do Poker e da Review, `createPresenceSession.handle`): nunca chega ao `default` das telas, que recarregaria a sala inteira.
+- Fallback: se a conexão abrir e nenhum snapshot chegar em 3 s, a sala consulta uma única vez `GET /api/presence/{poker|retro|brainstorming|health-check|showcase}/{id}` (`fetchRoomPresence`, com `fetch` e Bearer, sem o "sessão expirada" global). 404 (backend antigo), 403, 401, rede ou corpo inválido = presença desconhecida, sem erro na tela e sem repetir a chamada.
+
+**Hook `useRoomPresence({ module, roomId })`** (`src/hooks/useRoomPresence.ts`) devolve `{ online, bindings }`:
+
+- `online: ReadonlySet<string> | null`. `null` = o servidor não informa (backend antigo, ainda sem snapshot, REST 404). Entrar aparece na hora; sair só some depois de 5 s sem a pessoa voltar (queda curta de rede é "saiu + entrou" no servidor). O primeiro estado vale direto. Trocar de sala volta a `null`.
+- `bindings` (estável): `{ presence: true, onPresence, onPresenceMissing }`, para espalhar em `connectRoomSocket({ ...bindings })` ou usar com `createPresenceSession` num WebSocket próprio.
+
+**Como as telas mostram** (`presenceOnlineOf(online, userId)` devolve `undefined` quando `online` é `null`):
+
+| `online` | Barra do topo (`RoomTopBar`) | Lista (`PresenceList`) |
+|---|---|---|
+| `Set` | pilha com ponto verde nos online e rótulo "Participantes (N online de M)" | ponto verde; "· ausente" para quem entrou e fechou a sala |
+| `null` | só o total, "Participantes (N)", sem ponto | sem ponto e sem "ausente" |
+
+Mapa de ids (o `userId` do WebSocket é o id da conta, o mesmo de `participant.id`, o campo que os eventos `PARTICIPANT_*` já usam): Poker, Retro, Brainstorming e Radar usam `participant.id`; quem não está no `Set` aparece como ausente. A Review não tem lista de participantes: mostra só o chip "N pessoas online" ao lado de "Conectado".
+
+**Poker**: já tinha presença por heartbeat (`lastSeen`, janela de 60 s), usada para o quórum de início, a revelação automática, a facilitação temporária e os pontos da mesa. `isParticipantPresent(p, now, socketOnline)` (`poker-utils`) usa o `Set` do WebSocket quando existe (a saída aparece em segundos) e, sem ele, volta ao heartbeat exatamente como antes. O modo assíncrono não usa presença.
+
+**Backend antigo (homologação hoje)**: ignora `presence=1`, não envia o evento e responde 404 no REST. Resultado: `online` fica `null`, não há ponto verde nem "ausente" em lugar nenhum e as salas funcionam como antes; o Poker segue com o heartbeat. A única diferença visível é que a Retro deixa de pintar todo mundo de verde quando não há dado (antes era um "online" fixo, sem fonte).

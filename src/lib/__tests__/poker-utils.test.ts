@@ -10,6 +10,7 @@ import {
   calculateRoleEfforts,
   checkConsensus,
   isParticipantOnline,
+  isParticipantPresent,
   formatBaselineDisplay,
   formatRoleForCopy,
 } from '../poker-utils';
@@ -183,6 +184,26 @@ describe('poker-utils - Regras de Negócio e Cálculos do Planning Poker', () =>
 
     it('deve tolerar participante sem lastSeen tratando como online', () => {
       expect(isParticipantOnline({}, now)).toBe(true);
+    });
+  });
+
+  describe('Presença com o WebSocket (isParticipantPresent)', () => {
+    const now = 1700000000000;
+    const stale = { id: 'a', lastSeen: new Date(now - 120_000).toISOString() };
+    const fresh = { id: 'b', lastSeen: new Date(now - 5_000).toISOString() };
+
+    it('sem presença do servidor (null/undefined) vale o heartbeat, como sempre foi', () => {
+      expect(isParticipantPresent(stale, now, null)).toBe(false);
+      expect(isParticipantPresent(fresh, now, null)).toBe(true);
+      expect(isParticipantPresent(stale, now)).toBe(false);
+      expect(isParticipantPresent({ id: 'c' }, now, null)).toBe(true);
+    });
+
+    it('com presença do servidor ela manda: saiu da sala = offline mesmo com heartbeat recente', () => {
+      const online = new Set(['a']);
+      expect(isParticipantPresent(fresh, now, online)).toBe(false);
+      expect(isParticipantPresent(stale, now, online)).toBe(true);
+      expect(isParticipantPresent({ id: 'c' }, now, online)).toBe(false);
     });
   });
 

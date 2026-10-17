@@ -479,3 +479,29 @@ describe('sala da Retro: boas-vindas e faixa ao vivo', () => {
     expect(faixa.textContent).toContain('Sem autoria 2');
   });
 });
+
+describe('sala da Retro: presença em tempo real', () => {
+  it('com a presença do servidor: conta online, ponto verde e "ausente" para quem fechou a sala', async () => {
+    setup({ props: { onlineIds: new Set(['fac', 'me']) } });
+    const botao = screen.getByRole('button', { name: /^Participantes/ });
+    expect(botao.getAttribute('aria-label')).toBe('Participantes (2 online de 3)');
+    fireEvent.click(botao);
+    const painel = await screen.findByRole('region', { name: 'Participantes' });
+    const bruno = within(painel).getByText('Bruno Lima').closest('li')!;
+    expect(bruno.textContent).toContain('ausente');
+    expect(bruno.querySelector('.bg-emerald-500')).toBeNull();
+    const ana = within(painel).getByText('Ana Souza').closest('li')!;
+    expect(ana.textContent).not.toContain('ausente');
+    expect(ana.querySelector('.bg-emerald-500')).not.toBeNull();
+  });
+
+  it('sem presença (backend antigo): só o total, sem ponto e sem "ausente"', async () => {
+    setup();
+    const botao = screen.getByRole('button', { name: /^Participantes/ });
+    expect(botao.getAttribute('aria-label')).toBe('Participantes (3)');
+    fireEvent.click(botao);
+    const painel = await screen.findByRole('region', { name: 'Participantes' });
+    expect(painel.textContent).not.toContain('ausente');
+    expect(painel.querySelector('.bg-emerald-500')).toBeNull();
+  });
+});

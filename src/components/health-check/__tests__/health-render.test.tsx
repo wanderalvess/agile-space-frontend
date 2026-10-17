@@ -416,3 +416,41 @@ describe('nova pesquisa', () => {
     expect(await screen.findByText('Limpar todas as perguntas?')).toBeTruthy();
   });
 });
+
+describe('presença em tempo real', () => {
+  const baseProps = (over: Record<string, unknown> = {}) => ({
+    board: board(), squadLabel: 'Phoenix', participants: people, currentUserId: 'fac', userVotes: [] as HealthCheckVote[],
+    onVote: vi.fn(async () => true), isCreator: true, onFinish: vi.fn(async () => ({ ok: true })), isFinishing: false, dimensions: DIMS,
+    connection: { state: 'live' } as const, onDeleteBoard: vi.fn(async () => {}), onOpenFeedback: vi.fn(), ...over,
+  });
+
+  it('votação com presença conhecida: online e "ausente"', () => {
+    render(<HealthCheckVotingBoard {...baseProps({ onlineIds: new Set(['fac']) })} />);
+    const botao = screen.getByRole('button', { name: /^Participantes/ });
+    expect(botao.getAttribute('aria-label')).toBe('Participantes (1 online de 2)');
+    fireEvent.click(botao);
+    expect(screen.getByText(/ausente/)).toBeTruthy();
+  });
+
+  it('votação sem presença (backend antigo): só o total', () => {
+    render(<HealthCheckVotingBoard {...baseProps()} />);
+    const botao = screen.getByRole('button', { name: /^Participantes/ });
+    expect(botao.getAttribute('aria-label')).toBe('Participantes (2)');
+    fireEvent.click(botao);
+    expect(screen.queryByText(/ausente/)).toBeNull();
+  });
+
+  it('resultado também recebe a presença', () => {
+    const results = [{ dimensionKey: 'a', values: { green: 1, yellow: 0, red: 0 } }];
+    render(
+      <HealthCheckResults
+        {...({
+          boardId: 'b1', board: board({ status: 'finished', summary: { topMetrics: [], lowMetrics: [], results } }), squadLabel: 'Phoenix', creatorName: 'Carla Mendes',
+          participants: people, onlineIds: new Set(['me']), currentUserId: 'me', isCreator: false, dimensions: DIMS, votes: [], results,
+          connection: { state: 'live' }, onDeleteBoard: vi.fn(async () => {}), onOpenFeedback: vi.fn(),
+        } as any)}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /^Participantes/ }).getAttribute('aria-label')).toBe('Participantes (1 online de 2)');
+  });
+});

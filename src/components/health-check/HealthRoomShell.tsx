@@ -17,6 +17,7 @@ import {
 import { buildInviteText } from '@/lib/health-check-export';
 import { moduleIcon } from '@/lib/modules-registry';
 import { TEAM_ROLE_DESCRIPTIONS, type HealthCheckParticipant, type TeamRole } from '@/lib/types';
+import { presenceOnlineOf } from '@/lib/room-presence';
 import { HealthGuide } from './HealthGuide';
 import { ConnectionChip, type HealthConnection } from './health-ui';
 
@@ -45,6 +46,8 @@ export interface HealthRoomShellProps {
   isCreator: boolean;
   creatorId?: string;
   participants: HealthCheckParticipant[];
+  /** Contas com a sala aberta agora; `null`/ausente = o servidor não informa: só o total, sem ponto de online. */
+  onlineIds?: ReadonlySet<string> | null;
   currentUserId?: string;
   connection: HealthConnection;
   onOpenFeedback: () => void;
@@ -72,7 +75,7 @@ export function HealthRoomShell(p: HealthRoomShellProps) {
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [inviteDraft, setInviteDraft] = useState<string | null>(null);
 
-  const people: TopBarPerson[] = useMemo(() => p.participants.map((x) => ({ id: x.id, name: x.nickname })), [p.participants]);
+  const people: TopBarPerson[] = useMemo(() => p.participants.map((x) => ({ id: x.id, name: x.nickname, online: presenceOnlineOf(p.onlineIds, x.id) })), [p.participants, p.onlineIds]);
   const items: PresenceItem[] = useMemo(
     () =>
       p.participants.map((x) => ({
@@ -80,10 +83,11 @@ export function HealthRoomShell(p: HealthRoomShellProps) {
         name: x.nickname,
         roleLabel: `${TEAM_ROLE_DESCRIPTIONS[x.role]?.name ?? 'Outro'}${x.id === p.creatorId ? ' · facilitador' : ''}`,
         category: CATEGORY[x.role] ?? null,
+        online: presenceOnlineOf(p.onlineIds, x.id),
         isYou: x.id === p.currentUserId,
         isHost: x.id === p.creatorId,
       })),
-    [p.participants, p.creatorId, p.currentUserId]
+    [p.participants, p.onlineIds, p.creatorId, p.currentUserId]
   );
 
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : '';

@@ -16,8 +16,10 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { getAuthToken } from '@/lib/auth-client';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { isValidJiraKey } from '@/lib/utils';
-import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantOnline, roundEstimate, resolveRoundingMode, shouldAutoReveal } from '@/lib/poker-utils';
+import { canParticipantVote, getEligibleStatsVotes, getParticipantCategory, resolveTshirtHours, formatBaselineDisplay, computeSessionBreakdown, computeTopicTiming, isParticipantPresent, roundEstimate, resolveRoundingMode, shouldAutoReveal } from '@/lib/poker-utils';
 import { useStableCallback } from '@/hooks/use-stable-callback';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
+import { createPresenceSession, withPresenceParam } from '@/lib/room-presence';
 import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { squadApi } from '@/app/squad/api';
@@ -73,9 +75,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     return () => clearInterval(t);
   }, []);
 
+  // Presença do WebSocket (`?presence=1`): null = o servidor não informa (backend antigo, ainda sem snapshot) e
+  // vale o heartbeat de `lastSeen`, como sempre foi.
+  const presence = useRoomPresence({ module: 'poker', roomId });
+  const socketOnline = presence.online;
+  const presenceBindings = presence.bindings;
+
   const onlineParticipants = useMemo(
-    () => (participants || []).filter(p => isParticipantOnline(p, presenceTick)),
-    [participants, presenceTick]
+    () => (participants || []).filter(p => isParticipantPresent(p, presenceTick, socketOnline)),
+    [participants, presenceTick, socketOnline]
   );
 
   // Falhas de ação aparecem para o usuário (antes só iam para o console). Conflito de versão já tem aviso próprio.
@@ -238,13 +246,20 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
     let disposed = false;
     let attempt = 0;
+    // `PRESENCE_UPDATED` é consumido aqui e nunca chega ao `default` do switch (que recarrega a sala toda).
+    const presenceSession = createPresenceSession({
+      onPresence: presenceBindings.onPresence,
+      onMissing: presenceBindings.onPresenceMissing,
+    });
 
     const connect = () => {
+    presenceSession.start(false);
     // Token lido a cada tentativa: o de antes pode ter expirado durante a queda.
-    const ws = new WebSocket(wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''));
+    const ws = new WebSocket(withPresenceParam(wsBase + '?token=' + encodeURIComponent(getAuthToken() || '')));
     socket = ws;
 
     ws.onopen = () => {
+      presenceSession.start(true);
       // Reconectou: o que aconteceu enquanto estava fora (votos, sala, chat) não chegou por evento.
       if (attempt > 0) {
         loadedChannelsRef.current.clear();
@@ -257,6 +272,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (presenceSession.handle(data)) return;
         switch (data.type) {
           case 'ROOM_UPDATED':
             if (data.payload) {
@@ -392,6 +408,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     };
 
     ws.onclose = () => {
+      presenceSession.stop();
       if (disposed) return;
       // Backoff exponencial (1s, 2s, 4s… até 30s) e ressincroniza a cada tentativa.
       const delay = Math.min(30000, 1000 * 2 ** attempt);
@@ -406,10 +423,11 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
     return () => {
       disposed = true;
+      presenceSession.stop();
       if (reconnectTimer) clearTimeout(reconnectTimer);
       socket?.close();
     };
-  }, [roomId, session, reloadRoomData, applyRoom]);
+  }, [roomId, session, reloadRoomData, applyRoom, presenceBindings]);
 
   useEffect(() => {
     setHasJoined(false);
@@ -598,15 +616,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
   // item nasce ativo sem nenhuma troca para disparar isso — por isso hoje
   // depende 100% de alguém clicar em "Iniciar Refinamento". Assim que houver
   // 1 dev + 1 QA online na sala (offline = aba fechada, não conta — mesmo
-  // critério de `isParticipantOnline` usado no quórum de votação), inicia
+  // critério de `isParticipantPresent` usado no quórum de votação), inicia
   // sozinho, sem esperar o clique.
   useEffect(() => {
     if (!isCurrentUserFacilitator || !roomData) return;
     if (roomData.sessionStartedAt || roomData.sessionEndedAt || !roomData.activeIssueId) return;
 
     const nowMs = Date.now();
-    const hasDev = participants.some(p => p.role === 'dev' && isParticipantOnline(p, nowMs));
-    const hasQa = participants.some(p => p.role === 'qa' && isParticipantOnline(p, nowMs));
+    const hasDev = participants.some(p => p.role === 'dev' && isParticipantPresent(p, nowMs, socketOnline));
+    const hasQa = participants.some(p => p.role === 'qa' && isParticipantPresent(p, nowMs, socketOnline));
     if (!hasDev || !hasQa) return;
 
     const now = new Date(nowMs).toISOString();
@@ -623,7 +641,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         description: 'Quórum atingido (1 dev + 1 QA online) — o cronômetro começou.',
       });
     }).catch(notifyError);
-  }, [isCurrentUserFacilitator, roomData, participants, toast]);
+  }, [isCurrentUserFacilitator, roomData, participants, socketOnline, toast]);
 
   // Carimba startedAt da tarefa ativa de forma automática
   useEffect(() => {
@@ -1999,6 +2017,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         roomId={roomId}
         currentUser={currentUser}
         participants={participants || []}
+        socketOnline={socketOnline}
         votes={votes || []}
         deck={roomData.deckType}
         votesRevealed={roomData.votesRevealed}

@@ -195,6 +195,19 @@ describe('sala: peças soltas', () => {
     expect(retry).toHaveBeenCalled();
   });
 
+  it('presença: mostra quantas pessoas estão online só quando o servidor informa e a conexão está viva', () => {
+    const { rerender } = render(<SyncIndicator connection={{ state: 'live' }} saveState="idle" onRetrySave={() => {}} onlineCount={3} />);
+    expect(screen.getByText('3 pessoas online')).toBeTruthy();
+    rerender(<SyncIndicator connection={{ state: 'live' }} saveState="idle" onRetrySave={() => {}} onlineCount={1} />);
+    expect(screen.getByText('1 pessoa online')).toBeTruthy();
+    rerender(<SyncIndicator connection={{ state: 'live' }} saveState="idle" onRetrySave={() => {}} onlineCount={null} />);
+    expect(screen.queryByText(/online/)).toBeNull();
+    rerender(<SyncIndicator connection={{ state: 'live' }} saveState="idle" onRetrySave={() => {}} />);
+    expect(screen.queryByText(/online/)).toBeNull();
+    rerender(<SyncIndicator connection={{ state: 'reconnecting', retryInSec: 4 }} saveState="idle" onRetrySave={() => {}} onlineCount={3} />);
+    expect(screen.queryByText(/online/)).toBeNull();
+  });
+
   it('o guia traz as três abas e refaz o tour', () => {
     const onRedoTour = vi.fn();
     render(<ReviewGuide open onOpenChange={() => {}} onRedoTour={onRedoTour} />);

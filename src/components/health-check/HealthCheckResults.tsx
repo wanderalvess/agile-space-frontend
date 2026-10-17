@@ -37,6 +37,8 @@ interface HealthCheckResultsProps {
   /** Nome de quem criou, quando ele está na lista de participantes. */
   creatorName?: string;
   participants: HealthCheckParticipant[];
+  /** Contas com a sala aberta agora; `null`/ausente = o servidor não informa (sem ponto de online). */
+  onlineIds?: ReadonlySet<string> | null;
   currentUserId?: string;
   isCreator: boolean;
   dimensions: HealthCheckDimension[];
@@ -72,6 +74,7 @@ export function HealthCheckResults({
   squadLabel,
   creatorName,
   participants,
+  onlineIds,
   currentUserId,
   isCreator,
   dimensions,
@@ -189,6 +192,7 @@ export function HealthCheckResults({
       isCreator={isCreator}
       creatorId={board.creatorId}
       participants={participants}
+      onlineIds={onlineIds}
       currentUserId={currentUserId}
       connection={connection}
       onOpenFeedback={onOpenFeedback}

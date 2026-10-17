@@ -45,6 +45,7 @@ import { RetroParticipantList } from './RetroParticipantList';
 import { RetroRoomBar } from './RetroRoomBar';
 import { RetroSettingsDialog } from './RetroSettingsDialog';
 import { RetroWelcome } from './RetroWelcome';
+import { presenceOnlineOf } from '@/lib/room-presence';
 import { toChatParticipant } from './retro-chat';
 import { useStableColumnCards } from './useStableColumnCards';
 import {
@@ -63,6 +64,8 @@ export interface RetroRoomProps {
   boardData: RetroBoard;
   cards: RetroCardType[];
   participants: RetroParticipant[];
+  /** Contas com a sala aberta agora. `null`/ausente = o servidor não informa: só o total, sem ponto de online. */
+  onlineIds?: ReadonlySet<string> | null;
   currentUserId: string;
   currentParticipant: RetroParticipant;
   isCurrentUserCreator: boolean;
@@ -126,6 +129,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
     boardData,
     cards,
     participants,
+    onlineIds = null,
     currentUserId,
     currentParticipant,
     isCurrentUserCreator,
@@ -162,7 +166,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
   const cardsByColumn = useStableColumnCards(cards);
 
   const summary = useMemo(() => contributionSummary(cards, columns, participants, currentUserId), [cards, columns, participants, currentUserId]);
-  const people = useMemo(() => participants.map((p) => ({ id: p.id, name: p.nickname, online: true })), [participants]);
+  const people = useMemo(() => participants.map((p) => ({ id: p.id, name: p.nickname, online: presenceOnlineOf(onlineIds, p.id) })), [participants, onlineIds]);
   const chatParticipants = useMemo(() => participants.map(toChatParticipant), [participants]);
   const chatUser = useMemo(() => toChatParticipant(currentParticipant), [currentParticipant]);
 
@@ -387,6 +391,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
           >
             <RetroParticipantList
               participants={participants}
+              onlineIds={onlineIds}
               currentUserId={currentUserId}
               isCreator={isCurrentUserCreator}
               onRemoveParticipant={props.onRemoveParticipant}
@@ -401,6 +406,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
         title="Chat da Retro"
         currentUser={chatUser}
         participants={chatParticipants}
+        onlineIds={onlineIds}
         canModerate={isCurrentUserCreator}
         isOpen={chatOpen && !presenting}
         onClose={() => setChatOpen(false)}

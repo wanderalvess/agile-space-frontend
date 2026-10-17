@@ -20,6 +20,7 @@ import type { BrainstormingBoard, BrainstormingGroup, BrainstormingIdea, Brainst
 import { cn } from '@/lib/utils';
 import { ActionsPhase } from './ActionsPhase';
 import { BrainstormGuide } from './BrainstormGuide';
+import { presenceOnlineOf } from '@/lib/room-presence';
 import { BrainstormParticipants } from './BrainstormParticipants';
 import { BrainstormRoomBar } from './BrainstormRoomBar';
 import { BrainstormSettingsDialog } from './BrainstormSettingsDialog';
@@ -48,6 +49,8 @@ export interface BrainstormRoomProps {
   ideas: BrainstormingIdea[];
   groups: BrainstormingGroup[];
   participants: Participant[];
+  /** Contas com a sala aberta agora. `null`/ausente = o servidor não informa: só o total, sem ponto de online. */
+  onlineIds?: ReadonlySet<string> | null;
   currentUserId: string;
   isFacilitator: boolean;
   mergingSourceId: string | null;
@@ -108,7 +111,7 @@ function Notice({ icon: Icon, children }: { icon: React.ElementType; children: R
  * confirmações). Os dados e as chamadas ao servidor ficam na página; aqui só se desenha e se pergunta.
  */
 function BrainstormRoomComponent(props: BrainstormRoomProps) {
-  const { boardId, boardData, ideas, groups, participants, currentUserId, isFacilitator, mergingSourceId, connection, squadLabel } = props;
+  const { boardId, boardData, ideas, groups, participants, onlineIds = null, currentUserId, isFacilitator, mergingSourceId, connection, squadLabel } = props;
   const { toast } = useToast();
 
   const phase = normalizeStage(boardData.phase);
@@ -134,7 +137,7 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
   const [inviteText, setInviteText] = useState('');
 
   const names = useMemo(() => participantNames(participants), [participants]);
-  const people = useMemo<TopBarPerson[]>(() => participants.map((p) => ({ id: p.id, name: p.nickname || 'Participante', online: false })), [participants]);
+  const people = useMemo<TopBarPerson[]>(() => participants.map((p) => ({ id: p.id, name: p.nickname || 'Participante', online: presenceOnlineOf(onlineIds, p.id) })), [participants, onlineIds]);
   const viewValue = useMemo<IdeaViewValue>(
     () => ({ currentUserId, isFacilitator, anonymous, revealed: settings.isRevealed, names }),
     [currentUserId, isFacilitator, anonymous, settings.isRevealed, names]
@@ -329,6 +332,7 @@ function BrainstormRoomComponent(props: BrainstormRoomProps) {
               footer={<ModalButton className="h-9 w-full gap-2" onClick={openShare}>Convidar pelo link</ModalButton>}
             >
               <BrainstormParticipants
+                onlineIds={onlineIds}
                 participants={participants}
                 creatorId={boardData.creatorId}
                 currentUserId={currentUserId}

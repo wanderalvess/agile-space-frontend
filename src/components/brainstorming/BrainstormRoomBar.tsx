@@ -97,7 +97,7 @@ export function BrainstormRoomBar(p: BrainstormRoomBarProps) {
           </ModalButton>
         ) : undefined
       }
-      presence={{ people: p.people, open: p.isParticipantsOpen, onClick: p.onToggleParticipants, unknown: true }}
+      presence={{ people: p.people, open: p.isParticipantsOpen, onClick: p.onToggleParticipants }}
       actions={actions}
       menuItems={menuItems}
       onOpenFeedback={p.onOpenFeedback}

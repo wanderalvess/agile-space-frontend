@@ -4,14 +4,23 @@ import React, { useMemo } from 'react';
 import { UserX } from 'lucide-react';
 import { IconButton, PresenceList, type PresenceItem } from '@/components/room-kit';
 import type { Participant } from '@/lib/types';
+import { presenceOnlineOf } from '@/lib/room-presence';
 import { firstName } from './brainstorm-room-logic';
 
 export function participantRoleLabel(p: Pick<Participant, 'globalRole' | 'role'>): string {
   return (p.globalRole || p.role || 'Participante') as string;
 }
 
-/** Quem entrou na sala, no formato da lista de presença do kit. O servidor não informa quem está conectado: sem ponto de online. */
-export function toPresenceItems(participants: readonly Participant[], creatorId: string, currentUserId: string): PresenceItem[] {
+/**
+ * Quem entrou na sala, no formato da lista de presença do kit. `onlineIds` vem do servidor (quem tem a sala aberta);
+ * sem ele (`null`, backend antigo) a lista fica sem ponto de online e sem "ausente".
+ */
+export function toPresenceItems(
+  participants: readonly Participant[],
+  creatorId: string,
+  currentUserId: string,
+  onlineIds: ReadonlySet<string> | null = null,
+): PresenceItem[] {
   return participants.map((p) => {
     const host = p.id === creatorId;
     return {
@@ -19,6 +28,7 @@ export function toPresenceItems(participants: readonly Participant[], creatorId:
       name: p.nickname || 'Participante',
       roleLabel: host ? `${participantRoleLabel(p)} · facilitador` : participantRoleLabel(p),
       category: (p.globalRole || p.role) as string,
+      online: presenceOnlineOf(onlineIds, p.id),
       isYou: p.id === currentUserId,
       isHost: host,
     };
@@ -32,14 +42,16 @@ export function BrainstormParticipants({
   currentUserId,
   isFacilitator,
   onRequestRemove,
+  onlineIds = null,
 }: {
   participants: readonly Participant[];
+  onlineIds?: ReadonlySet<string> | null;
   creatorId: string;
   currentUserId: string;
   isFacilitator: boolean;
   onRequestRemove: (participant: Participant) => void;
 }) {
-  const items = useMemo(() => toPresenceItems(participants, creatorId, currentUserId), [participants, creatorId, currentUserId]);
+  const items = useMemo(() => toPresenceItems(participants, creatorId, currentUserId, onlineIds), [participants, creatorId, currentUserId, onlineIds]);
   const host = items.filter((i) => i.isHost);
   const others = items.filter((i) => !i.isHost);
 
