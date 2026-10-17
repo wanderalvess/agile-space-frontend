@@ -39,6 +39,8 @@ export interface ReviewCardsViewProps {
   sessionId?: string;
   onUploadFile?: (taskId: string, file: File) => Promise<void>;
   onDeleteFile?: (fileId: string) => Promise<void>;
+  /** Quem registra veredito e feedback; quem não pode vê o feedback do PO só para leitura. */
+  canDecide?: boolean;
 }
 
 /** Opções de um filtro: "Todos…" mais as do próprio conjunto de cards (o valor escolhido entra mesmo que tenha sumido). */
@@ -113,6 +115,7 @@ export function ReviewCardsView(p: ReviewCardsViewProps) {
               sessionId={p.sessionId}
               onUploadFile={p.onUploadFile}
               onDeleteFile={p.onDeleteFile}
+              canDecide={p.canDecide}
             />
           ))}
         </div>

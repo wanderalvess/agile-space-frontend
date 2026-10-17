@@ -25,6 +25,7 @@ import { ReviewPrepBar } from '@/components/showcase/ReviewPrepBar';
 import { ReviewCardsView } from '@/components/showcase/ReviewCardsView';
 import { ReviewEmptyRoom } from '@/components/showcase/ReviewEmptyRoom';
 import { ReviewGuide } from '@/components/showcase/ReviewGuide';
+import { ReviewConflictBar } from '@/components/showcase/ReviewConflictBar';
 import { ReviewExportDialog } from '@/components/showcase/ReviewExportDialog';
 import { useShowcaseRoom } from '@/components/showcase/useShowcaseRoom';
 import {
@@ -33,6 +34,7 @@ import {
   PRESENTING_STATUS,
   REOPENED_STATUS,
   buildInviteText,
+  canDecide as canDecideInReview,
   cleanRoomUrl,
   clearAllFilters,
   clearFilterChip,
@@ -62,11 +64,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
   const { session: authSession } = useAuth();
   const { userProfile } = useUserContext();
   const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
-  const { memberships } = useMyMemberships();
+  const { memberships, stale: staleMemberships } = useMyMemberships();
   const { toast } = useToast();
 
   const room = useShowcaseRoom(id);
-  const { session, loading, loadError, connection, onlineIds, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad } = room;
+  const { session, loading, loadError, connection, onlineIds, saveState, persist, updateTask, addTasks, addManualTask, removeTask, uploadTaskFile, deleteTaskFile, reload, retryLoad, conflicts, resolveConflict, lastFailure } = room;
 
   const [isPresenting, setIsPresenting] = useState(false);
   const [currentIndex, setCurrentIndexState] = useState(-1);
@@ -125,6 +127,19 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
 
   const status = normalizeReviewStatus(session?.status, session?.updatedAt);
   const tasks = useMemo(() => session?.tasks ?? [], [session?.tasks]);
+
+  // Quem registra veredito e feedback: a mesma regra do servidor (administrador, liderança da squad, PO/SME por vínculo;
+  // Review sem squad: administrador e criador). Sem dados de vínculos, o cargo do perfil, como antes.
+  const canDecide = useMemo(
+    () => canDecideInReview({
+      role: userProfile?.role,
+      isAdmin: userProfile?.role === 'admin',
+      memberships: memberships ?? staleMemberships,
+      squadId: session?.squadName,
+      isCreator: !!authSession?.id && !!session?.createdBy && session.createdBy === authSession.id,
+    }),
+    [userProfile?.role, memberships, staleMemberships, session?.squadName, session?.createdBy, authSession?.id]
+  );
 
   const squadOpts = useMemo(
     () => squadOptions(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName }, session?.squadName),
@@ -278,8 +293,11 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
       decidedByName: userProfile?.name || authSession?.name || authSession?.email || '',
     });
     if (!ok) {
-      // Não avança: quem apresenta precisa saber que a decisão não foi gravada.
-      toast({ title: 'A decisão não foi gravada', description: 'Confira a conexão e decida de novo neste card.', variant: 'destructive' });
+      // Não avança: quem apresenta precisa saber que a decisão não foi gravada. Restrição e conflito a sala já explicou.
+      const explained = lastFailure();
+      if (explained !== 'restricted' && explained !== 'conflict') {
+        toast({ title: 'A decisão não foi gravada', description: 'Confira a conexão e decida de novo neste card.', variant: 'destructive' });
+      }
       return;
     }
     const decidedIndex = orderedTasksRef.current.findIndex((t) => t.id === taskId);
@@ -374,6 +392,8 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
         />
       )}
 
+      {!isPresenting && <ReviewConflictBar conflicts={conflicts} onResolve={(conflictId, action) => { void resolveConflict(conflictId, action); }} />}
+
       <main id="conteudo" className="flex min-h-0 flex-1 flex-col overflow-y-auto scroll-smooth">
         {tasks.length === 0 ? (
           <ReviewEmptyRoom onOpenJira={() => setIsJiraOpen(true)} onAddManualTask={addManualTask} />
@@ -408,6 +428,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
               sessionId={session.id}
               onUploadFile={uploadTaskFile}
               onDeleteFile={deleteTaskFile}
+              canDecide={canDecide}
             />
           </>
         )}
@@ -425,6 +446,7 @@ export default function ShowcaseRoomPage({ params }: { params: Promise<{ id: str
           onClose={() => setIsPresenting(false)}
           onFinish={() => setFinishAsk(true)}
           keysDisabled={finishAsk}
+          canDecide={canDecide}
         />
       )}
 

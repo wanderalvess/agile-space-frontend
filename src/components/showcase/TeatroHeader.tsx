@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ShowcaseSession, Decision } from './types';
+import { DECISION_LOCK_HINT } from './review-room-logic';
 
 interface TeatroHeaderProps {
   session: ShowcaseSession;
@@ -141,10 +142,10 @@ export function TeatroHeader({
           {/* Decisões e utilitários */}
           <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             {task && (
-              <div className="flex items-center gap-1.5" title={canDecide ? undefined : 'Somente PO ou SME pode registrar decisão.'}>
+              <div className="flex items-center gap-1.5" title={canDecide ? undefined : DECISION_LOCK_HINT}>
                 {!canDecide && (
                   <span className={cn('hidden h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold xl:flex', isLight ? 'bg-slate-100 text-slate-500' : 'bg-white/5 text-white/50')}>
-                    <Lock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Somente PO/SME
+                    <Lock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Decisão restrita
                   </span>
                 )}
                 {(['approved', 'needs_adjustment', 'rejected'] as const).map(d => {

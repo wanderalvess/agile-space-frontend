@@ -37,15 +37,17 @@ interface TeatroModeProps {
   onFinish: () => void;
   /** Uma janela da sala (confirmar finalização) está aberta por cima: as teclas não navegam por baixo dela. */
   keysDisabled?: boolean;
+  /** Quem pode registrar a decisão (regra do servidor, calculada pela sala com os vínculos). Ausente: o cargo do perfil. */
+  canDecide?: boolean;
 }
 
-export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish, keysDisabled }: TeatroModeProps) {
+export function TeatroMode({ session, currentIndex, sortBy, onIndexChange, onDecision, onClose, onFinish, keysDisabled, canDecide: canDecideProp }: TeatroModeProps) {
   const { userProfile } = useUserContext();
   // Levantado aqui (não dentro de TaskSlide) porque TaskSlide remonta a cada
   // troca de card (key={task.id}) — buscar de novo a cada slide seria uma
   // chamada extra por card, sem necessidade.
   const { settings: jiraSettings } = useJiraSettings();
-  const canDecide = roleCanDecide(userProfile?.role);
+  const canDecide = canDecideProp ?? roleCanDecide(userProfile?.role);
   const isCover = currentIndex === -1;
   const task = !isCover ? session.tasks[currentIndex] : null;
   const [showFeedback, setShowFeedback] = useState(false);

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { ShowcaseTask, SessionMember } from './types';
 import { isTaskContentComplete } from './utils';
 import { isManualTask } from './session-model';
+import { DECISION_LOCK_HINT } from './review-room-logic';
 import { ControlledTextarea } from './ControlledFields';
 import { FieldLabel } from './TaskCardFields';
 import { MetricsEditor, ChartDisplayPicker } from './MetricsEditor';
@@ -38,9 +39,11 @@ interface TaskCardProps {
   sessionId?: string;
   onUploadFile?: (taskId: string, file: File) => Promise<void>;
   onDeleteFile?: (fileId: string) => Promise<void>;
+  /** Quem pode registrar veredito e feedback (regra do servidor). Sem isso o feedback do PO fica só para leitura. */
+  canDecide?: boolean;
 }
 
-function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId, onUploadFile, onDeleteFile }: TaskCardProps) {
+function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId, onUploadFile, onDeleteFile, canDecide = true }: TaskCardProps) {
   const onUpdate = React.useCallback(
     (updates: Partial<ShowcaseTask> | ((prev: ShowcaseTask) => ShowcaseTask)) => { void onUpdateTask(task.id, updates); },
     [task.id, onUpdateTask]
@@ -174,6 +177,8 @@ function TaskCardComponent({ task, index, onUpdateTask, onRemoveTask, sessionId,
                       value={task.feedback || ''}
                       onChange={(v: string) => onUpdate({ feedback: v })}
                       placeholder="Detalhes do ajuste ou motivo da rejeição..."
+                      readOnly={!canDecide}
+                      title={canDecide ? undefined : DECISION_LOCK_HINT}
                       className="min-h-[40px] w-full resize-none border-none bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-amber-800/50 dark:placeholder:text-amber-300/50"
                     />
                   </div>

@@ -112,6 +112,62 @@ describe('permissão do PO/SME', () => {
     expect(canDecide(undefined)).toBe(false);
     expect(canDecide('')).toBe(false);
   });
+
+  // Vínculos do servidor (MembershipService): a mesma regra que devolve 403 DECISION_RESTRICTED.
+  const role = (roleKey: string, roleName: string, leadership = false) => ({ roleKey, roleName, leadership, source: null, primary: true });
+  const membership = (projectId: string, roles: ReturnType<typeof role>[], over: Record<string, unknown> = {}) => ({
+    projectId, projectName: projectId, roleName: roles[0].roleName, roleKey: roles[0].roleKey, leadership: roles[0].leadership,
+    direct: true, scope: 'SQUAD' as const, source: null, roles, ...over,
+  });
+  const mine = (...ms: ReturnType<typeof membership>[]) => ({ contractVersion: '1', activeProjectId: ms[0]?.projectId ?? null, legacyOnly: false, transversalLeader: false, memberships: ms });
+
+  it('com vínculos: PO e SME da squad da Review decidem; dev e QA não', () => {
+    expect(canDecide({ memberships: mine(membership('DDW', [role('PRODUCT_OWNER', 'Product Owner')])), squadId: 'DDW' })).toBe(true);
+    expect(canDecide({ memberships: mine(membership('DDW', [role('SME', 'SME')])), squadId: 'ddw' })).toBe(true);
+    expect(canDecide({ memberships: mine(membership('DDW', [role('DEVELOPER', 'Developer')])), squadId: 'DDW' })).toBe(false);
+    expect(canDecide({ memberships: mine(membership('DDW', [role('QA', 'QA')])), squadId: 'DDW' })).toBe(false);
+  });
+
+  it('com vínculos: o papel PO só vale na squad da Review', () => {
+    const m = mine(membership('OUTRA', [role('PRODUCT_OWNER', 'Product Owner')]), membership('DDW', [role('DEVELOPER', 'Developer')]));
+    expect(canDecide({ memberships: m, squadId: 'DDW', role: 'Product Owner' })).toBe(false);
+    expect(canDecide({ memberships: m, squadId: 'SEM-VINCULO', role: 'Product Owner' })).toBe(false);
+  });
+
+  it('com vínculos: liderança da squad (qualquer papel com poder de liderança) decide, mesmo sem ser PO', () => {
+    expect(canDecide({ memberships: mine(membership('DDW', [role('AGILE_MASTER', 'Agile Master', true)])), squadId: 'DDW' })).toBe(true);
+    // liderança num dos papéis, o primário é de dev
+    expect(canDecide({ memberships: mine(membership('DDW', [role('DEVELOPER', 'Developer'), role('TECH_LEAD', 'Tech Lead', true)], { leadership: false })), squadId: 'DDW' })).toBe(true);
+    // liderança transversal (tribo): vínculo derivado com leadership
+    expect(canDecide({ memberships: mine(membership('DDW', [role('TRIBE_LEAD', 'Tribe Lead', true)], { scope: 'TRIBE', direct: false })), squadId: 'DDW' })).toBe(true);
+  });
+
+  it('com vínculos: o PO pode ser um papel secundário e o nome também vale', () => {
+    expect(canDecide({ memberships: mine(membership('DDW', [role('DEVELOPER', 'Developer'), role('PRODUCT_OWNER', 'Product Owner')])), squadId: 'DDW' })).toBe(true);
+    expect(canDecide({ memberships: mine(membership('DDW', [role('X', 'Product Owner (PO)')])), squadId: 'DDW' })).toBe(true);
+  });
+
+  it('administrador decide sempre, com ou sem vínculos', () => {
+    expect(canDecide({ isAdmin: true })).toBe(true);
+    expect(canDecide({ isAdmin: true, memberships: mine(membership('X', [role('DEVELOPER', 'Developer')])), squadId: 'DDW' })).toBe(true);
+  });
+
+  it('Review sem squad: só administrador e criador', () => {
+    const m = mine(membership('DDW', [role('PRODUCT_OWNER', 'Product Owner', true)]));
+    expect(canDecide({ memberships: m, squadId: '' })).toBe(false);
+    expect(canDecide({ memberships: m, squadId: undefined, role: 'Product Owner' })).toBe(false);
+    expect(canDecide({ memberships: m, squadId: '', isCreator: true })).toBe(true);
+    expect(canDecide({ memberships: m, squadId: '  ', isAdmin: true })).toBe(true);
+  });
+
+  it('sem dados de vínculos (backend antigo): vale o cargo do perfil, como antes', () => {
+    expect(canDecide({ role: 'Product Owner', squadId: 'DDW' })).toBe(true);
+    expect(canDecide({ role: 'SME', memberships: null, squadId: 'DDW' })).toBe(true);
+    expect(canDecide({ role: 'Developer', memberships: null, squadId: 'DDW' })).toBe(false);
+    expect(canDecide({ role: 'Product Owner', memberships: mine(), squadId: 'DDW' })).toBe(true);
+    // conta só com rastro legado (sem nenhum vínculo): também o cargo
+    expect(canDecide({ role: 'SME', memberships: { ...mine(), legacyOnly: true } })).toBe(true);
+  });
 });
 
 describe('ordem e filtros', () => {
