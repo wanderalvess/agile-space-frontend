@@ -180,7 +180,7 @@ export function RoomHeader({
                 <DropdownMenuItem onClick={() => setIsEditProfileOpen(true)} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
                   <Settings className="h-4 w-4 text-primary" aria-hidden="true" /> Meu Perfil
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => router.push('/projects')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
+                <DropdownMenuItem onClick={() => router.push('/admin')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">
                   <Building2 className="h-4 w-4 text-blue-600" aria-hidden="true" /> Projetos & Governança
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.push('/workspace')} className="rounded-xl font-bold text-xs p-3 cursor-pointer gap-2 transition-colors hover:bg-slate-50">

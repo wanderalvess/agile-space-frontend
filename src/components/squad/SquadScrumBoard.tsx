@@ -59,6 +59,7 @@ import {
 import { BoardConfigModal } from './BoardConfigModal';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { squadApi } from '@/app/squad/api';
+import { matchesPersonFilter } from '@/lib/board-filters';
 
 interface SquadScrumBoardProps {
   squadId?: string;
@@ -266,7 +267,7 @@ export function SquadScrumBoard({
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
     toast({
-      title: 'Chave copiada!',
+      title: 'Chave copiada',
       description: `${key} copiado para a área de transferência.`,
       duration: 1800,
     });
@@ -327,38 +328,9 @@ export function SquadScrumBoard({
             return !!issue.dueDate && issue.statusCategory !== 'done';
           }
 
-          // E. Filtros por Pessoa / Desenvolvedor (ex: Helen, Marcio, Rhaynner, Nathan, Bruna, Anderson, Wanderson, Paulo Roberto)
-          const memberAliases: Record<string, string[]> = {
-            'helen': ['helen.crystina', 'helen.costa', 'helen'],
-            'marcio': ['marcio.arueira', 'marcio.santos', 'marcio'],
-            'rhaynner': ['rhaynner.costa', 'rhaynner.souza', 'rhaynner'],
-            'nathan': ['nathan.caldas', 'nathan'],
-            'bruna': ['bruna.balves', 'bruna.silva', 'bruna'],
-            'anderson portuga': ['anderson.pereira', 'anderson.portuga', 'anderson'],
-            'anderson': ['anderson.pereira', 'anderson.portuga', 'anderson'],
-            'wanderson': ['wanderson.alves', 'wanderson'],
-            'paulo roberto': ['paulo.queiroz', 'paulo.roberto', 'paulo'],
-            'paulo': ['paulo.queiroz', 'paulo.roberto', 'paulo'],
-          };
-
-          for (const [key, aliases] of Object.entries(memberAliases)) {
-            if (fn.includes(key) || qLower.includes(key)) {
-              const assignee = (issue.assignee || '').toLowerCase();
-              const assigneeName = (issue.assigneeName || '').toLowerCase();
-              const extraDev = (issue.extraFields || [])
-                .find(f => f.label.toLowerCase().includes('dev'))
-                ?.value?.toLowerCase() || '';
-
-              return aliases.some(
-                a => assignee.includes(a) || assigneeName.includes(a) || extraDev.includes(a)
-              );
-            }
-          }
-
-          // F. Fallback genérico para filtros customizados criados pelo usuário
-          const assignee = (issue.assignee || '').toLowerCase();
-          const assigneeName = (issue.assigneeName || '').toLowerCase();
-          if (assignee.includes(fn) || assigneeName.includes(fn)) return true;
+          // E. Filtros por pessoa (o nome do filtro é o da pessoa na squad) e F. filtros customizados por etiqueta.
+          // Nenhum nome fica fixo no código: compara com quem de fato é responsável pela issue.
+          if (matchesPersonFilter(filterName, issue)) return true;
           if ((issue.tags || []).some(t => t.toLowerCase().includes(fn))) return true;
 
           return false;
@@ -610,16 +582,18 @@ export function SquadScrumBoard({
               {boardData.boardName || `SCRUM ${jiraProjectKey}`}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-code">
-              {activeSprint?.name || `${jiraProjectKey} Missi - Sprint Ativa`}
+              {activeSprint?.name || 'Sprint ativa'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Dias Restantes */}
-            <div className="flex items-center gap-2 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 px-3.5 py-1.5 rounded-2xl text-xs font-bold">
-              <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-              <span>{activeSprint?.daysRemaining ?? 1} dia restante(s)</span>
-            </div>
+            {/* Dias restantes: só aparece quando o Jira informa; antes caía num "1" inventado */}
+            {typeof activeSprint?.daysRemaining === 'number' && (
+              <div className="flex items-center gap-2 bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 px-3.5 py-1.5 rounded-2xl text-xs font-bold">
+                <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 animate-pulse motion-reduce:animate-none" />
+                <span>{activeSprint.daysRemaining} {activeSprint.daysRemaining === 1 ? 'dia restante' : 'dias restantes'}</span>
+              </div>
+            )}
 
             {/* Ação Concluir Sprint / Ver no Jira */}
             <Button
@@ -735,7 +709,7 @@ export function SquadScrumBoard({
       <div className="overflow-x-auto pb-3">
         <div className="min-w-[1200px]">
           {/* Header das Colunas */}
-          <div className="grid grid-cols-8 gap-3 mb-2 px-1">
+          <div className="grid gap-3 mb-2 px-1" style={{ gridTemplateColumns: `repeat(${Math.max(columns.length, 1)}, minmax(0, 1fr))` }}>
             {columns.map(col => {
               // Conta total de issues nesta coluna (exatamente uma coluna por issue)
               const colIssues = filteredIssues.filter(i => getColumnForIssue(i, columns)?.id === col.id);
@@ -743,6 +717,8 @@ export function SquadScrumBoard({
               const hasMax = col.max !== null && col.max !== undefined && col.max > 0;
               const isOverWip = hasMax && count > (col.max as number);
               const isNearWip = hasMax && count === (col.max as number);
+              const hasMin = col.min !== null && col.min !== undefined && col.min > 0;
+              const isUnderMin = hasMin && count < (col.min as number);
 
               return (
                 <div
@@ -756,10 +732,23 @@ export function SquadScrumBoard({
                     <span className="text-xs font-black text-slate-900 dark:text-white">
                       {count}
                     </span>
+                    {hasMin && (
+                      <Badge
+                        variant="outline"
+                        title={isUnderMin ? `Abaixo do mínimo de ${col.min} itens` : `Mínimo de ${col.min} itens`}
+                        className={`text-xs font-bold px-1 py-0 ${
+                          isUnderMin
+                            ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40'
+                            : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                        }`}
+                      >
+                        MÍN {col.min}
+                      </Badge>
+                    )}
                     {hasMax && (
                       <Badge
                         variant="outline"
-                        className={`text-[8px] font-bold px-1 py-0 ${
+                        className={`text-xs font-bold px-1 py-0 ${
                           isOverWip
                             ? 'bg-rose-500/20 text-rose-600 border-rose-500/40 animate-pulse'
                             : isNearWip
@@ -816,7 +805,7 @@ export function SquadScrumBoard({
 
                   {/* Colunas dentro da Swimlane */}
                   {!isCollapsed && (
-                    <div className="grid grid-cols-8 gap-3 p-3 min-h-[140px]">
+                    <div className="grid gap-3 p-3 min-h-[140px]" style={{ gridTemplateColumns: `repeat(${Math.max(columns.length, 1)}, minmax(0, 1fr))` }}>
                       {columns.map(col => {
                         const colIssues = swimlaneIssues.filter(i => getColumnForIssue(i, columns)?.id === col.id);
 

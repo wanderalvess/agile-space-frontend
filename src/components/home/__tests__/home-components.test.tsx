@@ -24,7 +24,7 @@ describe('módulos', () => {
     const hrefs = MODULE_GROUPS.flatMap((g) => g.items.map((m) => m.href));
     expect(hrefs).toEqual([
       '/jolt', '/devtools', '/qa',
-      '/painel', '/workspace', '/sprint-planner',
+      '/squad?tab=resumo', '/workspace', '/sprint-planner',
       '/health-check', '/brainstorming', '/action-plan',
       '/knowledge/kb', '/prompt-hub', '/support',
     ]);

@@ -17,9 +17,9 @@ Mostrar a cada papel os números da sprint que importam para ele, sempre a parti
 | Tech Lead | `/squad/dashboards/tech-lead` | Tech Lead, Arquiteto |
 | Tribo | `/squad/dashboards/tribe-level` | Tribe Lead, admin |
 | Consultas JQL | `/squad/dashboards/custom` | Todos |
-| Meu painel (aba do hub) | `/squad?tab=dashboards` | Mesmas regras, tudo numa tela |
+| Painéis (aba do hub) | `/squad?tab=paineis` (`?tab=dashboards` continua valendo) | Mesmas regras, tudo numa tela |
 
-`/dashboards/product-owner` e `/squad/panels` apenas redirecionam. `/squad/dashboards` leva ao painel do papel (`getDashboardRouteForRole`).
+`/dashboards/*` redireciona (308, `next.config`) para `/squad?tab=paineis`; `/squad/panels` apenas redireciona. `/squad/dashboards` leva ao painel do papel (`getDashboardRouteForRole`).
 
 Regra de cliente (`lib/dashboard-roles.ts`): Agile Master, Agile Coach, Tribe Lead e admin veem **todas** as abas; os demais veem JQL + o painel do próprio papel e, abrindo a URL de outro, recebem "Este painel é de outro papel". **Isto é só tela**: o servidor não distingue painel, ele decide por squad (ler = membro da squad). Dado por pessoa (horas, carga) é protegido no servidor só nas horas (`member-metrics`, `worklog-cache`, liderança); a lista de issues com responsável é legível por qualquer membro (é o próprio quadro da squad).
 

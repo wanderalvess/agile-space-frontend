@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { 
   CalendarRange, RefreshCw, ChevronDown, ChevronRight, User, 
   Layers, CheckCircle2, Clock, PlayCircle, Filter, Search, ArrowRight,
-  ShieldCheck, AlertCircle, FileText, Calendar as CalendarIcon, SlidersHorizontal,
+  ShieldCheck, AlertCircle, FileText, Calendar as CalendarIcon,
   Bookmark, CornerDownRight, GitCommit, GitPullRequest, CheckSquare, Sparkles,
   FolderTree, ListTree, Bug, Zap, AlertTriangle, ArrowRightCircle, X,
   ZoomIn, ZoomOut, GripVertical, RotateCcw, Code2, Bot, FlaskConical, FileCheck,
@@ -191,6 +191,16 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
     );
   }
 
+  // 8b. Code Review — antes caía no selo genérico "Sub-task"
+  if (normType.includes('review') || normType.includes('revisao')) {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[9px] font-bold shrink-0" title="Code Review">
+        <GitPullRequest className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" />
+        <span>Code Review</span>
+      </span>
+    );
+  }
+
   // 9. Teste QA / Homologação
   if (hasWord(normType, 'qa') || normType.includes('teste') || normType.includes('homologacao')) {
     return (
@@ -257,6 +267,16 @@ function getDisciplineColorAndLabel(task: PlansTask) {
       matched: true,
     };
   }
+  // Codificação de verdade (tipo "Codificação", "Desenvolvimento" ou "Dev"): é a primeira fase do workflow,
+  // então abre a cascata. Só vem depois das regras acima para não roubar tipos que contêm "dev" por acaso.
+  if (normType.includes('codifica') || normType.includes('desenvolv') || hasWord(normType, 'dev')) {
+    return {
+      bg: 'bg-blue-600 dark:bg-blue-500',
+      label: 'Codificação',
+      shortLabel: 'DEV',
+      matched: true,
+    };
+  }
   // Default — tipo não reconhecido (ex: "Sub-task" genérico, comum em várias
   // instâncias Jira). `matched: false` avisa resolveWorkflowPhase que isto é
   // um chute visual (DEV azul), NÃO uma classificação real — sem essa
@@ -290,7 +310,7 @@ const DEFAULT_PHASE_LEGEND = [
 // mapeamento configurado no squad (SquadConfig.phases, ordem do array =
 // ordem da fase); cai pra heurística por tipo quando a config não cobre esse
 // tipo ou o squad ainda não configurou nada.
-function resolveWorkflowPhase(
+export function resolveWorkflowPhase(
   task: PlansTask,
   phases?: SquadWorkflowPhase[]
 ): { label: string; bg: string; shortLabel: string; order: number } {
@@ -576,7 +596,6 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
   const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
   const [hierarchyLevel, setHierarchyLevel] = useState<'story-to-subtask' | 'subtask-only' | 'story-only'>('story-to-subtask');
-  const [groupBy, setGroupBy] = useState<'assignee' | 'parent'>('parent');
 
   const [searchFilter, setSearchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -593,7 +612,6 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
   const [startDate, setStartDate] = useState(sprintWindow.start);
   const [endDate, setEndDate] = useState(sprintWindow.end);
 
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [collapsedParents, setCollapsedParents] = useState<Record<string, boolean>>({});
 
   const handlePresetChange = (preset: string) => {
@@ -669,8 +687,8 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
   const handleResetColWidths = () => {
     setColWidths(DEFAULT_COL_WIDTHS);
     toast({
-      title: "📐 Larguras Restauradas",
-      description: "Tamanho das colunas redefinido para o padrão ideal.",
+      title: "Larguras restauradas",
+      description: "O tamanho das colunas voltou ao padrão.",
     });
   };
 
@@ -680,6 +698,13 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
       dayWidth: Math.max(34, Math.min(100, prev.dayWidth + delta))
     }));
   };
+
+  // Status que existem de verdade nas issues sincronizadas (antes a lista era fixa e podia não casar com o Jira da squad).
+  const uniqueStatuses = useMemo(() => {
+    const set = new Set<string>();
+    tasks.forEach(t => { if (t.status) set.add(t.status); });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [tasks]);
 
   const uniqueAssignees = useMemo(() => {
     const set = new Set<string>();
@@ -748,47 +773,6 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
     return { parentsMap, orphanChildren };
   }, [tasks, filteredTasks]);
-
-  const groupedData = useMemo(() => {
-    const map = new Map<string, PlansTask[]>();
-
-    if (hierarchyLevel === 'subtask-only') {
-      const subtasks = filteredTasks.filter(t => !t.isParent && t.parentKey);
-      subtasks.forEach(task => {
-        const key = groupBy === 'assignee' 
-          ? (task.assigneeName || 'Não Atribuído')
-          : (task.parentKey ? (task.parentTitle ? `${task.parentKey} - ${task.parentTitle}` : task.parentKey) : 'Sem Tarefa Pai');
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(task);
-      });
-      return map;
-    }
-
-    if (hierarchyLevel === 'story-only') {
-      const stories = filteredTasks.filter(t => t.isParent || !t.parentKey);
-      stories.forEach(task => {
-        const key = groupBy === 'assignee' ? (task.assigneeName || 'Não Atribuído') : (task.title ? `${task.jiraKey} - ${task.title}` : task.jiraKey);
-        if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(task);
-      });
-      return map;
-    }
-
-    // Default: Pai ➔ Sub-task
-    filteredTasks.forEach(task => {
-      const key = groupBy === 'assignee' 
-        ? (task.assigneeName || 'Não Atribuído')
-        : (task.parentKey ? `${task.parentKey}` : `${task.jiraKey}`);
-      
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(task);
-    });
-    return map;
-  }, [filteredTasks, hierarchyLevel, groupBy]);
-
-  const toggleGroup = (groupName: string) => {
-    setCollapsedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
-  };
 
   const toggleParent = (parentKey: string) => {
     setCollapsedParents(prev => ({ ...prev, [parentKey]: !prev[parentKey] }));
@@ -1017,21 +1001,6 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
             </Select>
           </div>
 
-          {/* GroupBy Mode */}
-          <div className="flex-1 basis-[190px] min-w-[190px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Agrupar por</label>
-            <Select value={groupBy} onValueChange={(val: any) => setGroupBy(val)}>
-              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
-                <SlidersHorizontal className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
-                <SelectItem value="parent">Tarefa pai</SelectItem>
-                <SelectItem value="assignee">Responsável</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Search Filter */}
           <div className="flex-[2] basis-[260px] min-w-[220px]">
             <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Buscar</label>
@@ -1078,11 +1047,9 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
               </SelectTrigger>
               <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
                 <SelectItem value="ALL">Todos os status</SelectItem>
-                <SelectItem value="Open">Aberto</SelectItem>
-                <SelectItem value="Em Andamento">Em andamento</SelectItem>
-                <SelectItem value="Em Desenvolvimento">Em desenvolvimento</SelectItem>
-                <SelectItem value="Comprometido">Comprometido</SelectItem>
-                <SelectItem value="Closed">Concluído</SelectItem>
+                {uniqueStatuses.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -1119,6 +1086,26 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                 <SelectItem value="CUSTOM">Personalizado</SelectItem>
               </SelectContent>
             </Select>
+            {presetPeriod === 'CUSTOM' && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Input
+                  type="date"
+                  aria-label="Início do período"
+                  value={startDate}
+                  max={endDate || undefined}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+                <Input
+                  type="date"
+                  aria-label="Fim do período"
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 rounded-xl"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

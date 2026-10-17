@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AgileSpinner } from '@/components/ui/AgileSpinner';
+import { SQUAD_SUMMARY_HREF } from '@/lib/squad-hub';
 import { hasLinkedTeam, isJustSignedUp } from '@/lib/team-welcome';
 
 const PUBLIC_ROUTES = ['/login'];
@@ -37,14 +38,14 @@ export function isSafeInternalPath(path: string): boolean {
 
 /**
  * Para onde ir depois de entrar. Um link (returnUrl) sempre vence: quem chegou por uma sala vai para a sala.
- * Sem link, quem acabou de criar a conta e já foi vinculado a um time vai direto ao Painel dele.
+ * Sem link, quem acabou de criar a conta e já foi vinculado a um time vai direto ao Resumo dele.
  */
 export function resolvePostLoginRedirect(returnUrl: string | null, opts?: { linkedTeam?: boolean }): string {
   const isInternalPath = !!returnUrl && isSafeInternalPath(returnUrl);
   if (returnUrl && isInternalPath && !returnUrl.startsWith('/login')) {
     return returnUrl;
   }
-  return opts?.linkedTeam ? '/painel' : '/';
+  return opts?.linkedTeam ? SQUAD_SUMMARY_HREF : '/';
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {

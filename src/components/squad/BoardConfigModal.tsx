@@ -51,101 +51,6 @@ interface ColumnConfigDetail {
   statuses: StatusMappingItem[];
 }
 
-const DEFAULT_COLUMN_CONFIG: ColumnConfigDetail[] = [
-  {
-    id: 1,
-    name: 'A Fazer',
-    min: null,
-    max: null,
-    accentColor: 'bg-slate-700 dark:bg-slate-500',
-    statuses: [
-      { id: 101, name: 'COMPROMETIDO', count: '8 itens' },
-      { id: 102, name: 'ABERTO', count: '28 itens' },
-      { id: 103, name: 'IMPEDIMENTO', count: 'Sem itens' },
-      { id: 104, name: 'REFINAMENTO CONCLUÍDO', count: '15 itens' },
-      { id: 105, name: 'REFINAMENTO TÉCNICO', count: 'Sem itens' },
-      { id: 106, name: 'EM ANÁLISE DO DEF...', count: 'Sem itens' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Em Desenvolvimento',
-    min: null,
-    max: 11,
-    accentColor: 'bg-blue-600 dark:bg-blue-500',
-    statuses: [
-      { id: 201, name: 'EM CODIFICAÇÃO', count: 'Sem itens' },
-      { id: 202, name: 'EM DESENVOLVIMENTO', count: '2 itens' },
-      { id: 203, name: 'EM ANDAMENTO', count: '11 itens' },
-      { id: 204, name: 'AGUARDANDO TERCEIRO', count: 'Sem itens' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Para Revisar',
-    min: null,
-    max: 2,
-    accentColor: 'bg-indigo-600 dark:bg-indigo-500',
-    statuses: [
-      { id: 301, name: 'DESENVOLVIMENTO CONCLUÍDO', count: 'Sem itens' },
-      { id: 302, name: 'CODIFIC. CONCLUÍDO', count: 'Sem itens' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Em Revisão',
-    min: null,
-    max: null,
-    accentColor: 'bg-blue-600 dark:bg-blue-500',
-    statuses: [{ id: 401, name: 'EM CODE REVIEW', count: 'Sem itens' }],
-  },
-  {
-    id: 5,
-    name: 'Para Testar',
-    min: null,
-    max: 8,
-    accentColor: 'bg-blue-600 dark:bg-blue-500',
-    statuses: [
-      { id: 501, name: 'CODE REVIEW CONCLUÍDO', count: '4 itens' },
-      { id: 502, name: 'EM DOCUMENTAÇÃO', count: '1 item' },
-    ],
-  },
-  {
-    id: 6,
-    name: 'Em Teste',
-    min: null,
-    max: 6,
-    accentColor: 'bg-blue-600 dark:bg-blue-500',
-    statuses: [{ id: 601, name: 'EM TESTE DE ACEITAÇÃO', count: '3 itens' }],
-  },
-  {
-    id: 7,
-    name: 'Aguardando Expedição',
-    min: null,
-    max: null,
-    accentColor: 'bg-blue-600 dark:bg-blue-500',
-    statuses: [
-      { id: 701, name: 'TESTE DE ACEITAÇÃO CONCLUÍDO', count: '1 item' },
-      { id: 702, name: 'REVISÃO DE DOCUMENTAÇÃO', count: 'Sem itens', hasWarning: true },
-    ],
-  },
-  {
-    id: 8,
-    name: 'Finalizado',
-    min: null,
-    max: null,
-    accentColor: 'bg-emerald-600 dark:bg-emerald-500',
-    statuses: [
-      { id: 801, name: 'RESOLVIDO', count: '5 itens' },
-      { id: 802, name: 'CANCELADO', count: '427 itens' },
-      { id: 803, name: 'EXPEDIDO', count: 'Sem itens' },
-      { id: 804, name: 'ELIMINADO', count: 'Sem itens', hasWarning: true },
-      { id: 805, name: 'CONCLUÍDO', count: '1596 itens' },
-      { id: 806, name: 'NÃO OCORRIDO', count: 'Sem itens', hasWarning: true },
-    ],
-  },
-];
-
 const COLUMN_ACCENT_PALETTE = [
   'bg-slate-700 dark:bg-slate-500',
   'bg-blue-600 dark:bg-blue-500',
@@ -255,7 +160,7 @@ export function BoardConfigModal({
 }: BoardConfigModalProps) {
   const [activeTab, setActiveTab] = useState<'filters' | 'columns' | 'swimlanes'>(initialTab);
   const [columnList, setColumnList] = useState<ColumnConfigDetail[]>(() =>
-    columns && columns.length > 0 ? buildColumnListFromLive(columns, issues || []) : DEFAULT_COLUMN_CONFIG
+    columns && columns.length > 0 ? buildColumnListFromLive(columns, issues || []) : []
   );
   const [filterList, setFilterList] = useState<GreenhopperQuickFilter[]>(
     initialQuickFilters && initialQuickFilters.length > 0
@@ -276,7 +181,7 @@ export function BoardConfigModal({
   useEffect(() => {
     if (!open) return;
     setActiveTab(initialTab);
-    setColumnList(columns && columns.length > 0 ? buildColumnListFromLive(columns, issues || []) : DEFAULT_COLUMN_CONFIG);
+    setColumnList(columns && columns.length > 0 ? buildColumnListFromLive(columns, issues || []) : []);
     setFilterList(initialQuickFilters && initialQuickFilters.length > 0 ? initialQuickFilters : DEFAULT_QUICK_FILTERS);
     setSwimlaneStrategy(initialSwimlaneStrategy);
     setSwimlaneList(initialSwimlanes && initialSwimlanes.length > 0 ? initialSwimlanes : DEFAULT_SWIMLANES);
@@ -560,7 +465,7 @@ export function BoardConfigModal({
                       size="sm"
                       onClick={resetToDefaultFilters}
                       className="h-8 text-xs font-bold gap-1 rounded-xl text-slate-600 dark:text-slate-300"
-                      title="Restaura os 12 filtros padrões"
+                      title={`Restaura os ${DEFAULT_QUICK_FILTERS.length} filtros padrões`}
                     >
                       <RotateCcw className="h-3 w-3" />
                       Restaurar Padrões
@@ -795,6 +700,12 @@ export function BoardConfigModal({
                   </p>
                 </div>
 
+                {columnList.length === 0 && (
+                  <p role="status" className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                    O Jira não devolveu colunas para este quadro. Atualize o Quadro ou confira o número do quadro em Configurar a squad.
+                  </p>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 my-2 overflow-x-auto pb-4">
                   {columnList.map(col => {
                     const hasMax = col.max !== null && col.max > 0;
@@ -928,7 +839,7 @@ export function BoardConfigModal({
                           size="sm"
                           onClick={resetToDefaultSwimlanes}
                           className="h-8 text-xs font-bold gap-1 rounded-xl text-slate-600 dark:text-slate-300"
-                          title="Restaura as 4 raias padrões (Prioridades, Reforma Tributária, Pausada, Todo o Resto)"
+                          title={`Restaura as ${DEFAULT_SWIMLANES.length} raias padrões (${DEFAULT_SWIMLANES.map(s => s.name).join(', ')})`}
                         >
                           <RotateCcw className="h-3 w-3" />
                           Restaurar Padrões

@@ -4,9 +4,9 @@ Descreve o que o código faz **hoje** (develop, 2026-10-09). Suposições estão
 
 ## Objetivo e quem usa
 
-`/squad` é o hub da squad: mostra a sprint sincronizada do Jira (visão geral, quadro, cronograma, métricas) e é onde a liderança cuida das pessoas do time e da capacidade.
+`/squad` é o hub da squad: mostra a sprint sincronizada do Jira (resumo, quadro, cronograma, métricas e painéis) e é onde a liderança cuida das pessoas do time e da capacidade.
 
-- **Qualquer membro da squad:** lê visão geral, quadro, cronograma, métricas da sprint, roster (nome, papel, horas/dia), próprio painel; conecta o próprio token do Jira; dispara "Sincronizar"; faz "Sou eu" na própria linha do roster; salva cerimônias, unidade de estimativa e nº do quadro.
+- **Qualquer membro da squad:** lê resumo, quadro, cronograma, métricas da sprint, roster (nome, papel, horas/dia), próprio painel; conecta o próprio token do Jira; dispara "Sincronizar"; faz "Sou eu" na própria linha do roster; salva cerimônias, unidade de estimativa e nº do quadro.
 - **Liderança da squad** (Agile Master, People Lead, Tech Lead, PO, Tribe Lead/Agile Coach da tribo, admin): além disso configura a squad (projeto, JQL, domínio, capacidade padrão, ranking, fases), edita roster/capacidade, importa/exporta planilha, convida por link e vê horas por pessoa.
 - **Squad é a chave do projeto** (ex.: `DDWMISSI`). `MISSI` e `DDWMISSI` são tratados como a mesma squad (alias fixo no código).
 
@@ -14,7 +14,7 @@ Descreve o que o código faz **hoje** (develop, 2026-10-09). Suposições estão
 
 | Tela | Caminho | O que é |
 |---|---|---|
-| Hub | `/squad` | Abas: Visão geral, Quadro, Cronograma, Métricas (Sprint atual / Desempenho do time), Meu painel |
+| Hub | `/squad` | Abas por URL (`?tab=resumo|quadro|cronograma|metricas|paineis`, `resumo` é o padrão): Resumo (era o `/painel` e a Visão geral), Quadro, Cronograma, Métricas (Sprint atual / Desempenho do time, `&view=desempenho`) e Painéis. Atalhos antigos (`overview`, `board`, `plans`, `metrics`, `pulse`, `performance`, `dashboards`) e `?settings=1` continuam valendo. `/painel` redireciona (308) para `?tab=resumo` |
 | Configurar | botão no hub | Domínio e token do Jira (pessoais); projeto, capacidade, JQL, nº do quadro, campo da sprint (só liderança) |
 | Fases | botão no hub (só liderança) | Mapeia tipo de issue em fase do cronograma (cor/ordem) |
 | Pessoas do time | `/squad/roster` | Roster, horas/dia, papel/capacidade por sprint, planilha CSV, convite por link, cadastro manual |
@@ -119,5 +119,5 @@ Corrigidos em 2026-10-09 (para contexto): escrita aberta a qualquer membro; auto
 
 ## Onde olhar no código
 
-- Frontend: `src/app/squad/page.tsx`, `src/app/squad/roster/page.tsx`, `src/app/squad/api.ts`, `src/store/useSquadStore.ts`, `src/components/squad/*` (Overview, PerformanceView, ScrumBoard, PlansTimeline, DataState), `src/lib/squad-metrics.ts`.
+- Frontend: `src/app/squad/page.tsx`, `src/app/squad/roster/page.tsx`, `src/app/squad/api.ts`, `src/store/useSquadStore.ts`, `src/components/squad/hub/*` (SquadHub, SummaryTab, MetricsTab, SquadConfigDialog, NextCeremonyCard), `src/components/squad/*` (PerformanceView, ScrumBoard, PlansTimeline, DataState), `src/lib/squad-hub.ts`, `src/lib/squad-summary.ts`, `src/lib/legacy-redirects.ts`, `src/lib/squad-metrics.ts`.
 - Backend: `SquadController`, `SquadService`, `SquadAccessService`, `SquadCapacityService`, `SquadLeadership`, entidades `Squad*`, migration V45.

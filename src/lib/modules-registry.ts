@@ -116,7 +116,7 @@ export const MODULES: readonly PortalModule[] = [
   { key: 'home', label: 'Home', href: '/', icon: House, group: 'inicio', description: 'Suas squads, o que está ao vivo e todos os módulos', aliases: ['início', 'hub'] },
 
   // Squad
-  { key: 'painel', label: 'Painel do time', href: '/painel', icon: LayoutDashboard, group: 'squad', description: 'Sprint, board e movimentos da squad', aliases: ['resumo', 'painel'], home: { group: 'flow', order: 1 } },
+  { key: 'painel', label: 'Painel do time', href: '/squad?tab=resumo', icon: LayoutDashboard, group: 'squad', description: 'Sprint, board e movimentos da squad', aliases: ['resumo', 'painel'], paths: ['/painel'], home: { group: 'flow', order: 1 } },
   { key: 'squad', label: 'Squad', href: '/squad', icon: Network, group: 'squad', description: 'Quadro, cronograma e métricas da squad', aliases: ['hub da squad'], paths: ['/squad/dashboards', '/squad/panels'] },
   { key: 'roster', label: 'Time da squad', href: '/squad/roster', icon: Users, group: 'squad', description: 'Quem está no time, cargos e capacidade', aliases: ['roster', 'integrantes', 'equipe'] },
   { key: 'workspace', label: 'Meu espaço', href: '/workspace', icon: PanelsTopLeft, group: 'squad', description: 'Kanban pessoal, tarefas e agendas', aliases: ['meu quadro', 'workspace'], home: { group: 'flow', order: 2 } },
@@ -221,7 +221,9 @@ export function moduleForPath(pathname: string): PortalModule | undefined {
   let best: { m: PortalModule; len: number } | undefined;
   for (const m of MODULES) {
     if (m.href === '/') continue;
-    for (const prefix of [m.href, ...(m.paths ?? [])]) {
+    // Rota com query (o Resumo é `/squad?tab=resumo`) não é prefixo de caminho: vale só o que está em `paths`.
+    const own = m.href.includes('?') ? [] : [m.href];
+    for (const prefix of [...own, ...(m.paths ?? [])]) {
       if (underPrefix(pathname, prefix) && (!best || prefix.length > best.len)) best = { m, len: prefix.length };
     }
   }

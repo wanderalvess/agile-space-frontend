@@ -7,7 +7,7 @@
  * Aceita várias chaves de uma vez: o Agile Master costuma cuidar de várias squads, então cada chave entra
  * numa fila (lib/import-queue), com prévia e confirmação próprias, sem pedir endereço e token de novo.
  *
- * Usado no /onboarding e no /painel (onde quem criou a squad na mão importa pessoas e papéis depois).
+ * Usado no /onboarding e na aba Resumo do hub da squad (onde quem criou a squad na mão importa pessoas e papéis depois).
  * Quem usa decide o que fazer ao concluir (onImported): o componente só importa e troca de projeto.
  */
 

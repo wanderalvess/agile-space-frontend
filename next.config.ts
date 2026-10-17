@@ -1,4 +1,5 @@
 import type {NextConfig} from 'next';
+import { LEGACY_REDIRECTS } from './src/lib/legacy-redirects';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -27,6 +28,9 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  async redirects() {
+    return LEGACY_REDIRECTS;
   },
   async headers() {
     const extraConnectSources: string[] = [];
