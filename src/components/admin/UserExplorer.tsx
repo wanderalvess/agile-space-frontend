@@ -21,6 +21,7 @@ import { resetLinkFrom, type ResetLink } from './approvals/approvals-utils';
 import { ResetLinkDialog } from './approvals/ResetLinkParts';
 import { Segmented } from './Segmented';
 import { adminTabHref } from './admin-tabs';
+import { LeadMigrationPanel } from './LeadMigrationPanel';
 import { UserLinksCell, type UserLinksState } from './UserLinksCell';
 import {
   ACCESS_LEVEL_HINT,
@@ -41,7 +42,6 @@ import {
   squadsSummary,
   usersCountLabel,
   type AccessLevel,
-  type SquadLink,
   type StatusFilter,
 } from './user-admin';
 
@@ -390,6 +390,11 @@ export function UserExplorer({ pendingResets = null }: { pendingResets?: number 
             </Link>
           </div>
         )}
+
+        <LeadMigrationPanel
+          squadOfUser={(id) => users.find((u) => u.id === id)?.squadId || undefined}
+          onChanged={() => void fetchUsers()}
+        />
 
         <DataToolbar
           search={{
