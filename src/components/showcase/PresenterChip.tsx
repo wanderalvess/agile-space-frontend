@@ -16,9 +16,9 @@ export interface PresenterChipProps {
 }
 
 const SURFACE = {
-  room: { wrap: 'border-border bg-card text-foreground', name: 'text-foreground', icon: TONES.brand.text, idle: 'border-border bg-muted text-foreground hover:bg-accent', on: 'border-transparent bg-primary text-primary-foreground' },
-  'stage-dark': { wrap: 'border-white/10 bg-white/[0.06] text-white/80', name: 'text-white', icon: 'text-cyan-300', idle: 'border-white/10 bg-white/10 text-white hover:bg-white/20', on: 'border-transparent bg-primary text-primary-foreground' },
-  'stage-light': { wrap: 'border-slate-200 bg-slate-100 text-slate-700', name: 'text-slate-900', icon: 'text-slate-700', idle: 'border-slate-300 bg-white text-slate-800 hover:bg-slate-200', on: 'border-transparent bg-primary text-primary-foreground' },
+  room: { wrap: 'border-border bg-card text-foreground', name: 'text-foreground', icon: TONES.brand.text, idle: 'border-border bg-muted text-foreground hover:bg-accent', on: 'border-transparent bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' },
+  'stage-dark': { wrap: 'border-white/10 bg-white/[0.06] text-white/80', name: 'text-white', icon: 'text-cyan-300', idle: 'border-white/10 bg-white/10 text-white hover:bg-white/20', on: 'border-transparent bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' },
+  'stage-light': { wrap: 'border-slate-200 bg-slate-100 text-slate-700', name: 'text-slate-900', icon: 'text-slate-700', idle: 'border-slate-300 bg-white text-slate-800 hover:bg-slate-200', on: 'border-transparent bg-primary text-primary-foreground [.theme-totvs:not(.dark)_&]:text-foreground' },
 } as const;
 
 /** "Apresentando: Ana" com o botão Acompanhar (liga e desliga). Só para quando OUTRA pessoa apresenta. */

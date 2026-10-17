@@ -23,18 +23,18 @@ export function ReviewConflictBar({ conflicts, onResolve }: ReviewConflictBarPro
       {conflicts.map((c) => (
         <div key={c.id} role="alert" className="flex flex-wrap items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
           <AlertTriangle className={cn('mt-0.5 h-4 w-4 shrink-0', TONES.warn.text)} strokeWidth={1.5} aria-hidden="true" />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 basis-48">
             <p className={cn('m-0 text-[13px] font-semibold', TONES.warn.text)}>{conflictSummary(c.taskKey, c.changes)}</p>
             <ul className="m-0 mt-1 flex list-none flex-col gap-0.5 p-0">
               {c.changes.slice(0, 3).map((ch) => (
-                <li key={ch.path} className="truncate text-xs text-foreground" title={previewValue(ch.value, 600)}>
+                <li key={ch.path} className="line-clamp-2 text-xs text-foreground [overflow-wrap:anywhere]" title={previewValue(ch.value, 600)}>
                   <span className="font-semibold">Você digitou, {fieldLabel(ch.path)}:</span> {previewValue(ch.value)}
                 </li>
               ))}
               {c.changes.length > 3 && <li className="text-xs text-muted-foreground">e mais {c.changes.length - 3}</li>}
             </ul>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:justify-end">
             <ModalButton className="h-8 px-3 text-[13px]" onClick={() => onResolve(c.id, 'discard')}>Descartar</ModalButton>
             <ModalButton variant="primary" className="h-8 px-3 text-[13px]" onClick={() => onResolve(c.id, 'reapply')}>Reaplicar a minha</ModalButton>
           </div>
