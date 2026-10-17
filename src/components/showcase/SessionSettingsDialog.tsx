@@ -523,7 +523,7 @@ export function SessionSettingsDialog({ open, onClose, session: initialSession, 
                     onChange={(e) => onUpdate({ presentationBackground: e.target.value })}
                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
-                  <span className="flex h-full w-full items-center justify-center rounded-xl" style={{ background: session?.presentationBackground || '#002233' }}>
+                  <span className="flex h-full w-full items-center justify-center rounded-xl" style={isImageBackground(session?.presentationBackground) ? { background: `center / cover no-repeat url(${session?.presentationBackground})` } : { background: session?.presentationBackground || '#002233' }}>
                     <Palette className={cn('h-4 w-4 drop-shadow', isLightBg ? 'text-slate-800' : 'text-white')} strokeWidth={1.5} aria-hidden="true" />
                   </span>
                 </label>

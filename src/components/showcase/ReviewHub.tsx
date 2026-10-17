@@ -49,13 +49,14 @@ function statusTone(status: ReviewStatus) {
   return status === 'finished' ? 'success' : status === 'active' ? 'brand' : 'neutral';
 }
 
-function CardTitle({ icon: I, title, hint, aside }: { icon: LucideIcon; title: string; hint?: string; aside?: React.ReactNode }) {
+function CardTitle({ icon: I, title, hint, sub, aside }: { icon: LucideIcon; title: string; hint?: string; sub?: string; aside?: React.ReactNode }) {
   return (
     <div className="flex items-center gap-3">
       <IconTile icon={I} size="md" />
       <div className="flex min-w-0 flex-1 flex-col">
         {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
         <h2 className="m-0 text-base font-bold leading-tight">{title}</h2>
+        {sub && <span className="text-[13px] text-muted-foreground">{sub}</span>}
       </div>
       {aside}
     </div>
@@ -87,7 +88,7 @@ function StartCard({ onNewSession, isCreating }: { onNewSession: () => void; isC
 
   return (
     <section aria-label="Comece por aqui" className={cn(CARD, 'flex flex-col gap-4')}>
-      <CardTitle icon={Icon} title="Comece por aqui" hint="Crie uma Review nova ou entre numa que já existe com o ID ou o link." />
+      <CardTitle icon={Icon} title="Comece por aqui" sub="Crie uma Review nova ou entre numa que já existe com o ID ou o link." />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
         <ModalButton variant="primary" onClick={onNewSession} disabled={isCreating} className="h-11 gap-2 px-5 text-sm">
           <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Nova Review
@@ -414,10 +415,10 @@ export function ReviewHub({ sessions, state, onRetry, onNewSession, isCreating }
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-      <div className="lg:col-span-8">
+      <div className="lg:col-span-8 [&>section]:h-full">
         <StartCard onNewSession={onNewSession} isCreating={isCreating} />
       </div>
-      <div className="lg:col-span-4">
+      <div className="lg:col-span-4 [&>section]:h-full [&>div]:h-full">
         {state === 'error' ? <div className={cn(CARD, 'h-full')}><p className="m-0 text-sm text-muted-foreground">As métricas aparecem quando as Reviews carregam.</p></div> : <MetricsCard sessions={sessions} />}
       </div>
 
@@ -431,8 +432,8 @@ export function ReviewHub({ sessions, state, onRetry, onNewSession, isCreating }
         </div>
       ) : (
         <>
-          <div className="lg:col-span-8"><LastReviewCard session={last} /></div>
-          <div className="lg:col-span-4"><ChecklistCard last={last} /></div>
+          <div className="lg:col-span-8 [&>section]:h-full"><LastReviewCard session={last} /></div>
+          <div className="lg:col-span-4 [&>section]:h-full"><ChecklistCard last={last} /></div>
           <div className="lg:col-span-12"><HistoryCard sessions={sessions} /></div>
         </>
       )}

@@ -206,13 +206,13 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
       <div style={slideStyle}>
         {/* Coluna Direita: Analytics */}
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '28%', backgroundColor: 'rgba(255,255,255,0.04)', borderLeft: '1px solid rgba(255,255,255,0.08)', padding: '40px 32px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '16px' }}>
-          <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.5px' }}>Indicadores da sprint</span>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.65)', letterSpacing: '0.5px' }}>Indicadores da sprint</span>
           <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', display: 'block', marginBottom: '6px' }}>Total de issues</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.65)', display: 'block', marginBottom: '6px' }}>Total de issues</span>
             <span style={{ fontSize: '36px', fontWeight: 700, color: 'white' }}>{session.tasks.length}</span>
           </div>
           <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(52,211,153,0.5)', display: 'block', marginBottom: '6px' }}>Horas totais</span>
+            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(52,211,153,0.9)', display: 'block', marginBottom: '6px' }}>Horas totais</span>
             <span style={{ fontSize: '36px', fontWeight: 700, color: '#34d399' }}>{formatTime(totalTime) || '—'}</span>
           </div>
           <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
@@ -235,7 +235,7 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '32px' }}>
             <div style={{ width: '48px', height: '4px', backgroundColor: '#00DBFF', borderRadius: '2px' }} />
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.5px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.65)', letterSpacing: '0.5px' }}>
               {session.period || 'Ciclo de entrega atual'}
             </span>
           </div>
@@ -258,7 +258,7 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
               <div style={{ flex: 1, marginRight: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                   <span style={{ backgroundColor: '#00DBFF', color: '#002233', padding: '3px 10px', borderRadius: '999px', fontWeight: 700, fontSize: '11px' }}>{task.key}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', color: 'rgba(255,255,255,0.3)' }}>{task.type}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', color: 'rgba(255,255,255,0.65)' }}>{task.type}</span>
                 </div>
                 <h2 style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.5px', color: 'white', margin: 0, lineHeight: 1.2 }}>{task.title}</h2>
               </div>
@@ -317,11 +317,11 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                 )}
                 <div style={{ marginTop: (task.project || task.versionSuporte || task.versionMaster || task.versionRelease || task.versionDevelop) ? '8px' : 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px', marginBottom: '4px' }}>Desenvolvedor</p>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.65)', letterSpacing: '0.5px', marginBottom: '4px' }}>Desenvolvedor</p>
                     <p style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{task.evidence.dev || '—'}</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px', marginBottom: '4px' }}>Validador / QA</p>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.65)', letterSpacing: '0.5px', marginBottom: '4px' }}>Validador / QA</p>
                     <p style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{task.evidence.qa || '—'}</p>
                   </div>
                 </div>
@@ -337,7 +337,7 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                     metrics.length > 0 ? (
                       <PrintChart type={task.chartType} metrics={metrics} maxValue={maxMetricValue} size="lg" />
                     ) : (
-                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.1)', fontWeight: 700, letterSpacing: '0.5px' }}>Sem métricas preenchidas</span>
+                      <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: 700, letterSpacing: '0.5px' }}>Sem métricas preenchidas</span>
                     )
                   ) : (task.evidence.screenshot || task.evidence.video) ? (
                     <img
@@ -347,7 +347,7 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
                       alt="Evidência"
                     />
                   ) : (
-                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.1)', fontWeight: 700, letterSpacing: '0.5px' }}>Sem evidência</span>
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: 700, letterSpacing: '0.5px' }}>Sem evidência</span>
                   )}
                 </div>
               </div>

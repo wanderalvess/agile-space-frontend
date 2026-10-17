@@ -68,10 +68,10 @@ export function ReviewCardsView(p: ReviewCardsViewProps) {
           search={{ value: filters.search, onChange: (search) => p.onFiltersChange({ ...filters, search }), placeholder: 'Buscar por chave, título, dev ou QA' }}
           filters={
             <>
-              <SelectField aria-label="Filtrar por desenvolvedor" value={filters.dev} onChange={(dev) => p.onFiltersChange({ ...filters, dev })} options={withAll('Todos os devs', options.devs, filters.dev)} className="h-[38px] w-full sm:w-48 max-sm:h-11" />
-              <SelectField aria-label="Filtrar por QA" value={filters.qa} onChange={(qa) => p.onFiltersChange({ ...filters, qa })} options={withAll('Todos os QAs', options.qas, filters.qa)} className="h-[38px] w-full sm:w-48 max-sm:h-11" />
-              <SelectField aria-label="Filtrar por tipo" value={filters.type} onChange={(type) => p.onFiltersChange({ ...filters, type })} options={withAll('Todos os tipos', options.types, filters.type)} className="h-[38px] w-full sm:w-48 max-sm:h-11" />
-              <SelectField aria-label="Ordenar os cards por" value={sortBy} onChange={(v) => isReviewSort(v) && p.onSortChange(v)} options={sortOptions} className="h-[38px] w-full sm:w-48 max-sm:h-11" />
+              <SelectField aria-label="Filtrar por desenvolvedor" value={filters.dev} onChange={(dev) => p.onFiltersChange({ ...filters, dev })} options={withAll('Todos os devs', options.devs, filters.dev)} className="h-[38px] w-[calc(50%-0.25rem)] sm:w-48 max-sm:h-11" />
+              <SelectField aria-label="Filtrar por QA" value={filters.qa} onChange={(qa) => p.onFiltersChange({ ...filters, qa })} options={withAll('Todos os QAs', options.qas, filters.qa)} className="h-[38px] w-[calc(50%-0.25rem)] sm:w-48 max-sm:h-11" />
+              <SelectField aria-label="Filtrar por tipo" value={filters.type} onChange={(type) => p.onFiltersChange({ ...filters, type })} options={withAll('Todos os tipos', options.types, filters.type)} className="h-[38px] w-[calc(50%-0.25rem)] sm:w-48 max-sm:h-11" />
+              <SelectField aria-label="Ordenar os cards por" value={sortBy} onChange={(v) => isReviewSort(v) && p.onSortChange(v)} options={sortOptions} className="h-[38px] w-[calc(50%-0.25rem)] sm:w-48 max-sm:h-11" />
             </>
           }
           count={{ shown: p.filteredTasks.length, total: p.allTasks.length, noun: 'cards' }}

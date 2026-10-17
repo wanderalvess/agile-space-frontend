@@ -122,7 +122,7 @@ export function SyncIndicator({ connection, saveState, onRetrySave }: Pick<Revie
     <div className="flex flex-wrap items-center gap-2" role="status" aria-live="polite">
       {connection.state === 'live' && (
         <span className={cn(chip, 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300')} title="Conectado: as alterações dos outros chegam na hora">
-          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" /> Ao vivo
+          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" /> Conectado
         </span>
       )}
       {connection.state === 'connecting' && (
