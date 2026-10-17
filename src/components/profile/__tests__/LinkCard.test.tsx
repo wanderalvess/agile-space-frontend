@@ -28,7 +28,7 @@ describe('LinkCard', () => {
     render(<LinkCard link={base} canSwitch switching={false} busy={false} onActivate={noop} />);
     expect(screen.getByText('Product Owner')).toBeTruthy();
     expect(screen.getByText('Developer')).toBeTruthy();
-    expect(screen.getByText('Origem: Product Owner: Manual · Developer: Importado do Jira')).toBeTruthy();
+    expect(screen.getByText('Origem: Manual (Product Owner) · Importado do Jira (Developer)')).toBeTruthy();
     expect(screen.getByText('Liderança')).toBeTruthy();
   });
 

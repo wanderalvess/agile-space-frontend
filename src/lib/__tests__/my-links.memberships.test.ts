@@ -114,7 +114,7 @@ describe('originSummary', () => {
   });
 
   it('origens diferentes aparecem por papel', () => {
-    expect(originSummary({ origin: null, roles: [role('PO', 'Manual'), role('Dev', 'Importado do Jira')] })).toBe('PO: Manual · Dev: Importado do Jira');
+    expect(originSummary({ origin: null, roles: [role('PO', 'Manual'), role('Dev', 'Importado do Jira')] })).toBe('Manual (PO) · Importado do Jira (Dev)');
   });
 
   it('sem origem conhecida, nada', () => {

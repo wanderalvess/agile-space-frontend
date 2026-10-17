@@ -203,13 +203,13 @@ export function countLabel(n: number): string {
 }
 
 /**
- * Origem dos papéis para um texto curto: "Importado do Jira" quando todos têm a mesma; "Product Owner: Manual ·
- * Developer: Importado do Jira" quando diferem; `null` quando nenhum tem origem conhecida.
+ * Origem dos papéis para um texto curto: "Importado do Jira" quando todos têm a mesma; "Manual (Product Owner) ·
+ * Importado do Jira (Developer)" quando diferem; `null` quando nenhum tem origem conhecida.
  */
 export function originSummary(link: Pick<MyLink, 'roles' | 'origin'>): string | null {
   const known = link.roles.filter((r) => r.origin);
   if (known.length === 0) return link.origin;
   const distinct = new Set(known.map((r) => r.origin));
   if (distinct.size === 1 && known.length === link.roles.length) return known[0].origin;
-  return known.map((r) => `${r.name}: ${r.origin}`).join(' · ');
+  return known.map((r) => `${r.origin} (${r.name})`).join(' · ');
 }
