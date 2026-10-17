@@ -258,7 +258,8 @@ export default function RetroHubPage() {
 
   return (
     <>
-      <ToolHubLayout 
+      <ToolHubLayout
+        module="retro"
         title="Retrospectiva"
         description="Feedbacks colaborativos e planos de ação para melhoria contínua. Olhe para trás para acelerar para frente."
         icon={<LayoutDashboard />}

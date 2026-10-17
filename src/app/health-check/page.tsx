@@ -145,7 +145,8 @@ export default function HealthCheckHubPage() {
 
   return (
     <>
-      <ToolHubLayout 
+      <ToolHubLayout
+        module="health"
         title="Radar de Saúde"
         description="Diagnóstico 360º da saúde da squad. Meça o clima, confiança técnica e processos para evitar o burnout e otimizar o fluxo."
         icon={<HeartPulse />}

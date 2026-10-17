@@ -28,8 +28,8 @@ function ToolCard({ tool }: { tool: DevToolMeta }) {
   const body = (
     <Card
       className={cn(
-        'group relative flex h-full min-h-[188px] flex-col justify-between overflow-hidden rounded-[2rem] border border-slate-200 bg-white/60 p-6 backdrop-blur-xl transition-all duration-300 dark:border-slate-800 dark:bg-slate-900/60',
-        soon ? 'opacity-70' : 'shadow-lg hover:border-primary/40 hover:shadow-2xl dark:shadow-none dark:hover:border-primary/40',
+        'group relative flex h-full min-h-[188px] flex-col justify-between overflow-hidden rounded-2xl border border-border bg-card p-6 text-card-foreground transition-all duration-300',
+        soon ? 'opacity-70' : 'hover:border-primary/40 hover:shadow-md',
       )}
     >
       <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 rounded-full bg-primary/5 blur-2xl transition-transform duration-700 group-hover:scale-125 dark:bg-primary/10" />
@@ -39,27 +39,27 @@ function ToolCard({ tool }: { tool: DevToolMeta }) {
             <Icon className="h-5 w-5 text-primary" />
           </div>
           {soon ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-primary">
+            <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
               <Hourglass className="h-3 w-3" /> Em breve
             </span>
           ) : (
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800/80 dark:bg-slate-950">
+            <span className="rounded-full border border-border bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
               {category.label}
             </span>
           )}
         </div>
-        <h3 className="mb-2 flex items-center gap-1.5 font-headline text-lg font-black uppercase tracking-tight text-slate-950 transition-colors group-hover:text-primary dark:text-slate-50">
+        <h3 className="mb-2 flex items-center gap-1.5 text-lg font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
           {tool.title}
           {!soon && <ArrowUpRight className="h-4 w-4 text-primary opacity-0 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100" />}
         </h3>
-        <p className="text-[13px] font-medium leading-relaxed text-slate-500 dark:text-slate-400">{tool.description}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{tool.description}</p>
       </div>
     </Card>
   );
 
   if (soon) return <div aria-disabled="true">{body}</div>;
   return (
-    <Link href={getDevToolHref(tool.id)} className="block h-full rounded-[2rem] outline-none focus-visible:ring-2 focus-visible:ring-primary">
+    <Link href={getDevToolHref(tool.id)} className="block h-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-primary">
       {body}
     </Link>
   );
@@ -120,7 +120,7 @@ export function DevToolsHub({ collection }: DevToolsHubProps) {
               aria-selected={category === c.id}
               onClick={() => setCategory(c.id)}
               className={cn(
-                'rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-colors',
+                'rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors max-sm:min-h-11',
                 category === c.id
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground',
@@ -130,13 +130,13 @@ export function DevToolsHub({ collection }: DevToolsHubProps) {
             </button>
           ))}
         </div>
-        <span className="text-[11px] font-bold text-muted-foreground md:ml-auto">
+        <span className="text-xs font-medium text-muted-foreground md:ml-auto">
           {readyCount} disponíveis · {base.length - readyCount} em breve
         </span>
       </div>
 
       {visible.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-[2rem] border border-dashed border-border py-16 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border py-16 text-center">
           <SearchX className="h-8 w-8 text-muted-foreground/50" aria-hidden />
           <p className="text-sm font-bold text-foreground">Nenhuma ferramenta encontrada</p>
           <p className="text-xs font-medium text-muted-foreground">Tente outro termo ou limpe o filtro de categoria.</p>
