@@ -315,10 +315,9 @@ describe('busca de módulos', () => {
 });
 
 describe('chips da saudação', () => {
-  it('uma squad: nome, sprint e próxima cerimônia', () => {
-    expect(heroChips({ squadName: 'Phoenix', squadCount: 1, liveCount: 3, sprintText: 'Sprint 42 · faltam 6 dias', nextCeremonyText: 'Review · sex 14:00' })).toEqual([
-      { text: 'Squad Phoenix', brand: true },
-      { text: 'Sprint 42 · faltam 6 dias' },
+  it('uma squad: sprint e próxima cerimônia, sem repetir o nome da squad (já está no cabeçalho)', () => {
+    expect(heroChips({ squadCount: 1, liveCount: 3, sprintText: 'Sprint 42 · faltam 6 dias', nextCeremonyText: 'Review · sex 14:00' })).toEqual([
+      { text: 'Sprint 42 · faltam 6 dias', brand: true },
       { text: 'Review · sex 14:00' },
     ]);
   });

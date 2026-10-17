@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/
 import { historyMeta, isLive, ritualFacts, statusLabel, toolCreateHref, toolListHref } from '@/hooks/home/derive';
 import type { RitualKey, SessionStatus, ToolSession } from '@/hooks/home/types';
 import { cn } from '@/lib/utils';
+import { moduleLabel } from '@/lib/modules-registry';
 import { CARD, FOCUS_RING, IconTile, ORB, RetryButton, SectionHeading, StatusChip, TOOL_ICON } from './home-ui';
 import { RitualArt } from './RitualArt';
 
@@ -20,11 +21,11 @@ interface RitualDef {
 }
 
 const RITUALS: RitualDef[] = [
-  { key: 'poker', title: 'Scrum Poker', description: 'Estimativa em horas por papel, ao vivo ou assíncrona.', cta: 'Nova sessão de poker', highlight: true },
-  { key: 'retro', title: 'Retrospectiva', description: 'Correu bem, melhorar e ações, com votação por pontos.', cta: 'Nova retro' },
-  { key: 'showcase', title: 'Showcase', description: 'Review da sprint com evidências e modo Teatro.', cta: 'Novo showcase' },
-  { key: 'health', title: 'Radar de clima', description: 'Health check anônimo do time.', cta: 'Novo radar' },
-  { key: 'brainstorming', title: 'Brainstorming', description: 'Mural, grupos, matriz e plano em 5 fases.', cta: 'Novo brainstorming' },
+  { key: 'poker', title: moduleLabel('poker'), description: 'Estimativa em horas por papel, ao vivo ou assíncrona.', cta: 'Nova sessão de poker', highlight: true },
+  { key: 'retro', title: moduleLabel('retro'), description: 'Correu bem, melhorar e ações, com votação por pontos.', cta: 'Nova retro' },
+  { key: 'showcase', title: moduleLabel('showcase'), description: 'Review da sprint com evidências e modo Teatro.', cta: 'Nova review' },
+  { key: 'health', title: moduleLabel('health'), description: 'Health check anônimo do time.', cta: 'Novo radar' },
+  { key: 'brainstorming', title: moduleLabel('brainstorming'), description: 'Mural, grupos, matriz e plano em 5 fases.', cta: 'Novo brainstorming' },
 ];
 
 const MAX_HISTORY_ITEMS = 12;

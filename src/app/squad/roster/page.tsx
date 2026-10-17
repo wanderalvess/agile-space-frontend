@@ -4,6 +4,7 @@ import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Trash2 } from 'lucide-react';
 
+import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
 import { useSquadStore } from '@/store/useSquadStore';
@@ -13,6 +14,7 @@ import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
 import { DEFAULT_DAILY_HOURS } from '@/lib/roster/constants';
 import { filterMembers, rosterKpis, type RosterFilters } from '@/lib/roster/calc';
 
+import { PageShell } from '@/components/page';
 import { ConfirmDialog } from '@/components/room-kit';
 import { AddMemberDialog } from '@/components/roster/AddMemberDialog';
 import { ImportDialog } from '@/components/roster/ImportDialog';
@@ -47,6 +49,18 @@ function RosterContent() {
   const isPeopleAdmin = !!role && (SQUAD_PEOPLE_ADMIN_ROLES as string[]).includes(role);
   const isAdminRole = role === 'admin';
   const squadId = searchParams.get('squadId') || userProfile?.squadId || '';
+
+  // O cabeçalho do portal troca a squad ativa. Se a troca acontece com ?squadId= na URL, a página seguiria na
+  // squad antiga com o cabeçalho mostrando a nova: solta o parâmetro e a página acompanha a squad ativa.
+  const { session } = useAuth();
+  const activeProjectId = session?.activeProjectId;
+  const lastActiveProject = useRef(activeProjectId);
+  const hasSquadParam = !!searchParams.get('squadId');
+  useEffect(() => {
+    const previous = lastActiveProject.current;
+    lastActiveProject.current = activeProjectId;
+    if (previous && activeProjectId && previous !== activeProjectId && hasSquadParam) router.replace('/squad/roster');
+  }, [activeProjectId, hasSquadParam, router]);
 
   // Gestão de horas/capacidade é dado sensível de pessoas: mesma política de SQUAD_PEOPLE_ADMIN_ROLES do botão em /squad.
   // Sem isso, qualquer usuário logado que soubesse a URL editava a capacidade alheia.
@@ -126,23 +140,21 @@ function RosterContent() {
   };
 
   if (isInitializing) {
-    return <main className="mx-auto max-w-[1360px] px-4 py-7 sm:px-8"><RosterSkeleton /></main>;
+    return <PageShell documentTitle="Time da squad"><RosterSkeleton /></PageShell>;
   }
 
   if (userProfile && !isPeopleAdmin) {
-    return <main className="mx-auto max-w-[1360px] px-4 sm:px-8"><NoAccess role={userProfile.role} onBack={() => router.replace('/squad')} /></main>;
+    return <PageShell documentTitle="Time da squad"><NoAccess role={userProfile.role} onBack={() => router.replace('/squad')} /></PageShell>;
   }
 
   const empty = phase === 'ready' && members.length === 0;
   const noResults = phase === 'ready' && members.length > 0 && filtered.length === 0;
 
   return (
-    <main className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 px-4 pb-14 pt-6 sm:px-8 sm:pt-7">
+    <PageShell documentTitle="Time da squad">
       <RosterHeader
-        squadId={squadId}
         canManageTeam={canManageTeam}
         canInvite={invites.canInvite}
-        onBack={() => router.push('/squad')}
         onExport={exportCsv}
         onImport={importer.pickFile}
         onAddMember={() => addForm.setOpen(true)}
@@ -218,13 +230,13 @@ function RosterContent() {
         keepOpenOnConfirm
         onConfirm={confirmRemove}
       />
-    </main>
+    </PageShell>
   );
 }
 
 export default function RosterPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-[1360px] px-4 py-7 sm:px-8"><RosterSkeleton /></main>}>
+    <Suspense fallback={<PageShell documentTitle="Time da squad"><RosterSkeleton /></PageShell>}>
       <RosterContent />
     </Suspense>
   );

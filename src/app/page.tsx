@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FeedbackWidget } from '@/components/feedback-widget';
 import { AnnouncementBanner } from '@/components/home/AnnouncementBanner';
-import { HomeFooter } from '@/components/home/HomeFooter';
-import { HomeHeader } from '@/components/home/HomeHeader';
 import { HomeHero } from '@/components/home/HomeHero';
 import { HALO } from '@/components/home/home-ui';
 import { LinkedTeamWelcome } from '@/components/home/LinkedTeamWelcome';
@@ -13,6 +11,8 @@ import { ModuleGrid } from '@/components/home/ModuleGrid';
 import { NewSquadWelcome } from '@/components/home/NewSquadWelcome';
 import { RitualsSection } from '@/components/home/RitualsSection';
 import { SquadsOverview } from '@/components/home/SquadsOverview';
+import { AppFooter } from '@/components/layout/AppFooter';
+import { PageShell } from '@/components/page';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
@@ -85,7 +85,6 @@ export default function Home() {
   const scopeLabel = isMulti ? (scopedSquad ? `Squad ${scopedSquad.name}` : 'Todas as squads') : activeSquad ? `Squad ${activeSquad.name}` : '';
 
   const chips = heroChips({
-    squadName: activeSquad?.name,
     squadCount: squads.length,
     liveCount: live.data.length,
     sprintText: activeSquad ? sprintLabel(activeSquad.sprintName, activeSquad.daysLeft) : undefined,
@@ -94,55 +93,47 @@ export default function Home() {
   });
 
   return (
-    <div className="relative flex min-h-dvh w-full flex-1 flex-col bg-background text-foreground">
-      <div aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-0 h-[460px]', HALO)} />
+    <PageShell
+      header={{
+        squadControl: { squads, scope: effectiveScope, isMulti, switchingTo, onPick: handlePickSquad },
+        search: { query, onQueryChange: setQuery },
+      }}
+      backdrop={<div aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-0 h-[460px]', HALO)} />}
+      contentClassName="gap-7 pb-12 pt-7"
+      footer={<AppFooter onOpenFeedback={handleOpenFeedback} />}
+    >
+      <AnnouncementBanner />
+      <LinkedTeamWelcome />
+      <NewSquadWelcome />
 
-      <HomeHeader
-        squads={squads}
-        scope={effectiveScope}
-        isMulti={isMulti}
-        switchingTo={switchingTo}
-        onPickSquad={handlePickSquad}
-        query={query}
-        onQueryChange={setQuery}
+      <HomeHero firstName={firstName(userProfile?.name || session?.name)} chips={chips} />
+
+      {isMulti && (
+        <SquadsOverview
+          squads={squads}
+          scope={effectiveScope}
+          liveBySquad={liveBySquad}
+          switchingTo={switchingTo}
+          now={now}
+          onPick={handlePickSquad}
+        />
+      )}
+
+      <LiveNow
+        sessions={effectiveScope ? live.data.filter((s) => s.squadId === effectiveScope) : live.data}
+        showSquad={isMulti}
+        upcoming={upcoming}
+        loading={live.loading}
+        failed={live.failed}
+        onRetry={live.refetch}
+        now={now}
       />
 
-      <main className="relative mx-auto flex w-full max-w-[1680px] flex-col gap-7 px-4 pb-12 pt-7 sm:px-8 2xl:px-12">
-        <AnnouncementBanner />
-        <LinkedTeamWelcome />
-        <NewSquadWelcome />
+      <RitualsSection history={history.data} loading={history.loading} failed={history.failed} onRetry={history.refetch} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
 
-        <HomeHero firstName={firstName(userProfile?.name || session?.name)} chips={chips} />
-
-        {isMulti && (
-          <SquadsOverview
-            squads={squads}
-            scope={effectiveScope}
-            liveBySquad={liveBySquad}
-            switchingTo={switchingTo}
-            now={now}
-            onPick={handlePickSquad}
-          />
-        )}
-
-        <LiveNow
-          sessions={effectiveScope ? live.data.filter((s) => s.squadId === effectiveScope) : live.data}
-          showSquad={isMulti}
-          upcoming={upcoming}
-          loading={live.loading}
-          failed={live.failed}
-          onRetry={live.refetch}
-          now={now}
-        />
-
-        <RitualsSection history={history.data} loading={history.loading} failed={history.failed} onRetry={history.refetch} showSquad={isMulti} scopeLabel={scopeLabel} now={now} />
-
-        <ModuleGrid query={query} />
-      </main>
-
-      <HomeFooter onOpenFeedback={handleOpenFeedback} />
+      <ModuleGrid query={query} />
 
       <FeedbackWidget toolName="Portal Tech V&D - Hub" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
-    </div>
+    </PageShell>
   );
 }

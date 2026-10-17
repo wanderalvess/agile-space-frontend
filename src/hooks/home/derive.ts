@@ -569,7 +569,6 @@ export interface HeroChip {
 
 /** Chips sob a saudação: contexto da squad (uma só) ou visão geral (várias). */
 export function heroChips(input: {
-  squadName?: string;
   squadCount: number;
   liveCount: number;
   sprintText?: string;
@@ -580,8 +579,8 @@ export function heroChips(input: {
     chips.push({ text: `Você acompanha ${input.squadCount} squads`, brand: true });
     if (input.liveCount > 0) chips.push({ text: pluralize(input.liveCount, 'sessão ao vivo', 'sessões ao vivo') });
   } else {
-    if (input.squadName) chips.push({ text: `Squad ${input.squadName}`, brand: true });
-    if (input.sprintText) chips.push({ text: input.sprintText });
+    // O nome da squad já está no cabeçalho (seletor/rótulo): não repete aqui, só a sprint.
+    if (input.sprintText) chips.push({ text: input.sprintText, brand: true });
   }
   if (input.nextCeremonyText) chips.push({ text: input.nextCeremonyText });
   return chips;
