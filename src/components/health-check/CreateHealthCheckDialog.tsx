@@ -45,7 +45,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Card } from '../ui/card';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-import { useUserContext } from '@/context/UserContext';
 import { Badge } from '@/components/ui/badge';
 
 interface CreateHealthCheckDialogProps {
@@ -59,8 +58,7 @@ const CUSTOM_DIMENSIONS_KEY = 'custom-health-check-dimensions';
 
 export function CreateHealthCheckDialog({ open, onOpenChange, onCreateBoard, isCreating }: CreateHealthCheckDialogProps) {
   const { toast } = useToast();
-  const { userProfile } = useUserContext();
-  
+
   // Basic Info
   const [sprintName, setSprintName] = useState('');
   const [teamName, setTeamName] = useState('');
@@ -80,8 +78,6 @@ export function CreateHealthCheckDialog({ open, onOpenChange, onCreateBoard, isC
 
   useEffect(() => {
     if (open) {
-      if (userProfile?.team && !teamName) setTeamName(userProfile.team);
-      
       // Load dimensions
       try {
         const stored = localStorage.getItem(CUSTOM_DIMENSIONS_KEY);
@@ -94,7 +90,7 @@ export function CreateHealthCheckDialog({ open, onOpenChange, onCreateBoard, isC
         setDimensions(DEFAULT_HEALTH_CHECK_DIMENSIONS);
       }
     }
-  }, [open, userProfile]);
+  }, [open]);
 
   const handleDimensionChange = (index: number, field: 'title' | 'description', value: string) => {
     const newDimensions = [...dimensions];

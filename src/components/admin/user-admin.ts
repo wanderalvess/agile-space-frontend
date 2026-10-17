@@ -134,6 +134,6 @@ export function squadsSummary(links: SquadLink[] | null | undefined, activeSquad
 }
 
 /** Squad mostrada na coluna da lista. */
-export function squadLabelOf(u: Pick<UserProfile, 'squadId' | 'team'>): string {
+export function squadLabelOf(u: Pick<UserProfile, 'squadId'> & { team?: string }): string {
   return u.squadId || u.team || 'Sem squad';
 }
