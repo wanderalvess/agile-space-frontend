@@ -18,6 +18,9 @@ export interface LinkRequest {
   decidedAt?: string | null;
   decidedBy?: string | null;
   decisionNote?: string | null;
+  kind?: 'CONTRIBUTOR' | 'LEADERSHIP' | null;
+  /** Papel de contribuidor pedido por quem não aparece na lista do time. */
+  requestedRoleName?: string | null;
 }
 
 /** Erro das chamadas de vínculo: leva o status HTTP para a tela distinguir "endpoint ainda não existe" de falha. */

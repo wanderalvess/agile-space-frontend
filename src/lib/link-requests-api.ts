@@ -3,8 +3,9 @@
  * (liderança com outro e-mail, linha que não reconhece como sua) e pede a um admin que confirme.
  *
  * Contrato do servidor:
- *  - POST /api/link-requests        -> 201 { id, status: 'PENDING' }
+ *  - POST /api/link-requests        -> 201 { id, status: 'PENDING' }  (aceita kind e requestedRoleName)
  *  - GET  /api/link-requests/mine   -> LinkRequest[]
+ * Quem aprova: a liderança da squad (aba Pedidos do Time da squad) ou um admin.
  * Enquanto o servidor não tiver essas rotas (404/405), a tela mostra um aviso curto em vez de quebrar.
  */
 
@@ -14,14 +15,19 @@ import { ApiError } from '@/lib/api-error';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
 
 export type LinkRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type LinkRequestKind = 'CONTRIBUTOR' | 'LEADERSHIP';
 
 export interface CreateLinkRequestInput {
   projectKey: string;
   /** Linha da lista da squad sobre a qual é o pedido; ausente quando a pessoa nem aparece na lista. */
   memberId?: string;
-  /** E-mail que a pessoa usa no Jira, para o admin conferir. */
+  /** E-mail que a pessoa usa no Jira, para quem aprova conferir. */
   emailInJira: string;
   message?: string;
+  /** `CONTRIBUTOR` quando a pessoa nem aparece na lista e pede um papel; sem isso o servidor decide pela linha. */
+  kind?: LinkRequestKind;
+  /** Papel de contribuidor pedido (só com `kind: 'CONTRIBUTOR'` e sem `memberId`). Liderança o servidor recusa (422). */
+  requestedRoleName?: string;
 }
 
 export interface CreatedLinkRequest {
@@ -40,6 +46,8 @@ export interface LinkRequest {
   createdAt: string;
   decidedAt?: string;
   decisionNote?: string;
+  kind?: LinkRequestKind;
+  requestedRoleName?: string;
 }
 
 /** O servidor ainda não tem o recurso (404/405). A tela degrada com um aviso, sem tratar como falha. */
@@ -70,6 +78,11 @@ export async function createLinkRequest(input: CreateLinkRequestInput): Promise<
   if (input.memberId) body.memberId = input.memberId;
   const message = input.message?.trim();
   if (message) body.message = message;
+  const role = input.requestedRoleName?.trim();
+  if (role && !input.memberId) {
+    body.requestedRoleName = role;
+    body.kind = input.kind ?? 'CONTRIBUTOR';
+  }
 
   const res = await authFetch(`${API_BASE_URL}/link-requests`, {
     method: 'POST',

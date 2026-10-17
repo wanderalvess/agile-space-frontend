@@ -84,7 +84,11 @@ export function approvalCounts(opts: { links: number | null; resets: number | nu
 
 /** Detalhe do pedido de vínculo: quem pede, o e-mail do Jira e a mensagem, se houver. */
 export function linkRequestDetail(r: LinkRequest): string {
-  const who = r.memberName ? `Pede vínculo com ${r.memberName} no Jira, e-mail ${r.emailInJira}.` : `E-mail no Jira: ${r.emailInJira}.`;
+  const who = r.memberName
+    ? `Pede vínculo com ${r.memberName} no Jira, e-mail ${r.emailInJira}.`
+    : r.requestedRoleName
+      ? `Pede entrada como ${r.requestedRoleName}, e-mail no Jira ${r.emailInJira}.`
+      : `E-mail no Jira: ${r.emailInJira}.`;
   const account = `Conta atual: ${r.requester.email}.`;
   return r.message?.trim() ? `${who} ${account} “${r.message.trim()}”` : `${who} ${account}`;
 }

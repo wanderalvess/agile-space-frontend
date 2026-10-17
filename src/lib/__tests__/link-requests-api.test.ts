@@ -27,6 +27,18 @@ describe('pedido de vínculo (cliente)', () => {
     expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ projectKey: 'DDWMISSI', emailInJira: 'a@x.com' });
   });
 
+  it('sem linha na lista: manda kind CONTRIBUTOR e requestedRoleName', async () => {
+    authFetch.mockResolvedValue(json(201, { id: 'r3', status: 'PENDING' }));
+    await createLinkRequest({ projectKey: 'DDWMISSI', emailInJira: 'a@x.com', kind: 'CONTRIBUTOR', requestedRoleName: ' QA ' });
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ projectKey: 'DDWMISSI', emailInJira: 'a@x.com', kind: 'CONTRIBUTOR', requestedRoleName: 'QA' });
+  });
+
+  it('com memberId o papel não vai (o servidor recusa memberId + requestedRoleName)', async () => {
+    authFetch.mockResolvedValue(json(201, { id: 'r4', status: 'PENDING' }));
+    await createLinkRequest({ projectKey: 'DDWMISSI', memberId: 'm1', emailInJira: 'a@x.com', requestedRoleName: 'QA' });
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ projectKey: 'DDWMISSI', memberId: 'm1', emailInJira: 'a@x.com' });
+  });
+
   it('404 e 405 viram "ainda não está disponível"', async () => {
     for (const status of [404, 405]) {
       authFetch.mockResolvedValue(new Response('', { status }));
