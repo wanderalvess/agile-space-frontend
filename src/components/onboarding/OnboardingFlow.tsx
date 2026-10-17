@@ -35,6 +35,7 @@ import { CreateSquadStep } from './CreateSquadStep';
 import { ImportResultStep } from './ImportResultStep';
 import { IntentStep } from './IntentStep';
 import { InviteFooter } from './InviteFooter';
+import { LegacyOnlyNotice } from './LegacyOnlyNotice';
 import { MyRequests } from './MyRequests';
 import { OnboardingRail, type OnboardingStep } from './OnboardingRail';
 import { RequestLinkStep, type LinkRequestTarget } from './RequestLinkStep';
@@ -51,7 +52,7 @@ export function OnboardingFlow() {
   const router = useRouter();
   const { toast } = useToast();
   const { createProject, joinProject, claimRosterMember } = useAuth();
-  const { mustOnboard, isInitializing, userProfile, updateProfile } = useUserContext();
+  const { mustOnboard, legacyOnly, isInitializing, userProfile, updateProfile } = useUserContext();
 
   const [step, setStep] = useState<OnboardingStep>('suggestion');
   /** Durante a prévia da importação a tela precisa de largura: some a trilha e o conteúdo ocupa tudo. */
@@ -84,12 +85,14 @@ export function OnboardingFlow() {
 
   // Guarda de acesso: com squad já definida, não fica no onboarding. Vale só na chegada — concluir um passo
   // (entrar, criar, importar) também tira o mustOnboard, e isso não pode jogar a pessoa na home no meio do fluxo.
+  // Conta só com rastro legado (`legacyOnly`) usa o app, mas chega aqui de propósito (aviso "peça à liderança"):
+  // não a devolvemos à home, senão home <-> onboarding vira laço.
   const guardedRef = useRef(false);
   useEffect(() => {
     if (isInitializing || guardedRef.current) return;
     guardedRef.current = true;
-    if (!mustOnboard) router.replace('/');
-  }, [isInitializing, mustOnboard, router]);
+    if (!mustOnboard && !legacyOnly) router.replace('/');
+  }, [isInitializing, mustOnboard, legacyOnly, router]);
 
   useEffect(() => {
     onboardingService
@@ -297,6 +300,10 @@ export function OnboardingFlow() {
         {!wideImport && <OnboardingRail step={step} />}
 
         <div className="flex min-w-0 flex-col items-center gap-6 lg:min-h-[calc(100dvh-8rem)]">
+          {legacyOnly && (step === 'suggestion' || step === 'intent') && (
+            <LegacyOnlyNotice actionLabel="Buscar minha squad" onAction={() => setStep('search')} />
+          )}
+
           {step === 'suggestion' && firstSuggestion && firstCandidate && (
             <SuggestionStep
               variant="first"
