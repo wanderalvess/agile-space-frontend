@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ShieldCheck, Eye, ListPlus, Users, CalendarDays, ArrowRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { ShowcaseDashboard } from '@/components/showcase/ShowcaseDashboard';
 import { ShowcaseSession, DEFAULT_SHOWCASE_IMAGE } from '@/components/showcase/types';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
@@ -26,7 +27,8 @@ export default function ShowcaseHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { session } = useAuth();
-  const { userProfile, requestIdentity } = useUserContext();
+  const { requestIdentity } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -36,15 +38,14 @@ export default function ShowcaseHubPage() {
 
   useEffect(() => {
     if (!squadName) {
-      const defaultSquad = session?.activeProjectId || userProfile?.squadId || '';
-      if (defaultSquad) setSquadName(defaultSquad);
+      if (activeSquadId) setSquadName(activeSquadId);
     }
-  }, [session, userProfile, isSetupOpen]);
+  }, [activeSquadId, squadName, isSetupOpen]);
 
   const [dbSessions, setDbSessions] = useState<ShowcaseSession[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(true);
 
-  const currentSquadId = session?.activeProjectId || userProfile?.squadId;
+  const currentSquadId = activeSquadId || undefined;
 
   const fetchSessions = async (squadId: string) => {
     try {
@@ -78,7 +79,7 @@ export default function ShowcaseHubPage() {
 
     setIsCreating(true);
     try {
-      const resolvedSquad = squadName.trim() || session?.activeProjectId || userProfile?.squadId || 'DDWMISSI';
+      const resolvedSquad = squadName.trim() || activeSquadId || 'DDWMISSI';
       const newSession = await showcaseApi.saveSession({
         name: name.trim(),
         sprintName: sprintName.trim(),

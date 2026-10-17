@@ -7,13 +7,13 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { PartyPopper } from 'lucide-react';
-import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { SQUAD_SUMMARY_HREF } from '@/lib/squad-hub';
 import { Notice } from './Notice';
 
 export function NewSquadWelcome() {
-  const { userProfile } = useUserContext();
-  const squadId = userProfile?.squadId;
+  const { squadId: activeSquadId } = useActiveSquad();
+  const squadId = activeSquadId;
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

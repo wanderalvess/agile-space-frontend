@@ -6,8 +6,7 @@ import { AlertCircle, Gauge, ListChecks, Loader2, MessageSquareText, RefreshCw, 
 import { workItemsApi } from '@/app/work-items-api';
 import { authFetch } from '@/lib/auth-client';
 import { openOrCreateRetro, openOrCreateActionPlan } from '@/lib/sprintCycleNav';
-import { useUserContext } from '@/context/UserContext';
-import { useAuth } from '@/context/AuthContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { EmptyState, ErrorState, KpiCard, KpiRow, LoadingSkeleton, PAGE_CARD } from '@/components/page';
 import { FIELD, IconTile, ModalButton, SelectField } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
@@ -24,8 +23,7 @@ interface SquadOption {
 
 export function CeremoniesDashboard() {
   const router = useRouter();
-  const { userProfile } = useUserContext();
-  const { session } = useAuth();
+  const { squadId: activeSquadId } = useActiveSquad();
   const [squads, setSquads] = useState<SquadOption[]>([]);
   const [squadsLoading, setSquadsLoading] = useState(true);
   const [squadsError, setSquadsError] = useState(false);
@@ -51,7 +49,7 @@ export function CeremoniesDashboard() {
       const data: SquadOption[] = await res.json();
       setSquads(data);
       if (data.length > 0) {
-        const userActiveId = userProfile?.squadId || session?.activeProjectId;
+        const userActiveId = activeSquadId;
         const matched = data.find((s) => s.id === userActiveId) || data[0];
         setSelectedSquadId(matched.id);
         setSprintId(matched.activeSprintId || '');
@@ -62,7 +60,7 @@ export function CeremoniesDashboard() {
     } finally {
       setSquadsLoading(false);
     }
-  }, [userProfile?.squadId, session?.activeProjectId]);
+  }, [activeSquadId]);
 
   useEffect(() => {
     loadSquads();

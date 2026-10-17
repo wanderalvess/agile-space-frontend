@@ -7,6 +7,7 @@ import { EmptyState, LoadingSkeleton, PageHeader, PageShell } from '@/components
 import { StatusChip, TabBar } from '@/components/room-kit';
 import { useAuth } from '@/context/AuthContext';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 
 import { CalmariaButton } from '@/components/workspace/CalmariaButton';
 import { CommandPalette } from '@/components/workspace/CommandPalette';
@@ -47,10 +48,11 @@ function WorkspaceView() {
   const { session } = useAuth();
   const { toast } = useToast();
   const { userProfile, updateProfile, requestIdentity, isInitializing } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   // O servidor só aceita o próprio id do login na rota; ele vem primeiro.
   const effectiveUserId = session?.id || userProfile?.id || userProfile?.email || '';
-  const currentSquadId = session?.activeProjectId || userProfile?.squadId;
+  const currentSquadId = activeSquadId || undefined;
 
   const location = useMemo(() => parseWorkspaceLocation(searchParams), [searchParams]);
   const data = useWorkspaceData(effectiveUserId, currentSquadId);

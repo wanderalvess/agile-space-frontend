@@ -19,6 +19,7 @@ import { healthCheckApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/ceremony-api';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import { CreateHealthCheckDialog } from '@/components/health-check/CreateHealthCheckDialog';
 import { HealthCheckDimension, HealthCheckScaleType } from '@/lib/types';
@@ -29,6 +30,7 @@ export default function HealthCheckHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { userProfile, requestIdentity } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -72,7 +74,7 @@ export default function HealthCheckHubPage() {
       dimensions,
       scaleType,
       sprintName: sprintName || '',
-      team: team || userProfile?.squadId || userProfile?.team || 'Squad Geral',
+      team: team || activeSquadId || 'Squad Geral',
       participantIds: [userProfile.id]
     };
 

@@ -16,6 +16,7 @@ import { actionPlanApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { errorMessage } from '@/lib/ceremony-api';
 import { useUserContext } from '@/context/UserContext';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
 import {
   Dialog,
@@ -35,6 +36,7 @@ export default function ActionPlanHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { userProfile, requestIdentity } = useUserContext();
+  const { squadId: activeSquadId } = useActiveSquad();
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -55,10 +57,9 @@ export default function ActionPlanHubPage() {
         return;
       }
     }
-    const userTeam = userProfile?.squadId || userProfile?.team;
-    if (userTeam) setTeam(userTeam);
+    if (activeSquadId) setTeam(activeSquadId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile]);
+  }, [activeSquadId]);
 
   // Carrega o sprintId vindo da navegação cruzada (ex: CeremoniesDashboard),
   // pra ligar o plano novo à sprint já em andamento no restante do ciclo.
