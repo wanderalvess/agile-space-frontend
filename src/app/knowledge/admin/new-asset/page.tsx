@@ -1,6 +1,8 @@
 "use client";
 
 import { plainTextToHtml } from '@/lib/text-to-html';
+import { markdownToHtml } from '@/lib/markdown-to-html';
+import { sanitizeHtml } from '@/lib/sanitize-html';
 import React, { useState, useEffect, Suspense, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -249,8 +251,11 @@ function NewAssetContent() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.toLowerCase().endsWith('.docx')) {
-      const loadingToast = toast.loading(`Importando Word: ${file.name}...`);
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.toLowerCase().endsWith('.docx');
+    if (isDocx || isPdf) {
+      const kindLabel = isPdf ? 'PDF' : 'Word';
+      const loadingToast = toast.loading(`Importando ${kindLabel}: ${file.name}...`);
       setIsLoading(true);
       try {
         const formDataPayload = new FormData();
@@ -264,9 +269,11 @@ function NewAssetContent() {
           throw new Error('Não encontramos texto neste arquivo.');
         }
         if (editor) {
-          editor.commands.setContent(plainTextToHtml(data.text));
+          // Word vem com estrutura (títulos, listas, negrito, links, tabelas); sem html cai no texto puro.
+          const html = typeof data.html === 'string' && data.html.trim() ? sanitizeHtml(data.html) : plainTextToHtml(data.text);
+          editor.commands.setContent(html);
           setFormData(prev => ({ ...prev, title: prev.title || file.name.split('.')[0] }));
-          toast.success(`Word importado!`, { id: loadingToast });
+          toast.success(`${kindLabel} importado!`, { id: loadingToast });
         }
       } catch (err: any) {
         toast.error(`Erro: ${err.message}`, { id: loadingToast });
@@ -279,7 +286,8 @@ function NewAssetContent() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      if (editor) editor.commands.setContent(plainTextToHtml(content));
+      const isMarkdown = file.name.toLowerCase().endsWith('.md');
+      if (editor) editor.commands.setContent(isMarkdown ? sanitizeHtml(markdownToHtml(content)) : plainTextToHtml(content));
       setFormData(prev => ({ ...prev, title: prev.title || file.name.split('.')[0] }));
       toast.success(`Arquivo importado!`);
     };
@@ -340,7 +348,7 @@ function NewAssetContent() {
                    ref={fileInputRef} 
                    onChange={handleFileUpload} 
                    className="hidden" 
-                   accept=".txt,.md,.json,.docx" 
+                   accept=".txt,.md,.json,.docx,.pdf"
                 />
 
                 <ScrollArea className="flex-1 bg-white dark:bg-slate-900">
