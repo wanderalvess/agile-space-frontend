@@ -10,6 +10,7 @@ import {
   fileSlug,
   groupByDecision,
   mdCell,
+  participantNames,
   versionsText,
 } from '../review-export';
 import { PDF_COLORS, decisionRGB } from '../review-pdf';
@@ -103,5 +104,33 @@ describe('paleta do PDF', () => {
     expect(decisionRGB('approved')).toEqual(PDF_COLORS.approved);
     expect(decisionRGB('rejected')).toEqual(PDF_COLORS.rejected);
     expect(decisionRGB('open')).toEqual(PDF_COLORS.open);
+  });
+});
+
+describe('participantes do resumo', () => {
+  const participants = [
+    { userId: 'u1', displayName: 'Ana Souza' },
+    { userId: 'u2', displayName: ' Caio Lima ' },
+    { userId: 'u3', displayName: 'ana souza' },
+    { userId: 'u4', displayName: '' },
+  ];
+
+  it('lista os nomes sem repetir nem deixar vazio', () => {
+    expect(participantNames({ participants })).toEqual(['Ana Souza', 'Caio Lima']);
+  });
+
+  it('sem a lista (backend antigo, Review não finalizada): vazio', () => {
+    expect(participantNames({ participants: [] })).toEqual([]);
+    expect(participantNames({})).toEqual([]);
+    expect(participantNames(null)).toEqual([]);
+  });
+
+  it('o log em Markdown ganha a linha Participantes, e só quando há nomes', () => {
+    const now = new Date('2026-10-17T12:00:00');
+    const withLine = buildLogMarkdown({ participants }, 'Sprint 42', tasks, now);
+    expect(withLine).toContain('Participantes: Ana Souza, Caio Lima');
+    const without = buildLogMarkdown({ participants: [] }, 'Sprint 42', tasks, now);
+    expect(without).not.toContain('Participantes');
+    expect(buildLogMarkdown(null, 'Sprint 42', tasks, now)).not.toContain('Participantes');
   });
 });

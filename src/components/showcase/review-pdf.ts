@@ -6,7 +6,7 @@
 import jsPDF from 'jspdf';
 import { showcaseApi } from '@/app/showcase/api';
 import { DECISION, type Decision, type ShowcaseSession, type ShowcaseTask } from './types';
-import { decidedWhen, fileSlug, groupByDecision, versionsText } from './review-export';
+import { decidedWhen, fileSlug, groupByDecision, participantNames, versionsText } from './review-export';
 import { getDirectImageUrl, stripNonLatin1ForPdf, stripWikiMarkup } from './utils';
 
 type RGB = [number, number, number];
@@ -142,6 +142,14 @@ export async function exportReviewPdf(session: ShowcaseSession, tasks: readonly 
 
   setFont(12, 'normal', C.onNavyMuted);
   doc.text(session.period || 'Ciclo de entrega atual', M, titleBottom + 12);
+
+  // Quem estava na sala ao finalizar (no máximo duas linhas; sem a lista do servidor, a linha não aparece).
+  const participants = participantNames(session);
+  if (participants.length > 0) {
+    setFont(10, 'normal', C.onNavyMuted);
+    const lines = (doc.splitTextToSize(forPdf(`Participantes: ${participants.join(', ')}`), CW * 0.85) as string[]).slice(0, 2);
+    lines.forEach((line, i) => doc.text(line, M, titleBottom + 20 + i * 5));
+  }
 
   const kpiY = 145;
   doc.setDrawColor(C.cyan[0], C.cyan[1], C.cyan[2]);

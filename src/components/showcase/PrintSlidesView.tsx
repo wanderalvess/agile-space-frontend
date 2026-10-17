@@ -3,6 +3,7 @@
 import React from 'react';
 import { DECISION, ShowcaseSession, ImpactMetric, ChartType } from './types';
 import { formatTime, getDirectImageUrl, stripWikiMarkup, toSafeUrl } from './utils';
+import { participantNames } from './review-export';
 
 /** Texto longo encolhe a fonte para caber no slide fixo em vez de ser cortado no PDF. */
 const printTextSize = (text?: string) => {
@@ -141,6 +142,7 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
   const approved = session.tasks.filter(t => t.decision === 'approved').length;
   const adjustments = session.tasks.filter(t => t.decision === 'needs_adjustment').length;
   const rejected = session.tasks.filter(t => t.decision === 'rejected').length;
+  const participants = participantNames(session);
   const totalTime = session.tasks.reduce((acc, t) => acc + (t.evidence.timeSpent || 0), 0);
 
   // Estilos base usados em todos os slides
@@ -239,6 +241,11 @@ export function PrintSlidesView({ session }: PrintSlidesViewProps) {
               {session.period || 'Ciclo de entrega atual'}
             </span>
           </div>
+          {participants.length > 0 && (
+            <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.65)', marginTop: '14px', lineHeight: 1.5 }}>
+              Participantes: {participants.join(', ')}
+            </span>
+          )}
         </div>
       </div>
 
