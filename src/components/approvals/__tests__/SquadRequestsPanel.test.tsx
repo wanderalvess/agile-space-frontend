@@ -166,3 +166,28 @@ describe('SquadRequestsPanel: filtro e estados', () => {
     expect(fns.reload).toHaveBeenCalled();
   });
 });
+
+describe('SquadRequestsPanel: Cancelados', () => {
+  const cancelled: SquadLinkRequest = { ...contributor, id: 'r9', status: 'CANCELLED', decidedAt: '2026-10-17T12:05:00Z' };
+
+  it('o filtro "Cancelados" aparece e dispara a troca', () => {
+    renderPanel(requests({ items: [], pendingCount: 1 }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Cancelados' }));
+    expect(fns.setFilter).toHaveBeenCalledWith('CANCELLED');
+  });
+
+  it('pedido cancelado: selo "Cancelado", quem cancelou e nenhum botão de decisão', () => {
+    renderPanel(requests({ filter: 'CANCELLED', items: [cancelled] }), peopleLead);
+    expect(screen.getByText('Ana Paula · Developer')).toBeTruthy();
+    expect(screen.getByText('Cancelado')).toBeTruthy();
+    expect(screen.getByText('quem pediu')).toBeTruthy();
+    expect(screen.queryByText(/Decidido por/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aprovar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Recusar' })).toBeNull();
+  });
+
+  it('lista vazia de cancelados tem texto próprio', () => {
+    renderPanel(requests({ filter: 'CANCELLED', items: [] }));
+    expect(screen.getByText('Nenhum pedido cancelado')).toBeTruthy();
+  });
+});

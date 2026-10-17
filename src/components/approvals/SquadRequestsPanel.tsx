@@ -13,6 +13,7 @@ import { ApprovalErrorLine, ApprovalListRow, ApprovalSpinner, HistoryLine, Histo
 import { RejectRequestDialog } from './RejectDialog';
 import {
   KIND_LABEL,
+  REQUEST_STATUS_LABEL,
   STATUS_FILTERS,
   decisionAbility,
   requestDetail,
@@ -27,9 +28,8 @@ const EMPTY_TEXT: Record<SquadRequestStatus, { title: string; description: strin
   PENDING: { title: 'Nenhum pedido pendente', description: 'Quando alguém pedir para entrar na squad, o pedido aparece aqui.' },
   APPROVED: { title: 'Nenhum pedido aprovado', description: 'Os pedidos que você aprovar ficam nesta lista.' },
   REJECTED: { title: 'Nenhum pedido recusado', description: 'Os pedidos que você recusar ficam nesta lista.' },
+  CANCELLED: { title: 'Nenhum pedido cancelado', description: 'Os pedidos que a própria pessoa cancelar ficam nesta lista.' },
 };
-
-const STATUS_LABEL: Record<SquadRequestStatus, string> = { PENDING: 'Pendente', APPROVED: 'Aprovado', REJECTED: 'Recusado' };
 
 function PendingActions({
   req,
@@ -151,18 +151,25 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
         )}
         {state === 'ready' && items.length > 0 && filter !== 'PENDING' && (
           <div className="flex flex-col gap-2">
-            <HistoryTitle>{STATUS_LABEL[filter]}s</HistoryTitle>
+            <HistoryTitle>{REQUEST_STATUS_LABEL[filter]}s</HistoryTitle>
             {items.map((r) => (
               <HistoryLine
                 key={r.id}
                 left={[requesterName(r), r.requestedRoleName || r.memberName].filter(Boolean).join(' · ')}
-                status={STATUS_LABEL[r.status]}
+                status={REQUEST_STATUS_LABEL[r.status]}
                 right={
-                  <>
-                    Decidido por: <strong>{r.decidedBy || 'Liderança'}</strong>
-                    {r.decidedAt ? ` · ${shortWhen(r.decidedAt)}` : ''}
-                    {r.decisionNote ? ` · “${r.decisionNote}”` : ''}
-                  </>
+                  r.status === 'CANCELLED' ? (
+                    <>
+                      Cancelado por <strong>quem pediu</strong>
+                      {r.decidedAt ? ` · ${shortWhen(r.decidedAt)}` : ''}
+                    </>
+                  ) : (
+                    <>
+                      Decidido por: <strong>{r.decidedBy || 'Liderança'}</strong>
+                      {r.decidedAt ? ` · ${shortWhen(r.decidedAt)}` : ''}
+                      {r.decisionNote ? ` · “${r.decisionNote}”` : ''}
+                    </>
+                  )
                 }
               />
             ))}

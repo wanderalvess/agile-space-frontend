@@ -6,6 +6,7 @@ import {
   buildApprovalRows,
   expiryLabel,
   linkRequestDetail,
+  linkStatusLabel,
   relativeWhen,
   resetLinkFrom,
   resetStatusLabel,
@@ -121,5 +122,23 @@ describe('relativeWhen', () => {
   it('escreve "há N minutos" e some sem data', () => {
     expect(relativeWhen('2026-10-15T09:48:00Z', new Date('2026-10-15T10:00:00Z'))).toBe('há 12 minutos');
     expect(relativeWhen(undefined)).toBe('');
+  });
+});
+
+describe('pedido de vínculo CANCELLED', () => {
+  it('não conta como pendente e vai para o histórico', () => {
+    const { pending, history } = splitLinkRequests([
+      link('a', 'PENDING', { createdAt: '2026-10-14T10:00:00Z' }),
+      link('c', 'CANCELLED', { decidedAt: '2026-10-16T10:00:00Z' }),
+      link('d', 'REJECTED', { decidedAt: '2026-10-15T09:00:00Z' }),
+    ]);
+    expect(pending.map((r) => r.id)).toEqual(['a']);
+    expect(history.map((r) => r.id)).toEqual(['c', 'd']);
+  });
+
+  it('rótulo do histórico', () => {
+    expect(linkStatusLabel('CANCELLED')).toBe('Cancelado');
+    expect(linkStatusLabel('APPROVED')).toBe('Vínculo aprovado');
+    expect(linkStatusLabel('REJECTED')).toBe('Recusado');
   });
 });

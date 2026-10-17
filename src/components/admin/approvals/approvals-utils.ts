@@ -63,6 +63,20 @@ export function splitLinkRequests(requests: LinkRequest[]): { pending: LinkReque
   return { pending, history };
 }
 
+/** Rótulo do histórico de pedidos de vínculo (quem decidiu fica ao lado). */
+export function linkStatusLabel(status: LinkRequest['status']): string {
+  switch (status) {
+    case 'APPROVED':
+      return 'Vínculo aprovado';
+    case 'CANCELLED':
+      return 'Cancelado';
+    case 'PENDING':
+      return 'Pendente';
+    default:
+      return 'Recusado';
+  }
+}
+
 /** Linha da aba "Todas": um pedido pendente de qualquer tipo. */
 export type ApprovalRow =
   | { kind: 'link'; id: string; request: LinkRequest }
