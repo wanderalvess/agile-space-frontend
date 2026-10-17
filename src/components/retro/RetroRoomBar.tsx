@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart3, BookOpen, Download, ImageIcon, Link2, LogOut, MessagesSquare, SlidersHorizontal, Volume2, VolumeX } from 'lucide-react';
+import { BarChart3, BookOpen, Download, ImageIcon, Link2, LogOut, MessagesSquare, SlidersHorizontal, Trash2, Volume2, VolumeX } from 'lucide-react';
 import {
   RoomTopBar,
   type RoomTopBarAction,
@@ -30,6 +30,8 @@ export interface RetroRoomBarProps {
   isSoundEnabled: boolean;
   onToggleSound: () => void;
   onLeave: () => void;
+  /** Apagar a retro (só criador/ADMIN: a tela só passa quando a pessoa pode). */
+  onDelete?: () => void;
   /** Abre a preferência pessoal "Cenário da retro" (só existe quando o formato tem cenário). */
   onOpenScene?: () => void;
   /** Modo escolhido, por extenso ("Suave"), que acompanha o item do menu. */
@@ -68,6 +70,7 @@ export function RetroRoomBar(p: RetroRoomBarProps) {
     },
     ...(p.onOpenScene ? [{ id: 'scene', label: `Cenário da retro${p.sceneLabel ? `: ${p.sceneLabel}` : ''}`, icon: ImageIcon, onClick: p.onOpenScene }] : []),
     { id: 'leave', label: 'Sair da retro', icon: LogOut, onClick: p.onLeave },
+    ...(p.onDelete ? [{ id: 'delete', label: 'Apagar esta retro', icon: Trash2, onClick: p.onDelete }] : []),
   ];
 
   return (

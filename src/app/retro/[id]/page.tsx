@@ -823,6 +823,18 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
     }
   }, [currentUser, handleRemoveParticipant, router]);
 
+  const handleDeleteBoard = useCallback(async () => {
+    try {
+      await retroApi.deleteBoard(boardId);
+      leavingRef.current = true;
+      toast({ title: 'Retro apagada' });
+      router.push('/retro');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível apagar a retro.';
+      toast({ title: 'Não foi possível apagar a retro', description: message, variant: 'destructive' });
+    }
+  }, [boardId, router, toast]);
+
   // ---- Timer (mudanças gravadas no quadro; o relógio de cada tela é derivado de `timer`) ----
   const handleSetTimerDuration = useCallback((duration: number) => {
     patchBoard({ timer: stoppedTimer(duration) });
@@ -1053,6 +1065,7 @@ export default function RetroRoomPage({ params }: { params: Promise<{ id: string
         onRemoveParticipant={handleRemoveParticipant}
         onClaimCreator={handleClaimCreator}
         onLeaveBoard={handleLeaveRoom}
+        onDeleteBoard={handleDeleteBoard}
         onStageChange={handleStageChange}
         onStartMerge={setMergingSourceId}
         onExecuteMerge={(targetId) => {

@@ -107,6 +107,12 @@ export const retroApi = {
     return res.json();
   },
 
+  /** Apaga a retro (criador ou ADMIN; o servidor confere). 403 = sem permissão; 404 = já não existe. */
+  async deleteBoard(boardId: string): Promise<void> {
+    const res = await authFetch(`${API_BASE_URL}/retros/${encodeURIComponent(boardId)}`, { method: 'DELETE' });
+    await ensureOk(res, 'Não foi possível apagar a retro');
+  },
+
   /** Reabre a retro encerrada (facilitador ou ADMIN). Idempotente. */
   async reopenBoard(boardId: string): Promise<RetroBoard> {
     const res = await authFetch(`${API_BASE_URL}/retros/${encodeURIComponent(boardId)}/reopen`, { method: 'POST' });

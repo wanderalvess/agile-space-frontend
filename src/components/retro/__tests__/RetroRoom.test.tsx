@@ -369,6 +369,29 @@ describe('sala da Retro: visões e navegação', () => {
     expect(travada.handlers.onStageChange).not.toHaveBeenCalled();
   });
 
+  it('a apresentação abre com uma coluna em destaque, com a navegação das colunas, e "Todas" mostra o quadro inteiro', () => {
+    setup({ board: { isCardsRevealed: true } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
+    expect((screen.getByRole('button', { name: 'Em destaque' })).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('heading', { level: 2 }).length).toBe(1);
+    expect(screen.getByRole('navigation', { name: 'Colunas da retro' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Todas' }));
+    expect((screen.getByRole('button', { name: 'Todas' })).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(1);
+    expect(screen.queryByRole('navigation', { name: 'Colunas da retro' })).toBeNull();
+    expect(window.localStorage.getItem('agile_retro_present_layout')).toBe('all');
+  });
+
+  it('"Anterior" e "Próxima coluna" trocam a coluna em destaque', () => {
+    const { handlers } = setup({ board: { isCardsRevealed: true } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
+    fireEvent.click(screen.getByRole('button', { name: /Próxima coluna/ }));
+    expect(handlers.onStageChange).toHaveBeenCalledWith('toImprove');
+    fireEvent.click(screen.getByRole('button', { name: /Anterior/ }));
+    expect(handlers.onStageChange).toHaveBeenLastCalledWith('actionItems');
+  });
+
   it('na apresentação o facilitador continua conduzindo as fases', () => {
     const { handlers } = setup({ board: { isCardsRevealed: true } });
     fireEvent.click(screen.getByRole('button', { name: 'Apresentar' }));
