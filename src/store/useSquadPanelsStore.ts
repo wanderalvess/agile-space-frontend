@@ -1,53 +1,8 @@
 import { create } from 'zustand';
-import { squadApi, type SquadPanelRecord } from '@/app/squad/api';
-import { fetchJiraIssues, fetchAllJiraIssues } from '@/services/jiraService';
+import { squadApi, SquadApiError, type SquadPanelRecord } from '@/app/squad/api';
 import { getJiraCredentials } from '@/hooks/useJiraSettings';
+import { runPanelQuery } from '@/lib/squad-panel-engine';
 import type { SquadPanel, SquadPanelChartType, SquadPanelGroupBy, SquadPanelAggregateMetric, SquadPanelResultRow, SquadPanelIssueRow } from '@/lib/types';
-
-// Painel é uma ferramenta ad-hoc, não o sync principal do squad — limites bem
-// mais conservadores, evita alguém com vários painéis estourar o rate limit
-// pessoal do Jira (20 req/min, ver api/jira/search/route.ts).
-const PANEL_TABLE_LIMIT = 50;
-const PANEL_GROUP_MAX_PAGES = 5; // teto de 500 issues por painel bar/pie
-
-const GROUP_BY_FIELDS: Record<Exclude<SquadPanelGroupBy, 'none'>, string[]> = {
-  status: ['status'],
-  type: ['issuetype'],
-  priority: ['priority'],
-  assignee: ['assignee'],
-  // Campo nativo do Jira em issues filhas (subtarefa) — não precisa de
-  // plugin/issueFunction, só pedir `parent` no fetch.
-  parent: ['parent'],
-};
-
-function extractGroupLabel(issue: any, groupBy: SquadPanelGroupBy): string {
-  switch (groupBy) {
-    case 'status': return issue.status || 'Sem status';
-    case 'type': return issue.type || 'Sem tipo';
-    case 'priority': return issue.priority || 'Sem prioridade';
-    case 'assignee': return issue.assignee || 'Sem responsável';
-    case 'parent': return issue.parentKey ? `${issue.parentKey} ${issue.parentTitle || ''}`.trim() : 'Sem issue pai';
-    default: return '';
-  }
-}
-
-// Campos brutos do Jira a pedir por métrica — mapIssue já resolve
-// aggregate-ou-individual sozinho, então basta pedir a variante individual
-// (issue filha não tem aggregate de nada abaixo dela).
-const TIME_FIELDS: Record<Exclude<SquadPanelAggregateMetric, 'count'>, string[]> = {
-  estimateHours: ['timeoriginalestimate'],
-  remainingHours: ['timeestimate'],
-  loggedHours: ['timespent'],
-};
-
-function extractMetricSeconds(issue: any, metric: SquadPanelAggregateMetric): number {
-  switch (metric) {
-    case 'estimateHours': return issue.timeEstimate || 0;
-    case 'remainingHours': return issue.timeRemaining || 0;
-    case 'loggedHours': return issue.timeSpent || 0;
-    default: return 0;
-  }
-}
 
 // Tudo que o backend não conhece (é um blob TEXT opaco pra ele) vive aqui —
 // serializado dentro de SquadPanelRecord.config. `ownerName` precisa entrar
@@ -110,9 +65,21 @@ function toFrontendPanel(record: SquadPanelRecord): SquadPanel {
 // Backend responde 403 (SecurityException) quando quem chama PUT/DELETE não
 // é o dono do painel — mesma regra pra painel squad ou privado. Mensagem
 // amigável aqui, e ainda assim relança pro caller poder tratar/togglear UI.
-function friendlyErrorMessage(err: any, forbiddenMessage: string): string {
+export function friendlyErrorMessage(err: any, forbiddenMessage: string): string {
+  if (err instanceof SquadApiError && err.status === 403) return forbiddenMessage;
   if (typeof err?.message === 'string' && err.message.includes('403')) return forbiddenMessage;
   return err?.message || 'Erro ao comunicar com o servidor.';
+}
+
+export type PanelsUnavailable = 'forbidden' | 'not_found' | 'error';
+
+/** Status HTTP da falha de listar painéis -> motivo de indisponibilidade. */
+export function unavailableReason(err: unknown): PanelsUnavailable {
+  if (err instanceof SquadApiError) {
+    if (err.status === 403) return 'forbidden';
+    if (err.status === 404) return 'not_found';
+  }
+  return 'error';
 }
 
 interface SquadPanelsState {
@@ -120,6 +87,12 @@ interface SquadPanelsState {
   isLoading: boolean;
   runningIds: Set<string>;
   panelsError: string | null;
+  /**
+   * Por que a squad não guarda painéis no servidor para esta pessoa: 'forbidden' (403), 'not_found' (404, o servidor
+   * ainda não tem a rota) ou 'error' (falha de rede/servidor). null = disponível. A tela esconde a opção "No servidor
+   * da squad" e fica só com "Neste navegador".
+   */
+  panelsUnavailable: PanelsUnavailable | null;
 
   fetchPanels: (squadId: string) => Promise<void>;
   createPanel: (
@@ -140,6 +113,7 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
   isLoading: false,
   runningIds: new Set(),
   panelsError: null,
+  panelsUnavailable: null,
 
   // O merge "meus painéis privados + painéis squad-visíveis" agora é feito
   // no backend (a partir do JWT) — GET /api/squads/{squadId}/panels já volta
@@ -153,10 +127,12 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
       const panels = records
         .map(toFrontendPanel)
         .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-      set({ panels });
+      set({ panels, panelsUnavailable: null });
     } catch (err: any) {
-      console.error('Erro ao buscar painéis:', err);
-      set({ panelsError: err?.message || 'Erro ao buscar painéis.' });
+      const reason = unavailableReason(err);
+      // 403 e 404 são respostas esperadas (a tela cai em "Neste navegador"); só falha inesperada vai para o console.
+      if (reason === 'error') console.error('Erro ao buscar painéis:', err);
+      set({ panels: [], panelsError: err?.message || 'Erro ao buscar painéis.', panelsUnavailable: reason });
     } finally {
       set({ isLoading: false });
     }
@@ -255,43 +231,12 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
       }
       const { domain, token } = jiraCreds;
 
-      let resultUpdate: Partial<PanelConfigBlob> = {};
-
-      if (panel.chartType === 'number') {
-        // `total` já vem exato na primeira página — não precisa paginar tudo
-        // só pra contar.
-        const { total } = await fetchJiraIssues(domain, token, panel.jql, { maxResults: 1, fields: ['issuetype'] });
-        resultUpdate = { resultTotal: total };
-      } else if (panel.chartType === 'table') {
-        const { issues, total } = await fetchJiraIssues(domain, token, panel.jql, {
-          maxResults: PANEL_TABLE_LIMIT, fields: ['summary', 'issuetype', 'status', 'parent'],
-        });
-        const resultIssues: SquadPanelIssueRow[] = issues.map(i => ({
-          key: i.key, title: i.title, status: i.status, type: i.type,
-          parentKey: i.parentKey || '', parentTitle: i.parentTitle || '',
-        }));
-        resultUpdate = { resultTotal: total, resultIssues };
-      } else {
-        // bar/pie: agrupa por campo escolhido — precisa de todas as issues
-        // no escopo (paginado, capado em PANEL_GROUP_MAX_PAGES). Métrica
-        // 'count' soma 1 por issue; as de hora somam o campo de tempo
-        // (segundos) convertido em horas, ex: horas restantes das
-        // subtarefas somadas por issue pai.
-        const metric = panel.aggregateMetric || 'count';
-        const groupFields = GROUP_BY_FIELDS[panel.groupBy as Exclude<SquadPanelGroupBy, 'none'>] || ['status'];
-        const fields = metric === 'count' ? groupFields : Array.from(new Set([...groupFields, ...TIME_FIELDS[metric]]));
-        const { issues, total } = await fetchAllJiraIssues(domain, token, panel.jql, { fields, maxPages: PANEL_GROUP_MAX_PAGES });
-        const totals = new Map<string, number>();
-        issues.forEach(issue => {
-          const label = extractGroupLabel(issue, panel.groupBy);
-          const amount = metric === 'count' ? 1 : extractMetricSeconds(issue, metric) / 3600;
-          totals.set(label, (totals.get(label) || 0) + amount);
-        });
-        const resultRows: SquadPanelResultRow[] = Array.from(totals.entries())
-          .map(([label, value]) => ({ label, value: metric === 'count' ? value : Math.round(value * 10) / 10 }))
-          .sort((a, b) => b.value - a.value);
-        resultUpdate = { resultTotal: total, resultRows };
-      }
+      const resultUpdate: Partial<PanelConfigBlob> = await runPanelQuery({ domain, token }, {
+        jql: panel.jql,
+        chartType: panel.chartType,
+        groupBy: panel.groupBy,
+        aggregateMetric: panel.aggregateMetric,
+      });
 
       const lastRunAt = new Date().toISOString();
       const saved = await squadApi.updatePanel(squadId, panelId, {
@@ -326,5 +271,5 @@ export const useSquadPanelsStore = create<SquadPanelsState>()((set, get) => ({
     }
   },
 
-  reset: () => set({ panels: [], isLoading: false, runningIds: new Set(), panelsError: null }),
+  reset: () => set({ panels: [], isLoading: false, runningIds: new Set(), panelsError: null, panelsUnavailable: null }),
 }));
