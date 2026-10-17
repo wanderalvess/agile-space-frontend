@@ -1,4 +1,4 @@
-import { format, formatDistanceStrict } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { PasswordResetRequest } from '@/app/admin/api';
 import { buildResetLink } from '@/lib/password-api';
@@ -84,29 +84,14 @@ export function approvalCounts(opts: { links: number | null; resets: number | nu
 
 /** Detalhe do pedido de vínculo: quem pede, o e-mail do Jira e a mensagem, se houver. */
 export function linkRequestDetail(r: LinkRequest): string {
-  const who = r.memberName ? `Pede vínculo com ${r.memberName} no Jira, e-mail ${r.emailInJira}.` : `E-mail no Jira: ${r.emailInJira}.`;
+  const who = r.memberName
+    ? `Pede vínculo com ${r.memberName} no Jira, e-mail ${r.emailInJira}.`
+    : r.requestedRoleName
+      ? `Pede entrada como ${r.requestedRoleName}, e-mail no Jira ${r.emailInJira}.`
+      : `E-mail no Jira: ${r.emailInJira}.`;
   const account = `Conta atual: ${r.requester.email}.`;
   return r.message?.trim() ? `${who} ${account} “${r.message.trim()}”` : `${who} ${account}`;
 }
 
-/** "há 12 minutos"; data inválida vira vazio. */
-export function relativeWhen(iso?: string | null, now: Date = new Date()): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return formatDistanceStrict(d, now, { addSuffix: true, locale: ptBR });
-}
-
-/** "15/10/2026 às 09:41". */
-export function fullWhen(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-}
-
-/** "14/10/2026 16:20" (histórico). */
-export function shortWhen(iso?: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : format(d, 'dd/MM/yyyy HH:mm', { locale: ptBR });
-}
+// Formatadores de data vivem em components/approvals/when.ts (compartilhados com a aba Pedidos da squad).
+export { fullWhen, relativeWhen, shortWhen } from '@/components/approvals/when';

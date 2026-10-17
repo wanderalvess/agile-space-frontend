@@ -109,6 +109,14 @@ describe('linkRequestDetail', () => {
   });
 });
 
+describe('linkRequestDetail com papel pedido', () => {
+  it('contribuidor sem linha: diz o papel que a pessoa pediu', () => {
+    expect(linkRequestDetail(link('1', 'PENDING', { requestedRoleName: 'QA' }))).toBe(
+      'Pede entrada como QA, e-mail no Jira elisa.prado@parceiro.com. Conta atual: elisa.prado@totvs.com.br.',
+    );
+  });
+});
+
 describe('relativeWhen', () => {
   it('escreve "há N minutos" e some sem data', () => {
     expect(relativeWhen('2026-10-15T09:48:00Z', new Date('2026-10-15T10:00:00Z'))).toBe('há 12 minutos');

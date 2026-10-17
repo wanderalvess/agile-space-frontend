@@ -23,7 +23,7 @@ interface Props {
 
 /**
  * Pedir vínculo de dentro do perfil: acha a squad (mesma busca do onboarding) e abre o pedido
- * (`RequestLinkStep`, o mesmo do onboarding). Um admin confirma e o vínculo aparece na lista.
+ * (`RequestLinkStep`, o mesmo do onboarding). Quem lidera a squad (ou um admin) confirma e o vínculo aparece na lista.
  */
 export function LinkRequestFlow({ defaultEmail, linkedIds, onBack, onSent }: Props) {
   const [projectKey, setProjectKey] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function LinkRequestFlow({ defaultEmail, linkedIds, onBack, onSent }: Pro
       <BackButton onClick={onBack}>Meus vínculos</BackButton>
       <div className="flex flex-col gap-1">
         <h3 className="text-lg font-bold leading-tight text-foreground">Pedir vínculo</h3>
-        <p className="text-[13px] text-muted-foreground">Ache a squad e um admin confirma que você faz parte.</p>
+        <p className="text-[13px] text-muted-foreground">Ache a squad e quem a lidera confirma que você faz parte.</p>
       </div>
 
       <div className="flex flex-col gap-2">

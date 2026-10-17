@@ -14,8 +14,11 @@ import { SQUAD_PEOPLE_ADMIN_ROLES } from '@/lib/types';
 import { DEFAULT_DAILY_HOURS } from '@/lib/roster/constants';
 import { filterMembers, rosterKpis, type RosterFilters } from '@/lib/roster/calc';
 
-import { PageShell } from '@/components/page';
-import { ConfirmDialog } from '@/components/room-kit';
+import { PageHeader, PageShell } from '@/components/page';
+import { ConfirmDialog, TabBar } from '@/components/room-kit';
+import { SquadRequestsPanel } from '@/components/approvals/SquadRequestsPanel';
+import { ROSTER_TAB_PEDIDOS, resolveRosterTab, type RosterTabId } from '@/components/approvals/squad-requests-utils';
+import { useApprovalAccess, useSquadLinkRequests } from '@/components/approvals/useSquadLinkRequests';
 import { AddMemberDialog } from '@/components/roster/AddMemberDialog';
 import { ImportDialog } from '@/components/roster/ImportDialog';
 import { InviteDialog } from '@/components/roster/InviteDialog';
@@ -62,14 +65,39 @@ function RosterContent() {
     if (previous && activeProjectId && previous !== activeProjectId && hasSquadParam) router.replace('/squad/roster');
   }, [activeProjectId, hasSquadParam, router]);
 
-  // Gestão de horas/capacidade é dado sensível de pessoas: mesma política de SQUAD_PEOPLE_ADMIN_ROLES do botão em /squad.
-  // Sem isso, qualquer usuário logado que soubesse a URL editava a capacidade alheia.
+  // Pedidos de vínculo da squad: a aba só existe para quem o servidor diz que aprova (404 ou falha = sem aba).
+  const approvals = useApprovalAccess(squadId || undefined);
+  const canApprove = approvals.access.canApprove;
+  const requests = useSquadLinkRequests(squadId || undefined, canApprove);
+  const tabParam = searchParams.get('tab');
+  const tab: RosterTabId | null = resolveRosterTab(tabParam, approvals.access, approvals.loaded);
+
+  const goToTab = useCallback(
+    (next: RosterTabId) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === 'pedidos') params.set('tab', ROSTER_TAB_PEDIDOS);
+      else params.delete('tab');
+      const query = params.toString();
+      router.replace(query ? `/squad/roster?${query}` : '/squad/roster', { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  // ?tab=pedidos para quem não pode (mais) aprovar: abre o Time e solta o parâmetro, sem erro.
   useEffect(() => {
-    if (!isInitializing && userProfile && !isPeopleAdmin) {
+    if (tabParam === ROSTER_TAB_PEDIDOS && tab === 'time') goToTab('time');
+  }, [tabParam, tab, goToTab]);
+
+  // Gestão de horas/capacidade é dado sensível de pessoas: mesma política de SQUAD_PEOPLE_ADMIN_ROLES do botão em /squad.
+  // Sem isso, qualquer usuário logado que soubesse a URL editava a capacidade alheia. Quem aprova pedidos da squad
+  // sem estar nessa lista (papel só na squad) fica só com a aba Pedidos.
+  const approverOnly = !isPeopleAdmin && canApprove;
+  useEffect(() => {
+    if (!isInitializing && userProfile && !isPeopleAdmin && approvals.loaded && !canApprove) {
       const timer = setTimeout(() => router.replace('/squad'), 100);
       return () => clearTimeout(timer);
     }
-  }, [isInitializing, userProfile, isPeopleAdmin, router]);
+  }, [isInitializing, userProfile, isPeopleAdmin, approvals.loaded, canApprove, router]);
 
   const { config, members, phase, reload, refreshMembers } = useRosterData(squadId);
   const { canManageTeam, permissionLoaded } = useCanManageTeam(squadId);
@@ -144,7 +172,21 @@ function RosterContent() {
   }
 
   if (userProfile && !isPeopleAdmin) {
-    return <PageShell documentTitle="Time da squad"><NoAccess role={userProfile.role} onBack={() => router.replace('/squad')} /></PageShell>;
+    if (!approvals.loaded) return <PageShell documentTitle="Time da squad"><RosterSkeleton /></PageShell>;
+    if (!canApprove) {
+      return <PageShell documentTitle="Time da squad"><NoAccess role={userProfile.role} onBack={() => router.replace('/squad')} /></PageShell>;
+    }
+  }
+
+  const requestsPanel = <SquadRequestsPanel requests={requests} access={approvals.access} currentUserId={userProfile?.id} />;
+
+  if (approverOnly) {
+    return (
+      <PageShell documentTitle="Pedidos de vínculo">
+        <PageHeader title="Pedidos de vínculo" breadcrumb={[{ label: 'Squad', href: '/squad' }, { label: 'Pedidos de vínculo' }]} />
+        {requestsPanel}
+      </PageShell>
+    );
   }
 
   const empty = phase === 'ready' && members.length === 0;
@@ -162,48 +204,73 @@ function RosterContent() {
       />
       <input ref={importInputRef} type="file" accept=".csv,.txt" hidden onChange={importer.onFileChange} data-testid="import-file" />
 
-      <PendingInvites
-        state={invites.state}
-        invites={invites.pending}
-        error={invites.error}
-        onCopy={invites.copyLink}
-        onRevoke={invites.revoke}
-        onRetry={invites.refresh}
-      />
+      {canApprove && (
+        <TabBar
+          tabs={[
+            { id: 'time', label: 'Time' },
+            { id: 'pedidos', label: 'Pedidos', count: requests.pendingCount ?? 0 },
+          ]}
+          value={tab ?? 'pedidos'}
+          onChange={goToTab}
+          label="Seções do time da squad"
+          idPrefix="roster"
+          className="px-0"
+          tabClassName="max-sm:h-11"
+        />
+      )}
 
-      {cameFromOnboarding && <OnboardingBanner onSkip={() => router.push('/')} />}
+      {tab === null ? (
+        <RosterSkeleton />
+      ) : tab === 'pedidos' ? (
+        <div role="tabpanel" id="roster-panel-pedidos" aria-labelledby="roster-tab-pedidos">
+          {requestsPanel}
+        </div>
+      ) : (
+        <div role={canApprove ? 'tabpanel' : undefined} id="roster-panel-time" aria-labelledby={canApprove ? 'roster-tab-time' : undefined} className="flex flex-col gap-5">
+        <PendingInvites
+          state={invites.state}
+          invites={invites.pending}
+          error={invites.error}
+          onCopy={invites.copyLink}
+          onRevoke={invites.revoke}
+          onRetry={invites.refresh}
+        />
 
-      {phase === 'loading' && <RosterSkeleton />}
-      {phase === 'error' && <RosterLoadError onRetry={reload} />}
+        {cameFromOnboarding && <OnboardingBanner onSkip={() => router.push('/')} />}
 
-      {phase === 'ready' && (
-        <>
-          <RosterKpis kpis={kpis} method={rule.method} />
-          <RosterToolbar
-            filters={filters}
-            onChange={setFilters}
-            shown={filtered.length}
-            total={members.length}
-            onOpenRule={() => setRuleOpen(true)}
-          />
-          <RosterTable
-            members={filtered}
-            rule={rule.rule}
-            isAdmin={isAdminRole}
-            canManageTeam={canManageTeam}
-            edits={edits}
-            person={person}
-            sprintId={config?.activeSprintId || undefined}
-            onRemove={setRemoveTarget}
-            footer={
-              empty ? (
-                <EmptyTeam syncing={isSyncing} canManageTeam={canManageTeam} onSync={syncFromJira} onAdd={() => addForm.setOpen(true)} />
-              ) : noResults ? (
-                <NoResults onClear={() => setFilters(NO_FILTERS)} />
-              ) : undefined
-            }
-          />
-        </>
+        {phase === 'loading' && <RosterSkeleton />}
+        {phase === 'error' && <RosterLoadError onRetry={reload} />}
+
+        {phase === 'ready' && (
+          <>
+            <RosterKpis kpis={kpis} method={rule.method} />
+            <RosterToolbar
+              filters={filters}
+              onChange={setFilters}
+              shown={filtered.length}
+              total={members.length}
+              onOpenRule={() => setRuleOpen(true)}
+            />
+            <RosterTable
+              members={filtered}
+              rule={rule.rule}
+              isAdmin={isAdminRole}
+              canManageTeam={canManageTeam}
+              edits={edits}
+              person={person}
+              sprintId={config?.activeSprintId || undefined}
+              onRemove={setRemoveTarget}
+              footer={
+                empty ? (
+                  <EmptyTeam syncing={isSyncing} canManageTeam={canManageTeam} onSync={syncFromJira} onAdd={() => addForm.setOpen(true)} />
+                ) : noResults ? (
+                  <NoResults onClear={() => setFilters(NO_FILTERS)} />
+                ) : undefined
+              }
+            />
+          </>
+        )}
+        </div>
       )}
 
       <RuleSheet open={ruleOpen} onOpenChange={setRuleOpen} rule={rule} jqlPlaceholder={`project = ${config?.jiraProjectKey || squadId} AND worklogDate >= -30d`} />
