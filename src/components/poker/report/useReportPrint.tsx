@@ -1,37 +1,52 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import type { SessionReportData } from '@/lib/poker-report';
-import { ReportPrintPortal } from './ReportPrintDocument';
+import { DEFAULT_PRINT_MODE, ReportPrintPortal, type ReportPrintMode } from './ReportPrintDocument';
 
 /** Título da aba durante a impressão: vira o nome sugerido do arquivo em "Salvar como PDF". */
-export function reportDocumentTitle(report: SessionReportData): string {
-  return `Relatório do refinamento - ${report.header.title} - ${report.header.dateLabel.replace(/\//g, '-')}`;
+export function reportDocumentTitle(report: SessionReportData, mode: Pick<ReportPrintMode, 'resultsOnly'> = { resultsOnly: false }): string {
+  return `${mode.resultsOnly ? 'Resultados da sessão' : 'Relatório do refinamento'} - ${report.header.title} - ${report.header.dateLabel.replace(/\//g, '-')}`;
 }
 
 /**
- * Impressão do relatório. O documento só existe no DOM enquanto a impressão
- * acontece (entra em `beforeprint`, sai em `afterprint`). Com `interceptBrowserPrint`,
- * o Ctrl+P do navegador também imprime o relatório em vez da tela da sala.
+ * Impressão do relatório pelo navegador (A4 paisagem). Com `interceptBrowserPrint`
+ * (tela do relatório), o documento e o CSS de impressão ficam montados o tempo todo,
+ * escondidos na tela: assim o `@page` já existe quando o navegador abre a impressão
+ * e o Ctrl+P também imprime o relatório em vez da tela da sala. Sem a opção, o
+ * documento só entra no DOM enquanto a impressão acontece.
  */
-export function useReportPrint(report: SessionReportData, options: { interceptBrowserPrint?: boolean } = {}) {
-  const { interceptBrowserPrint = false } = options;
+export function useReportPrint(report: SessionReportData, options: { interceptBrowserPrint?: boolean; disabled?: boolean } = {}) {
+  const { interceptBrowserPrint = false, disabled = false } = options;
+  // false no servidor e na hidratação, true depois (o documento vai para o <body>).
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [printing, setPrinting] = useState(false);
+  const [mode, setMode] = useState<ReportPrintMode>(DEFAULT_PRINT_MODE);
+  const [now, setNow] = useState<Date>(() => new Date());
   const forced = useRef(false);
+  const modeRef = useRef(mode);
   const savedTitle = useRef<string | null>(null);
-  const title = reportDocumentTitle(report);
 
   useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    if (disabled) return;
     const before = () => {
       if (!forced.current && !interceptBrowserPrint) return;
-      flushSync(() => setPrinting(true));
+      flushSync(() => {
+        setNow(new Date());
+        setPrinting(true);
+      });
       if (savedTitle.current === null) savedTitle.current = document.title;
-      document.title = title;
+      document.title = reportDocumentTitle(report, modeRef.current);
     };
     const after = () => {
       forced.current = false;
       setPrinting(false);
+      setMode(DEFAULT_PRINT_MODE);
       if (savedTitle.current !== null) {
         document.title = savedTitle.current;
         savedTitle.current = null;
@@ -43,13 +58,19 @@ export function useReportPrint(report: SessionReportData, options: { interceptBr
       window.removeEventListener('beforeprint', before);
       window.removeEventListener('afterprint', after);
     };
-  }, [interceptBrowserPrint, title]);
+  }, [interceptBrowserPrint, disabled, report]);
 
-  const print = useCallback(() => {
+  const print = useCallback((next: ReportPrintMode = DEFAULT_PRINT_MODE) => {
     forced.current = true;
+    modeRef.current = next;
+    flushSync(() => {
+      setMode(next);
+      setNow(new Date());
+      setPrinting(true);
+    });
     window.print();
   }, []);
 
-  const portal: React.ReactNode = printing ? <ReportPrintPortal report={report} /> : null;
+  const portal: React.ReactNode = !disabled && mounted && (interceptBrowserPrint || printing) ? <ReportPrintPortal report={report} now={now} mode={mode} /> : null;
   return { print, portal };
 }
