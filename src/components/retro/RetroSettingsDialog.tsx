@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { FIELD, Modal, ModalButton, SettingRow } from '@/components/room-kit';
 import { DEFAULT_HEALTH_CHECK_QUESTION } from '@/lib/retro-formats';
+import { RetroSceneChoice } from './RetroSceneDialog';
+import type { RetroSceneMode } from './retro-scene-mode';
 
 interface RetroSettingsDialogProps {
   isOpen: boolean;
@@ -20,6 +22,13 @@ interface RetroSettingsDialogProps {
   onToggleHealthCheck: (value: boolean) => void;
   healthCheckQuestion: string;
   onHealthCheckQuestionChange: (value: string) => void;
+  /** Preferência pessoal "Cenário da retro" (não é do quadro: vale só neste navegador). Sem ela, a seção não aparece. */
+  scene?: {
+    value: RetroSceneMode;
+    onChange: (mode: RetroSceneMode) => void;
+    locked: boolean;
+    templateKey?: string | null;
+  };
 }
 
 /**
@@ -41,6 +50,7 @@ export function RetroSettingsDialog({
   onToggleHealthCheck,
   healthCheckQuestion,
   onHealthCheckQuestionChange,
+  scene,
 }: RetroSettingsDialogProps) {
   // Digitar não pode depender do round-trip do servidor para atualizar o campo (o valor real só volta pelo
   // broadcast do quadro). O debounce evita uma gravação a cada tecla.
@@ -73,6 +83,7 @@ export function RetroSettingsDialog({
       open={isOpen}
       onOpenChange={(open) => { if (!open) onClose(); }}
       size="md"
+      className={scene ? 'sm:max-w-[640px]' : undefined}
       icon={Settings}
       title="Configurações da retro"
       description="Valem para todo o time na hora."
@@ -98,6 +109,15 @@ export function RetroSettingsDialog({
         <SettingRow id="rs-autoreveal" title="Revelar ao fim do timer" desc="Os cartões aparecem quando o tempo acaba" checked={autoRevealOnTimerEnd} onChange={onToggleAutoRevealOnTimerEnd} />
         <SettingRow id="rs-autosort" title="Ordenar por votos ao encerrar" desc="Os mais votados sobem para o topo de cada coluna" checked={autoSortOnVoteEnd} onChange={onToggleAutoSortOnVoteEnd} />
       </div>
+      {scene && (
+        <section aria-label="Cenário da retro" className="mt-4 flex flex-col gap-2.5 border-t border-border pt-4">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="m-0 text-[13px] font-bold">Cenário da retro</h3>
+            <span className="text-xs text-muted-foreground">Só para você, neste navegador: não muda a retro dos outros.</span>
+          </div>
+          <RetroSceneChoice value={scene.value} onChange={scene.onChange} locked={scene.locked} templateKey={scene.templateKey} />
+        </section>
+      )}
     </Modal>
   );
 }

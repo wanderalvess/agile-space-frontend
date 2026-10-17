@@ -47,6 +47,11 @@ import { RetroRoomBar } from './RetroRoomBar';
 import { RetroSettingsDialog } from './RetroSettingsDialog';
 import { RetroWelcome } from './RetroWelcome';
 import { presenceOnlineOf } from '@/lib/room-presence';
+import { resolveColumnIdentity, retroSceneKey, suggestedMinutes } from '@/lib/retro-format-themes';
+import { RetroScene } from './RetroScene';
+import { RetroSceneDialog } from './RetroSceneDialog';
+import { RETRO_SCENE_OPTIONS } from './retro-scene-mode';
+import { useRetroSceneMode } from './useRetroSceneMode';
 import { toChatParticipant } from './retro-chat';
 import { useStableColumnCards } from './useStableColumnCards';
 import {
@@ -55,6 +60,7 @@ import {
   isStageNavLocked,
   neighborStage,
   resolveColumns,
+  retroPhase,
   voteLimitOptions,
 } from './retro-room-logic';
 
@@ -176,6 +182,13 @@ function RetroRoomComponent(props: RetroRoomProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [sceneOpen, setSceneOpen] = useState(false);
+
+  // Cenário atrás das colunas: preferência pessoal; o tema Leitura e a apresentação limitam (ver retro-scene-mode.ts).
+  const scene = useRetroSceneMode(presenting);
+  const sceneKey = retroSceneKey(boardData.templateKey);
+  const sceneOn = sceneKey !== null && scene.mode !== 'off';
+  const sceneLabel = scene.locked ? 'Desligado' : RETRO_SCENE_OPTIONS.find((o) => o.id === scene.preference)?.label;
 
   const columns = useMemo(() => resolveColumns(boardData), [boardData]);
   const navLocked = isStageNavLocked(boardData, isCurrentUserCreator);
@@ -276,6 +289,8 @@ function RetroRoomComponent(props: RetroRoomProps) {
       readOnly={readOnly}
       typingLabel={typingLabelForColumn?.(col.id) ?? null}
       onTyping={props.onTypingCard}
+      identity={resolveColumnIdentity(boardData.templateKey, col)}
+      onScene={sceneOn}
     />
   ));
 
@@ -340,6 +355,8 @@ function RetroRoomComponent(props: RetroRoomProps) {
             isSoundEnabled={soundEnabled}
             onToggleSound={() => setSoundEnabled(!soundEnabled)}
             onLeave={() => setLeaveOpen(true)}
+            onOpenScene={sceneKey ? () => setSceneOpen(true) : undefined}
+            sceneLabel={sceneLabel}
             onOpenFeedback={props.onOpenFeedback}
             isFinished={isFinished}
           />
@@ -365,6 +382,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
             onReopenRetro={props.onReopenRetro}
             lifecycleBusy={props.lifecycleBusy}
             readOnly={readOnly}
+            suggestedMinutes={suggestedMinutes(boardData.templateKey, retroPhase(boardData))}
           />
           <RetroLiveStrip summary={summary} currentUserId={currentUserId} authorsRevealed={boardData.isAuthorsRevealed === true} />
         </>
@@ -372,7 +390,8 @@ function RetroRoomComponent(props: RetroRoomProps) {
 
       <div className="relative flex min-h-0 flex-1">
         <main className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div aria-hidden="true" className="room-halo pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]" />
+          <RetroScene templateKey={boardData.templateKey} mode={scene.mode} />
+          {!sceneOn && <div aria-hidden="true" className="room-halo pointer-events-none absolute inset-x-0 top-0 -z-10 h-[420px]" />}
 
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3 lg:px-5 [&>*]:shrink-0">
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={props.onDragEnd}>
@@ -447,10 +466,21 @@ function RetroRoomComponent(props: RetroRoomProps) {
       />
 
       {cards.length === 0 && (
-        <RetroWelcome title={boardData.title || 'Retrospectiva'} isFacilitator={isCurrentUserCreator} disabled={needsHealthCheck || presenting || readOnly} />
+        <RetroWelcome title={boardData.title || 'Retrospectiva'} isFacilitator={isCurrentUserCreator} disabled={needsHealthCheck || presenting || readOnly} templateKey={boardData.templateKey} />
       )}
 
-      <RetroGuide open={guideOpen} onOpenChange={setGuideOpen} />
+      <RetroGuide open={guideOpen} onOpenChange={setGuideOpen} templateKey={boardData.templateKey} />
+
+      {sceneKey && (
+        <RetroSceneDialog
+          open={sceneOpen}
+          onOpenChange={setSceneOpen}
+          value={scene.preference}
+          onChange={scene.setPreference}
+          locked={scene.locked}
+          templateKey={boardData.templateKey}
+        />
+      )}
 
       <ExportRetroDialog isOpen={exportOpen} onClose={() => setExportOpen(false)} boardData={boardData} cards={cards} participants={participants} />
 
@@ -470,6 +500,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
           onToggleHealthCheck={props.onToggleHealthCheck}
           healthCheckQuestion={boardData.healthCheckQuestion || ''}
           onHealthCheckQuestionChange={props.onHealthCheckQuestionChange}
+          scene={sceneKey ? { value: scene.preference, onChange: scene.setPreference, locked: scene.locked, templateKey: boardData.templateKey } : undefined}
         />
       )}
 

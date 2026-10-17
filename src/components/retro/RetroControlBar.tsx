@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, Flag, Info, RefreshCw, RotateCcw, SquareCheck, Unlock, Vote } from 'lucide-react';
+import { Check, Eye, EyeOff, Flag, Info, RefreshCw, RotateCcw, SquareCheck, Timer, Unlock, Vote } from 'lucide-react';
 import {
+  FOCUS_RING,
   ConfirmDialog,
   ModalButton,
   RoomTimer,
@@ -13,7 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { RetroBoard, TimerState } from '@/lib/types';
 import { RETRO_READ_ONLY_NOTICE } from '@/lib/retro-lifecycle';
-import { TIMER_LATE_GRACE_MS, retroPhase, voteLimitOptions, type RetroPhase } from './retro-room-logic';
+import { RETRO_PHASES, TIMER_LATE_GRACE_MS, retroPhase, voteLimitOptions, type RetroPhase } from './retro-room-logic';
 
 export type RetroLayoutMode = 'board' | 'focus';
 
@@ -117,6 +118,35 @@ export interface RetroControlBarProps {
   lifecycleBusy?: boolean;
   /** Encerrada e sem permissão para escrever: mostra o aviso de somente leitura. */
   readOnly?: boolean;
+  /** Minutos que o formato sugere para a fase atual; o facilitador aplica ao timer com um clique. Ausente = sem sugestão. */
+  suggestedMinutes?: number | null;
+}
+
+/** Chip do tempo que o formato sugere para a fase: informativo, com um clique para aplicar ao timer (nada muda sem a ação). */
+function SuggestedTime({ minutes, phaseLabel, current, onApply }: { minutes: number; phaseLabel: string; current?: number; onApply: (duration: number) => void }) {
+  const applied = current === minutes * 60;
+  return (
+    <button
+      type="button"
+      disabled={applied}
+      aria-label={applied ? `Timer no tempo sugerido para ${phaseLabel}: ${minutes} minutos` : `Aplicar ao timer: ${minutes} minutos, sugeridos para ${phaseLabel}`}
+      onClick={() => onApply(minutes * 60)}
+      className={cn(
+        'inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-[13px] text-muted-foreground transition-colors duration-fast hover:bg-accent/40 hover:text-foreground disabled:pointer-events-none',
+        FOCUS_RING
+      )}
+    >
+      {applied ? <Check className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> : <Timer className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />}
+      {applied ? (
+        <span>Timer no tempo sugerido: <strong className="font-semibold text-foreground">{minutes} min</strong></span>
+      ) : (
+        <>
+          <span>Sugerido<span className="max-2xl:hidden"> para {phaseLabel}</span>: <strong className="font-semibold text-foreground">{minutes} min</strong></span>
+          <span className="font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Aplicar ao timer</span>
+        </>
+      )}
+    </button>
+  );
 }
 
 const LAYOUT_OPTIONS = [
@@ -151,6 +181,7 @@ export function RetroControlBar({
   onReopenRetro,
   lifecycleBusy = false,
   readOnly = false,
+  suggestedMinutes = null,
 }: RetroControlBarProps) {
   const [confirm, setConfirm] = useState<'finish' | 'reopen' | null>(null);
   const phase = retroPhase(boardData);
@@ -199,6 +230,10 @@ export function RetroControlBar({
           onExpire={onTimerExpire}
           lateGraceMs={TIMER_LATE_GRACE_MS}
         />
+      )}
+
+      {isFacilitator && !isFinished && !readOnly && timer.status === 'stopped' && suggestedMinutes != null && (
+        <SuggestedTime minutes={suggestedMinutes} phaseLabel={RETRO_PHASES.find((p) => p.id === phase)?.label ?? ''} current={timer.initialDuration} onApply={onSetTimerDuration} />
       )}
 
       {isFinished && <StatusChip tone="neutral" className="h-8 px-3 text-[13px]">Encerrada</StatusChip>}
