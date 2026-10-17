@@ -4,7 +4,7 @@
  *
  * Contrato do servidor (docs/link-requests-squad-api.md do backend):
  *  - GET  /api/squads/{id}/link-requests/can-approve        -> { canApprove, canApproveLeadership }
- *  - GET  /api/squads/{id}/link-requests?status=&limit=     -> pedidos (PENDING | APPROVED | REJECTED | ALL), mais novos primeiro
+ *  - GET  /api/squads/{id}/link-requests?status=&size=      -> pedidos (PENDING | APPROVED | REJECTED | ALL), mais novos primeiro
  *  - POST /api/squads/{id}/link-requests/{reqId}/approve    -> pedido decidido (corpo opcional { memberId })
  *  - POST /api/squads/{id}/link-requests/{reqId}/reject     -> pedido decidido (corpo opcional { reason })
  *
@@ -115,11 +115,11 @@ export async function fetchApprovalAccess(squadId: string): Promise<ApprovalAcce
   }
 }
 
-/** Máximo por página do servidor; a tela mostra os mais recentes e não pagina. */
+/** Máximo de `size` por página do servidor; a tela mostra os mais recentes e não pagina. */
 export const LIST_LIMIT = 200;
 
 export async function listSquadLinkRequests(squadId: string, status: SquadRequestFilter = 'PENDING'): Promise<SquadLinkRequest[]> {
-  const res = await authFetch(`${squadPath(squadId)}?status=${encodeURIComponent(status)}&limit=${LIST_LIMIT}`);
+  const res = await authFetch(`${squadPath(squadId)}?status=${encodeURIComponent(status)}&size=${LIST_LIMIT}`);
   if (!res.ok) throw await failure(res, 'Não foi possível carregar os pedidos.');
   const data = await res.json();
   if (!Array.isArray(data)) return [];

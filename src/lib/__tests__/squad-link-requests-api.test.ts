@@ -64,7 +64,7 @@ describe('listSquadLinkRequests', () => {
   it('pede o status e o limite, e normaliza nulos', async () => {
     authFetch.mockResolvedValue(json(200, [dto]));
     const [req] = await listSquadLinkRequests('DDWMISSI', 'APPROVED');
-    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/squads\/DDWMISSI\/link-requests\?status=APPROVED&limit=200$/);
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/squads\/DDWMISSI\/link-requests\?status=APPROVED&size=200$/);
     expect(req).toMatchObject({ id: 'r1', kind: 'CONTRIBUTOR', requestedRoleName: 'Developer', canDecide: true, memberId: undefined, message: undefined });
   });
 

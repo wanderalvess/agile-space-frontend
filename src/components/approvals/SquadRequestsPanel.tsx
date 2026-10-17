@@ -52,13 +52,13 @@ function PendingActions({
   return (
     <>
       {can.approve && (
-        <ModalButton variant="primary" className="h-[34px] px-3.5 text-[13px]" disabled={busy} onClick={onApprove}>
+        <ModalButton variant="primary" className="h-[34px] px-3.5 text-[13px] max-sm:h-11" disabled={busy} onClick={onApprove}>
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> : null}
           Aprovar
         </ModalButton>
       )}
       {can.reject && (
-        <ModalButton className="h-[34px] px-3 text-[13px]" disabled={busy} onClick={onReject}>
+        <ModalButton className="h-[34px] px-3 text-[13px] max-sm:h-11" disabled={busy} onClick={onReject}>
           Recusar
         </ModalButton>
       )}
@@ -135,6 +135,7 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
                 kind={req.requestedRoleName ? `${KIND_LABEL[req.kind]} · ${req.requestedRoleName}` : KIND_LABEL[req.kind]}
                 detail={requestDetail(req)}
                 when={relativeWhen(req.createdAt)}
+                columnsClassName="lg:grid-cols-[38px_minmax(0,1.2fr)_minmax(0,1.6fr)_130px_minmax(0,300px)]"
                 actions={
                   <PendingActions
                     req={req}
@@ -155,7 +156,7 @@ export function SquadRequestsPanel({ requests, access, currentUserId }: { reques
             {items.map((r) => (
               <HistoryLine
                 key={r.id}
-                left={r.requestedRoleName ? `${requesterName(r)} · ${r.requestedRoleName}` : requesterName(r)}
+                left={[requesterName(r), r.requestedRoleName || r.memberName].filter(Boolean).join(' · ')}
                 status={STATUS_LABEL[r.status]}
                 right={
                   <>

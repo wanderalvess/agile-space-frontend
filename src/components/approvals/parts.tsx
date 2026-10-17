@@ -30,6 +30,7 @@ export function ApprovalListRow({
   detail,
   when,
   actions,
+  columnsClassName,
 }: {
   icon?: LucideIcon;
   /** Substitui a placa do tipo (ex.: avatar com iniciais). */
@@ -40,9 +41,16 @@ export function ApprovalListRow({
   detail: React.ReactNode;
   when: string;
   actions: React.ReactNode;
+  /** Colunas da grade a partir de `lg`. Com ações de largura fixa as linhas alinham entre si. */
+  columnsClassName?: string;
 }) {
   return (
-    <div className="grid grid-cols-[38px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2.5 border-b border-border p-4 last:border-b-0 lg:grid-cols-[38px_minmax(0,1.3fr)_minmax(0,1.6fr)_170px_auto]">
+    <div
+      className={cn(
+        'grid grid-cols-[38px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2.5 border-b border-border p-4 last:border-b-0',
+        columnsClassName ?? 'lg:grid-cols-[38px_minmax(0,1.3fr)_minmax(0,1.6fr)_170px_auto]',
+      )}
+    >
       {leading ?? (icon ? <IconTile icon={icon} tone={tone ?? 'brand'} size="lg" className="h-[38px] w-[38px] rounded-xl" /> : <span aria-hidden="true" />)}
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="break-words text-sm font-bold text-foreground">{who}</span>
