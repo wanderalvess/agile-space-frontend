@@ -8,7 +8,7 @@ export default function ProjectsGovernancePage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/admin?tab=governance');
+    router.replace('/admin?tab=jira');
   }, [router]);
 
   return <LoadingScreen />;
