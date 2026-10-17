@@ -1,346 +1,389 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { feedbackApi, FeedbackData } from '@/app/feedback/api';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select';
-import {
-  Search,
-  Trash2,
-  Filter,
-  Download,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  MoreVertical,
-  ChevronDown,
-  MessageSquare
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Download, Gauge, Trash2 } from 'lucide-react';
+import { feedbackApi, type FeedbackData } from '@/app/feedback/api';
+import { userApi } from '@/app/users/api';
 import { toast } from '@/hooks/use-toast';
-import { AgileSpinner } from '../ui/AgileSpinner';
+import { DataTable, DataToolbar, EmptyState, ErrorState, KpiCard, KpiRow, LoadingSkeleton, type DataColumn } from '@/components/page';
+import { ConfirmDialog, FOCUS_RING, IconButton, ModalButton, SelectField, StatusChip, TONES, type Tone } from '@/components/room-kit';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { ChipGroup, ShowMoreFooter, useVisibleLimit } from './AdminOpsParts';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuLabel
-} from "@/components/ui/dropdown-menu";
+  PAGE_STEP,
+  buildCsv,
+  buildNameIndex,
+  computeNps,
+  downloadCsv,
+  filterFeedbacks,
+  formatNps,
+  matchesScoreTab,
+  nextChunk,
+  npsSubtitle,
+  resolveName,
+  type NameIndex,
+  type ScoreTab,
+} from './admin-ops-utils';
 
 interface Feedback extends FeedbackData {
   status: string;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  OPEN: { label: 'Novo', color: 'bg-blue-500', icon: Clock },
-  REVIEWED: { label: 'Em Análise', color: 'bg-amber-500', icon: AlertCircle },
-  ADDRESSED: { label: 'Resolvido', color: 'bg-emerald-500', icon: CheckCircle2 },
-  ARCHIVED: { label: 'Arquivado', color: 'bg-slate-400', icon: Trash2 },
+const STATUS_CONFIG: Record<string, { label: string; tone: Tone; dot: string }> = {
+  OPEN: { label: 'Novo', tone: 'brand', dot: 'bg-primary' },
+  REVIEWED: { label: 'Em análise', tone: 'warn', dot: 'bg-amber-500' },
+  ADDRESSED: { label: 'Resolvido', tone: 'success', dot: 'bg-emerald-500' },
+  ARCHIVED: { label: 'Arquivado', tone: 'neutral', dot: 'bg-muted-foreground' },
 };
 
 const getStatusConfig = (status: string) => STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
 
+function scoreTone(score: number): Tone {
+  if (score === -1) return 'brand';
+  if (score >= 9) return 'success';
+  if (score >= 7) return 'warn';
+  return 'danger';
+}
+
+function CommentCell({ comment, who }: { comment?: string | null; who: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const long = (comment || '').length > 140;
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {comment ? (
+        <p className={cn('text-[13px] italic leading-snug text-foreground', !open && 'line-clamp-2')}>“{comment}”</p>
+      ) : (
+        <p className="text-[13px] text-muted-foreground">Sem comentário</p>
+      )}
+      {long && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className={cn('w-fit rounded text-xs font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground', FOCUS_RING)}
+        >
+          {open ? 'Mostrar menos' : 'Mostrar tudo'}
+        </button>
+      )}
+      <span className="truncate text-xs text-muted-foreground">{who}</span>
+    </div>
+  );
+}
+
 export function FeedbackManager() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [names, setNames] = useState<NameIndex | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [toolFilter, setToolFilter] = useState<string>('all');
-  const [scoreFilter, setScoreFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [toolFilter, setToolFilter] = useState('all');
+  const [scoreFilter, setScoreFilter] = useState<ScoreTab>('all');
+  const [pendingDelete, setPendingDelete] = useState<Feedback | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const data = await feedbackApi.listFeedbacks();
+      setFeedbacks(data.map((f) => ({ ...f, status: f.status || 'OPEN' })));
+    } catch (e) {
+      console.error('FeedbackManager: erro ao carregar feedbacks:', e);
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    load();
+  }, [load]);
+
+  // Nome no lugar do ID: usa a lista de usuários do admin; sem ela, o ID continua aparecendo.
+  useEffect(() => {
     let cancelled = false;
-
-    (async () => {
-      try {
-        const data = await feedbackApi.listFeedbacks();
-        if (!cancelled) {
-          setFeedbacks(data.map(f => ({ ...f, status: f.status || 'OPEN' })));
-        }
-      } catch (e) {
-        console.error('FeedbackManager: error loading feedbacks:', e);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
+    userApi
+      .getAllUsers()
+      .then((users) => {
+        if (!cancelled) setNames(buildNameIndex(users));
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const tools = useMemo(() => {
-    const set = new Set(feedbacks.map(f => f.toolName));
-    return Array.from(set).sort();
-  }, [feedbacks]);
+  const tools = useMemo(() => Array.from(new Set(feedbacks.map((f) => f.toolName))).sort(), [feedbacks]);
 
-  const filteredFeedbacks = useMemo(() => {
-    return feedbacks.filter(f => {
-      const matchSearch = (f.comment || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (f.userId || '').toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = statusFilter === 'all' || f.status === statusFilter;
-      const matchTool = toolFilter === 'all' || f.toolName === toolFilter;
+  const filtered = useMemo(
+    () => filterFeedbacks(feedbacks, { search: searchTerm, status: statusFilter, tool: toolFilter, tab: scoreFilter }, names),
+    [feedbacks, searchTerm, statusFilter, toolFilter, scoreFilter, names],
+  );
+  const [visibleLimit, showMore] = useVisibleLimit(`${searchTerm}|${statusFilter}|${toolFilter}|${scoreFilter}`, PAGE_STEP);
+  const shown = useMemo(() => filtered.slice(0, visibleLimit), [filtered, visibleLimit]);
+  const nps = useMemo(() => computeNps(feedbacks.map((f) => f.score)), [feedbacks]);
+  const hasFilters = searchTerm.trim() !== '' || statusFilter !== 'all' || toolFilter !== 'all' || scoreFilter !== 'all';
 
-      let matchScore = true;
-      if (scoreFilter === 'promoters') matchScore = f.score >= 9;
-      else if (scoreFilter === 'neutrals') matchScore = f.score >= 7 && f.score <= 8;
-      else if (scoreFilter === 'detractors') matchScore = f.score >= 0 && f.score <= 6;
-      else if (scoreFilter === 'suggestions') matchScore = f.score === -1;
-
-      return matchSearch && matchStatus && matchTool && matchScore;
-    });
-  }, [feedbacks, searchTerm, statusFilter, toolFilter, scoreFilter]);
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setToolFilter('all');
+    setScoreFilter('all');
+  };
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
       await feedbackApi.updateStatus(id, status);
-      setFeedbacks(prev => prev.map(f => (f.id === id ? { ...f, status } : f)));
-      toast({ title: "Status atualizado", description: `Feedback marcado como ${getStatusConfig(status).label}.` });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erro ao atualizar" });
+      setFeedbacks((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
+      toast({ title: 'Status atualizado', description: `Feedback marcado como ${getStatusConfig(status).label}.` });
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao atualizar' });
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Deseja realmente excluir este feedback?")) return;
+  const handleDelete = async () => {
+    const target = pendingDelete;
+    if (!target?.id) return;
+    setDeleting(true);
     try {
-      await feedbackApi.deleteFeedback(id);
-      setFeedbacks(prev => prev.filter(f => f.id !== id));
-      toast({ title: "Feedback excluído" });
-    } catch (e) {
-      toast({ variant: "destructive", title: "Erro ao excluir" });
+      await feedbackApi.deleteFeedback(target.id);
+      setFeedbacks((prev) => prev.filter((f) => f.id !== target.id));
+      toast({ title: 'Feedback excluído' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao excluir' });
+    } finally {
+      setDeleting(false);
+      setPendingDelete(null);
     }
   };
 
   const exportToCSV = () => {
-    if (filteredFeedbacks.length === 0) return;
-    const headers = ["Data", "Ferramenta", "Nota", "Status", "Usuário", "Comentário"];
-    const rows = filteredFeedbacks.map(f => {
-      const date = f.createdAt ? new Date(f.createdAt).toLocaleString('pt-BR') : 'N/A';
-      return [
-        date,
-        f.toolName,
-        f.score === -1 ? "Sugestão" : f.score,
-        f.status,
-        f.userId || 'N/A',
-        `"${(f.comment || '').replace(/"/g, '""')}"`,
-      ];
-    });
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `feedbacks_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (filtered.length === 0) {
+      toast({ title: 'Nada para exportar', description: 'Nenhum feedback no filtro atual.' });
+      return;
+    }
+    const headers = ['Data', 'Ferramenta', 'Nota', 'Status', 'Usuário', 'Comentário'];
+    const rows = filtered.map((f) => [
+      f.createdAt ? new Date(f.createdAt).toLocaleString('pt-BR') : 'N/A',
+      f.toolName,
+      f.score === -1 ? 'Sugestão' : f.score,
+      f.status,
+      f.userId || 'N/A',
+      f.comment || '',
+    ]);
+    downloadCsv(`feedbacks_export_${new Date().toISOString().split('T')[0]}.csv`, buildCsv(headers, rows, [5]));
   };
 
-  if (loading) {
-    return (
-      <div className="h-64 flex flex-col items-center justify-center gap-4">
-        <AgileSpinner size="lg" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Carregando Feedbacks...</p>
-      </div>
-    );
+  if (loading) return <LoadingSkeleton variant="table" rows={6} label="Carregando feedbacks" />;
+  if (loadError) {
+    return <ErrorState title="Não foi possível carregar os feedbacks" onRetry={load} />;
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Barra de Filtros Premium */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-2 relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
-          <Input
-            placeholder="Buscar em comentários ou usuários..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 h-12 bg-white border-slate-200 rounded-xl shadow-sm"
-          />
+  const tabs = [
+    { id: 'all' as const, label: 'Todos', count: feedbacks.length },
+    { id: 'promoters' as const, label: 'Promotores', count: feedbacks.filter((f) => matchesScoreTab(f.score, 'promoters')).length },
+    { id: 'neutrals' as const, label: 'Neutros', count: feedbacks.filter((f) => matchesScoreTab(f.score, 'neutrals')).length },
+    { id: 'detractors' as const, label: 'Detratores', count: feedbacks.filter((f) => matchesScoreTab(f.score, 'detractors')).length },
+    { id: 'suggestions' as const, label: 'Sugestões', count: feedbacks.filter((f) => matchesScoreTab(f.score, 'suggestions')).length },
+  ];
+
+  const columns: DataColumn<Feedback>[] = [
+    {
+      id: 'date',
+      header: 'Data',
+      width: '104px',
+      cell: (f) => (
+        <div className="flex flex-col">
+          <span className="text-[13px] font-medium text-foreground">{f.createdAt ? new Date(f.createdAt).toLocaleDateString('pt-BR') : 'Agora'}</span>
+          <span className="text-xs text-muted-foreground">
+            {f.createdAt ? new Date(f.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+          </span>
         </div>
-
-        <Select value={toolFilter} onValueChange={setToolFilter}>
-          <SelectTrigger className="h-12 bg-white border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest">
-            <SelectValue placeholder="Ferramenta" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl">
-            <SelectItem value="all" className="text-[10px] font-black uppercase tracking-widest">Todas Ferramentas</SelectItem>
-            {tools.map(t => (
-              <SelectItem key={t} value={t} className="text-[10px] font-bold uppercase tracking-widest">{t}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-12 bg-white border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent className="rounded-xl">
-            <SelectItem value="all" className="text-[10px] font-black uppercase tracking-widest">Todos Status</SelectItem>
-            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-              <SelectItem key={key} value={key} className="text-[10px] font-bold uppercase tracking-widest">{config.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Button onClick={exportToCSV} variant="outline" className="h-12 border-slate-200 rounded-xl font-black uppercase text-[10px] tracking-widest gap-2 bg-white">
-          <Download className="h-4 w-4" /> Exportar
-        </Button>
-      </div>
-
-      {/* Tabs Rápidas de NPS */}
-      <div className="flex flex-wrap gap-2">
-         {[
-           { id: 'all', label: 'Todos', count: feedbacks.length },
-           { id: 'promoters', label: 'Promotores', count: feedbacks.filter(f => f.score >= 9).length, color: 'text-emerald-600 bg-emerald-50' },
-           { id: 'neutrals', label: 'Neutros', count: feedbacks.filter(f => f.score >= 7 && f.score <= 8).length, color: 'text-amber-600 bg-amber-50' },
-           { id: 'detractors', label: 'Detratores', count: feedbacks.filter(f => f.score >= 0 && f.score <= 6).length, color: 'text-rose-600 bg-rose-50' },
-           { id: 'suggestions', label: 'Sugestões', count: feedbacks.filter(f => f.score === -1).length, color: 'text-blue-600 bg-blue-50' }
-         ].map(tab => (
-           <button
-             key={tab.id}
-             onClick={() => setScoreFilter(tab.id)}
-             className={cn(
-               "px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border",
-               scoreFilter === tab.id
-                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-105"
-                : cn("bg-white border-slate-200 text-slate-400 hover:border-primary/40", tab.color)
-             )}
-           >
-             {tab.label} ({tab.count})
-           </button>
-         ))}
-      </div>
-
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50">
-            <TableRow className="hover:bg-transparent border-slate-100">
-              <TableHead className="w-[120px] pl-8 h-14 font-black uppercase text-[10px] tracking-widest text-slate-500">Data</TableHead>
-              <TableHead className="w-[150px] h-14 font-black uppercase text-[10px] tracking-widest text-slate-500">Ferramenta</TableHead>
-              <TableHead className="w-[80px] h-14 font-black uppercase text-[10px] tracking-widest text-slate-500 text-center">Score</TableHead>
-              <TableHead className="h-14 font-black uppercase text-[10px] tracking-widest text-slate-500">Comentário</TableHead>
-              <TableHead className="w-[140px] h-14 font-black uppercase text-[10px] tracking-widest text-slate-500">Status</TableHead>
-              <TableHead className="w-[80px] h-14 font-black uppercase text-[10px] tracking-widest text-slate-500 text-right pr-8">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <AnimatePresence mode="popLayout">
-              {filteredFeedbacks.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    Nenhum feedback encontrado com os filtros atuais.
-                  </TableCell>
-                </TableRow>
-              ) : filteredFeedbacks.map((f) => (
-                <TableRow key={f.id} className="group hover:bg-slate-50/50 border-slate-100 transition-colors">
-                  <TableCell className="py-4 pl-8">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-900 italic">
-                        {f.createdAt ? new Date(f.createdAt).toLocaleDateString('pt-BR') : 'Agora'}
-                      </span>
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-tight">
-                        {f.createdAt ? new Date(f.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <span className="text-[10px] font-black text-primary uppercase tracking-tighter truncate max-w-[140px] block">{f.toolName}</span>
-                  </TableCell>
-                  <TableCell className="py-4 text-center">
-                    {f.score === -1 ? (
-                      <Badge className="bg-blue-100 text-blue-600 border-none text-[8px] font-black">SUGESTÃO</Badge>
-                    ) : (
-                      <div className={cn(
-                        "inline-flex items-center justify-center w-8 h-8 rounded-xl text-xs font-black text-white shadow-sm",
-                        f.score >= 9 ? 'bg-emerald-500 shadow-emerald-500/20' : f.score >= 7 ? 'bg-amber-500 shadow-amber-500/20' : 'bg-rose-500 shadow-rose-500/20'
-                      )}>
-                        {f.score}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col gap-1 max-w-md">
-                      <p className="text-[12px] font-medium text-slate-700 leading-snug line-clamp-2 italic group-hover:line-clamp-none transition-all">
-                        {f.comment ? `"${f.comment}"` : <span className="text-slate-300">Sem comentário</span>}
-                      </p>
-                      <span className="text-[8px] font-bold text-slate-400 truncate">{f.userId}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className={cn(
-                          "h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest gap-2 border border-transparent hover:border-slate-200 transition-all",
-                          getStatusConfig(f.status).color.replace('bg-', 'text-')
-                        )}>
-                          {React.createElement(getStatusConfig(f.status).icon, { className: "h-3.5 w-3.5" })}
-                          {getStatusConfig(f.status).label}
-                          <ChevronDown className="h-3 w-3 opacity-50" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="rounded-xl border-slate-200 shadow-2xl p-1">
-                        <DropdownMenuLabel className="text-[8px] font-black uppercase tracking-widest text-slate-400 p-2">Alterar Status</DropdownMenuLabel>
-                        {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                          <DropdownMenuItem
-                            key={key}
-                            onClick={() => handleUpdateStatus(f.id!, key)}
-                            className="rounded-lg text-[10px] font-bold uppercase tracking-widest gap-3 p-2 cursor-pointer"
-                          >
-                             <div className={cn("w-2 h-2 rounded-full", config.color)} />
-                             {config.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                  <TableCell className="py-4 text-right pr-8">
-                    <div className="flex items-center justify-end gap-1">
-                       <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(f.id!)}
-                        className="h-9 w-9 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+      ),
+    },
+    {
+      id: 'tool',
+      header: 'Ferramenta',
+      width: '150px',
+      cell: (f) => <span className="truncate text-[13px] font-semibold text-foreground" title={f.toolName}>{f.toolName}</span>,
+    },
+    {
+      id: 'score',
+      header: 'Nota',
+      width: '92px',
+      cell: (f) => (
+        <StatusChip tone={scoreTone(f.score)} className="h-7 min-w-[36px] justify-center px-2.5 text-[13px] tabular-nums">
+          {f.score === -1 ? 'Sugestão' : f.score}
+        </StatusChip>
+      ),
+    },
+    {
+      id: 'comment',
+      header: 'Comentário',
+      width: 'minmax(0,1fr)',
+      cell: (f) => {
+        const person = resolveName(names, f.userId);
+        return (
+          <CommentCell
+            comment={f.comment}
+            who={person ? <span title={f.userId || undefined}>{person}</span> : <span className="font-mono">{f.userId}</span>}
+          />
+        );
+      },
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      width: '150px',
+      cell: (f) => {
+        const cfg = getStatusConfig(f.status);
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Status do feedback: ${cfg.label}. Alterar`}
+                className={cn(
+                  'inline-flex h-9 items-center gap-2 rounded-lg border border-transparent px-2.5 text-[13px] font-semibold transition-colors hover:border-border hover:bg-accent max-sm:h-11',
+                  TONES[cfg.tone].text,
+                  FOCUS_RING,
+                )}
+              >
+                <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', cfg.dot)} />
+                {cfg.label}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="min-w-[180px] rounded-xl border-border bg-popover p-1 text-popover-foreground">
+              <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Alterar status</DropdownMenuLabel>
+              {Object.entries(STATUS_CONFIG).map(([key, c]) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handleUpdateStatus(f.id!, key)}
+                  className={cn('cursor-pointer gap-2.5 rounded-lg text-[13px]', f.status === key ? 'font-bold' : 'font-medium')}
+                >
+                  <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', c.dot)} />
+                  {c.label}
+                </DropdownMenuItem>
               ))}
-            </AnimatePresence>
-          </TableBody>
-        </Table>
-      </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Ações',
+      width: '56px',
+      align: 'end',
+      cell: (f) => (
+        <IconButton
+          size="sm"
+          label="Excluir o feedback"
+          icon={Trash2}
+          onClick={() => setPendingDelete(f)}
+          className="hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300"
+        />
+      ),
+    },
+  ];
 
-      <div className="flex justify-between items-center px-4">
-         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-           Exibindo {filteredFeedbacks.length} de {feedbacks.length} feedbacks
-         </p>
-         <div className="flex gap-2">
-            <Button variant="ghost" className="h-10 text-[9px] font-black uppercase tracking-widest text-slate-400" disabled>Anterior</Button>
-            <Button variant="ghost" className="h-10 text-[9px] font-black uppercase tracking-widest text-slate-400" disabled>Próximo</Button>
-         </div>
-      </div>
+  return (
+    <div className="flex flex-col gap-4">
+      <KpiRow columns={2}>
+        <KpiCard label="NPS geral" value={formatNps(nps.nps)} hint={npsSubtitle(nps)} icon={Gauge} />
+      </KpiRow>
+
+      <DataToolbar
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: 'Buscar em comentários ou usuários...',
+          ariaLabel: 'Buscar em comentários ou usuários',
+        }}
+        filters={
+          <>
+            <SelectField
+              aria-label="Ferramenta"
+              value={toolFilter}
+              onChange={setToolFilter}
+              options={[{ value: 'all', label: 'Todas as ferramentas' }, ...tools.map((t) => ({ value: t, label: t }))]}
+              className="h-[38px] w-[200px]"
+            />
+            <SelectField
+              aria-label="Status"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[{ value: 'all', label: 'Todos os status' }, ...Object.entries(STATUS_CONFIG).map(([value, c]) => ({ value, label: c.label }))]}
+              className="h-[38px] w-[170px]"
+            />
+          </>
+        }
+        actions={
+          <ModalButton variant="secondary" onClick={exportToCSV} title="O CSV leva só o que está filtrado: data, ferramenta, nota, status, usuário, comentário">
+            <Download className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Exportar CSV
+          </ModalButton>
+        }
+      />
+
+      <ChipGroup options={tabs} value={scoreFilter} onChange={setScoreFilter} ariaLabel="Faixa de nota" />
+
+      {feedbacks.length === 0 ? (
+        <EmptyState title="Nenhum feedback recebido ainda" description="O botão de feedback do rodapé alimenta esta lista." />
+      ) : (
+        <DataTable
+          ariaLabel="Feedbacks recebidos"
+          columns={columns}
+          rows={shown}
+          getRowId={(f) => f.id || `${f.toolName}-${f.createdAt}`}
+          stackBelow="lg"
+          empty={
+            <EmptyState
+              embedded
+              title="Nenhum feedback encontrado com os filtros atuais"
+              actions={hasFilters ? <ModalButton variant="secondary" onClick={clearFilters}>Limpar filtros</ModalButton> : undefined}
+            />
+          }
+          footer={
+            filtered.length > 0 ? (
+              <ShowMoreFooter
+                shown={shown.length}
+                total={filtered.length}
+                noun="feedbacks"
+                chunk={nextChunk(filtered.length, shown.length)}
+                onMore={showMore}
+              />
+            ) : undefined
+          }
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null); }}
+        tone="danger"
+        icon={Trash2}
+        title="Excluir este feedback?"
+        description="Esta ação é irreversível."
+        cancelLabel="Manter"
+        confirmLabel="Excluir feedback"
+        loading={deleting}
+        loadingLabel="Excluindo…"
+        keepOpenOnConfirm
+        onConfirm={handleDelete}
+      >
+        {pendingDelete && (
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusChip tone={scoreTone(pendingDelete.score)}>{pendingDelete.score === -1 ? 'Sugestão' : pendingDelete.score}</StatusChip>
+              <span className="text-[13px] font-semibold text-foreground">{pendingDelete.toolName}</span>
+            </div>
+            <p className="text-[13px] italic text-muted-foreground">{pendingDelete.comment ? `“${pendingDelete.comment}”` : 'Sem comentário'}</p>
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }
