@@ -1,67 +1,46 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, UserRound } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Check, Link2, Loader2, Plug, ShieldCheck, UserRound } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useJiraSettings } from '@/hooks/useJiraSettings';
 import { useProfilePhoto } from '@/hooks/useProfilePhoto';
 import { userApi } from '@/app/users/api';
-import { normalizeRole } from '@/lib/types';
-import type { GlobalRole } from '@/lib/types';
 import { bestJiraAvatar, writeStoredProfilePhoto } from '@/lib/profile-photo';
-import { FOCUS_RING, Modal, ModalButton, RoleChip, StatusChip, TabBar, useBelowBreakpoint } from '@/components/room-kit';
+import { Modal, ModalButton } from '@/components/room-kit';
 import { ChangePasswordSection } from '@/components/layout/ChangePasswordSection';
-import { InitialsAvatar } from '@/components/common/InitialsAvatar';
+import { IdentityHeader } from '@/components/profile/IdentityHeader';
+import { IdentityNav, type IdentityNavItem } from '@/components/profile/IdentityNav';
 import { JiraPanel, type JiraAccount } from '@/components/profile/JiraPanel';
-import { ProfileFields, type ProfileErrors } from '@/components/profile/ProfileFields';
+import { LinksSection } from '@/components/profile/LinksSection';
+import { ProfileSection, type ProfileErrors } from '@/components/profile/ProfileSection';
+import { VisitorPanel } from '@/components/profile/VisitorPanel';
+import { useMyLinks } from '@/components/profile/useMyLinks';
 import { useRestoreFocus } from '@/components/profile/useRestoreFocus';
-import { useSquadOptions } from '@/components/profile/useSquadOptions';
 
-type TabId = 'profile' | 'jira' | 'security';
-
-const TAB_LABELS: Record<TabId, string> = { profile: 'Perfil', jira: 'Jira', security: 'Segurança' };
+type TabId = 'profile' | 'links' | 'jira' | 'security';
 
 /**
- * "Minha identidade": nome, papel, projeto/squad, conexão com o Jira e troca de senha. No topo, a foto do Jira
- * (quando há) ou um círculo com as iniciais do nome.
+ * "Minha identidade": quem a pessoa é (nome, foto), as squads a que ela está vinculada (somente leitura),
+ * a conexão com o Jira e a troca de senha. Projeto, squad e papel não se escolhem aqui: o vínculo nasce
+ * por Jira, convite ou pedido aprovado (ver "Meus vínculos").
  */
 export function UserProfileModal() {
   const { settings: jiraSettingsStore, saveSettings: saveJiraSettings, removeSettings: removeJiraSettings } = useJiraSettings();
-  const {
-    userProfile,
-    userSquads,
-    setGuestProfile,
-    updateProfile,
-    isEditProfileOpen,
-    setIsEditProfileOpen,
-    mustOnboard,
-    isIdentityRequested,
-    setIsIdentityRequested,
-    isPublicExploration,
-  } = useUserContext();
+  const { userProfile, updateProfile, isEditProfileOpen, setIsEditProfileOpen, mustOnboard, isIdentityRequested, setIsIdentityRequested, isPublicExploration } =
+    useUserContext();
 
   const { toast } = useToast();
-  const compact = useBelowBreakpoint(768);
+  const router = useRouter();
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [isSyncingJira, setIsSyncingJira] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<ProfileErrors>({});
-
   const [name, setName] = useState('');
-  const [role, setRole] = useState<GlobalRole | ''>('');
-
-  // Projeto e Squad separados
-  const [projectId, setProjectId] = useState('');
-  const [customProject, setCustomProject] = useState('');
-  const [isCustomProject, setIsCustomProject] = useState(false);
-
-  const [squadId, setSquadId] = useState('');
-  const [customSquad, setCustomSquad] = useState('');
-  const [isCustomSquad, setIsCustomSquad] = useState(false);
-
-  const [email, setEmail] = useState('');
 
   // Jira PAT Token & Domain
   const [jiraDomain, setJiraDomain] = useState('');
@@ -73,24 +52,16 @@ export function UserProfileModal() {
   const [jiraAccountDetails, setJiraAccountDetails] = useState<JiraAccount | null>(null);
 
   const nameRef = useRef<HTMLInputElement>(null);
-  const roleRef = useRef<HTMLButtonElement>(null);
-  const projectRef = useRef<HTMLButtonElement>(null);
 
   const isOpen = isEditProfileOpen || (isIdentityRequested && !isPublicExploration);
-  const isNewUser = !userProfile || userProfile.isGuest || !userProfile.name;
-  // Projeto/Squad de conta real já onboardada só troca pelo seletor do header
-  // (useAuth().switchProject — autorizado, persiste no backend). Esse campo
-  // aqui grava só localmente via updateProfile() e é sobrescrito no próximo
-  // refresh de sessão, então deixar editável fingia uma troca que não pegava.
-  const squadEditLocked = !isNewUser;
-  // O e-mail vem da sessão autenticada: updateProfile() o descarta, então editá-lo não adiantava.
-  const emailReadOnly = !!userProfile?.email;
-  const canChangePassword = !!userProfile && !userProfile.isGuest;
+  // Sem sessão não há perfil para editar: o caminho é entrar.
+  const isVisitor = !userProfile || userProfile.isGuest;
+  const canChangePassword = !isVisitor;
+  const email = userProfile?.email || '';
+  const isAdmin = userProfile?.role === 'admin';
 
   const restoreFocus = useRestoreFocus(isOpen);
-
-  const { rawSquads, isSquadsLoaded, availableProjects, squadsForProject } = useSquadOptions({ isOpen, userProfile, userSquads });
-  const availableSquadsForProject = squadsForProject(projectId);
+  const { links, active: activeLink, activate, switchingTo, canSwitch } = useMyLinks();
 
   // Foto do Jira: da importação do time, da última sincronização ou da sincronização feita agora, no modal.
   const { photo, reportBroken, available: photoAvailable, photoOff, setPhotoOff } = useProfilePhoto({
@@ -109,39 +80,12 @@ export function UserProfileModal() {
     }
   }, [isOpen, jiraSettingsStore]);
 
+  // O nome em edição parte do nome da conta ao abrir (e acompanha o nome salvo).
   useEffect(() => {
-    if (userProfile && isOpen && isSquadsLoaded) {
-      setName(userProfile.name || '');
-      const initialRole = userProfile.role ? normalizeRole(userProfile.role) : '';
-      setRole(initialRole);
-      setEmail(userProfile.email || '');
+    if (isOpen) setName(userProfile?.name || '');
+  }, [isOpen, userProfile?.name]);
 
-      const activeSquadOrProject = userProfile.squadId || '';
-      const foundSquad = rawSquads.find((s) => s.id === activeSquadOrProject);
-      if (foundSquad) {
-        setProjectId(foundSquad.jiraProjectKey || foundSquad.id);
-        setIsCustomProject(false);
-        setIsCustomSquad(false);
-        if (foundSquad.id !== foundSquad.jiraProjectKey) {
-          setSquadId(foundSquad.id);
-        } else {
-          setSquadId('none');
-        }
-      } else if (availableProjects.some((p) => p.id === activeSquadOrProject)) {
-        setProjectId(activeSquadOrProject);
-        setIsCustomProject(false);
-        setIsCustomSquad(false);
-        setSquadId('none');
-      } else if (activeSquadOrProject) {
-        setProjectId('other');
-        setCustomProject(activeSquadOrProject);
-        setIsCustomProject(true);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile, isOpen, isSquadsLoaded, rawSquads]);
-
-  // Ao abrir: volta para a aba Perfil, limpa erros e põe o foco no nome (só com mouse/teclado;
+  // Ao abrir: volta para a seção Perfil, limpa erros e põe o foco no nome (só com mouse/teclado;
   // no celular o teclado não deve abrir sozinho). Ao fechar: esquece a conta sincronizada.
   useEffect(() => {
     if (!isOpen) {
@@ -179,11 +123,6 @@ export function UserProfileModal() {
       const jiraUser: JiraAccount | null = await userApi.getMyself(domainToUse, tokenToUse);
       if (jiraUser) {
         if (jiraUser.displayName) setName(jiraUser.displayName);
-        // Conta com e-mail da sessão não troca de e-mail (ele é descartado ao salvar).
-        if (!emailReadOnly) {
-          const resolvedEmail = jiraUser.emailAddress || email || '';
-          if (resolvedEmail) setEmail(resolvedEmail);
-        }
 
         if (rememberJira) {
           // Salva credenciais na fonte única (useJiraSettings): localStorage escopado por
@@ -228,50 +167,29 @@ export function UserProfileModal() {
     setIsIdentityRequested(false);
   };
 
-  const finalProject = isCustomProject ? customProject.trim() : projectId;
-  const finalSquad = isCustomSquad ? customSquad.trim() : squadId && squadId !== 'none' ? squadId : finalProject;
+  const goLogin = () => {
+    closeModal();
+    const here = typeof window !== 'undefined' ? `${pathname}${window.location.search}` : pathname;
+    router.push(`/login?returnUrl=${encodeURIComponent(here)}`);
+  };
 
-  const dirty =
-    !!userProfile &&
-    (name.trim() !== (userProfile.name || '') ||
-      role !== (userProfile.role ? normalizeRole(userProfile.role) : '') ||
-      finalSquad !== (userProfile.squadId || ''));
-  // Quem ainda não tem perfil completo precisa poder concluir mesmo sem mexer em nada.
-  const canSave = !saving && (!userProfile || isSquadsLoaded) && (isNewUser || dirty);
+  const dirty = !!userProfile && name.trim() !== (userProfile.name || '');
+  const canSave = !saving && dirty;
 
   const handleSave = async () => {
-    const next: ProfileErrors = {};
-    if (!name.trim()) next.name = 'Informe seu nome.';
-    if (!role) next.role = 'Selecione o papel.';
-    if (!finalProject && !finalSquad) next.project = 'Selecione o projeto.';
-
-    if (next.name || next.role || next.project) {
-      setErrors(next);
+    if (!name.trim()) {
+      setErrors({ name: 'Informe seu nome.' });
       setActiveTab('profile');
-      toast({
-        title: next.name ? 'Nome obrigatório' : next.role ? 'Função obrigatória' : 'Projeto obrigatório',
-        variant: 'destructive',
-      });
-      window.setTimeout(() => {
-        (next.name ? nameRef.current : next.role ? roleRef.current : projectRef.current)?.focus();
-      }, 0);
+      toast({ title: 'Nome obrigatório', variant: 'destructive' });
+      window.setTimeout(() => nameRef.current?.focus(), 0);
       return;
     }
     setErrors({});
 
     setSaving(true);
     try {
-      if (!userProfile || userProfile.isGuest) {
-        await setGuestProfile(name.trim(), role as GlobalRole, finalSquad, email.trim());
-      } else {
-        await updateProfile({
-          name: name.trim(),
-          role: role as GlobalRole,
-          squadId: finalSquad,
-          email: email.trim(),
-        });
-      }
-
+      // Só o nome é da pessoa: papel e squad seguem os do vínculo (o contexto reenvia os valores atuais).
+      await updateProfile({ name: name.trim() });
       toast({ title: 'Perfil atualizado' });
       closeModal();
     } finally {
@@ -279,91 +197,15 @@ export function UserProfileModal() {
     }
   };
 
-  const tabs = [
-    { id: 'profile' as const, label: TAB_LABELS.profile },
-    { id: 'jira' as const, label: TAB_LABELS.jira },
-    ...(canChangePassword ? [{ id: 'security' as const, label: TAB_LABELS.security }] : []),
+  const items: IdentityNavItem<TabId>[] = [
+    { id: 'profile', label: 'Perfil', icon: UserRound },
+    { id: 'links', label: 'Meus vínculos', icon: Link2, count: links.length },
+    { id: 'jira', label: 'Jira', icon: Plug, dot: connected },
+    ...(canChangePassword ? [{ id: 'security' as const, label: 'Segurança', icon: ShieldCheck }] : []),
   ];
-  const tab: TabId = tabs.some((t) => t.id === activeTab) ? activeTab : 'profile';
+  const tab: TabId = items.some((t) => t.id === activeTab) ? activeTab : 'profile';
 
-  const displayName = name.trim() || 'Seu nome';
-
-  const summary = (
-    <div className={compact ? 'flex items-center gap-4' : 'flex flex-col items-center gap-3 text-center'}>
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <InitialsAvatar
-          name={name.trim()}
-          email={email}
-          src={photo}
-          onPhotoError={reportBroken}
-          title={name.trim() || undefined}
-          className={cn('border border-border ring-2 ring-primary/25', compact ? 'h-16 w-16 text-xl' : 'h-24 w-24 text-3xl')}
-        />
-        {photoAvailable && (
-          <button
-            type="button"
-            onClick={() => setPhotoOff(!photoOff)}
-            className={cn('rounded-md px-1 text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground max-sm:flex max-sm:min-h-11 max-sm:items-center', FOCUS_RING)}
-          >
-            {photoOff ? 'Usar foto do Jira' : 'Usar minhas iniciais'}
-          </button>
-        )}
-      </div>
-      <div className={compact ? 'flex min-w-0 flex-col items-start gap-1.5' : 'flex min-w-0 flex-col items-center gap-2'}>
-        <p className="max-w-full break-words text-base font-semibold leading-tight text-foreground">{displayName}</p>
-        {role && <RoleChip category={role} label={role} className="max-w-full truncate" />}
-        <div className={compact ? 'flex flex-wrap gap-1.5' : 'flex flex-wrap justify-center gap-1.5'}>
-          {photo && <StatusChip tone="neutral">Foto do Jira</StatusChip>}
-          {connected && <StatusChip tone="success">Jira conectado</StatusChip>}
-        </div>
-      </div>
-    </div>
-  );
-
-  const profileFields = (
-    <ProfileFields
-      name={name}
-      onName={(v) => {
-        setName(v);
-        if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
-      }}
-      nameInput={nameRef}
-      email={email}
-      onEmail={setEmail}
-      emailReadOnly={emailReadOnly}
-      role={role}
-      onRole={(v) => {
-        setRole(v);
-        if (errors.role) setErrors((e) => ({ ...e, role: undefined }));
-      }}
-      roleTrigger={roleRef}
-      projectId={projectId}
-      onProject={(v) => {
-        setProjectId(v);
-        setIsCustomProject(v === 'other');
-        setSquadId('none');
-        setIsCustomSquad(false);
-        if (errors.project) setErrors((e) => ({ ...e, project: undefined }));
-      }}
-      projectTrigger={projectRef}
-      customProject={customProject}
-      onCustomProject={setCustomProject}
-      isCustomProject={isCustomProject}
-      squadId={squadId}
-      onSquad={(v) => {
-        setSquadId(v);
-        setIsCustomSquad(v === 'other');
-      }}
-      customSquad={customSquad}
-      onCustomSquad={setCustomSquad}
-      isCustomSquad={isCustomSquad}
-      projects={availableProjects}
-      squads={availableSquadsForProject}
-      isSquadsLoaded={isSquadsLoaded}
-      locked={squadEditLocked}
-      errors={errors}
-    />
-  );
+  const roleOfPerson = activeLink?.role || (userProfile?.role && userProfile.role !== 'user' && userProfile.role !== 'admin' ? userProfile.role : '');
 
   return (
     <Modal
@@ -374,39 +216,104 @@ export function UserProfileModal() {
       size="lg"
       icon={UserRound}
       title="Minha identidade"
+      preventClose={saving}
       bodyClassName="p-0"
       closeClassName="max-sm:h-11 max-sm:w-11"
       onCloseAutoFocus={restoreFocus}
-      className="max-sm:left-0 max-sm:top-0 max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0"
+      className="sm:h-[min(88vh,720px)] sm:max-w-[960px] max-sm:left-0 max-sm:top-0 max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-screen max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0"
+      headerExtra={
+        isVisitor ? undefined : (
+          <IdentityHeader
+            name={name}
+            email={email}
+            photo={photo}
+            onPhotoError={reportBroken}
+            jiraConnected={connected}
+            isAdmin={isAdmin}
+            role={roleOfPerson}
+            activeSquad={activeLink}
+          />
+        )
+      }
+      footerStart={
+        isVisitor ? undefined : (
+          <span role="status" className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            {dirty ? (
+              <>
+                <span aria-hidden="true" className="h-2 w-2 rounded-full bg-amber-500" />
+                Alterações não salvas
+              </>
+            ) : (
+              <>
+                <Check aria-hidden="true" className="h-4 w-4 text-emerald-600 dark:text-emerald-400" strokeWidth={1.5} />
+                Tudo salvo
+              </>
+            )}
+          </span>
+        )
+      }
       footer={
-        <>
+        isVisitor ? (
           <ModalButton onClick={closeModal} className="max-sm:h-11">
-            Cancelar
+            Fechar
           </ModalButton>
-          <ModalButton variant="primary" onClick={handleSave} disabled={!canSave} className="min-w-24 gap-2 max-sm:h-11">
-            {saving && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />}
-            {mustOnboard ? 'Finalizar acesso' : 'Salvar'}
-          </ModalButton>
-        </>
+        ) : (
+          <>
+            <ModalButton onClick={closeModal} disabled={saving} className="max-sm:h-11">
+              Cancelar
+            </ModalButton>
+            <ModalButton variant="primary" onClick={handleSave} disabled={!canSave} className="min-w-24 gap-2 max-sm:h-11">
+              {saving && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" />}
+              Salvar
+            </ModalButton>
+          </>
+        )
       }
     >
-      <div className="flex min-h-full flex-col md:min-h-[500px] md:flex-row">
-        <aside
-          aria-label="Resumo da identidade"
-          className={compact ? 'border-b border-border px-6 py-4' : 'flex w-60 shrink-0 flex-col gap-6 border-r border-border bg-muted/30 p-5'}
-        >
-          {summary}
-        </aside>
+      {isVisitor ? (
+        <VisitorPanel onLogin={goLogin} />
+      ) : (
+        <div className="flex min-h-full flex-col md:flex-row">
+          <aside aria-label="Seções da identidade" className="shrink-0 border-b border-border bg-card max-md:sticky max-md:top-0 max-md:z-10 md:w-56 md:border-b-0 md:border-r">
+            <IdentityNav items={items} value={tab} onChange={setActiveTab} label="Seções da identidade" idPrefix="identity" />
+          </aside>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TabBar tabs={tabs} value={tab} onChange={setActiveTab} label="Seções da identidade" idPrefix="identity" tabClassName="max-sm:h-11" />
           <div
             role="tabpanel"
             id={`identity-panel-${tab}`}
             aria-labelledby={`identity-tab-${tab}`}
-            className="flex flex-col gap-5 p-6 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+            className={cn('min-w-0 flex-1 bg-background p-5 max-sm:p-4 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200')}
           >
-            {tab === 'profile' && profileFields}
+            {tab === 'profile' && (
+              <ProfileSection
+                name={name}
+                onName={(v) => {
+                  setName(v);
+                  if (errors.name) setErrors((e) => ({ ...e, name: undefined }));
+                }}
+                nameInput={nameRef}
+                email={email}
+                errors={errors}
+                photo={photo}
+                onPhotoError={reportBroken}
+                photoAvailable={photoAvailable}
+                photoOff={photoOff}
+                onPhotoOff={setPhotoOff}
+                onGoJira={() => setActiveTab('jira')}
+                onNavigate={closeModal}
+              />
+            )}
+            {tab === 'links' && (
+              <LinksSection
+                links={links}
+                canSwitch={canSwitch}
+                switchingTo={switchingTo}
+                onActivate={(link) => void activate(link)}
+                email={email}
+                mustOnboard={mustOnboard}
+                onNavigate={closeModal}
+              />
+            )}
             {tab === 'jira' && (
               <JiraPanel
                 connected={connected}
@@ -424,10 +331,14 @@ export function UserProfileModal() {
                 account={jiraAccountDetails}
               />
             )}
-            {tab === 'security' && canChangePassword && <ChangePasswordSection />}
+            {tab === 'security' && canChangePassword && (
+              <div className="[&>form]:gap-4 [&>form]:rounded-2xl [&>form]:bg-card [&>form]:p-4 sm:[&>form]:p-5">
+                <ChangePasswordSection />
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
     </Modal>
   );
 }
