@@ -257,6 +257,22 @@ describe('Teatro com apresentador', () => {
     expect(props.onFollowingChange).toHaveBeenCalledWith(false);
   });
 
+  it('trava de decisão: sem permissão os botões ficam desativados e o motivo aparece; com permissão, ativos', () => {
+    const view = mount({ presenter: null, canDecide: false });
+    expect((screen.getByRole('button', { name: 'Aprovar' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Rejeitar' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText('Decisão restrita')).toBeTruthy();
+    view.unmount();
+    mount({ presenter: null, canDecide: true });
+    expect((screen.getByRole('button', { name: 'Aprovar' }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText('Decisão restrita')).toBeNull();
+  });
+
+  it('o cargo do perfil vale quando a sala não informa a permissão (como antes)', () => {
+    mount({ presenter: null });
+    expect((screen.getByRole('button', { name: 'Aprovar' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('publica o card que mostra, e a capa como cardId nulo', () => {
     const { props, rerender } = mount({ presenter: null, currentIndex: -1 });
     expect(props.onPublishPresenter).toHaveBeenLastCalledWith(null, 'cover');

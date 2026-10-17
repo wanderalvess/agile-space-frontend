@@ -108,17 +108,17 @@ sequenceDiagram
 - **Eventos durante gravação**: enquanto há gravação local em andamento, mensagens do servidor são ignoradas; ao terminar, a resposta da gravação passa a ser a versão da tela. Mensagens mais antigas que a versão atual (pelo `updatedAt`) são descartadas.
 - **Falha de gravação**: avisa, descarta a alteração local e recarrega o estado do servidor.
 - **Reconexão**: se o socket cai, tenta de novo com espera crescente (1 s até 30 s). A cada conexão aberta e ao voltar para a aba, recarrega a Review.
-- **Apresentação não é compartilhada**: o card em foco, o início do Teatro e a navegação são locais. Os outros participantes só veem as decisões e edições chegando, não "em que card estamos". O card em foco é acompanhado pelo id: se outro participante adiciona, remove ou reordena cards, o slide segue o mesmo card (ou cai para o vizinho com aviso, se ele foi removido).
+- **Apresentação**: o card em foco, o início do Teatro e a navegação são locais. No backend com a V81 quem apresenta publica o card atual e os demais veem "Apresentando: nome" com o botão Acompanhar; no backend antigo ninguém vê em que card o outro está. O card em foco é acompanhado pelo id: se outro participante adiciona, remove ou reordena cards, o slide segue o mesmo card (ou cai para o vizinho com aviso, se ele foi removido).
 
 ## 6. Permissões
 
 **No cliente**
-- Botões Aprovar/Ajustar/Rejeitar só ativos para papel global PO, "Product Owner (PO)" ou SME (campo de papel do perfil). Os demais veem "Somente PO/SME". `session.members` não é usado para isso: a lista de integrantes existe nos dados mas não define permissão.
+- Botões Aprovar/Ajustar/Rejeitar e o feedback do PO seguem a regra do servidor, calculada com os vínculos da pessoa (administrador, liderança da squad, PO/SME na squad da Review; sem squad: administrador e criador). Sem dados de vínculos, vale o papel global do perfil (PO, "Product Owner (PO)" ou SME), como antes. Quem não pode vê "Decisão restrita". `session.members` não é usado para isso: a lista de integrantes existe nos dados mas não define permissão.
 - Facilitação não é um papel: qualquer pessoa com o link vê e usa Configurações, Importar, Adicionar card, Iniciar e Finalizar.
 
 **No servidor**
 - Exige apenas token válido. **Não** verifica squad, criador ou papel para ler, gravar, enviar/baixar/apagar anexos nem para ouvir o WebSocket. Isso segue a regra de acesso por link (seção 1).
-- **O gate PO/SME não é imposto pelo servidor.** Qualquer usuário autenticado com o link pode gravar uma decisão chamando a API diretamente.
+- **O gate PO/SME é imposto pelo servidor só no backend com a V81** (`403 DECISION_RESTRICTED`: administrador, liderança da squad ou PO/SME por vínculo; Review sem squad: administrador e criador). No backend antigo, qualquer usuário autenticado com o link pode gravar uma decisão chamando a API diretamente. O que o cliente faz nos dois casos está em `docs/redesign/review-cerimonias-backend.md`.
 - O que o servidor passou a impor (v4.19.0): `decidedBy`, `decidedByName`, `decidedAt` e `approvedAt` de uma decisão **nova ou trocada** vêm do login de quem gravou (o nome vem do cadastro do usuário), ignorando o que o navegador mandou; uma decisão **mantida** preserva quem decidiu e quando; voltar a `open` limpa tudo. Ou seja, não dá mais para forjar *quem* decidiu, mas continua dando para decidir sem ser PO.
 - Ids de cards e integrantes enviados pelo cliente que já pertençam a outra Review são recusados (409).
 - Links dos cards e da capa com esquema perigoso (`javascript:`, `data:`, `vbscript:`, `file:`, `blob:`) são descartados antes de gravar.
@@ -151,13 +151,13 @@ sequenceDiagram
 Ainda **não corrigidos**:
 - **N+1 do hub**: a listagem monta cada Review com todos os cards, métricas e anexos (várias consultas por Review e por card) só para exibir contadores. Teto de 100 e índice por squad aliviam, mas falta uma consulta agregada.
 - **Arquivos órfãos**: não existe exclusão de Review; se uma for removida direto no banco, os arquivos ficam no disco. Um envio concorrente com a remoção do card também pode deixar arquivo sem card.
-- **Sem PATCH por card**: toda gravação é da Review inteira (agora reaplicada sobre a versão atual). Duas pessoas no mesmo campo ao mesmo tempo ainda se sobrescrevem; saves de pessoas diferentes simultâneos são serializados no servidor.
+- **PATCH por card só no backend com a V81**: sem ele (card sem `version`), toda gravação é da Review inteira (reaplicada sobre a versão atual) e duas pessoas no mesmo campo ao mesmo tempo ainda se sobrescrevem. Com a V81 o conflito vira aviso com "Reaplicar a minha".
 - **Token do WebSocket na query**: o JWT aparece na URL e pode ir parar em log do proxy.
 - **Fallback fixo `'DDWMISSI'`**: ao criar uma Review sem squad resolvida, o hub cai nessa squad fixa. É decisão de produto pendente.
 - **PO/SME só no cliente** (seção 6) e **sem gate por squad** (decisão de produto, seção 1).
 - **`active` sem uso** e sem como reabrir uma Review finalizada de forma explícita **(suposição, vale confirmar com o produto)**.
 - **Squad como texto livre**: renomear a squad nas configurações pode tirar a Review da listagem do hub.
-- **Apresentação não compartilhada**: cada pessoa navega sozinha; não há "seguir o apresentador".
+- **Seguir o apresentador** depende do backend com a V81; sem ele cada pessoa navega sozinha.
 - Imagens por link de hosts que exigem login (ex.: anexos do Jira) dependem da configuração do Jira do apresentador; outros hosts podem bloquear embed.
 
 **Não testado ao vivo:** nenhuma das correções recentes (fila de gravação, reconexão, Teatro, hub, exportações) foi exercitada num navegador com login real, nem o salvamento concorrente de dois usuários. Estão cobertos por testes unitários (utilitários de link, serviço de gravação, anexos, work items) e checagem de tipos.
