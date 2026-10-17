@@ -83,7 +83,7 @@ export function MuralPhase({
             aria-label="Escreva uma ideia"
             maxLength={IDEA_MAX_LENGTH}
             disabled={readOnly}
-            placeholder={readOnly ? 'Brainstorming encerrado: só leitura' : 'O que você está pensando? Escreva e lance'}
+            placeholder={readOnly ? 'Encerrado: só leitura' : 'O que você está pensando? Escreva e lance'}
             className={cn(FIELD, 'h-11 min-w-0 flex-1 border-transparent bg-transparent disabled:cursor-not-allowed')}
           />
           <ModalButton type="submit" variant="primary" className="h-11 shrink-0 gap-1.5 px-5" disabled={!newIdea.trim() || isSubmitting || readOnly}>
