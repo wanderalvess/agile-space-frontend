@@ -10,9 +10,7 @@ import { pokerApi } from './api';
 import { useToast } from '@/hooks/use-toast';
 import { useUserContext } from '@/context/UserContext';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
-import { FeedbackWidget } from '@/components/feedback-widget';
+import { PageHeader, PageShell } from '@/components/page';
 import { PokerGuide } from '@/components/poker/PokerGuide';
 import { useToolHistory } from '@/hooks/useToolHistory';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
@@ -170,7 +168,6 @@ export default function PokerHubPage() {
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [joinId, setJoinId] = useState('');
   const [guideOpen, setGuideOpen] = useState(false);
-  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
   const { history: localHistory, loading: loadingHistory } = useToolHistory('poker');
 
   const currentSquadId = activeSquadId;
@@ -245,23 +242,15 @@ export default function PokerHubPage() {
   const openRoom = (id: string) => router.push(`/room/${id}`);
 
   return (
-    <div className="relative flex min-h-dvh w-full flex-1 flex-col bg-background">
-      <RoomHeader
+    <PageShell documentTitle="Scrum Poker">
+      <PageHeader
         title="Scrum Poker"
-        toolIcon={<WalletCards className="h-4 w-4" />}
-        toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
-        onOpenFeedback={() => setFeedbackSignal(Date.now())}
-        actions={<ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />}
-      />
-
-      <main className="mx-auto flex w-full max-w-[1680px] flex-1 flex-col gap-6 px-4 pb-10 pt-8 sm:px-8 2xl:px-12">
-        <section aria-label="Scrum Poker" className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-5xl">Scrum Poker</h1>
-            <p className="text-[15px] text-muted-foreground">Estimativas em horas por papel, com votação às cegas.</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2.5">
+        module="poker"
+        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Scrum Poker' }]}
+        subtitle="Estimativas em horas por papel, com votação às cegas."
+        actions={
+          <>
+            <ModuleIntegrationButton moduleId="poker" variant="ghost" className="hidden sm:inline-flex" />
             <form
               onSubmit={(e) => { e.preventDefault(); joinRoom(); }}
               className="flex h-11 items-center rounded-xl border border-border bg-card pl-3.5 pr-1.5 focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-ring/30"
@@ -301,8 +290,9 @@ export default function PokerHubPage() {
               <Plus className="h-4 w-4" strokeWidth={1.75} />
               Nova sessão
             </button>
-          </div>
-        </section>
+          </>
+        }
+      />
 
         <div role="group" aria-label="Filtrar por situação" className="flex flex-wrap gap-2">
           {FILTERS.map((f) => {
@@ -388,10 +378,6 @@ export default function PokerHubPage() {
             <p className="border-t border-border pt-2 text-center text-xs text-muted-foreground">Salvo só neste navegador</p>
           </section>
         </div>
-      </main>
-
-      <Footer className="shrink-0" subtitle="Portal Tech V&D • Scrum Poker" onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-      <FeedbackWidget toolName="Portal Tech V&D - Scrum Poker" externalTriggerSignal={feedbackSignal} triggerVariant="none" />
 
       <ConfirmDialog
         open={!!roomToDelete}
@@ -410,6 +396,6 @@ export default function PokerHubPage() {
 
       <PokerGuide open={guideOpen} onOpenChange={setGuideOpen} />
       <CreateSessionModal open={isSetupOpen} onOpenChange={setIsSetupOpen} onCreatingChange={setIsCreating} />
-    </div>
+    </PageShell>
   );
 }
