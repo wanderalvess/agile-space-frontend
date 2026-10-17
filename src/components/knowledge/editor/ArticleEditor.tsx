@@ -216,10 +216,7 @@ export function ArticleEditor() {
   const goBack = () => (dirty ? setLeaveOpen(true) : router.push('/knowledge/kb'));
 
   const save = async (target: EditorStatus) => {
-    if (!session || !editor) {
-      toast.error('Entre na sua conta para salvar.');
-      return;
-    }
+    if (!editor) return;
     const content = editor.getHTML();
     const found = validateArticle({ title: form.title, content });
     setErrors(found);
@@ -227,6 +224,10 @@ export function ArticleEditor() {
       toast.error(found.title ?? found.content ?? 'Preencha título e conteúdo.');
       if (found.title) titleRef.current?.focus();
       else editor.commands.focus();
+      return;
+    }
+    if (!session) {
+      toast.error('Entre na sua conta para salvar.');
       return;
     }
     setSaving(true);
