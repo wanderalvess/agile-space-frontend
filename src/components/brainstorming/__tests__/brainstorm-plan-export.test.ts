@@ -7,6 +7,7 @@ import {
   planCandidates,
   planEffort,
   planLockKey,
+  planSourceLabel,
   planTitle,
   planWhy,
   readPlanLock,
@@ -77,8 +78,18 @@ describe('plano de ação a partir do Plano', () => {
       howMuch: 'Esforço baixo',
       status: 'todo',
       order: 3,
+      sourceItemId: 'i1',
+      sourceLabel: 'Primeiros passos',
     });
     expect(buildPlanTask(idea(), undefined, 0).where).toBe('Squad');
+  });
+
+  it('a origem da ação é o grupo da ideia ou, sem grupo, o começo do texto', () => {
+    expect(planSourceLabel(idea({ content: 'Automatizar o deploy' }), undefined)).toBe('Automatizar o deploy');
+    expect(planSourceLabel(idea({ content: 'x' }), { title: '  Entrega  ' })).toBe('Entrega');
+    const longo = planSourceLabel(idea({ content: 'a'.repeat(300) }), undefined);
+    expect(longo.length).toBe(120);
+    expect(longo.endsWith('…')).toBe(true);
   });
 
   it('trava local: guarda o plano criado e o lê de volta', () => {

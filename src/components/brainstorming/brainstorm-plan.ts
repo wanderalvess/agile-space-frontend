@@ -1,6 +1,7 @@
 /**
  * Do Plano ao plano de ação (5W2H): quais ideias entram, como cada ação nasce e a trava de duplicidade
- * guardada neste navegador. A trava real (um plano por sessão) depende do servidor; aqui ela só avisa.
+ * guardada neste navegador. A trava real (um plano por sessão e squad) é do servidor, que guarda a origem
+ * `BRAINSTORMING` + id da sessão e responde 409 se repetir; a daqui só vale de reserva num servidor antigo.
  */
 import { getQuadrant, votesOf } from '@/lib/brainstorming-utils';
 import type { ActionPlanTask, BrainstormingGroup, BrainstormingIdea } from '@/lib/types';
@@ -35,7 +36,17 @@ export function planEffort(idea: Pick<BrainstormingIdea, 'qualifiers'>): string 
   return effort > 50 ? 'Esforço alto' : 'Esforço baixo';
 }
 
-/** A ação 5W2H de uma ideia: quem, quando e como ficam em branco para a squad preencher. */
+export const PLAN_SOURCE_TYPE = 'BRAINSTORMING' as const;
+
+/** Rótulo do item de origem (o servidor aceita até 255): o grupo da ideia ou, sem grupo, o começo do texto. */
+export function planSourceLabel(idea: Pick<BrainstormingIdea, 'content'>, group: Pick<BrainstormingGroup, 'title'> | undefined): string {
+  const groupTitle = (group?.title ?? '').trim();
+  if (groupTitle) return groupTitle.slice(0, 120);
+  const text = (idea.content ?? '').trim().replace(/\s+/g, ' ');
+  return text.length > 120 ? `${text.slice(0, 119)}…` : text;
+}
+
+/** A ação 5W2H de uma ideia: quem, quando e como ficam em branco para a squad preencher. Leva a ideia como origem. */
 export function buildPlanTask(idea: BrainstormingIdea, group: Pick<BrainstormingGroup, 'title'> | undefined, order: number): Partial<ActionPlanTask> {
   return {
     what: idea.content,
@@ -47,6 +58,8 @@ export function buildPlanTask(idea: BrainstormingIdea, group: Pick<Brainstorming
     howMuch: planEffort(idea),
     status: 'todo',
     order,
+    sourceItemId: idea.id,
+    sourceLabel: planSourceLabel(idea, group),
   };
 }
 
