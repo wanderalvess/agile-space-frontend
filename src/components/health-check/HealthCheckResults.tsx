@@ -222,7 +222,6 @@ export function HealthCheckResults({
     finishedAt
       ? { label: 'Encerrada em', value: format(finishedAt, "dd/MM/yyyy 'às' HH:mm") }
       : { label: 'Situação', value: 'Encerrada' },
-    ...(responseCounts ? [{ label: 'Participação', value: `${responseCounts.responded} de ${responseCounts.participants} responderam` }] : []),
   ];
 
   const previous: RadarPrevious | undefined = compare.status === 'ready' ? { label: compare.label, scores: compare.scores } : undefined;

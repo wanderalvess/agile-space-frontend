@@ -587,7 +587,6 @@ describe('contagens, encerramento real e apresentação sincronizada (backend no
   it('resultado: "Encerrada em {data}" real e a participação', () => {
     const { container } = render(<HealthCheckResults {...resultProps({ board: board({ status: 'finished', finishedAt: '2026-10-14T12:00:00Z', summary: { topMetrics: [], lowMetrics: [], results } }), responseCounts: { responded: 2, completed: 2, participants: 3 } })} />);
     expect(container.textContent).toMatch(/Encerrada em\s*14\/10\/2026 às \d{2}:\d{2}/);
-    expect(screen.getAllByText('2 de 3 responderam').length).toBeGreaterThan(0);
     expect(screen.getByTestId('responded-label').textContent).toBe('2 de 3 já responderam');
   });
 

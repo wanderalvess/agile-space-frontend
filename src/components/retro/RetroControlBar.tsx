@@ -163,7 +163,7 @@ export function RetroControlBar({
       {isFacilitator ? (
         <RetroPhaseActions boardData={boardData} onToggleCardsRevealed={onToggleCardsRevealed} onSetVotingStatus={onSetVotingStatus} />
       ) : (
-        <StatusChip tone={status.live ? 'success' : 'neutral'} dot={status.live} className="h-8 px-3 text-[13px]">{status.label}</StatusChip>
+        <StatusChip tone={status.live && !isFinished ? 'success' : 'neutral'} dot={status.live && !isFinished} className="h-8 px-3 text-[13px]">{status.label}</StatusChip>
       )}
 
       {isFacilitator ? (
