@@ -11,7 +11,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { ChevronLeft, ChevronRight, LogOut, Users, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Trash2, Users, Volume2, VolumeX } from 'lucide-react';
 import {
   ConfirmDialog,
   IconButton,
@@ -113,6 +113,8 @@ export interface RetroRoomProps {
   onRemoveParticipant: (id: string) => void;
   onClaimCreator?: () => void;
   onLeaveBoard: () => void;
+  /** Apaga a retro (a página só passa para criador/ADMIN). */
+  onDeleteBoard?: () => void;
   onStageChange: (stage: RetroColumnKey) => void;
   onStartMerge: (cardId: string | null) => void;
   onExecuteMerge: (targetId: string) => void;
@@ -182,6 +184,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [sceneOpen, setSceneOpen] = useState(false);
 
   // Cenário atrás das colunas: preferência pessoal; o tema Leitura e a apresentação limitam (ver retro-scene-mode.ts).
@@ -355,6 +358,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
             isSoundEnabled={soundEnabled}
             onToggleSound={() => setSoundEnabled(!soundEnabled)}
             onLeave={() => setLeaveOpen(true)}
+            onDelete={isCurrentUserCreator && props.onDeleteBoard ? () => setDeleteOpen(true) : undefined}
             onOpenScene={sceneKey ? () => setSceneOpen(true) : undefined}
             sceneLabel={sceneLabel}
             onOpenFeedback={props.onOpenFeedback}
@@ -524,6 +528,20 @@ function RetroRoomComponent(props: RetroRoomProps) {
         confirmLabel="Sair da retro"
         onConfirm={props.onLeaveBoard}
       />
+
+      {props.onDeleteBoard && (
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          tone="danger"
+          icon={Trash2}
+          title="Apagar esta retro?"
+          description="A retro, os cartões e o chat são apagados para todos. Não dá para desfazer."
+          cancelLabel="Manter"
+          confirmLabel="Apagar a retro"
+          onConfirm={props.onDeleteBoard}
+        />
+      )}
     </div>
   );
 }

@@ -89,6 +89,16 @@ describe('retroApi: encerrar e reabrir (backend novo)', () => {
     expect(String(authFetch.mock.calls[0][0])).toMatch(/\/retros\/b1\/reopen$/);
   });
 
+  it('deleteBoard faz DELETE no quadro e lança com a mensagem do servidor quando não pode', async () => {
+    authFetch.mockResolvedValueOnce(response(204, null));
+    await retroApi.deleteBoard('b1');
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/retros\/b1$/);
+    expect(authFetch.mock.calls[0][1].method).toBe('DELETE');
+    authFetch.mockResolvedValueOnce(response(403, { message: 'Só o criador apaga a retro.' }));
+    const error = await retroApi.deleteBoard('b1').catch((e) => e);
+    expect(error.message).toBe('Só o criador apaga a retro.');
+  });
+
   it('403 (não é facilitador) lança com a mensagem do servidor', async () => {
     authFetch.mockResolvedValue(response(403, { message: 'Só o facilitador pode encerrar a retro.' }));
     const error = await retroApi.finishBoard('b1').catch((e) => e);
