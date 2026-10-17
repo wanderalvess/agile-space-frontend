@@ -1,157 +1,93 @@
 'use client';
 
-import { useMemo, type ReactElement } from 'react';
-import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  ResponsiveContainer,
-  Legend,
-  Tooltip
-} from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { HealthCheckRound, HealthCheckDimension, HealthCheckScaleType } from '@/lib/types';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { formatScore, type DimensionStat } from '@/lib/health-check-rules';
+import { cn } from '@/lib/utils';
 
-interface HealthCheckRadarChartProps {
-  round: HealthCheckRound;
-  dimensions: HealthCheckDimension[];
-  scaleType?: HealthCheckScaleType;
+export interface RadarPrevious {
+  /** Nome do radar anterior (legenda e texto para leitor de tela). */
+  label: string;
+  /** Nota (0 a 10) por chave de dimensão. */
+  scores: ReadonlyMap<string, number>;
 }
 
-const VOTE_SCORE_MAP: Record<string, number> = {
-  green: 3,
-  yellow: 2,
-  red: 1,
-  happy: 3,
-  neutral: 2,
-  sad: 1,
-  '1': 1,
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-};
+interface HealthCheckRadarChartProps {
+  stats: readonly DimensionStat[];
+  /** Radar anterior, sobreposto tracejado. */
+  previous?: RadarPrevious;
+  /** Nome do radar atual para a legenda. */
+  currentLabel?: string;
+  height?: number;
+  className?: string;
+}
 
-const radarChartConfig = {
-  score: {
-    label: "Pontuação Média",
-    color: "hsl(var(--primary))",
-  },
-} satisfies ChartConfig;
+const MAX_LABEL = 22;
 
+/** Rótulo do eixo: curto para caber ao redor do gráfico (o nome inteiro está no tooltip e na lista para leitor de tela). */
+function shortLabel(title: string): string {
+  return title.length > MAX_LABEL ? `${title.slice(0, MAX_LABEL - 1).trimEnd()}…` : title;
+}
 
-export function HealthCheckRadarChart({ round, dimensions, scaleType = 'traffic_light' }: HealthCheckRadarChartProps) {
-  const radarData = useMemo(() => {
-    const dimensionsMap = new Map(dimensions.map(d => [d.key, d.title]));
-    const maxScore = scaleType === 'numbers_5' ? 5 : 3;
-
-    const scoresByDimension = dimensions.map(dim => {
-      const votesForDim = round.votes.filter(v => v.dimensionKey === dim.key);
-      let averageScore = 0;
-      if (votesForDim.length > 0) {
-        const totalScore = votesForDim.reduce((acc, vote) => {
-          return acc + (VOTE_SCORE_MAP[vote.value] || 0);
-        }, 0);
-        averageScore = totalScore / votesForDim.length;
-      }
-      
-      return {
-        subject: dimensionsMap.get(dim.key) || dim.key,
-        score: parseFloat(averageScore.toFixed(2)),
-        fullMark: maxScore,
-      };
-    });
-
-    return scoresByDimension;
-  }, [round, dimensions, scaleType]);
-
-  if (!round || radarData.length === 0) {
+/**
+ * Gráfico radar do resultado: uma ponta por dimensão, régua de 0 a 10 igual nas três escalas e texto de 12 px.
+ * Com `previous`, sobrepõe o radar anterior da squad. Sem respostas numa dimensão, a ponta fica em 0.
+ */
+export function HealthCheckRadarChart({ stats, previous, currentLabel = 'Este radar', height = 380, className }: HealthCheckRadarChartProps) {
+  if (stats.length < 3) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Gráfico de Radar</CardTitle>
-                <CardDescription>
-                Uma visão geral da saúde da equipe nesta rodada.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-                    Não há dados suficientes para exibir o gráfico de radar.
-                </div>
-            </CardContent>
-        </Card>
+      <p className="m-0 rounded-xl border border-dashed border-border px-5 py-9 text-center text-sm text-muted-foreground">
+        O gráfico radar precisa de 3 ou mais dimensões. Veja as notas na aba Frequência de respostas.
+      </p>
     );
   }
-
+  const data = stats.map((s) => ({
+    subject: shortLabel(s.title),
+    full: s.title,
+    score: s.score === null ? 0 : Number(s.score.toFixed(1)),
+    previous: previous?.scores.get(s.key),
+  }));
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Gráfico de Radar</CardTitle>
-        <CardDescription>
-          Uma visão geral da saúde da equipe nesta rodada, com pontuação de 1 (Mal) a 3 (Bem).
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={radarChartConfig} className="mx-auto aspect-square h-[400px]">
-          <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fontWeight: 'bold' }} />
-            <PolarRadiusAxis 
-              angle={30} 
-              domain={[0, scaleType === 'numbers_5' ? 5 : 3]} 
-              tickCount={(scaleType === 'numbers_5' ? 5 : 3) + 1} 
-              tick={(props: any) => {
-                const { x, y, payload } = props;
-                let label = payload.value;
-                if (scaleType === 'numbers_5') {
-                   if (payload.value === 1) label = 'Crítico';
-                   if (payload.value === 3) label = 'Neutro';
-                   if (payload.value === 5) label = 'Elite';
-                } else {
-                   if (payload.value === 1) label = 'Ruim';
-                   if (payload.value === 2) label = 'Médio';
-                   if (payload.value === 3) label = 'Bom';
-                }
-
-                // Recharts' `tick` render prop is typed to return a single
-                // ReactElement, but returning null (to hide numeric ticks) is
-                // supported at runtime. Cast keeps the original behavior.
-                if (typeof label === 'number') return null as unknown as ReactElement;
-
+    <div className={cn('flex flex-col gap-3', className)}>
+      <div
+        role="img"
+        aria-label={`Gráfico radar da nota de clima por dimensão, de 0 a 10: ${stats.map((s) => `${s.title} ${formatScore(s.score)}`).join(', ')}`}
+        className="mx-auto w-full max-w-[560px] [--health-accent:hsl(var(--primary))] [.theme-totvs:not(.dark)_&]:[--health-accent:hsl(var(--foreground))]"
+        style={{ height }}
+      >
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={data} cx="50%" cy="50%" outerRadius="64%">
+            <PolarGrid stroke="hsl(var(--border))" />
+            <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }} />
+            <PolarRadiusAxis angle={90 - 180 / stats.length} domain={[0, 10]} tickCount={3} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} />
+            {previous && (
+              <Radar name={previous.label} dataKey="previous" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray="5 4" fill="hsl(var(--muted-foreground))" fillOpacity={0.12} isAnimationActive={false} />
+            )}
+            <Radar name={currentLabel} dataKey="score" stroke="var(--health-accent)" strokeWidth={2} fill="var(--health-accent)" fillOpacity={0.25} dot={{ r: 3, fill: 'var(--health-accent)' }} isAnimationActive={false} />
+            <Tooltip
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const row = payload[0].payload as { full: string; score: number; previous?: number };
                 return (
-                  <text 
-                    x={x} 
-                    y={y} 
-                    dy={-4}
-                    fill="#94a3b8" 
-                    fontSize={8} 
-                    fontWeight="black" 
-                    textAnchor="middle"
-                    className="uppercase tracking-tighter"
-                  >
-                    {label}
-                  </text>
+                  <div className="rounded-lg border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
+                    <p className="m-0 font-bold">{row.full}</p>
+                    <p className="m-0 tabular-nums">{currentLabel}: {formatScore(row.score)}</p>
+                    {previous && row.previous !== undefined && <p className="m-0 tabular-nums text-muted-foreground">{previous.label}: {formatScore(row.previous)}</p>}
+                  </div>
                 );
               }}
             />
-            <Tooltip
-                content={<ChartTooltipContent />}
-                cursor={{ fill: 'hsl(var(--muted))' }}
-            />
-            <Radar
-              name={round.title || `Rodada`}
-              dataKey="score"
-              stroke="var(--color-score)"
-              fill="var(--color-score)"
-              fillOpacity={0.6}
-            />
-            <Legend />
           </RadarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+        </ResponsiveContainer>
+      </div>
+      {previous && (
+        <p className="m-0 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-muted-foreground" aria-hidden="true">
+          <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-5 bg-primary [.theme-totvs:not(.dark)_&]:bg-foreground" /> {currentLabel}</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-0 w-5 border-t-2 border-dashed border-muted-foreground" /> {previous.label}</span>
+        </p>
+      )}
+      <ul className="sr-only">
+        {stats.map((s) => <li key={s.key}>{s.title}: {formatScore(s.score)} de 10</li>)}
+      </ul>
+    </div>
   );
 }

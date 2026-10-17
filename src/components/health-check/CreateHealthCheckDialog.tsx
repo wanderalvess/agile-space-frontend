@@ -1,419 +1,579 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  PartyPopper, 
-  Plus, 
-  Trash2, 
-  RotateCcw, 
-  CalendarDays, 
-  Users, 
-  Upload, 
-  Eraser, 
-  List,
+  AlertCircle,
+  ArrowRight,
+  ChevronLeft,
+  Eraser,
+  Frown,
+  Hash,
   Info,
-  Check,
-  HeartPulse,
-  Code
+  List,
+  ListChecks,
+  Lock,
+  Meh,
+  Plus,
+  RotateCcw,
+  Smile,
+  TrafficCone,
+  Trash2,
+  Upload,
+  type LucideIcon,
 } from 'lucide-react';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import { DEFAULT_HEALTH_CHECK_DIMENSIONS } from '@/lib/health-check-defaults';
-import { HealthCheckDimension, HealthCheckScaleType } from '@/lib/types';
-import { HEALTH_CHECK_TEMPLATES } from '@/lib/health-check-templates';
-import { ScrollArea } from '../ui/scroll-area';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from '../ui/checkbox';
+  ConfirmDialog,
+  FIELD,
+  FOCUS_RING,
+  Modal,
+  ModalButton,
+  SelectField,
+  StatusChip,
+  TabBar,
+  type TabBarItem,
+} from '@/components/room-kit';
 import { useToast } from '@/hooks/use-toast';
-import { Card } from '../ui/card';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
+import { errorMessage } from '@/lib/ceremony-api';
+import { DEFAULT_HEALTH_CHECK_DIMENSIONS } from '@/lib/health-check-defaults';
+import {
+  MAX_DESCRIPTION,
+  MAX_DIMENSIONS,
+  MAX_TITLE,
+  cleanDimensions,
+  newDimensionKey,
+  parseBulkDimensions,
+  remainingSlots,
+  validateForm,
+} from '@/lib/health-check-form';
+import { squadChoices } from '@/lib/health-check-lobby';
+import { HEALTH_CHECK_TEMPLATES } from '@/lib/health-check-templates';
+import { moduleIcon } from '@/lib/modules-registry';
+import type { HealthCheckDimension, HealthCheckScaleType } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+
+export interface CreateHealthCheckInput {
+  dimensions: HealthCheckDimension[];
+  title: string;
+  /** Chave da squad escolhida (vazia sem squad). */
+  team: string;
+  scaleType: HealthCheckScaleType;
+}
 
 interface CreateHealthCheckDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateBoard: (dimensions: HealthCheckDimension[], sprintName: string, team: string, scaleType: HealthCheckScaleType) => void;
+  /** Cria o radar; deve lançar erro se falhar (o diálogo mostra a falha e mantém o que foi digitado). */
+  onCreateBoard: (input: CreateHealthCheckInput) => Promise<void>;
   isCreating: boolean;
 }
 
+/** Mesma chave de antes: as perguntas padrão já salvas continuam valendo. */
 const CUSTOM_DIMENSIONS_KEY = 'custom-health-check-dimensions';
+const MINE = 'mine';
+const LABEL = 'text-[13px] font-semibold text-foreground';
 
+const SCALES: { id: HealthCheckScaleType; name: string; desc: string; icon: LucideIcon }[] = [
+  { id: 'traffic_light', name: 'Semáforo', desc: 'Verde, amarelo e vermelho: ótimo, atenção, ruim.', icon: TrafficCone },
+  { id: 'numbers_5', name: 'Numérica de 1 a 5', desc: 'Nota de 1 (crítico) a 5 (muito bom).', icon: Hash },
+  { id: 'emojis', name: 'Emocional', desc: 'Bom, médio e ruim, com rostos de linha.', icon: Smile },
+];
+
+function ScalePreview({ scale }: { scale: HealthCheckScaleType }) {
+  if (scale === 'numbers_5') {
+    return (
+      <span aria-hidden="true" className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <span key={n} className="flex h-6 w-6 items-center justify-center rounded-md border border-border bg-background text-xs font-semibold tabular-nums">{n}</span>
+        ))}
+      </span>
+    );
+  }
+  if (scale === 'emojis') {
+    return (
+      <span aria-hidden="true" className="flex items-center gap-1.5">
+        <Smile className="h-5 w-5 text-emerald-700 dark:text-emerald-300" strokeWidth={1.5} />
+        <Meh className="h-5 w-5 text-amber-700 dark:text-amber-300" strokeWidth={1.5} />
+        <Frown className="h-5 w-5 text-red-700 dark:text-red-300" strokeWidth={1.5} />
+      </span>
+    );
+  }
+  return (
+    <span aria-hidden="true" className="flex items-center gap-1.5">
+      <span className="h-3.5 w-3.5 rounded-full bg-emerald-600" />
+      <span className="h-3.5 w-3.5 rounded-full bg-amber-500" />
+      <span className="h-3.5 w-3.5 rounded-full bg-red-600" />
+    </span>
+  );
+}
+
+function readStoredDimensions(): HealthCheckDimension[] | null {
+  try {
+    const raw = localStorage.getItem(CUSTOM_DIMENSIONS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as HealthCheckDimension[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Nova pesquisa do Radar de clima (Modal G em duas abas): modelo e escala; perguntas. A squad é a do vínculo
+ * (nunca texto livre), o título é obrigatório e as falhas aparecem aqui dentro, com o que foi digitado mantido.
+ */
 export function CreateHealthCheckDialog({ open, onOpenChange, onCreateBoard, isCreating }: CreateHealthCheckDialogProps) {
   const { toast } = useToast();
+  const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
+  const { memberships } = useMyMemberships();
+  const squads = useMemo(
+    () => squadChoices(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName }),
+    [memberships, activeSquadId, activeSquadName]
+  );
 
-  // Basic Info
-  const [sprintName, setSprintName] = useState('');
-  const [teamName, setTeamName] = useState('');
-  
-  // Dimensions Management
-  const [dimensions, setDimensions] = useState<HealthCheckDimension[]>([]);
+  const [tab, setTab] = useState<'model' | 'questions'>('model');
+  const [title, setTitle] = useState('');
+  const [titleError, setTitleError] = useState(false);
+  const [squad, setSquad] = useState('');
+  const [templateId, setTemplateId] = useState('spotify');
   const [scaleType, setScaleType] = useState<HealthCheckScaleType>('traffic_light');
+  const [dimensions, setDimensions] = useState<HealthCheckDimension[]>([]);
   const [saveAsDefault, setSaveAsDefault] = useState(false);
-  
-  // Import Mode
-  const [isImportMode, setIsImportMode] = useState(false);
+  const [stored, setStored] = useState<HealthCheckDimension[] | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [bulkText, setBulkText] = useState('');
-
-  // Quick Add State
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [confirmClear, setConfirmClear] = useState(false);
 
+  // Ao abrir: as perguntas padrão deste navegador (se houver) ou as do modelo clássico.
   useEffect(() => {
-    if (open) {
-      // Load dimensions
-      try {
-        const stored = localStorage.getItem(CUSTOM_DIMENSIONS_KEY);
-        if (stored) {
-          setDimensions(JSON.parse(stored));
-        } else {
-          setDimensions(DEFAULT_HEALTH_CHECK_DIMENSIONS);
-        }
-      } catch (e) {
-        setDimensions(DEFAULT_HEALTH_CHECK_DIMENSIONS);
-      }
+    if (!open) return;
+    const saved = readStoredDimensions();
+    setStored(saved);
+    setTab('model');
+    setTitleError(false);
+    setFailure(null);
+    setImporting(false);
+    setBulkText('');
+    setSaveAsDefault(false);
+    if (saved) {
+      setTemplateId(MINE);
+      setDimensions(saved);
+    } else {
+      setTemplateId('spotify');
+      setDimensions(DEFAULT_HEALTH_CHECK_DIMENSIONS);
     }
+    setScaleType('traffic_light');
   }, [open]);
 
-  const handleDimensionChange = (index: number, field: 'title' | 'description', value: string) => {
-    const newDimensions = [...dimensions];
-    newDimensions[index] = { ...newDimensions[index], [field]: value };
-    setDimensions(newDimensions);
+  // A squad do cabeçalho é a sugerida; mudar de squad com a janela aberta não pisa na escolha da pessoa.
+  useEffect(() => {
+    if (!open) return;
+    setSquad((current) => (current && squads.some((s) => s.value === current) ? current : activeSquadId || squads[0]?.value || ''));
+  }, [open, activeSquadId, squads]);
+
+  const templateOptions = useMemo(
+    () => [
+      ...HEALTH_CHECK_TEMPLATES.map((t) => ({ value: t.id, label: t.name })),
+      ...(stored ? [{ value: MINE, label: 'Meu padrão (neste navegador)' }] : []),
+    ],
+    [stored]
+  );
+
+  const pickTemplate = (id: string) => {
+    setTemplateId(id);
+    if (id === MINE) {
+      if (stored) setDimensions(stored);
+      return;
+    }
+    const template = HEALTH_CHECK_TEMPLATES.find((t) => t.id === id);
+    if (!template) return;
+    setDimensions(template.dimensions);
+    setScaleType(template.defaultScale);
+    toast({ title: `Modelo ${template.name} carregado` });
   };
 
-  const handleQuickAdd = () => {
-    if (!newTitle.trim()) return;
-    const newKey = `custom-${Date.now()}`;
-    setDimensions([...dimensions, { key: newKey, title: newTitle.trim(), description: newDesc.trim() }]);
+  const restore = () => {
+    const template = HEALTH_CHECK_TEMPLATES.find((t) => t.id === templateId);
+    setDimensions(template ? template.dimensions : DEFAULT_HEALTH_CHECK_DIMENSIONS);
+    setScaleType(template ? template.defaultScale : 'traffic_light');
+    toast({ title: 'Perguntas do modelo restauradas' });
+  };
+
+  const forgetDefault = () => {
+    try { localStorage.removeItem(CUSTOM_DIMENSIONS_KEY); } catch { /* sem armazenamento: nada a esquecer */ }
+    setStored(null);
+    if (templateId === MINE) setTemplateId('spotify');
+    toast({ title: 'Padrão deste navegador esquecido' });
+  };
+
+  const change = (index: number, field: 'title' | 'description', value: string) =>
+    setDimensions((prev) => prev.map((d, i) => (i === index ? { ...d, [field]: value } : d)));
+
+  const remove = (key: string) => setDimensions((prev) => prev.filter((d) => d.key !== key));
+
+  const slots = remainingSlots(dimensions.length);
+  const canAdd = newTitle.trim() !== '' && slots > 0;
+
+  const quickAdd = () => {
+    if (!canAdd) return;
+    setDimensions((prev) => [...prev, { key: newDimensionKey(), title: newTitle.trim(), description: newDesc.trim() }]);
     setNewTitle('');
     setNewDesc('');
   };
 
-  const handleBulkImport = () => {
-    const lines = bulkText.split('\n').filter(l => l.trim() !== '');
-    if (lines.length === 0) {
-      setIsImportMode(false);
+  const parsed = useMemo(() => parseBulkDimensions(bulkText), [bulkText]);
+  const overLimit = parsed.length > slots;
+
+  const importBulk = () => {
+    if (parsed.length === 0) {
+      setImporting(false);
       return;
     }
-
-    const imported = lines.map(line => {
-      const separators = [' - ', ': ', ' – ', ' — '];
-      let title = line.trim();
-      let description = '';
-
-      for (const sep of separators) {
-        if (line.includes(sep)) {
-          const parts = line.split(sep);
-          title = parts[0].trim();
-          description = parts.slice(1).join(sep).trim();
-          break;
-        }
-      }
-
-      return {
-        key: `import-${Math.random().toString(36).substr(2, 9)}`,
-        title,
-        description
-      };
-    });
-
-    setDimensions([...dimensions, ...imported]);
+    if (overLimit) return;
+    setDimensions((prev) => [...prev, ...parsed.map((d) => ({ key: newDimensionKey('import'), ...d }))]);
     setBulkText('');
-    setIsImportMode(false);
-    toast({ title: "Dimensões importadas!" });
+    setImporting(false);
+    toast({ title: parsed.length === 1 ? 'Pergunta importada' : `${parsed.length} perguntas importadas` });
   };
 
-  const handleRemoveDimension = (key: string) => {
-    setDimensions(dimensions.filter(d => d.key !== key));
-  };
+  const errors = validateForm(title, dimensions);
 
-  const handleResetToDefault = () => {
-    setDimensions(DEFAULT_HEALTH_CHECK_DIMENSIONS);
-    setScaleType('traffic_light');
-    localStorage.removeItem(CUSTOM_DIMENSIONS_KEY);
-    toast({ title: "Padrão Spotify restaurado" });
-  };
-
-  const handleTemplateSelect = (templateId: string) => {
-    if (templateId === 'custom') return;
-    const template = HEALTH_CHECK_TEMPLATES.find(t => t.id === templateId);
-    if (template) {
-      setDimensions(template.dimensions);
-      setScaleType(template.defaultScale);
-      toast({ title: `Template ${template.name} carregado!` });
-    }
-  };
-
-  const handleSubmit = () => {
-    const validDimensions = dimensions.filter(d => d.title.trim() !== '');
-    if (validDimensions.length === 0) {
-      toast({ title: "Adicione pelo menos uma dimensão", variant: "destructive" });
+  const submit = async () => {
+    if (isCreating) return;
+    setFailure(null);
+    if (errors.title) {
+      setTitleError(true);
+      setTab('model');
       return;
     }
-    if (!sprintName.trim()) {
-      toast({ title: "Informe o título da cerimônia", variant: "destructive" });
+    if (errors.dimensions) {
+      setTab('questions');
       return;
     }
-
+    const clean = cleanDimensions(dimensions);
     if (saveAsDefault) {
-      localStorage.setItem(CUSTOM_DIMENSIONS_KEY, JSON.stringify(validDimensions));
+      try { localStorage.setItem(CUSTOM_DIMENSIONS_KEY, JSON.stringify(clean)); } catch { /* sem armazenamento: o padrão não é salvo */ }
     }
-    
-    onCreateBoard(validDimensions, sprintName.trim(), teamName.trim() || 'Squad Geral', scaleType);
+    try {
+      await onCreateBoard({ dimensions: clean, title: title.trim(), team: squad, scaleType });
+      setTitle('');
+    } catch (e) {
+      console.error('Erro ao criar o radar', e);
+      setFailure(errorMessage(e, 'Não foi possível criar a pesquisa agora.'));
+    }
   };
+
+  const tabs: TabBarItem<'model' | 'questions'>[] = [
+    { id: 'model', label: 'Modelo e escala' },
+    { id: 'questions', label: `Perguntas (${dimensions.length})` },
+  ];
+  const noSquad = squads.length === 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden bg-white/95 backdrop-blur-xl">
-        <div className="p-8 pb-4">
-          <DialogHeader>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 bg-rose-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-500/30 shrink-0 rotate-3 transition-transform hover:rotate-0">
-                <HeartPulse className="h-8 w-8 text-white" />
+    <>
+      <Modal
+        open={open}
+        onOpenChange={onOpenChange}
+        size="lg"
+        icon={moduleIcon('health')}
+        title="Nova pesquisa"
+        description={
+          tab === 'questions' && importing
+            ? 'Importação em massa de perguntas.'
+            : tab === 'questions'
+              ? `Edite títulos e perguntas, adicione as suas ou cole uma lista. No máximo ${MAX_DIMENSIONS}.`
+              : 'Anônima e sem texto obrigatório. Quem cria encerra e gera o resultado.'
+        }
+        preventClose={isCreating}
+        headerExtra={
+          <div className="shrink-0 border-b border-border">
+            <TabBar
+              label="Etapas da nova pesquisa"
+              idPrefix="health-create"
+              value={tab}
+              onChange={setTab}
+              tabs={tabs}
+              className="border-b-0"
+            />
+          </div>
+        }
+        bodyClassName="px-6 pb-6 pt-5"
+        footerStart={<ModalButton variant="ghost" onClick={() => onOpenChange(false)} disabled={isCreating}>Cancelar</ModalButton>}
+        footer={
+          <>
+            {tab === 'questions' && !importing && (
+              <ModalButton className="gap-1.5" onClick={() => setTab('model')} disabled={isCreating}>
+                <ChevronLeft className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Voltar
+              </ModalButton>
+            )}
+            <ModalButton variant="primary" className="gap-2" onClick={submit} disabled={isCreating}>
+              {isCreating ? 'Criando…' : 'Iniciar pesquisa'}
+              {!isCreating && <ArrowRight className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />}
+            </ModalButton>
+          </>
+        }
+      >
+        {tab === 'model' ? (
+          <div role="tabpanel" id="health-create-panel-model" aria-labelledby="health-create-tab-model" className="flex flex-col gap-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="health-template" className={LABEL}>Modelo</label>
+                <SelectField id="health-template" aria-label="Modelo de perguntas" value={templateId} onChange={pickTemplate} options={templateOptions} className="h-11" />
+                <p className="m-0 text-xs text-muted-foreground">Carrega as perguntas e a escala do modelo. Dá para editar na aba Perguntas.</p>
               </div>
-              <div>
-                <DialogTitle className="text-3xl font-black uppercase tracking-tighter italic text-slate-800 leading-none">
-                  Configurações <span className="text-rose-600">Radar de Saúde</span>
-                </DialogTitle>
-                <DialogDescription className="text-[11px] font-black uppercase text-slate-500 tracking-[0.2em] mt-2">
-                  Diagnóstico anônimo e seguro para squads de alta performance.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-        </div>
-
-        <div className="max-h-[55vh] px-8">
-          <ScrollArea className="h-full pr-4">
-            <div className="space-y-8 py-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-600 pl-1">Modelo / Template</Label>
-                  <Select onValueChange={handleTemplateSelect}>
-                    <SelectTrigger className="h-14 font-bold rounded-2xl border-none bg-slate-100/50 hover:bg-slate-100 focus:bg-white transition-all shadow-inner text-slate-900">
-                      <SelectValue placeholder="Selecione um Modelo..." />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl font-bold border-none shadow-2xl">
-                       <SelectItem value="custom" disabled className="text-[10px] uppercase font-black tracking-widest text-slate-400 py-3">Templates Prontos</SelectItem>
-                       {HEALTH_CHECK_TEMPLATES.map(t => (
-                         <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-600 pl-1">Escala de Resposta</Label>
-                  <Select value={scaleType} onValueChange={(val: any) => setScaleType(val)}>
-                    <SelectTrigger className="h-14 font-bold rounded-2xl border-none bg-slate-100/50 hover:bg-slate-100 focus:bg-white transition-all shadow-inner text-slate-900">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-2xl font-bold border-none shadow-2xl">
-                       <SelectItem value="traffic_light">🚥 Semáforo (Verde, Amarelo, Vermelho)</SelectItem>
-                       <SelectItem value="numbers_5">🔢 Numérico (Escala 1 a 5)</SelectItem>
-                       <SelectItem value="emojis">🙂 Emocional (Satisfeito, Médio, Triste)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <Separator className="bg-slate-100" />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-600 pl-1">Título da Cerimônia</Label>
-                  <div className="relative group">
-                    <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-rose-600 group-focus-within:scale-110 transition-transform" />
-                    <Input 
-                      value={sprintName}
-                      onChange={(e) => setSprintName(e.target.value)}
-                      placeholder="Ex: Radar Sprint 45"
-                      className="pl-12 h-14 font-bold rounded-2xl border-none bg-slate-100/50 hover:bg-slate-100 focus:bg-white transition-all shadow-inner text-slate-900 placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-600 pl-1">Squad / Time</Label>
-                  <div className="relative group">
-                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-rose-600 group-focus-within:scale-110 transition-transform" />
-                    <Input 
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      placeholder="Ex: Squad Thor"
-                      className="pl-12 h-14 font-bold rounded-2xl border-none bg-slate-100/50 hover:bg-slate-100 focus:bg-white transition-all shadow-inner text-slate-900 placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-100" />
-
-              {/* Gerenciamento de Dimensões */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-rose-50 rounded-xl">
-                      <List className="h-4 w-4 text-rose-600" />
-                    </div>
-                    <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-800">Dimensões de Avaliação</Label>
-                    <Badge className="bg-rose-600 text-white border-none h-6 px-3 text-[10px] font-black uppercase rounded-lg shadow-lg shadow-rose-500/20">{dimensions.length}</Badge>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setIsImportMode(!isImportMode)} 
-                      className="h-10 text-[10px] font-black uppercase tracking-widest gap-2 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all"
-                    >
-                      {isImportMode ? <List className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
-                      {isImportMode ? 'Visualizar' : 'Importar'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setDimensions([])} 
-                      className="h-10 text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 rounded-xl transition-all gap-2"
-                    >
-                      <Eraser className="h-4 w-4" />
-                      Limpar
-                    </Button>
-                  </div>
-                </div>
-
-                {isImportMode ? (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                    <div className="bg-slate-900 p-5 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <Code className="h-12 w-12 text-white" />
-                      </div>
-                      <div className="flex gap-4 items-start relative z-10">
-                        <Info className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed tracking-wider">
-                          Cole uma dimensão por linha.<br/>
-                          Use <span className="text-rose-400">"-"</span> para separar título de descrição.<br/>
-                          Ex: <span className="text-white">Autonomia - Temos poder de decisão?</span>
-                        </p>
-                      </div>
-                    </div>
-                    <Textarea 
-                      value={bulkText}
-                      onChange={(e) => setBulkText(e.target.value)}
-                      placeholder="Dimensão 1 - Descrição..."
-                      className="min-h-[250px] font-code text-xs rounded-[2rem] bg-slate-50 border-none shadow-inner focus-visible:ring-rose-500/20 p-8 leading-relaxed"
-                    />
-                    <Button onClick={handleBulkImport} className="w-full h-14 font-black text-[11px] uppercase tracking-[0.3em] bg-slate-900 rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-200">
-                      Processar Importação em Massa
-                    </Button>
-                  </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="health-squad" className={LABEL}>Squad</label>
+                {squads.length > 1 ? (
+                  <SelectField id="health-squad" aria-label="Squad da pesquisa" value={squad} onChange={setSquad} options={squads} className="h-11" />
                 ) : (
-                  <div className="grid gap-4">
-                    {dimensions.map((dim, index) => (
-                      <Card key={dim.key} className="group relative border border-slate-100 bg-slate-50/50 p-6 transition-all duration-300 hover:bg-white hover:shadow-2xl hover:shadow-rose-500/5 rounded-[2.5rem]">
-                        <div className="flex items-start gap-5">
-                          <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0 text-slate-400 group-hover:text-rose-600 group-hover:bg-rose-50 transition-all font-black italic text-sm border border-slate-100">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 space-y-2 pt-1">
-                            <Input
-                              value={dim.title}
-                              onChange={(e) => handleDimensionChange(index, 'title', e.target.value)}
-                              placeholder="Título da dimensão"
-                              className="font-black border-none shadow-none focus-visible:ring-0 p-0 text-xl h-auto bg-transparent uppercase tracking-tight text-slate-800 placeholder:text-slate-300"
-                            />
-                            <Input
-                              value={dim.description}
-                              onChange={(e) => handleDimensionChange(index, 'description', e.target.value)}
-                              placeholder="Descrição curta para guiar o time"
-                              className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-500 border-none shadow-none focus-visible:ring-0 p-0 h-auto bg-transparent placeholder:text-slate-400"
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveDimension(dim.key)}
-                          className="text-slate-300 hover:text-rose-500 hover:bg-rose-50 shrink-0 opacity-0 group-hover:opacity-100 transition-all h-12 w-12 absolute right-6 top-1/2 -translate-y-1/2 rounded-2xl"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
-                      </Card>
-                    ))}
-
-                    {/* Adição Rápida */}
-                    <div className="p-8 border-2 border-dashed border-slate-200 rounded-[3rem] bg-rose-50/30 flex flex-col sm:flex-row gap-6 group hover:border-rose-300 transition-all">
-                      <div className="flex-1 space-y-4">
-                        <Input 
-                          placeholder="Nova Dimensão (ex: Missão)" 
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          className="h-12 text-xs font-black uppercase tracking-tight bg-white border-none rounded-2xl shadow-sm px-6 placeholder:text-slate-400 text-slate-900"
-                        />
-                        <Input 
-                          placeholder="O time sabe para onde está indo?" 
-                          value={newDesc}
-                          onChange={(e) => setNewDesc(e.target.value)}
-                          className="h-12 text-[11px] font-bold uppercase tracking-[0.2em] bg-white border-none rounded-2xl shadow-sm px-6 placeholder:text-slate-300 text-slate-600"
-                        />
-                      </div>
-                      <Button onClick={handleQuickAdd} disabled={!newTitle.trim()} size="icon" className="h-auto aspect-square w-full sm:w-24 rounded-[2rem] bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-500/20 active:scale-90 transition-all shrink-0">
-                        <Plus className="h-10 w-10 text-white" />
-                      </Button>
-                    </div>
+                  <div id="health-squad" className={cn(FIELD, 'flex h-11 items-center justify-between gap-2 opacity-90')} aria-label="Squad da pesquisa">
+                    <span className="truncate">{squads[0]?.label ?? 'Sem squad'}</span>
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
                   </div>
                 )}
+                <p className="m-0 text-xs text-muted-foreground">
+                  {noSquad
+                    ? 'Você ainda não tem squad: a pesquisa não aparece em nenhuma lista, só por link.'
+                    : squads.length > 1
+                      ? 'As squads do seu vínculo. A pesquisa aparece na lista da squad escolhida.'
+                      : 'A squad ativa no cabeçalho. A pesquisa aparece na lista dela.'}
+                </p>
               </div>
+            </div>
 
-              {!isImportMode && (
-                <div className="flex justify-center pt-2">
-                  <Button variant="ghost" onClick={handleResetToDefault} className="h-10 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl px-8 transition-all">
-                    <RotateCcw className="mr-3 h-4 w-4" />
-                    Restaurar Dimensões Originais
-                  </Button>
-                </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="health-title" className={LABEL}>Título da pesquisa</label>
+              <input
+                id="health-title"
+                autoFocus
+                value={title}
+                maxLength={MAX_TITLE}
+                onChange={(e) => { setTitle(e.target.value); if (e.target.value.trim()) setTitleError(false); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
+                placeholder="Ex.: Radar Sprint 45"
+                aria-invalid={titleError}
+                aria-describedby={titleError ? 'health-title-error' : undefined}
+                className={cn(FIELD, 'h-11', titleError && 'border-red-500/60')}
+              />
+              {titleError && (
+                <p id="health-title-error" role="alert" className="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-300">
+                  <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> {errors.title ?? 'Dê um título para a pesquisa.'}
+                </p>
               )}
             </div>
-          </ScrollArea>
-        </div>
 
-        <div className="p-8 pt-4">
-          <DialogFooter className="flex-col sm:flex-row gap-8 items-center">
-            <div className="flex items-center space-x-4 mr-auto group cursor-pointer" onClick={() => setSaveAsDefault(!saveAsDefault)}>
-              <Checkbox 
-                id="save-default" 
-                checked={saveAsDefault} 
-                onCheckedChange={(checked) => setSaveAsDefault(checked === true)} 
-                className="w-6 h-6 rounded-lg border-2 border-slate-200 data-[state=checked]:bg-rose-600 data-[state=checked]:border-none transition-all"
+            <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
+              <legend className="mb-1 p-0 text-[13px] font-semibold text-muted-foreground">Escala de resposta</legend>
+              <div role="radiogroup" aria-label="Escala de resposta" className="flex flex-col gap-2">
+                {SCALES.map((s) => {
+                  const on = scaleType === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setScaleType(s.id)}
+                      className={cn(
+                        'flex min-h-[56px] items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors duration-base max-sm:min-h-14',
+                        on ? 'border-primary/60 bg-primary/10 dark:bg-primary/15' : 'border-border hover:bg-accent/50',
+                        FOCUS_RING
+                      )}
+                    >
+                      <s.icon className="h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="text-sm font-bold">{s.name}</span>
+                        <span className="text-xs text-muted-foreground">{s.desc}</span>
+                      </span>
+                      <ScalePreview scale={s.id} />
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="flex min-h-10 cursor-pointer items-center gap-3 max-sm:min-h-11">
+                <input
+                  type="checkbox"
+                  checked={saveAsDefault}
+                  onChange={(e) => setSaveAsDefault(e.target.checked)}
+                  className={cn('h-4 w-4 accent-[hsl(var(--primary))]', FOCUS_RING)}
+                />
+                <span className="text-sm text-foreground">Usar estas perguntas como padrão neste navegador</span>
+              </label>
+              {stored && (
+                <button type="button" onClick={forgetDefault} className={cn('self-start rounded-md px-1 text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline', FOCUS_RING)}>
+                  Esquecer o padrão salvo
+                </button>
+              )}
+            </div>
+
+            {failure && (
+              <p role="alert" className="m-0 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-[13px] text-red-700 dark:text-red-300">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                <span><strong>Não foi possível criar a pesquisa agora.</strong> {failure} O que você digitou foi mantido. Confira a conexão e tente de novo.</span>
+              </p>
+            )}
+          </div>
+        ) : importing ? (
+          <div role="tabpanel" id="health-create-panel-questions" aria-labelledby="health-create-tab-questions" className="flex flex-col gap-4">
+            <p className="m-0 flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-sm">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+              <span>
+                Cole uma dimensão por linha. Use <strong>-</strong> ou <strong>:</strong> para separar o título da pergunta.
+                <br />
+                Exemplo: <strong>Autonomia - Temos poder de decisão?</strong>
+              </span>
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="health-bulk" className={LABEL}>Lista de dimensões</label>
+              <textarea
+                id="health-bulk"
+                value={bulkText}
+                onChange={(e) => setBulkText(e.target.value)}
+                rows={9}
+                placeholder="Autonomia - Temos poder de decisão?"
+                className={cn(FIELD, 'resize-y py-2.5 leading-relaxed')}
               />
-              <Label htmlFor="save-default" className="text-[11px] font-black text-slate-400 uppercase tracking-[0.1em] cursor-pointer group-hover:text-slate-600 transition-colors">
-                Salvar preferências como meu padrão
-              </Label>
+              <p className={cn('m-0 text-xs', overLimit ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground')} aria-live="polite">
+                {overLimit
+                  ? `Passa do limite: cabem mais ${slots} (o máximo é ${MAX_DIMENSIONS}).`
+                  : parsed.length === 0
+                    ? 'Nenhuma linha reconhecida ainda.'
+                    : `${parsed.length} ${parsed.length === 1 ? 'linha será criada' : 'linhas serão criadas'}.`}
+              </p>
             </div>
-            <div className="flex gap-4 w-full sm:w-auto">
-              <Button variant="ghost" onClick={() => onOpenChange(false)} className="h-16 px-10 font-black uppercase text-[12px] tracking-widest rounded-2xl hover:bg-slate-100 hover:text-slate-900 transition-all">Cancelar</Button>
-              <Button onClick={handleSubmit} disabled={isCreating || dimensions.length === 0} className="h-16 px-12 bg-rose-600 hover:bg-rose-700 font-black uppercase tracking-[0.3em] text-[12px] shadow-2xl shadow-rose-600/30 rounded-2xl active:scale-95 transition-all text-white flex-1 sm:flex-initial">
-                {isCreating ? <AgileSpinner size="sm" variant="white" className="mr-3" /> : <PartyPopper className="mr-3 h-6 w-6" />}
-                {isCreating ? 'Sincronizando...' : 'Lançar Radar'}
-              </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <ModalButton className="gap-2" onClick={() => { setImporting(false); setBulkText(''); }}>
+                <List className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Voltar para a lista
+              </ModalButton>
+              <ModalButton variant="primary" className="gap-2" onClick={importBulk} disabled={parsed.length === 0 || overLimit}>
+                <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
+                {parsed.length === 0 ? 'Adicionar' : parsed.length === 1 ? 'Adicionar 1 dimensão' : `Adicionar as ${parsed.length} dimensões`}
+              </ModalButton>
             </div>
-          </DialogFooter>
-        </div>
-      </DialogContent>
-    </Dialog>
+          </div>
+        ) : (
+          <div role="tabpanel" id="health-create-panel-questions" aria-labelledby="health-create-tab-questions" className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="m-0 flex items-center gap-2 text-sm font-bold">
+                Perguntas da pesquisa
+                <StatusChip tone="brand">{dimensions.length} de {MAX_DIMENSIONS}</StatusChip>
+              </h3>
+              <span className="flex-1" />
+              <ModalButton className="h-9 gap-2 text-[13px]" onClick={() => setImporting(true)}>
+                <Upload className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Importar em massa
+              </ModalButton>
+              <ModalButton variant="ghost" className="h-9 gap-2 text-[13px]" onClick={() => setConfirmClear(true)} disabled={dimensions.length === 0}>
+                <Eraser className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Limpar tudo
+              </ModalButton>
+            </div>
+
+            {errors.dimensions && dimensions.length === 0 && (
+              <p role="alert" className="m-0 flex items-center gap-1.5 text-xs text-red-700 dark:text-red-300">
+                <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> {errors.dimensions}
+              </p>
+            )}
+
+            <ol className="m-0 flex list-none flex-col gap-2 p-0">
+              {dimensions.map((d, i) => (
+                <li key={d.key} className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                  <span aria-hidden="true" className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold tabular-nums text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">{i + 1}</span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <input
+                      value={d.title}
+                      maxLength={MAX_TITLE}
+                      onChange={(e) => change(i, 'title', e.target.value)}
+                      placeholder="Título da dimensão"
+                      aria-label={`Título da pergunta ${i + 1}`}
+                      className={cn(FIELD, 'h-9 bg-transparent px-2 font-bold')}
+                    />
+                    <input
+                      value={d.description}
+                      maxLength={MAX_DESCRIPTION}
+                      onChange={(e) => change(i, 'description', e.target.value)}
+                      placeholder="Pergunta que guia o time"
+                      aria-label={`Pergunta ${i + 1}`}
+                      className={cn(FIELD, 'h-9 bg-transparent px-2 text-[13px]')}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => remove(d.key)}
+                    aria-label={`Remover ${d.title.trim() || `a pergunta ${i + 1}`}`}
+                    title="Remover"
+                    className={cn('mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-red-700 dark:hover:text-red-300 max-sm:h-11 max-sm:w-11', FOCUS_RING)}
+                  >
+                    <Trash2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ol>
+
+            <div className="flex flex-col gap-2 rounded-xl border border-dashed border-border bg-muted/20 p-3 sm:flex-row sm:items-end">
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <label htmlFor="health-new-title" className="text-xs font-semibold text-muted-foreground">Nova dimensão</label>
+                <input
+                  id="health-new-title"
+                  value={newTitle}
+                  maxLength={MAX_TITLE}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') quickAdd(); }}
+                  placeholder="Ex.: Missão"
+                  disabled={slots === 0}
+                  className={cn(FIELD, 'h-10')}
+                />
+              </div>
+              <div className="flex min-w-0 flex-[1.4] flex-col gap-1.5">
+                <label htmlFor="health-new-desc" className="text-xs font-semibold text-muted-foreground">Pergunta que guia o time</label>
+                <input
+                  id="health-new-desc"
+                  value={newDesc}
+                  maxLength={MAX_DESCRIPTION}
+                  onChange={(e) => setNewDesc(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') quickAdd(); }}
+                  placeholder="O time sabe para onde está indo?"
+                  disabled={slots === 0}
+                  className={cn(FIELD, 'h-10')}
+                />
+              </div>
+              <ModalButton variant="primary" className="gap-2" onClick={quickAdd} disabled={!canAdd}>
+                <Plus className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Adicionar
+              </ModalButton>
+            </div>
+            {slots === 0 && <p className="m-0 text-xs text-muted-foreground">Você chegou ao limite de {MAX_DIMENSIONS} perguntas.</p>}
+
+            <div className="flex justify-center">
+              <ModalButton variant="ghost" className="gap-2 text-[13px]" onClick={restore}>
+                <RotateCcw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Restaurar as perguntas do modelo
+              </ModalButton>
+            </div>
+
+            {failure && (
+              <p role="alert" className="m-0 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-[13px] text-red-700 dark:text-red-300">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+                <span><strong>Não foi possível criar a pesquisa agora.</strong> {failure} O que você digitou foi mantido.</span>
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <ConfirmDialog
+        open={confirmClear}
+        onOpenChange={setConfirmClear}
+        tone="warn"
+        icon={ListChecks}
+        title="Limpar todas as perguntas?"
+        description="A lista fica vazia. Você pode restaurar as perguntas do modelo ou escrever as suas."
+        confirmLabel="Limpar tudo"
+        onConfirm={() => setDimensions([])}
+      />
+    </>
   );
 }

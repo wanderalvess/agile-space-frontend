@@ -1,139 +1,203 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { type HealthCheckParticipant, type HealthCheckVote, type HealthCheckVoteValue, type HealthCheckDimension, type HealthCheckScaleType } from '@/lib/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Check, EyeOff, Loader2, MessageSquare, Timer } from 'lucide-react';
+import { ConfirmDialog, FIELD, FOCUS_RING, ModalButton, StatusChip } from '@/components/room-kit';
+import { scaleOptions, type ScaleOption } from '@/lib/health-check-rules';
+import type { HealthCheckBoard, HealthCheckDimension, HealthCheckParticipant, HealthCheckVote, HealthCheckVoteValue } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Users, Info, Copy, Loader2, ArrowLeft, MessageSquare, Sparkles, HelpCircle, HeartPulse, BarChart3, Shield, BrainCircuit, Trophy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Textarea } from '../ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '../ui/badge';
-import { HealthGuide } from './HealthGuide';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { copyToClipboard } from '@/lib/copy-to-clipboard';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Progress } from "@/components/ui/progress";
+import { HealthRoomShell } from './HealthRoomShell';
+import { ConnectionChip, TONE_SELECTED, ValueGlyph, type HealthConnection, type SaveState } from './health-ui';
+
+export interface FinishResult {
+  ok: boolean;
+  /** Mensagem do servidor ou da regra ("É necessário pelo menos um voto para encerrar."). */
+  message?: string;
+}
 
 interface HealthCheckVotingBoardProps {
-  boardId: string;
+  board: HealthCheckBoard;
+  squadLabel: string;
   participants: HealthCheckParticipant[];
+  currentUserId?: string;
   userVotes: HealthCheckVote[];
   /** Devolve true quando o servidor gravou; o comentário digitado fica na tela de qualquer forma. */
   onVote: (dimension: string, value: HealthCheckVoteValue, comment?: string) => Promise<boolean> | boolean | void;
   isCreator: boolean;
-  onFinish: () => void;
+  onFinish: () => Promise<FinishResult>;
   isFinishing: boolean;
-  onLeave: () => void;
   dimensions: HealthCheckDimension[];
-  roomTitle?: string;
+  connection: HealthConnection;
+  onDeleteBoard: () => Promise<void>;
   onOpenFeedback: () => void;
-  scaleType?: HealthCheckScaleType;
 }
 
+/** Quanto tempo depois da última tecla o comentário é enviado. */
+const COMMENT_DELAY_MS = 700;
+
+function SaveBadge({ state }: { state: SaveState | undefined }) {
+  if (!state) return null;
+  if (state === 'saving') {
+    return <span role="status" className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 motion-safe:animate-spin" strokeWidth={1.5} aria-hidden="true" /> Salvando…</span>;
+  }
+  if (state === 'saved') {
+    return <span role="status" className="inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-300"><Check className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Salvo</span>;
+  }
+  return <span role="alert" className="inline-flex items-center gap-1 text-xs text-red-700 dark:text-red-300"><AlertTriangle className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Não salvou · o texto continua aqui</span>;
+}
+
+/** Botões da resposta, no formato da escala do radar. `aria-pressed` marca a escolhida. */
+function VoteButtons({ dim, scale, current, onPick }: { dim: HealthCheckDimension; scale: HealthCheckBoard['scaleType']; current?: string; onPick: (value: HealthCheckVoteValue) => void }) {
+  const options = scaleOptions(scale);
+
+  if (scale === 'numbers_5') {
+    const numbers = [...options].reverse();
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div role="group" aria-label={`Nota para ${dim.title}`} className="grid grid-cols-5 gap-1.5">
+          {numbers.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onPick(o.value)}
+              aria-pressed={current === o.value}
+              aria-label={`Nota ${o.value} de 5`}
+              className={cn(
+                'flex h-12 items-center justify-center rounded-[10px] border text-base font-bold tabular-nums transition-colors duration-fast max-sm:h-12',
+                current === o.value ? 'border-primary bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground' : 'border-border bg-muted/40 text-foreground hover:bg-accent',
+                FOCUS_RING
+              )}
+            >
+              {o.value}
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground" aria-hidden="true">
+          <span>1 · Crítico</span>
+          <span>5 · Muito bom</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div role="group" aria-label={`Resposta para ${dim.title}`} className="grid grid-cols-3 gap-2">
+      {options.map((o: ScaleOption) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onPick(o.value)}
+          aria-pressed={current === o.value}
+          className={cn(
+            'flex min-h-12 items-center justify-center gap-2 rounded-[10px] border px-2 text-sm font-semibold transition-colors duration-fast',
+            current === o.value ? TONE_SELECTED[o.tone] : 'border-border bg-muted/40 text-foreground hover:bg-accent',
+            FOCUS_RING
+          )}
+        >
+          <ValueGlyph option={o} scale={scale} />
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Votação do Radar de clima: faixa de anonimato, progresso próprio e um cartão por dimensão. O comentário
+ * aparece depois da resposta e é enviado sozinho (700 ms depois da última tecla, ao sair do campo, ao encerrar
+ * e ao sair da tela). Só o criador encerra; os demais veem que o resultado depende do facilitador.
+ */
 export function HealthCheckVotingBoard({
-  boardId,
+  board,
+  squadLabel,
   participants,
+  currentUserId,
   userVotes,
   onVote,
   isCreator,
   onFinish,
   isFinishing,
-  onLeave,
   dimensions,
-  roomTitle,
+  connection,
+  onDeleteBoard,
   onOpenFeedback,
-  scaleType = 'traffic_light',
 }: HealthCheckVotingBoardProps) {
-  const { toast } = useToast();
-  const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
-  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const scale = board.scaleType ?? 'traffic_light';
+  const [finishOpen, setFinishOpen] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
   const [localComments, setLocalComments] = useState<Record<string, string>>(() => {
     const comments: Record<string, string> = {};
-    userVotes.forEach(v => { if (v.comment) comments[v.dimensionKey] = v.comment; });
+    userVotes.forEach((v) => { if (v.comment) comments[v.dimensionKey] = v.comment; });
     return comments;
   });
+  const [saveStates, setSaveStates] = useState<Record<string, SaveState | undefined>>({});
 
-  const handleCopyLink = async () => {
-    const success = await copyToClipboard(window.location.href);
-    if (success) {
-      toast({ title: "Link Copiado!" });
-    } else {
-      toast({ title: "Falha ao copiar", variant: "destructive" });
-    }
-  };
-
-  const userVotesMap = useMemo(() => {
-    return new Map(userVotes.map(v => [v.dimensionKey, v.value]));
-  }, [userVotes]);
+  const userVotesMap = useMemo(() => new Map(userVotes.map((v) => [v.dimensionKey, v.value])), [userVotes]);
 
   // Sempre a versão mais recente das props/estado dentro dos timers do comentário (sem closure velha).
   const latest = useRef({ onVote, userVotesMap });
   latest.current = { onVote, userVotesMap };
   const commentTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const pendingComments = useRef<Record<string, string>>({});
+  const savedTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const mounted = useRef(true);
+
+  /** Envia e mostra Salvando… / Salvo (ou o erro). O texto continua na tela se falhar. */
+  const send = useCallback(async (key: string, value: HealthCheckVoteValue, comment?: string): Promise<boolean> => {
+    if (mounted.current) setSaveStates((s) => ({ ...s, [key]: 'saving' }));
+    let ok = false;
+    try {
+      const result = await latest.current.onVote(key, value, comment);
+      ok = result !== false;
+    } catch {
+      ok = false;
+    }
+    if (!mounted.current) return ok;
+    setSaveStates((s) => ({ ...s, [key]: ok ? 'saved' : 'error' }));
+    if (ok) {
+      clearTimeout(savedTimers.current[key]);
+      savedTimers.current[key] = setTimeout(() => {
+        if (mounted.current) setSaveStates((s) => (s[key] === 'saved' ? { ...s, [key]: undefined } : s));
+      }, 4000);
+    }
+    return ok;
+  }, []);
 
   const handleVoteClick = (dimensionKey: string, value: HealthCheckVoteValue) => {
     // um clique já leva o comentário atual; o rascunho pendente dessa dimensão não precisa mais ser enviado
     clearTimeout(commentTimers.current[dimensionKey]);
     delete pendingComments.current[dimensionKey];
-    onVote(dimensionKey, value, localComments[dimensionKey]);
+    void send(dimensionKey, value, localComments[dimensionKey]);
   };
 
   /** Envia o comentário pendente de uma dimensão (ou de todas). Sem voto na dimensão não há onde guardar o comentário. */
-  const flushComments = async (onlyDimension?: string) => {
+  const flushComments = useCallback(async (onlyDimension?: string) => {
     const keys = onlyDimension ? [onlyDimension] : Object.keys(pendingComments.current);
     for (const key of keys) {
       clearTimeout(commentTimers.current[key]);
       const comment = pendingComments.current[key];
       const value = latest.current.userVotesMap.get(key);
       delete pendingComments.current[key];
-      if (comment !== undefined && value) {
-        await latest.current.onVote(key, value, comment);
-      }
+      if (comment !== undefined && value) await send(key, value, comment);
     }
-  };
+  }, [send]);
 
-  // Antes: um envio ao servidor por tecla digitada. Agora o comentário é enviado 700 ms depois da última tecla,
-  // ao sair do campo, ao encerrar e ao sair da tela.
   const handleCommentChange = (dimensionKey: string, comment: string) => {
-    setLocalComments(prev => ({ ...prev, [dimensionKey]: comment }));
+    setLocalComments((prev) => ({ ...prev, [dimensionKey]: comment }));
     if (!userVotesMap.get(dimensionKey)) return;
     pendingComments.current[dimensionKey] = comment;
     clearTimeout(commentTimers.current[dimensionKey]);
-    commentTimers.current[dimensionKey] = setTimeout(() => { void flushComments(dimensionKey); }, 700);
+    commentTimers.current[dimensionKey] = setTimeout(() => { void flushComments(dimensionKey); }, COMMENT_DELAY_MS);
   };
 
   useEffect(() => {
+    mounted.current = true;
     const timers = commentTimers.current;
+    const saved = savedTimers.current;
     return () => {
+      mounted.current = false;
       Object.values(timers).forEach(clearTimeout);
+      Object.values(saved).forEach(clearTimeout);
       // sair da tela com comentário pendente não pode perder o texto
       for (const [key, comment] of Object.entries(pendingComments.current)) {
         const value = latest.current.userVotesMap.get(key);
@@ -142,272 +206,139 @@ export function HealthCheckVotingBoard({
     };
   }, []);
 
-  const handleFinishConfirm = async () => {
-    setIsFinishDialogOpen(false);
+  const answered = dimensions.filter((d) => userVotesMap.has(d.key)).length;
+  const total = dimensions.length;
+  const progress = total > 0 ? Math.round((answered / total) * 100) : 0;
+  const allDone = total > 0 && answered === total;
+
+  const confirmFinish = async () => {
+    setFinishError(null);
     await flushComments();
-    onFinish();
-  };
-
-  const progress = dimensions.length > 0 ? Math.round((userVotes.length / dimensions.length) * 100) : 0;
-
-  const getVoteColor = (value: HealthCheckVoteValue) => {
-    if (value === 'green' || value === 'happy' || value === '5' || value === '4') return 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]';
-    if (value === 'yellow' || value === 'neutral' || value === '3' || value === '2') return 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]';
-    return 'bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]';
-  };
-
-  const renderVoteButtons = (dimKey: string, currentVote?: string) => {
-    if (scaleType === 'numbers_5') {
-       return (
-         <div className="grid grid-cols-5 gap-1.5 w-full">
-           {['1', '2', '3', '4', '5'].map(val => (
-             <Button
-                key={val}
-                variant="ghost"
-                onClick={() => handleVoteClick(dimKey, val as HealthCheckVoteValue)}
-                aria-label={`Nota ${val} de 5`}
-                aria-pressed={currentVote === val}
-                className={cn(
-                  "flex flex-col gap-1.5 h-auto py-3 border-2 transition-all rounded-xl",
-                  currentVote === val 
-                    ? "bg-slate-900 border-slate-900 text-white shadow-lg" 
-                    : "border-transparent bg-slate-50 hover:bg-slate-100"
-                )}
-             >
-               <span className="text-sm font-black italic">{val}</span>
-             </Button>
-           ))}
-         </div>
-       );
-    }
-
-    if (scaleType === 'emojis') {
-       const options = [
-         { val: 'sad', emoji: '😫', label: 'Ruim' },
-         { val: 'neutral', emoji: '😐', label: 'Médio' },
-         { val: 'happy', emoji: '🙂', label: 'Bom' }
-       ];
-       return (
-         <div className="grid grid-cols-3 gap-2 w-full">
-           {options.map(opt => (
-             <Button
-                key={opt.val}
-                variant="ghost"
-                onClick={() => handleVoteClick(dimKey, opt.val as HealthCheckVoteValue)}
-                aria-label={opt.label}
-                aria-pressed={currentVote === opt.val}
-                className={cn(
-                  "flex flex-col gap-1 h-auto py-3 border-2 transition-all rounded-xl",
-                  currentVote === opt.val 
-                    ? "bg-amber-100 border-amber-500 text-amber-900 shadow-md" 
-                    : "border-transparent bg-slate-50 hover:bg-slate-100"
-                )}
-             >
-               <span className="text-xl">{opt.emoji}</span>
-               <span className="text-[8px] font-black uppercase tracking-tighter opacity-60">{opt.label}</span>
-             </Button>
-           ))}
-         </div>
-       );
-    }
-
-    // Default: Traffic Light
-    const trafficOptions = [
-       { val: 'green', color: 'bg-emerald-500', label: 'Ótimo' },
-       { val: 'yellow', color: 'bg-amber-500', label: 'Atenção' },
-       { val: 'red', color: 'bg-rose-500', label: 'Ruim' }
-    ];
-    return (
-      <div className="grid grid-cols-3 gap-2 w-full">
-        {trafficOptions.map(opt => (
-          <Button
-            key={opt.val}
-            variant="ghost"
-            onClick={() => handleVoteClick(dimKey, opt.val as HealthCheckVoteValue)}
-            aria-label={opt.label}
-            aria-pressed={currentVote === opt.val}
-            className={cn(
-              "flex flex-col gap-1.5 h-auto py-2.5 border-2 transition-all group rounded-xl shadow-sm",
-              currentVote === opt.val 
-                ? `${opt.val === 'green' ? 'bg-emerald-500/10 border-emerald-500 text-emerald-700' : opt.val === 'yellow' ? 'bg-amber-500/10 border-amber-500 text-amber-700' : 'bg-rose-500/10 border-rose-500 text-rose-700'}`
-                : "border-transparent bg-slate-50 hover:bg-slate-100"
-            )}
-          >
-            <div className={cn("w-3.5 h-3.5 rounded-full transition-transform shadow-inner", opt.color, currentVote === opt.val && "scale-110")} />
-            <span className="text-[8px] font-black uppercase tracking-tighter">{opt.label}</span>
-          </Button>
-        ))}
-      </div>
-    );
+    const result = await onFinish();
+    if (!result.ok) setFinishError(result.message || 'Não foi possível encerrar a votação.');
   };
 
   return (
-    <div className="flex flex-col flex-1 bg-[#fafafa] relative overflow-hidden h-screen">
-      {/* Mesh Gradient Background */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-amber-200/30 blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-100/30 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
+    <HealthRoomShell
+      title={board.sprintName?.trim() || 'Radar de clima'}
+      squadLabel={squadLabel}
+      dimensionCount={total}
+      phase="vote"
+      isCreator={isCreator}
+      creatorId={board.creatorId}
+      participants={participants}
+      currentUserId={currentUserId}
+      connection={connection}
+      onOpenFeedback={onOpenFeedback}
+      onDeleteBoard={onDeleteBoard}
+      primaryAction={
+        isCreator ? (
+          <ModalButton variant="primary" className="gap-2" disabled={isFinishing} onClick={() => { setFinishError(null); setFinishOpen(true); }}>
+            {isFinishing ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" strokeWidth={1.5} aria-hidden="true" /> : <Check className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />}
+            {isFinishing ? 'Encerrando…' : 'Encerrar votação'}
+          </ModalButton>
+        ) : undefined
+      }
+    >
+      <div className="mx-auto flex w-full max-w-[1750px] flex-col gap-4 px-4 py-4 md:px-6 md:py-5">
+        <p className="m-0 flex items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-[13px] leading-relaxed dark:bg-primary/15">
+          <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" strokeWidth={1.5} aria-hidden="true" />
+          <span><strong>Respostas anônimas.</strong> Você só vê as suas até o facilitador encerrar; no resultado, votos e comentários aparecem sem nome.</span>
+        </p>
 
-      <RoomHeader 
-        title={roomTitle || "Radar de Saúde"} 
-        toolIcon={<HeartPulse className="h-4 w-4" />}
-        toolColorClass="text-emerald-600 bg-emerald-50"
-        onOpenFeedback={onOpenFeedback}
-        actions={
-          <div className="flex items-center gap-2">
-            <div className="hidden lg:flex items-center gap-3 bg-emerald-50/50 border border-emerald-100/50 px-4 py-1.5 rounded-xl mr-2">
-              <div className="space-y-1 min-w-[100px]">
-                <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest text-emerald-700/60">
-                  <span>Progresso</span>
-                  <span>{progress}%</span>
-                </div>
-                <Progress value={progress} className="h-1 bg-emerald-100" />
-              </div>
+        <section aria-label="Seu progresso" className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-2xl border border-border bg-card px-5 py-4">
+          <div className="flex min-w-[14rem] flex-1 flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-sm font-bold">{allDone ? 'Você respondeu todas as dimensões' : `Você respondeu ${answered} de ${total}`}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{progress}%</span>
             </div>
-
-            <div className="flex items-center gap-1.5 mr-2">
-              <div className="p-1 px-2.5 bg-slate-100 rounded-lg text-slate-500 font-black text-[10px] flex items-center gap-1.5 h-8">
-                <Users className="h-3 w-3" />
-                {participants.length}
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCopyLink}
-                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                title="Copiar Link"
-                aria-label="Copiar link do radar"
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
+            <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Seu progresso">
+              <div className={cn('h-full rounded-full transition-[width] duration-slow motion-reduce:transition-none', allDone ? 'bg-emerald-600 dark:bg-emerald-400' : 'bg-primary')} style={{ width: `${progress}%` }} />
             </div>
-
-            <div className="w-px h-5 bg-slate-200 mx-1 hidden sm:block" />
-
-            {isCreator && (
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                disabled={isFinishing} 
-                onClick={() => setIsFinishDialogOpen(true)} 
-                className="h-8 text-[9px] font-black uppercase tracking-widest shadow-sm border border-emerald-500/10 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-all rounded-xl ml-1"
-              >
-                {isFinishing ? (
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
-                )}
-                {isFinishing ? 'Salvando...' : 'Encerrar'}
-              </Button>
-            )}
-
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={() => setIsGuideOpen(true)}
-              className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all ml-1" 
-              title="GUIA DO RADAR"
-              aria-label="Guia do radar"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </Button>
-            <HealthGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
           </div>
-        } 
-      />
+          <div className="flex flex-wrap items-center gap-2">
+            <ConnectionChip connection={connection} />
+            {isCreator ? (
+              <span className="text-xs text-muted-foreground">{allDone ? 'Encerre quando a squad terminar de responder.' : 'Você encerra a votação quando quiser.'}</span>
+            ) : (
+              <StatusChip tone="neutral"><Timer className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Aguardando o facilitador</StatusChip>
+            )}
+          </div>
+          {!isCreator && <span className="basis-full text-xs text-muted-foreground sm:basis-auto">O resultado é liberado quando o facilitador encerrar.</span>}
+        </section>
 
-      <div className="max-w-[1750px] mx-auto w-full space-y-4 px-4 md:px-10 pt-4 pb-12 overflow-y-auto min-h-0 flex-1">
-
-        <Card className="bg-emerald-600/10 border border-emerald-500/20 backdrop-blur-md rounded-[1.5rem] overflow-hidden relative">
-          <CardContent className="p-3 md:p-4 flex items-center justify-center gap-4 relative z-10">
-            <div className="px-3 py-1 bg-emerald-600 rounded-full text-[8px] font-black uppercase tracking-[0.2em] text-white shadow-lg shadow-emerald-500/20 shrink-0">Privacidade Anonimato</div>
-            <p className="text-[11px] md:text-xs font-bold text-emerald-800 leading-none tracking-tight">
-              Os votos são <span className="text-emerald-600">100% secretos</span>. Compilamos apenas a saúde geral da squad.
-            </p>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {dimensions.map(dim => {
-            const currentVote = userVotesMap.get(dim.key);
-
+        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-4 p-0">
+          {dimensions.map((dim) => {
+            const current = userVotesMap.get(dim.key);
             return (
-              <Card key={dim.key} className={cn(
-                "flex flex-col border-white/60 shadow-xl shadow-slate-900/5 overflow-hidden bg-white/40 backdrop-blur-xl transition-all rounded-[2.5rem] hover:shadow-2xl hover:scale-[1.02] duration-300",
-                currentVote && "border-emerald-500/30 ring-4 ring-emerald-500/5 bg-white/60"
-              )}>
-                <CardHeader className="p-4 md:p-5 pb-2">
-                  <div className="flex justify-between items-start gap-4">
-                    <CardTitle className="text-sm md:text-base font-black uppercase tracking-tight flex-1 leading-tight">{dim.title}</CardTitle>
-                    {currentVote && <div className={cn("w-2.5 h-2.5 rounded-full shrink-0 mt-1", getVoteColor(currentVote as HealthCheckVoteValue))} />}
-                  </div>
-                  <CardDescription className="text-[10px] md:text-[11px] font-medium leading-tight line-clamp-2 min-h-[22px] text-slate-500/80">{dim.description}</CardDescription>
-                </CardHeader>
-                
-                <CardContent className="flex-1 p-4 md:p-5 pt-0 space-y-4">
-                  {renderVoteButtons(dim.key, currentVote)}
-
-                  {currentVote && (
-                    <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="flex items-center gap-1.5 mb-1.5 px-1 text-slate-400">
-                        <MessageSquare className="h-2.5 w-2.5" />
-                        <span className="text-[8px] font-black uppercase tracking-[0.1em]">Contexto</span>
+              <li key={dim.key}>
+                <article aria-label={dim.title} className={cn('flex h-full flex-col gap-3 rounded-2xl border bg-card p-4 transition-colors duration-base', current ? 'border-primary/40' : 'border-border')}>
+                  <header className="flex items-start gap-2">
+                    <h3 className="m-0 flex-1 text-[15px] font-bold leading-tight">{dim.title}</h3>
+                    {current && <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" strokeWidth={2} aria-label="Respondida" />}
+                  </header>
+                  {dim.description && <p className="m-0 text-[13px] leading-snug text-muted-foreground">{dim.description}</p>}
+                  <VoteButtons dim={dim} scale={scale} current={current} onPick={(v) => handleVoteClick(dim.key, v)} />
+                  {current ? (
+                    <div className="flex flex-col gap-1.5 motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">
+                      <div className="flex items-center justify-between gap-2">
+                        <label htmlFor={`health-comment-${dim.key}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                          <MessageSquare className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> Por que essa resposta? <span className="font-normal">(opcional)</span>
+                        </label>
+                        <SaveBadge state={saveStates[dim.key]} />
                       </div>
-                      <Textarea
-                        placeholder="Por que essa nota?..."
+                      <textarea
+                        id={`health-comment-${dim.key}`}
                         value={localComments[dim.key] || ''}
                         onChange={(e) => handleCommentChange(dim.key, e.target.value)}
                         onBlur={() => { void flushComments(dim.key); }}
                         aria-label={`Comentário sobre ${dim.title}`}
+                        placeholder="Escreva o contexto, se quiser…"
                         maxLength={2000}
-                        className="text-[10px] min-h-[60px] rounded-lg bg-slate-50/50 border-slate-100 focus:bg-white transition-all resize-none shadow-inner p-2"
+                        rows={3}
+                        className={cn(FIELD, 'min-h-[72px] resize-none py-2 text-[13px] leading-relaxed')}
                       />
                     </div>
-                  )}
-                  
-                  {!currentVote && (
-                    <div className="h-6 flex items-center justify-center">
-                       <p className="text-[8px] font-black uppercase tracking-widest text-slate-200">Aguardando Avaliação</p>
-                    </div>
-                  )}
-                </CardContent>
-                
-                <CardFooter className={cn(
-                  "p-2.5 border-t flex items-center justify-center transition-colors",
-                  currentVote ? "bg-primary/5" : "bg-muted/10"
-                )}>
-                  {currentVote ? (
-                    <span className="text-[8px] font-black uppercase text-primary tracking-widest flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3 w-3" /> Voto Registrado
-                    </span>
                   ) : (
-                    <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest opacity-40">Aguardando Avaliação</span>
+                    <p className="m-0 mt-auto py-1 text-center text-[13px] text-muted-foreground">Aguardando a sua resposta</p>
                   )}
-                </CardFooter>
-              </Card>
+                </article>
+              </li>
             );
           })}
-        </div>
+        </ul>
       </div>
 
-      <AlertDialog open={isFinishDialogOpen} onOpenChange={setIsFinishDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-xl font-black uppercase tracking-tight italic">Encerrar Radar de Saúde?</AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
-              Deseja encerrar a votação e gerar o relatório consolidado para a squad? Esta ação é definitiva e a sala não aceitará novos votos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="font-bold text-[10px] uppercase">Continuar Votando</AlertDialogCancel>
-            <AlertDialogAction onClick={handleFinishConfirm} className="bg-primary font-black text-[10px] uppercase tracking-widest px-8 shadow-lg shadow-primary/20">
-              Confirmar e Gerar Resultados
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+      <ConfirmDialog
+        open={finishOpen}
+        onOpenChange={(o) => { if (!o) setFinishError(null); setFinishOpen(o); }}
+        tone="danger"
+        icon={Check}
+        title="Encerrar o radar?"
+        description="Depois de encerrar, ninguém mais responde e o resultado aparece para toda a squad. Quem não respondeu fica de fora. Não dá para desfazer."
+        cancelLabel="Continuar votando"
+        confirmLabel="Encerrar e ver o resultado"
+        loading={isFinishing}
+        loadingLabel="Encerrando…"
+        keepOpenOnConfirm
+        onConfirm={() => void confirmFinish()}
+      >
+        <dl className="m-0 flex flex-col gap-1.5 rounded-xl border border-border bg-muted/40 px-3.5 py-3 text-[13px]">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Você respondeu</dt>
+            <dd className="m-0 font-semibold tabular-nums">{answered} de {total}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Seus comentários pendentes</dt>
+            <dd className="m-0 font-semibold">enviados antes de encerrar</dd>
+          </div>
+        </dl>
+        {finishError && (
+          <p role="alert" className="m-0 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-[13px] text-red-700 dark:text-red-300">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" /> {finishError}
+          </p>
+        )}
+      </ConfirmDialog>
+    </HealthRoomShell>
   );
 }

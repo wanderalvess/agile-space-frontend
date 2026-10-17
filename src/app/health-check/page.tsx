@@ -1,176 +1,146 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  HeartPulse, 
-  Zap, 
-  Target, 
-  Users, 
-  ShieldCheck,
-  TrendingUp,
-  ArrowRight as ArrowRightIcon,
-  Activity,
-  Sparkles,
-  BarChart3,
-  History
-} from 'lucide-react';
-import { healthCheckApi } from './api';
+import { CreateHealthCheckDialog, type CreateHealthCheckInput } from '@/components/health-check/CreateHealthCheckDialog';
+import { HealthLobbyView, type HealthHubState } from '@/components/health-check/HealthLobbyView';
 import { useToast } from '@/hooks/use-toast';
-import { errorMessage } from '@/lib/ceremony-api';
-import { useUserContext } from '@/context/UserContext';
+import { useToolHistory } from '@/hooks/useToolHistory';
 import { useActiveSquad } from '@/hooks/useActiveSquad';
-import { ToolHubLayout } from '@/components/shared/ToolHubLayout';
-import { CreateHealthCheckDialog } from '@/components/health-check/CreateHealthCheckDialog';
-import { HealthCheckDimension, HealthCheckScaleType } from '@/lib/types';
+import { useUserContext } from '@/context/UserContext';
+import { answersFromSummary, mergeHealthRows, removeLocalRoomMeta } from '@/lib/health-check-lobby';
+import { ritualsApi } from '@/lib/home-api';
+import { healthCheckApi } from './api';
+import type { HealthCheckBoard } from '@/lib/types';
 
 const ROOMS_META_KEY = 'agileSpace_rooms_meta';
+/** Quantos radares recentes a lista busca (a contagem de respostas vem do histórico da Home). */
+const HISTORY_LIMIT = 50;
 
 export default function HealthCheckHubPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { userProfile, requestIdentity } = useUserContext();
   const { squadId: activeSquadId } = useActiveSquad();
+  const { history: localHistory } = useToolHistory('health');
 
   const [isSetupOpen, setIsSetupOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [boards, setBoards] = useState<HealthCheckBoard[]>([]);
+  const [answers, setAnswers] = useState<Map<string, number>>(new Map());
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
-  const saveRoomMeta = (id: string, type: string, title: string, team: string) => {
+  const saveRoomMeta = (id: string, title: string, team: string) => {
     try {
       const saved = localStorage.getItem(ROOMS_META_KEY);
       const rooms = saved ? JSON.parse(saved) : [];
-      const newMeta = {
-        roomId: id,
-        type,
-        title,
-        team,
-        createdBy: userProfile?.id,
-        createdAt: new Date().toISOString()
-      };
-      localStorage.setItem(ROOMS_META_KEY, JSON.stringify([...rooms, newMeta]));
+      rooms.push({ roomId: id, type: 'health', title, team, createdBy: userProfile?.id, createdAt: new Date().toISOString() });
+      localStorage.setItem(ROOMS_META_KEY, JSON.stringify(rooms));
     } catch (e) {
-      console.error("Erro ao salvar metadados da sala", e);
+      console.error('Erro ao salvar metadados da sala', e);
     }
   };
 
-  const handleCreate = async (dimensions: HealthCheckDimension[], sprintName: string, team: string, scaleType: HealthCheckScaleType) => {
-    if (isCreating) return;
-
-    if (!userProfile || !userProfile.id) {
-      console.error("[health-check] Criar board abortado: usuário sem ID.");
-      toast({
-        title: "Perfil Não Identificado",
-        description: "Não foi possível carregar a sua identidade.",
-        variant: "destructive"
-      });
+  const loadBoards = useCallback(async () => {
+    if (!activeSquadId) {
+      // Sem squad não há o que listar: sem isto o esqueleto ficava para sempre.
+      setBoards([]);
+      setFailed(false);
+      setLoading(false);
       return;
     }
-    setIsCreating(true);
-    
-    const newHealthCheck = {
-      creatorId: userProfile.id,
-      status: 'collecting' as const,
-      createdAt: new Date().toISOString(),
-      dimensions,
-      scaleType,
-      sprintName: sprintName || '',
-      team: team || activeSquadId || 'Squad Geral',
-      participantIds: [userProfile.id]
-    };
-
+    setLoading(true);
     try {
-      const created = await healthCheckApi.saveOrUpdateBoard(newHealthCheck);
-      if (created && created.id) {
-        saveRoomMeta(created.id, 'health', sprintName || 'Radar de Saúde', team || 'Squad');
-        setIsSetupOpen(false);
-        router.push(`/health-check/${created.id}`);
-      } else {
-        setIsCreating(false);
-      }
-    } catch (error) {
-      console.error("Error creating health check: ", error);
-      setIsCreating(false);
-      toast({
-        title: "Erro na Criação",
-        description: errorMessage(error, "Não foi possível iniciar o radar no momento."),
-        variant: "destructive"
+      const list = await healthCheckApi.listBoards(activeSquadId);
+      setBoards(list);
+      setFailed(false);
+      // Respostas por radar: vêm do histórico da Home. Se falhar, a lista segue sem a coluna (nada é inventado).
+      ritualsApi
+        .history('HEALTH_CHECK', { squadId: activeSquadId, limit: HISTORY_LIMIT })
+        .then((history) => {
+          const map = new Map<string, number>();
+          for (const h of history) {
+            const n = answersFromSummary(h.summary);
+            if (n !== null) map.set(h.id, n);
+          }
+          setAnswers(map);
+        })
+        .catch(() => setAnswers(new Map()));
+    } catch (e) {
+      console.error('Erro ao listar radares', e);
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeSquadId]);
+
+  useEffect(() => { void loadBoards(); }, [loadBoards]);
+
+  // As salas abertas neste navegador entram como atalho, mas só as da squad ativa (ou sem squad).
+  const rows = useMemo(() => {
+    const squad = activeSquadId.toLowerCase();
+    const local = localHistory.filter((h) => !h.team || h.team.toLowerCase() === squad);
+    return mergeHealthRows(boards, local.map((h) => ({ roomId: h.roomId, title: h.title, team: h.team, createdAt: h.createdAt })), answers);
+  }, [boards, localHistory, answers, activeSquadId]);
+
+  const state: HealthHubState = !activeSquadId ? 'no-squad' : loading && boards.length === 0 ? 'loading' : failed ? 'error' : 'ready';
+
+  const openNew = () => {
+    if (!userProfile) requestIdentity(() => setIsSetupOpen(true));
+    else setIsSetupOpen(true);
+  };
+
+  const handleCreate = async ({ dimensions, title, team, scaleType }: CreateHealthCheckInput) => {
+    if (isCreating) return;
+    if (!userProfile || !userProfile.id) {
+      console.error('[health-check] Criar radar abortado: usuário sem ID.');
+      throw new Error('Não foi possível carregar a sua identidade. Atualize a página e tente de novo.');
+    }
+    setIsCreating(true);
+    try {
+      // O servidor ignora creatorId, status e participantIds do corpo (usa o login); seguem aqui pelo contrato.
+      const created = await healthCheckApi.saveOrUpdateBoard({
+        creatorId: userProfile.id,
+        status: 'collecting' as const,
+        createdAt: new Date().toISOString(),
+        dimensions,
+        scaleType,
+        sprintName: title,
+        team,
+        participantIds: [userProfile.id],
       });
+      if (!created || !created.id) throw new Error('O servidor não devolveu o radar criado.');
+      saveRoomMeta(created.id, title, team);
+      setIsSetupOpen(false);
+      router.push(`/health-check/${created.id}`);
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  const tips = [
-    {
-      title: "Respostas sinceras",
-      description: "O radar só é útil se as respostas forem honestas. Garanta que o time se sinta seguro para expressar a realidade.",
-      icon: <Activity className="text-rose-500" />
-    },
-    {
-      title: "Olhe a tendência",
-      description: "Compare os resultados com sessões anteriores. A direção do movimento é mais importante que o valor absoluto.",
-      icon: <TrendingUp className="text-rose-500" />
-    },
-    {
-      title: "Plano de Melhoria",
-      description: "Identifique as dimensões no 'vermelho' e defina uma ação simples para atacar esse problema na próxima sprint.",
-      icon: <Target className="text-rose-500" />
-    }
-  ];
-
-  const referenceSections = [
-    {
-      title: "Respostas sinceras",
-      label: "Cultura",
-      description: "Ninguém sabe quem votou. O sistema agrupa os resultados para garantir que a verdade apareça sem medo de julgamentos.",
-      icon: <Activity className="text-rose-500" />
-    },
-    {
-      title: "O que é avaliado",
-      label: "Dimensões",
-      description: "Avaliamos pilares como Qualidade do Código, Missão da Squad, Processos e Diversão. O foco é saúde sustentável.",
-      icon: <HeartPulse className="text-rose-500" />
-    },
-    {
-      title: "Como ler o gráfico radar",
-      label: "Radar",
-      description: "O gráfico mostra onde o time está perdendo energia. Os pontos mais afundados são os que merecem atenção primeiro.",
-      icon: <BarChart3 className="text-rose-500" />
-    },
-    {
-      title: "Compare ao longo do tempo",
-      label: "Evolução",
-      description: "Compare os radares mensais. A direção do movimento é mais importante do que o valor absoluto de hoje.",
-      icon: <History className="text-rose-500" />
-    }
-  ];
+  const handleDelete = async (id: string) => {
+    await healthCheckApi.deleteBoard(id);
+    setBoards((prev) => prev.filter((b) => b.id !== id));
+    // Tira também do atalho local (senão a sala apagada continuaria na lista deste navegador).
+    removeLocalRoomMeta(id, window.localStorage);
+    window.dispatchEvent(new Event('storage'));
+    toast({ title: 'Pesquisa apagada' });
+  };
 
   return (
-    <>
-      <ToolHubLayout
-        module="health"
-        title="Radar de Saúde"
-        description="Diagnóstico 360º da saúde da squad. Meça o clima, confiança técnica e processos para evitar o burnout e otimizar o fluxo."
-        icon={<HeartPulse />}
-        themeColor="rose"
-        toolType="health"
-        tips={tips}
-        referenceSections={referenceSections}
-        onNewSession={() => {
-          if (!userProfile) {
-            requestIdentity(() => setIsSetupOpen(true));
-          } else {
-            setIsSetupOpen(true);
-          }
-        }}
-        onJoinSession={(id) => router.push(`/health-check/${id}`)}
-        isCreating={isCreating}
-      />
-
-      <CreateHealthCheckDialog 
-        open={isSetupOpen} 
-        onOpenChange={setIsSetupOpen} 
-        onCreateBoard={handleCreate} 
-        isCreating={isCreating}
-      />
-    </>
+    <HealthLobbyView
+      rows={rows}
+      state={state}
+      onRetry={() => void loadBoards()}
+      onNew={openNew}
+      isCreating={isCreating}
+      onJoin={(id) => router.push(`/health-check/${encodeURIComponent(id)}`)}
+      onOpen={(id) => router.push(`/health-check/${encodeURIComponent(id)}`)}
+      currentUserId={userProfile?.id}
+      onDelete={handleDelete}
+    >
+      <CreateHealthCheckDialog open={isSetupOpen} onOpenChange={setIsSetupOpen} onCreateBoard={handleCreate} isCreating={isCreating} />
+    </HealthLobbyView>
   );
 }

@@ -34,6 +34,10 @@ Em negrito, o que nasceu com a Retro. `connectRoomSocket` (`src/lib/room-socket.
 - Painéis: `ResponsivePanel` + `PresenceList` (participantes) e o `TeamChat` do Poker (chat).
 - A regra que não depende de tela fica em `src/components/retro/retro-room-logic.ts` (fases, votos e limite, arrastar, timer, reducers dos eventos), testada sem DOM.
 
+## Como o Radar de clima usa o kit
+
+Ver `docs/redesign/health-check.md`. `HealthRoomShell` monta o `RoomTopBar` (Votar e Resultado), a lista de participantes (`ResponsivePanel` + `PresenceList`), `ShareDialog`, `GuideSheet` e `ConfirmDialog`; o resultado usa `ExportDialogShell`, `PresentationBar` e `StageNav`; a nova pesquisa usa `Modal`, `TabBar` e `SelectField`. Salas sem presença real (o servidor só avisa entrada e saída) passam `online` sem valor em `TopBarPerson` e `PresenceItem`: não há ponto verde nem "ausente", e o botão diz "Participantes (N)".
+
 ## Testes de sala
 
 - Nos arquivos de teste os imports e os `vi.mock` usam caminho relativo: o alias `@/` não resolve a partir de `__tests__`.

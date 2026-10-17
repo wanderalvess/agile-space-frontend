@@ -10,6 +10,11 @@ export interface RoomSocketOptions {
    * aconteceu até a conexão firmar precisa ser recarregado.
    */
   onOpen?: () => void;
+  /**
+   * Chamado quando a conexão cai (sem ser o fechamento deliberado), já com o tempo até a próxima tentativa. A tela
+   * usa para mostrar "Reconectando… nova tentativa em N s" em vez de uma sala que parece viva e não recebe nada.
+   */
+  onClose?: (info: { attempt: number; retryInMs: number }) => void;
   /** Mensagem que não é JSON válido ou handler que lançou: a tela recarrega tudo por segurança. */
   onError?: (error: unknown) => void;
   WebSocketImpl?: typeof WebSocket;
@@ -24,7 +29,7 @@ export interface RoomSocketOptions {
  */
 export function connectRoomSocket(options: RoomSocketOptions): () => void {
   const {
-    buildUrl, onMessage, onReconnect, onOpen, onError,
+    buildUrl, onMessage, onReconnect, onOpen, onClose, onError,
     WebSocketImpl = typeof WebSocket !== 'undefined' ? WebSocket : undefined,
     baseDelayMs = 1500, maxDelayMs = 15000,
   } = options;
@@ -59,18 +64,22 @@ export function connectRoomSocket(options: RoomSocketOptions): () => void {
       }
     };
     socket.onclose = () => {
-      if (!stopped) schedule();
+      if (!stopped) {
+        const retryInMs = schedule();
+        onClose?.({ attempt, retryInMs });
+      }
     };
     socket.onerror = () => {
       // o close vem em seguida e agenda a reconexão
     };
   };
 
-  const schedule = () => {
-    if (stopped) return;
+  const schedule = (): number => {
+    if (stopped) return 0;
     const delay = Math.min(maxDelayMs, baseDelayMs * 2 ** attempt);
     attempt += 1;
     timer = setTimeout(connect, delay);
+    return delay;
   };
 
   connect();

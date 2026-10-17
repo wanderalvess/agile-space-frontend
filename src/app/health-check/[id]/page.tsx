@@ -7,15 +7,18 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { healthCheckApi } from '../api';
 import type { HealthCheckBoard as HealthCheckBoardType, HealthCheckParticipant, HealthCheckVote, HealthCheckVoteValue, TeamRole, GlobalRole } from '@/lib/types';
-import { HealthCheckVotingBoard } from '@/components/health-check/HealthCheckVotingBoard';
+import { HealthCheckVotingBoard, type FinishResult } from '@/components/health-check/HealthCheckVotingBoard';
 import { HealthCheckResults } from '@/components/health-check/HealthCheckResults';
+import { HealthRoomState } from '@/components/health-check/HealthRoomStates';
+import { OFFLINE_AFTER_ATTEMPTS, type HealthConnection } from '@/components/health-check/health-ui';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveSquad } from '@/hooks/useActiveSquad';
+import { useMyMemberships } from '@/hooks/useMyMemberships';
 import { DEFAULT_HEALTH_CHECK_DIMENSIONS } from '@/lib/health-check-defaults';
-import { NotFound } from '@/components/NotFound';
-import { LoadingScreen } from '@/components/layout/LoadingScreen';
+import { removeLocalRoomMeta, squadChoices, squadDisplayName } from '@/lib/health-check-lobby';
 import { useUserContext } from '@/context/UserContext';
 import { getAuthToken } from '@/lib/auth-client';
-import { errorMessage } from '@/lib/ceremony-api';
+import { CeremonyApiError, errorMessage } from '@/lib/ceremony-api';
 import { connectRoomSocket } from '@/lib/room-socket';
 import { FeedbackWidget } from '@/components/feedback-widget';
 
@@ -27,6 +30,39 @@ function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
   return copy;
 }
 
+const mapGlobalToTeamRole = (role: GlobalRole | undefined): TeamRole => {
+  switch (role) {
+    case 'Agile Master':
+    case 'Scrum Master':
+    case 'Scrum Master / Agile Coach':
+    case 'Agile Coach':
+      return 'AM';
+    case 'Product Owner':
+    case 'Product Owner (PO)':
+      return 'PO';
+    case 'Tech Lead':
+    case 'Arquiteto(a) / Tech Lead':
+    case 'People Lead':
+    case 'Tribe Lead':
+      return 'PL';
+    case 'QA':
+    case 'Analista de QA':
+      return 'QA';
+    case 'Designer':
+    case 'UX':
+    case 'Designer / UI-UX':
+      return 'UX';
+    case 'Developer':
+    case 'Desenvolvedor(a)':
+      return 'DEV';
+    case 'SME':
+      return 'SME';
+    case 'Stakeholder / Observador':
+    default:
+      return 'OUTRO';
+  }
+};
+
 export default function HealthCheckPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const boardId = resolvedParams.id;
@@ -35,6 +71,8 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   const { userProfile, isInitializing } = useUserContext();
   const { toast } = useToast();
   const router = useRouter();
+  const { squadId: activeSquadId, squadName: activeSquadName } = useActiveSquad();
+  const { memberships } = useMyMemberships();
 
   const [boardData, setBoardData] = useState<HealthCheckBoardType | null>(null);
   const [participants, setParticipants] = useState<HealthCheckParticipant[]>([]);
@@ -44,6 +82,9 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
   const [isBoardLoading, setIsBoardLoading] = useState(true);
   const [areParticipantsLoading, setAreParticipantsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'notfound' | 'error' | null>(null);
+  const [deleted, setDeleted] = useState(false);
+  const [connection, setConnection] = useState<HealthConnection>({ state: 'connecting' });
   const [isFinishing, setIsFinishing] = useState(false);
   const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
@@ -51,6 +92,8 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   const reloadSeq = useRef(0);
   const joinAttempted = useRef(false);
   const lastFinishedLoad = useRef<string | null>(null);
+  // Quem apaga o radar também recebe BOARD_DELETED: a tela dele segue para a lista, não para o aviso de "apagado".
+  const deletingRef = useRef(false);
 
   const handleOpenFeedback = useCallback(() => {
     setFeedbackSignal(Date.now());
@@ -66,38 +109,12 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
   const boardDimensions = boardData?.dimensions || DEFAULT_HEALTH_CHECK_DIMENSIONS;
 
-  const mapGlobalToTeamRole = (role: GlobalRole | undefined): TeamRole => {
-    switch (role) {
-      case 'Agile Master':
-      case 'Scrum Master':
-      case 'Scrum Master / Agile Coach':
-      case 'Agile Coach':
-        return 'AM';
-      case 'Product Owner':
-      case 'Product Owner (PO)':
-        return 'PO';
-      case 'Tech Lead':
-      case 'Arquiteto(a) / Tech Lead':
-      case 'People Lead':
-      case 'Tribe Lead':
-        return 'PL';
-      case 'QA':
-      case 'Analista de QA':
-        return 'QA';
-      case 'Designer':
-      case 'UX':
-      case 'Designer / UI-UX':
-        return 'UX';
-      case 'Developer':
-      case 'Desenvolvedor(a)':
-        return 'DEV';
-      case 'SME':
-        return 'SME';
-      case 'Stakeholder / Observador':
-      default:
-        return 'OUTRO';
-    }
-  };
+  const choices = useMemo(
+    () => squadChoices(memberships?.memberships, { squadId: activeSquadId, squadName: activeSquadName }),
+    [memberships, activeSquadId, activeSquadName]
+  );
+  const squadLabel = squadDisplayName(boardData?.team, choices);
+  const creatorName = participants.find((p) => p.id === boardData?.creatorId)?.nickname;
 
   useEffect(() => {
     // O estado da sala não pode vazar de uma sala para outra ao trocar o id na URL.
@@ -106,8 +123,12 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
     setVotes([]);
     setIsBoardLoading(true);
     setAreParticipantsLoading(true);
+    setLoadError(null);
+    setDeleted(false);
+    setConnection({ state: 'connecting' });
     joinAttempted.current = false;
     lastFinishedLoad.current = null;
+    deletingRef.current = false;
   }, [boardId]);
 
   const reloadBoardData = useCallback(async () => {
@@ -123,10 +144,13 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
       setBoardData(board);
       setParticipants(partsList);
       setVotes(votesList);
+      setLoadError(null);
       lastFinishedLoad.current = board.status === 'finished' ? board.id : null;
     } catch (e) {
       if (seq !== reloadSeq.current) return;
-      console.error("Erro ao carregar dados do Radar de Saúde:", e);
+      console.error("Erro ao carregar dados do Radar de clima:", e);
+      // Falha de rede ou 500 não pode parecer "não encontrado": só 404/403 dizem que a sala não existe ou não é acessível.
+      setLoadError(e instanceof CeremonyApiError && (e.status === 404 || e.status === 403) ? 'notfound' : 'error');
     } finally {
       if (seq === reloadSeq.current) {
         setIsBoardLoading(false);
@@ -134,6 +158,13 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
       }
     }
   }, [boardId, isAuthenticated]);
+
+  const retryLoad = useCallback(() => {
+    setLoadError(null);
+    setIsBoardLoading(true);
+    setAreParticipantsLoading(true);
+    void reloadBoardData();
+  }, [reloadBoardData]);
 
   // Conexão WebSocket (com reconexão e ressincronização) e carga inicial
   useEffect(() => {
@@ -146,6 +177,9 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
 
     return connectRoomSocket({
       buildUrl: () => wsBase + '?token=' + encodeURIComponent(getAuthToken() || ''),
+      onOpen: () => setConnection({ state: 'live' }),
+      onClose: ({ attempt, retryInMs }) =>
+        setConnection({ state: attempt >= OFFLINE_AFTER_ATTEMPTS ? 'offline' : 'reconnecting', retryInSec: Math.max(1, Math.round(retryInMs / 1000)) }),
       onReconnect: reloadBoardData,
       onError: () => reloadBoardData(),
       onMessage: (message) => {
@@ -156,8 +190,8 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
             break;
 
           case 'BOARD_DELETED':
-            toast({ title: 'Este radar foi apagado', description: 'O organizador removeu a sessão.', variant: 'destructive' });
-            router.push('/health-check');
+            if (deletingRef.current) break;
+            setDeleted(true);
             break;
 
           case 'PARTICIPANT_JOINED':
@@ -182,7 +216,7 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
         }
       },
     });
-  }, [boardId, reloadBoardData, isAuthenticated, router, toast]);
+  }, [boardId, reloadBoardData, isAuthenticated]);
 
   // Ao encerrar, a lista de votos muda de "só os meus" para "todos, sem identificação": recarrega uma vez.
   useEffect(() => {
@@ -221,15 +255,15 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
   // Título Dinâmico da Aba
   useEffect(() => {
     const baseTitle = "Portal Tech V&D";
-    const moduleName = "Radar de Saúde";
-    const sessionName = boardData?.sprintName || boardData?.team;
+    const moduleName = "Radar de clima";
+    const sessionName = boardData?.sprintName || squadLabel;
 
     if (sessionName) {
       document.title = `${sessionName} | ${moduleName} | ${baseTitle}`;
     } else {
       document.title = `${moduleName} | ${baseTitle}`;
     }
-  }, [boardData]);
+  }, [boardData?.sprintName, squadLabel]);
 
   /** Devolve true se salvou: a tela mantém o comentário digitado quando falha. */
   const handleVote = async (dimensionKey: string, value: HealthCheckVoteValue, comment?: string): Promise<boolean> => {
@@ -240,92 +274,92 @@ export default function HealthCheckPage({ params }: { params: Promise<{ id: stri
       return true;
     } catch (e) {
       console.error("Erro ao salvar voto:", e);
+      // Voto depois do encerramento (409): a tela já terá trocado para o resultado; o texto do servidor explica.
       toast({ title: "Erro ao votar", description: errorMessage(e, "Não foi possível registrar o voto. O seu comentário foi mantido na tela."), variant: "destructive" });
       return false;
     }
   };
 
-  const handleFinish = async () => {
-    if (!boardData) {
-      toast({ title: "Aguarde", description: "Sincronizando com o servidor...", variant: "destructive" });
-      return;
-    }
-
-    if (!isCurrentUserCreator) {
-      toast({ title: "Acesso negado", description: "Apenas o organizador pode encerrar a votação.", variant: "destructive" });
-      return;
-    }
-
-    if (isFinishing) return;
+  /** Encerra a votação. Os erros voltam para a própria janela de confirmação (sem toast). */
+  const handleFinish = async (): Promise<FinishResult> => {
+    if (!boardData) return { ok: false, message: 'Sincronizando com o servidor. Aguarde um instante e tente de novo.' };
+    if (!isCurrentUserCreator) return { ok: false, message: 'Apenas o organizador pode encerrar a votação.' };
+    if (isFinishing) return { ok: false };
     setIsFinishing(true);
     try {
       // médias, contagens e destaques são calculados no servidor com todos os votos já gravados
       const finished = await healthCheckApi.finishBoard(boardId);
       setBoardData(finished);
       toast({ title: "Radar finalizado!" });
+      return { ok: true };
     } catch (error) {
       console.error("Error finalizing health check:", error);
-      toast({ title: "Erro ao finalizar", description: errorMessage(error, "Não foi possível encerrar a votação."), variant: "destructive" });
+      return { ok: false, message: errorMessage(error, "Não foi possível encerrar a votação.") };
     } finally {
       setIsFinishing(false);
     }
   };
 
-  const handleLeaveRoom = () => {
-    router.push('/workspace?aba=kanban');
+  const handleDeleteBoard = async () => {
+    deletingRef.current = true;
+    try {
+      await healthCheckApi.deleteBoard(boardId);
+    } catch (e) {
+      deletingRef.current = false;
+      throw e;
+    }
+    removeLocalRoomMeta(boardId, window.localStorage);
+    toast({ title: 'Radar apagado' });
+    router.push('/health-check');
   };
 
   // --- Render Logic ---
 
-  if (isLoading || isInitializing || isBoardLoading || areParticipantsLoading || !isAuthenticated || !userProfile) {
-    if (!userProfile) {
-      return <LoadingScreen message="Configurando identidade..." submessage="Preencha sua identidade para entrar no radar" />;
-    }
-    return <LoadingScreen message="Carregando Radar de Saúde..." />;
+  if (deleted) return <HealthRoomState kind="deleted" />;
+
+  if (!boardData) {
+    if (isLoading || isInitializing || isBoardLoading || !isAuthenticated || !userProfile) return <HealthRoomState kind="loading" />;
+    return <HealthRoomState kind={loadError === 'notfound' ? 'notfound' : 'error'} onRetry={retryLoad} />;
   }
 
-  if (!boardData) return <NotFound resourceName="radar de saúde" />;
+  if (isLoading || isInitializing || areParticipantsLoading || !isAuthenticated || !userProfile) return <HealthRoomState kind="loading" />;
 
-  if (!currentUser) {
-     return <LoadingScreen message="Juntando-se à sala..." />;
-  }
+  if (!currentUser) return <HealthRoomState kind="entering" />;
 
-  if (boardData.status === 'finished') {
-    return (
-      <>
-        <HealthCheckResults
-            boardId={boardId}
-            isCreator={isCurrentUserCreator}
-            onLeave={handleLeaveRoom}
-            dimensions={boardDimensions}
-            roomTitle={boardData.sprintName}
-            votes={votes}
-            results={boardData.summary?.results || []}
-            onOpenFeedback={handleOpenFeedback}
-            scaleType={boardData.scaleType}
-        />
-        <FeedbackWidget toolName="Health Radar" triggerVariant="icon" externalTriggerSignal={feedbackSignal} />
-      </>
-    );
-  }
+  const shared = {
+    board: boardData,
+    squadLabel,
+    participants,
+    currentUserId: userProfile.id,
+    connection,
+    onDeleteBoard: handleDeleteBoard,
+    onOpenFeedback: handleOpenFeedback,
+  };
 
   return (
     <>
-      <HealthCheckVotingBoard
+      {boardData.status === 'finished' ? (
+        <HealthCheckResults
+          {...shared}
           boardId={boardId}
-          participants={participants}
+          isCreator={isCurrentUserCreator}
+          creatorName={creatorName}
+          dimensions={boardDimensions}
+          votes={votes}
+          results={boardData.summary?.results}
+        />
+      ) : (
+        <HealthCheckVotingBoard
+          {...shared}
           userVotes={userVotes}
           onVote={handleVote}
           isCreator={isCurrentUserCreator}
           onFinish={handleFinish}
           isFinishing={isFinishing}
-          onLeave={handleLeaveRoom}
           dimensions={boardDimensions}
-          roomTitle={boardData.sprintName}
-          onOpenFeedback={handleOpenFeedback}
-          scaleType={boardData.scaleType}
-      />
-      <FeedbackWidget toolName="Health Radar" triggerVariant="icon" externalTriggerSignal={feedbackSignal} />
+        />
+      )}
+      <FeedbackWidget toolName="Radar de clima" triggerVariant="none" externalTriggerSignal={feedbackSignal} />
     </>
   );
 }

@@ -1,143 +1,101 @@
-"use client";
+'use client';
 
-import React from 'react';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { 
-  Sparkles, 
-  HeartPulse, 
-  Trophy, 
-  BarChart3, 
-  Smile, 
-  Zap,
-  Activity,
-  ShieldCheck
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
+import { GuideSheet, type GuideTab } from '@/components/room-kit';
+import { moduleIcon } from '@/lib/modules-registry';
+import { ALERT_BELOW, CRITICAL_BELOW, CRITICAL_WORST_SHARE, STRONG_FROM } from '@/lib/health-check-rules';
 
-interface HealthGuideProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+const STEPS = [
+  { title: 'Crie a pesquisa', desc: 'Escolha o modelo de perguntas e a escala. Quem cria é o facilitador.' },
+  { title: 'Compartilhe o link', desc: 'Quem abrir o link, estando logado, entra na sala e responde. Não há bloqueio por squad.' },
+  { title: 'Cada pessoa responde', desc: 'Uma resposta por pergunta, com comentário opcional. Dá para trocar a resposta até o facilitador encerrar.' },
+  { title: 'O facilitador encerra', desc: 'Encerrar é definitivo e pede ao menos um voto. Depois, ninguém altera respostas e o resultado aparece para todos.' },
+  { title: 'Leia o resultado e crie as ações', desc: 'Nota de clima, radar, o que está em atenção e o plano de ação a partir dos pontos críticos.' },
+] as const;
+
+const SCALES = [
+  { title: 'Semáforo', desc: 'Ótimo, Atenção e Ruim. Valem 3, 2 e 1.' },
+  { title: 'Numérica de 1 a 5', desc: 'De 1 (crítico) a 5 (muito bom). Cada número vale o próprio valor.' },
+  { title: 'Emocional', desc: 'Bom, Médio e Ruim, com rostos de linha. Valem 3, 2 e 1.' },
+] as const;
+
+const pct = (n: number) => `${Math.round(n * 100)}%`;
+const num = (n: number) => String(n).replace('.', ',');
+
+const READING = [
+  { title: 'Nota de clima', desc: 'De 0 a 10, igual nas três escalas: a pior resposta vale 0 e a melhor, 10. É a média das notas das dimensões.' },
+  { title: 'Forte', desc: `Dimensão com nota de ${num(STRONG_FROM)} ou mais.` },
+  { title: 'Alerta', desc: `Dimensão com nota abaixo de ${ALERT_BELOW}.` },
+  { title: 'Crítico', desc: `Nota abaixo de ${CRITICAL_BELOW}, ou ${pct(CRITICAL_WORST_SHARE)} ou mais dos votos na pior resposta.` },
+] as const;
+
+const PRIVACY = [
+  { title: 'O que é anônimo', desc: 'Quem votou e quem comentou. O servidor remove o seu nome do voto antes de mostrar o resultado.' },
+  { title: 'O que a squad vê', desc: 'No resultado, todos os votos e comentários, sem nome. Um comentário muito específico pode revelar quem escreveu: evite detalhes que só você sabe.' },
+  { title: 'Enquanto coleta', desc: 'Cada pessoa vê só as próprias respostas. Os votos dos outros não chegam ao seu navegador.' },
+  { title: 'Quem entrou', desc: 'A lista de participantes mostra quem entrou na sala, não quem já respondeu.' },
+  { title: 'Quem encerra', desc: 'O facilitador (quem criou) e administradores. Ninguém altera respostas depois do encerramento.' },
+] as const;
+
+function Card({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+      <span className="text-[13px] font-bold">{title}</span>
+      <span className="text-xs leading-relaxed text-muted-foreground">{desc}</span>
+    </div>
+  );
 }
 
-export function HealthGuide({ open, onOpenChange }: HealthGuideProps) {
-  const steps = [
+/** Guia lateral do Radar de clima (kit): como funciona, as escalas e a nota, e a privacidade. */
+export function HealthGuide({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const tabs: GuideTab[] = [
     {
-      title: "Auto-Avaliação Sincera",
-      icon: Smile,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-      description: "Cada membro avalia o estado da squad em diferentes dimensões. O anonimato garante que o time possa expressar sentimentos reais sem receio."
+      id: 'flow',
+      label: 'Como funciona',
+      content: (
+        <div className="flex flex-col gap-4">
+          <p className="m-0 text-[13px] leading-relaxed text-muted-foreground">
+            O Radar é uma pesquisa rápida e anônima do clima da squad. Cada pessoa responde sozinha; o resultado só aparece quando o facilitador encerra.
+          </p>
+          <ol className="m-0 flex list-none flex-col gap-2.5 p-0">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="flex gap-3 rounded-xl border border-border px-3.5 py-3">
+                <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">{i + 1}</span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-sm font-bold">{s.title}</span>
+                  <span className="text-[13px] leading-relaxed text-muted-foreground">{s.desc}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ),
     },
     {
-      title: "Dimensões da Agilidade",
-      icon: Activity,
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-      description: "Avaliamos pilares como Qualidade Técnica, Valor de Negócio, Missão e Saúde do Time para identificar onde precisamos focar esforços."
+      id: 'scales',
+      label: 'Escalas',
+      content: (
+        <div className="flex flex-col gap-5">
+          <section className="flex flex-col gap-2" aria-label="Escalas de resposta">
+            <h3 className="m-0 text-[13px] font-bold text-muted-foreground">Escalas de resposta</h3>
+            {SCALES.map((s) => <Card key={s.title} {...s} />)}
+          </section>
+          <section className="flex flex-col gap-2" aria-label="Como ler a nota">
+            <h3 className="m-0 text-[13px] font-bold text-muted-foreground">Como ler a nota</h3>
+            {READING.map((s) => <Card key={s.title} {...s} />)}
+          </section>
+        </div>
+      ),
     },
     {
-      title: "Plano de Recuperação",
-      icon: BarChart3,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-      description: "Os resultados geram um radar visual. Use os 'pontos de dor' para criar ações específicas que melhorem a saúde da squad a longo prazo."
-    }
+      id: 'privacy',
+      label: 'Privacidade',
+      content: (
+        <div className="grid grid-cols-1 gap-2.5">
+          {PRIVACY.map((s) => <Card key={s.title} {...s} />)}
+        </div>
+      ),
+    },
   ];
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-xl overflow-hidden flex flex-col p-0 border-none shadow-3xl bg-[#fafafa]">
-        {/* HEADER ELITE */}
-        <SheetHeader className="shrink-0 p-8 bg-slate-900 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
-             <HeartPulse className="h-32 w-32" />
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-               <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 bg-emerald-500/10 uppercase text-[9px] font-black tracking-widest px-3 py-1">
-                  Saúde Organizacional
-               </Badge>
-            </div>
-            <SheetTitle className="text-3xl font-black uppercase tracking-tighter italic text-white flex items-center gap-3">
-               <HeartPulse className="h-6 w-6 text-emerald-400" />
-               Guia do Radar de Saúde
-            </SheetTitle>
-            <SheetDescription className="text-slate-400 font-medium text-xs mt-2">
-               Monitore os sinais vitais da sua squad e promova um ambiente sustentável.
-            </SheetDescription>
-          </div>
-        </SheetHeader>
-
-        <ScrollArea className="flex-1">
-          <div className="p-8 space-y-10">
-            <div className="space-y-6">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 border-b border-slate-100 pb-2">Diagnóstico de Squad</h3>
-               <div className="grid grid-cols-1 gap-4">
-                  {steps.map((step, idx) => (
-                    <div key={idx} className="flex gap-5 p-5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-emerald-500/5 transition-all group">
-                       <div className={`w-12 h-12 ${step.bg} rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
-                          <step.icon className={`h-6 w-6 ${step.color}`} />
-                       </div>
-                       <div className="space-y-1">
-                          <p className="text-xs font-black uppercase tracking-tight text-slate-900">{step.title}</p>
-                          <p className="text-[11px] text-slate-500 leading-relaxed font-medium">{step.description}</p>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-            </div>
-
-            <div className="space-y-6">
-               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 border-b border-slate-100 pb-2">Como Interpretar</h3>
-               <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { l: "🟢 Verde", d: "Tudo certo! Mantendo o padrão e compartilhando boas práticas." },
-                    { l: "🟡 Amarelo", d: "Atenção necessária. Algo está impedindo o time de atingir o potencial." },
-                    { l: "🔴 Vermelho", d: "Crítico. Requer intervenção imediata ou discussão profunda na retro." }
-                  ].map((item, i) => (
-                    <div key={i} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-                       <p className="text-[10px] font-black uppercase text-slate-900">{item.l}</p>
-                       <p className="text-[10px] text-slate-500 font-medium leading-relaxed">{item.d}</p>
-                    </div>
-                  ))}
-               </div>
-            </div>
-
-            {/* ALERT BOX */}
-            <div className="p-6 bg-emerald-600 rounded-[2rem] text-white shadow-xl shadow-emerald-500/20 flex gap-4 items-center">
-               <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-                  <ShieldCheck className="h-6 w-6 text-emerald-200" />
-               </div>
-               <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-emerald-200">Segurança de Dados</p>
-                  <p className="text-[10px] font-medium leading-relaxed opacity-90 italic">
-                     "As avaliações individuais são 100% anônimas. O sistema exibe apenas a média consolidada para proteger a privacidade."
-                  </p>
-               </div>
-            </div>
-
-            <div className="pt-4 pb-12">
-               <Button 
-                 variant="outline" 
-                 className="w-full h-14 rounded-2xl border-2 border-slate-200 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition-all gap-3"
-                 asChild
-               >
-                 <a href="/manual#health-check">
-                   <Zap className="h-4 w-4 text-emerald-600" /> Acessar Manual Completo
-                 </a>
-               </Button>
-            </div>
-          </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
-  );
+  return <GuideSheet open={open} onOpenChange={onOpenChange} title="Guia do radar" description="Como responder, encerrar e ler o resultado." icon={moduleIcon('health')} tabs={tabs} manualHref="/manual/health" />;
 }
