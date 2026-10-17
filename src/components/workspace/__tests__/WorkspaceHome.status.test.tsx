@@ -1,14 +1,14 @@
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { BentoDashboard } from '../BentoDashboard';
+import { WorkspaceHome } from '../WorkspaceHome';
 
 const old = new Date(Date.now() - 3 * 24 * 3600_000).toISOString();
 const recent = new Date(Date.now() - 30 * 60_000).toISOString();
 
 function renderWith(history: any[]) {
   return render(
-    <BentoDashboard
+    <WorkspaceHome
       tasks={[]}
       history={history}
       notes={[]}
@@ -20,7 +20,7 @@ function renderWith(history: any[]) {
   );
 }
 
-describe('BentoDashboard — status das sessões recentes', () => {
+describe('WorkspaceHome — status das sessões recentes', () => {
   it('poker, retro e radar encerrados aparecem como Concluída, nunca "Ao vivo"', () => {
     renderWith([
       { id: 'p1', type: 'poker', title: 'Refinamento 41', createdAt: old, sessionStartedAt: old, sessionEndedAt: old },
