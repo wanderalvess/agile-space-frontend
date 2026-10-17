@@ -44,9 +44,9 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
   };
 
   return (
-    <aside className={cn("w-72 flex flex-col border-r border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 backdrop-blur-xl h-full select-none", className)}>
+    <aside className={cn("w-72 flex flex-col border-r border-border/80 bg-card backdrop-blur-xl h-full select-none", className)}>
       {/* Brand & Guide Subtitle */}
-      <div className="p-5 border-b border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-3">
+      <div className="p-5 border-b border-border/60 flex flex-col gap-3">
         <Link 
           href="/manual" 
           onClick={onNavigate}
@@ -56,11 +56,11 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
             <BookOpen className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+            <h2 className="text-xs font-black uppercase tracking-tight text-foreground flex items-center gap-1.5">
               Guia de Operações
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               Manual Portal Tech V&D
             </p>
           </div>
@@ -68,17 +68,17 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
 
         {/* Live Search Input */}
         <div className="relative mt-1">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar guia ou tópico..."
-            className="pl-9 pr-8 h-9 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border-slate-200/60 dark:border-slate-700/60 focus-visible:ring-1 focus-visible:ring-primary font-medium placeholder:text-slate-400"
+            className="pl-9 pr-8 h-9 text-xs rounded-xl bg-muted border-border/60 focus-visible:ring-1 focus-visible:ring-primary font-medium placeholder:text-muted-foreground"
           />
           {searchQuery && (
             <button 
               onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-muted-foreground"
               aria-label="Limpar busca"
             >
               <X className="h-4 w-4" />
@@ -98,7 +98,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
               "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group",
               pathname === '/manual'
                 ? "bg-primary text-white shadow-sm shadow-primary/30 font-black"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60"
+                : "text-foreground hover:bg-muted"
             )}
           >
             <Compass className={cn("h-4 w-4 shrink-0", pathname === '/manual' ? "text-white" : "text-slate-400 group-hover:text-primary")} />
@@ -110,11 +110,11 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
         {/* If searching, display flat list */}
         {searchQuery.trim() ? (
           <div className="space-y-1">
-            <p className="px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+            <p className="px-3 text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">
               Resultados ({filteredTopics.length})
             </p>
             {filteredTopics.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 font-medium">
+              <div className="p-6 text-center text-xs text-muted-foreground font-medium">
                 Nenhum tópico encontrado para &quot;{searchQuery}&quot;
               </div>
             ) : (
@@ -130,16 +130,16 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                       "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all group",
                       active
                         ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white shadow-sm font-bold ring-1 ring-slate-700"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold"
+                        : "text-muted-foreground hover:bg-muted font-semibold"
                     )}
                   >
                     <div className={cn(
                       "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
-                      active ? "bg-white/10 dark:bg-white/15" : "bg-slate-100 dark:bg-slate-800"
+                      active ? "bg-card/10" : "bg-muted"
                     )}>
                       <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : topic.color)} />
                     </div>
-                    <span className="flex-1 truncate text-[11px]">{topic.title}</span>
+                    <span className="flex-1 truncate text-xs">{topic.title}</span>
                     <ChevronRight className={cn("h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity", active && "opacity-100")} />
                   </Link>
                 );
@@ -156,7 +156,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
               return (
                 <div key={category.id} className="space-y-1.5">
                   <div className="px-3 py-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                       {category.label}
                     </p>
                   </div>
@@ -174,16 +174,16 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                             "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all group",
                             active
                               ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white shadow-sm font-bold ring-1 ring-slate-700/50"
-                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60 font-semibold"
+                              : "text-muted-foreground hover:bg-muted font-semibold"
                           )}
                         >
                           <div className={cn(
                             "w-6 h-6 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
-                            active ? "bg-white/10 dark:bg-white/15" : "bg-slate-100 dark:bg-slate-800"
+                            active ? "bg-card/10" : "bg-muted"
                           )}>
                             <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : topic.color)} />
                           </div>
-                          <span className="flex-1 truncate text-[11px]">{topic.title}</span>
+                          <span className="flex-1 truncate text-xs">{topic.title}</span>
                           {active && <ChevronRight className="h-3 w-3 opacity-80" />}
                         </Link>
                       );
@@ -197,12 +197,12 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
       </ScrollArea>
 
       {/* Footer / Quick Out */}
-      <div className="p-4 border-t border-slate-200/60 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/30">
+      <div className="p-4 border-t border-border/60 bg-background/50">
         <Button 
           asChild 
           variant="outline" 
           size="sm" 
-          className="w-full h-9 rounded-xl font-black uppercase text-[10px] tracking-widest text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800"
+          className="w-full h-9 rounded-xl font-black uppercase text-xs tracking-widest text-muted-foreground hover:bg-card"
         >
           <Link href="/" onClick={onNavigate} className="flex items-center justify-center gap-2">
             <span>Voltar à Plataforma</span>

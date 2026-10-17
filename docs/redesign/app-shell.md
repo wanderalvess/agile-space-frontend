@@ -48,7 +48,7 @@ export default function MinhaPagina() {
 }
 ```
 
-O layout raiz (`src/app/layout.tsx`) já abre um `<main>`; por isso o `PageShell` usa `<div id="conteudo">` e não cria outro `main`. O layout raiz também esconde o `Header` antigo em quase todas as rotas (lista `isMinimalLayout` em `layout/Header.tsx`): a página que adota o `PageShell` não precisa mexer nisso.
+O layout raiz (`src/app/layout.tsx`) monta, dentro dos provedores e dos "gatekeepers" (auth, identidade, backend), o `Header` legado, um `<main>` e o widget Calmaria. O `PageShell` usa `<div id="conteudo">` e não cria outro `main`. O `Header` legado só aparece nas rotas da lista de permissão `LEGACY_HEADER_PATHS` em `layout/Header.tsx` (hoje `/onboarding` e `/invite`, que ainda não montam o `AppHeader`); em qualquer outra rota ele devolve `null`. Por ser lista de permissão, página nova com `PageShell` não precisa mexer nisso e nunca fica com dois cabeçalhos. As salas ao vivo têm `RoomHeader`/`RoomTopBar` próprios e também não recebem o `Header` legado.
 
 ## Props
 
@@ -146,7 +146,8 @@ Na prática:
 ### Ocorrências ainda a tratar (outras páginas)
 
 - `/painel` virou a aba Resumo de `/squad` (hub em `PageShell`, título "Squad", sem selo da squad; `SummaryWelcome` só mostra a chave quando difere do nome). Resolvido.
-- `layout/RoomHeader.tsx` e `layout/Header.tsx` ainda embutem o `GlobalProjectSelector` (um segundo seletor de squad). Sai quando a página migra para o `AppHeader`.
+- Telas migradas para o `PageShell` (sem o segundo seletor de squad): hubs de cerimônia (`ToolHubLayout`: Retrospectiva, Radar de clima, Brainstorming, Plano de ação, Review, landing do Prompt Hub), Plano de ação (`/action-plan/[id]`), Scrum Poker (lista em `/room`), Versões, Segurança e dados, Suporte, Configurações, Jolt (hub, Gerador, Sandbox), DevTools (hub e as 35 ferramentas) e Central de qualidade, Prompt Hub (painel, autor, coleções, tutorial), Base de conhecimento (`knowledge/layout.tsx`: `AppHeader` + sub-barra do módulo) e Manual.
+- Legado das salas, remover no redesenho de Retro/Review: `layout/RoomHeader.tsx` (embute o `GlobalProjectSelector`) ainda é usado por `AsyncPokerRoom`, `RetroBoard`, `HealthCheckVotingBoard`/`HealthCheckResults` e `showcase/[id]`. `layout/Header.tsx` fica só para `/onboarding` e `/invite`. `layout/Footer.tsx` está sem uso (use `AppFooter`).
 
 ## Checklist para migrar uma página
 
@@ -156,4 +157,6 @@ Na prática:
 4. Carregando, vazio e erro com `LoadingSkeleton`, `EmptyState`, `ErrorState` (nunca deixe a tela parecer vazia quando falhou).
 5. Tire o nome da squad do título e dos selos (regra acima). Tire o segundo seletor de squad.
 6. Ícones de módulo só do registro. Texto com no mínimo 12 px (`text-xs`).
-7. Confira 1920, 1440, 1366, 1024 e 375 px; temas padrão, Midnight e TOTVS em claro e escuro; com 1 e com 3 vínculos.
+7. Tela de bancada (editor, painéis lado a lado): dê ao miolo uma altura da janela, como `h-[max(40rem,calc(100dvh-14rem))]` com `overflow-hidden`, e deixe cada painel rolar sozinho; o rodapé fica abaixo da dobra.
+8. Hub de cerimônia: `ToolHubLayout` com `module="..."` (nome e ícone vêm do registro).
+9. Confira 1920, 1440, 1366, 1024 e 375 px; temas padrão, Midnight e TOTVS em claro e escuro; com 1 e com 3 vínculos.

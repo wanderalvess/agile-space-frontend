@@ -28,6 +28,11 @@ import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
 import { GlobalProjectSelector } from '@/components/admin/GlobalProjectSelector';
 
+/**
+ * Legado das salas, remover no redesenho de Retro/Review.
+ * Só as salas ao vivo ainda usam (AsyncPokerRoom, RetroBoard, HealthCheckVotingBoard/Results, showcase/[id]).
+ * Página que não é sala usa PageShell/AppHeader; este traz um segundo seletor de squad.
+ */
 interface RoomHeaderProps {
   title: string;
   toolIcon: React.ReactNode;

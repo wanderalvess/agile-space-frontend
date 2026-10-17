@@ -122,10 +122,10 @@ export default function ShowcaseHubPage() {
   return (
     <>
       <ToolHubLayout
+        module="showcase"
         title="Sprint Review"
         description="Apresente entregas sem slides. Evidências integradas e aceites do PO registrados em tempo real durante a cerimônia."
         icon={<Eye />}
-        themeColor="violet"
         tips={[]}
         referenceSections={[]}
         onlyChildren={true}
@@ -157,7 +157,7 @@ export default function ShowcaseHubPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="review-name" className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
+              <Label htmlFor="review-name" className="text-xs font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
                 <ListPlus className="h-3.5 w-3.5 text-violet-500" /> Título da Review
               </Label>
               <Input
@@ -171,7 +171,7 @@ export default function ShowcaseHubPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="review-squad" className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
+              <Label htmlFor="review-squad" className="text-xs font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5 text-violet-500" /> Squad / Time
               </Label>
               <Input
@@ -183,7 +183,7 @@ export default function ShowcaseHubPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="review-sprint" className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
+              <Label htmlFor="review-sprint" className="text-xs font-bold uppercase tracking-wide text-muted-foreground ml-1 flex items-center gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5 text-violet-500" /> Sprint <span className="normal-case font-medium text-muted-foreground/70">(opcional)</span>
               </Label>
               <Input
@@ -197,7 +197,7 @@ export default function ShowcaseHubPage() {
           </div>
 
           <div className="pt-3 space-y-2">
-            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground ml-1">Como a Review funciona</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground ml-1">Como a Review funciona</p>
             <ol className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {[
                 { n: 1, t: 'Importe as tarefas', d: 'Traga as issues da sprint do Jira ou crie cards à mão.' },

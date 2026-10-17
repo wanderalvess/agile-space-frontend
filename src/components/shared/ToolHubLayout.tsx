@@ -1,32 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { 
-  Plus, 
-  ArrowRight, 
-  Clock, 
-  Trash2, 
-  ChevronRight,
-  Sparkles,
-  Search,
-  History,
-  Target,
-  Zap,
-  CalendarDays,
-  Users as UsersIcon
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { ArrowRight, ChevronRight, History, Plus, Search, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { useToolHistory, RoomMeta } from '@/hooks/useToolHistory';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { motion, AnimatePresence, useReducedMotion, type Variants } from 'framer-motion';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { FeedbackWidget } from '@/components/feedback-widget';
-import { Footer } from '@/components/layout/Footer';
+import { PAGE_CARD, PageHeader, PageShell } from '@/components/page';
+import { IconTile, ModalButton } from '@/components/room-kit';
+import { getModule, type ModuleKey } from '@/lib/modules-registry';
 
 interface Tip {
   title: string;
@@ -44,10 +25,15 @@ export interface ReferenceSection {
 }
 
 interface ToolHubLayoutProps {
+  /** Módulo do registro: dá o nome, o ícone e a migalha da página. Preferido a `title`/`icon`. */
+  module?: ModuleKey;
+  /** Só para quem não está no registro; com `module`, vale o nome do registro. */
   title: string;
   description: string;
-  icon: React.ReactNode;
-  themeColor: string;
+  /** Só para quem não está no registro; com `module`, vale o ícone do registro. */
+  icon?: React.ReactNode;
+  /** @deprecated As telas usam os tokens do tema; a cor por ferramenta saiu do desenho. */
+  themeColor?: string;
   toolType?: RoomMeta['type'];
   tips: Tip[];
   referenceSections?: ReferenceSection[];
@@ -59,38 +45,44 @@ interface ToolHubLayoutProps {
   hideHistory?: boolean;
   hideJoinAction?: boolean;
   isCreating?: boolean;
-  maxWidthClass?: string;
   children?: React.ReactNode;
+  /** Só o miolo (`children`) abaixo do cabeçalho da página, sem os cartões do hub (ex.: lista de Reviews). */
   onlyChildren?: boolean;
   actions?: React.ReactNode;
   badge?: React.ReactNode;
 }
 
+const tinted = (el: React.ReactNode, className: string) =>
+  React.isValidElement(el) ? React.cloneElement(el as React.ReactElement<{ className?: string }>, { className }) : el;
+
+/**
+ * Hub de uma cerimônia (Retrospectiva, Radar de clima, Brainstorming, Plano de ação, Review) e landing da
+ * Biblioteca de IA: AppHeader/AppFooter do portal via `PageShell`, cabeçalho da página com migalha e os cartões
+ * de início de sessão, sessões recentes, "Como funciona" e dicas.
+ */
 export function ToolHubLayout({
+  module,
   title,
   description,
   icon,
-  themeColor,
   toolType,
   tips,
   referenceSections = [],
   onNewSession,
   onSecondaryAction,
   onJoinSession,
-  primaryActionLabel = "Nova Sessão",
+  primaryActionLabel = 'Nova sessão',
   secondaryActionLabel,
-  hideHistory = false,
   hideJoinAction = false,
   isCreating = false,
-  maxWidthClass = "max-w-none w-full",
   children,
   onlyChildren = false,
   actions,
-  badge
+  badge,
 }: ToolHubLayoutProps) {
   const [joinId, setJoinId] = useState('');
-  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
-  const { history, loading, removeRoom } = useToolHistory(toolType || 'poker');
+  const { history, loading } = useToolHistory(toolType || 'poker');
+  const pageTitle = module ? getModule(module).label : title;
 
   const handleJoinClick = () => {
     if (joinId.trim() && onJoinSession) {
@@ -98,322 +90,183 @@ export function ToolHubLayout({
     }
   };
 
-  const getThemeClasses = (color: string) => {
-    const maps: Record<string, string> = {
-      primary: "bg-primary hover:bg-primary/90 shadow-primary/20 text-white",
-      amber: "bg-amber-500 hover:bg-amber-600 shadow-amber-500/20 text-white",
-      emerald: "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20 text-white",
-      rose: "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20 text-white",
-      violet: "bg-violet-600 hover:bg-violet-700 shadow-violet-600/20 text-white",
-      blue: "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20 text-white",
-      indigo: "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20 text-white",
-      fuchsia: "bg-fuchsia-600 hover:bg-fuchsia-700 shadow-fuchsia-600/20 text-white",
-    };
-    return maps[color] || maps.blue;
-  };
-
-  const getGlowClasses = (color: string) => {
-    const maps: Record<string, string> = {
-      primary: "bg-primary/10",
-      amber: "bg-amber-500/10",
-      emerald: "bg-emerald-500/10",
-      rose: "bg-rose-500/10",
-      violet: "bg-violet-500/10",
-      blue: "bg-blue-500/10",
-      indigo: "bg-indigo-500/10",
-      fuchsia: "bg-fuchsia-500/10",
-    };
-    return maps[color] || maps.blue;
-  };
-
-  const getIconColor = (color: string) => {
-    const maps: Record<string, string> = {
-      primary: "text-primary",
-      amber: "text-amber-500 dark:text-amber-400",
-      emerald: "text-emerald-600 dark:text-emerald-400",
-      rose: "text-rose-500 dark:text-rose-400",
-      violet: "text-violet-600 dark:text-violet-400",
-      blue: "text-blue-600 dark:text-blue-400",
-      indigo: "text-indigo-600 dark:text-indigo-400",
-      fuchsia: "text-fuchsia-600 dark:text-fuchsia-400",
-    };
-    return maps[color] || maps.blue;
-  };
-
-  // Entrada curta: a mola com 80 ms entre cards levava ~1 s até o último card assentar, e em máquina fraca
-  // (sem GPU) parecia que a tela não respondia. Quem pede menos movimento no sistema não vê animação.
-  const reduceMotion = useReducedMotion();
-  const containerVariants: Variants = {
-    hidden: { opacity: reduceMotion ? 1 : 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: reduceMotion ? 0 : 0.035,
-      },
-    },
-  };
-
-  const itemVariants: Variants = {
-    hidden: reduceMotion ? { opacity: 1 } : { y: 8, opacity: 0 },
-    show: { y: 0, opacity: 1, transition: { duration: reduceMotion ? 0 : 0.22, ease: 'easeOut' } },
-  };
-
   return (
-    <div className={cn(
-      "flex-1 w-full bg-[#fafafa] dark:bg-slate-950 selection:bg-slate-200 dark:selection:bg-slate-700 relative flex flex-col",
-      onlyChildren ? "h-dvh overflow-hidden" : "min-h-dvh overflow-y-auto custom-scrollbar"
-    )}>
-      {/* PADRONIZAÇÃO DA BARRA SUPERIOR */}
-      <RoomHeader
-        title={title}
-        toolIcon={React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: "h-4 w-4" }) : icon}
-        toolColorClass={getIconColor(themeColor)}
-        onOpenFeedback={() => setFeedbackSignal(Date.now())}
+    <PageShell documentTitle={pageTitle}>
+      <PageHeader
+        title={pageTitle}
+        module={module}
+        subtitle={description}
+        breadcrumb={[{ label: 'Home', href: '/' }, { label: pageTitle }]}
+        badges={badge}
         actions={actions}
-        badge={badge}
       />
 
-      {/* ELITE MESH GRADIENT BACKGROUND: estático de propósito (pulsar camadas com blur gigante custa a GPU a tela toda) */}
-      <div className="fixed top-0 left-0 w-full h-full -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
-        <div className={cn("absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full blur-[160px]", getGlowClasses(themeColor).replace('/10', '/5'))} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-slate-200/5 dark:bg-slate-800/10 rounded-full blur-[140px]" />
-      </div>
-
-      <div className={cn(
-        "relative z-10 flex flex-col w-full flex-1 min-h-0",
-        onlyChildren ? "p-0" : "pt-6 px-4 pb-8 md:px-8 lg:px-10"
-      )}>
-        <main className={cn("flex-1 w-full mx-auto flex flex-col min-h-0", maxWidthClass)}>
-          {onlyChildren ? (
-            <div className="w-full flex-1 flex flex-col min-h-0">
-              {children}
+      {onlyChildren ? (
+        <div className="flex w-full flex-1 flex-col">{children}</div>
+      ) : (
+        <div className="grid w-full grid-cols-1 items-stretch gap-5 text-left md:grid-cols-2 lg:grid-cols-12">
+          {/* Início de sessão: ações principais */}
+          <section aria-label="Iniciar" className={cn(PAGE_CARD, 'col-span-1 flex flex-col justify-between gap-5 p-6 md:col-span-2 lg:col-span-8')}>
+            <div className="flex items-start gap-3">
+              {module ? (
+                <IconTile icon={getModule(module).icon} />
+              ) : (
+                icon && (
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-primary">
+                    {tinted(icon, 'h-[18px] w-[18px]')}
+                  </span>
+                )
+              )}
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-foreground">Comece por aqui</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {onNewSession ? 'Crie uma sessão nova' : 'Escolha como continuar'}
+                  {onJoinSession && !hideJoinAction ? ' ou entre numa que já existe com o código.' : '.'}
+                </p>
+              </div>
             </div>
-          ) : (
-            <motion.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-stretch w-full text-left"
-            >
-              {/* CARD 1: WELCOME & INTEGRATED ACTIONS */}
-              <motion.div variants={itemVariants} className="lg:col-span-8 col-span-1 flex">
-                <Card className="group relative border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-xl flex flex-col justify-between w-full overflow-hidden min-h-[300px]">
-                  <div className={cn("absolute top-[-20%] left-[-10%] w-64 h-64 rounded-full blur-3xl pointer-events-none", getGlowClasses(themeColor).replace('/10', '/15'))} />
-                  
-                  <div className="space-y-4 relative z-10">
-                    <div className="flex items-center gap-2.5">
-                      <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-md", getThemeClasses(themeColor).split(' ')[0])}>
-                        {React.isValidElement(icon) ? React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: "h-4.5 w-4.5 text-white" }) : icon}
-                      </div>
-                      <span className={cn("text-[10px] font-black uppercase tracking-[0.25em] leading-none px-2.5 py-1 rounded-md border", getIconColor(themeColor).replace('text-', 'border-').replace('dark:text-', 'dark:border-'), getGlowClasses(themeColor))}>
-                        {title}
+
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              {onNewSession && (
+                <ModalButton variant="primary" onClick={onNewSession} disabled={isCreating} className="h-11 shrink-0 gap-2 px-6">
+                  <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  {primaryActionLabel}
+                </ModalButton>
+              )}
+
+              {onSecondaryAction && secondaryActionLabel && (
+                <ModalButton onClick={onSecondaryAction} className="h-11 shrink-0 px-6">
+                  {secondaryActionLabel}
+                </ModalButton>
+              )}
+
+              {onJoinSession && !hideJoinAction && (
+                <div className="relative min-w-0 flex-1">
+                  <Input
+                    value={joinId}
+                    onChange={(e) => setJoinId(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === 'Enter' && handleJoinClick()}
+                    placeholder="Código da sala"
+                    aria-label="Entrar com o código da sala"
+                    className="h-11 rounded-[10px] pr-14 text-sm font-medium uppercase tracking-wider"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleJoinClick}
+                    disabled={!joinId.trim()}
+                    aria-label="Entrar na sala"
+                    className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+                  >
+                    <ArrowRight className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Sessões recentes (só deste navegador) */}
+          <section aria-label="Sessões recentes" className={cn(PAGE_CARD, 'col-span-1 flex flex-col gap-3 p-6 lg:col-span-4')}>
+            <div className="flex items-center gap-2">
+              <IconTile icon={History} size="sm" tone="neutral" />
+              <h2 className="text-base font-semibold text-foreground">Sessões recentes</h2>
+            </div>
+
+            <div className="flex max-h-[160px] flex-1 flex-col gap-2 overflow-y-auto pr-1">
+              {loading ? (
+                <div role="status" aria-label="Carregando sessões" className="space-y-2 py-2 motion-safe:animate-pulse">
+                  <div className="h-12 rounded-xl bg-muted" />
+                  <div className="h-12 rounded-xl bg-muted" />
+                </div>
+              ) : history.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma sessão ainda</p>
+              ) : (
+                history.slice(0, 3).map((room) => (
+                  <button
+                    type="button"
+                    key={room.roomId}
+                    onClick={() => onJoinSession?.(room.roomId)}
+                    className="group flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-background p-3 text-left transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{room.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{room.team || 'Squad geral'}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                ))
+              )}
+            </div>
+
+            <p className="border-t border-border pt-2 text-center text-xs text-muted-foreground">Salvo só neste navegador</p>
+          </section>
+
+          {/* Como funciona */}
+          {referenceSections.length > 0 && (
+            <section aria-label="Como funciona" className={cn(PAGE_CARD, 'col-span-1 flex flex-col gap-3 p-6 md:col-span-2 lg:col-span-8')}>
+              <div className="flex items-center gap-2">
+                <IconTile icon={Search} size="sm" />
+                <h2 className="text-base font-semibold text-foreground">Como funciona</h2>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {referenceSections.slice(0, 4).map((section, idx) => {
+                  const body = (
+                    <>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-primary">
+                        {tinted(section.icon, 'h-4 w-4 text-primary')}
                       </span>
+                      <span className="min-w-0 space-y-1">
+                        <span className="block text-sm font-semibold text-foreground">{section.title}</span>
+                        <span className="line-clamp-4 block text-sm leading-normal text-muted-foreground">{section.description}</span>
+                      </span>
+                    </>
+                  );
+                  const base = 'flex items-start gap-3 rounded-xl border border-border bg-background p-3 text-left';
+                  return section.onClick ? (
+                    <button
+                      type="button"
+                      key={idx}
+                      onClick={section.onClick}
+                      className={cn(base, 'transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')}
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <div key={idx} className={base}>
+                      {body}
                     </div>
-                    
-                    <div className="space-y-2">
-                      <h2 className="text-4xl md:text-5xl font-black uppercase tracking-tight italic text-slate-900 dark:text-slate-50 leading-none">
-                        {title.split(' ')[0]} <span className={cn("not-italic font-black", getIconColor(themeColor))}>{title.split(' ').slice(1).join(' ')}</span>
-                      </h2>
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
-                        {description}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center mt-6 pt-5 border-t border-slate-100 dark:border-slate-800/60 relative z-10">
-                    {onNewSession && (
-                      <Button
-                        size="lg"
-                        onClick={onNewSession}
-                        disabled={isCreating}
-                        className={cn("h-14 px-8 text-white font-black uppercase text-[10px] tracking-[0.2em] rounded-2xl shadow-xl gap-2 transition-all active:scale-95 shrink-0 border-none", getThemeClasses(themeColor))}
-                      >
-                        <Plus className="h-4 w-4" />
-                        {primaryActionLabel}
-                      </Button>
-                    )}
-                    
-                    {onSecondaryAction && secondaryActionLabel && (
-                      <Button 
-                        size="lg"
-                        variant="outline"
-                        className="h-14 px-8 rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600 transition-all active:scale-95 shrink-0"
-                        onClick={onSecondaryAction}
-                      >
-                        {secondaryActionLabel}
-                      </Button>
-                    )}
-
-                    {onJoinSession && !hideJoinAction && (
-                      <div className="relative group flex-1">
-                        <Input
-                          value={joinId}
-                          onChange={(e) => setJoinId(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => e.key === 'Enter' && handleJoinClick()}
-                          placeholder="ENTRAR COM ID DA SALA"
-                          className="h-14 pl-6 pr-14 bg-slate-50 dark:bg-slate-950 border-2 border-slate-200 dark:border-slate-800/80 placeholder:text-slate-400 dark:placeholder:text-slate-600 font-bold text-xs text-slate-900 dark:text-slate-100 rounded-2xl focus-visible:ring-offset-0 focus-visible:ring-violet-500/20 focus-visible:border-violet-500 transition-all uppercase tracking-wider"
-                        />
-                        <button
-                          onClick={handleJoinClick}
-                          disabled={!joinId.trim()}
-                          className={cn("absolute right-2.5 top-2.5 w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95", getThemeClasses(themeColor).split(' ')[0])}
-                        >
-                          <ArrowRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* CARD 2: RECENT LOCAL SESSIONS */}
-              <motion.div variants={itemVariants} className="lg:col-span-4 col-span-1 flex">
-                <Card className="group relative border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col justify-between w-full overflow-hidden min-h-[300px]">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-slate-500/5 dark:bg-slate-500/10 rounded-full blur-2xl pointer-events-none" />
-                  
-                  <div className="space-y-4 w-full flex-1 flex flex-col justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
-                        <History className="h-4 w-4" />
-                      </div>
-                      <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">Sessões recentes</h3>
-                    </div>
-
-                    <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1 flex-1 custom-scrollbar mt-3">
-                      {loading ? (
-                        <div className="space-y-2 py-2 animate-pulse">
-                          <div className="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl" />
-                          <div className="h-12 bg-slate-100 dark:bg-slate-800 rounded-xl" />
-                        </div>
-                      ) : history.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                          <p className="text-sm text-slate-400 dark:text-slate-500">Nenhuma sessão ainda</p>
-                        </div>
-                      ) : (
-                        history.slice(0, 3).map((room) => (
-                          <div
-                            key={room.roomId}
-                            onClick={() => onJoinSession?.(room.roomId)}
-                            className="group/item flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800/60 bg-white/40 dark:bg-slate-950/40 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-800 hover:shadow-sm transition-all duration-200 cursor-pointer"
-                          >
-                            <div className="space-y-0.5 truncate flex-1 min-w-0 pr-2">
-                              <h5 className="text-sm font-bold text-slate-800 dark:text-slate-200 group-item-hover:text-slate-950 dark:group-item-hover:text-white truncate">
-                                {room.title}
-                              </h5>
-                              <p className="text-xs text-slate-400 truncate">
-                                {room.team || 'Squad Geral'}
-                              </p>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-slate-300 group-item-hover:text-slate-600 dark:group-item-hover:text-slate-400 group-item-hover:translate-x-0.5 transition-all shrink-0" />
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="text-xs font-medium text-slate-400 mt-2 text-center border-t border-slate-100 dark:border-slate-800/80 pt-2 shrink-0">
-                    Salvo só neste navegador
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* CARD 3: REFERENCE SECTIONS / MANUAL */}
-              {referenceSections.length > 0 && (
-                <motion.div variants={itemVariants} className="lg:col-span-8 col-span-1 flex">
-                  <Card className="border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col justify-between w-full overflow-hidden min-h-[300px]">
-                    <div className="space-y-4 w-full">
-                      <div className="flex items-center gap-2">
-                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center border text-slate-500", getGlowClasses(themeColor), getIconColor(themeColor).replace('text-', 'border-').replace('dark:text-', 'dark:border-'))}>
-                          <Search className="h-4.5 w-4.5" />
-                        </div>
-                        <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">Como funciona</h3>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-                        {referenceSections.slice(0, 4).map((section, idx) => (
-                          <div
-                            key={idx}
-                            onClick={section.onClick}
-                            role={section.onClick ? 'button' : undefined}
-                            tabIndex={section.onClick ? 0 : undefined}
-                            onKeyDown={section.onClick ? (e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                section.onClick?.();
-                              }
-                            } : undefined}
-                            className={cn(
-                              "flex gap-3 items-start p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60",
-                              section.onClick && "cursor-pointer transition-colors hover:border-slate-300 dark:hover:border-slate-700"
-                            )}>
-                            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-inner", getGlowClasses(themeColor))}>
-                              {React.isValidElement(section.icon) ? React.cloneElement(section.icon as React.ReactElement<{ className?: string }>, { className: cn("h-4 w-4", getIconColor(themeColor)) }) : section.icon}
-                            </div>
-                            <div className="space-y-1">
-                              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{section.title}</h4>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal line-clamp-4">{section.description}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-              )}
-
-              {/* CARD 4: MANIFESTO / TIPS */}
-              <motion.div variants={itemVariants} className="lg:col-span-4 col-span-1 flex">
-                <Card className="border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] p-7 shadow-lg flex flex-col justify-between w-full overflow-hidden min-h-[300px]">
-                  <div className="space-y-4 w-full flex-1 flex flex-col justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-amber-500/10 rounded-lg flex items-center justify-center border border-amber-500/20 text-amber-500">
-                        <Sparkles className="h-4 w-4" />
-                      </div>
-                      <h3 className="text-base font-bold text-slate-950 dark:text-slate-50">Dicas para a cerimônia</h3>
-                    </div>
-
-                    <div className="space-y-3 mt-3 flex-1">
-                      {tips.slice(0, 3).map((tip, idx) => (
-                        <div key={idx} className="flex gap-2.5 items-start">
-                          <div className="w-6 h-6 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0">
-                            {React.isValidElement(tip.icon) ? React.cloneElement(tip.icon as React.ReactElement<{ className?: string }>, { className: "h-3.5 w-3.5 text-amber-500" }) : tip.icon}
-                          </div>
-                          <div className="space-y-0.5">
-                            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">{tip.title}</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-snug line-clamp-4">{tip.description}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* CARD 5: CUSTOM CHILDREN / WIDGETS */}
-              {children && (
-                <motion.div variants={itemVariants} className="lg:col-span-12 col-span-1 w-full mt-4">
-                  {children}
-                </motion.div>
-              )}
-            </motion.div>
+                  );
+                })}
+              </div>
+            </section>
           )}
-        </main>
-      </div>
 
-      {/* COMPACT FEEDBACK WIDGET */}
-      <FeedbackWidget 
-        toolName={`Portal Tech V&D - ${title}`} 
-        externalTriggerSignal={feedbackSignal} 
-        triggerVariant="none" 
-      />
+          {/* Dicas */}
+          <section aria-label="Dicas" className={cn(PAGE_CARD, 'col-span-1 flex flex-col gap-3 p-6 md:col-span-2 lg:col-span-4')}>
+            <div className="flex items-center gap-2">
+              <IconTile icon={Sparkles} size="sm" tone="warn" />
+              <h2 className="text-base font-semibold text-foreground">Dicas para a cerimônia</h2>
+            </div>
 
-      {!onlyChildren && (
-        <Footer 
-          className="mt-8 shrink-0" 
-          subtitle={`Portal Tech V&D Control Hub • ${title}`} 
-          onOpenFeedback={() => setFeedbackSignal(Date.now())} 
-        />
+            <div className="flex-1 space-y-3">
+              {tips.slice(0, 3).map((tip, idx) => (
+                <div key={idx} className="flex items-start gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+                    {tinted(tip.icon, 'h-3.5 w-3.5 text-primary')}
+                  </span>
+                  <div className="space-y-0.5">
+                    <h3 className="text-sm font-semibold text-foreground">{tip.title}</h3>
+                    <p className="line-clamp-4 text-sm leading-snug text-muted-foreground">{tip.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Miolo extra (widgets da própria tela) */}
+          {children && <div className="col-span-1 w-full md:col-span-2 lg:col-span-12">{children}</div>}
+        </div>
       )}
-    </div>
+    </PageShell>
   );
 }

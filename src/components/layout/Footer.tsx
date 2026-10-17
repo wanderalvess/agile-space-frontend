@@ -6,6 +6,7 @@ import { BrandWordmark } from './BrandWordmark';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
+/** @deprecated Sem uso nas telas: o rodapé do portal é o AppFooter (via PageShell). Remover quando as branches das salas fundirem. */
 interface FooterProps {
   className?: string;
   onOpenFeedback?: () => void;

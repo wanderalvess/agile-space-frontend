@@ -6,7 +6,6 @@ import {
   Plus,
   Search,
   LayoutGrid,
-  Library,
   HelpCircle,
   GraduationCap,
   Layers,
@@ -33,10 +32,8 @@ import { promptApi, publicPromptApi, ApiError } from '../api';
 import { normalize } from '../findSimilar';
 import { PromptEditor } from './PromptEditor';
 import { PromptView } from './PromptView';
-import { RoomHeader } from '@/components/layout/RoomHeader';
+import { ErrorState, PageHeader, PageShell } from '@/components/page';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
-import { FeedbackWidget } from '@/components/feedback-widget';
-import { Footer } from '@/components/layout/Footer';
 import {
   Select,
   SelectContent,
@@ -64,7 +61,6 @@ export function PromptDashboard({
   const { session } = useAuth();
   const router = useRouter();
   const { requestIdentity } = useUserContext();
-  const [feedbackSignal, setFeedbackSignal] = useState<number | undefined>();
 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -429,44 +425,45 @@ export function PromptDashboard({
   // Falha na primeira carga: diz o que houve em vez de mostrar "biblioteca vazia".
   if (loadError && rawPrompts.length === 0) {
     return (
-      <div className="flex h-[80vh] flex-1 flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <Inbox className="h-10 w-10 text-muted-foreground" />
-        <p className="max-w-md text-base font-medium text-foreground">{loadError.message}</p>
-        <div className="flex gap-2">
-          {!loadError.needsLogin && (
-            <Button
-              onClick={() => {
-                setIsLoading(true);
-                loadData();
-              }}
-            >
-              Tentar de novo
-            </Button>
-          )}
+      <PageShell documentTitle="Prompt Hub">
+        <PageHeader title="Prompt Hub" module="prompt-hub" breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Prompt Hub' }]} />
+        <ErrorState
+          title={loadError.needsLogin ? 'Entre para ver a biblioteca' : 'Não foi possível carregar a biblioteca'}
+          description={loadError.message}
+          onRetry={
+            loadError.needsLogin
+              ? undefined
+              : () => {
+                  setIsLoading(true);
+                  loadData();
+                }
+          }
+        />
+        <div className="flex justify-center">
           <Button variant="outline" onClick={() => router.push(loadError.needsLogin ? '/login' : '/')}>
             {loadError.needsLogin ? 'Entrar' : 'Voltar ao início'}
           </Button>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="relative flex h-full w-full flex-1 flex-col bg-background">
-      <RoomHeader
-        title="Biblioteca de IA"
-        toolIcon={<Library className="h-4 w-4" />}
-        toolColorClass="text-primary"
-        onOpenFeedback={() => setFeedbackSignal(Date.now())}
+    <PageShell documentTitle="Prompt Hub" width="wide">
+      <PageHeader
+        title="Prompt Hub"
+        module="prompt-hub"
+        breadcrumb={[{ label: 'Home', href: '/' }, { label: 'Prompt Hub' }]}
+        subtitle="O acervo da empresa para prompts, skills, agentes, Gems e iniciativas de IA."
         actions={
-          <div className="flex items-center gap-2">
+          <>
             <ModuleIntegrationButton moduleId="prompt-hub" variant="ghost" className="hidden lg:inline-flex" />
 
             <Button
               variant="ghost"
               size="sm"
               onClick={() => router.push('/prompt-hub/colecoes')}
-              className="hidden gap-2 text-muted-foreground hover:text-foreground sm:inline-flex"
+              className="gap-2 text-muted-foreground hover:text-foreground"
             >
               <Layers className="h-4 w-4" />
               Coleções
@@ -476,7 +473,7 @@ export function PromptDashboard({
               variant="ghost"
               size="sm"
               onClick={() => router.push('/prompt-hub/tutorial')}
-              className="hidden gap-2 text-muted-foreground hover:text-foreground lg:inline-flex"
+              className="gap-2 text-muted-foreground hover:text-foreground"
             >
               <GraduationCap className="h-4 w-4" />
               Como criar uma skill
@@ -518,17 +515,17 @@ export function PromptDashboard({
                 </Button>
               </div>
             )}
-          </div>
+          </>
         }
       />
 
-      <div className="flex w-full flex-1 overflow-hidden">
-        <div className="mx-auto flex w-full max-w-[1920px] 2xl:max-w-[2160px] 3xl:max-w-[2400px] flex-1 overflow-hidden px-4 sm:px-6 lg:px-8 xl:px-10">
+      <div className="flex h-[max(40rem,calc(100dvh-16rem))] w-full overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="flex w-full flex-1 overflow-hidden px-4 sm:px-6">
           {/* Barra Lateral Widescreen (Studio Navigator): visível a partir de xl (1280px+) */}
           <aside className="hidden xl:flex xl:w-64 2xl:w-72 xl:shrink-0 flex-col gap-6 py-5 pr-6 border-r border-border/60 overflow-y-auto">
             {/* 1. Categorias / Tipos */}
             <div className="space-y-2">
-              <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+              <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
                 Tipos de Ativos
               </span>
               <div className="space-y-1">
@@ -545,7 +542,7 @@ export function PromptDashboard({
                     <LayoutGrid className="h-4 w-4 shrink-0" />
                     <span>Todos os Ativos</span>
                   </div>
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                     {scopedPrompts.length}
                   </span>
                 </button>
@@ -574,7 +571,7 @@ export function PromptDashboard({
                         <Icon className={cn('h-4 w-4 shrink-0', isActive && meta.accent)} />
                         <span>{meta.label}</span>
                       </div>
-                      <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                         {count}
                       </span>
                     </button>
@@ -586,7 +583,7 @@ export function PromptDashboard({
             {/* 2. Escopo de Acesso (se logado) */}
             {!isPublicView && (
               <div className="space-y-2 pt-2 border-t border-border/40">
-                <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
                   Visibilidade
                 </span>
                 <div className="space-y-1">
@@ -632,7 +629,7 @@ export function PromptDashboard({
                     <Star className={cn('h-3.5 w-3.5', filters.onlyFavorites && 'fill-current text-amber-500')} />
                     <span>Apenas Favoritos</span>
                   </div>
-                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+                  <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
                     {favoriteCount}
                   </span>
                 </button>
@@ -642,7 +639,7 @@ export function PromptDashboard({
             {/* 4. Tags Frequentes */}
             {popularTags.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-border/40">
-                <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
                   Tags Populares
                 </span>
                 <div className="flex flex-wrap gap-1.5 px-1">
@@ -653,7 +650,7 @@ export function PromptDashboard({
                         key={tag}
                         onClick={() => toggleTag(tag)}
                         className={cn(
-                          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-colors',
+                          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
                           isSelected
                             ? 'bg-primary text-primary-foreground font-semibold'
                             : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -661,7 +658,7 @@ export function PromptDashboard({
                         title={`Filtrar por #${tag} (${count} itens)`}
                       >
                         #{tag}
-                        <span className="opacity-60 text-[9px]">({count})</span>
+                        <span className="opacity-60 text-xs">({count})</span>
                       </button>
                     );
                   })}
@@ -859,7 +856,7 @@ export function PromptDashboard({
                 <section className="mb-8 mt-1 overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
                   <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                     <div className="max-w-2xl space-y-2.5">
-                      <div className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-primary font-semibold">
+                      <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary font-semibold">
                         <Sparkles className="h-3.5 w-3.5" />
                         Ateliê de IA
                       </div>
@@ -877,7 +874,7 @@ export function PromptDashboard({
                           <span className="block font-mono text-xl font-bold text-foreground leading-none">
                             {rawPrompts.length}
                           </span>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                             Ativos Disponíveis
                           </span>
                         </div>
@@ -886,7 +883,7 @@ export function PromptDashboard({
                           <span className="block font-mono text-xl font-bold text-primary leading-none">
                             {totalUses}
                           </span>
-                          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                             Execuções / Cópias
                           </span>
                         </div>
@@ -903,7 +900,7 @@ export function PromptDashboard({
                       <TrendingUp className="h-4 w-4 text-primary" />
                       Destaques da Bancada · Mais executados
                     </h2>
-                    <span className="text-[11px] font-mono text-muted-foreground">
+                    <span className="text-xs font-mono text-muted-foreground">
                       Baseado no uso real das squads
                     </span>
                   </div>
@@ -998,14 +995,6 @@ export function PromptDashboard({
         </div>
       </div>
 
-      <Footer onOpenFeedback={() => setFeedbackSignal(Date.now())} />
-
-      <FeedbackWidget
-        toolName="Portal Tech V&D - Biblioteca de IA"
-        triggerVariant="none"
-        externalTriggerSignal={feedbackSignal}
-      />
-
       <PromptEditor
         isOpen={isEditorOpen}
         onClose={() => {
@@ -1052,6 +1041,6 @@ export function PromptDashboard({
         }}
         userProfile={userProfile}
       />
-    </div>
+    </PageShell>
   );
 }

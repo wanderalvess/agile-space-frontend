@@ -205,7 +205,8 @@ export default function ActionPlanHubPage() {
 
   return (
     <>
-      <ToolHubLayout 
+      <ToolHubLayout
+        module="action-plan"
         title="Plano de Ação (5W2H)"
         description="Estruture a execução de qualquer projeto ou demanda. Transforme ideias em tarefas detalhadas, com donos e prazos claros."
         icon={<ListChecks />}
@@ -229,37 +230,37 @@ export default function ActionPlanHubPage() {
       />
 
       <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] border-none shadow-2xl bg-white/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl">
           <DialogHeader>
             <div className="w-12 h-12 rounded-2xl bg-fuchsia-500 flex items-center justify-center mb-4 shadow-lg shadow-fuchsia-500/20 text-white">
                <Sparkles className="h-6 w-6" />
             </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-800 leading-none">Criar Plano de Ação</DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configure o título da sua Matriz 5W2H</DialogDescription>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-none">Criar Plano de Ação</DialogTitle>
+            <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-2">Configure o título da sua Matriz 5W2H</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-6">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Título do Plano</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Título do Plano</Label>
               <Input 
                 placeholder="Ex: Execução do Novo Checkout" 
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="h-12 rounded-xl border-slate-200 focus:border-fuchsia-500 font-bold"
+                className="h-12 rounded-xl border-border focus:border-fuchsia-500 font-bold"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Squad / Time (Opcional)</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Squad / Time (Opcional)</Label>
               <Input 
                 placeholder="Ex: Squad de Pagamentos" 
                 value={team}
                 onChange={e => setTeam(e.target.value)}
-                className="h-12 rounded-xl border-slate-200 focus:border-fuchsia-500 font-bold"
+                className="h-12 rounded-xl border-border focus:border-fuchsia-500 font-bold"
               />
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-100 flex-col gap-3">
+          <DialogFooter className="pt-4 border-t border-border flex-col gap-3">
              <Button 
                disabled={isCreating}
                onClick={handleCreate}
@@ -272,7 +273,7 @@ export default function ActionPlanHubPage() {
                type="button"
                variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600"
+               className="h-auto px-2 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-muted-foreground"
              >
                 Talvez depois
              </Button>

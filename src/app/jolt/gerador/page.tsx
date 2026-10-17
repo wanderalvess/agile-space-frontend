@@ -2,8 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Plus, Trash2, Wand2, Workflow } from 'lucide-react';
-import { RoomHeader } from '@/components/layout/RoomHeader';
+import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Plus, Trash2, Wand2 } from 'lucide-react';
+import { PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -60,8 +60,8 @@ function Stepper({ step, onGo, hasResult }: { step: Step; onGo: (s: Step) => voi
   ];
   const index = steps.findIndex((s) => s.id === step);
   return (
-    <nav aria-label="Etapas" className="border-b border-border bg-card">
-      <ol className="flex flex-wrap gap-1 px-4 md:px-8">
+    <nav aria-label="Etapas" className="overflow-hidden rounded-2xl border border-border bg-card">
+      <ol className="flex flex-wrap gap-1 px-2 md:px-4">
         {steps.map((s, i) => {
           const done = i < index;
           const current = i === index;
@@ -114,7 +114,7 @@ function RuleEditor({
   return (
     <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/40 p-3">
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-kind`}>
+        <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-kind`}>
           Regra
           <select
             id={`${id}-kind`}
@@ -128,7 +128,7 @@ function RuleEditor({
           </select>
         </label>
         {draft.kind !== 'CONSTANT' ? (
-          <label className="flex min-w-[240px] flex-1 flex-col gap-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-source`}>
+          <label className="flex min-w-[240px] flex-1 flex-col gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-source`}>
             Vem de
             <select
               id={`${id}-source`}
@@ -143,7 +143,7 @@ function RuleEditor({
             </select>
           </label>
         ) : (
-          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-value`}>
+          <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs font-bold uppercase tracking-wider text-muted-foreground" htmlFor={`${id}-value`}>
             Valor fixo
             <input
               id={`${id}-value`}
@@ -157,7 +157,7 @@ function RuleEditor({
 
       {draft.kind === 'VALUE_MAP' && (
         <fieldset className="space-y-2">
-          <legend className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Como cada valor chega</legend>
+          <legend className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Como cada valor chega</legend>
           {draft.map.map((row, i) => (
             <div key={i} className="flex flex-wrap items-center gap-2">
               <input
@@ -240,7 +240,7 @@ function RuleRow({
         </span>
         <span className="truncate font-code text-xs text-muted-foreground" title={rule.example ?? ''}>{rule.example ?? ''}</span>
         <div className="flex items-center justify-end gap-2">
-          {adjusted && <span className="text-[11px] font-bold text-primary">ajustado</span>}
+          {adjusted && <span className="text-xs font-bold text-primary">ajustado</span>}
           {!rule.pending && !adjusted && <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-label="Confere com a saída" />}
           <Button
             type="button"
@@ -282,7 +282,6 @@ export default function JoltGeneratorPage() {
   const [codeTab, setCodeTab] = useState<'spec' | 'registro'>('spec');
 
   useEffect(() => {
-    document.title = 'Gerador de spec | Jolt | Portal Tech V&D';
     // Vindo da Sandbox: a entrada que estava lá já chega preenchida. A chave só é apagada ao gerar: a página pode
     // montar duas vezes enquanto a sessão carrega, e apagar aqui deixaria a segunda montagem vazia.
     try {
@@ -386,11 +385,16 @@ export default function JoltGeneratorPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-background">
-      <RoomHeader title="Gerador de spec" toolIcon={<Workflow className="h-4 w-4" />} />
+    <PageShell documentTitle="Gerador de spec" width="wide" contentClassName={result && step === 'regras' ? 'pb-32' : undefined}>
+      <PageHeader
+        title="Gerador de spec"
+        module="jolt"
+        breadcrumb={[{ label: 'Jolt', href: '/jolt' }, { label: 'Gerador de spec' }]}
+        subtitle="Cole os exemplos de entrada e de saída e o gerador monta a spec Jolt."
+      />
       <Stepper step={step} onGo={setStep} hasResult={!!result} />
 
-      <main className="mx-auto w-full max-w-[1440px] px-4 pb-32 pt-6 md:px-8">
+      <div className="w-full">
         {error && (
           <div role="alert" className="mb-4 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm font-semibold text-destructive">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
@@ -400,7 +404,7 @@ export default function JoltGeneratorPage() {
         {step === 'exemplos' && (
           <section aria-labelledby="exemplos-titulo" className="space-y-4">
             <div>
-              <h1 id="exemplos-titulo" className="font-headline text-2xl font-black tracking-tight">Do exemplo à spec</h1>
+              <h2 id="exemplos-titulo" className="text-xl font-bold tracking-tight">Do exemplo à spec</h2>
               <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                 Cole a resposta da API de origem e a saída que a API de destino espera. O gerador descobre de onde vem cada campo e monta a spec Jolt. Você só confirma o que for ambíguo.
               </p>
@@ -557,7 +561,7 @@ export default function JoltGeneratorPage() {
                 const d = describeOperation(op, i, result.spec.length);
                 return (
                   <div key={i} className="rounded-xl border border-border bg-card p-4">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">Passo {i + 1}</span>
+                    <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Passo {i + 1}</span>
                     <code className="mt-1 block font-code text-[13px] font-semibold">{d.name}</code>
                     <p className="mt-1 text-[13px] text-muted-foreground">{d.what}</p>
                   </div>
@@ -609,7 +613,7 @@ export default function JoltGeneratorPage() {
             </div>
           </section>
         )}
-      </main>
+      </div>
 
       {result && step === 'regras' && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 py-3 shadow-[0_-6px_24px_rgba(0,0,0,0.06)] backdrop-blur md:px-8">
@@ -634,6 +638,6 @@ export default function JoltGeneratorPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageShell>
   );
 }

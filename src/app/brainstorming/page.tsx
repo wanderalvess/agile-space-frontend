@@ -181,7 +181,8 @@ export default function BrainstormingHubPage() {
 
   return (
     <>
-      <ToolHubLayout 
+      <ToolHubLayout
+        module="brainstorming"
         title="Brainstorming"
         description="Espaço criativo para geração de ideias e soluções em squad. Transforme insights em backlog acionável."
         icon={<Lightbulb />}
@@ -201,37 +202,37 @@ export default function BrainstormingHubPage() {
       />
 
       <Dialog open={isSetupOpen} onOpenChange={setIsSetupOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] border-none shadow-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-[480px] rounded-[2.5rem] border-none shadow-2xl bg-card/95 backdrop-blur-xl">
           <DialogHeader>
             <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20 text-white">
                <Sparkles className="h-6 w-6" />
             </div>
-            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-slate-800 dark:text-slate-100 leading-none">Iniciar Brainstorming</DialogTitle>
-            <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Configure os detalhes da sua sessão criativa</DialogDescription>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tighter text-foreground leading-none">Iniciar Brainstorming</DialogTitle>
+            <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest mt-2">Configure os detalhes da sua sessão criativa</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-6">
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Título da Sessão</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Título da Sessão</Label>
               <Input 
                 placeholder="Ex: Refatoração do Dashboard" 
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="h-12 rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-amber-500 font-bold"
+                className="h-12 rounded-xl border-border bg-muted text-foreground focus:border-amber-500 font-bold"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Squad / Time (Opcional)</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">Squad / Time (Opcional)</Label>
               <Input 
                 placeholder="Ex: Flight Core" 
                 value={team}
                 onChange={e => setTeam(e.target.value)}
-                className="h-12 rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-amber-500 font-bold"
+                className="h-12 rounded-xl border-border bg-muted text-foreground focus:border-amber-500 font-bold"
               />
             </div>
           </div>
 
-          <DialogFooter className="pt-4 border-t border-slate-100 dark:border-slate-700 flex-col gap-3">
+          <DialogFooter className="pt-4 border-t border-border flex-col gap-3">
              <Button 
                disabled={isCreating}
                onClick={handleCreate}
@@ -244,7 +245,7 @@ export default function BrainstormingHubPage() {
                type="button"
                variant="ghost"
                onClick={() => setIsSetupOpen(false)}
-               className="h-auto px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+               className="h-auto px-2 py-1 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-muted-foreground"
              >
                 Talvez depois
              </Button>

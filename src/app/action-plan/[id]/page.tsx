@@ -5,10 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { actionPlanApi } from '../api';
 import { ActionPlanBoard, ActionPlanTask } from '@/lib/types';
-import { RoomHeader } from '@/components/layout/RoomHeader';
+import { ErrorState, LoadingSkeleton, PageHeader, PageShell } from '@/components/page';
 import { useToast } from '@/hooks/use-toast';
 import { ActionPlanBoard as ActionPlanBoardComponent } from '@/components/action-plan/ActionPlanBoard';
-import { Loader2, Share2, HelpCircle, Download } from 'lucide-react';
+import { Share2, HelpCircle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUserContext } from '@/context/UserContext';
 import { ActionPlanGuide } from '@/components/action-plan/ActionPlanGuide';
@@ -106,11 +106,14 @@ export default function ActionPlanSessionPage() {
     };
   }, [isAuthenticated, userProfile, board, refreshTasks]);
 
+  const crumbs = [{ label: 'Plano de ação', href: '/action-plan' }];
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-fuchsia-500" />
-      </div>
+      <PageShell documentTitle="Plano de ação" width="wide">
+        <PageHeader title="Plano de ação" module="action-plan" breadcrumb={[...crumbs, { label: 'Carregando' }]} />
+        <LoadingSkeleton variant="table" label="Carregando o plano de ação" />
+      </PageShell>
     );
   }
 
@@ -123,59 +126,41 @@ export default function ActionPlanSessionPage() {
 
   if (loadError && !board) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center gap-4 text-center px-6">
-        <p className="text-sm font-bold text-slate-600">{loadError}</p>
-        <Button onClick={() => { setLoading(true); fetchBoardAndTasks(); }} className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white font-black uppercase text-xs tracking-widest rounded-xl">
-          Tentar novamente
-        </Button>
-      </div>
+      <PageShell documentTitle="Plano de ação" width="wide">
+        <PageHeader title="Plano de ação" module="action-plan" breadcrumb={[...crumbs, { label: 'Erro' }]} />
+        <ErrorState
+          description={loadError}
+          onRetry={() => { setLoading(true); fetchBoardAndTasks(); }}
+          retryLabel="Tentar novamente"
+        />
+      </PageShell>
     );
   }
 
   if (!board) return null;
 
   return (
-    <div className="flex flex-col flex-1 w-full h-full min-h-[calc(100vh-80px)] overflow-hidden bg-[#fafafa]">
-      {/* FLAG (requer follow-up fora do escopo permitido): RoomHeader (src/components/layout/RoomHeader.tsx)
-          NÃO aceita as props team/participantIds/themeColor/onLeave que esta página passava — elas já
-          eram ignoradas em runtime. Para satisfazer o type-check preservando o comportamento atual,
-          passamos apenas as props aceitas. toolIcon é obrigatório; undefined mantém o render atual
-          (sem ícone, cor padrão). Restaurar botão de sair / time / tema exige editar RoomHeader ou
-          redesenhar esta página. */}
-      <RoomHeader
+    <PageShell documentTitle={board.title} feedbackName="Plano de ação" width="wide" contentClassName="gap-4">
+      <PageHeader
         title={board.title}
-        toolIcon={undefined}
+        module="action-plan"
+        breadcrumb={[...crumbs, { label: board.title }]}
         actions={
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsGuideOpen(true)}
-              className="flex items-center justify-center h-8 w-8 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-xl transition-all"
-              title="Como Usar"
-              aria-label="Como usar o plano de ação"
-            >
-              <HelpCircle className="h-4 w-4" />
-            </button>
-            <button
-              onClick={handleCopyLink}
-              className="flex items-center justify-center h-8 w-8 text-slate-400 hover:text-fuchsia-600 hover:bg-fuchsia-50 rounded-xl transition-all"
-              title="Compartilhar Sessão"
-              aria-label="Copiar link do plano"
-            >
-              <Share2 className="h-4 w-4" />
-            </button>
-            <Button
-              onClick={() => setIsExportModalOpen(true)}
-              className="h-8 px-3 text-[10px] font-black uppercase tracking-widest text-white bg-fuchsia-500 hover:bg-fuchsia-600 rounded-xl shadow-sm ml-1"
-              title="Exportar"
-            >
-              <Download className="h-3 w-3 mr-1.5" />
-              <span className="hidden sm:inline">Exportar</span>
+          <>
+            <Button variant="outline" size="sm" onClick={() => setIsGuideOpen(true)} className="h-9 gap-1.5 rounded-xl text-xs font-semibold" aria-label="Como usar o plano de ação">
+              <HelpCircle className="h-4 w-4" strokeWidth={1.5} /> Como usar
             </Button>
-          </div>
+            <Button variant="outline" size="sm" onClick={handleCopyLink} className="h-9 gap-1.5 rounded-xl text-xs font-semibold" aria-label="Copiar link do plano">
+              <Share2 className="h-4 w-4" strokeWidth={1.5} /> Compartilhar
+            </Button>
+            <Button size="sm" onClick={() => setIsExportModalOpen(true)} className="h-9 gap-1.5 rounded-xl text-xs font-semibold" title="Exportar">
+              <Download className="h-4 w-4" strokeWidth={1.5} /> Exportar
+            </Button>
+          </>
         }
       />
 
-      <div className="flex-1 relative overflow-hidden">
+      <div className="relative h-[max(36rem,calc(100dvh-14rem))] overflow-hidden rounded-2xl border border-border bg-background">
          <ActionPlanBoardComponent board={board} tasks={tasks} onRefresh={refreshTasks} />
       </div>
 
@@ -187,6 +172,6 @@ export default function ActionPlanSessionPage() {
         boardData={board}
         tasks={tasks}
       />
-    </div>
+    </PageShell>
   );
 }

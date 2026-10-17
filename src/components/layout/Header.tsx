@@ -36,6 +36,9 @@ import { ThemeToggle } from './ThemeToggle';
 import { GlobalProjectSelector } from '@/components/admin/GlobalProjectSelector';
 
 
+/** Rotas que ainda não montam o AppHeader. */
+const LEGACY_HEADER_PATHS = ['/onboarding', '/invite'];
+
 export function Header() {
   const pathname = usePathname();
   const { userProfile, logout, requestIdentity, setIsEditProfileOpen } = useUserContext();
@@ -48,32 +51,13 @@ export function Header() {
     setIsMounted(true);
   }, []);
 
-  // Oculta o header global em módulos que possuem seu próprio cabeçalho ou sidebar dedicada
-  const isMinimalLayout =
-    pathname === '/' ||
-    pathname === '/login' ||
-    pathname === '/reset-password' ||
-    pathname.startsWith('/jolt') ||
-    pathname.startsWith('/manual') ||
-    pathname.startsWith('/room') ||
-    pathname.startsWith('/retro') ||
-    pathname.startsWith('/brainstorming') ||
-    pathname.startsWith('/health-check') ||
-    pathname.startsWith('/workspace') ||
-    pathname.startsWith('/sprint-planner') ||
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/showcase') ||
-    pathname.startsWith('/squad') ||
-    pathname.startsWith('/qa') ||
-    pathname.startsWith('/devtools') ||
-    pathname.startsWith('/knowledge') ||
-    pathname.startsWith('/governance') ||
-    pathname.startsWith('/changelog') ||
-    pathname.startsWith('/support') ||
-    pathname.startsWith('/prompt-hub') ||
-    pathname.startsWith('/action-plan');
+  // Header legado (marca, Manual, Calmaria, seletor de squad, tema e conta).
+  // Toda página que usa o PageShell/AppHeader, e as salas ao vivo (que têm o RoomHeader/RoomTopBar), esconde este.
+  // Hoje só as telas de entrada, que ainda não montam o AppHeader, dependem dele. Lista de permissão: tela nova
+  // nunca recebe cabeçalho duplicado. Remover junto com o RoomHeader quando a entrada migrar.
+  const needsLegacyHeader = LEGACY_HEADER_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-  if (isMinimalLayout) {
+  if (!needsLegacyHeader) {
     return null;
   }
 

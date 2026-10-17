@@ -97,12 +97,12 @@ export default function TrashPage() {
 
        <div className="space-y-6 md:space-y-8 relative z-10">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-border pb-6">
              <div className="space-y-3">
                 <Button
                  variant="ghost"
                  onClick={() => router.back()}
-                 className="gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-100 -ml-4 text-xs font-bold uppercase tracking-wider"
+                 className="gap-2 text-muted-foreground hover:text-foreground -ml-4 text-xs font-bold uppercase tracking-wider"
                 >
                    <ArrowLeft className="h-4 w-4" /> Voltar ao Painel
                 </Button>
@@ -111,10 +111,10 @@ export default function TrashPage() {
                       <History className="h-6 w-6 text-rose-500" />
                    </div>
                    <div>
-                      <h1 className="text-3xl font-black font-headline uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 leading-none">
+                      <h1 className="text-3xl font-black font-headline uppercase tracking-tighter italic text-foreground leading-none">
                          Cofre de <span className="text-rose-500 not-italic">Descarte</span>
                       </h1>
-                      <p className="text-[9px] font-black text-rose-500 uppercase tracking-widest mt-1.5">
+                      <p className="text-xs font-black text-rose-500 uppercase tracking-widest mt-1.5">
                          Documentos removidos ficam aqui até serem restaurados
                       </p>
                    </div>
@@ -122,10 +122,10 @@ export default function TrashPage() {
              </div>
 
              <div className="relative w-full md:w-80">
-                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500 group-focus-within:text-rose-500 transition-colors" />
+                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-rose-500 transition-colors" />
                  <Input
                    placeholder="Localizar na lixeira..."
-                   className="pl-12 w-full h-11 rounded-xl bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 shadow-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus-visible:ring-rose-500 transition-all"
+                   className="pl-12 w-full h-11 rounded-xl bg-card/60 border-border shadow-xs font-bold text-foreground placeholder:text-muted-foreground focus-visible:ring-rose-500 transition-all"
                    value={searchTerm}
                    onChange={(e) => setSearchTerm(e.target.value)}
                  />
@@ -135,28 +135,28 @@ export default function TrashPage() {
           {isLoading ? (
             <div className="py-40 flex flex-col items-center justify-center gap-4">
                <AgileSpinner variant="indigo" size="md" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 animate-pulse">Varrendo arquivos temporários...</span>
+               <span className="text-xs font-black uppercase tracking-widest text-muted-foreground animate-pulse">Varrendo arquivos temporários...</span>
             </div>
           ) : filteredTrash.length === 0 ? (
-            <div className="py-32 text-center space-y-4 bg-white/40 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/80 rounded-[2.5rem] backdrop-blur-md">
-               <div className="w-20 h-20 bg-slate-100 dark:bg-slate-950 rounded-[2rem] flex items-center justify-center mx-auto border border-slate-200 dark:border-slate-800">
-                  <Trash className="h-8 w-8 text-slate-300 dark:text-slate-700" />
+            <div className="py-32 text-center space-y-4 bg-card/40 border border-border/60 rounded-[2.5rem] backdrop-blur-md">
+               <div className="w-20 h-20 bg-muted rounded-[2rem] flex items-center justify-center mx-auto border border-border">
+                  <Trash className="h-8 w-8 text-muted-foreground" />
                </div>
-               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">A lixeira está vazia</p>
+               <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">A lixeira está vazia</p>
             </div>
           ) : (
              <div className="grid gap-4">
                 {filteredTrash.map((docItem) => (
-                  <div key={docItem.id} className="group p-5 bg-white/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-[2rem] flex items-center justify-between hover:border-rose-500/30 hover:bg-slate-50/50 dark:hover:bg-slate-900/80 transition-all duration-500 backdrop-blur-xs">
+                  <div key={docItem.id} className="group p-5 bg-card/60 border border-border/60 rounded-[2rem] flex items-center justify-between hover:border-rose-500/30 hover:bg-background/50 transition-all duration-500 backdrop-blur-xs">
                      <div className="flex items-center gap-4 min-w-0">
-                        <div className="w-11 h-11 bg-slate-100 dark:bg-slate-950 border border-slate-200/50 dark:border-white/5 rounded-xl flex items-center justify-center text-slate-400 dark:text-slate-500 group-hover:text-rose-500 group-hover:scale-105 transition-all duration-350 shrink-0">
+                        <div className="w-11 h-11 bg-muted border border-border/50 rounded-xl flex items-center justify-center text-muted-foreground group-hover:text-rose-500 group-hover:scale-105 transition-all duration-350 shrink-0">
                            <FileText className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                           <h3 className="text-sm font-black uppercase italic tracking-tight text-slate-900 dark:text-slate-100 leading-none truncate pr-4">{docItem.title}</h3>
+                           <h3 className="text-sm font-black uppercase italic tracking-tight text-foreground leading-none truncate pr-4">{docItem.title}</h3>
                            <div className="flex items-center gap-3 mt-2 flex-wrap">
-                              <span className="text-[8px] font-black uppercase px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded text-slate-500 dark:text-slate-400 tracking-widest border border-slate-200/60 dark:border-white/5">{docItem.category}</span>
-                              <span className="text-[8px] font-black uppercase text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                              <span className="text-xs font-black uppercase px-2 py-0.5 bg-muted rounded text-muted-foreground tracking-widest border border-border/60">{docItem.category}</span>
+                              <span className="text-xs font-black uppercase text-muted-foreground flex items-center gap-1">
                                  <Clock className="h-3 w-3" /> Excluído {formatDocDate(docItem.deletedAt)}
                               </span>
                            </div>
@@ -167,7 +167,7 @@ export default function TrashPage() {
                          {docItem.canEdit && <Button
                            variant="outline"
                            onClick={() => handleRestore(docItem)}
-                           className="h-9 px-4 rounded-xl border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 text-slate-700 dark:text-slate-300 font-black uppercase text-[8px] tracking-wider gap-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-500/20 shadow-none transition-all"
+                           className="h-9 px-4 rounded-xl border-border bg-card text-foreground font-black uppercase text-xs tracking-wider gap-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-500/20 shadow-none transition-all"
                          >
                             <RotateCcw className="h-3.5 w-3.5" /> Restaurar
                          </Button>}
@@ -175,7 +175,7 @@ export default function TrashPage() {
                            variant="ghost"
                            onClick={() => handlePermanentDelete(docItem.id)}
                            title="Exclusão permanente ainda não suportada pelo backend"
-                           className="h-9 w-9 rounded-xl text-slate-300 dark:text-slate-700 hover:text-rose-600 dark:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-none transition-all cursor-not-allowed"
+                           className="h-9 w-9 rounded-xl text-muted-foreground hover:text-rose-600 dark:hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 shadow-none transition-all cursor-not-allowed"
                          >
                             <Trash2 className="h-4 w-4" />
                          </Button>
@@ -186,12 +186,12 @@ export default function TrashPage() {
           )}
 
           {/* Security Notice */}
-          <div className="p-8 bg-rose-50/40 dark:bg-slate-900/40 border border-rose-100/50 dark:border-slate-800/80 rounded-[2.5rem] space-y-3 relative overflow-hidden backdrop-blur-md">
+          <div className="p-8 bg-rose-50/40 bg-card/40 border border-rose-100/50 border-border/80 rounded-[2.5rem] space-y-3 relative overflow-hidden backdrop-blur-md">
              <div className="absolute top-0 right-0 p-8 opacity-[0.02] pointer-events-none">
                 <ShieldAlert className="h-32 w-32 text-rose-500" />
              </div>
              <h4 className="text-sm font-black uppercase italic tracking-tighter text-rose-600 dark:text-rose-500 leading-none">Aviso Estrutural</h4>
-             <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 max-w-4xl leading-relaxed uppercase tracking-wider">
+             <p className="text-xs font-bold text-muted-foreground max-w-4xl leading-relaxed uppercase tracking-wider">
                 Documentos na lixeira continuam guardados e podem ser restaurados pelo autor, pela liderança da squad ou por administradores. Hoje não existe exclusão definitiva automática.
                 A restauração recupera todos os metadados técnicos originais.
              </p>

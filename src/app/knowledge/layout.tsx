@@ -1,26 +1,17 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import { GlobalSearch } from '@/components/knowledge/GlobalSearch';
-import {
-  BookMarked,
-  Search, 
-  LayoutDashboard, 
-  BookOpen, 
-  Bot, 
-  Settings, 
-  Database,
-  SearchIcon,
-  Plus
-} from 'lucide-react';
+import { Bot, BookOpen, HelpCircle, Plus, Search, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 import { KnowledgeGuide } from '@/components/knowledge/KnowledgeGuide';
-import { HelpCircle } from 'lucide-react';
-import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { AppFooter } from '@/components/layout/AppFooter';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { ModalButton } from '@/components/room-kit';
 import { useUserContext } from '@/context/UserContext';
 
 export default function KnowledgeLayout({
@@ -36,8 +27,8 @@ export default function KnowledgeLayout({
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   const navItems = [
-    { label: 'Base de Conhecimento', path: '/knowledge/kb', icon: BookOpen },
-    { label: 'Assistente Virtual', path: '/knowledge/chat', icon: Bot },
+    { label: 'Base de conhecimento', path: '/knowledge/kb', icon: BookOpen },
+    { label: 'Assistente virtual', path: '/knowledge/chat', icon: Bot },
     { label: 'Ajustes', path: '/knowledge/settings', icon: Settings },
   ];
 
@@ -49,106 +40,80 @@ export default function KnowledgeLayout({
   }
 
   return (
-    <div className="flex flex-col h-dvh w-full overflow-hidden bg-white dark:bg-slate-950">
-      
+    <div className="relative flex min-h-dvh w-full flex-col bg-background text-foreground">
       {/* Help Guide (Standard Sheet) */}
       <KnowledgeGuide open={isGuideOpen} onOpenChange={setIsGuideOpen} />
-         {/* 1. PORTAL HEADER GLOBAL CONSOLIDADO */}
-      <header className="h-[74px] border-b z-50 shrink-0 sticky top-0 flex items-center bg-white/80 dark:bg-slate-950/80 backdrop-blur-2xl border-slate-100 dark:border-slate-800 transition-all duration-500">
-        <div className="max-w-[1600px] mx-auto w-full flex items-center justify-between px-8 lg:px-12">
-          
-          <div className="flex items-center gap-6">
+
+      <AppHeader />
+
+      {/* Sub-barra do módulo: navegação interna, busca na base e criação */}
+      <div className="border-b border-border bg-card/60">
+        <div className="mx-auto flex w-full max-w-[1680px] flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-8 2xl:px-12">
+          <nav aria-label="Base de conhecimento" className="flex flex-wrap items-center gap-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.path || (item.path !== '/knowledge' && pathname.startsWith(item.path));
+              return (
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => router.push(item.path)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-[10px] px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:min-h-11',
+                    isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  )}
+                >
+                  <item.icon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="hidden h-9 w-60 items-center gap-2 rounded-[10px] border border-border bg-background px-3 text-left text-[13px] text-muted-foreground transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:flex"
+            >
+              <Search className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              <span className="flex-1">Pesquisar na base</span>
+              <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-medium">⌘K</kbd>
+            </button>
             <Button
               variant="ghost"
-              onClick={() => router.push('/')}
-              className="h-10 px-3 gap-2 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900/40 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-all group"
-              title="Sair para o Portal Tech V&D"
+              size="icon"
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="Pesquisar na base"
+              className="h-9 w-9 rounded-[10px] border border-border md:hidden max-sm:h-11 max-sm:w-11"
             >
-              <LayoutDashboard className="h-4.5 w-4.5" />
-              <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Portal</span>
+              <Search className="h-4 w-4" strokeWidth={1.5} />
             </Button>
- 
-            <div className="flex items-center gap-3 cursor-pointer group" onClick={() => router.push('/knowledge')}>
-               <div className="w-10 h-10 border rounded-xl flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform duration-500 bg-slate-900 dark:bg-slate-950 border-slate-950 dark:border-slate-800 text-white">
-                  <BookMarked className="h-5 w-5 text-cyan-400" />
-               </div>
-               <div className="flex flex-col">
-                  <span className="text-lg font-black font-headline uppercase tracking-tighter italic leading-none transition-colors text-slate-900 dark:text-slate-100">
-                    Wiki <span className="text-cyan-500 not-italic">Space</span>
-                  </span>
-                  <span className="text-[8px] font-black uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400 leading-none mt-1">
-                    Knowledge Hub
-                  </span>
-               </div>
-            </div>
- 
-            <div className="hidden lg:flex h-8 w-[1px] mx-2 transition-colors bg-slate-100 dark:bg-slate-800" />
- 
-            <nav className="hidden xl:flex items-center gap-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.path || (item.path !== '/knowledge' && pathname.startsWith(item.path));
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => router.push(item.path)}
-                    className={cn(
-                      "px-4 h-10 rounded-xl relative flex items-center gap-2 text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                      isActive 
-                        ? "bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-none"
-                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
-                    )}
-                  >
-                    <item.icon className={cn("h-4 w-4", isActive ? "text-cyan-400" : "text-slate-500")} />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
- 
-          <div className="flex items-center gap-6">
-            {/* Busca Global Compacta */}
-            <div 
-               onClick={() => setIsSearchOpen(true)}
-               className="relative group w-64 hidden md:flex items-center border rounded-xl h-10 px-4 cursor-text transition-all bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsGuideOpen(true)}
+              aria-label="Abrir o guia da base de conhecimento"
+              className="h-9 w-9 rounded-[10px] border border-border text-muted-foreground hover:text-foreground max-sm:h-11 max-sm:w-11"
             >
-              <Search className="h-4 w-4 text-slate-600 dark:text-slate-400 mr-3" />
-              <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400">Pesquisar Wiki...</span>
-              <kbd className="ml-auto text-[9px] font-black px-1.5 py-0.5 rounded border transition-colors bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">⌘K</kbd>
-            </div>
- 
-            <div className="flex items-center gap-3">
-                {/* Theme Switcher Toggle */}
-                <ThemeToggle className="h-10 w-10 border rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40" />
- 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsGuideOpen(true)}
-                  className="h-10 w-10 rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-900/40"
-                >
-                  <HelpCircle className="!h-5 !w-5" />
-                </Button>
-                <Button onClick={() => router.push('/knowledge/admin/new-asset')} className="h-10 px-6 bg-cyan-600 hover:bg-cyan-500 text-white text-[9px] font-black uppercase tracking-widest rounded-xl shadow-xl shadow-cyan-900/20 gap-2 transition-all active:scale-95">
-                   <Plus className="h-3.5 w-3.5" /> Criar
-                </Button>
-            </div>
+              <HelpCircle className="h-4 w-4" strokeWidth={1.5} />
+            </Button>
+            <ModalButton variant="primary" onClick={() => router.push('/knowledge/admin/new-asset')} className="h-9 gap-1.5 px-4">
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar
+            </ModalButton>
           </div>
         </div>
-      </header>
- 
-      {/* 3. MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-hidden relative flex flex-col">
+      </div>
+
+      {/* Área da página: altura da janela menos o cabeçalho e a sub-barra; o rodapé fica logo abaixo */}
+      <div id="conteudo" className="relative flex h-[max(34rem,calc(100dvh-8.5rem))] flex-col overflow-hidden">
         {/* Global Search Component */}
         <GlobalSearch open={isSearchOpen} onOpenChange={setIsSearchOpen} />
-        
-        {/* Decorative Gradient Background (Silent) */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
-        
-        <div className="flex-1 overflow-y-auto w-full relative">
-          {children}
-        </div>
-      </main>
+
+        <div className="relative w-full flex-1 overflow-y-auto">{children}</div>
+      </div>
+
+      <AppFooter toolName="Base de conhecimento" />
     </div>
   );
 }

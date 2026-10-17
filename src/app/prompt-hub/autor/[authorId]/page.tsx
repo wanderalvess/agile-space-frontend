@@ -2,13 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowUpRight, GitFork, Library } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, GitFork } from 'lucide-react';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { useAuth } from '@/context/AuthContext';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
+import { EmptyState, ErrorState, LoadingSkeleton, PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { promptApi } from '../../api';
 import { PromptCard } from '../../components/PromptCard';
 import type { PromptItem } from '../../types';
@@ -67,12 +65,6 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
     };
   }, [items]);
 
-  React.useEffect(() => {
-    document.title = author?.authorName
-      ? `${author.authorName} | Biblioteca de IA`
-      : 'Autor | Biblioteca de IA';
-  }, [author?.authorName]);
-
   const handleCopy = async (id: string) => {
     if (!session) return;
     try {
@@ -86,30 +78,34 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
     }
   };
 
+  const pageTitle = isSelf ? 'Meus itens' : author?.authorName || 'Autor';
+  const crumbs = [{ label: 'Prompt Hub', href: '/prompt-hub' }, { label: pageTitle }];
+
   if (isUserLoading || isLoading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <AgileSpinner size="lg" variant="indigo" />
-      </div>
+      <PageShell documentTitle="Prompt Hub">
+        <PageHeader title="Prompt Hub" module="prompt-hub" breadcrumb={[{ label: 'Prompt Hub', href: '/prompt-hub' }]} />
+        <LoadingSkeleton variant="cards" label="Carregando os itens do autor" />
+      </PageShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <RoomHeader
-        title={isSelf ? 'Meus itens' : author?.authorName || 'Autor'}
-        toolIcon={<Library className="h-4 w-4" />}
-        toolColorClass="text-primary"
+    <PageShell documentTitle={`${pageTitle} | Prompt Hub`} feedbackName="Prompt Hub">
+      <PageHeader
+        title={pageTitle}
+        module="prompt-hub"
+        breadcrumb={crumbs}
         actions={
-          <Button variant="ghost" size="sm" onClick={() => router.push('/prompt-hub')} className="gap-2">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={() => router.push('/prompt-hub')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
             Voltar à biblioteca
           </Button>
         }
       />
 
-      <div className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 lg:px-8">
-        <header className="mb-8 flex flex-wrap items-center gap-4 border-b border-border pb-6">
+      <div className="w-full flex-1">
+        <header className="mb-6 flex flex-wrap items-center gap-4 border-b border-border pb-6">
           <InitialsAvatar name={author?.authorName} className="h-14 w-14 text-xl" />
 
           <div className="min-w-0 flex-1">
@@ -143,22 +139,20 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
         </header>
 
         {loadFailed ? (
-          <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
-            <h2 className="text-base font-semibold text-foreground">Não foi possível carregar os itens</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Verifique a conexão e tente de novo.</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => setReloadKey(k => k + 1)}>
-              Tentar de novo
-            </Button>
-          </div>
+          <ErrorState
+            title="Não foi possível carregar os itens"
+            description="Verifique a conexão e tente de novo."
+            onRetry={() => setReloadKey(k => k + 1)}
+          />
         ) : !items || items.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
-            <h2 className="text-base font-semibold text-foreground">Nada publicado ainda</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isSelf
+          <EmptyState
+            title="Nada publicado ainda"
+            description={
+              isSelf
                 ? 'Os itens que você publicar aparecem aqui.'
-                : 'Esta pessoa ainda não tem itens públicos na biblioteca.'}
-            </p>
-          </div>
+                : 'Esta pessoa ainda não tem itens públicos na biblioteca.'
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 3xl:grid-cols-4">
             {items.map(item => (
@@ -176,8 +170,6 @@ export default function AuthorPage(props: { params: Promise<{ authorId: string }
           </div>
         )}
       </div>
-
-      <Footer className="mt-8 shrink-0" />
-    </div>
+    </PageShell>
   );
 }

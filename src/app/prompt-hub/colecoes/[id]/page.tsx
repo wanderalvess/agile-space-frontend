@@ -2,12 +2,10 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Layers, Lock, Globe, ShieldAlert, EyeOff } from 'lucide-react';
+import { ArrowLeft, Lock, Globe, EyeOff } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
-import { RoomHeader } from '@/components/layout/RoomHeader';
-import { Footer } from '@/components/layout/Footer';
+import { EmptyState, ErrorState, LoadingSkeleton, PageHeader, PageShell } from '@/components/page';
 import { Button } from '@/components/ui/button';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
 import { PromptCard } from '../../components/PromptCard';
 import { promptApi, promptCollectionApi, type PromptCollectionDTO } from '../../api';
 
@@ -38,10 +36,6 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
     load();
   }, [params.id, isInitializing]);
 
-  React.useEffect(() => {
-    document.title = data?.name ? `${data.name} | Coleções` : 'Coleção | Biblioteca de IA';
-  }, [data?.name]);
-
   const handleCopy = async (id: string) => {
     try {
       await promptApi.usePrompt(id);
@@ -60,24 +54,32 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
     }
   };
 
+  const baseCrumbs = [{ label: 'Prompt Hub', href: '/prompt-hub' }, { label: 'Coleções', href: '/prompt-hub/colecoes' }];
+
   if (isInitializing || loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <AgileSpinner size="lg" variant="indigo" />
-      </div>
+      <PageShell documentTitle="Coleção | Prompt Hub" feedbackName="Prompt Hub">
+        <PageHeader title="Coleção" module="prompt-hub" breadcrumb={[...baseCrumbs, { label: 'Coleção' }]} />
+        <LoadingSkeleton variant="cards" label="Carregando a coleção" />
+      </PageShell>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center gap-5 bg-background px-6 text-center">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <p className="max-w-md text-base font-medium text-foreground">{error}</p>
-        <Button variant="outline" onClick={() => router.push('/prompt-hub/colecoes')} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Ver coleções
-        </Button>
-      </div>
+      <PageShell documentTitle="Coleção | Prompt Hub" feedbackName="Prompt Hub">
+        <PageHeader title="Coleção" module="prompt-hub" breadcrumb={[...baseCrumbs, { label: 'Coleção' }]} />
+        <ErrorState
+          title="Não foi possível abrir a coleção"
+          description={error || 'Coleção não encontrada.'}
+        />
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => router.push('/prompt-hub/colecoes')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+            Ver coleções
+          </Button>
+        </div>
+      </PageShell>
     );
   }
 
@@ -93,47 +95,33 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
   const hidden = allItems.length - visibleItems.length;
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <RoomHeader
+    <PageShell documentTitle={`${data.name} | Coleções`} feedbackName="Prompt Hub">
+      <PageHeader
         title={data.name}
-        toolIcon={<Layers className="h-4 w-4" />}
-        toolColorClass="text-primary"
+        module="prompt-hub"
+        breadcrumb={[...baseCrumbs, { label: data.name }]}
+        subtitle={data.description?.trim() || undefined}
         actions={
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push('/prompt-hub/colecoes')}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Todas as coleções</span>
+          <Button variant="outline" size="sm" onClick={() => router.push('/prompt-hub/colecoes')} className="gap-2">
+            <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
+            Todas as coleções
           </Button>
         }
       />
 
-      <div className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 lg:px-8">
-        <header className="mb-6 space-y-2 border-b border-border pb-5">
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <VisibilityIcon className="h-3.5 w-3.5" />
-              {data.visibility === 'public' ? 'Público' : 'Somente eu'}
-            </span>
-            <span>·</span>
-            <span>Por {data.ownerId === userProfile?.id ? 'você' : data.ownerName || 'Membro'}</span>
-            <span>·</span>
-            <span>
-              {visibleItems.length} {visibleItems.length === 1 ? 'item' : 'itens'}
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{data.name}</h1>
-
-          {data.description?.trim() && (
-            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              {data.description}
-            </p>
-          )}
-        </header>
+      <div className="w-full flex-1">
+        <div className="mb-6 flex flex-wrap items-center gap-3 border-b border-border pb-4 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <VisibilityIcon className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {data.visibility === 'public' ? 'Público' : 'Somente eu'}
+          </span>
+          <span>·</span>
+          <span>Por {data.ownerId === userProfile?.id ? 'você' : data.ownerName || 'Membro'}</span>
+          <span>·</span>
+          <span>
+            {visibleItems.length} {visibleItems.length === 1 ? 'item' : 'itens'}
+          </span>
+        </div>
 
         {hidden > 0 && (
           <p className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
@@ -144,12 +132,10 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
         )}
 
         {visibleItems.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
-            <h2 className="text-base font-semibold text-foreground">Nada para mostrar</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Os itens desta coleção foram removidos ou não estão visíveis para você.
-            </p>
-          </div>
+          <EmptyState
+            title="Nada para mostrar"
+            description="Os itens desta coleção foram removidos ou não estão visíveis para você."
+          />
         ) : (
           <ol className="space-y-4">
             {visibleItems.map((item, index) => (
@@ -173,8 +159,6 @@ export default function CollectionDetailPage(props: { params: Promise<{ id: stri
           </ol>
         )}
       </div>
-
-      <Footer className="mt-8 shrink-0" />
-    </div>
+    </PageShell>
   );
 }

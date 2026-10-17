@@ -30,7 +30,6 @@ export default function PromptHubPage() {
   const [showPublicOnly, setShowPublicOnly] = React.useState(false);
 
   React.useEffect(() => {
-    document.title = `Biblioteca de Modelos | Portal Tech V&D`;
     // Garantir que começamos sem exploração pública forçada ao entrar na página
     // a menos que o usuário clique explicitamente
     return () => {
@@ -121,6 +120,7 @@ export default function PromptHubPage() {
   if (!session && !showPublicOnly) {
     return (
       <ToolHubLayout
+        module="prompt-hub"
         title="Biblioteca de IA"
         description="O acervo da empresa para prompts, skills, agentes, Gems e iniciativas de IA — em um lugar só, fácil de achar e de reaproveitar."
         icon={<Library />}
