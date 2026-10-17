@@ -139,7 +139,7 @@ function RetroColumnComponent({
       className={cn(
         'flex min-w-0 flex-col gap-2.5 rounded-2xl border border-t-[3px] border-border bg-muted/30 p-3 transition-[border-color,box-shadow,opacity] duration-base',
         tone.top,
-        view === 'board' && 'min-w-[min(86vw,320px)] flex-1 snap-start sm:min-w-[300px] 2xl:min-w-[340px]',
+        view === 'board' && 'min-w-[min(86vw,320px)] flex-1 snap-start sm:min-w-[270px] 2xl:min-w-[320px]',
         highlightStage && isActiveStage && 'ring-2 ring-primary/50',
         present && !isActiveStage && 'opacity-55',
         isOver && 'ring-2 ring-primary/60 bg-primary/5'
@@ -147,7 +147,7 @@ function RetroColumnComponent({
     >
       {/* Cabeçalho */}
       <div
-        className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 py-0.5', !isNavLocked && view === 'board' && 'cursor-pointer')}
+        className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1 px-1 py-0.5', big && 'sm:flex-nowrap', !isNavLocked && view === 'board' && 'cursor-pointer')}
         onClick={view === 'board' && !isNavLocked ? () => onFocus(columnKey) : undefined}
       >
         {big && (
@@ -177,6 +177,7 @@ function RetroColumnComponent({
         ) : (
           <>
             <h2 title={title} className={cn('m-0 min-w-0 truncate font-bold leading-tight text-foreground', present ? 'text-xl' : 'text-[15px]')}>{title}</h2>
+            {!big && <span className="text-xs font-semibold tabular-nums text-muted-foreground">{cards.length}</span>}
             {isCreator && !present && (
               <button
                 type="button"
@@ -191,7 +192,6 @@ function RetroColumnComponent({
           </>
         )}
 
-        {!big && <span className="text-xs font-semibold tabular-nums text-muted-foreground">{cards.length}</span>}
         <span className="flex-1" />
 
         {showVoteCounter && (

@@ -10,6 +10,7 @@ import {
   GitMerge,
   GripVertical,
   Heart,
+  MoreHorizontal,
   Pencil,
   Sparkles,
   Star,
@@ -23,6 +24,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { InitialsAvatar } from '@/components/common/InitialsAvatar';
 import { Textarea } from '@/components/ui/textarea';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog, FIELD, FOCUS_RING, ModalButton } from '@/components/room-kit';
 import { cn } from '@/lib/utils';
 import { RETRO_REACTIONS, type RetroCard as RetroCardType, type RetroParticipant, type RetroReactionType } from '@/lib/types';
@@ -50,32 +52,6 @@ const DUE_CHIP: Record<ReturnType<typeof dueStatus>, string> = {
   soon: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
   overdue: 'bg-red-500/10 text-red-700 dark:text-red-300',
 };
-
-/** Botão pequeno de ação do cartão (aparece ao passar o mouse ou focar; em tela de toque fica sempre visível). */
-function CardAction({ label, icon: Icon, onClick, tone = 'neutral', disabled }: {
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-  tone?: 'neutral' | 'danger';
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
-      className={cn(
-        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-fast max-sm:h-9 max-sm:w-9',
-        tone === 'danger' ? 'hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300' : 'hover:bg-accent hover:text-accent-foreground',
-        FOCUS_RING
-      )}
-    >
-      <Icon className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-    </button>
-  );
-}
 
 /** Ideias fundidas: linha do tempo abaixo do texto principal. Acima de 3, mostra 2 e resume o resto em "+N mais". */
 function MergedTimeline({ items, large }: { items: string[]; large?: boolean }) {
@@ -152,6 +128,7 @@ export function RetroCard({
   const [editedAssignee, setEditedAssignee] = useState(card.assignee || '');
   const [editedDueDate, setEditedDueDate] = useState(card.dueDate || '');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const editRef = useRef<HTMLTextAreaElement>(null);
 
   // O campo cresce com o texto (até 55% da altura da tela) em vez de rolar dentro de uma caixa pequena.
@@ -340,13 +317,45 @@ export function RetroCard({
           <p className={cn('m-0 min-w-0 flex-1 whitespace-pre-wrap break-words font-medium', textSize, card.isDone && isActionColumn ? 'text-muted-foreground line-through' : 'text-foreground')}>
             {card.content}
           </p>
-          <div className="-mr-1 -mt-1 flex shrink-0 items-center opacity-0 transition-opacity duration-fast focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+          <div className="-mr-1 -mt-1 flex shrink-0 items-center opacity-0 transition-opacity duration-fast focus-within:opacity-100 group-hover:opacity-100 data-[open=true]:opacity-100 [@media(hover:none)]:opacity-100" data-open={menuOpen}>
             <span {...attributes} {...listeners} aria-label="Arrastar cartão" title="Arrastar cartão" className={cn('inline-flex h-8 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent active:cursor-grabbing max-sm:h-9', FOCUS_RING)}>
               <GripVertical className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
             </span>
-            {canEdit && <CardAction label="Editar cartão" icon={Pencil} onClick={() => setIsEditing(true)} />}
-            {isCardsRevealed && !isMergeSource && <CardAction label="Juntar com outro cartão" icon={GitMerge} onClick={() => onStartMerge(card.id)} />}
-            {canEdit && <CardAction label="Excluir cartão" icon={Trash2} tone="danger" onClick={() => setConfirmDelete(true)} />}
+            {(canEdit || isCardsRevealed) && (
+              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Mais ações do cartão"
+                    title="Mais ações do cartão"
+                    onClick={(e) => e.stopPropagation()}
+                    className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent max-sm:h-9 max-sm:w-9', FOCUS_RING)}
+                  >
+                    <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={() => setIsEditing(true)} className="gap-2">
+                      <Pencil className="h-4 w-4" strokeWidth={1.5} /> Editar cartão
+                    </DropdownMenuItem>
+                  )}
+                  {isCardsRevealed && !isMergeSource && (
+                    <DropdownMenuItem onClick={() => onStartMerge(card.id)} className="gap-2">
+                      <GitMerge className="h-4 w-4" strokeWidth={1.5} /> Juntar com outro cartão
+                    </DropdownMenuItem>
+                  )}
+                  {canEdit && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="gap-2 text-red-700 focus:text-red-700 dark:text-red-300 dark:focus:text-red-300">
+                        <Trash2 className="h-4 w-4" strokeWidth={1.5} /> Excluir cartão
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 

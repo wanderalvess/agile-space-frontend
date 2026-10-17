@@ -11,13 +11,15 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { ChevronLeft, ChevronRight, LogOut, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Users, Volume2, VolumeX } from 'lucide-react';
 import {
   ConfirmDialog,
+  IconButton,
   ModalButton,
   PresentationBar,
   ResponsivePanel,
   RoomTimer,
+  SelectField,
   StageNav,
   useRoomPreference,
 } from '@/components/room-kit';
@@ -51,6 +53,7 @@ import {
   isStageNavLocked,
   neighborStage,
   resolveColumns,
+  voteLimitOptions,
 } from './retro-room-logic';
 
 const EMPTY_CARDS: RetroCardType[] = [];
@@ -268,7 +271,21 @@ function RetroRoomComponent(props: RetroRoomProps) {
             lateGraceMs={TIMER_LATE_GRACE_MS}
           />
           {isCurrentUserCreator && (
-            <RetroPhaseActions boardData={boardData} onToggleCardsRevealed={onToggleCardsRevealed} onSetVotingStatus={onSetVotingStatus} />
+            <>
+              <IconButton
+                label={soundEnabled ? 'Desligar o som do timer' : 'Ligar o som do timer'}
+                icon={soundEnabled ? Volume2 : VolumeX}
+                onClick={() => setSoundEnabled(!soundEnabled)}
+              />
+              <SelectField
+                aria-label="Votos por painel"
+                value={String(boardData.maxVotesPerParticipant || 0)}
+                onChange={(v) => props.onSetMaxVotesPerParticipant(Number(v))}
+                options={voteLimitOptions(boardData.maxVotesPerParticipant || 0)}
+                className="h-9 w-[7.5rem]"
+              />
+              <RetroPhaseActions boardData={boardData} onToggleCardsRevealed={onToggleCardsRevealed} onSetVotingStatus={onSetVotingStatus} />
+            </>
           )}
           <div className="flex items-center gap-1.5">
             <ModalButton className="gap-1.5 px-3" disabled={navLocked} onClick={() => onStageChange(neighborStage(columns, stage, -1))}>

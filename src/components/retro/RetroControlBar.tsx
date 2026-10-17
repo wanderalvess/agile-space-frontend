@@ -152,13 +152,14 @@ export function RetroControlBar({
 
       {isFacilitator ? (
         <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
-          Votos por painel
+          <span className="max-sm:hidden">Votos por painel</span>
+          <span className="sm:hidden">Votos</span>
           <SelectField
             aria-label="Votos por painel"
             value={String(maxVotes)}
             onChange={(v) => onSetMaxVotesPerParticipant(Number(v))}
             options={voteLimitOptions(maxVotes)}
-            className="h-9 w-[7.5rem]"
+            className="h-9 w-[7.5rem] max-sm:w-[6.5rem]"
           />
         </label>
       ) : (
@@ -186,12 +187,14 @@ export function RetroControlBar({
 
       <span className="flex-1" />
 
-      <Segmented
-        label="Visualização"
-        options={LAYOUT_OPTIONS}
-        value={layoutMode}
-        onChange={(id) => (id === 'present' ? onPresent() : onLayoutModeChange(id))}
-      />
+      <div className="max-sm:w-full max-sm:[&>div]:flex max-sm:[&>div]:w-full max-sm:[&_button]:flex-1">
+        <Segmented
+          label="Visualização"
+          options={LAYOUT_OPTIONS}
+          value={layoutMode}
+          onChange={(id) => (id === 'present' ? onPresent() : onLayoutModeChange(id))}
+        />
+      </div>
     </div>
   );
 }

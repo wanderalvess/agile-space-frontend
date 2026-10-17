@@ -31,7 +31,7 @@ export function PresentationBar({
         <StatusChip tone="danger" dot className="uppercase tracking-wide">{label}</StatusChip>
         <span className="truncate text-sm font-semibold text-foreground">{title}</span>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2 md:gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2 max-md:w-full md:shrink-0 md:gap-3">
         {children}
         <button
           type="button"
