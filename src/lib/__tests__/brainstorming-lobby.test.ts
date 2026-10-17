@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   filterBrainstormRows,
   ideasFromSummary,
+  isLobbyRowFinished,
   isLobbyRowLive,
+  lobbyRowFacilitator,
   lobbyStageLabel,
   mergeBrainstormRows,
   ROOMS_META_KEY,
@@ -131,6 +133,35 @@ describe('lista do hub', () => {
     expect(filterBrainstormRows(rows, 'live', '').map((r) => r.id).sort()).toEqual(['a', 'c']);
     expect(filterBrainstormRows(rows, 'all', 'ONBOARD').map((r) => r.id)).toEqual(['a']);
     expect(filterBrainstormRows(rows, 'plan', 'onboard')).toEqual([]);
+  });
+
+  it('status real: encerrado vale mais que a atividade; sem o campo é aberto (backend antigo)', () => {
+    const rows = mergeBrainstormRows(
+      [
+        board({ id: 'a', phase: 'ideation' }),
+        board({ id: 'b', phase: 'ideation', status: 'FINISHED', finishedAt: '2026-10-10T11:00:00Z', facilitatorId: 'bia' }),
+        board({ id: 'c', phase: 'ideation', status: 'OPEN', facilitatorId: 'ana' }),
+      ],
+      [{ id: 'b', status: 'LIVE' }],
+      [{ roomId: 'z', title: 'Local', team: 'PHX', createdAt: '2026-10-01T10:00:00Z' }],
+      NOW
+    );
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+    expect(byId.b.boardStatus).toBe('FINISHED');
+    expect(byId.b.status).toBe('FINISHED');
+    expect(isLobbyRowFinished(byId.b)).toBe(true);
+    expect(isLobbyRowLive(byId.b)).toBe(false);
+    expect(isLobbyRowFinished(byId.a)).toBe(false);
+    expect(byId.a.boardStatus).toBeUndefined();
+    expect(filterBrainstormRows(rows, 'finished', '').map((r) => r.id)).toEqual(['b']);
+    expect(filterBrainstormRows(rows, 'open', '').map((r) => r.id).sort()).toEqual(['a', 'c', 'z']);
+    expect(filterBrainstormRows(rows, 'live', '').map((r) => r.id)).not.toContain('b');
+  });
+
+  it('quem facilita a linha: facilitatorId, ou o criador', () => {
+    expect(lobbyRowFacilitator({ facilitatorId: 'bia', creatorId: 'ana' })).toBe('bia');
+    expect(lobbyRowFacilitator({ creatorId: 'ana' })).toBe('ana');
+    expect(lobbyRowFacilitator({})).toBeUndefined();
   });
 
   it('etapa em palavras e "em andamento"', () => {

@@ -9,6 +9,7 @@ import { useActiveSquad } from '@/hooks/useActiveSquad';
 import { useToolHistory } from '@/hooks/useToolHistory';
 import { useUserContext } from '@/context/UserContext';
 import { errorMessage } from '@/lib/ceremony-api';
+import { supportsCeremonyApi } from '@/components/brainstorming/brainstorm-ceremony';
 import { mergeBrainstormRows, type BrainstormLobbyRow, type HistoryRowLike } from '@/lib/brainstorming-lobby';
 import { ritualsApi } from '@/lib/home-api';
 import type { BrainstormingBoard } from '@/lib/types';
@@ -113,6 +114,9 @@ export default function BrainstormingHubPage() {
     [removeRoom, toast]
   );
 
+  // Com murais na lista, o servidor é novo se algum traz os campos novos; sem nenhum mural não dá para saber (mostra os ajustes).
+  const ceremonySupported = boards.length === 0 || boards.some((b) => supportsCeremonyApi(b));
+
   const state: BrainstormLobbyState = !activeSquadId ? 'no-squad' : loading ? 'loading' : failed ? 'error' : 'ready';
 
   return (
@@ -133,6 +137,7 @@ export default function BrainstormingHubPage() {
         onOpenChange={setIsSetupOpen}
         onCreatingChange={setIsCreating}
         onCreated={(board) => router.push(`/brainstorming/${board.id}`)}
+        ceremonySupported={ceremonySupported}
       />
     </BrainstormLobbyView>
   );

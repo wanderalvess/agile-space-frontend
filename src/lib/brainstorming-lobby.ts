@@ -3,7 +3,7 @@
  * puras, sem tela.
  */
 import { deriveSessionStatus, type SessionStatus } from './session-status';
-import type { BrainstormingBoard, BrainstormingPhase } from './types';
+import type { BrainstormingBoard, BrainstormingPhase, BrainstormingStatus } from './types';
 
 // ───────────────────────── ID ou link ─────────────────────────
 
@@ -62,6 +62,10 @@ export interface BrainstormLobbyRow {
   createdAt: string;
   phase?: BrainstormingPhase;
   creatorId?: string;
+  /** Facilitador atual (backend novo); ausente = o criador. */
+  facilitatorId?: string;
+  /** `FINISHED` quando o mural foi encerrado (backend novo). Ausente = aberto (backend antigo ou sessão só deste navegador). */
+  boardStatus?: BrainstormingStatus;
   /** Ideias e pessoas vêm do histórico da squad; ausentes quando o histórico não respondeu. */
   ideas?: number;
   people?: number;
@@ -113,9 +117,12 @@ export function mergeBrainstormRows(
       createdAt: b.createdAt,
       phase: b.phase,
       creatorId: b.creatorId,
+      facilitatorId: b.facilitatorId,
+      boardStatus: b.status,
       ideas,
       people: h?.participantsCount,
-      status: h?.status ?? deriveSessionStatus('BRAINSTORMING', { phase: b.phase, createdAt: b.createdAt }, now),
+      // Encerrado de verdade (`status`) vale mais que a regra de atividade do histórico.
+      status: b.status === 'FINISHED' ? 'FINISHED' : (h?.status ?? deriveSessionStatus('BRAINSTORMING', { phase: b.phase, createdAt: b.createdAt }, now)),
     });
   }
   for (const l of local) {
@@ -125,13 +132,25 @@ export function mergeBrainstormRows(
   return [...rows.values()].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
 }
 
-export type BrainstormLobbyFilter = 'all' | 'live' | 'plan';
+export type BrainstormLobbyFilter = 'all' | 'live' | 'open' | 'finished' | 'plan';
 
 export const BRAINSTORM_LOBBY_FILTERS: readonly { id: BrainstormLobbyFilter; label: string }[] = [
   { id: 'all', label: 'Todos' },
   { id: 'live', label: 'Em andamento' },
+  { id: 'open', label: 'Abertos' },
+  { id: 'finished', label: 'Encerrados' },
   { id: 'plan', label: 'No plano' },
 ];
+
+/** Sessão encerrada pelo facilitador (`status = FINISHED`). */
+export function isLobbyRowFinished(row: Pick<BrainstormLobbyRow, 'boardStatus'>): boolean {
+  return row.boardStatus === 'FINISHED';
+}
+
+/** Quem facilita a sessão: `facilitatorId`, ou o criador quando o servidor não informa. */
+export function lobbyRowFacilitator(row: Pick<BrainstormLobbyRow, 'facilitatorId' | 'creatorId'>): string | undefined {
+  return row.facilitatorId || row.creatorId;
+}
 
 /** Etapa em palavras para a tabela e a última sessão. */
 export function lobbyStageLabel(phase: BrainstormingPhase | undefined): string {
@@ -160,6 +179,8 @@ export function filterBrainstormRows(
   return rows.filter((r) => {
     if (needle && !r.title.toLowerCase().includes(needle)) return false;
     if (filter === 'live') return r.status === 'LIVE';
+    if (filter === 'open') return !isLobbyRowFinished(r);
+    if (filter === 'finished') return isLobbyRowFinished(r);
     if (filter === 'plan') return r.phase === 'actions';
     return true;
   });
