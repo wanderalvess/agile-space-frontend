@@ -55,7 +55,7 @@ export default function ManualOverviewPage() {
   return (
     <div className="space-y-12 animate-in fade-in duration-500">
       {/* Hero Central */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-8 md:p-12 text-white shadow-2xl border border-slate-800">
+      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 md:p-12 text-white shadow-2xl border border-slate-800">
         <div className="absolute top-0 right-0 w-96 h-96 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -64,10 +64,10 @@ export default function ManualOverviewPage() {
             <Sparkles className="h-3 w-3" /> Manual de Agilidade & Ferramentas
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter italic leading-[0.95] text-white">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter italic leading-[0.95] text-white">
             O seu guia de <br />
             <span className="text-primary not-italic">Alta Performance</span>
-          </h1>
+          </h2>
 
           <p className="text-slate-300 font-medium text-sm md:text-base leading-relaxed max-w-3xl">
             Documentação tática completa das cerimônias, motores de transformação e utilitários da plataforma Portal Tech V&D. Cada módulo possui sua página dedicada com passo a passo de operação.

@@ -31,7 +31,7 @@ export function ManualHero({
   actionLabel = 'Abrir Ferramenta',
 }: ManualHeroProps) {
   return (
-    <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-8 md:p-12 text-white shadow-2xl border border-slate-800">
+    <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 md:p-12 text-white shadow-2xl border border-slate-800">
       {/* Ambient background decoration */}
       <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 -mb-12 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -60,9 +60,9 @@ export function ManualHero({
               <Icon className={cn("h-7 w-7 md:h-8 md:w-8", color)} />
             </div>
             <div>
-              <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none text-white">
+              <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tighter italic leading-none text-white">
                 {title}
-              </h1>
+              </h2>
               <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">
                 Guia de Operação & Boas Práticas
               </p>
