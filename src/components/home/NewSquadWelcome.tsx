@@ -1,13 +1,14 @@
 'use client';
 
 /**
- * Aviso da home logo depois de criar um time: diz que deu certo e aponta o painel.
+ * Aviso da home logo depois de criar um time: diz que deu certo e aponta o Resumo da squad.
  * Some ao dispensar. A flag é gravada pelo /onboarding (agileSpace_newSquad_<squad>).
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { PartyPopper } from 'lucide-react';
 import { useUserContext } from '@/context/UserContext';
+import { SQUAD_SUMMARY_HREF } from '@/lib/squad-hub';
 import { Notice } from './Notice';
 
 export function NewSquadWelcome() {
@@ -44,7 +45,7 @@ export function NewSquadWelcome() {
       icon={PartyPopper}
       title={`A squad ${squadId} está criada.`}
       text="Escolha uma ferramenta para começar."
-      action={{ label: 'Painel', href: '/painel' }}
+      action={{ label: 'Resumo', href: SQUAD_SUMMARY_HREF }}
       dismissLabel="Dispensar boas-vindas"
       onDismiss={dismiss}
     />

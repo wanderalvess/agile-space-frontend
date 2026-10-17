@@ -47,9 +47,9 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect('/%2F/ok')).toBe('/%2F/ok');
     });
 
-    it('quem acabou de criar a conta e foi vinculado a um time vai ao Painel quando não veio de um link', () => {
-      expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/painel');
-      expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/painel');
+    it('quem acabou de criar a conta e foi vinculado a um time vai ao Resumo da squad quando não veio de um link', () => {
+      expect(resolvePostLoginRedirect(null, { linkedTeam: true })).toBe('/squad?tab=resumo');
+      expect(resolvePostLoginRedirect('', { linkedTeam: true })).toBe('/squad?tab=resumo');
       expect(resolvePostLoginRedirect(null, { linkedTeam: false })).toBe('/');
     });
 
@@ -58,8 +58,8 @@ describe('Auth Routing - Proteção de Rotas, Redirecionamentos e Isenções Col
       expect(resolvePostLoginRedirect('/invite/tok', { linkedTeam: true })).toBe('/invite/tok');
     });
 
-    it('um returnUrl inválido com time vinculado também cai no Painel, nunca no site de fora', () => {
-      expect(resolvePostLoginRedirect('//evil.com', { linkedTeam: true })).toBe('/painel');
+    it('um returnUrl inválido com time vinculado também cai no Resumo, nunca no site de fora', () => {
+      expect(resolvePostLoginRedirect('//evil.com', { linkedTeam: true })).toBe('/squad?tab=resumo');
     });
   });
 

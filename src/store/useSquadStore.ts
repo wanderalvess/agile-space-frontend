@@ -351,6 +351,8 @@ export const useSquadStore = create<SquadStoreState>()((set, get) => ({
       set({ viewedRollup, viewedIssuesSnapshot: issuesForSprint, viewedMyIssues: myIssuesForSprint });
     } catch (err) {
       console.error('Erro ao buscar sprint selecionada:', err);
+      // Quem chamou decide o que mostrar (o hub avisa a pessoa e volta para a sprint atual).
+      throw err;
     } finally {
       if (get().viewingSprintId === sprintId) set({ isLoadingViewedSprint: false });
     }

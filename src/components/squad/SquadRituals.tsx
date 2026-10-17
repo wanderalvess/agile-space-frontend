@@ -6,17 +6,18 @@ import { useUserContext } from "@/context/UserContext";
 import { useSquadConfig } from "@/hooks/useSquadConfig";
 import { CEREMONY_DAY_LABEL } from "@/lib/ceremony-schedule";
 import type { CeremonyDayOfWeek } from "@/lib/types";
+import { SQUAD_SUMMARY_HREF } from "@/lib/squad-hub";
 
 const ORDER: CeremonyDayOfWeek[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
-function describeDays(days: CeremonyDayOfWeek[]): string {
+export function describeDays(days: CeremonyDayOfWeek[]): string {
   if (days.length === 5 && ORDER.slice(0, 5).every((d) => days.includes(d))) return "Seg a Sex";
   if (days.length === 7) return "Todos os dias";
   return ORDER.filter((d) => days.includes(d)).map((d) => CEREMONY_DAY_LABEL[d]).join(", ");
 }
 
 /**
- * Conteúdo do widget "Rituais da squad": lê o que a squad cadastrou (Painel > Próxima cerimônia).
+ * Conteúdo do widget "Rituais da squad": lê o que a squad cadastrou (Resumo > Próxima cerimônia).
  * Nada de horário inventado — sem cadastro, mostra como configurar.
  */
 export function SquadRituals() {
@@ -52,8 +53,8 @@ export function SquadRituals() {
           ? "Os rituais desta squad vêm da agenda do Google de cada pessoa."
           : "Nenhum ritual cadastrado para esta squad."}
       </span>
-      <Link href="/painel" className="font-bold text-primary hover:underline">
-        {fromGoogle ? "Ver próxima cerimônia no Painel" : "Configurar rituais no Painel"}
+      <Link href={SQUAD_SUMMARY_HREF} className="font-bold text-primary hover:underline">
+        {fromGoogle ? "Ver a próxima cerimônia no Resumo" : "Configurar rituais no Resumo"}
       </Link>
     </div>
   );

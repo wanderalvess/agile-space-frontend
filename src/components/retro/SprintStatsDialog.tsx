@@ -106,7 +106,7 @@ export function SprintStatsDialog({ open, onClose, squadId, sprintId }: SprintSt
 
                 {!hasAnyData && (
                   <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border p-3.5">
-                    Ainda não há dados desta sprint. Conecte o Jira e sincronize a squad no Painel para os números aparecerem aqui.
+                    Ainda não há dados desta sprint. Conecte o Jira e sincronize a squad no Resumo da squad para os números aparecerem aqui.
                   </p>
                 )}
               </>

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { clearJustSignedUp, hasLinkedTeam, isJustSignedUp } from '@/lib/team-welcome';
+import { SQUAD_SUMMARY_HREF } from '@/lib/squad-hub';
 import { Notice } from './Notice';
 
 export function LinkedTeamWelcome({ showPainelLink = true }: { showPainelLink?: boolean }) {
@@ -35,7 +36,7 @@ export function LinkedTeamWelcome({ showPainelLink = true }: { showPainelLink?: 
       icon={Users}
       title={`Você já está na squad ${teamName}.`}
       text="Vinculamos a sua conta pelo e-mail."
-      action={showPainelLink ? { label: 'Ver painel da squad', href: '/painel' } : undefined}
+      action={showPainelLink ? { label: 'Ver o resumo da squad', href: SQUAD_SUMMARY_HREF } : undefined}
       onDismiss={dismiss}
     />
   );

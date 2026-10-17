@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthResponse } from '@/lib/auth-client';
 
 const push = vi.fn();
-let pathname = '/painel';
+let pathname = '/squad';
 let role = 'admin';
 let session: Partial<AuthResponse> = {};
 const switchProject = vi.fn(async () => {});
@@ -34,7 +34,7 @@ function setSession(count: 1 | 3) {
 }
 
 beforeEach(() => {
-  pathname = '/painel';
+  pathname = '/squad';
   role = 'admin';
   push.mockClear();
   switchProject.mockClear();

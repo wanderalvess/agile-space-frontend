@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Configuração da fonte do card "Próxima cerimônia" (/painel): a squad escolhe UMA fonte
+ * Configuração da fonte do card "Próxima cerimônia" (aba Resumo do hub da squad): a squad escolhe UMA fonte
  * — Google Calendar (cada membro conecta a própria agenda) ou cadastro manual (a squad
  * registra o horário recorrente uma vez) — nunca as duas ao mesmo tempo, porque são duas
  * respostas pra mesma pergunta e misturar convida a divergência.
@@ -143,7 +143,7 @@ export function CeremonySettingsDialog({
         <DialogHeader>
           <DialogTitle>Configuração da squad</DialogTitle>
           <DialogDescription>
-            Unidade de estimativa e rituais (de onde o painel lê a próxima cerimônia). Vale pra squad inteira.
+            Unidade de estimativa e rituais (de onde o Resumo lê a próxima cerimônia). Vale pra squad inteira.
           </DialogDescription>
         </DialogHeader>
 
@@ -179,14 +179,14 @@ export function CeremonySettingsDialog({
           {draftMode === 'manual' && (
             <div className="space-y-3">
               {draftCeremonies.length === 0 && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-xs text-muted-foreground">
                   Nenhuma cerimônia cadastrada ainda. Adicione a daily, planning, review, retro ou
                   refinement do time.
                 </p>
               )}
 
               {draftCeremonies.map((c) => (
-                <div key={c.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-3">
+                <div key={c.id} className="rounded-xl border border-border p-3 space-y-3">
                   <div className="flex items-start gap-2">
                     <Input
                       value={c.title}
@@ -200,7 +200,7 @@ export function CeremonySettingsDialog({
                       size="icon"
                       onClick={() => removeCeremony(c.id)}
                       aria-label="Remover cerimônia"
-                      className="shrink-0 text-slate-400 hover:text-rose-600"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -213,10 +213,10 @@ export function CeremonySettingsDialog({
                         type="button"
                         onClick={() => toggleDay(c.id, day)}
                         className={cn(
-                          'h-7 w-9 rounded-lg text-[10px] font-black uppercase transition-colors',
+                          'h-8 w-10 rounded-lg text-xs font-semibold uppercase transition-colors',
                           c.daysOfWeek.includes(day)
                             ? 'bg-primary text-primary-foreground'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                            : 'bg-muted text-muted-foreground hover:bg-accent'
                         )}
                       >
                         {CEREMONY_DAY_LABEL[day]}
@@ -226,7 +226,7 @@ export function CeremonySettingsDialog({
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-[10px] uppercase text-slate-500">Horário</Label>
+                      <Label className="text-xs text-muted-foreground">Horário</Label>
                       <Input
                         type="time"
                         value={c.startTime}
@@ -234,7 +234,7 @@ export function CeremonySettingsDialog({
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase text-slate-500">Duração (min)</Label>
+                      <Label className="text-xs text-muted-foreground">Duração (min)</Label>
                       <Input
                         type="number"
                         min={5}
@@ -246,7 +246,7 @@ export function CeremonySettingsDialog({
                   </div>
 
                   <div>
-                    <Label className="text-[10px] uppercase text-slate-500">Link do Meet (opcional)</Label>
+                    <Label className="text-xs text-muted-foreground">Link do Meet (opcional)</Label>
                     <Input
                       value={c.meetLink || ''}
                       onChange={(e) => updateCeremony(c.id, { meetLink: e.target.value })}

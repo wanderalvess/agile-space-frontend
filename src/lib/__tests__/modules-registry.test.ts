@@ -24,7 +24,7 @@ describe('registro de módulos', () => {
     const hrefs = Object.fromEntries(MODULES.map((m) => [m.key, m.href]));
     expect(hrefs).toMatchObject({
       home: '/',
-      painel: '/painel',
+      painel: '/squad?tab=resumo',
       squad: '/squad',
       roster: '/squad/roster',
       workspace: '/workspace',
@@ -81,7 +81,7 @@ describe('cartões da Home', () => {
     expect(groups.map((g) => g.id)).toEqual(HOME_GROUP_ORDER);
     expect(groups.flatMap((g) => g.items.map((m) => m.href))).toEqual([
       '/jolt', '/devtools', '/qa',
-      '/painel', '/workspace', '/sprint-planner',
+      '/squad?tab=resumo', '/workspace', '/sprint-planner',
       '/health-check', '/brainstorming', '/action-plan',
       '/knowledge/kb', '/prompt-hub', '/support',
     ]);
@@ -132,6 +132,7 @@ describe('primaryNavFor', () => {
   it('agrupa as rotas nos itens da navegação principal', () => {
     expect(primaryNavFor('/')).toBe('home');
     expect(primaryNavFor('/painel')).toBe('squad');
+    expect(primaryNavFor('/squad')).toBe('squad');
     expect(primaryNavFor('/squad/roster')).toBe('squad');
     expect(primaryNavFor('/workspace')).toBe('workspace');
     expect(primaryNavFor('/room/abc')).toBe('rituais');
