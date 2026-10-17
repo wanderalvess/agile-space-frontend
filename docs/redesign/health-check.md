@@ -1,6 +1,6 @@
 # Radar de clima (Health Check)
 
-Lobby `/health-check`, sala `/health-check/[id]` (votação e resultado) e o que sai deles (plano de ação, exportação). O módulo se chama **Radar de clima** em toda a interface (registro de módulos); "Radar de Saúde" e "Health Check" não aparecem mais em texto. Nada de backend mudou: mesmos endpoints REST e mesmo WebSocket (`/ws/health-check/{id}`).
+Lobby `/health-check`, sala `/health-check/[id]` (votação e resultado) e o que sai deles (plano de ação, exportação). O módulo se chama **Radar de clima** em toda a interface (registro de módulos); "Radar de Saúde" e "Health Check" não aparecem mais em texto. Nada de backend mudou: mesmos endpoints REST e mesmo WebSocket (`/ws/health-check/{id}`). Os campos e rotas opcionais da migração V79 (quem já respondeu, encerramento real, apresentação sincronizada) estão em `ceremony-radar-retro.md`.
 
 ## Regra única de "em atenção"
 
