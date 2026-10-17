@@ -49,7 +49,7 @@ export function ReportDocumentHeader({ report }: { report: SessionReportData }) 
   );
 }
 
-function Kpi({
+export function Kpi({
   label,
   value,
   unit,

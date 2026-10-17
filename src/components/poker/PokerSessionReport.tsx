@@ -1,19 +1,22 @@
 'use client';
 
-import React, { useMemo } from 'react';
-import { Check, ClipboardCopy, Download, MessageSquareText, Plus, Printer, RefreshCcw } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Check, ClipboardCopy, Download, FileDown, MessageSquareText, Plus, Printer, RefreshCcw } from 'lucide-react';
 import type { DeckType, Issue, Participant, VotingRound, Room } from '@/lib/types';
 import type { SessionBreakdown } from '@/lib/poker-utils';
 import { buildSessionReport } from '@/lib/poker-report';
 import { buildSummaryText } from '@/lib/poker-report-export';
 import { useToast } from '@/hooks/use-toast';
-import { ModalButton } from '@/components/room-kit';
+import { ModalButton, TabBar } from '@/components/room-kit';
 import { ExportDialog } from './ExportDialog';
 import { TopicTiming } from './TopicTiming';
 import { SessionVelocity } from './SessionVelocity';
 import { ReportDocumentHeader, ReportKpis } from './report/ReportOverview';
 import { ReportTaskTable } from './report/ReportTaskTable';
 import { ReportHighlights } from './report/ReportHighlights';
+import { ReportResults } from './report/ReportResults';
+import { useReportPrint } from './report/useReportPrint';
+import { useReportPdf } from './report/useReportPdf';
 
 export interface ReportStats {
   totalTopics: number;
@@ -51,9 +54,11 @@ interface Props {
  * gestão. Identificação, resumo em números, tabela de tarefas, destaques e notas;
  * o tempo por tópico e o histórico do time ficam ao final. Os números vêm de
  * `buildSessionReport` e são os mesmos do PDF, do Markdown, do CSV e do texto copiado.
+ * A aba "Resultados" traz a folha-resumo de 1 página que também abre o PDF A4.
  */
 export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, participants, rounds, sessionStartedAt, sessionEndedAt, settings, onRefreshHistory, onOpenRetro, onNewSession }: Props) {
   const { toast } = useToast();
+  const [tab, setTab] = useState<'relatorio' | 'resultados'>('relatorio');
   const perTopicTime = settings?.perTopicTime !== false;
 
   const report = useMemo(
@@ -72,6 +77,10 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
       }),
     [roomTitle, roomTeam, deck, issues, participants, rounds, sessionStartedAt, sessionEndedAt, settings?.divergenceThresholds, perTopicTime]
   );
+
+  // A impressão do navegador (botão e Ctrl+P) usa o documento A4 montado aqui.
+  const { print, portal } = useReportPrint(report, { interceptBrowserPrint: true });
+  const { download, busy } = useReportPdf(report);
 
   const k = report.kpis;
   const subtitle = [
@@ -101,8 +110,11 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
           <ModalButton onClick={copySummary} className="gap-2">
             <ClipboardCopy className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Copiar resumo
           </ModalButton>
-          <ModalButton onClick={() => window.print()} className="gap-2">
+          <ModalButton onClick={() => print({ includeResults: true, resultsOnly: false })} className="gap-2">
             <Printer className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Imprimir / Salvar PDF
+          </ModalButton>
+          <ModalButton onClick={() => void download({ includeResults: true })} disabled={busy} className="gap-2">
+            <FileDown className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> {busy ? 'Gerando…' : 'Baixar PDF (A4)'}
           </ModalButton>
           <ExportDialog
             roomTitle={roomTitle || 'Scrum Poker'}
@@ -117,6 +129,7 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
             divergenceThresholds={settings?.divergenceThresholds}
             report={report}
             interceptBrowserPrint
+            print={print}
             triggerNode={<ModalButton variant="primary" className="gap-2"><Download className="h-[15px] w-[15px]" strokeWidth={1.5} aria-hidden="true" /> Exportar resultados</ModalButton>}
           />
         </div>
@@ -133,19 +146,43 @@ export function PokerSessionReport({ roomId, roomTitle, roomTeam, deck, issues, 
         </div>
       </div>
 
-      <ReportDocumentHeader report={report} />
-      <ReportKpis report={report} />
-      <ReportTaskTable report={report} />
-      <ReportHighlights report={report} />
+      <TabBar
+        tabs={[{ id: 'relatorio', label: 'Relatório completo' }, { id: 'resultados', label: 'Resultados' }] as const}
+        value={tab}
+        onChange={setTab}
+        label="Visões do relatório"
+        idPrefix="report"
+        className="px-0"
+      />
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        {perTopicTime && (
-          <div className="lg:col-span-7"><TopicTiming rounds={rounds} issues={issues} sessionStartedAt={sessionStartedAt} /></div>
-        )}
-        {settings?.showVelocity && (
-          <div className={perTopicTime ? 'lg:col-span-5' : 'lg:col-span-12'}><SessionVelocity currentRoomId={roomId} /></div>
-        )}
-      </div>
+      {tab === 'resultados' ? (
+        <div role="tabpanel" id="report-panel-resultados" aria-labelledby="report-tab-resultados">
+          <ReportResults
+            report={report}
+            busy={busy}
+            onDownload={() => void download({ resultsOnly: true })}
+            onPrint={() => print({ includeResults: true, resultsOnly: true })}
+          />
+        </div>
+      ) : (
+        <div role="tabpanel" id="report-panel-relatorio" aria-labelledby="report-tab-relatorio" className="flex flex-col gap-5">
+          <ReportDocumentHeader report={report} />
+          <ReportKpis report={report} />
+          <ReportTaskTable report={report} />
+          <ReportHighlights report={report} />
+
+          <div className="grid gap-4 lg:grid-cols-12">
+            {perTopicTime && (
+              <div className="lg:col-span-7"><TopicTiming rounds={rounds} issues={issues} sessionStartedAt={sessionStartedAt} /></div>
+            )}
+            {settings?.showVelocity && (
+              <div className={perTopicTime ? 'lg:col-span-5' : 'lg:col-span-12'}><SessionVelocity currentRoomId={roomId} /></div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {portal}
     </div>
   );
 }
