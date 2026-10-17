@@ -1,194 +1,224 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { AlertCircle, Gauge, ListChecks, Loader2, MessageSquareText, RefreshCw, Target, TrendingUp, Undo2, CheckCircle2 } from 'lucide-react';
 import { workItemsApi } from '@/app/work-items-api';
-import { Target, TrendingUp, AlertCircle, CheckCircle2, RefreshCw, Loader2, MessageSquareText, ListChecks } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { authFetch } from '@/lib/auth-client';
 import { openOrCreateRetro, openOrCreateActionPlan } from '@/lib/sprintCycleNav';
-
 import { useUserContext } from '@/context/UserContext';
 import { useAuth } from '@/context/AuthContext';
+import { EmptyState, ErrorState, KpiCard, KpiRow, LoadingSkeleton, PAGE_CARD } from '@/components/page';
+import { FIELD, IconTile, ModalButton, SelectField } from '@/components/room-kit';
+import { cn } from '@/lib/utils';
+import { FIELD_LABEL } from './AdminOpsParts';
+import { isEmptySprint, sprintNumbers, type SprintStatsLike } from './admin-platform-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002/api';
+
+interface SquadOption {
+  id: string;
+  name: string;
+  activeSprintId?: string | null;
+}
 
 export function CeremoniesDashboard() {
   const router = useRouter();
   const { userProfile } = useUserContext();
   const { session } = useAuth();
-  const [squads, setSquads] = useState<any[]>([]);
-  const [selectedSquadId, setSelectedSquadId] = useState<string>('');
-  const [sprintId, setSprintId] = useState<string>('');
-  const [stats, setStats] = useState<any>(null);
+  const [squads, setSquads] = useState<SquadOption[]>([]);
+  const [squadsLoading, setSquadsLoading] = useState(true);
+  const [squadsError, setSquadsError] = useState(false);
+  const [selectedSquadId, setSelectedSquadId] = useState('');
+  /** ID de sprint digitado/preenchido. Vazio = a squad não tem sprint ativa (o servidor resolve "active"). */
+  const [sprintId, setSprintId] = useState('');
+  const [stats, setStats] = useState<SprintStatsLike | null>(null);
   const [loading, setLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [isNavigatingTo, setIsNavigatingTo] = useState<'retro' | 'action-plan' | null>(null);
 
-  // 'active' é só um sentinel local pro fetch de stats (o backend resolve
-  // activeSprintId da squad quando recebe 'active' ou vazio) — nunca deve ser
-  // gravado como sprintId real de um board novo, senão todas as squads sem
-  // sprint ativa configurada colidem no mesmo valor fake.
-  const realSprintId = sprintId && sprintId !== 'active' ? sprintId : undefined;
+  // "active" só vale como marcador para o servidor buscar a sprint ativa da squad: nunca vira o
+  // sprintId real de um board novo, senão todas as squads sem sprint colidem no mesmo valor.
+  const typed = sprintId.trim();
+  const realSprintId = typed && typed.toLowerCase() !== 'active' ? typed : undefined;
 
-  useEffect(() => {
-    authFetch(`${API_BASE}/squads`)
-      .then(res => res.ok ? res.json() : [])
-      .then(data => {
-        setSquads(data);
-        if (data.length > 0) {
-          const userActiveId = userProfile?.squadId || session?.activeProjectId;
-          const matchedSquad = data.find((s: any) => s.id === userActiveId) || data[0];
-          setSelectedSquadId(matchedSquad.id);
-          setSprintId(matchedSquad.activeSprintId || 'active');
-        }
-      })
-      .catch(() => {});
+  const loadSquads = useCallback(async () => {
+    setSquadsLoading(true);
+    setSquadsError(false);
+    try {
+      const res = await authFetch(`${API_BASE}/squads`);
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const data: SquadOption[] = await res.json();
+      setSquads(data);
+      if (data.length > 0) {
+        const userActiveId = userProfile?.squadId || session?.activeProjectId;
+        const matched = data.find((s) => s.id === userActiveId) || data[0];
+        setSelectedSquadId(matched.id);
+        setSprintId(matched.activeSprintId || '');
+      }
+    } catch (e) {
+      console.error('Erro ao listar as squads:', e);
+      setSquadsError(true);
+    } finally {
+      setSquadsLoading(false);
+    }
   }, [userProfile?.squadId, session?.activeProjectId]);
 
-  const fetchStats = async () => {
-    if (!selectedSquadId || !sprintId) return;
+  useEffect(() => {
+    loadSquads();
+  }, [loadSquads]);
+
+  const requestRef = useRef(0);
+  const fetchStats = useCallback(async () => {
+    if (!selectedSquadId) return;
+    const mine = ++requestRef.current;
     setLoading(true);
+    setStatsError(null);
     try {
-      const data = await workItemsApi.getSprintStats(selectedSquadId, sprintId);
+      const data = await workItemsApi.getSprintStats(selectedSquadId, realSprintId ?? 'active');
+      if (mine !== requestRef.current) return;
       setStats(data);
     } catch (e) {
-      console.error(e);
+      if (mine !== requestRef.current) return;
+      console.error('Erro ao carregar os dados da sprint:', e);
       setStats(null);
+      setStatsError((e as Error)?.message || 'Tente de novo em instantes.');
     } finally {
-      setLoading(false);
+      if (mine === requestRef.current) setLoading(false);
+    }
+  }, [selectedSquadId, realSprintId]);
+
+  // Troca de squad ou de sprint: busca de novo (com uma pausa curta enquanto a pessoa digita o ID).
+  useEffect(() => {
+    if (!selectedSquadId) return;
+    setLoading(true);
+    const t = setTimeout(fetchStats, 400);
+    return () => clearTimeout(t);
+  }, [selectedSquadId, fetchStats]);
+
+  const go = async (target: 'retro' | 'action-plan') => {
+    if (!realSprintId) return;
+    setIsNavigatingTo(target);
+    try {
+      if (target === 'retro') await openOrCreateRetro(router, realSprintId, selectedSquadId);
+      else await openOrCreateActionPlan(router, realSprintId, selectedSquadId);
+    } finally {
+      setIsNavigatingTo(null);
     }
   };
 
-  useEffect(() => {
-    if (selectedSquadId && sprintId) {
-      fetchStats();
-    }
-  }, [selectedSquadId, sprintId]);
+  if (squadsLoading) return <LoadingSkeleton variant="kpis" label="Carregando as squads" />;
+  if (squadsError) return <ErrorState title="Não foi possível carregar as squads" onRetry={loadSquads} />;
+
+  const noSquads = squads.length === 0;
+  const nums = stats ? sprintNumbers(stats) : null;
+  const navDisabled = noSquads || !realSprintId || isNavigatingTo !== null;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-black uppercase tracking-tighter italic font-headline text-slate-900 dark:text-slate-100">
-          Analytics de Cerimônias & Liderança
-        </h2>
-        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mt-1">
-          Acompanhamento contínuo de Say/Do ratio, Velocity e Carry-overs por Squad
-        </p>
-      </div>
-
-      <Card className="border-slate-200 dark:border-slate-800/60 rounded-3xl bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        <CardHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary/10 rounded-xl text-primary">
-                <Target className="h-5 w-5" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-                  Filtro de Squad & Sprint
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-400">
-                  Consulte os dados consolidados da sprint ativa
-                </CardDescription>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Select value={selectedSquadId} onValueChange={(val) => {
-                setSelectedSquadId(val);
-                const found = squads.find(s => s.id === val);
-                setSprintId(found?.activeSprintId || 'active');
-              }}>
-                <SelectTrigger className="w-[180px] h-10 rounded-xl text-xs font-bold">
-                  <SelectValue placeholder="Selecione a Squad" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  {squads.map(s => (
-                    <SelectItem key={s.id} value={s.id} className="text-xs font-bold">
-                      {s.name} ({s.id})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Input 
-                placeholder="ID da Sprint (ex: 1045)" 
-                value={sprintId} 
-                onChange={e => setSprintId(e.target.value)} 
-                className="w-[180px] h-10 rounded-xl text-xs font-medium"
-              />
-
-              <Button onClick={fetchStats} disabled={loading} className="h-10 rounded-xl px-4 text-xs font-bold">
-                {loading ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-                Atualizar
-              </Button>
-
-              <Button
-                variant="outline"
-                disabled={!realSprintId || isNavigatingTo !== null}
-                onClick={async () => {
-                  if (!realSprintId) return;
-                  setIsNavigatingTo('retro');
-                  try {
-                    await openOrCreateRetro(router, realSprintId, selectedSquadId);
-                  } finally {
-                    setIsNavigatingTo(null);
-                  }
-                }}
-                className="h-10 rounded-xl px-4 text-xs font-bold"
-              >
-                {isNavigatingTo === 'retro' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <MessageSquareText className="h-3.5 w-3.5 mr-1.5" />}
-                Abrir Retro desta Sprint
-              </Button>
-
-              <Button
-                variant="outline"
-                disabled={!realSprintId || isNavigatingTo !== null}
-                onClick={async () => {
-                  if (!realSprintId) return;
-                  setIsNavigatingTo('action-plan');
-                  try {
-                    await openOrCreateActionPlan(router, realSprintId, selectedSquadId);
-                  } finally {
-                    setIsNavigatingTo(null);
-                  }
-                }}
-                className="h-10 rounded-xl px-4 text-xs font-bold"
-              >
-                {isNavigatingTo === 'action-plan' ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <ListChecks className="h-3.5 w-3.5 mr-1.5" />}
-                Abrir Plano de Ação
-              </Button>
-            </div>
+    <div className="flex flex-col gap-5">
+      <section className={cn(PAGE_CARD, 'overflow-clip')} aria-label="Squad e sprint">
+        <header className="flex items-center gap-3.5 border-b border-border px-6 py-4">
+          <IconTile icon={Target} />
+          <div className="flex min-w-0 flex-col">
+            <h2 className="text-lg font-bold tracking-tight text-foreground">Squad e sprint</h2>
+            <p className="text-[13px] text-muted-foreground">Dados consolidados da sprint</p>
           </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          {stats ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
-                <p className="text-4xl font-black italic text-primary leading-none">{stats.velocityReal || stats.entregue || 0} pts</p>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-3">Velocity Real Entregue</p>
-              </div>
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
-                <p className="text-4xl font-black italic text-slate-900 dark:text-slate-100 leading-none">{stats.previsto || 0} pts</p>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-3">Comprometido no Planner</p>
-              </div>
-              <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 text-center">
-                <p className="text-4xl font-black italic text-amber-500 leading-none">{stats.carryOvers || 0} pts</p>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-3">Carry-overs / Débitos</p>
-              </div>
+        </header>
+
+        <div className="flex flex-col gap-4 p-5 md:p-6">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex w-full flex-col gap-1.5 sm:w-[280px]">
+              <label htmlFor="cer-squad" className={FIELD_LABEL}>Squad</label>
+              {noSquads ? (
+                <div className={cn(FIELD, 'flex h-10 items-center text-muted-foreground')}>Nenhuma squad encontrada</div>
+              ) : (
+                <SelectField
+                  id="cer-squad"
+                  aria-label="Squad"
+                  value={selectedSquadId}
+                  onChange={(val) => {
+                    setSelectedSquadId(val);
+                    setSprintId(squads.find((s) => s.id === val)?.activeSprintId || '');
+                  }}
+                  options={squads.map((s) => ({ value: s.id, label: `${s.name} (${s.id})` }))}
+                  className="h-10"
+                />
+              )}
             </div>
-          ) : (
-            <div className="text-center py-12 text-slate-400">
-              <p className="text-sm font-bold uppercase tracking-widest">Nenhum dado registrado para esta sprint</p>
-              <p className="text-xs mt-1">Sincronize o projeto no Hub de Governança ou execute cerimônias vinculadas.</p>
+
+            <div className="flex w-full flex-col gap-1.5 sm:w-[200px]">
+              <label htmlFor="cer-sprint" className={FIELD_LABEL}>Sprint</label>
+              <input
+                id="cer-sprint"
+                value={sprintId}
+                onChange={(e) => setSprintId(e.target.value)}
+                placeholder="ID da sprint (ex.: 1045)"
+                disabled={noSquads}
+                className={cn(FIELD, 'h-10')}
+              />
             </div>
+
+            <ModalButton variant="secondary" onClick={fetchStats} disabled={noSquads || loading} className="gap-2">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> : <RefreshCw className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+              Atualizar
+            </ModalButton>
+
+            <ModalButton variant="secondary" onClick={() => go('retro')} disabled={navDisabled} className="gap-2">
+              {isNavigatingTo === 'retro' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> : <MessageSquareText className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+              Abrir retro desta sprint
+            </ModalButton>
+
+            <ModalButton variant="secondary" onClick={() => go('action-plan')} disabled={navDisabled} className="gap-2">
+              {isNavigatingTo === 'action-plan' ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" strokeWidth={1.5} aria-hidden="true" /> : <ListChecks className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />}
+              Abrir plano de ação
+            </ModalButton>
+          </div>
+
+          {!noSquads && !realSprintId && (
+            <p role="note" className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-800 dark:text-amber-200">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden="true" />
+              Esta squad não tem sprint ativa. Informe o ID da sprint para abrir a retro e o plano de ação.
+            </p>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
+
+      {noSquads ? (
+        <EmptyState
+          icon={Target}
+          title="Nenhum dado registrado para esta sprint"
+          description="Sincronize o projeto em Sincronização Jira ou faça as cerimônias ligadas à sprint."
+        />
+      ) : loading ? (
+        <LoadingSkeleton variant="kpis" label="Carregando os dados da sprint" />
+      ) : statsError ? (
+        <ErrorState title="Não foi possível carregar os dados da sprint" description={statsError} onRetry={fetchStats} />
+      ) : isEmptySprint(stats) || !nums ? (
+        <EmptyState
+          icon={Target}
+          title="Nenhum dado registrado para esta sprint"
+          description="Sincronize o projeto em Sincronização Jira ou faça as cerimônias ligadas à sprint."
+        />
+      ) : (
+        <KpiRow columns={4}>
+          <KpiCard label="Velocity real entregue" value={`${nums.delivered} pts`} icon={TrendingUp} />
+          <KpiCard label="Comprometido no Planner" value={`${nums.committed} pts`} icon={Gauge} tone="neutral" />
+          <KpiCard
+            label="Carry-overs / débitos"
+            value={`${nums.carryOvers} ${nums.carryOvers === 1 ? 'item' : 'itens'}`}
+            hint="Itens que ficaram para a próxima sprint"
+            icon={Undo2}
+            tone="warn"
+          />
+          <KpiCard
+            label="Say/Do"
+            value={nums.sayDo == null ? '—' : `${nums.sayDo}%`}
+            hint={nums.sayDo == null ? 'Nada comprometido na sprint' : 'Entregue ÷ comprometido'}
+            icon={CheckCircle2}
+            tone="success"
+          />
+        </KpiRow>
+      )}
     </div>
   );
 }
