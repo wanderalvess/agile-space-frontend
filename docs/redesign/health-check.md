@@ -86,7 +86,7 @@ Removidos por estarem sem uso: `FinishHealthCheckDialog`, `HealthCheckNicknameDi
 ## Fora da interface (precisa de backend)
 
 - Quantas pessoas já responderam, "N de M" na sala e no resultado (o servidor conta em `RitualSessionService`, mas não devolve no board nem no WebSocket). Hoje: contagem de respostas por dimensão (resultado) e "respostas até agora" do histórico da Home (lobby), quando existe.
-- Presença (quem está online): o servidor só avisa entrada e saída. Os avatares e a lista não mostram ponto de online (`online` ficou opcional no kit).
+- Presença (quem está online): com o backend novo a sala pede `presence=1` e mostra ponto verde e "ausente" (ver `docs/redesign/room-kit.md`, "Presença em tempo real"); com o antigo, `online` fica sem valor e não há ponto nem "ausente".
 - Todos seguirem a etapa do facilitador na apresentação (evento novo no WebSocket). Hoje cada pessoa navega na própria tela.
 - Origem (radar, dimensão) no plano e na ação: sem o campo, o plano só cita o radar no texto e a trava "plano criado" é local.
 - `finishedAt` no radar ("Encerrada em").
