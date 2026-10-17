@@ -1,67 +1,73 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-
-import {
-  Plus,
-  Search,
-  Code,
-  Copy,
-  Trash2,
-  Terminal,
-  FileCode,
-  Pencil,
-  Loader2
-} from 'lucide-react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { Code, Copy, FileCode, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
-
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { ConfirmDialog, FIELD, IconButton, Modal, ModalButton, SelectField } from '@/components/room-kit';
+import { EmptyState, ErrorState, LoadingSkeleton } from '@/components/page';
+import { PAGE_CARD } from '@/components/page/styles';
 import { workspaceApi, Snippet } from '@/app/workspace/api';
 import { useUserContext } from '@/context/UserContext';
-import { toast } from 'sonner';
-import { AgileSpinner } from '@/components/ui/AgileSpinner';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from '@/components/ui/label';
-import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
+import { copyToClipboard } from '@/lib/copy-to-clipboard';
+import { cn } from '@/lib/utils';
+import { Field, TEXT_INPUT, WorkspaceSectionHeader } from './workspace-ui';
 
-const LANGUAGES = [
-  'javascript', 'typescript', 'python', 'sql', 'bash', 'json', 'html', 'css', 'java', 'csharp', 'other'
-];
+/** As 11 linguagens do editor (o valor é o id do Monaco). */
+export const SNIPPET_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'bash', label: 'Bash' },
+  { value: 'json', label: 'JSON' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'java', label: 'Java' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'other', label: 'Other' },
+] as const;
 
-export function SnippetLibrary() {
+/** Filtra por título, código ou linguagem (sem diferenciar caixa). */
+export function filterSnippets(snippets: Snippet[], search: string): Snippet[] {
+  const q = search.trim().toLowerCase();
+  if (!q) return snippets;
+  return snippets.filter(
+    (s) => s.title.toLowerCase().includes(q) || (s.content || '').toLowerCase().includes(q) || (s.language || '').toLowerCase().includes(q),
+  );
+}
+
+interface SnippetLibraryProps {
+  /** Pedido de abrir "Novo snippet" (vindo da paleta de comandos). */
+  openNew?: boolean;
+  onOpenNewHandled?: () => void;
+}
+
+export function SnippetLibrary({ openNew, onOpenNewHandled }: SnippetLibraryProps) {
+  const uid = useId();
   const { userProfile } = useUserContext();
   const effectiveUserId = userProfile?.id || userProfile?.email;
 
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
+  const [toDelete, setToDelete] = useState<Snippet | null>(null);
+  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-
-  const [formData, setFormData] = useState({
-    title: '',
-    content: '',
-    language: 'javascript'
-  });
+  const [formData, setFormData] = useState({ title: '', content: '', language: 'javascript' });
 
   useEffect(() => {
     let cancelled = false;
-
-    const loadSnippets = async () => {
+    (async () => {
       if (!effectiveUserId) {
         setIsLoading(false);
         return;
       }
       setIsLoading(true);
+      setLoadError(false);
       try {
         const data = await workspaceApi.getSnippets(effectiveUserId);
         if (cancelled) return;
@@ -69,291 +75,243 @@ export function SnippetLibrary() {
         setSnippets(data);
       } catch (err) {
         console.error('Erro ao buscar snippets:', err);
-        if (!cancelled) toast.error('Erro ao carregar snippets.');
+        if (!cancelled) {
+          setLoadError(true);
+          toast.error('Erro ao carregar snippets.');
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
+  }, [effectiveUserId, reloadNonce]);
 
-    loadSnippets();
-    return () => { cancelled = true; };
-  }, [effectiveUserId]);
-
-  useEffect(() => {
-    const handleNewSnippetEvent = () => {
-      handleOpenEditor();
-    };
-    window.addEventListener('agile-space:new-snippet', handleNewSnippetEvent);
-    return () => window.removeEventListener('agile-space:new-snippet', handleNewSnippetEvent);
+  const handleOpenEditor = useCallback((snippet?: Snippet) => {
+    setEditingSnippet(snippet ?? null);
+    setFormData(snippet ? { title: snippet.title, content: snippet.content || '', language: snippet.language || 'javascript' } : { title: '', content: '', language: 'javascript' });
+    setIsEditorOpen(true);
   }, []);
 
+  useEffect(() => {
+    if (!openNew) return;
+    handleOpenEditor();
+    onOpenNewHandled?.();
+  }, [openNew]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filteredSnippets = useMemo(() => {
-    if (!snippets) return [];
-    if (!search) return snippets;
-
-    const searchLower = search.toLowerCase();
-    return snippets.filter(item =>
-      item.title.toLowerCase().includes(searchLower) ||
-      (item.content || '').toLowerCase().includes(searchLower) ||
-      (item.language || '').toLowerCase().includes(searchLower)
-    );
-  }, [snippets, search]);
-
-  const handleOpenEditor = (snippet?: Snippet) => {
-    if (snippet) {
-      setEditingSnippet(snippet);
-      setFormData({
-        title: snippet.title,
-        content: snippet.content || '',
-        language: snippet.language || 'javascript'
-      });
-    } else {
-      setEditingSnippet(null);
-      setFormData({
-        title: '',
-        content: '',
-        language: 'javascript'
-      });
-    }
-    setIsEditorOpen(true);
-  };
+  const filteredSnippets = useMemo(() => filterSnippets(snippets, search), [snippets, search]);
+  const canSave = !!formData.title.trim() && !!formData.content.trim() && !saving;
 
   const handleSave = async () => {
-    if (!effectiveUserId) return;
-    if (!formData.title.trim() || !formData.content.trim()) return;
-
+    if (!effectiveUserId || !canSave) return;
+    setSaving(true);
     const payload: Partial<Snippet> = {
       id: editingSnippet?.id,
       title: formData.title.trim(),
       content: formData.content.trim(),
-      language: formData.language
+      language: formData.language,
     };
-
     try {
       const saved = await workspaceApi.saveSnippet(effectiveUserId, payload);
-      setSnippets(prev => {
-        const exists = prev.some(s => s.id === saved.id);
-        return exists ? prev.map(s => s.id === saved.id ? saved : s) : [saved, ...prev];
+      setSnippets((prev) => {
+        const exists = prev.some((s) => s.id === saved.id);
+        return exists ? prev.map((s) => (s.id === saved.id ? saved : s)) : [saved, ...prev];
       });
       toast.success('Snippet salvo com sucesso!');
       setIsEditorOpen(false);
     } catch (err: any) {
       toast.error('Erro ao salvar: ' + err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (id?: string) => {
-    if (!id || !confirm('Deseja realmente excluir este snippet?')) return;
+  const handleDelete = async () => {
+    const id = toDelete?.id;
+    if (!id) return;
     try {
       await workspaceApi.deleteSnippet(id);
-      setSnippets(prev => prev.filter(s => s.id !== id));
+      setSnippets((prev) => prev.filter((s) => s.id !== id));
       toast.success('Snippet removido.');
     } catch (err: any) {
       toast.error('Erro ao remover: ' + err.message);
     }
   };
 
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success('Código copiado!');
+  const handleCopyCode = async (code: string) => {
+    if (await copyToClipboard(code)) toast.success('Código copiado!');
+    else toast.error('Não foi possível copiar o código.');
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center h-[60vh]">
-        <AgileSpinner size="md" variant="indigo" />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex-1 flex flex-col space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 w-full">
+    <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
-        kicker="Snippets"
-        accent="indigo"
-        title="Snippet"
-        titleAccent="Library"
+        title="Snippet Library"
         subtitle="Organize seus fragmentos de código e utilitários técnicos"
         action={
-          <div className="flex items-center gap-3">
-            <div className="relative w-full md:w-72 group">
-              <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-indigo-500 transition-colors" />
-              <Input
+          <>
+            <div className="relative w-full sm:w-[320px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+              <input
+                type="search"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar snippet por título, linguagem ou código..."
-                className="h-12 pl-10 rounded-2xl border-border/80 bg-background text-foreground shadow-xs focus-visible:ring-indigo-500/20 text-xs font-bold"
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar por título, linguagem ou código"
+                aria-label="Buscar snippet"
+                className={cn(FIELD, 'h-[42px] pl-9 text-sm')}
               />
             </div>
-            <Button
-              onClick={() => handleOpenEditor()}
-              className="h-12 px-6 bg-primary text-primary-foreground rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-primary/90 transition-all gap-2 shrink-0"
-            >
-              <Plus className="h-5 w-5 text-indigo-400" /> Novo Snippet
-            </Button>
-          </div>
+            <ModalButton variant="primary" onClick={() => handleOpenEditor()}>
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo snippet
+            </ModalButton>
+          </>
         }
       />
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-6">
-        {filteredSnippets.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center py-14 text-center bg-card border border-border/80 rounded-3xl shadow-xs">
-            <div className="w-20 h-20 bg-muted/60 rounded-2xl flex items-center justify-center mb-8">
-              <Code className="h-10 w-10 text-muted-foreground/40" />
-            </div>
-            <h3 className="text-xl font-black text-foreground uppercase tracking-tighter italic">Nenhum snippet encontrado</h3>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest max-w-[280px] mt-2 leading-relaxed">
-              Sua biblioteca está vazia ou os filtros não retornaram resultados. Comece a documentar seus códigos reutilizáveis.
-            </p>
-          </div>
-        ) : (
-          filteredSnippets.map(snippet => (
-            <div key={snippet.id} className="group relative bg-card text-card-foreground rounded-3xl border border-border/80 p-6 transition-all duration-300 hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-500/5 flex flex-col h-full overflow-hidden">
-               {/* Language Tag Badge */}
-               <div className="absolute -right-2 -top-2 opacity-[0.03] pointer-events-none group-hover:opacity-[0.08] group-hover:scale-125 transition-all duration-700">
-                  <Terminal className="h-32 w-32 -rotate-12" />
-               </div>
-
-               <div className="flex-1 space-y-4">
-                  <div className="flex items-start justify-between gap-4">
-                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 flex items-center justify-center group-hover:bg-indigo-600 transition-colors">
-                           <FileCode className="h-5 w-5 text-indigo-500 group-hover:text-white" />
-                        </div>
-                        <div>
-                           <h4 className="text-sm font-black uppercase tracking-tight text-foreground italic line-clamp-1">{snippet.title}</h4>
-                           <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500">{snippet.language}</span>
-                        </div>
-                     </div>
-                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button
-                          onClick={() => handleOpenEditor(snippet)}
-                          className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                           <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(snippet.id)}
-                          className="p-2 hover:bg-rose-500/10 rounded-lg text-muted-foreground hover:text-rose-500 transition-colors"
-                        >
-                           <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                     </div>
+      {isLoading ? (
+        <LoadingSkeleton variant="cards" rows={3} label="Carregando seus snippets" />
+      ) : loadError ? (
+        <ErrorState title="Não foi possível carregar os snippets" description="Verifique a conexão e tente de novo." onRetry={() => setReloadNonce((n) => n + 1)} />
+      ) : filteredSnippets.length === 0 ? (
+        <EmptyState
+          icon={Code}
+          title="Nenhum snippet encontrado"
+          description="Sua biblioteca está vazia ou os filtros não retornaram resultados. Comece a documentar seus códigos reutilizáveis."
+          actions={
+            snippets.length === 0 ? (
+              <ModalButton variant="primary" onClick={() => handleOpenEditor()}>
+                <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Novo snippet
+              </ModalButton>
+            ) : (
+              <ModalButton onClick={() => setSearch('')}>Limpar busca</ModalButton>
+            )
+          }
+        />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
+          {filteredSnippets.map((snippet) => (
+            <article key={snippet.id} className={cn(PAGE_CARD, 'flex flex-col gap-3 rounded-2xl p-4 transition-[border-color,box-shadow] duration-fast hover:border-primary/40 hover:shadow-md')}>
+              <header className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-primary/10 text-primary dark:bg-primary/15 [.theme-totvs:not(.dark)_&]:text-foreground">
+                    <FileCode className="h-5 w-5" strokeWidth={1.5} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-foreground">{snippet.title}</h3>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {SNIPPET_LANGUAGES.find((l) => l.value === snippet.language)?.label ?? snippet.language}
+                    </span>
                   </div>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <IconButton size="sm" icon={Pencil} label={`Editar snippet ${snippet.title}`} onClick={() => handleOpenEditor(snippet)} />
+                  <IconButton size="sm" icon={Trash2} label={`Excluir snippet ${snippet.title}`} onClick={() => setToDelete(snippet)} className="hover:text-red-700 dark:hover:text-red-300" />
+                </div>
+              </header>
+              <div className="relative overflow-hidden rounded-xl border border-border bg-slate-950 p-3.5 font-code text-xs text-slate-300">
+                <pre className="m-0 max-h-40 overflow-hidden pr-9 whitespace-pre-wrap break-all leading-snug [mask-image:linear-gradient(to_bottom,black_70%,transparent_100%)]">{snippet.content}</pre>
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(snippet.content)}
+                  aria-label={`Copiar código de ${snippet.title}`}
+                  title="Copiar código"
+                  className="absolute right-2.5 top-2.5 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Copy className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
-                  <div className="relative rounded-2xl bg-slate-950 border border-border/40 p-4 font-code text-[11px] text-slate-300 overflow-hidden group/code">
-                     <div className="max-h-40 overflow-hidden mask-fade-bottom">
-                        <pre className="whitespace-pre-wrap break-all leading-tight">{snippet.content}</pre>
-                     </div>
-                     <button
-                        onClick={() => handleCopyCode(snippet.content)}
-                        className="absolute right-3 top-3 p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white opacity-0 group-hover/code:opacity-100 transition-all active:scale-90"
-                     >
-                        <Copy className="h-3.5 w-3.5" />
-                     </button>
-                  </div>
-               </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* SNIPPET EDITOR MODAL */}
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-[95vw] md:max-w-[1000px] rounded-3xl border border-border/80 shadow-2xl p-0 overflow-hidden bg-card text-card-foreground">
-          <DialogHeader className="p-6 md:p-8 pb-4 border-b border-border/80 bg-muted/30">
-            <DialogTitle className="text-2xl font-black font-headline uppercase tracking-tighter italic text-foreground">
-              {editingSnippet ? 'Ajustar' : 'Novo'} <span className="text-indigo-500 not-italic">Snippet</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 md:p-8">
-            <div className="space-y-6">
-               <div className="space-y-2">
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Título do Snippet</Label>
-                 <Input
-                   value={formData.title}
-                   onChange={e => setFormData({...formData, title: e.target.value})}
-                   placeholder="Ex: API Fetch Wrapper"
-                   className="h-12 rounded-xl font-bold border border-border/80 bg-background text-foreground focus-visible:ring-indigo-500/20"
-                 />
-               </div>
-
-               <div className="space-y-2">
-                 <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Linguagem</Label>
-                 <select
-                   value={formData.language}
-                   onChange={e => setFormData({...formData, language: e.target.value})}
-                   className="w-full h-11 rounded-xl border border-border/80 bg-background text-foreground font-bold text-xs px-3 focus:border-indigo-500/20 outline-none"
-                 >
-                   {LANGUAGES.map(lang => (
-                     <option key={lang} value={lang}>{lang.toUpperCase()}</option>
-                   ))}
-                 </select>
-               </div>
-            </div>
-
-             <div className="space-y-2 flex flex-col h-[400px] md:h-auto min-h-[400px]">
-               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex justify-between">
-                 Código Fonte
-                 <span className="text-indigo-500 animate-pulse">● Editor Monaco Ativo</span>
-               </Label>
-               <div className="flex-1 rounded-xl overflow-hidden border border-border/80 bg-slate-950 p-2">
-                 <Editor
-                   height="100%"
-                   language={formData.language}
-                   theme="vs-dark"
-                   value={formData.content}
-                   onChange={(value) => setFormData({ ...formData, content: value || '' })}
-                   options={{
-                     minimap: { enabled: false },
-                     fontSize: 12,
-                     fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-                     scrollBeyondLastLine: false,
-                     automaticLayout: true,
-                     padding: { top: 16, bottom: 16 },
-                     lineNumbers: 'on',
-                     glyphMargin: false,
-                     folding: true,
-                     lineDecorationsWidth: 0,
-                     lineNumbersMinChars: 3,
-                     renderLineHighlight: 'all',
-                     scrollbar: {
-                       vertical: 'hidden',
-                       horizontal: 'hidden'
-                     }
-                   }}
-                   loading={
-                     <div className="flex items-center justify-center h-full text-slate-500 gap-2">
-                       <Loader2 className="h-4 w-4 animate-spin" />
-                       <span className="text-[10px] font-black uppercase tracking-widest">Carregando Editor...</span>
-                     </div>
-                   }
-                 />
-               </div>
-             </div>
-
-          </div>
-
-          <DialogFooter className="p-6 md:p-8 bg-muted/20 border-t border-border/80">
-            <Button variant="ghost" onClick={() => setIsEditorOpen(false)} className="font-black text-[10px] uppercase tracking-widest">Cancelar</Button>
-            <Button
-              onClick={handleSave}
-              disabled={!formData.title.trim() || !formData.content.trim()}
-              className="h-12 px-8 font-black text-[10px] uppercase tracking-widest rounded-xl bg-indigo-600 text-white shadow-xl shadow-indigo-500/20 hover:bg-indigo-700"
-            >
-              Salvar Snippet
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <style jsx global>{`
-        .mask-fade-bottom {
-          mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+      <Modal
+        open={isEditorOpen}
+        onOpenChange={setIsEditorOpen}
+        size="lg"
+        icon={FileCode}
+        title={editingSnippet ? 'Ajustar snippet' : 'Novo snippet'}
+        preventClose={saving}
+        footer={
+          <>
+            <ModalButton onClick={() => setIsEditorOpen(false)} disabled={saving}>
+              Cancelar
+            </ModalButton>
+            <ModalButton variant="primary" onClick={handleSave} disabled={!canSave}>
+              Salvar snippet
+            </ModalButton>
+          </>
         }
-      `}</style>
+      >
+        <div className="grid grid-cols-1 gap-5 pt-2 md:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <Field label="Título do snippet" htmlFor={`${uid}-title`}>
+              <input
+                id={`${uid}-title`}
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                maxLength={255}
+                autoComplete="off"
+                placeholder="Ex: API Fetch Wrapper"
+                className={TEXT_INPUT}
+              />
+            </Field>
+            <Field label="Linguagem" htmlFor={`${uid}-lang`}>
+              <SelectField id={`${uid}-lang`} value={formData.language} onChange={(language) => setFormData({ ...formData, language })} options={SNIPPET_LANGUAGES} className="h-[42px]" />
+            </Field>
+          </div>
+          <div className="flex min-h-[320px] flex-col gap-1.5">
+            <span className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Código fonte
+              <span className="font-semibold normal-case tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Editor Monaco</span>
+            </span>
+            <div className="min-h-[320px] flex-1 overflow-hidden rounded-xl border border-border bg-slate-950 p-2">
+              <Editor
+                height="100%"
+                language={formData.language}
+                theme="vs-dark"
+                value={formData.content}
+                onChange={(value) => setFormData((prev) => ({ ...prev, content: value || '' }))}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  padding: { top: 12, bottom: 12 },
+                  lineNumbers: 'on',
+                  glyphMargin: false,
+                  folding: true,
+                  lineDecorationsWidth: 0,
+                  lineNumbersMinChars: 3,
+                  renderLineHighlight: 'all',
+                  scrollbar: { vertical: 'hidden', horizontal: 'hidden' },
+                }}
+                loading={
+                  <div className="flex h-full items-center justify-center gap-2 text-slate-400">
+                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} aria-hidden="true" />
+                    <span className="text-xs font-semibold">Carregando o editor...</span>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!toDelete}
+        onOpenChange={(open) => {
+          if (!open) setToDelete(null);
+        }}
+        tone="danger"
+        icon={Trash2}
+        title={`Excluir "${toDelete?.title ?? 'snippet'}"?`}
+        description="Isso não pode ser desfeito."
+        confirmLabel="Excluir"
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

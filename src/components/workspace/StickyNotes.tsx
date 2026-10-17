@@ -1,137 +1,146 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Pin, 
-  Trash2, 
-  ArrowRight, 
-  Plus,
-  LayoutGrid,
-  Clock
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, Clock, Pin, Plus, Search, StickyNote as StickyNoteIcon, Trash2 } from 'lucide-react';
+import { IconButton, ModalButton, FIELD } from '@/components/room-kit';
+import { EmptyState, ErrorState } from '@/components/page';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
-import { StickyNote } from './types';
-import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
-
-const NOTE_COLORS: { name: string; class: string; dot: string; glow?: string }[] = [
-  { 
-    name: 'Amarelo', 
-    class: 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200/70 dark:border-amber-800/40 text-amber-950 dark:text-amber-100', 
-    dot: 'bg-amber-400' 
-  },
-  { 
-    name: 'Azul', 
-    class: 'bg-sky-50/90 dark:bg-sky-950/40 border-sky-200/70 dark:border-sky-800/40 text-sky-950 dark:text-sky-100', 
-    dot: 'bg-sky-400' 
-  },
-  { 
-    name: 'Verde', 
-    class: 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-200/70 dark:border-emerald-800/40 text-emerald-950 dark:text-emerald-100', 
-    dot: 'bg-emerald-400' 
-  },
-  { 
-    name: 'Rosa', 
-    class: 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200/70 dark:border-rose-800/40 text-rose-950 dark:text-rose-100', 
-    dot: 'bg-rose-400' 
-  },
-  { 
-    name: 'Violeta', 
-    class: 'bg-violet-50/90 dark:bg-violet-950/40 border-violet-200/70 dark:border-violet-800/40 text-violet-950 dark:text-violet-100', 
-    dot: 'bg-violet-400' 
-  },
-];
+import type { StickyNote } from './types';
+import { NOTE_COLORS, matchNoteColor } from './note-colors';
+import { WorkspaceSectionHeader } from './workspace-ui';
 
 interface StickyNotesProps {
   notes: StickyNote[];
   isLoading: boolean;
+  loadError?: boolean;
+  onRetry?: () => void;
   onAdd: () => void;
   onUpdate: (id: string, updates: Partial<StickyNote>) => void;
   onDelete: (id: string) => void;
   onConvertToTask: (note: StickyNote) => void;
+  /** Pedido de foco na busca (vindo da paleta de comandos). */
+  focusSearch?: boolean;
+  onFocusHandled?: () => void;
 }
 
-export function StickyNotes({ notes, isLoading, onAdd, onUpdate, onDelete, onConvertToTask }: StickyNotesProps) {
-  const sortedNotes = [...notes].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-  });
+function normalize(text: string): string {
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Notas cujo texto contém a busca (sem acento nem caixa). Busca vazia devolve todas. */
+export function filterNotes(notes: StickyNote[], query: string): StickyNote[] {
+  const q = normalize(query.trim());
+  return q ? notes.filter((n) => normalize(n.content || '').includes(q)) : notes;
+}
+
+export function StickyNotes({ notes, isLoading, loadError, onRetry, onAdd, onUpdate, onDelete, onConvertToTask, focusSearch, onFocusHandled }: StickyNotesProps) {
+  const [query, setQuery] = useState('');
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!focusSearch) return;
+    searchRef.current?.focus();
+    onFocusHandled?.();
+  }, [focusSearch, onFocusHandled]);
+
+  const sortedNotes = useMemo(
+    () =>
+      [...filterNotes(notes, query)].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }),
+    [notes, query],
+  );
+
+  const searching = query.trim().length > 0;
 
   return (
-    <div className="w-full space-y-6">
+    <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
-        kicker="Notas"
-        accent="amber"
-        title="Mural de"
-        titleAccent="Notas"
-        subtitle="Ideias e anotações rápidas sincronizadas"
+        title="Mural de notas"
+        subtitle="Ideias e anotações rápidas, salvas na hora"
         action={
-          <Button
-            onClick={onAdd}
-            className="h-10 px-6 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold uppercase tracking-wider rounded-xl shadow-md shadow-primary/20 gap-2 transition-all active:scale-95 group"
-          >
-            <Plus className="h-4 w-4 group-hover:rotate-90 transition-transform" />
-            Nova Nota
-          </Button>
+          <>
+            <div className="relative w-full sm:w-[280px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-[15px] w-[15px] -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} aria-hidden="true" />
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar nas notas"
+                aria-label="Buscar nas notas"
+                className={cn(FIELD, 'h-[42px] pl-9 text-sm')}
+              />
+            </div>
+            <ModalButton variant="primary" onClick={onAdd}>
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Nova nota
+            </ModalButton>
+          </>
         }
       />
-      
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5 pb-8">
-        <AnimatePresence mode="popLayout">
-          {isLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-56 bg-muted/40 animate-pulse rounded-3xl border border-border/70" />
-            ))
-          ) : (
-            sortedNotes.map(note => (
-              <StickyNoteCard 
-                key={note.id} 
-                note={note} 
-                onUpdate={onUpdate} 
-                onDelete={onDelete} 
-                onConvertToTask={onConvertToTask} 
-              />
-            ))
-          )}
-        </AnimatePresence>
 
-        {!isLoading && notes.length === 0 && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="col-span-full flex flex-col items-center justify-center py-20 rounded-3xl border border-dashed border-border/80 bg-muted/20 text-center space-y-3"
-          >
-            <LayoutGrid className="h-12 w-12 text-muted-foreground/40" />
-            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Seu mural está vazio</p>
-            <Button onClick={onAdd} variant="outline" className="text-xs font-bold rounded-xl mt-2">
-              <Plus className="h-4 w-4 mr-1 text-primary" /> Criar Primeira Nota
-            </Button>
-          </motion.div>
-        )}
-      </div>
+      {loadError ? (
+        <ErrorState title="Não foi possível carregar as notas" description="Verifique a conexão e tente de novo." onRetry={onRetry} />
+      ) : isLoading ? (
+        <div role="status" aria-label="Carregando as notas" className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-56 rounded-2xl border border-border bg-muted/40 motion-safe:animate-pulse" />
+          ))}
+        </div>
+      ) : notes.length === 0 ? (
+        <EmptyState
+          icon={StickyNoteIcon}
+          title="Seu mural está vazio"
+          description="Anote uma ideia; ela fica salva e dá para virar tarefa depois."
+          actions={
+            <ModalButton variant="primary" onClick={onAdd}>
+              <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Criar primeira nota
+            </ModalButton>
+          }
+        />
+      ) : sortedNotes.length === 0 && searching ? (
+        <EmptyState icon={Search} title="Nenhuma nota encontrada" description={`Nenhuma nota tem "${query.trim()}".`} actions={<ModalButton onClick={() => setQuery('')}>Limpar busca</ModalButton>} />
+      ) : (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 pb-6">
+          {sortedNotes.map((note) => (
+            <StickyNoteCard key={note.id} note={note} onUpdate={onUpdate} onDelete={onDelete} onConvertToTask={onConvertToTask} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: StickyNote, onUpdate: any, onDelete: any, onConvertToTask: any }) {
+function StickyNoteCard({
+  note,
+  onUpdate,
+  onDelete,
+  onConvertToTask,
+}: {
+  note: StickyNote;
+  onUpdate: (id: string, updates: Partial<StickyNote>) => void;
+  onDelete: (id: string) => void;
+  onConvertToTask: (note: StickyNote) => void;
+}) {
   const [localContent, setLocalContent] = useState(note.content);
   const debouncedContent = useDebounce(localContent, 2000);
   const remoteContentRef = useRef(note.content);
 
   useEffect(() => {
     setLocalContent(note.content);
-  }, [note.id]);
+  }, [note.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     remoteContentRef.current = note.content;
   }, [note.content]);
 
   const onUpdateRef = useRef(onUpdate);
-  useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
 
   useEffect(() => {
     if (debouncedContent !== remoteContentRef.current) {
@@ -142,7 +151,9 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
   // Trocar de aba ou sair da página antes dos 2 s do debounce perdia o que foi digitado: grava ao desmontar.
   const discardedRef = useRef(false); // nota excluída/promovida: não regravar o texto
   const latestContentRef = useRef(localContent);
-  useEffect(() => { latestContentRef.current = localContent; }, [localContent]);
+  useEffect(() => {
+    latestContentRef.current = localContent;
+  }, [localContent]);
   useEffect(() => {
     const id = note.id;
     return () => {
@@ -152,101 +163,69 @@ function StickyNoteCard({ note, onUpdate, onDelete, onConvertToTask }: { note: S
     };
   }, [note.id]);
 
-  // Se a nota salva tiver a classe antiga (sem dark:), migramos dinamicamente
-  const matchedColor = NOTE_COLORS.find(c => {
-    const rawPrefix = c.name.toLowerCase().slice(0, 3);
-    return note.color.includes(c.class.split(' ')[0]) || 
-           (c.name === 'Amarelo' && note.color.includes('amber')) ||
-           (c.name === 'Azul' && note.color.includes('sky')) ||
-           (c.name === 'Verde' && note.color.includes('emerald')) ||
-           (c.name === 'Rosa' && note.color.includes('rose')) ||
-           (c.name === 'Violeta' && note.color.includes('violet'));
-  }) || NOTE_COLORS[0];
+  // Nota salva com a classe antiga (sem dark:) é reconhecida pela cor.
+  const color = matchNoteColor(note.color);
+  const pinLabel = note.isPinned ? 'Desafixar nota' : 'Fixar nota no topo';
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9, y: 16 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.2 } }}
-      className={cn(
-        "group relative flex flex-col p-5 rounded-3xl border backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 shadow-xs", 
-        matchedColor.class, 
-        note.isPinned 
-          ? "ring-2 ring-primary/40 scale-[1.02] z-10 shadow-md border-primary/40" 
-          : "hover:border-border/80"
-      )}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={cn("w-2 h-2 rounded-full shadow-xs animate-pulse", matchedColor.dot)} />
-          {note.isPinned && <span className="text-[9px] font-black uppercase tracking-widest text-primary">Destaque</span>}
-        </div>
-        <div className={cn("flex items-center gap-1 transition-all duration-200", note.isPinned ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100")}>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => onUpdate(note.id, { isPinned: !note.isPinned })} 
-            aria-label={note.isPinned ? "Desafixar nota" : "Fixar nota no topo"}
-            className={cn(
-              "h-7 w-7 rounded-lg shadow-xs backdrop-blur-md transition-all", 
-              note.isPinned ? "text-primary bg-background/90" : "text-muted-foreground bg-background/70 hover:bg-background"
-            )}
-            title={note.isPinned ? "Desafixar" : "Fixar no topo"}
-          >
-            <Pin className={cn("h-3.5 w-3.5", note.isPinned && "fill-current")} />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => { discardedRef.current = true; onConvertToTask(note); }} 
-            aria-label="Promover nota para o Kanban"
-            className="h-7 w-7 bg-background/70 hover:bg-background backdrop-blur-md text-muted-foreground hover:text-primary rounded-lg shadow-xs transition-all"
-            title="Promover para Kanban"
-          >
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => { discardedRef.current = true; onDelete(note.id); }} 
-            aria-label="Excluir nota"
-            className="h-7 w-7 bg-background/70 hover:bg-background backdrop-blur-md text-muted-foreground hover:text-destructive rounded-lg shadow-xs transition-all"
-            title="Excluir nota"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+    <article className={cn('group relative flex flex-col rounded-2xl border p-4 shadow-xs transition-shadow duration-fast hover:shadow-md', color.class, note.isPinned && 'ring-2 ring-primary/40')}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs font-bold uppercase tracking-wide opacity-80">{note.isPinned ? 'Fixada' : ' '}</span>
+        <div className="flex items-center gap-1">
+          <IconButton size="sm" icon={Pin} label={pinLabel} pressed={!!note.isPinned} onClick={() => onUpdate(note.id, { isPinned: !note.isPinned })} className="bg-background/60" />
+          <IconButton
+            size="sm"
+            icon={ArrowRight}
+            label="Promover nota para o Kanban"
+            onClick={() => {
+              discardedRef.current = true;
+              onConvertToTask(note);
+            }}
+            className="bg-background/60"
+          />
+          <IconButton
+            size="sm"
+            icon={Trash2}
+            label="Excluir nota"
+            onClick={() => {
+              discardedRef.current = true;
+              onDelete(note.id);
+            }}
+            className="bg-background/60"
+          />
         </div>
       </div>
 
-      <textarea 
-        value={localContent} 
-        onChange={(e) => setLocalContent(e.target.value)} 
+      <textarea
+        value={localContent}
+        onChange={(e) => setLocalContent(e.target.value)}
         aria-label="Texto da nota"
         maxLength={20000}
-        placeholder="Rascunhe seus insights..." 
-        className={cn(
-          "flex-1 w-full bg-transparent border-none focus:ring-0 outline-none resize-none text-xs font-semibold leading-relaxed min-h-[140px] placeholder:text-muted-foreground/50 text-inherit"
-        )}
+        placeholder="Rascunhe seus insights..."
+        className="min-h-[140px] w-full flex-1 resize-none border-none bg-transparent text-sm leading-relaxed text-inherit outline-none placeholder:text-current placeholder:opacity-50 focus-visible:ring-0"
       />
-      
-      <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between opacity-60 text-[9px] font-bold uppercase tracking-wider">
-        <div className="flex items-center gap-1.5">
-           <Clock className="h-3 w-3" />
-           <span suppressHydrationWarning>{new Date(note.updatedAt).toLocaleDateString('pt-BR')}</span>
-        </div>
-        <div className="flex gap-1.5">
-          {NOTE_COLORS.map(c => (
-            <button 
+
+      <div className="mt-3 flex items-center justify-between border-t border-current/15 pt-2.5 text-xs">
+        <span className="inline-flex items-center gap-1.5 opacity-80" suppressHydrationWarning>
+          <Clock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+          {new Date(note.updatedAt).toLocaleDateString('pt-BR')}
+        </span>
+        <div className="flex items-center" role="group" aria-label="Cor da nota">
+          {NOTE_COLORS.map((c) => (
+            <button
               key={c.name}
+              type="button"
               title={c.name}
               aria-label={`Cor ${c.name}`}
+              aria-pressed={color.name === c.name}
               onClick={() => onUpdate(note.id, { color: c.class })}
-              className={cn("w-2.5 h-2.5 rounded-full border border-black/10 dark:border-white/20 transition-all hover:scale-150", c.dot)}
-            />
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:h-8 max-sm:w-8"
+            >
+              <span className={cn('h-3 w-3 rounded-full border border-black/15 transition-transform hover:scale-125 dark:border-white/25', c.dot, color.name === c.name && 'ring-2 ring-current ring-offset-1 ring-offset-transparent')} />
+            </button>
           ))}
         </div>
       </div>
-    </motion.div>
+    </article>
   );
 }

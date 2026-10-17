@@ -8,6 +8,7 @@ export interface PromptCardProps {
   prompt: PromptItem;
   isOwner: boolean;
   isReadOnly?: boolean;
+  hideFavorite?: boolean;
   featured?: boolean;
   onFork: (prompt: PromptItem) => void;
   onEdit?: (prompt: PromptItem) => void;

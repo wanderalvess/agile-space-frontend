@@ -1,288 +1,254 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  DndContext, 
-  DragOverlay, 
-  closestCorners, 
-  KeyboardSensor, 
-  PointerSensor, 
-  useSensor, 
+import React, { useMemo, useState } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  defaultDropAnimationSideEffects,
+  pointerWithin,
+  rectIntersection,
+  useDraggable,
+  useDroppable,
+  useSensor,
   useSensors,
-  DragStartEvent,
-  DragOverEvent,
-  DragEndEvent,
-  defaultDropAnimationSideEffects
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragStartEvent,
+  type KeyboardCoordinateGetter,
+  type UniqueIdentifier,
 } from '@dnd-kit/core';
-import { 
-  arrayMove, 
-  SortableContext, 
-  sortableKeyboardCoordinates, 
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { 
-  Plus, 
-  ExternalLink, 
-  Clock, 
-  AlertCircle,
-  MoreVertical,
-  Target as TodoIcon,
-  Zap as DoingIcon,
-  CheckCircle2 as DoneIcon
-} from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertCircle, CalendarClock, Clock, ExternalLink, Plus } from 'lucide-react';
+import { ModalButton, IconButton } from '@/components/room-kit';
+import { ErrorState } from '@/components/page';
+import { PAGE_CARD } from '@/components/page/styles';
 import { cn } from '@/lib/utils';
-import { KanbanCardData, KanbanStatus, KanbanPriority } from './types';
-import { motion, AnimatePresence } from 'framer-motion';
-import { WorkspaceSectionHeader } from './WorkspaceSectionHeader';
+import type { KanbanCardData, KanbanPriority, KanbanStatus } from './types';
+import {
+  KANBAN_FILTERS,
+  KANBAN_FILTER_LABELS,
+  KANBAN_PRIORITY_LABELS,
+  KANBAN_STATUS_LABELS,
+  describeDue,
+  filterKanbanCards,
+  type DueTone,
+  type KanbanFilter,
+} from './kanban-utils';
+import { SubTabs, WorkspaceSectionHeader } from './workspace-ui';
+
+const STATUSES: KanbanStatus[] = ['todo', 'doing', 'done'];
+
+const STATUS_DOT: Record<KanbanStatus, string> = {
+  todo: 'bg-muted-foreground/60',
+  doing: 'bg-primary',
+  done: 'bg-emerald-600 dark:bg-emerald-400',
+};
+
+const PRIORITY_BAR: Record<KanbanPriority, string> = {
+  baixa: 'bg-muted-foreground/50',
+  media: 'bg-sky-500',
+  alta: 'bg-amber-500',
+  critica: 'bg-red-500',
+};
+
+const DUE_CHIP: Record<DueTone, string> = {
+  overdue: 'bg-red-500/10 text-red-700 dark:text-red-300',
+  soon: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+  normal: 'bg-muted text-muted-foreground',
+};
+
+/** Alvo do arrasto: a coluna sob o ponteiro; com o teclado (sem ponteiro) vale a que mais cobre o cartão. */
+const collisionDetection: CollisionDetection = (args) => {
+  const byPointer = pointerWithin(args);
+  return byPointer.length > 0 ? byPointer : rectIntersection(args);
+};
+
+/** Teclado: Espaço pega o cartão, ← e → trocam de coluna, Espaço solta, Esc cancela. */
+const columnKeyboardCoordinates: KeyboardCoordinateGetter = (event, { context: { active, droppableRects, droppableContainers, collisionRect } }) => {
+  if (!active || !collisionRect) return undefined;
+  if (event.code !== 'ArrowLeft' && event.code !== 'ArrowRight') return undefined;
+  event.preventDefault();
+  const columns = droppableContainers
+    .getEnabled()
+    .map((c) => ({ rect: droppableRects.get(c.id) }))
+    .filter((c): c is { rect: NonNullable<typeof c.rect> } => !!c.rect)
+    .sort((a, b) => a.rect.left - b.rect.left);
+  if (columns.length === 0) return undefined;
+  const center = collisionRect.left + collisionRect.width / 2;
+  const current = Math.max(0, columns.findIndex((c) => center >= c.rect.left && center <= c.rect.right));
+  const next = columns[Math.max(0, Math.min(columns.length - 1, current + (event.code === 'ArrowRight' ? 1 : -1)))];
+  return { x: next.rect.left + (next.rect.width - collisionRect.width) / 2, y: collisionRect.top };
+};
 
 interface KanbanBoardProps {
   cards: KanbanCardData[];
   isLoading: boolean;
+  loadError?: boolean;
+  onRetry?: () => void;
   onUpdateStatus: (id: string, newStatus: KanbanStatus) => void;
   onEditCard: (card: KanbanCardData) => void;
   onAddTask: (status: KanbanStatus) => void;
 }
 
-export function KanbanBoard({ cards, isLoading, onUpdateStatus, onEditCard, onAddTask }: KanbanBoardProps) {
+export function KanbanBoard({ cards, isLoading, loadError, onRetry, onUpdateStatus, onEditCard, onAddTask }: KanbanBoardProps) {
+  const [filter, setFilter] = useState<KanbanFilter>('todas');
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+      coordinateGetter: columnKeyboardCoordinates,
+      // Enter abre a tarefa; só Espaço pega o cartão.
+      keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space'] },
+    }),
   );
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
+  const filtered = useMemo(() => filterKanbanCards(cards, filter), [cards, filter]);
+
+  const statusOf = (id: UniqueIdentifier | undefined | null): KanbanStatus | null => {
+    const key = id === undefined || id === null ? '' : String(id);
+    return (STATUSES as string[]).includes(key) ? (key as KanbanStatus) : null;
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  const handleDragStart = (event: DragStartEvent) => setActiveId(String(event.active.id));
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    const activeCard = cards.find(c => c.id === activeId);
-    if (!activeCard) return;
-
-    // Check if over a column or another card
-    const isOverAColumn = ['todo', 'doing', 'done'].includes(overId);
-    const overCard = cards.find(c => c.id === overId);
-
-    if (isOverAColumn) {
-      if (activeCard.status !== overId) {
-        onUpdateStatus(activeId, overId as KanbanStatus);
-      }
-    } else if (overCard) {
-      if (activeCard.status !== overCard.status) {
-        onUpdateStatus(activeId, overCard.status);
-      }
-    }
-  };
-
+  // O servidor é avisado uma vez, ao soltar numa coluna diferente da de origem.
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
+    const card = cards.find((c) => c.id === String(event.active.id));
+    const target = statusOf(event.over?.id);
+    if (card && target && target !== card.status) onUpdateStatus(card.id, target);
   };
 
-  const activeCard = activeId ? cards.find(c => c.id === activeId) : null;
+  const activeCard = activeId ? cards.find((c) => c.id === activeId) ?? null : null;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden gap-4 w-full">
+    <div className="flex w-full flex-col gap-4">
       <WorkspaceSectionHeader
-        kicker="Kanban"
-        accent="orange"
-        title="Quadro"
-        titleAccent="Kanban"
-        subtitle="Fluxo de trabalho da squad"
-        className="shrink-0"
+        title="Quadro Kanban"
+        subtitle="Seu fluxo de trabalho pessoal"
+        action={
+          <ModalButton variant="primary" onClick={() => onAddTask('todo')}>
+            <Plus className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Nova tarefa
+          </ModalButton>
+        }
       />
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex-1 min-h-0 overflow-x-auto no-scrollbar pb-6 px-1">
-          <div className="flex flex-row gap-6 h-full min-w-max md:min-w-0 md:grid md:grid-cols-3">
-            <KanbanColumn 
-              id="todo"
-              title="A Fazer" 
-              color="bg-rose-500" 
-              icon={<TodoIcon className="h-4 w-4 text-rose-500" />}
-              cards={cards.filter(c => c.status === 'todo')} 
-              onAddTask={() => onAddTask('todo')}
-              onEditCard={onEditCard}
-              isLoading={isLoading}
-              className="w-[85vw] md:w-auto"
-            />
-            <KanbanColumn 
-              id="doing"
-              title="Em Andamento" 
-              color="bg-amber-500" 
-              icon={<DoingIcon className="h-4 w-4 text-amber-500" />}
-              cards={cards.filter(c => c.status === 'doing')} 
-              onAddTask={() => onAddTask('doing')}
-              onEditCard={onEditCard}
-              isLoading={isLoading}
-              className="w-[85vw] md:w-auto"
-            />
-            <KanbanColumn 
-              id="done"
-              title="Concluído" 
-              color="bg-emerald-500" 
-              icon={<DoneIcon className="h-4 w-4 text-emerald-500" />}
-              cards={cards.filter(c => c.status === 'done')} 
-              onAddTask={() => onAddTask('done')}
-              onEditCard={onEditCard}
-              isLoading={isLoading}
-              className="w-[85vw] md:w-auto"
-            />
-          </div>
-        </div>
 
-        <DragOverlay dropAnimation={{
-          sideEffects: defaultDropAnimationSideEffects({
-            styles: {
-              active: {
-                opacity: '0.5',
-              },
-            },
-          }),
-        }}>
-          {activeCard ? (
-            <KanbanCard card={activeCard} isOverlay />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {loadError ? (
+        <ErrorState title="Não foi possível carregar as tarefas" description="Verifique a conexão e tente de novo." onRetry={onRetry} />
+      ) : (
+        <>
+          <SubTabs
+            role="group"
+            label="Filtro"
+            value={filter}
+            onChange={setFilter}
+            items={KANBAN_FILTERS.map((id) => ({ id, label: KANBAN_FILTER_LABELS[id] }))}
+          />
+          <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveId(null)}>
+            <div className="-mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-4 md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0">
+              {STATUSES.map((status) => (
+                <KanbanColumn
+                  key={status}
+                  status={status}
+                  cards={filtered.filter((c) => c.status === status)}
+                  filtered={filter !== 'todas'}
+                  isLoading={isLoading}
+                  dragging={!!activeCard}
+                  onAddTask={() => onAddTask(status)}
+                  onEditCard={onEditCard}
+                />
+              ))}
+            </div>
+            <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.5' } } }) }}>
+              {activeCard ? <KanbanCard card={activeCard} isOverlay /> : null}
+            </DragOverlay>
+          </DndContext>
+        </>
+      )}
     </div>
   );
 }
 
-interface ColumnProps {
-  id: string;
-  title: string;
-  color: string;
-  icon: React.ReactNode;
+function KanbanColumn({
+  status,
+  cards,
+  filtered,
+  isLoading,
+  dragging,
+  onAddTask,
+  onEditCard,
+}: {
+  status: KanbanStatus;
   cards: KanbanCardData[];
+  filtered: boolean;
+  isLoading: boolean;
+  dragging: boolean;
   onAddTask: () => void;
   onEditCard: (card: KanbanCardData) => void;
-  isLoading: boolean;
-  className?: string;
-}
-
-function KanbanColumn({ id, title, color, icon, cards, onAddTask, onEditCard, isLoading, className }: ColumnProps) {
+}) {
+  const title = KANBAN_STATUS_LABELS[status];
+  // A coluna inteira recebe o cartão, inclusive quando está vazia.
+  const { setNodeRef, isOver } = useDroppable({ id: status });
   return (
-    <div 
+    <section
+      ref={setNodeRef}
+      aria-label={title}
       className={cn(
-        "flex flex-col bg-card/75 backdrop-blur-xl rounded-3xl p-5 min-h-[500px] border border-border/80 shadow-xs group/col transition-all duration-300",
-        className
+        PAGE_CARD,
+        'flex min-h-[420px] w-[85vw] shrink-0 snap-center flex-col rounded-[20px] p-4 transition-colors duration-fast md:w-auto',
+        dragging && 'border-dashed',
+        isOver && 'border-primary/70 bg-primary/5',
       )}
     >
-      <div className="flex items-center justify-between px-1 shrink-0 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-muted/60 shadow-xs border border-border/60">
-            {icon}
-          </div>
-          <div className="flex flex-col">
-            <h3 className="text-xs font-black font-headline uppercase tracking-tight italic text-foreground leading-none">{title}</h3>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">{cards.length} Itens</span>
-          </div>
+      <header className="mb-3 flex shrink-0 items-center gap-3">
+        <span aria-hidden="true" className={cn('h-2.5 w-2.5 shrink-0 rounded-full', STATUS_DOT[status])} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h3 className="text-sm font-bold leading-tight text-foreground">{title}</h3>
+          <span className="text-xs text-muted-foreground">
+            {isLoading ? '…' : cards.length} {cards.length === 1 ? 'item' : 'itens'}
+          </span>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl transition-all active:scale-95" 
-          onClick={onAddTask}
-          title={`Adicionar tarefa em ${title}`}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
+        <IconButton label={`Adicionar tarefa em ${title}`} icon={Plus} onClick={onAddTask} />
+      </header>
 
-      <SortableContext id={id} items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-        <ScrollArea className="flex-1 -mr-2 pr-2">
-          <div className="flex flex-col gap-3 pb-4 px-0.5">
-            <AnimatePresence initial={false}>
-              {isLoading ? (
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="h-20 bg-muted/40 animate-pulse rounded-2xl border border-border/70" />
-                ))
-              ) : (
-                cards.map((card) => (
-                  <SortableCard 
-                    key={card.id} 
-                    card={card} 
-                    onClick={() => onEditCard(card)} 
-                  />
-                ))
-              )}
-            </AnimatePresence>
-            
-            {cards.length === 0 && !isLoading && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center py-12 text-center space-y-2 rounded-2xl border border-dashed border-border/60 bg-muted/10 text-muted-foreground"
-              >
-                <div className="w-10 h-10 rounded-2xl bg-muted/40 flex items-center justify-center">
-                   <Clock className="h-5 w-5 opacity-50" />
-                </div>
-                <p className="text-xs font-bold uppercase tracking-wider">Sem tarefas aqui</p>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={onAddTask}
-                  className="text-xs font-bold text-primary hover:bg-primary/10 h-7 px-2.5 rounded-lg mt-1"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Criar Tarefa
-                </Button>
-              </motion.div>
+      <div className="flex flex-1 flex-col gap-2.5" aria-busy={isLoading || undefined}>
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-20 rounded-2xl border border-border bg-muted/40 motion-safe:animate-pulse" />)
+        ) : (
+          cards.map((card) => <DraggableCard key={card.id} card={card} onClick={() => onEditCard(card)} />)
+        )}
+
+        {!isLoading && cards.length === 0 && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border px-3 py-10 text-center text-muted-foreground">
+            <Clock className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+            <p className="text-[13px] font-semibold">{filtered ? 'Nenhuma tarefa neste filtro' : 'Sem tarefas aqui'}</p>
+            {!filtered && (
+              <ModalButton variant="ghost" className="h-9 px-3 text-[13px] text-primary [.theme-totvs:not(.dark)_&]:text-foreground" onClick={onAddTask}>
+                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Criar tarefa
+              </ModalButton>
             )}
           </div>
-        </ScrollArea>
-      </SortableContext>
-    </div>
+        )}
+      </div>
+    </section>
   );
 }
 
-function SortableCard({ card, onClick }: { card: KanbanCardData; onClick: () => void }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: card.id });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-  };
-
+function DraggableCard({ card, onClick }: { card: KanbanCardData; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      {...attributes} 
+    <div
+      ref={setNodeRef}
+      {...attributes}
       {...listeners}
-      className={cn(
-        "relative transition-opacity",
-        isDragging ? "opacity-30" : "opacity-100"
-      )}
+      onKeyDown={(e) => {
+        (listeners as { onKeyDown?: (ev: React.KeyboardEvent) => void } | undefined)?.onKeyDown?.(e);
+        if (e.key === 'Enter' && !isDragging) onClick();
+      }}
+      aria-label={`Tarefa: ${card.title}. Enter abre, Espaço move`}
+      className={cn('relative rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', isDragging ? 'opacity-30' : 'opacity-100')}
     >
       <KanbanCard card={card} onClick={onClick} />
     </div>
@@ -290,76 +256,46 @@ function SortableCard({ card, onClick }: { card: KanbanCardData; onClick: () => 
 }
 
 function KanbanCard({ card, onClick, isOverlay }: { card: KanbanCardData; onClick?: () => void; isOverlay?: boolean }) {
-  const priorityConfig: Record<KanbanPriority, { dot: string; label: string; text: string; gradient: string }> = {
-    baixa: { dot: 'bg-muted-foreground/60', label: 'Baixa', text: 'text-muted-foreground', gradient: 'from-muted-foreground/40 to-muted-foreground/20' },
-    media: { dot: 'bg-sky-500', label: 'Média', text: 'text-sky-500', gradient: 'from-sky-400 to-blue-500' },
-    alta: { dot: 'bg-amber-500', label: 'Alta', text: 'text-amber-500', gradient: 'from-amber-400 to-orange-500' },
-    critica: { dot: 'bg-rose-500', label: 'Crítica', text: 'text-rose-500', gradient: 'from-rose-500 to-red-600' }
-  };
-  
-  const p = priorityConfig[card.priority] || priorityConfig.media;
-
+  const priority: KanbanPriority = card.priority in KANBAN_PRIORITY_LABELS ? card.priority : 'media';
+  const due = describeDue(card.dueDate, { done: card.status === 'done' });
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+    <div
       onClick={onClick}
       className={cn(
-        "cursor-grab active:cursor-grabbing transform transition-all duration-200 hover:-translate-y-0.5 group",
-        isOverlay && "scale-105 rotate-2 cursor-grabbing shadow-xl z-50 pointer-events-none"
+        'group relative cursor-grab overflow-hidden rounded-2xl border border-border bg-card text-card-foreground transition-[border-color,box-shadow] duration-fast active:cursor-grabbing',
+        'hover:border-primary/40 hover:shadow-md',
+        isOverlay && 'pointer-events-none rotate-1 cursor-grabbing border-primary shadow-xl',
       )}
     >
-      <Card className={cn(
-        "relative border border-border/80 shadow-xs rounded-2xl bg-card text-card-foreground overflow-hidden transition-all duration-300 group-hover:border-primary/40 group-hover:shadow-md",
-        isOverlay && "border-primary shadow-xl"
-      )}>
-        {/* Accent Bar */}
-        <div className={cn("absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b opacity-90", p.gradient)} />
-        
-        {/* Glowing Background on Critical */}
-        {card.priority === 'critica' && (
-          <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 blur-2xl rounded-full translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        )}
-
-        <CardContent className="p-4 space-y-2.5">
-          <div className="flex items-start justify-between gap-3">
-            <h4 className="text-xs font-bold leading-snug text-foreground flex-1 tracking-tight group-hover:text-primary transition-colors">
-              {card.title}
-            </h4>
-            <div className={cn("w-2 h-2 rounded-full shrink-0 mt-0.5 shadow-xs transition-all group-hover:scale-125", p.dot)} title={`Prioridade: ${p.label}`} />
-          </div>
-          
-          {card.description && (
-            <p className="text-xs text-muted-foreground font-medium leading-relaxed line-clamp-2">
-              {card.description}
-            </p>
+      <span aria-hidden="true" className={cn('absolute inset-y-0 left-0 w-1', PRIORITY_BAR[priority])} />
+      <div className="flex flex-col gap-2 py-3.5 pl-4 pr-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <h4 className="flex-1 text-sm font-semibold leading-snug text-foreground">{card.title}</h4>
+          <span className={cn('mt-1 h-2 w-2 shrink-0 rounded-full', PRIORITY_BAR[priority])} title={`Prioridade: ${KANBAN_PRIORITY_LABELS[priority]}`} />
+          <span className="sr-only">Prioridade {KANBAN_PRIORITY_LABELS[priority]}</span>
+        </div>
+        {card.description && <p className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">{card.description}</p>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {card.tag && <span className="inline-flex h-[22px] items-center rounded-md border border-border bg-muted/60 px-2 text-xs font-semibold text-muted-foreground">{card.tag}</span>}
+          {priority === 'critica' && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-red-700 dark:text-red-300">
+              <AlertCircle className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" /> Urgente
+            </span>
           )}
-          
-          <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-2">
-               <div className="px-2 py-0.5 rounded-md bg-muted/60 border border-border/60 flex items-center gap-1.5">
-                  <div className={cn("w-1 h-1 rounded-full", p.dot)} />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{card.tag}</span>
-               </div>
-               
-               {card.priority === 'critica' && (
-                 <div className="flex items-center gap-1 text-[9px] font-bold text-rose-500 uppercase tracking-wider animate-pulse">
-                    <AlertCircle className="h-3 w-3" />
-                    <span>Urgente</span>
-                 </div>
-               )}
-            </div>
-            
-            {card.originLink && (
-              <div className="h-6 w-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center transition-all group-hover:bg-primary group-hover:text-primary-foreground">
-                <ExternalLink className="h-3 w-3" />
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+          {due && (
+            <span className={cn('inline-flex h-[22px] items-center gap-1 rounded-md px-2 text-xs font-semibold', DUE_CHIP[due.tone])}>
+              <CalendarClock className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" /> {due.label}
+            </span>
+          )}
+          <span className="flex-1" />
+          {card.originLink && (
+            <span title="Vem de uma cerimônia" className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
+              <ExternalLink className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+              <span className="sr-only">Vem de uma cerimônia</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

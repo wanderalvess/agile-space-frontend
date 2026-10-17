@@ -25,12 +25,11 @@ export const API_KEY_HEADER = 'X-Api-Key';
 export const API_KEY_ADMIN_PATH = '/admin';
 
 /**
- * Onde qualquer usuário autenticado gera/revoga as próprias chaves — aba
- * Conectividade de /workspace (mesma ressalva de deep link do path acima:
- * a aba é estado de React, não lê fragmento da URL). Único caminho pra quem
- * não é ADMIN/LEAD; sem passar por /admin em nenhum momento.
+ * Onde qualquer usuário autenticado gera/revoga as próprias chaves — Meu espaço,
+ * aba Conta, subaba Conectividade (a aba vem do parâmetro ?aba=&sub= da URL).
+ * Único caminho pra quem não é ADMIN/LEAD; sem passar por /admin em nenhum momento.
  */
-export const API_KEY_SELF_SERVICE_PATH = '/workspace';
+export const API_KEY_SELF_SERVICE_PATH = '/workspace?aba=conta&sub=conectividade';
 
 /** Placeholder usado nos exemplos — troque pelo host real do seu ambiente. */
 export const EXAMPLE_HOST = 'https://espacoagil.app';
