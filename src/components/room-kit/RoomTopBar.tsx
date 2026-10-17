@@ -214,7 +214,9 @@ function PresenceStack({ people, open, onClick }: { people: readonly TopBarPerso
   const wide = useMediaQuery('(min-width: 1536px)');
   const phone = !useMediaQuery('(min-width: 640px)');
   const stack = presenceStack(people, presenceMaxAvatars(wide, phone));
-  const label = presenceLabel(stack);
+  // Sala sem presença (o servidor não informa quem está online): só o total, sem "N online".
+  const presenceKnown = people.some((p) => p.online !== undefined);
+  const label = presenceKnown ? presenceLabel(stack) : `Participantes (${stack.total})`;
   return (
     <button
       type="button"

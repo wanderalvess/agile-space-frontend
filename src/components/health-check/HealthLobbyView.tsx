@@ -283,7 +283,7 @@ function EvolutionCard({ rows }: { rows: HealthRow[] }) {
         </p>
       ) : (
         <>
-          <div className="h-[200px] w-full [--health-accent:hsl(var(--primary))] [.theme-totvs:not(.dark)_&]:[--health-accent:hsl(var(--foreground))]" role="img" aria-label={`Nota de clima dos ${points.length} últimos radares: ${points.map((p) => formatScore(p.score)).join(', ')}`}>
+          <div className="w-full [--health-accent:hsl(var(--primary))] [.theme-totvs:not(.dark)_&]:[--health-accent:hsl(var(--foreground))]" style={{ height: 200 }} role="img" aria-label={`Nota de clima dos ${points.length} últimos radares: ${points.map((p) => formatScore(p.score)).join(', ')}`}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: -12 }}>
                 <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeDasharray="3 3" />
@@ -345,7 +345,7 @@ function SurveysCard({ rows, onOpen, currentUserId, onAskDelete }: { rows: Healt
         <p className="m-0 rounded-xl border border-dashed border-border px-5 py-9 text-center text-sm text-muted-foreground">Nenhuma pesquisa com esse filtro.</p>
       ) : (
         <div role="table" aria-label="Pesquisas da squad">
-          <div role="row" className="hidden grid-cols-[minmax(0,2fr)_9.5rem_5.5rem_4rem_6.5rem_8rem_2.25rem] gap-3 border-b border-border px-3 pb-2 text-xs font-bold text-muted-foreground xl:grid">
+          <div role="row" className="hidden grid-cols-[minmax(0,2fr)_8.5rem_4.5rem_3rem_5.5rem_7rem_2.25rem] gap-3 border-b border-border px-3 pb-2 text-xs font-bold text-muted-foreground xl:grid">
             <span role="columnheader">Pesquisa</span>
             <span role="columnheader">Status</span>
             <span role="columnheader">Respostas</span>
@@ -363,7 +363,7 @@ function SurveysCard({ rows, onOpen, currentUserId, onAskDelete }: { rows: Healt
                   <Link
                     href={`/health-check/${encodeURIComponent(r.id)}`}
                     onClick={(e) => { e.preventDefault(); onOpen(r.id); }}
-                    className={cn('grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-3 transition-colors hover:bg-accent/40 xl:grid-cols-[minmax(0,2fr)_9.5rem_5.5rem_4rem_6.5rem_8rem]', FOCUS_RING)}
+                    className={cn('grid min-w-0 flex-1 grid-cols-2 items-center gap-x-3 gap-y-1.5 rounded-lg px-3 py-3 transition-colors hover:bg-accent/40 xl:grid-cols-[minmax(0,2fr)_8.5rem_4.5rem_3rem_5.5rem_7rem]', FOCUS_RING)}
                   >
                     <span role="cell" className="col-span-2 flex min-w-0 flex-col xl:col-span-1">
                       <span className="truncate text-sm font-bold" title={r.title}>{r.title}</span>

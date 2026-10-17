@@ -17,7 +17,8 @@ export function normalizeRoomTitle(next: string, current: string): string | null
 export interface TopBarPerson {
   id: string;
   name: string;
-  online: boolean;
+  /** Online agora. Sem o campo (`undefined`) a sala não sabe: não há ponto de presença nem texto de "online". */
+  online?: boolean;
 }
 
 export interface PresenceStackResult {

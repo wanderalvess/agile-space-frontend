@@ -15,6 +15,7 @@ import {
   summarizeResults,
   worstVotesText,
   type AttentionLevel,
+  type HealthTone,
   type ResultRow,
 } from './health-check-rules';
 
@@ -22,7 +23,7 @@ export interface ReportDimension {
   key: string;
   title: string;
   /** Rótulo e contagem de cada valor da escala, da melhor para a pior resposta. */
-  counts: { value: string; label: string; count: number }[];
+  counts: { value: string; label: string; count: number; tone: HealthTone }[];
   total: number;
   average: number | null;
   score: number | null;
@@ -72,7 +73,7 @@ export function buildReport({ board, dimensions, votes, squadName, now = new Dat
   const rows: ReportDimension[] = summary.stats.map((s) => ({
     key: s.key,
     title: s.title,
-    counts: s.counts.map((c) => ({ value: c.option.value, label: columnLabel(scale, c.option.label), count: c.count })),
+    counts: s.counts.map((c) => ({ value: c.option.value, label: columnLabel(scale, c.option.label), count: c.count, tone: c.option.tone })),
     total: s.total,
     average: s.average,
     score: s.score,
@@ -174,4 +175,10 @@ export function exportFileName(title: string, ext: string, isoDate: string): str
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
   return `radar-${slug || 'clima'}-${isoDate}.${ext}`;
+}
+
+/** Convite em texto (compartilhar): o que é, quantas perguntas e o link. Editável na janela. */
+export function buildInviteText({ title, squad, dimensionCount, url }: { title: string; squad: string; dimensionCount: number; url: string }): string {
+  const questions = `${dimensionCount} ${dimensionCount === 1 ? 'pergunta' : 'perguntas'}`;
+  return `Radar de clima: ${title}${squad ? ` da squad ${squad}` : ''}. Responda quando puder: são ${questions} e as respostas são anônimas. Link: ${url}`;
 }

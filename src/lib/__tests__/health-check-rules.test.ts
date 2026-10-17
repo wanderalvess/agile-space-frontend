@@ -11,6 +11,8 @@ import {
   resultsFromVotes,
   scaleOptions,
   summarizeResults,
+  toneGroups,
+  groupLabels,
   worstVotesText,
 } from '../health-check-rules';
 import type { HealthCheckDimension } from '../types';
@@ -237,5 +239,20 @@ describe('itens do plano de ação', () => {
     const attentionTitles = sum.attention.map((s) => s.title);
     const planAttention = items.filter((i) => i.level !== 'ok').map((i) => i.title);
     expect(planAttention).toEqual(attentionTitles);
+  });
+});
+
+describe('barra de frequência por grupo', () => {
+  it('semáforo e emocional: um valor por grupo, na ordem melhor, meio, pior', () => {
+    const t = dimensionStat({ key: 'k', title: 'T' }, { green: 6, yellow: 3, red: 1 }, 'traffic_light');
+    expect(toneGroups(t, 'traffic_light').map((g) => [g.label, g.count])).toEqual([['Ótimo', 6], ['Atenção', 3], ['Ruim', 1]]);
+    const e = dimensionStat({ key: 'k', title: 'T' }, { happy: 2, neutral: 3, sad: 5 }, 'emojis');
+    expect(toneGroups(e, 'emojis').map((g) => [g.label, g.count])).toEqual([['Bom', 2], ['Médio', 3], ['Ruim', 5]]);
+  });
+
+  it('escala de 1 a 5 junta 4 e 5, 3, e 1 e 2', () => {
+    const n = dimensionStat({ key: 'k', title: 'T' }, { '5': 2, '4': 3, '3': 1, '2': 1, '1': 3 }, 'numbers_5');
+    expect(toneGroups(n, 'numbers_5').map((g) => [g.label, g.count])).toEqual([['4 a 5', 5], ['3', 1], ['1 a 2', 4]]);
+    expect(groupLabels('numbers_5').bad).toBe('1 a 2');
   });
 });

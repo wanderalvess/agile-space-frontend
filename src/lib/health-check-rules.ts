@@ -299,3 +299,36 @@ export function planItems(summary: Pick<HealthSummary, 'stats' | 'attention'>, r
   const optional = summary.stats.filter((s) => !attentionKeys.has(s.key) && s.worstCount > 0);
   return [...summary.attention.map(toItem), ...optional.map((s, i) => ({ ...toItem(s, summary.attention.length + i), suggested: false }))];
 }
+
+// ───────────────────────── Agrupamento para a barra de frequência ─────────────────────────
+
+export interface ToneGroup {
+  tone: HealthTone;
+  /** Legenda do grupo: "Ótimo", "Bom", "4 a 5"... */
+  label: string;
+  count: number;
+}
+
+const GROUP_LABELS: Record<HealthCheckScaleType, Record<HealthTone, string>> = {
+  traffic_light: { good: 'Ótimo', mid: 'Atenção', bad: 'Ruim' },
+  emojis: { good: 'Bom', mid: 'Médio', bad: 'Ruim' },
+  numbers_5: { good: '4 a 5', mid: '3', bad: '1 a 2' },
+};
+
+/** Legenda dos três grupos da escala (melhor, meio, pior). */
+export function groupLabels(scale: HealthCheckScaleType | undefined): Record<HealthTone, string> {
+  return GROUP_LABELS[scale ?? 'traffic_light'];
+}
+
+/**
+ * Votos agrupados em melhor, meio e pior, na ordem da barra empilhada. Semáforo e emocional têm um valor por
+ * grupo; a escala de 1 a 5 junta 4–5, 3 e 1–2.
+ */
+export function toneGroups(stat: Pick<DimensionStat, 'counts'>, scale: HealthCheckScaleType | undefined): ToneGroup[] {
+  const labels = groupLabels(scale);
+  return (['good', 'mid', 'bad'] as const).map((tone) => ({
+    tone,
+    label: labels[tone],
+    count: stat.counts.filter((c) => c.option.tone === tone).reduce((sum, c) => sum + c.count, 0),
+  }));
+}

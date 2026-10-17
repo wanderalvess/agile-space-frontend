@@ -173,3 +173,13 @@ describe('plano de ação', () => {
     expect(readPlanRecord('r1', undefined)).toBeNull();
   });
 });
+
+describe('convite em texto', () => {
+  it('diz o que é, quantas perguntas e o link, sem prometer prazo', async () => {
+    const { buildInviteText } = await import('../health-check-export');
+    expect(buildInviteText({ title: 'Radar Sprint 42', squad: 'Phoenix', dimensionCount: 8, url: 'https://x/health-check/1' })).toBe(
+      'Radar de clima: Radar Sprint 42 da squad Phoenix. Responda quando puder: são 8 perguntas e as respostas são anônimas. Link: https://x/health-check/1'
+    );
+    expect(buildInviteText({ title: 'R', squad: '', dimensionCount: 1, url: 'u' })).toContain('são 1 pergunta e');
+  });
+});
