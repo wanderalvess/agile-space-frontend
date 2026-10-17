@@ -726,9 +726,14 @@ export type ActionPlanBoard = {
   creatorId: string;
   title: string;
   team: string;
+  /** Squad dona do plano (o servidor só liga o plano à squad quando recebe o ID dela). */
+  squadId?: string | null;
   sprintId?: string;
   createdAt: string;
   participantIds?: string[];
+  /** Como o servidor devolve a visibilidade: público (padrão) ou só criador, convidados e administradores. */
+  isPublic?: boolean;
+  /** @deprecated O servidor ignora `settings`; use `isPublic`. */
   settings?: {
     isPublic: boolean;
   };

@@ -64,4 +64,42 @@ describe('actionPlanApi', () => {
 
     expect(error.message).toBe('Falha ao listar tarefas do plano de ação');
   });
+  it('createBoard manda a visibilidade (isPublic) e a squad pelo ID', async () => {
+    authFetch.mockResolvedValue(response(201, { id: 'p1' }));
+
+    await actionPlanApi.createBoard({ title: 'Plano', team: 'PHOENIX', squadId: 'PHOENIX', isPublic: false, participantIds: ['u1'] });
+
+    expect(authFetch.mock.calls[0][1].method).toBe('POST');
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ title: 'Plano', team: 'PHOENIX', squadId: 'PHOENIX', isPublic: false, participantIds: ['u1'] });
+  });
+
+  it('updateBoard manda só o que mudou, em PUT', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'p1' }));
+
+    await actionPlanApi.updateBoard('p1', { isPublic: false });
+
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/action-plans\/p1$/);
+    expect(authFetch.mock.calls[0][1].method).toBe('PUT');
+    expect(JSON.parse(authFetch.mock.calls[0][1].body)).toEqual({ isPublic: false });
+  });
+
+  it('deleteBoard apaga o plano e mostra a mensagem do servidor quando recusa', async () => {
+    authFetch.mockResolvedValueOnce(response(204));
+    await actionPlanApi.deleteBoard('p1');
+    expect(authFetch.mock.calls[0][1].method).toBe('DELETE');
+
+    authFetch.mockResolvedValueOnce(response(403, { message: 'Apenas o criador do plano ou um administrador pode alterá-lo.' }));
+    const error = await actionPlanApi.deleteBoard('p1').catch(e => e);
+    expect(error.status).toBe(403);
+    expect(error.message).toBe('Apenas o criador do plano ou um administrador pode alterá-lo.');
+  });
+
+  it('addParticipant com participantId convida outra pessoa (criador ou administrador)', async () => {
+    authFetch.mockResolvedValue(response(200, { id: 'p1' }));
+
+    await actionPlanApi.addParticipant('p1', 'u-ana');
+
+    expect(String(authFetch.mock.calls[0][0])).toMatch(/\/action-plans\/p1\/participants\?participantId=u-ana$/);
+    expect(authFetch.mock.calls[0][1].method).toBe('POST');
+  });
 });
