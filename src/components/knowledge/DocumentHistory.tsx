@@ -116,7 +116,7 @@ export function DocumentHistory({ documentId, canEdit, onRestored }: DocumentHis
             >
               <span className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">Versão {v.versionNumber}</span>
-                {v.current && <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-xs font-bold text-primary">Atual</span>}
+                {v.current && <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Atual</span>}
               </span>
               <span className="mt-0.5 flex flex-wrap gap-x-1.5 text-xs text-muted-foreground">
                 <span>{v.changedByName || v.changedBy || 'Autor desconhecido'}</span>

@@ -161,21 +161,21 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] rounded-[2rem] p-0 border-none shadow-3xl overflow-hidden bg-white dark:bg-slate-900 flex flex-col">
-        <DialogHeader className="p-5 pb-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 relative overflow-hidden shrink-0">
+      <DialogContent className="max-w-5xl w-[95vw] max-h-[90vh] rounded-2xl p-0 border-none shadow-3xl overflow-hidden bg-card flex flex-col">
+        <DialogHeader className="p-5 pb-4 border-b border-border bg-muted/50 dark:bg-background/20 relative overflow-hidden shrink-0">
           <div className="absolute top-0 right-0 p-6 opacity-5 rotate-12">
-            <CloudDownload className="h-16 w-16 text-cyan-500" />
+            <CloudDownload className="h-16 w-16 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" />
           </div>
           <div className="relative z-10 flex items-center justify-between w-full">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-cyan-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-600/20 shrink-0">
-                <CloudDownload className="h-4.5 w-4.5 text-white" />
+              <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+                <CloudDownload className="h-4.5 w-4.5 text-foreground" />
               </div>
               <div>
-                <DialogTitle className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 leading-none">
+                <DialogTitle className="text-lg font-bold tracking-tight text-foreground leading-none">
                   Buscar na Base de Conhecimento TDN
                 </DialogTitle>
-                <DialogDescription className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-1 leading-relaxed max-w-sm">
+                <DialogDescription className="text-xs text-muted-foreground font-medium mt-1 leading-relaxed max-w-sm">
                   Importe ou atualize manuais e documentações técnicas do Confluence TDN.
                 </DialogDescription>
               </div>
@@ -185,7 +185,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
               variant="outline"
               size="icon"
               onClick={() => setShowConfig(!showConfig)}
-              className={`h-8 w-8 rounded-xl border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400 transition-all ${showConfig ? 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600' : ''}`}
+              className={`h-8 w-8 rounded-xl border-border dark:border-border text-muted-foreground dark:text-muted-foreground hover:text-primary dark:hover:text-primary transition-all ${showConfig ? 'bg-primary/10 dark:bg-primary/15 text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : ''}`}
               title="Configurações do TDN"
             >
               <Settings className="h-4 w-4" />
@@ -204,66 +204,66 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                 className="space-y-4 flex flex-col justify-between h-full"
               >
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                  <div className="flex items-center gap-2 text-primary [.theme-totvs:not(.dark)_&]:text-foreground">
                     <ShieldCheck className="h-4 w-4" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">Credenciais de Acesso</span>
+                    <span className="text-xs font-bold tracking-normal">Credenciais de Acesso</span>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Base URL do TDN</Label>
+                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Base URL do TDN</Label>
                       <Input
                         value={baseUrl}
                         onChange={(e) => setBaseUrl(e.target.value)}
                         placeholder="wiki.suaempresa.com.br"
-                        className="h-10 rounded-xl text-[11px] font-bold bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                        className="h-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Token de Acesso (Bearer)</Label>
+                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Token de Acesso (Bearer)</Label>
                       <Input
                         type="password"
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
                         placeholder="Insira o Token do Confluence..."
-                        className="h-10 rounded-xl text-[11px] font-code bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                        className="h-10 rounded-xl text-xs font-code bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Espaço (Space Key - Opcional)</Label>
+                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Espaço (Space Key - Opcional)</Label>
                       <Input
                         value={space}
                         onChange={(e) => setSpace(e.target.value)}
                         placeholder="Ex: Framework, Protheus..."
-                        className="h-10 rounded-xl text-[11px] font-bold bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                        className="h-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Marcador (Label - Opcional)</Label>
+                      <Label className="text-xs font-bold tracking-normal text-muted-foreground ml-1">Marcador (Label - Opcional)</Label>
                       <Input
                         value={label}
                         onChange={(e) => setLabel(e.target.value)}
                         placeholder="Ex: manual, api..."
-                        className="h-10 rounded-xl text-[11px] font-bold bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                        className="h-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex gap-2 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex gap-2 justify-end pt-4 border-t border-border">
                   <Button
                     variant="outline"
                     onClick={() => setShowConfig(false)}
-                    className="h-10 px-5 rounded-xl font-black uppercase text-[9px] tracking-widest text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900 transition-all border-slate-200 dark:border-slate-800"
+                    className="h-10 px-5 rounded-xl font-bold text-xs tracking-normal text-muted-foreground hover:bg-card transition-all border-border"
                   >
                     Voltar para Busca
                   </Button>
                   <Button
                     onClick={handleSaveConfig}
-                    className="h-10 px-6 bg-cyan-600 hover:bg-cyan-700 text-white font-black uppercase tracking-[0.1em] text-[10px] rounded-xl shadow-xl shadow-cyan-600/10 transition-all active:scale-95"
+                    className="h-10 px-6 bg-primary hover:bg-primary text-foreground font-bold tracking-normal text-xs rounded-xl shadow-xl shadow-primary/10 transition-all active:scale-95"
                   >
                     Salvar Configurações
                   </Button>
@@ -280,19 +280,19 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                 {/* Search Bar */}
                 <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                    <Search className="absolute left-3.5 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                       placeholder="Pesquisar documentações no TDN..."
-                      className="h-10 pl-10 rounded-xl text-[11px] font-bold bg-slate-50 dark:bg-slate-950 border-transparent dark:border-slate-800 focus:bg-white dark:focus:bg-slate-900 focus:border-cyan-200 dark:focus:border-cyan-950 text-slate-700 dark:text-slate-200 transition-all"
+                      className="h-10 pl-10 rounded-xl text-xs font-bold bg-muted/40 dark:bg-background border-transparent dark:border-border focus:bg-card focus:border-primary/30 text-foreground transition-all"
                     />
                   </div>
                   <Button
                     onClick={handleSearch}
                     disabled={loading}
-                    className="h-10 px-6 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-black dark:hover:bg-slate-200 font-black uppercase tracking-[0.1em] text-[10px] rounded-xl transition-all"
+                    className="h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/90 font-bold tracking-normal text-xs rounded-xl transition-all"
                   >
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Buscar"}
                   </Button>
@@ -308,30 +308,30 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                           return (
                             <div
                               key={item.id}
-                              className="p-3 border-2 border-slate-100 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/30 flex items-center justify-between group hover:border-slate-200 dark:hover:border-slate-700 transition-all"
+                              className="p-3 border-2 border-border rounded-2xl bg-card dark:bg-card/30 flex items-center justify-between group hover:border-border transition-all"
                             >
                               <div className="min-w-0 flex-1 pr-4">
                                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                  <span className="text-[8px] font-black text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">
+                                  <span className="text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground tracking-normal">
                                     ID: {item.id}
                                   </span>
                                   {item.space && (
-                                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-muted/60 dark:bg-muted text-muted-foreground tracking-normal">
                                       {item.space}
                                     </span>
                                   )}
                                   {isAlreadyImported && (
-                                    <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/30 uppercase tracking-widest">
+                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-900/30 tracking-normal">
                                       Importado
                                     </span>
                                   )}
                                   {item.lastModified && (
-                                    <span className="text-[8px] font-medium text-slate-400 dark:text-slate-500">
+                                    <span className="text-xs font-medium text-muted-foreground">
                                       Alt: {new Date(item.lastModified).toLocaleDateString('pt-BR')}
                                     </span>
                                   )}
                                 </div>
-                                <h4 className="text-xs font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight line-clamp-1 italic">
+                                <h4 className="text-xs font-bold text-foreground tracking-tight line-clamp-1">
                                   {item.title}
                                 </h4>
                               </div>
@@ -341,7 +341,7 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                                   href={item.link}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="h-8 w-8 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                                  className="h-8 w-8 rounded-lg border border-border text-muted-foreground hover:text-muted-foreground dark:hover:text-foreground flex items-center justify-center hover:bg-muted/40 dark:hover:bg-muted transition-all"
                                   title="Abrir link original"
                                 >
                                   <ExternalLink className="h-3.5 w-3.5" />
@@ -351,11 +351,11 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                                   size="icon"
                                   onClick={() => handleDownloadDirect(item)}
                                   disabled={downloadingId === item.id || importingId === item.id}
-                                  className="h-8 w-8 rounded-lg border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-cyan-600 hover:border-cyan-200 transition-all"
+                                  className="h-8 w-8 rounded-lg border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-all"
                                   title="Baixar Markdown (.md)"
                                 >
                                   {downloadingId === item.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-600" />
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary [.theme-totvs:not(.dark)_&]:text-foreground" />
                                   ) : (
                                     <Download className="h-3.5 w-3.5" />
                                   )}
@@ -363,10 +363,10 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                                 <Button
                                   onClick={() => handleImport(item)}
                                   disabled={importingId === item.id || downloadingId === item.id}
-                                  className={`h-8 px-3.5 rounded-lg text-[9px] font-black uppercase tracking-widest gap-1 shadow-sm transition-all ${
+                                  className={`h-8 px-3.5 rounded-lg text-xs font-bold  tracking-normal gap-1 shadow-sm transition-all ${
                                     isAlreadyImported
-                                      ? "bg-indigo-650 hover:bg-indigo-700 text-white"
-                                      : "bg-cyan-600 hover:bg-cyan-700 text-white"
+                                      ? "bg-primary hover:bg-primary text-foreground"
+                                      : "bg-primary hover:bg-primary text-foreground"
                                   }`}
                                   title={isAlreadyImported ? "Atualizar documento na base" : "Importar para a Base Local"}
                                 >
@@ -389,10 +389,10 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
                       </div>
                     </div>
                   ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-[2rem] p-8 text-center bg-slate-50/20 dark:bg-slate-900/10">
-                      <FileText className="h-10 w-10 text-slate-300 dark:text-slate-600 mb-3" />
-                      <p className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-wider">Aguardando termo de pesquisa</p>
-                      <p className="text-[9px] text-slate-400 dark:text-slate-500 max-w-xs mt-1">Busque páginas por palavra-chave e importe-as diretamente como documentos locais indexados.</p>
+                    <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 text-center bg-muted/20 dark:bg-card/10">
+                      <FileText className="h-10 w-10 text-muted-foreground mb-3" />
+                      <p className="text-xs font-bold text-muted-foreground tracking-normal">Aguardando termo de pesquisa</p>
+                      <p className="text-xs text-muted-foreground max-w-xs mt-1">Busque páginas por palavra-chave e importe-as diretamente como documentos locais indexados.</p>
                     </div>
                   )}
                 </div>
@@ -401,11 +401,11 @@ export function TdnImportDialog({ open, onClose, onImportSuccess, importedIds = 
           </AnimatePresence>
         </div>
 
-        <DialogFooter className="p-4 px-6 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end shrink-0">
+        <DialogFooter className="p-4 px-6 bg-muted/40 dark:bg-background border-t border-border flex items-center justify-end shrink-0">
           <Button
             variant="outline"
             onClick={() => { reset(); onClose(); }}
-            className="h-10 px-5 rounded-xl font-black uppercase text-[9px] tracking-widest text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900 transition-all border-slate-200 dark:border-slate-800"
+            className="h-10 px-5 rounded-xl font-bold text-xs tracking-normal text-muted-foreground hover:bg-card transition-all border-border"
           >
             Fechar
           </Button>

@@ -13,6 +13,16 @@ import { AppFooter } from '@/components/layout/AppFooter';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { ModalButton } from '@/components/room-kit';
 import { useUserContext } from '@/context/UserContext';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+
+const TITULOS: [string, string][] = [
+  ['/knowledge/admin/new-asset', 'Novo artigo'],
+  ['/knowledge/chat', 'Assistente virtual'],
+  ['/knowledge/settings', 'Ajustes da base'],
+  ['/knowledge/trash', 'Lixeira'],
+  ['/knowledge/manual', 'Manual da base'],
+  ['/knowledge', 'Base de conhecimento'],
+];
 
 export default function KnowledgeLayout({
   children,
@@ -25,6 +35,7 @@ export default function KnowledgeLayout({
   const pathname = usePathname();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(false);
+  useDocumentTitle(TITULOS.find(([prefixo]) => pathname.startsWith(prefixo))?.[1]);
 
   const navItems = [
     { label: 'Base de conhecimento', path: '/knowledge/kb', icon: BookOpen },

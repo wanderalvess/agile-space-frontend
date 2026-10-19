@@ -148,7 +148,7 @@ export default function KnowledgeSettingsPage() {
                           href={provider.link}
                           target="_blank"
                           rel="noreferrer"
-                          className={cn("flex items-center gap-1 rounded-sm text-sm font-medium text-primary underline-offset-4 hover:underline", FOCUS)}
+                          className={cn("flex items-center gap-1 rounded-sm text-sm font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground underline-offset-4 hover:underline", FOCUS)}
                         >
                           Obter chave <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                         </a>
