@@ -4,12 +4,12 @@ import { AlertCircle, CheckCircle2, Loader2, Mail, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BRAND_TEXT, FOCUS_RING } from '@/components/room-kit/tokens';
 import { AccessButton, AccessCard, AccessPage, CenteredHeading, StateTile } from '@/components/access/access-ui';
-import { isOtherEmailError, type Invite } from '@/lib/invite-api';
-import { UNAVAILABLE_TEXT, expiresInLabel, otherEmailText, type InviteView, type UnavailableKind } from '@/lib/invite-state';
+import { isOtherEmailError, type Invite, type InvitePreview } from '@/lib/invite-api';
+import { UNAVAILABLE_TEXT, expiresInLabel, invitedByText, otherEmailText, type InviteView, type UnavailableKind } from '@/lib/invite-state';
 
 export interface InviteAcceptViewProps {
   view: InviteView;
-  invite: Invite | null;
+  invite: Invite | InvitePreview | null;
   /** Erro de carga ou de aceite (a mensagem é a do servidor). */
   error: Error | null;
   /** E-mail da conta que está logada. */
@@ -18,6 +18,9 @@ export interface InviteAcceptViewProps {
   onAccept: () => void;
   /** Sai da conta atual e volta ao login com o convite como destino. */
   onSwitchAccount: () => void;
+  /** Sem sessão: abre o login (ou o cadastro) com o convite como destino. */
+  onSignIn?: () => void;
+  onSignUp?: () => void;
   /** "Agora não" e "Ir para o início": vai para a página inicial sem aceitar. */
   onSkip: () => void;
 }
@@ -25,7 +28,7 @@ export interface InviteAcceptViewProps {
 const CHIP = 'inline-flex h-[30px] items-center rounded-full border border-border px-3.5 text-[13px] font-bold text-foreground';
 
 /** Telas da página do convite. Só desenho: quem busca o convite e aceita é a página. */
-export function InviteAcceptView({ view, invite, error, email, accepting, onAccept, onSwitchAccount, onSkip }: InviteAcceptViewProps) {
+export function InviteAcceptView({ view, invite, error, email, accepting, onAccept, onSwitchAccount, onSignIn, onSignUp, onSkip }: InviteAcceptViewProps) {
   if (view === 'sessao') {
     return (
       <AccessPage>
@@ -60,8 +63,11 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
     );
   }
 
-  if (view === 'normal' && invite) {
+  if ((view === 'normal' || view === 'visitante') && invite) {
     const expires = expiresInLabel(invite.expiresAt);
+    const invitedBy = invitedByText('invitedByName' in invite ? invite.invitedByName : null);
+    const guest = view === 'visitante';
+    const emailMasked = guest && 'emailMasked' in invite ? invite.emailMasked : null;
     return (
       <AccessPage>
         <AccessCard>
@@ -72,6 +78,7 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
               text={
                 <>
                   Você foi convidado pra entrar como <strong className="font-bold text-foreground">{invite.roleName}</strong>.
+                  {invitedBy && <> {invitedBy}.</>}
                 </>
               }
             />
@@ -80,7 +87,14 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
             <span className={CHIP}>Squad: {invite.squadName || invite.squadId}</span>
             <span className={CHIP}>Papel: {invite.roleName}</span>
           </div>
-          {email && (
+          {guest && (
+            <p className="text-center text-[13px] text-muted-foreground">
+              {emailMasked
+                ? `Este convite é para ${emailMasked}. Entre ou crie a conta com esse e-mail.`
+                : 'Para aceitar, entre ou crie a sua conta. O convite continua esperando por você.'}
+            </p>
+          )}
+          {!guest && email && (
             <div className="flex items-center gap-2.5 rounded-xl border border-border px-3.5 py-3">
               <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
               <span className="min-w-0 flex-1 text-[13px] text-foreground [overflow-wrap:anywhere]">
@@ -96,13 +110,28 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
             </div>
           )}
           <div className="flex flex-col gap-2.5">
-            <AccessButton variant="primary" onClick={onAccept} disabled={accepting} className="sm:w-full">
-              {accepting ? 'Aceitando...' : 'Aceitar Convite'}
-            </AccessButton>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <AccessButton variant="ghost" onClick={onSkip} disabled={accepting} className="w-auto">
-                Agora não
+            {guest ? (
+              <>
+                <AccessButton variant="primary" onClick={onSignUp} className="sm:w-full">
+                  Criar conta e aceitar
+                </AccessButton>
+                <AccessButton variant="secondary" onClick={onSignIn} className="sm:w-full">
+                  Já tenho conta — entrar
+                </AccessButton>
+              </>
+            ) : (
+              <AccessButton variant="primary" onClick={onAccept} disabled={accepting} className="sm:w-full">
+                {accepting ? 'Aceitando...' : 'Aceitar Convite'}
               </AccessButton>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {guest ? (
+                <span />
+              ) : (
+                <AccessButton variant="ghost" onClick={onSkip} disabled={accepting} className="w-auto">
+                  Agora não
+                </AccessButton>
+              )}
               {expires && <span className="text-xs text-muted-foreground">{expires}</span>}
             </div>
           </div>
