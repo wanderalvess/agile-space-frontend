@@ -24,6 +24,7 @@ import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
+import { removeLocalRoomMeta } from '@/lib/health-check-lobby';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -346,6 +347,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
           case 'ROOM_DELETED':
             // Quem criou a sala a excluiu: não há mais o que mostrar aqui.
+            removeLocalRoomMeta(roomId, typeof window === 'undefined' ? undefined : window.localStorage);
             toast({ title: 'Sala excluída', description: 'Quem criou a sala a excluiu. Voltando para o Poker.' });
             router.push('/room');
             break;
