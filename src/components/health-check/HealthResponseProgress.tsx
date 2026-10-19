@@ -42,7 +42,10 @@ export function ResponseProgress({
         <div className="flex flex-col gap-2 border-t border-border pt-3">
           <h3 className="m-0 text-xs font-bold text-muted-foreground">Ainda não votaram{pending.length > 0 ? ` (${pending.length})` : ''}</h3>
           {pending.length === 0 ? (
-            <p className="m-0 text-[13px] text-muted-foreground">Todas as pessoas da sala já votaram.</p>
+            // "Todos votaram" só com pelo menos uma resposta: lista vazia com 0 respondidas é dado ausente, não vitória.
+            <p className="m-0 text-[13px] text-muted-foreground">
+              {counts.responded > 0 ? 'Todas as pessoas da sala já votaram.' : 'Ninguém respondeu ainda.'}
+            </p>
           ) : (
             <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
               {pending.map((p) => (

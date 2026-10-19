@@ -492,7 +492,7 @@ function RetroRoomComponent(props: RetroRoomProps) {
       />
 
       {cards.length === 0 && (
-        <RetroWelcome title={boardData.title || 'Retrospectiva'} isFacilitator={isCurrentUserCreator} disabled={needsHealthCheck || presenting || readOnly} templateKey={boardData.templateKey} />
+        <RetroWelcome boardId={boardData.id} title={boardData.title || 'Retrospectiva'} isFacilitator={isCurrentUserCreator} disabled={needsHealthCheck || presenting || readOnly} templateKey={boardData.templateKey} />
       )}
 
       <RetroGuide open={guideOpen} onOpenChange={setGuideOpen} templateKey={boardData.templateKey} />
