@@ -1808,9 +1808,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       console.error("Erro ao assumir controle:", error);
       toast({
         title: "Erro ao assumir controle",
-        description: error instanceof Error && !(error instanceof RoomConflictError)
-          ? error.message
-          : "Não foi possível completar a operação. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
+        // Nunca o texto técnico do servidor ("Falha ao salvar a sala (HTTP 403...)").
+        description: error instanceof Error && /HTTP 403/.test(error.message)
+          ? "O organizador ainda está na sala. Só dá para assumir o controle quando ele estiver ausente; peça a ele para repassar."
+          : "Não foi possível assumir o controle agora. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
         variant: "destructive"
       });
     }
