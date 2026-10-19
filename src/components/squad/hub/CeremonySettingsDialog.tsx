@@ -213,7 +213,7 @@ export function CeremonySettingsDialog({
                         type="button"
                         onClick={() => toggleDay(c.id, day)}
                         className={cn(
-                          'h-8 w-10 rounded-lg text-xs font-semibold uppercase transition-colors',
+                          'h-8 w-10 rounded-lg text-xs font-semibold transition-colors',
                           c.daysOfWeek.includes(day)
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground hover:bg-accent'

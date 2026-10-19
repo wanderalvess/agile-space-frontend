@@ -508,7 +508,7 @@ export function SquadScrumBoard({
     if (t.includes('task') || t.includes('tarefa')) {
       return <CheckSquare className="h-3 w-3 text-blue-500" />;
     }
-    return <ListTodo className="h-3 w-3 text-slate-400" />;
+    return <ListTodo className="h-3 w-3 text-muted-foreground" />;
   };
 
   const getAssigneeAvatar = (issue: GreenhopperIssue) => {
@@ -521,7 +521,7 @@ export function SquadScrumBoard({
           <TooltipTrigger asChild>
             {assigned ? (
               <span className="inline-flex shrink-0 cursor-pointer">
-                <InitialsAvatar name={name} className="h-6 w-6 text-[10px] ring-1 ring-background" />
+                <InitialsAvatar name={name} className="h-6 w-6 text-xs ring-1 ring-background" />
               </span>
             ) : (
               <div className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-background">
@@ -529,7 +529,7 @@ export function SquadScrumBoard({
               </div>
             )}
           </TooltipTrigger>
-          <TooltipContent className="text-xs font-bold bg-slate-900 text-white p-2 rounded-xl">
+          <TooltipContent className="text-xs font-bold bg-foreground text-background p-2 rounded-xl">
             {name}
           </TooltipContent>
         </Tooltip>
@@ -540,7 +540,7 @@ export function SquadScrumBoard({
   // Primeira carga ainda em andamento
   if (!hasLoadedOnce) {
     return (
-      <div className="flex items-center justify-center gap-3 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-10 text-sm font-semibold text-slate-500" role="status">
+      <div className="flex items-center justify-center gap-3 rounded-3xl border border-border bg-card/70 p-10 text-sm font-semibold text-muted-foreground" role="status">
         <RefreshCw className="h-4 w-4 animate-spin" aria-hidden /> Carregando o quadro do Jira…
       </div>
     );
@@ -567,21 +567,21 @@ export function SquadScrumBoard({
       {/* ═══════════════════════════════════════════════════════════════════
           CABEÇALHO DO QUADRO SCRUM (JIRA GREENHOPPER STYLE)
          ═══════════════════════════════════════════════════════════════════ */}
-      <div className="bg-white/90 dark:bg-slate-900/90 border border-slate-200/70 dark:border-slate-800/70 rounded-3xl p-5 md:p-6 shadow-sm backdrop-blur-md">
+      <div className="bg-card/90 border border-border/70 rounded-3xl p-5 md:p-6 shadow-sm backdrop-blur-md">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-black uppercase tracking-wider text-[9px] px-2.5 py-0.5">
+              <Badge className="bg-primary/10 text-primary border-none font-semibold text-xs px-2.5 py-0.5">
                 QUADRO SCRUM
               </Badge>
-              <span className="text-xs text-slate-400 font-code">
+              <span className="text-xs text-muted-foreground font-code">
                 {jiraProjectKey}
               </span>
             </div>
-            <h2 className="text-xl md:text-2xl font-black italic tracking-tight uppercase font-headline text-slate-900 dark:text-white">
+            <h2 className="text-xl md:text-2xl font-semibold tracking-tight font-headline text-foreground">
               {boardData.boardName || `SCRUM ${jiraProjectKey}`}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-code">
+            <p className="text-xs text-muted-foreground mt-0.5 font-code">
               {activeSprint?.name || 'Sprint ativa'}
             </p>
           </div>
@@ -603,9 +603,9 @@ export function SquadScrumBoard({
                 const jiraUrl = `https://${activeDomain}/secure/RapidBoard.jspa?rapidView=${rapidViewId}&selectedProjectKey=${jiraProjectKey}`;
                 window.open(jiraUrl, '_blank');
               }}
-              className="h-8 text-xs font-bold rounded-xl gap-1.5 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="h-8 text-xs font-bold rounded-xl gap-1.5 border-border text-foreground hover:bg-muted/50"
             >
-              <ExternalLink className="h-3.5 w-3.5 text-indigo-500" />
+              <ExternalLink className="h-3.5 w-3.5 text-primary" />
               Ver no Jira
             </Button>
 
@@ -617,7 +617,7 @@ export function SquadScrumBoard({
                 setConfigModalTab('columns');
                 setIsConfigModalOpen(true);
               }}
-              className="h-8 text-xs font-bold rounded-xl gap-1.5 border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-100/50"
+              className="h-8 text-xs font-bold rounded-xl gap-1.5 border-primary/30 text-primary bg-primary/10 hover:bg-primary/10"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
               Configurar Quadro & WIP
@@ -628,7 +628,7 @@ export function SquadScrumBoard({
               size="sm"
               onClick={() => loadBoardData(true)}
               disabled={isLoading}
-              className="h-8 text-xs font-black uppercase tracking-wider rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 gap-1.5 shadow-sm"
+              className="h-8 text-xs font-semibold rounded-xl bg-foreground hover:bg-foreground/90 text-background gap-1.5 shadow-sm"
             >
               <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
               {isLoading ? 'Atualizando...' : 'Atualizar'}
@@ -639,10 +639,10 @@ export function SquadScrumBoard({
         {/* ═══════════════════════════════════════════════════════════════════
             BARRA DE FILTROS RÁPIDOS (QUICK FILTERS)
            ═══════════════════════════════════════════════════════════════════ */}
-        <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="mt-5 pt-4 border-t border-border flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
             <div className="flex items-center gap-1.5 shrink-0 mr-1">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1">
+              <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                 <Filter className="h-3 w-3" /> Filtros Rápidos:
               </span>
               <Button
@@ -652,7 +652,7 @@ export function SquadScrumBoard({
                   setConfigModalTab('filters');
                   setIsConfigModalOpen(true);
                 }}
-                className="h-6 px-2 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg gap-1"
+                className="h-6 px-2 text-xs font-bold text-primary hover:text-primary/80 hover:bg-primary/10 rounded-lg gap-1"
                 title="Configurar consultas JQL e filtros rápidos"
               >
                 <SlidersHorizontal className="h-2.5 w-2.5" />
@@ -666,10 +666,10 @@ export function SquadScrumBoard({
                   <button
                     key={filter.id}
                     onClick={() => toggleFilter(filter.name)}
-                    className={`px-3 py-1 rounded-xl text-[11px] font-bold tracking-tight transition-all shrink-0 cursor-pointer border ${
+                    className={`px-3 py-1 rounded-xl text-xs font-bold tracking-tight transition-all shrink-0 cursor-pointer border ${
                       isActive
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                        : 'bg-slate-100/80 dark:bg-slate-800/70 text-slate-600 dark:text-slate-300 border-slate-200/60 dark:border-slate-700/60 hover:bg-slate-200/70 dark:hover:bg-slate-800'
+                        ? 'bg-primary text-primary-foreground border-primary/40 shadow-xs'
+                        : 'bg-muted/50 text-muted-foreground border-border/60 hover:bg-muted'
                     }`}
                   >
                     {filter.name}
@@ -681,7 +681,7 @@ export function SquadScrumBoard({
                   variant="ghost"
                   size="sm"
                   onClick={() => setActiveFilters([])}
-                  className="h-6 text-[10px] text-rose-500 hover:text-rose-600 font-bold px-2"
+                  className="h-6 text-xs text-rose-500 hover:text-rose-600 font-bold px-2"
                 >
                   Limpar
                 </Button>
@@ -691,13 +691,13 @@ export function SquadScrumBoard({
 
           {/* Campo de Busca Rápida */}
           <div className="relative shrink-0 w-full md:w-64">
-            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               placeholder="Buscar por chave, dev ou texto..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 text-xs rounded-xl bg-slate-50 dark:bg-slate-950/50 border-slate-200/70 dark:border-slate-800/70"
+              className="h-8 pl-8 text-xs rounded-xl bg-muted/50 border-border/70"
             />
           </div>
         </div>
@@ -723,13 +723,13 @@ export function SquadScrumBoard({
               return (
                 <div
                   key={col.id}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-100/90 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-800/60"
+                  className="flex items-center justify-between p-2 rounded-xl bg-muted/50 border border-border/60"
                 >
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200 truncate">
+                  <span className="text-xs font-semibold text-foreground truncate">
                     {col.name}
                   </span>
                   <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                    <span className="text-xs font-semibold text-foreground">
                       {count}
                     </span>
                     {hasMin && (
@@ -739,7 +739,7 @@ export function SquadScrumBoard({
                         className={`text-xs font-bold px-1 py-0 ${
                           isUnderMin
                             ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/40'
-                            : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                            : 'bg-muted text-muted-foreground border-border'
                         }`}
                       >
                         MÍN {col.min}
@@ -753,7 +753,7 @@ export function SquadScrumBoard({
                             ? 'bg-rose-500/20 text-rose-600 border-rose-500/40 animate-pulse'
                             : isNearWip
                             ? 'bg-amber-500/20 text-amber-600 border-amber-500/40'
-                            : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                            : 'bg-muted text-muted-foreground border-border'
                         }`}
                       >
                         MÁX {col.max}
@@ -778,25 +778,25 @@ export function SquadScrumBoard({
               return (
                 <div
                   key={swimlane.id}
-                  className="rounded-3xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 overflow-hidden shadow-xs"
+                  className="rounded-3xl border border-border/80 bg-muted/50 overflow-hidden shadow-xs"
                 >
                   {/* Cabeçalho da Swimlane */}
                   <div
                     onClick={() => toggleSwimlane(swimlane.id)}
-                    className="flex items-center justify-between p-3.5 px-4 bg-slate-100/70 dark:bg-slate-900/60 cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-900 transition-colors border-b border-slate-200/50 dark:border-slate-800/50"
+                    className="flex items-center justify-between p-3.5 px-4 bg-muted/50 cursor-pointer hover:bg-muted transition-colors border-b border-border/50"
                   >
                     <div className="flex items-center gap-2.5">
                       {isCollapsed ? (
-                        <ChevronRight className="h-4 w-4 text-slate-400" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-slate-400" />
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       )}
-                      <h3 className="text-xs font-black uppercase tracking-tight text-slate-800 dark:text-slate-100">
+                      <h3 className="text-xs font-semibold tracking-tight text-foreground">
                         {swimlane.name}
                       </h3>
                       <Badge
                         variant="secondary"
-                        className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                        className="text-xs font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
                       >
                         {swimlaneIssues.length} itens
                       </Badge>
@@ -812,11 +812,11 @@ export function SquadScrumBoard({
                         return (
                           <div
                             key={col.id}
-                            className="bg-white/40 dark:bg-slate-900/30 rounded-2xl p-1.5 flex flex-col gap-2 min-h-[120px] border border-dashed border-slate-200/70 dark:border-slate-800/70"
+                            className="bg-card/40 rounded-2xl p-1.5 flex flex-col gap-2 min-h-[120px] border border-dashed border-border/70"
                           >
                             {colIssues.length === 0 ? (
                               <div className="flex-1 flex items-center justify-center p-4">
-                                <span className="text-[10px] font-medium text-slate-300 dark:text-slate-700">
+                                <span className="text-xs font-medium text-muted-foreground">
                                   —
                                 </span>
                               </div>
@@ -828,7 +828,7 @@ export function SquadScrumBoard({
                                   <Card
                                     key={issue.id}
                                     onClick={() => setSelectedIssue(issue)}
-                                    className={`p-3 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/60 dark:hover:border-indigo-400/60 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between gap-2.5 relative overflow-hidden ${
+                                    className={`p-3 rounded-2xl bg-card border border-border/80 hover:border-primary/60 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between gap-2.5 relative overflow-hidden ${
                                       issue.color ? `border-l-4` : ''
                                     }`}
                                     style={{
@@ -842,14 +842,14 @@ export function SquadScrumBoard({
                                           {getTypeIcon(issue.typeName)}
                                           <button
                                             onClick={e => copyIssueKey(issue.key, e)}
-                                            className="text-[11px] font-black font-code text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                                            className="text-xs font-semibold font-code text-primary hover:underline flex items-center gap-1"
                                             title="Clique para copiar a chave"
                                           >
                                             {issue.key}
                                             {copiedKey === issue.key ? (
                                               <Check className="h-2.5 w-2.5 text-emerald-500" />
                                             ) : (
-                                              <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400" />
+                                              <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground" />
                                             )}
                                           </button>
                                         </div>
@@ -857,7 +857,7 @@ export function SquadScrumBoard({
                                       </div>
 
                                       {/* Título / Resumo */}
-                                      <p className="text-[11px] font-bold text-slate-800 dark:text-slate-100 line-clamp-3 leading-snug">
+                                      <p className="text-xs font-bold text-foreground line-clamp-3 leading-snug">
                                         {issue.summary}
                                       </p>
 
@@ -867,7 +867,7 @@ export function SquadScrumBoard({
                                           {issue.tags.map((tag, idx) => (
                                             <span
                                               key={idx}
-                                              className="text-[8.5px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 truncate max-w-full"
+                                              className="text-xs font-semibold px-1.5 py-0.5 rounded-md bg-muted/50 text-muted-foreground truncate max-w-full"
                                             >
                                               {tag}
                                             </span>
@@ -877,7 +877,7 @@ export function SquadScrumBoard({
                                     </div>
 
                                     {/* Rodapé do Card: Prioridade + Subtarefas + Prazos */}
-                                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[9px] text-slate-400">
+                                    <div className="pt-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                                       <div className="flex items-center gap-1.5">
                                         {getPriorityIcon(issue.priorityName)}
                                         {issue.dueDate && (
@@ -901,7 +901,7 @@ export function SquadScrumBoard({
 
                                       {/* Estimativa / Story Points */}
                                       {issue.estimateStatistic?.statFieldValue?.value && (
-                                        <span className="font-black text-slate-600 dark:text-slate-300">
+                                        <span className="font-semibold text-muted-foreground">
                                           {issue.estimateStatistic.statFieldValue.value} SP
                                         </span>
                                       )}
@@ -929,13 +929,13 @@ export function SquadScrumBoard({
         <DialogContent className="max-w-2xl rounded-3xl p-6">
           {selectedIssue && (
             <div>
-              <DialogHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+              <DialogHeader className="pb-3 border-b border-border">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-code text-xs font-black text-indigo-600 dark:text-indigo-400">
+                    <Badge variant="outline" className="font-code text-xs font-semibold text-primary">
                       {selectedIssue.key}
                     </Badge>
-                    <Badge variant="secondary" className="text-[10px] font-bold">
+                    <Badge variant="secondary" className="text-xs font-bold">
                       {selectedIssue.statusName || 'Status'}
                     </Badge>
                   </div>
@@ -952,32 +952,32 @@ export function SquadScrumBoard({
                     Abrir no Jira
                   </Button>
                 </div>
-                <DialogTitle className="text-base font-black text-slate-900 dark:text-white mt-2">
+                <DialogTitle className="text-base font-semibold text-foreground mt-2">
                   {selectedIssue.summary}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                <DialogDescription className="text-xs text-muted-foreground mt-1">
                   Detalhes e metadados sincronizados da tarefa no Jira.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 text-xs mt-4">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60">
-                    <p className="text-[9px] font-black uppercase text-slate-400">Responsável</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1">
+                  <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                    <p className="text-xs font-semibold text-muted-foreground">Responsável</p>
+                    <p className="text-xs font-bold text-foreground mt-1">
                       {selectedIssue.assigneeName || 'Não atribuído'}
                     </p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60">
-                    <p className="text-[9px] font-black uppercase text-slate-400">Prioridade</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 flex items-center gap-1">
+                  <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                    <p className="text-xs font-semibold text-muted-foreground">Prioridade</p>
+                    <p className="text-xs font-bold text-foreground mt-1 flex items-center gap-1">
                       {getPriorityIcon(selectedIssue.priorityName)}
                       {selectedIssue.priorityName || 'Normal'}
                     </p>
                   </div>
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60">
-                    <p className="text-[9px] font-black uppercase text-slate-400">Tipo de Item</p>
-                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1 flex items-center gap-1">
+                  <div className="p-3 rounded-2xl bg-muted/50 border border-border/60">
+                    <p className="text-xs font-semibold text-muted-foreground">Tipo de Item</p>
+                    <p className="text-xs font-bold text-foreground mt-1 flex items-center gap-1">
                       {getTypeIcon(selectedIssue.typeName)}
                       {selectedIssue.typeName || 'Tarefa'}
                     </p>
@@ -986,10 +986,10 @@ export function SquadScrumBoard({
 
                 {selectedIssue.tags && selectedIssue.tags.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-black uppercase text-slate-400 mb-1.5">Tags e Rótulos</p>
+                    <p className="text-xs font-semibold text-muted-foreground mb-1.5">Tags e Rótulos</p>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedIssue.tags.map((t, idx) => (
-                        <Badge key={idx} variant="outline" className="text-[10px] font-bold">
+                        <Badge key={idx} variant="outline" className="text-xs font-bold">
                           {t}
                         </Badge>
                       ))}

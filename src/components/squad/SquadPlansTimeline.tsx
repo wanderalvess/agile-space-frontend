@@ -110,7 +110,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 1. Legislação / Fiscal
   if (normType.includes('legisla')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-[9px] font-bold shrink-0" title="Legislação">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold shrink-0" title="Legislação">
         <Scale className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
         <span>Legislação</span>
       </span>
@@ -120,7 +120,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 2. Débito Técnico
   if (normType.includes('debito')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300 dark:border-orange-800 text-[9px] font-bold shrink-0" title="Débito Técnico">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-orange-50 text-orange-800 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-300 dark:border-orange-800 text-xs font-bold shrink-0" title="Débito Técnico">
         <FileCode className="w-2.5 h-2.5 text-orange-600 dark:text-orange-400" />
         <span>Débito Técnico</span>
       </span>
@@ -130,7 +130,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 3. Teste Sistêmico / Transição
   if (normType.includes('sistemico') || normType.includes('regressivo') || normType.includes('service transition')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300 dark:border-teal-800 text-[9px] font-bold shrink-0" title="Teste Sistêmico">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300 dark:border-teal-800 text-xs font-bold shrink-0" title="Teste Sistêmico">
         <TestTube2 className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
         <span>Teste Sistêmico</span>
       </span>
@@ -140,7 +140,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 4. Manutenção / Sustentação
   if (normType.includes('manuten') || normType.includes('sustenta')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-[9px] font-bold shrink-0" title="Manutenção">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 dark:border-amber-800 text-xs font-bold shrink-0" title="Manutenção">
         <Wrench className="w-2.5 h-2.5 text-amber-700 dark:text-amber-400" />
         <span>Manutenção</span>
       </span>
@@ -150,7 +150,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 5. História Pai
   if (isParent || normType.includes('story') || normType.includes('historia')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[9px] font-bold shrink-0" title="História Pai">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-xs font-bold shrink-0" title="História Pai">
         <Bookmark className="w-2.5 h-2.5 fill-current text-emerald-600 dark:text-emerald-400" />
         <span>Story</span>
       </span>
@@ -161,7 +161,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // isBugType em useSquadStore.ts); só recai pro tipo se isBug não foi informado.
   if (isBug ?? (hasWord(normType, 'bug') || hasWord(normType, 'defeito') || hasWord(normType, 'erro'))) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[9px] font-bold shrink-0" title="Bug / Defeito">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold shrink-0" title="Bug / Defeito">
         <Bug className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
         <span>Bug</span>
       </span>
@@ -173,7 +173,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // um match solto de TI roubaria esse tipo (bug real, achado 2026-09).
   if (normType.includes('automatiz') || normType.includes('unitario')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-[9px] font-bold shrink-0" title="Testes Automatizados">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-bold shrink-0" title="Testes Automatizados">
         <Bot className="w-2.5 h-2.5 text-teal-600 dark:text-teal-400" />
         <span>Testes Auto</span>
       </span>
@@ -184,8 +184,8 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // casa com qualquer tipo que tenha "ti" no meio, ex: "Manutenção").
   if (hasWord(normType, 'ti') || normType.includes('execucao')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[9px] font-bold shrink-0" title="Execução de TI">
-        <Terminal className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400" />
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 text-xs font-bold shrink-0" title="Execução de TI">
+        <Terminal className="w-2.5 h-2.5 text-primary" />
         <span>Execução de TI</span>
       </span>
     );
@@ -194,7 +194,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 8b. Code Review — antes caía no selo genérico "Sub-task"
   if (normType.includes('review') || normType.includes('revisao')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[9px] font-bold shrink-0" title="Code Review">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-xs font-bold shrink-0" title="Code Review">
         <GitPullRequest className="w-2.5 h-2.5 text-purple-600 dark:text-purple-400" />
         <span>Code Review</span>
       </span>
@@ -204,7 +204,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 9. Teste QA / Homologação
   if (hasWord(normType, 'qa') || normType.includes('teste') || normType.includes('homologacao')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[9px] font-bold shrink-0" title="Teste QA">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-bold shrink-0" title="Teste QA">
         <CheckCircle2 className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
         <span>Teste QA</span>
       </span>
@@ -214,7 +214,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // 10. Codificação / DEV
   if (normType.includes('codifica') || normType.includes('desenvolv') || hasWord(normType, 'dev')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold shrink-0" title="Codificação (DEV)">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold shrink-0" title="Codificação (DEV)">
         <Code2 className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
         <span>Codificação</span>
       </span>
@@ -223,7 +223,7 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
 
   // Default Sub-task
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[9px] font-bold shrink-0" title="Sub-task">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-xs font-bold shrink-0" title="Sub-task">
       <CornerDownRight className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400" />
       <span>Sub-task</span>
     </span>
@@ -261,7 +261,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   }
   if (hasWord(normType, 'ti') || normType.includes('execucao') || normType.includes('acompanhamento')) {
     return {
-      bg: 'bg-indigo-600 dark:bg-indigo-500',
+      bg: 'bg-primary',
       label: 'Execução TI',
       shortLabel: 'TI',
       matched: true,
@@ -303,7 +303,7 @@ const DEFAULT_PHASE_LEGEND = [
   { label: 'Testes Auto', bg: 'bg-teal-600 dark:bg-teal-500' },
   { label: 'Code Review', bg: 'bg-purple-600 dark:bg-purple-500' },
   { label: 'Teste QA', bg: 'bg-amber-600 dark:bg-amber-500' },
-  { label: 'Execução TI', bg: 'bg-indigo-600 dark:bg-indigo-500' },
+  { label: 'Execução TI', bg: 'bg-primary' },
 ];
 
 // Resolve fase de workflow (cor/rótulo/ordem) de uma subtarefa: prioriza o
@@ -426,7 +426,7 @@ function getStatusBadge(status: string) {
   const norm = raw.toUpperCase();
   const label = STATUS_LABEL_PT[norm] ?? (raw || 'Sem status');
   const base = 'text-xs font-semibold px-2 py-0.5 whitespace-nowrap normal-case';
-  let tone = 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
+  let tone = 'bg-muted/50 text-foreground border-border';
   if (norm === 'CONCLUÍDO' || norm === 'DONE' || norm === 'CLOSED' || norm === 'RESOLVED') {
     tone = 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800';
   } else if (norm.includes('CODE REVIEW') || norm.includes('ACEITAÇÃO') || norm.includes('REVIEW')) {
@@ -434,7 +434,7 @@ function getStatusBadge(status: string) {
   } else if (norm === 'EM ANDAMENTO' || norm === 'IN PROGRESS' || norm === 'EM DESENVOLVIMENTO') {
     tone = 'bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800';
   } else if (norm === 'COMPROMETIDO') {
-    tone = 'bg-slate-900 text-white dark:bg-slate-700 dark:text-slate-100 border-none';
+    tone = 'bg-foreground text-background border-none';
   }
   return (
     <Badge className={`${tone} ${base}`} title={raw ? `Status no Jira: ${raw}` : undefined}>
@@ -881,21 +881,21 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
   return (
     <div className="space-y-4">
       {/* Control & Filters Panel */}
-      <div className="bg-white dark:bg-slate-900/90 p-4 md:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm backdrop-blur-md space-y-4">
+      <div className="bg-card p-4 md:p-5 rounded-2xl border border-border/80 shadow-sm backdrop-blur-md space-y-4">
         {/* Top Header Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3.5 border-b border-border/80">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 rounded-xl border border-blue-200 dark:border-blue-800/80 shadow-xs">
               <CalendarRange className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2 tracking-tight">
+              <h2 className="text-base font-semibold text-foreground flex items-center gap-2 tracking-tight">
                 Cronograma da sprint
                 <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800 font-semibold">
                   {tasks.length} {tasks.length === 1 ? 'issue' : 'issues'}
                 </Badge>
               </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 Cada linha é uma issue do Jira. A barra mostra o prazo e o número mostra quanto já foi feito.
               </p>
             </div>
@@ -904,7 +904,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
           <div className="flex items-center gap-2">
             {isDelaySimActive && (
               <div
-                className="h-8 pl-2.5 pr-1.5 flex items-center gap-1.5 text-[10px] font-bold text-rose-700 dark:text-rose-300 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 animate-pulse"
+                className="h-8 pl-2.5 pr-1.5 flex items-center gap-1.5 text-xs font-bold text-rose-700 dark:text-rose-300 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 animate-pulse"
                 title={`${activeDelayTask!.title || activeDelayTask!.jiraKey} atrasou +${activeDelayDays}d — fases seguintes da mesma história empurradas junto`}
               >
                 <Flame className="w-3.5 h-3.5" />
@@ -919,17 +919,17 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
               </div>
             )}
 
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-0.5 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center bg-muted/50 rounded-xl p-0.5 border border-border">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleDayZoom(-6)}
                 title="Diminuir a largura dos dias"
-                className="h-7 w-7 p-0 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </Button>
-              <span className="text-[10px] font-code font-bold px-1.5 text-slate-500">
+              <span className="text-xs font-code font-bold px-1.5 text-muted-foreground">
                 Dias: {colWidths.dayWidth}px
               </span>
               <Button
@@ -937,7 +937,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                 size="sm"
                 onClick={() => handleDayZoom(+6)}
                 title="Aumentar a largura dos dias"
-                className="h-7 w-7 p-0 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </Button>
@@ -948,14 +948,14 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
               size="sm"
               onClick={handleResetColWidths}
               title="Voltar as colunas ao tamanho padrão"
-              className="h-8 px-2.5 text-xs rounded-xl font-medium border-slate-200 dark:border-slate-800"
+              className="h-8 px-2.5 text-xs rounded-xl font-medium border-border"
             >
               <RotateCcw className="w-3 h-3 mr-1" />
               Restaurar colunas
             </Button>
 
             <div
-              className="h-8 px-3 flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
+              className="h-8 px-3 flex items-center gap-1.5 text-xs font-bold text-muted-foreground rounded-xl bg-muted/50 border border-border"
               title="O cronograma usa o mesmo dado sincronizado das Métricas. Use Sincronizar agora, no topo da página, para atualizar."
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-blue-600 dark:text-blue-400' : ''}`} />
@@ -967,19 +967,19 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
         {/* Legenda de fase — a fita do Gantt (linha da história) identifica
             a fase só pela cor, essa legenda é a chave de leitura. */}
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cores das barras:</span>
+          <span className="text-xs font-semibold text-muted-foreground">Cores das barras:</span>
           {(config?.phases && config.phases.length > 0
             ? config.phases.map(p => ({ label: p.label, bg: p.color }))
             : DEFAULT_PHASE_LEGEND
           ).map(p => (
             <div key={p.label} className="flex items-center gap-1.5">
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${p.bg}`} />
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{p.label}</span>
+              <span className="text-xs font-medium text-muted-foreground">{p.label}</span>
             </div>
           ))}
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-inset ring-rose-500" />
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Passou do prazo original</span>
+            <span className="text-xs font-medium text-muted-foreground">Passou do prazo original</span>
           </div>
         </div>
 
@@ -987,13 +987,13 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
         <div className="flex flex-wrap gap-3.5">
           {/* Hierarchy Level Selector */}
           <div className="flex-1 basis-[190px] min-w-[190px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Mostrar</label>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Mostrar</label>
             <Select value={hierarchyLevel} onValueChange={(val: any) => setHierarchyLevel(val)}>
-              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-muted/50 border-border text-foreground rounded-xl font-medium">
                 <ListTree className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+              <SelectContent className="bg-card border-border text-foreground rounded-xl">
                 <SelectItem value="story-to-subtask">Histórias e subtarefas</SelectItem>
                 <SelectItem value="subtask-only">Só subtarefas</SelectItem>
                 <SelectItem value="story-only">Só histórias (tarefas pai)</SelectItem>
@@ -1003,27 +1003,27 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
           {/* Search Filter */}
           <div className="flex-[2] basis-[260px] min-w-[220px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Buscar</label>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Buscar</label>
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input 
                 placeholder="Chave ou título da issue" 
                 value={searchFilter}
                 onChange={e => setSearchFilter(e.target.value)}
-                className="pl-8 h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 rounded-xl"
+                className="pl-8 h-11 text-sm bg-muted/50 border-border text-foreground placeholder:text-muted-foreground rounded-xl"
               />
             </div>
           </div>
 
           {/* Issue Type / Specialty Filter */}
           <div className="flex-1 basis-[190px] min-w-[190px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Tipo</label>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Tipo</label>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-muted/50 border-border text-foreground rounded-xl font-medium">
                 <Bookmark className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+              <SelectContent className="bg-card border-border text-foreground rounded-xl">
                 <SelectItem value="ALL">Todos os tipos</SelectItem>
                 <SelectItem value="Story">História pai</SelectItem>
                 <SelectItem value="Legisla">Legislação</SelectItem>
@@ -1039,13 +1039,13 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
           {/* Status Filter */}
           <div className="flex-1 basis-[190px] min-w-[190px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Status</label>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Status</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
-                <Filter className="w-3.5 h-3.5 mr-1.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <SelectTrigger className="h-11 text-sm bg-muted/50 border-border text-foreground rounded-xl font-medium">
+                <Filter className="w-3.5 h-3.5 mr-1.5 text-primary shrink-0" />
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+              <SelectContent className="bg-card border-border text-foreground rounded-xl">
                 <SelectItem value="ALL">Todos os status</SelectItem>
                 {uniqueStatuses.map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
@@ -1056,13 +1056,13 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
           {/* Assignee Filter */}
           <div className="flex-1 basis-[190px] min-w-[190px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Responsável</label>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Responsável</label>
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-muted/50 border-border text-foreground rounded-xl font-medium">
                 <User className="w-3.5 h-3.5 mr-1.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+              <SelectContent className="bg-card border-border text-foreground rounded-xl">
                 <SelectItem value="ALL">Todas as pessoas</SelectItem>
                 {uniqueAssignees.map(name => (
                   <SelectItem key={name} value={name}>{name}</SelectItem>
@@ -1073,13 +1073,13 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
 
           {/* Preset Period Selector */}
           <div className="flex-1 basis-[260px] min-w-[240px]">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 block">Período</label>
+            <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Período</label>
             <Select value={presetPeriod} onValueChange={handlePresetChange}>
-              <SelectTrigger className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl font-medium">
+              <SelectTrigger className="h-11 text-sm bg-muted/50 border-border text-foreground rounded-xl font-medium">
                 <CalendarIcon className="w-3.5 h-3.5 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 rounded-xl">
+              <SelectContent className="bg-card border-border text-foreground rounded-xl">
                 <SelectItem value="SPRINT_CURRENT">Sprint atual · {formatDateShort(sprintWindow.start)} a {formatDateShort(sprintWindow.end)}</SelectItem>
                 <SelectItem value="NEXT_14_DAYS">Próximos 14 dias</SelectItem>
                 <SelectItem value="CURRENT_MONTH">Este mês</SelectItem>
@@ -1094,7 +1094,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                   value={startDate}
                   max={endDate || undefined}
                   onChange={e => setStartDate(e.target.value)}
-                  className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 rounded-xl"
+                  className="h-11 text-sm bg-muted/50 border-border rounded-xl"
                 />
                 <Input
                   type="date"
@@ -1102,7 +1102,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                   value={endDate}
                   min={startDate || undefined}
                   onChange={e => setEndDate(e.target.value)}
-                  className="h-11 text-sm bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 rounded-xl"
+                  className="h-11 text-sm bg-muted/50 border-border rounded-xl"
                 />
               </div>
             )}
@@ -1122,60 +1122,60 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
       )}
 
       {/* ══════════ MAIN SPLIT-PANE TIMELINE CONTAINER ══════════ */}
-      <div className="border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 overflow-hidden shadow-sm flex flex-col">
+      <div className="border border-border rounded-2xl bg-card overflow-hidden shadow-sm flex flex-col">
         <div className="overflow-x-auto">
           <div className="flex min-w-full" style={{ width: `${totalTableWidth + totalTimelineWidth}px` }}>
             
             {/* ══════════ LEFT PANE: RESIZABLE TREE TABLE ══════════ */}
-            <div className="shrink-0 border-r-2 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 select-none" style={{ width: `${totalTableWidth}px` }}>
+            <div className="shrink-0 border-r-2 border-border bg-card select-none" style={{ width: `${totalTableWidth}px` }}>
               {/* Left Header */}
-              <div className="flex h-11 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-xs font-semibold border-b border-slate-200 dark:border-slate-800 items-stretch">
+              <div className="flex h-11 bg-muted/50 text-muted-foreground text-xs font-semibold border-b border-border items-stretch">
                 
                 {/* 1. Column: Issue / Subtarefa */}
-                <div className="relative px-3 flex items-center justify-between border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
+                <div className="relative px-3 flex items-center justify-between border-r border-border overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
                   <span className="truncate">Issue</span>
                   <div 
                     onMouseDown={(e) => startResizing('issue', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
                     title="Arraste para redimensionar coluna"
                   >
-                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                    <div className="w-[2px] h-4 bg-muted group-hover:bg-blue-500" />
                   </div>
                 </div>
 
                 {/* 2. Column: Timeline Pill (Monday.com style) */}
-                <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
+                <div className="relative px-2 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
                   <span className="truncate text-center">Prazo</span>
                   <div 
                     onMouseDown={(e) => startResizing('timeline', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
                     title="Arraste para redimensionar coluna"
                   >
-                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                    <div className="w-[2px] h-4 bg-muted group-hover:bg-blue-500" />
                   </div>
                 </div>
 
                 {/* 3. Column: Progress Bar (Monday.com style) */}
-                <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
+                <div className="relative px-2 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
                   <span className="truncate text-center">Progresso</span>
                   <div 
                     onMouseDown={(e) => startResizing('progress', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
                     title="Arraste para redimensionar coluna"
                   >
-                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                    <div className="w-[2px] h-4 bg-muted group-hover:bg-blue-500" />
                   </div>
                 </div>
 
                 {/* 4. Column: Status */}
-                <div className="relative px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.status}px` }}>
+                <div className="relative px-2 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.status}px` }}>
                   <span className="truncate text-center">Status</span>
                   <div 
                     onMouseDown={(e) => startResizing('status', e)}
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
                     title="Arraste para redimensionar coluna"
                   >
-                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                    <div className="w-[2px] h-4 bg-muted group-hover:bg-blue-500" />
                   </div>
                 </div>
 
@@ -1187,14 +1187,14 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                     className="absolute right-0 top-0 bottom-0 w-2 hover:w-2.5 bg-transparent hover:bg-blue-500/50 cursor-col-resize flex items-center justify-center transition-colors group"
                     title="Arraste para redimensionar coluna"
                   >
-                    <div className="w-[2px] h-4 bg-slate-300 dark:bg-slate-700 group-hover:bg-blue-500" />
+                    <div className="w-[2px] h-4 bg-muted group-hover:bg-blue-500" />
                   </div>
                 </div>
 
               </div>
 
               {/* Left Body Rows */}
-              <div className="divide-y divide-slate-200/80 dark:divide-slate-800/60 text-xs">
+              <div className="divide-y divide-border/80 text-xs">
                 {Array.from(hierarchicalStructure.parentsMap.entries()).map(([parentKey, { parent, children }]) => {
                   const isParentCollapsed = hierarchyLevel === 'story-only'
                     ? true
@@ -1215,30 +1215,30 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                         className={`flex items-stretch border-t font-semibold transition-colors ${hierarchyLevel === 'story-to-subtask' ? 'cursor-pointer' : ''} ${
                           isOverdueRisk
                             ? 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-300 dark:border-rose-900/60'
-                            : 'bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border-slate-200/60 dark:border-slate-800/60'
+                            : 'bg-blue-50/30 dark:bg-blue-950/20 hover:bg-blue-50/60 dark:hover:bg-blue-950/40 border-border/60'
                         }`}
                       >
                         {/* 1. Hierarchy / Title */}
-                        <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
-                          {hierarchyLevel === 'story-to-subtask' && (isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />)}
+                        <div className="px-3 pl-4 flex items-center gap-1.5 border-r border-border overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
+                          {hierarchyLevel === 'story-to-subtask' && (isParentCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />)}
                           {getIssueTypeBadge(parent.type, true, parent.isBug)}
-                          <div className="min-w-0 flex-1 line-clamp-3 text-[13px] leading-snug text-slate-900 dark:text-slate-100 font-bold" title={parent.title ? `${parent.jiraKey} · ${parent.title}` : parent.jiraKey}>
-                            <span className="font-code text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded px-1.5 py-px mr-1.5">{parent.jiraKey}</span>
-                            {parent.title || <span className="font-normal italic text-slate-500 dark:text-slate-400">Título ainda não sincronizado</span>}
+                          <div className="min-w-0 flex-1 line-clamp-3 text-[13px] leading-snug text-foreground font-bold" title={parent.title ? `${parent.jiraKey} · ${parent.title}` : parent.jiraKey}>
+                            <span className="font-code text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded px-1.5 py-px mr-1.5">{parent.jiraKey}</span>
+                            {parent.title || <span className="font-normal text-muted-foreground">Título ainda não sincronizado</span>}
                           </div>
                           {isOverdueRisk && (
-                            <Badge className="ml-auto text-[8px] font-black bg-rose-600 text-white uppercase border-none animate-pulse shrink-0">
+                            <Badge className="ml-auto text-xs font-semibold bg-rose-600 text-white border-none animate-pulse shrink-0">
                               🚨 +{delayDays}d
                             </Badge>
                           )}
                         </div>
 
                         {/* 2. Timeline Column (Monday.com Pill) */}
-                        <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
-                          <div className={`w-full py-1 px-2 rounded-full text-center text-[10px] font-black tracking-tight shadow-xs flex items-center justify-center gap-1 ${
+                        <div className="px-2 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
+                          <div className={`w-full py-1 px-2 rounded-full text-center text-xs font-semibold tracking-tight shadow-xs flex items-center justify-center gap-1 ${
                             isOverdueRisk
                               ? 'bg-rose-700 text-white animate-pulse'
-                              : 'bg-slate-800 text-white dark:bg-slate-800/90 dark:text-slate-200'
+                              : 'bg-foreground text-background'
                           }`}>
                             <CalendarIcon className="w-2.5 h-2.5 opacity-70" />
                             <span>{formatDateShort(pStart)} - {formatDateShort(pEnd)}</span>
@@ -1246,8 +1246,8 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                         </div>
 
                         {/* 3. Progress Column (Monday.com Progress Bar) */}
-                        <div className="px-2 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
-                          <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-3 overflow-hidden p-0.5 relative">
+                        <div className="px-2 flex items-center gap-1.5 border-r border-border overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
+                          <div className="w-full bg-muted rounded-full h-3 overflow-hidden p-0.5 relative">
                             <div
                               className={`h-full rounded-full transition-all ${
                                 parentProgress === 100
@@ -1259,24 +1259,24 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                               style={{ width: `${parentProgress}%` }}
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 font-code w-7 text-right shrink-0">
+                          <span className="text-xs font-bold text-muted-foreground font-code w-7 text-right shrink-0">
                             {parentProgress}%
                           </span>
                         </div>
 
                         {/* 4. Status Column */}
-                        <div className="px-1 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.status}px` }}>
+                        <div className="px-1 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.status}px` }}>
                           {getStatusBadge(parent.status)}
                         </div>
 
                         {/* 5. Assignee Column */}
-                        <div className="px-2 flex items-center gap-1.5 overflow-hidden text-slate-700 dark:text-slate-300" style={{ width: `${colWidths.assignee}px` }}>
+                        <div className="px-2 flex items-center gap-1.5 overflow-hidden text-foreground" style={{ width: `${colWidths.assignee}px` }}>
                           {parent.assigneeName ? (
-                            <InitialsAvatar name={parent.assigneeName} className="h-4 w-4 text-[8px]" />
+                            <InitialsAvatar name={parent.assigneeName} className="h-4 w-4 text-xs" />
                           ) : (
                             <span aria-hidden="true" className="h-4 w-4 shrink-0 rounded-full bg-muted" />
                           )}
-                          <span className="truncate text-[10.5px]">{parent.assigneeName}</span>
+                          <span className="truncate text-xs">{parent.assigneeName}</span>
                         </div>
                       </div>
                       )}
@@ -1294,19 +1294,19 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                           <div key={task.id} style={{ height: CHILD_ROW_H }} className={`relative flex items-stretch transition-colors ${
                             isOverdueRisk
                               ? 'bg-rose-500/5 hover:bg-rose-500/10'
-                              : 'hover:bg-slate-50/90 dark:hover:bg-slate-900/40'
+                              : 'hover:bg-muted/50'
                           }`}>
                             {/* 1. Hierarchy / Title */}
-                            <div className="px-3 pl-8 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
-                              <CornerDownRight className="w-3 h-3 text-slate-400 shrink-0" />
+                            <div className="px-3 pl-8 flex items-center gap-1.5 border-r border-border overflow-hidden" style={{ width: `${colWidths.issue}px` }}>
+                              <CornerDownRight className="w-3 h-3 text-muted-foreground shrink-0" />
                               {getIssueTypeBadge(task.type, false, task.isBug)}
-                              <div className="min-w-0 flex-1 line-clamp-3 text-[13px] leading-snug text-slate-800 dark:text-slate-200 font-medium" title={task.title ? `${task.jiraKey} · ${task.title}` : task.jiraKey}>
-                                <span className="font-code text-[11px] font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded px-1.5 py-px mr-1.5">{task.jiraKey}</span>
-                                {task.title || <span className="font-normal italic text-slate-500 dark:text-slate-400">Título ainda não sincronizado</span>}
+                              <div className="min-w-0 flex-1 line-clamp-3 text-[13px] leading-snug text-foreground font-medium" title={task.title ? `${task.jiraKey} · ${task.title}` : task.jiraKey}>
+                                <span className="font-code text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 rounded px-1.5 py-px mr-1.5">{task.jiraKey}</span>
+                                {task.title || <span className="font-normal text-muted-foreground">Título ainda não sincronizado</span>}
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setOpenDelayPickerFor(openDelayPickerFor === task.id ? null : task.id); }}
-                                className={`ml-auto shrink-0 p-1 rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                className={`ml-auto shrink-0 p-1 rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                                 title="Simular atraso nesta fase"
                               >
                                 <Clock className="w-3 h-3" />
@@ -1314,7 +1314,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                             </div>
 
                             {openDelayPickerFor === task.id && (
-                              <div className="absolute z-40 top-14 left-8 flex items-center gap-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg p-1">
+                              <div className="absolute z-40 top-14 left-8 flex items-center gap-1 bg-card border border-border rounded-lg shadow-lg p-1">
                                 {[0, 1, 2, 3].map(d => (
                                   <button
                                     key={d}
@@ -1324,8 +1324,8 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                                       else { setActiveDelayTaskId(task.id); setActiveDelayDays(d); }
                                       setOpenDelayPickerFor(null);
                                     }}
-                                    className={`h-6 px-2 text-[9.5px] font-bold rounded ${
-                                      d === 0 ? 'text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    className={`h-6 px-2 text-xs font-bold rounded ${
+                                      d === 0 ? 'text-muted-foreground hover:bg-muted/50'
                                       : d === 1 ? 'text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
                                       : 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40'
                                     }`}
@@ -1337,25 +1337,25 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                             )}
 
                             {/* 2. Timeline Column (Monday.com Pill) */}
-                            <div className="px-2 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
+                            <div className="px-2 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.timeline}px` }}>
                               <div
-                                className={`w-full py-0.5 px-2 rounded-full text-center text-[9.5px] font-bold tracking-tight shadow-2xs flex items-center justify-center gap-1 ${
+                                className={`w-full py-0.5 px-2 rounded-full text-center text-xs font-bold tracking-tight shadow-2xs flex items-center justify-center gap-1 ${
                                   isOverdueRisk
                                     ? 'bg-rose-600 text-white animate-pulse'
                                     : isDelayed
                                     ? 'bg-amber-600 text-white'
-                                    : 'bg-slate-700 text-slate-100 dark:bg-slate-800 dark:text-slate-300'
+                                    : 'bg-foreground text-background'
                                 }`}
                                 title={isDelayed ? `+${delayDays}d${confidenceNote}` : undefined}
                               >
                                 <span>{formatDateShort(start)} - {formatDateShort(end)}</span>
-                                {isDelayed && <span className="text-[8px] opacity-90">+{delayDays}d</span>}
+                                {isDelayed && <span className="text-xs opacity-90">+{delayDays}d</span>}
                               </div>
                             </div>
 
                             {/* 3. Progress Column (Monday.com Progress Bar) */}
-                            <div className="px-2 flex items-center gap-1.5 border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
-                              <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden relative">
+                            <div className="px-2 flex items-center gap-1.5 border-r border-border overflow-hidden" style={{ width: `${colWidths.progress}px` }}>
+                              <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden relative">
                                 <div 
                                   className={`h-full rounded-full transition-all ${
                                     childProgress === 100 
@@ -1367,20 +1367,20 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                                   style={{ width: `${childProgress}%` }}
                                 />
                               </div>
-                              <span className="text-[9.5px] font-bold text-slate-600 dark:text-slate-400 font-code w-7 text-right shrink-0">
+                              <span className="text-xs font-bold text-muted-foreground font-code w-7 text-right shrink-0">
                                 {childProgress}%
                               </span>
                             </div>
 
                             {/* 4. Status Column */}
-                            <div className="px-1 flex items-center justify-center border-r border-slate-200 dark:border-slate-800 overflow-hidden" style={{ width: `${colWidths.status}px` }}>
+                            <div className="px-1 flex items-center justify-center border-r border-border overflow-hidden" style={{ width: `${colWidths.status}px` }}>
                               {getStatusBadge(task.status)}
                             </div>
 
                             {/* 5. Assignee Column */}
-                            <div className="px-2 flex items-center gap-1.5 overflow-hidden text-slate-800 dark:text-slate-200" style={{ width: `${colWidths.assignee}px` }}>
-                              <InitialsAvatar name={task.assigneeName} className="h-4 w-4 text-[8px]" />
-                              <span className="truncate text-[10.5px]">{task.assigneeName}</span>
+                            <div className="px-2 flex items-center gap-1.5 overflow-hidden text-foreground" style={{ width: `${colWidths.assignee}px` }}>
+                              <InitialsAvatar name={task.assigneeName} className="h-4 w-4 text-xs" />
+                              <span className="truncate text-xs">{task.assigneeName}</span>
                             </div>
                           </div>
                         );
@@ -1395,7 +1395,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
             <div className="grow overflow-hidden relative" style={{ width: `${totalTimelineWidth}px` }}>
               {/* Calendar Header */}
               <div 
-                className="flex h-11 bg-slate-100/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-400 text-[11px] font-bold border-b border-slate-200 dark:border-slate-800 divide-x divide-slate-200 dark:divide-slate-800/80"
+                className="flex h-11 bg-muted/50 text-muted-foreground text-xs font-bold border-b border-border divide-x divide-border"
               >
                 {daysList.map((day) => {
                   const isToday = day.iso === todayIso;
@@ -1405,19 +1405,19 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                       style={{ width: `${colWidths.dayWidth}px` }}
                       className={`shrink-0 flex flex-col items-center justify-center py-1 text-center select-none ${
                         day.isWeekend 
-                          ? 'bg-slate-200/40 dark:bg-slate-900/40 text-slate-400 dark:text-slate-500' 
-                          : 'text-slate-700 dark:text-slate-300'
+                          ? 'bg-muted text-muted-foreground' 
+                          : 'text-foreground'
                       } ${isToday ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-extrabold border-b-2 border-amber-500' : ''}`}
                     >
-                      <div className="text-[9.5px] uppercase font-bold tracking-tight">{day.dayName}</div>
-                      <div className="text-[11px] font-bold">{day.dayNum}/{day.monthShort}</div>
+                      <div className="text-xs font-bold tracking-tight">{day.dayName}</div>
+                      <div className="text-xs font-bold">{day.dayNum}/{day.monthShort}</div>
                     </div>
                   );
                 })}
               </div>
 
               {/* Calendar Body Rows */}
-              <div className="divide-y divide-slate-200/80 dark:divide-slate-800/60 relative">
+              <div className="divide-y divide-border/80 relative">
                 
                 {/* Continuous Vertical Yellow Ruler on "Today" matching Jira Plans */}
                 {daysList.findIndex(d => d.iso === todayIso) >= 0 && (
@@ -1447,9 +1447,9 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                       {hierarchyLevel !== 'subtask-only' && (
                       <div style={{ height: PARENT_ROW_H }} className="relative bg-blue-50/20 dark:bg-blue-950/10 flex items-center">
                         {/* Grid background columns */}
-                        <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
+                        <div className="flex absolute inset-0 divide-x divide-border pointer-events-none">
                           {daysList.map(d => (
-                            <div key={d.iso} style={{ width: `${colWidths.dayWidth}px` }} className={`h-full shrink-0 ${d.isWeekend ? 'bg-slate-100/50 dark:bg-slate-900/30' : ''}`} />
+                            <div key={d.iso} style={{ width: `${colWidths.dayWidth}px` }} className={`h-full shrink-0 ${d.isWeekend ? 'bg-muted/50' : ''}`} />
                           ))}
                         </div>
 
@@ -1547,9 +1547,9 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                         return (
                           <div key={task.id} style={{ height: CHILD_ROW_H }} className="relative group">
                             {/* Grid background columns */}
-                            <div className="flex absolute inset-0 divide-x divide-slate-200 dark:divide-slate-800/40 pointer-events-none">
+                            <div className="flex absolute inset-0 divide-x divide-border pointer-events-none">
                               {daysList.map(d => (
-                                <div key={d.iso} style={{ width: `${colWidths.dayWidth}px` }} className={`h-full shrink-0 ${d.isWeekend ? 'bg-slate-100/50 dark:bg-slate-900/30' : ''}`} />
+                                <div key={d.iso} style={{ width: `${colWidths.dayWidth}px` }} className={`h-full shrink-0 ${d.isWeekend ? 'bg-muted/50' : ''}`} />
                               ))}
                             </div>
 
@@ -1559,7 +1559,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                                 left: `${barLeft}px`,
                                 width: `${barWidth}px`,
                               }}
-                              className="absolute top-4 bottom-4 z-10 rounded-lg px-1 flex items-center justify-between text-[10px] font-bold text-white shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
+                              className="absolute top-4 bottom-4 z-10 rounded-lg px-1 flex items-center justify-between text-xs font-bold text-white shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
                               title={`${task.jiraKey} (${disc.label}): ${task.title || 'sem título sincronizado'} (${start} até ${end})${isDelayed ? ` - Atraso em Cascata: +${delayDays}d${confidenceNote}` : ''}`}
                             >
                               <div className={`w-full h-full rounded-md px-2 flex items-center gap-1.5 overflow-hidden ${
@@ -1569,12 +1569,12 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                                   ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-400/60'
                                   : `${disc.bg} text-white shadow-xs`
                               }`}>
-                                <span className="text-[9px] bg-black/25 px-1 py-0.2 rounded font-black uppercase shrink-0">
+                                <span className="text-xs bg-black/25 px-1 py-0.2 rounded font-semibold shrink-0">
                                   {disc.shortLabel}
                                 </span>
                                 <span className="truncate">{task.title || task.jiraKey}</span>
                                 {isDelayed && (
-                                  <span className="text-[8.5px] bg-black/40 px-1 py-0.2 rounded font-black shrink-0">
+                                  <span className="text-xs bg-black/40 px-1 py-0.2 rounded font-semibold shrink-0">
                                     +{delayDays}d {isOverdueRisk ? '🚨' : ''}
                                   </span>
                                 )}

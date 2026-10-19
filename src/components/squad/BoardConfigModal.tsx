@@ -52,9 +52,9 @@ interface ColumnConfigDetail {
 }
 
 const COLUMN_ACCENT_PALETTE = [
-  'bg-slate-700 dark:bg-slate-500',
+  'bg-foreground',
   'bg-blue-600 dark:bg-blue-500',
-  'bg-indigo-600 dark:bg-indigo-500',
+  'bg-primary',
   'bg-violet-600 dark:bg-violet-500',
   'bg-cyan-600 dark:bg-cyan-500',
   'bg-amber-600 dark:bg-amber-500',
@@ -361,23 +361,23 @@ export function BoardConfigModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[96vw] max-w-[1680px] h-[92vh] max-h-[92vh] overflow-hidden rounded-3xl p-0 border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl">
+      <DialogContent className="w-[96vw] max-w-[1680px] h-[92vh] max-h-[92vh] overflow-hidden rounded-3xl p-0 border-border flex flex-col shadow-2xl">
         {/* Top Header */}
-        <div className="p-4 px-6 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 shrink-0">
+        <div className="p-4 px-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card shrink-0">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Badge className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider text-[9.5px]">
+              <Badge className="bg-primary/10 text-primary font-bold text-xs">
                 Configuração do Quadro
               </Badge>
-              <span className="text-xs font-code text-slate-400">
+              <span className="text-xs font-code text-muted-foreground">
                 {boardName} #{rapidViewId}
               </span>
             </div>
-            <DialogTitle className="text-lg md:text-xl font-black tracking-tight uppercase font-headline text-slate-900 dark:text-white flex items-center gap-2">
-              <SlidersHorizontal className="h-5 w-5 text-indigo-500" />
+            <DialogTitle className="text-lg md:text-xl font-semibold tracking-tight font-headline text-foreground flex items-center gap-2">
+              <SlidersHorizontal className="h-5 w-5 text-primary" />
               Painel de Configuração Ágil
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
               Gerencie os filtros rápidos com consultas JQL, limites de WIP por coluna e o fluxo do time.
             </DialogDescription>
           </div>
@@ -387,7 +387,7 @@ export function BoardConfigModal({
               variant="outline"
               size="sm"
               onClick={handleApplyChanges}
-              className="rounded-xl h-8 text-xs font-bold px-4 bg-primary text-white hover:bg-primary/90"
+              className="rounded-xl h-8 text-xs font-bold px-4 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Check className="h-3.5 w-3.5 mr-1.5" />
               Salvar & Aplicar
@@ -396,10 +396,10 @@ export function BoardConfigModal({
         </div>
 
         {/* Layout com Sidebar e Área de Conteúdo */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-slate-50/50 dark:bg-slate-950/40">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden bg-muted/50">
           {/* Sidebar lateral estilo Jira Settings */}
-          <div className="w-full md:w-56 p-3 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 flex md:flex-col gap-1 overflow-x-auto">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 p-2 hidden md:block">
+          <div className="w-full md:w-56 p-3 border-b md:border-b-0 md:border-r border-border bg-card shrink-0 flex md:flex-col gap-1 overflow-x-auto">
+            <span className="text-xs font-semibold text-muted-foreground p-2 hidden md:block">
               CONFIGURAÇÃO
             </span>
 
@@ -407,13 +407,13 @@ export function BoardConfigModal({
               onClick={() => setActiveTab('filters')}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
                 activeTab === 'filters'
-                  ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-primary/10 text-primary border border-primary/30'
+                  : 'text-muted-foreground hover:bg-muted/50'
               }`}
             >
               <Filter className="h-3.5 w-3.5 shrink-0" />
               <span>Filtros Rápidos</span>
-              <Badge variant="secondary" className="ml-auto text-[9px] font-bold px-1.5 py-0 hidden md:inline-flex">
+              <Badge variant="secondary" className="ml-auto text-xs font-bold px-1.5 py-0 hidden md:inline-flex">
                 {filterList.length}
               </Badge>
             </button>
@@ -422,8 +422,8 @@ export function BoardConfigModal({
               onClick={() => setActiveTab('columns')}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
                 activeTab === 'columns'
-                  ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-primary/10 text-primary border border-primary/30'
+                  : 'text-muted-foreground hover:bg-muted/50'
               }`}
             >
               <Columns className="h-3.5 w-3.5 shrink-0" />
@@ -434,8 +434,8 @@ export function BoardConfigModal({
               onClick={() => setActiveTab('swimlanes')}
               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all text-left ${
                 activeTab === 'swimlanes'
-                  ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
-                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  ? 'bg-primary/10 text-primary border border-primary/30'
+                  : 'text-muted-foreground hover:bg-muted/50'
               }`}
             >
               <Layers className="h-3.5 w-3.5 shrink-0" />
@@ -452,10 +452,10 @@ export function BoardConfigModal({
               <div className="space-y-4 animate-in fade-in duration-200">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
                   <div>
-                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    <h3 className="text-base font-semibold text-foreground">
                       Filtros Rápidos
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       Filtros Rápidos podem ser usados para filtrar ainda mais os itens do Quadro, baseado na consulta adicional JQL.
                     </p>
                   </div>
@@ -464,7 +464,7 @@ export function BoardConfigModal({
                       variant="outline"
                       size="sm"
                       onClick={resetToDefaultFilters}
-                      className="h-8 text-xs font-bold gap-1 rounded-xl text-slate-600 dark:text-slate-300"
+                      className="h-8 text-xs font-bold gap-1 rounded-xl text-muted-foreground"
                       title={`Restaura os ${DEFAULT_QUICK_FILTERS.length} filtros padrões`}
                     >
                       <RotateCcw className="h-3 w-3" />
@@ -473,7 +473,7 @@ export function BoardConfigModal({
                     <Button
                       size="sm"
                       onClick={() => setIsAddingFilter(true)}
-                      className="h-8 text-xs font-bold gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+                      className="h-8 text-xs font-bold gap-1 rounded-xl bg-primary hover:bg-primary/10 text-primary-foreground"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       Adicionar Filtro
@@ -483,9 +483,9 @@ export function BoardConfigModal({
 
                 {/* Formulário de Adicionar Novo Filtro */}
                 {isAddingFilter && (
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 shadow-sm space-y-3">
+                  <div className="p-4 rounded-2xl bg-card border border-primary/30 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-black uppercase text-indigo-600 dark:text-indigo-400">
+                      <h4 className="text-xs font-semibold text-primary">
                         Novo Filtro Rápido
                       </h4>
                       <Button
@@ -499,7 +499,7 @@ export function BoardConfigModal({
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div>
-                        <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                        <label className="text-xs font-bold text-muted-foreground block mb-1">
                           Nome do Filtro
                         </label>
                         <Input
@@ -510,7 +510,7 @@ export function BoardConfigModal({
                         />
                       </div>
                       <div className="md:col-span-2">
-                        <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                        <label className="text-xs font-bold text-muted-foreground block mb-1">
                           Consulta JQL
                         </label>
                         <Input
@@ -522,7 +522,7 @@ export function BoardConfigModal({
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                      <label className="text-xs font-bold text-muted-foreground block mb-1">
                         Descrição (Opcional)
                       </label>
                       <Input
@@ -545,7 +545,7 @@ export function BoardConfigModal({
                         size="sm"
                         onClick={addFilter}
                         disabled={!newName.trim() || !newQuery.trim()}
-                        className="h-7 text-xs font-bold bg-indigo-600 text-white rounded-xl"
+                        className="h-7 text-xs font-bold bg-primary text-primary-foreground rounded-xl"
                       >
                         Salvar Filtro
                       </Button>
@@ -554,24 +554,24 @@ export function BoardConfigModal({
                 )}
 
                 {/* Tabela de Filtros Rápidos */}
-                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                        <tr className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground">
                           <th className="p-3 pl-4 w-40">Nome</th>
                           <th className="p-3">JQL</th>
                           <th className="p-3 w-48 hidden lg:table-cell">Descrição</th>
                           <th className="p-3 pr-4 w-28 text-right">Ações</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                      <tbody className="divide-y divide-border">
                         {filterList.map((filter, index) => {
                           const isEditing = editingId === filter.id;
 
                           if (isEditing) {
                             return (
-                              <tr key={filter.id} className="bg-indigo-50/40 dark:bg-indigo-950/20">
+                              <tr key={filter.id} className="bg-primary/10/40">
                                 <td className="p-2 pl-4">
                                   <Input
                                     value={editName}
@@ -621,17 +621,17 @@ export function BoardConfigModal({
                           return (
                             <tr
                               key={filter.id}
-                              className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
+                              className="hover:bg-muted/50 transition-colors group"
                             >
-                              <td className="p-3 pl-4 font-bold text-slate-800 dark:text-slate-200">
-                                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px]">
+                              <td className="p-3 pl-4 font-bold text-foreground">
+                                <span className="px-2 py-0.5 rounded-md bg-muted/50 text-xs">
                                   {filter.name}
                                 </span>
                               </td>
-                              <td className="p-3 font-code text-[11px] text-slate-600 dark:text-slate-300 break-all leading-relaxed">
+                              <td className="p-3 font-code text-xs text-muted-foreground break-all leading-relaxed">
                                 {filter.query}
                               </td>
-                              <td className="p-3 text-[11px] text-slate-400 hidden lg:table-cell">
+                              <td className="p-3 text-xs text-muted-foreground hidden lg:table-cell">
                                 {filter.description || '—'}
                               </td>
                               <td className="p-3 pr-4 text-right">
@@ -641,7 +641,7 @@ export function BoardConfigModal({
                                     variant="ghost"
                                     onClick={() => moveFilter(index, 'up')}
                                     disabled={index === 0}
-                                    className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-slate-600"
+                                    className="h-6 w-6 p-0 rounded-md text-muted-foreground hover:text-muted-foreground"
                                     title="Mover para cima"
                                   >
                                     <ArrowUp className="h-3 w-3" />
@@ -651,7 +651,7 @@ export function BoardConfigModal({
                                     variant="ghost"
                                     onClick={() => moveFilter(index, 'down')}
                                     disabled={index === filterList.length - 1}
-                                    className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-slate-600"
+                                    className="h-6 w-6 p-0 rounded-md text-muted-foreground hover:text-muted-foreground"
                                     title="Mover para baixo"
                                   >
                                     <ArrowDown className="h-3 w-3" />
@@ -660,7 +660,7 @@ export function BoardConfigModal({
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => startEdit(filter)}
-                                    className="h-6 w-6 p-0 rounded-md text-indigo-600 hover:text-indigo-700"
+                                    className="h-6 w-6 p-0 rounded-md text-primary hover:text-primary/80"
                                     title="Editar Filtro"
                                   >
                                     <Edit2 className="h-3 w-3" />
@@ -692,16 +692,16 @@ export function BoardConfigModal({
             {activeTab === 'columns' && (
               <div className="space-y-4 animate-in fade-in duration-200">
                 <div>
-                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  <h3 className="text-base font-semibold text-foreground">
                     Colunas e Limites de WIP
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Mapeamento de colunas, limites mínimos/máximos e distribuição de status do fluxo do Jira.
                   </p>
                 </div>
 
                 {columnList.length === 0 && (
-                  <p role="status" className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                  <p role="status" className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                     O Jira não devolveu colunas para este quadro. Atualize o Quadro ou confira o número do quadro em Configurar a squad.
                   </p>
                 )}
@@ -714,16 +714,16 @@ export function BoardConfigModal({
                     return (
                       <div
                         key={col.id}
-                        className="bg-white dark:bg-slate-900/95 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 flex flex-col justify-between shadow-xs hover:border-indigo-300 dark:hover:border-indigo-800 transition-all min-w-[155px]"
+                        className="bg-card rounded-2xl border border-border p-3.5 flex flex-col justify-between shadow-xs hover:border-primary/60 transition-all min-w-[155px]"
                       >
                         <div>
-                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-100 mb-2 leading-snug min-h-[28px] flex items-center">
+                          <h4 className="text-xs font-semibold text-foreground mb-2 leading-snug min-h-[28px] flex items-center">
                             {col.name}
                           </h4>
 
                           <div className="grid grid-cols-2 gap-1.5 mb-3">
                             <div>
-                              <span className="text-[9px] font-bold text-slate-400 block mb-0.5 text-center">
+                              <span className="text-xs font-bold text-muted-foreground block mb-0.5 text-center">
                                 MÍN
                               </span>
                               <Input
@@ -731,15 +731,15 @@ export function BoardConfigModal({
                                 placeholder="Sem Min"
                                 value={col.min === null ? '' : col.min}
                                 onChange={e => handleMinChange(col.id, e.target.value)}
-                                className={`h-7 px-1 text-[10px] text-center font-bold rounded-lg ${
+                                className={`h-7 px-1 text-xs text-center font-bold rounded-lg ${
                                   hasMin
                                     ? 'border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/5'
-                                    : 'border-amber-500/60 text-slate-500 dark:text-slate-400 placeholder:text-amber-700/60 dark:placeholder:text-amber-400/60'
+                                    : 'border-amber-500/60 text-muted-foreground placeholder:text-amber-700/60 dark:placeholder:text-amber-400/60'
                                 }`}
                               />
                             </div>
                             <div>
-                              <span className="text-[9px] font-bold text-slate-400 block mb-0.5 text-center">
+                              <span className="text-xs font-bold text-muted-foreground block mb-0.5 text-center">
                                 MÁX
                               </span>
                               <Input
@@ -747,10 +747,10 @@ export function BoardConfigModal({
                                 placeholder="Sem Máx"
                                 value={col.max === null ? '' : col.max}
                                 onChange={e => handleMaxChange(col.id, e.target.value)}
-                                className={`h-7 px-1 text-[10px] text-center font-bold rounded-lg ${
+                                className={`h-7 px-1 text-xs text-center font-bold rounded-lg ${
                                   hasMax
                                     ? 'border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/5'
-                                    : 'border-orange-500/60 text-slate-500 dark:text-slate-400 placeholder:text-orange-700/60 dark:placeholder:text-orange-400/60'
+                                    : 'border-orange-500/60 text-muted-foreground placeholder:text-orange-700/60 dark:placeholder:text-orange-400/60'
                                 }`}
                               />
                             </div>
@@ -762,20 +762,20 @@ export function BoardConfigModal({
                             {col.statuses.map(st => (
                               <div
                                 key={st.id}
-                                className={`p-2 rounded-xl border text-[9.5px] transition-all ${
+                                className={`p-2 rounded-xl border text-xs transition-all ${
                                   st.hasWarning
                                     ? 'bg-amber-500/5 border-amber-500/30'
-                                    : 'bg-slate-50/90 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800/80'
+                                    : 'bg-muted/50 border-border/80'
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-1">
                                   <span
-                                    className={`font-black uppercase tracking-wider leading-tight break-words ${
+                                    className={`font-semibold leading-tight break-words ${
                                       st.hasWarning
                                         ? 'text-amber-700 dark:text-amber-300'
                                         : col.name === 'Finalizado'
                                         ? 'text-emerald-600 dark:text-emerald-400'
-                                        : 'text-slate-700 dark:text-slate-200'
+                                        : 'text-foreground'
                                     }`}
                                   >
                                     {st.name}
@@ -784,7 +784,7 @@ export function BoardConfigModal({
                                     <AlertTriangle className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
                                   )}
                                 </div>
-                                <p className="text-[8.5px] font-bold text-slate-400 dark:text-slate-500 mt-1">
+                                <p className="text-xs font-bold text-muted-foreground mt-1">
                                   {st.count}
                                 </p>
                               </div>
@@ -804,25 +804,25 @@ export function BoardConfigModal({
             {activeTab === 'swimlanes' && (
               <div className="space-y-4 animate-in fade-in duration-200">
                 {/* Cabeçalho explicativo */}
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+                <div className="p-4 rounded-2xl bg-card border border-border shadow-xs space-y-3">
                   <div>
-                    <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    <h3 className="text-base font-semibold text-foreground">
                       Raia
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      Uma Raia é uma linha no Quadro que pode ser utilizada nos itens em grupo. O tipo de Raia pode ser alterado abaixo e será salvo automaticamente. <span className="font-semibold text-slate-600 dark:text-slate-300">Nota: consultas não vão ser perdidas quando alteradas por outro tipo de Raia.</span>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Uma Raia é uma linha no Quadro que pode ser utilizada nos itens em grupo. O tipo de Raia pode ser alterado abaixo e será salvo automaticamente. <span className="font-semibold text-muted-foreground">Nota: consultas não vão ser perdidas quando alteradas por outro tipo de Raia.</span>
                     </p>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <label className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 shrink-0">
+                      <label className="text-xs font-semibold text-muted-foreground shrink-0">
                         Basear as Raias no:
                       </label>
                       <select
                         value={swimlaneStrategy}
                         onChange={e => setSwimlaneStrategy(e.target.value as any)}
-                        className="h-8 px-3 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="h-8 px-3 text-xs font-bold rounded-xl border border-border bg-muted/50 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                       >
                         <option value="queries">Pesquisas (Consultas JQL)</option>
                         <option value="parents">Histórias (Itens Pai)</option>
@@ -838,7 +838,7 @@ export function BoardConfigModal({
                           variant="outline"
                           size="sm"
                           onClick={resetToDefaultSwimlanes}
-                          className="h-8 text-xs font-bold gap-1 rounded-xl text-slate-600 dark:text-slate-300"
+                          className="h-8 text-xs font-bold gap-1 rounded-xl text-muted-foreground"
                           title={`Restaura as ${DEFAULT_SWIMLANES.length} raias padrões (${DEFAULT_SWIMLANES.map(s => s.name).join(', ')})`}
                         >
                           <RotateCcw className="h-3 w-3" />
@@ -847,7 +847,7 @@ export function BoardConfigModal({
                         <Button
                           size="sm"
                           onClick={() => setIsAddingSwimlane(true)}
-                          className="h-8 text-xs font-bold gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+                          className="h-8 text-xs font-bold gap-1 rounded-xl bg-primary hover:bg-primary/10 text-primary-foreground"
                         >
                           <Plus className="h-3.5 w-3.5" />
                           Adicionar Raia
@@ -860,15 +860,15 @@ export function BoardConfigModal({
                 {/* Se a estratégia for "Pesquisas", exibe a tabela JQL */}
                 {swimlaneStrategy === 'queries' ? (
                   <div className="space-y-3">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 px-1 leading-relaxed">
+                    <p className="text-xs text-muted-foreground px-1 leading-relaxed">
                       Agrupar o item por pesquisas customizadas. Pesquisas são baseadas no JQL adicional salvo do Quadro. Por exemplo: para agrupar itens que têm uma prioridade bloqueante, utilize o JQL <code>priority in (Crítica, Alta)</code>.
                     </p>
 
                     {/* Formulário para Nova Raia */}
                     {isAddingSwimlane && (
-                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 shadow-sm space-y-3">
+                      <div className="p-4 rounded-2xl bg-card border border-primary/30 shadow-sm space-y-3">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-black uppercase text-indigo-600 dark:text-indigo-400">
+                          <h4 className="text-xs font-semibold text-primary">
                             Nova Raia de Pesquisa
                           </h4>
                           <Button
@@ -882,7 +882,7 @@ export function BoardConfigModal({
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                           <div>
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                            <label className="text-xs font-bold text-muted-foreground block mb-1">
                               Nome da Raia
                             </label>
                             <Input
@@ -893,7 +893,7 @@ export function BoardConfigModal({
                             />
                           </div>
                           <div className="md:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                            <label className="text-xs font-bold text-muted-foreground block mb-1">
                               Consulta JQL
                             </label>
                             <Input
@@ -905,7 +905,7 @@ export function BoardConfigModal({
                           </div>
                         </div>
                         <div>
-                          <label className="text-[10px] font-bold text-slate-500 block mb-1">
+                          <label className="text-xs font-bold text-muted-foreground block mb-1">
                             Descrição (Opcional)
                           </label>
                           <Input
@@ -928,7 +928,7 @@ export function BoardConfigModal({
                             size="sm"
                             onClick={addSwimlane}
                             disabled={!newSwimlaneName.trim() || !newSwimlaneQuery.trim()}
-                            className="h-7 text-xs font-bold bg-indigo-600 text-white rounded-xl"
+                            className="h-7 text-xs font-bold bg-primary text-primary-foreground rounded-xl"
                           >
                             Salvar Raia
                           </Button>
@@ -937,25 +937,25 @@ export function BoardConfigModal({
                     )}
 
                     {/* Tabela de Raias */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
+                    <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
                       <div className="overflow-x-auto">
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
-                            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                            <tr className="border-b border-border bg-muted/50 text-xs font-semibold text-muted-foreground">
                               <th className="p-3 pl-4 w-48">Nome</th>
                               <th className="p-3">JQL</th>
                               <th className="p-3 w-48 hidden lg:table-cell">Descrição</th>
                               <th className="p-3 pr-4 w-28 text-right">Ações</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                          <tbody className="divide-y divide-border">
                             {swimlaneList.map((swimlane, index) => {
                               const isEditing = editingSwimlaneId === swimlane.id;
                               const isDefault = !!swimlane.isDefault;
 
                               if (isEditing) {
                                 return (
-                                  <tr key={swimlane.id} className="bg-indigo-50/40 dark:bg-indigo-950/20">
+                                  <tr key={swimlane.id} className="bg-primary/10/40">
                                     <td className="p-2 pl-4">
                                       <Input
                                         value={editSwimlaneName}
@@ -1008,30 +1008,30 @@ export function BoardConfigModal({
                               return (
                                 <tr
                                   key={swimlane.id}
-                                  className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group"
+                                  className="hover:bg-muted/50 transition-colors group"
                                 >
-                                  <td className="p-3 pl-4 font-bold text-slate-800 dark:text-slate-200">
+                                  <td className="p-3 pl-4 font-bold text-foreground">
                                     <div className="flex items-center gap-1.5">
-                                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px]">
+                                      <span className="px-2 py-0.5 rounded-md bg-muted/50 text-xs">
                                         {swimlane.name}
                                       </span>
                                       {isDefault && (
-                                        <Badge variant="outline" className="text-[8px] font-bold text-slate-400">
+                                        <Badge variant="outline" className="text-xs font-bold text-muted-foreground">
                                           Padrão
                                         </Badge>
                                       )}
                                     </div>
                                   </td>
-                                  <td className="p-3 font-code text-[11px] text-slate-600 dark:text-slate-300 break-all leading-relaxed">
+                                  <td className="p-3 font-code text-xs text-muted-foreground break-all leading-relaxed">
                                     {isDefault ? (
-                                      <span className="text-slate-400 italic font-sans text-xs">
+                                      <span className="text-muted-foreground font-sans text-xs">
                                         Todos os itens que não corresponderem a nenhuma consulta acima
                                       </span>
                                     ) : (
                                       swimlane.query
                                     )}
                                   </td>
-                                  <td className="p-3 text-[11px] text-slate-400 hidden lg:table-cell">
+                                  <td className="p-3 text-xs text-muted-foreground hidden lg:table-cell">
                                     {swimlane.description || '—'}
                                   </td>
                                   <td className="p-3 pr-4 text-right">
@@ -1042,7 +1042,7 @@ export function BoardConfigModal({
                                           variant="ghost"
                                           onClick={() => moveSwimlane(index, 'up')}
                                           disabled={index === 0}
-                                          className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-slate-600"
+                                          className="h-6 w-6 p-0 rounded-md text-muted-foreground hover:text-muted-foreground"
                                           title="Mover para cima"
                                         >
                                           <ArrowUp className="h-3 w-3" />
@@ -1052,7 +1052,7 @@ export function BoardConfigModal({
                                           variant="ghost"
                                           onClick={() => moveSwimlane(index, 'down')}
                                           disabled={index >= swimlaneList.length - 2}
-                                          className="h-6 w-6 p-0 rounded-md text-slate-400 hover:text-slate-600"
+                                          className="h-6 w-6 p-0 rounded-md text-muted-foreground hover:text-muted-foreground"
                                           title="Mover para baixo"
                                         >
                                           <ArrowDown className="h-3 w-3" />
@@ -1061,7 +1061,7 @@ export function BoardConfigModal({
                                           size="sm"
                                           variant="ghost"
                                           onClick={() => startEditSwimlane(swimlane)}
-                                          className="h-6 w-6 p-0 rounded-md text-indigo-600 hover:text-indigo-700"
+                                          className="h-6 w-6 p-0 rounded-md text-primary hover:text-primary/80"
                                           title="Editar Raia"
                                         >
                                           <Edit2 className="h-3 w-3" />
@@ -1087,9 +1087,9 @@ export function BoardConfigModal({
                     </div>
                   </div>
                 ) : (
-                  <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
-                    <Layers className="h-8 w-8 text-indigo-500 mx-auto mb-2" />
-                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200">
+                  <div className="p-6 rounded-2xl bg-card border border-border text-center">
+                    <Layers className="h-8 w-8 text-primary mx-auto mb-2" />
+                    <h4 className="text-xs font-semibold text-foreground">
                       {swimlaneStrategy === 'parents'
                         ? 'Agrupamento por Histórias (Itens Pai)'
                         : swimlaneStrategy === 'assignees'
@@ -1098,7 +1098,7 @@ export function BoardConfigModal({
                         ? 'Agrupamento por Épicos'
                         : 'Sem Divisão de Raias'}
                     </h4>
-                    <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
                       {swimlaneStrategy === 'parents'
                         ? 'Subtarefas são agrupadas sob seus itens Pai. Itens sem subtarefas serão apresentados no próprio grupo na parte inferior.'
                         : swimlaneStrategy === 'assignees'
