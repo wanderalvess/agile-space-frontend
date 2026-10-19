@@ -328,7 +328,7 @@ export function SquadHub() {
             onChange={(next) => goTo(next)}
             label="Seções da squad"
             idPrefix="hub"
-            className="overflow-x-auto px-0"
+            className="overflow-y-hidden overflow-x-auto px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             tabClassName="shrink-0 px-1 max-sm:h-11"
           />
 

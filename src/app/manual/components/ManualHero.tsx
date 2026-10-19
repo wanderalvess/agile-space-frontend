@@ -26,7 +26,7 @@ export function ManualHero({
   color = 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
   badgeBg = 'bg-primary/10',
   badgeBorder = 'border-primary/20',
-  badgeText = 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+  badgeText = 'text-foreground',
   actionUrl,
   actionLabel = 'Abrir Ferramenta',
 }: ManualHeroProps) {

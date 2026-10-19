@@ -177,7 +177,7 @@ export function AppHeader({ squadControl, search, sticky = true, className }: Ap
       )}
     >
       <div className="mx-auto flex max-w-[1680px] flex-wrap items-center gap-x-3 gap-y-2.5 px-4 py-3 sm:px-8 2xl:px-12">
-        <Link href="/" aria-label="Portal Tech V&D, página inicial" className={cn('order-1 rounded-md', FOCUS_RING)}>
+        <Link href="/" aria-label="Portal Tech V&D, página inicial" className={cn('order-1 -my-2 inline-flex items-center rounded-md py-2', FOCUS_RING)}>
           <BrandWordmark className="max-[1359px]:[&>span:last-child]:hidden" />
         </Link>
 

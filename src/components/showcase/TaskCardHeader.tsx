@@ -60,7 +60,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
             onChange={(v: string) => onUpdate({ key: v.toUpperCase() })}
             placeholder="CHAVE-00"
             style={{ width: `${keyWidthCh}ch` }}
-            className="border-none bg-transparent text-[13px] font-bold uppercase tabular-nums text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+            className="h-6 border-none bg-transparent text-[13px] font-bold uppercase tabular-nums text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-0"
           />
           {jiraUrl && (
             <a
@@ -150,7 +150,7 @@ export function TaskCardHeader({ task, index, isManual, isMetricsCard, canCollap
         value={task.title}
         onChange={(v: string) => onUpdate({ title: v })}
         placeholder="Título da entrega"
-        className="w-full border-none bg-transparent text-base font-bold leading-snug text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:text-primary [.theme-totvs:not(.dark)_&]:focus:text-foreground"
+        className="min-h-6 w-full border-none bg-transparent text-base font-bold leading-snug text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:text-primary [.theme-totvs:not(.dark)_&]:focus:text-foreground"
       />
     </div>
   );

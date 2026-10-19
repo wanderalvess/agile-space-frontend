@@ -36,20 +36,20 @@ export function CodeBlock({ code, label, language, className }: CodeBlockProps) 
   return (
     <div className={cn('rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-950', className)}>
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900">
-        <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
           {displayLabel}
         </span>
         <button
           type="button"
           onClick={handleCopy}
           aria-label={copied ? 'Copiado' : 'Copiar código'}
-          className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-cyan-400 transition-colors"
+          className="-my-1 -mr-2 flex min-h-6 items-center gap-1.5 rounded-md px-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition-colors hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
         >
           {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
           {copied ? 'Copiado' : 'Copiar'}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-[11px] leading-relaxed font-code text-slate-200 whitespace-pre">
+      <pre className="p-4 overflow-x-auto text-xs leading-relaxed font-code text-slate-200 whitespace-pre">
         {code}
       </pre>
     </div>

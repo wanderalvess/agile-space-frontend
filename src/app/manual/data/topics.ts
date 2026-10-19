@@ -73,7 +73,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-primary',
     actionUrl: '/room',
     actionLabel: 'Criar Sessão de Poker'
@@ -88,7 +88,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-amber-700 dark:text-amber-400',
     badgeBg: 'bg-amber-500/10 dark:bg-amber-500/20',
     badgeBorder: 'border-amber-500/20',
-    badgeText: 'text-amber-700 dark:text-amber-400',
+    badgeText: 'text-amber-800 dark:text-amber-400',
     heroBg: 'from-amber-500 to-orange-600',
     actionUrl: '/brainstorming',
     actionLabel: 'Abrir Brainstorming'
@@ -103,7 +103,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-orange-700 dark:text-orange-400',
     badgeBg: 'bg-orange-500/10 dark:bg-orange-500/20',
     badgeBorder: 'border-orange-500/20',
-    badgeText: 'text-orange-700 dark:text-orange-400',
+    badgeText: 'text-orange-800 dark:text-orange-400',
     heroBg: 'from-orange-500 to-rose-600',
     actionUrl: '/retro',
     actionLabel: 'Abrir Retrospectiva'
@@ -118,7 +118,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-primary',
     actionUrl: '/sprint-planner',
     actionLabel: 'Ver status (em breve)'
@@ -133,7 +133,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-emerald-700 dark:text-emerald-400',
     badgeBg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
     badgeBorder: 'border-emerald-500/20',
-    badgeText: 'text-emerald-700 dark:text-emerald-400',
+    badgeText: 'text-emerald-800 dark:text-emerald-400',
     heroBg: 'from-emerald-600 to-primary',
     actionUrl: '/health-check',
     actionLabel: 'Abrir Radar de Saúde'
@@ -164,7 +164,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-primary',
     actionUrl: '/jolt',
     actionLabel: 'Abrir Hub Jolt'
@@ -179,7 +179,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-primary'
   },
 
@@ -194,7 +194,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-primary',
     actionUrl: '/knowledge/kb',
     actionLabel: 'Abrir Base de Conhecimento'
@@ -209,7 +209,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-primary',
     actionUrl: '/prompt-hub',
     actionLabel: 'Abrir Biblioteca de IA'
@@ -224,7 +224,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-rose-700',
     actionUrl: '/showcase',
     actionLabel: 'Abrir Review'
@@ -241,7 +241,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10 dark:bg-primary/20',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-primary to-card',
     actionUrl: '/onboarding',
     actionLabel: 'Abrir o primeiro acesso'
@@ -256,7 +256,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
     badgeBg: 'bg-primary/10',
     badgeBorder: 'border-primary/20',
-    badgeText: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
+    badgeText: 'text-foreground',
     heroBg: 'from-card to-primary'
   },
   {
@@ -269,7 +269,7 @@ export const MANUAL_TOPICS: ManualTopic[] = [
     color: 'text-emerald-700 dark:text-emerald-400',
     badgeBg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
     badgeBorder: 'border-emerald-500/20',
-    badgeText: 'text-emerald-700 dark:text-emerald-400',
+    badgeText: 'text-emerald-800 dark:text-emerald-400',
     heroBg: 'from-emerald-700 to-card',
     actionUrl: '/governance',
     actionLabel: 'Ver Painel de Governança'

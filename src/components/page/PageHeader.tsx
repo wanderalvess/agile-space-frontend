@@ -40,7 +40,7 @@ export function PageHeader({ title, subtitle, breadcrumb, module, badges, action
                   {c.href && !last ? (
                     <Link
                       href={c.href}
-                      className="inline-flex items-center gap-1.5 rounded-md transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:min-h-11"
+                      className="inline-flex min-h-6 items-center gap-1.5 rounded-md transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:min-h-11"
                     >
                       {i === 0 && crumbs.length > 1 && <ArrowLeft className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} aria-hidden="true" />}
                       {c.label}

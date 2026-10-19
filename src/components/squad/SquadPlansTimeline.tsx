@@ -1306,7 +1306,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setOpenDelayPickerFor(openDelayPickerFor === task.id ? null : task.id); }}
-                                className={`ml-auto shrink-0 p-1 rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                                className={`ml-auto inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                                 title="Simular atraso nesta fase"
                               >
                                 <Clock className="w-3 h-3" />
