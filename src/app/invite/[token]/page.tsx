@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { inviteApi, type Invite } from '@/lib/invite-api';
 import { inviteView } from '@/lib/invite-state';
 import { InviteAcceptView } from '@/components/invite/InviteAcceptView';
+import { PageShell } from '@/components/page';
 
 /** Quanto tempo "Convite aceito!" fica na tela antes de levar para o squad. */
 const REDIRECT_DELAY_MS = 1500;
@@ -57,6 +58,7 @@ export default function InviteAcceptPage() {
   const view = inviteView({ authLoading, hasSession: !!session, invite, error, accepted });
 
   return (
+    <PageShell documentTitle="Convite" header={{ squadControl: null }} width="narrow" contentClassName="gap-0 p-0 sm:p-0 2xl:px-0 pb-0 sm:pb-0 pt-0 sm:pt-0">
     <InviteAcceptView
       view={view}
       invite={invite}
@@ -68,5 +70,6 @@ export default function InviteAcceptPage() {
       onSwitchAccount={logout}
       onSkip={() => router.push('/')}
     />
+    </PageShell>
   );
 }
