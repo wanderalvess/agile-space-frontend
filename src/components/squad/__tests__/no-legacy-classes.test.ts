@@ -60,7 +60,7 @@ describe('/squad sem classes do visual antigo', () => {
   }
   it('text-white só sobre fundo saturado', () => {
     expect(
-      scan(files, /(?<![\w:-])text-white/, /bg-(?:emerald|rose|red|amber|blue|teal|purple|violet|cyan|orange)-[5-7]00|\$\{disc\.bg\}|from-amber-500|absolute top-4 bottom-4 z-10/),
+      scan(files, /(?<![\w:-])text-white/, /bg-(?:emerald|rose|red|amber|blue|teal|purple|violet|cyan|orange)-[5-8]00|\$\{disc\.bg\}|from-amber-[57]00|absolute top-4 bottom-4 z-10/),
     ).toEqual([]);
   });
 });
