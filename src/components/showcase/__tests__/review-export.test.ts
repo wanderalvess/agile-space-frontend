@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { ShowcaseTask } from '../types';
 import {
   approvalRateOf,
   buildApprovalsTable,
   buildLinksText,
   buildLogMarkdown,
+  decidedWhen,
   decisionGroups,
   efficiencyOf,
   fileSlug,
@@ -132,5 +133,26 @@ describe('participantes do resumo', () => {
     const without = buildLogMarkdown({ participants: [] }, 'Sprint 42', tasks, now);
     expect(without).not.toContain('Participantes');
     expect(buildLogMarkdown(null, 'Sprint 42', tasks, now)).not.toContain('Participantes');
+  });
+});
+
+describe('decidedWhen (carimbo do servidor sem fuso vale UTC)', () => {
+  const tzOriginal = process.env.TZ;
+  afterEach(() => {
+    if (tzOriginal === undefined) delete process.env.TZ;
+    else process.env.TZ = tzOriginal;
+  });
+
+  it('22:43 UTC sem fuso aparece como 19:43 em Brasília, e com Z ou offset dá o mesmo horário', () => {
+    process.env.TZ = 'America/Sao_Paulo';
+    expect(decidedWhen('2026-10-17T22:43:10.123456')).toBe('17/10 às 19:43');
+    expect(decidedWhen('2026-10-17T22:43:10.123Z')).toBe('17/10 às 19:43');
+    expect(decidedWhen('2026-10-17T19:43:10-03:00')).toBe('17/10 às 19:43');
+  });
+
+  it('vazio ou inválido devolve texto vazio', () => {
+    expect(decidedWhen(undefined)).toBe('');
+    expect(decidedWhen('')).toBe('');
+    expect(decidedWhen('ontem')).toBe('');
   });
 });

@@ -9,6 +9,7 @@ import type { MyMemberships } from '@/lib/memberships-api';
 import { findMembership, hasMemberships } from '@/lib/memberships';
 import type { ShowcaseSession, ShowcaseTask } from './types';
 import { compareText, isTaskContentComplete, formatTime } from './utils';
+import { parseServerTime } from '@/lib/server-time';
 
 // ───────────────────────── Status e fases ─────────────────────────
 
@@ -27,8 +28,8 @@ export function normalizeReviewStatus(raw?: string | null, updatedAt?: string | 
   const value = (raw ?? '').trim().toLowerCase();
   if (value === 'finished') return 'finished';
   if (value === 'active') {
-    const t = updatedAt ? Date.parse(updatedAt) : NaN;
-    if (Number.isFinite(t) && now - t > REVIEW_STALE_MS) return 'planning';
+    const t = parseServerTime(updatedAt);
+    if (t !== null && now - t > REVIEW_STALE_MS) return 'planning';
     return 'active';
   }
   return 'planning';

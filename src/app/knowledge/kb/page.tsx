@@ -45,6 +45,7 @@ import { ptBR } from 'date-fns/locale';
 import { useTdnSettings } from '@/hooks/useTdnSettings';
 import { getTdnPageContent, importTdnToKnowledgeBase, parseConfluenceMacros } from '@/services/tdnService';
 import { TdnImportDialog } from '@/components/knowledge/TdnImportDialog';
+import { ConfirmTrashDialog, type TrashTarget } from '@/components/knowledge/ConfirmTrashDialog';
 import { ModuleIntegrationButton } from '@/components/shared/ModuleIntegrationDialog';
 import { htmlToMarkdown, htmlToPlainText } from '@/lib/knowledge-export';
 
@@ -279,14 +280,25 @@ function KBExplorerContent() {
     toast.success(`${selectedIds.size} downloads iniciados.`);
   };
 
-  const handleDeleteMultiple = async () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`Tem certeza que deseja mover ${selectedIds.size} itens para a lixeira?`)) return;
+  // A exclusão pede confirmação num diálogo próprio (nada de window.confirm).
+  const [trashTarget, setTrashTarget] = useState<TrashTarget | null>(null);
+  const [isTrashing, setIsTrashing] = useState(false);
 
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) return;
+    setTrashTarget({ kind: 'batch', ids: Array.from(selectedIds) });
+  };
+
+  const handleDelete = (id: string) => {
+    const docItem = documents.find(d => d.id === id);
+    setTrashTarget({ kind: 'single', id, title: docItem?.title || 'Este artigo' });
+  };
+
+  const runTrashBatch = async (ids: string[]) => {
     // Um a um: se algum falhar (ex.: não é o autor) os outros continuam e o resumo diz o que aconteceu.
     let ok = 0;
     let firstError = '';
-    for (const id of Array.from(selectedIds)) {
+    for (const id of ids) {
       try {
         await knowledgeApi.deleteDocument(id);
         ok++;
@@ -294,21 +306,30 @@ function KBExplorerContent() {
         if (!firstError) firstError = err?.message || 'Erro desconhecido';
       }
     }
-    const failed = selectedIds.size - ok;
+    const failed = ids.length - ok;
     if (ok > 0) toast.success(`${ok} documento(s) movido(s) para a lixeira.`);
     if (failed > 0) toast.error(`${failed} documento(s) não puderam ser apagados: ${firstError}`);
     setSelectedIds(new Set());
-    fetchDocuments();
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja mover este documento para a lixeira?")) return;
+  const confirmTrash = async () => {
+    if (!trashTarget || isTrashing) return;
+    setIsTrashing(true);
     try {
-      await knowledgeApi.deleteDocument(id);
-      toast.success("Documento movido para a lixeira.");
+      if (trashTarget.kind === 'batch') {
+        await runTrashBatch(trashTarget.ids);
+      } else {
+        try {
+          await knowledgeApi.deleteDocument(trashTarget.id);
+          toast.success("Documento movido para a lixeira.");
+        } catch (err: any) {
+          toast.error(err?.message || "Erro ao excluir documento.");
+        }
+      }
       fetchDocuments();
-    } catch (err: any) {
-      toast.error(err?.message || "Erro ao excluir documento.");
+    } finally {
+      setIsTrashing(false);
+      setTrashTarget(null);
     }
   };
 
@@ -907,6 +928,14 @@ function KBExplorerContent() {
           }}
         />
       )}
+
+      {/* Confirmação de exclusão (mover para a lixeira) */}
+      <ConfirmTrashDialog
+        target={trashTarget}
+        loading={isTrashing}
+        onCancel={() => setTrashTarget(null)}
+        onConfirm={confirmTrash}
+      />
 
       {/* Modal Formato de Download */}
       <Dialog open={isDownloadFormatOpen} onOpenChange={setIsDownloadFormatOpen}>

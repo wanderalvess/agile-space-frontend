@@ -11,6 +11,7 @@ import { FIELD, FOCUS_RING, IconTile, ModalButton, StatusChip, BRAND_TEXT, CARD_
 import { useToast } from '@/hooks/use-toast';
 import { moduleIcon } from '@/lib/modules-registry';
 import { cn } from '@/lib/utils';
+import { parseServerDate } from '@/lib/server-time';
 import { showcaseApi } from '@/app/showcase/api';
 import type { ShowcaseSession } from './types';
 import {
@@ -295,8 +296,8 @@ function ChecklistCard({ last }: { last: ShowcaseSession | null }) {
 
 function ago(iso: string | null | undefined): string {
   if (!iso) return 'Recentemente';
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? 'Recentemente' : formatDistanceToNow(d, { addSuffix: true, locale: ptBR });
+  const d = parseServerDate(iso);
+  return d ? formatDistanceToNow(d, { addSuffix: true, locale: ptBR }) : 'Recentemente';
 }
 
 /** Histórico: as Reviews carregadas (até 50), com busca e filtro por status. */

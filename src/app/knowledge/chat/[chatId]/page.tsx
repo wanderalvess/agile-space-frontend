@@ -40,6 +40,8 @@ import {
 } from "@/components/ui/sheet";
 import { authFetch } from '@/lib/auth-client';
 
+const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background';
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -317,7 +319,7 @@ function ChatContent({ chatId }: { chatId: string }) {
       // Devolve a pergunta à caixa de texto: quem digitou não precisa reescrever.
       setMessages(messages);
       setInput(prompt);
-      toast({ title: "Erro no Motor", description: err.message, variant: "destructive" });
+      toast({ title: "Erro no assistente", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
       refreshConversations();
@@ -347,105 +349,117 @@ function ChatContent({ chatId }: { chatId: string }) {
   };
 
   return (
-    <div className="flex h-full w-full bg-[#fcfcfd] dark:bg-slate-950 overflow-hidden relative">
+    <div className="relative flex h-full w-full overflow-hidden bg-background text-foreground">
 
-      {/* Sidebar Persistente Estilo Gemini/ChatGPT */}
+      {/* Barra lateral persistente com as conversas */}
       <aside className={cn(
-        "hidden md:flex flex-col bg-slate-50/80 dark:bg-slate-900/40 backdrop-blur-xl border-r border-slate-100 dark:border-slate-800 transition-all duration-500 overflow-hidden shrink-0",
+        "hidden shrink-0 flex-col overflow-hidden border-r border-border bg-card/60 md:flex motion-safe:transition-all motion-safe:duration-300",
         isSidebarOpen ? "w-72" : "w-0"
       )}>
-        <div className="p-5 h-full flex flex-col gap-4 min-w-[288px]">
+        <div className="flex h-full min-w-[288px] flex-col gap-4 p-5">
           <Button
             onClick={createNewChat}
-            className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-slate-900 dark:text-slate-100 text-[10px] font-black uppercase tracking-widest gap-2 shadow-sm"
+            variant="outline"
+            className={cn("h-11 w-full gap-2 rounded-[10px] border-border bg-background text-sm font-semibold text-foreground hover:bg-muted", FOCUS)}
           >
-            <Plus className="h-4 w-4 text-cyan-600" /> Nova Consulta
+            <Plus className="h-4 w-4 text-primary" aria-hidden="true" /> Nova consulta
           </Button>
 
-          <div className="flex-1 overflow-hidden flex flex-col mt-2">
-            <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500 px-2 mb-4">Recentes</h3>
-            <ScrollArea className="flex-1 -mx-2 px-2">
-              <div className="space-y-1">
+          <div className="mt-2 flex flex-1 flex-col overflow-hidden">
+            <h2 className="mb-3 px-2 text-sm font-semibold text-muted-foreground">Recentes</h2>
+            <ScrollArea className="-mx-2 flex-1 px-2">
+              <ul className="space-y-1">
                 {conversations.map((conv) => (
-                  <div
+                  <li
                     key={conv.id}
-                    onClick={() => router.push(`/knowledge/chat/${conv.id}`)}
                     className={cn(
-                      "group p-3 rounded-xl cursor-pointer transition-all border border-transparent",
-                      chatId === conv.id ? "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm" : "hover:bg-slate-100/50 dark:hover:bg-slate-900/30"
+                      "group relative rounded-xl border border-transparent motion-safe:transition-colors",
+                      chatId === conv.id ? "border-border bg-background" : "hover:bg-muted/60"
                     )}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className={cn("text-[11px] font-black uppercase tracking-tight truncate", chatId === conv.id ? "text-cyan-600 dark:text-cyan-400" : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100")}>
-                          {conv.title}
-                        </p>
-                        <p className="text-[9px] font-medium text-slate-500 dark:text-slate-500 truncate mt-0.5 italic">{getPreview(conv)}</p>
-                      </div>
-                      <button
-                        onClick={(e) => deleteConversation(e, conv.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 dark:text-slate-500 hover:text-rose-500 transition-all"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/knowledge/chat/${conv.id}`)}
+                      aria-current={chatId === conv.id ? 'page' : undefined}
+                      className={cn("block w-full min-w-0 rounded-xl p-3 pr-10 text-left", FOCUS)}
+                    >
+                      <span className={cn("block truncate text-sm font-semibold", chatId === conv.id ? "text-primary" : "text-foreground")}>
+                        {conv.title}
+                      </span>
+                      <span className="mt-0.5 block truncate text-[0.8125rem] text-muted-foreground">{getPreview(conv)}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteConversation(e, conv.id)}
+                      aria-label={`Excluir a conversa ${conv.title}`}
+                      className={cn("absolute right-2 top-2.5 rounded-md p-1.5 text-muted-foreground opacity-0 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 motion-safe:transition-opacity", FOCUS)}
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </ScrollArea>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-             <Button
-               variant="ghost"
-               onClick={() => setMessages([])}
-               className="w-full h-10 mb-4 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-[9px] font-black uppercase tracking-widest gap-2 transition-all"
-             >
-               <Trash2 className="h-4 w-4" /> Limpar Conversa
-             </Button>
-             <div className="flex items-center gap-3 px-2">
-                <InitialsAvatar name={session?.name} className="h-8 w-8 text-xs" />
-                <div className="flex flex-col min-w-0">
-                   <span className="text-[10px] font-black text-slate-900 dark:text-slate-100 truncate uppercase">{session?.name || 'Usuário'}</span>
-                   <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate">Acesso Avançado Pro</span>
-                </div>
-             </div>
+          <div className="border-t border-border pt-4">
+            <Button
+              variant="ghost"
+              onClick={() => setMessages([])}
+              className={cn("mb-4 h-10 w-full gap-2 rounded-[10px] text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive", FOCUS)}
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" /> Limpar conversa
+            </Button>
+            <div className="flex items-center gap-3 px-2">
+              <InitialsAvatar name={session?.name} className="h-8 w-8 text-xs" />
+              <span className="min-w-0 truncate text-sm font-medium text-foreground">{session?.name || 'Usuário'}</span>
+            </div>
           </div>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 h-full relative bg-white dark:bg-slate-950">
+      <div className="relative flex h-full min-w-0 flex-1 flex-col bg-background">
 
-        {/* Mobile Sidebar Trigger (Floating) */}
-        <div className="md:hidden absolute top-4 left-4 z-50">
+        {/* Gatilho da barra lateral no celular (flutuante) */}
+        <div className="absolute left-4 top-4 z-50 md:hidden">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="h-10 w-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md text-slate-600 dark:text-slate-300 rounded-xl shadow-sm border-slate-200 dark:border-slate-800">
-                 <Menu className="h-5 w-5" />
+              <Button variant="outline" size="icon" aria-label="Abrir conversas" className={cn("h-10 w-10 rounded-[10px] border-border bg-card/90 text-foreground backdrop-blur-md", FOCUS)}>
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-[300px] p-0 bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800">
-              <div className="p-6 h-full flex flex-col gap-6">
-                <Button onClick={createNewChat} className="w-full h-12 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900/40 rounded-xl text-slate-900 dark:text-slate-100 text-[10px] font-black uppercase tracking-widest gap-2 shadow-sm">
-                  <Plus className="h-4 w-4 text-cyan-600" /> Nova Consulta
+            <SheetContent side="left" className="w-[300px] border-r border-border bg-card p-0">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Conversas</SheetTitle>
+                <SheetDescription>Suas consultas recentes ao assistente virtual.</SheetDescription>
+              </SheetHeader>
+              <div className="flex h-full flex-col gap-6 p-6">
+                <Button onClick={createNewChat} variant="outline" className={cn("h-12 w-full gap-2 rounded-[10px] border-border bg-background text-sm font-semibold text-foreground hover:bg-muted", FOCUS)}>
+                  <Plus className="h-4 w-4 text-primary" aria-hidden="true" /> Nova consulta
                 </Button>
                 <ScrollArea className="flex-1">
-                   <div className="space-y-1">
+                  <ul className="space-y-1">
                     {conversations.map((conv) => (
-                      <div key={conv.id} onClick={() => router.push(`/knowledge/chat/${conv.id}`)}
-                        className={cn("p-4 rounded-xl cursor-pointer", chatId === conv.id ? "bg-white dark:bg-slate-950 shadow-sm border border-slate-200 dark:border-slate-800" : "hover:bg-slate-100 dark:hover:bg-slate-900/40")}>
-                        <p className={cn("text-[11px] font-black uppercase", chatId === conv.id ? "text-cyan-600 dark:text-cyan-400" : "text-slate-600 dark:text-slate-400")}>{conv.title}</p>
-                      </div>
+                      <li key={conv.id}>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/knowledge/chat/${conv.id}`)}
+                          aria-current={chatId === conv.id ? 'page' : undefined}
+                          className={cn("block w-full rounded-xl p-3 text-left text-sm font-semibold", FOCUS, chatId === conv.id ? "border border-border bg-background text-primary" : "text-foreground hover:bg-muted/60")}
+                        >
+                          {conv.title}
+                        </button>
+                      </li>
                     ))}
-                   </div>
+                  </ul>
                 </ScrollArea>
-                <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="border-t border-border pt-4">
                   <Button
                     variant="ghost"
                     onClick={() => setMessages([])}
-                    className="w-full h-10 text-slate-400 dark:text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-[9px] font-black uppercase tracking-widest gap-2 transition-all"
+                    className={cn("h-10 w-full gap-2 rounded-[10px] text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive", FOCUS)}
                   >
-                    <Trash2 className="h-4 w-4" /> Limpar Conversa
+                    <Trash2 className="h-4 w-4" aria-hidden="true" /> Limpar conversa
                   </Button>
                 </div>
               </div>
@@ -453,37 +467,35 @@ function ChatContent({ chatId }: { chatId: string }) {
           </Sheet>
         </div>
 
-        {/* Chat Area - Centered & Premium */}
+        {/* Área da conversa */}
         <ScrollArea className="flex-1">
-          <div className="max-w-4xl mx-auto px-6 py-10 space-y-10">
+          <div className="mx-auto max-w-4xl space-y-8 px-4 py-10 md:px-6">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full animate-pulse" />
-                  <div className="w-20 h-20 bg-white dark:bg-slate-900 rounded-[2.5rem] flex items-center justify-center text-slate-900 dark:text-slate-100 shadow-xl relative z-10 border border-slate-100 dark:border-slate-800">
-                    <Bot className="h-10 w-10 text-cyan-600" />
-                  </div>
+              <div className="flex flex-col items-center justify-center space-y-6 py-16 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border bg-card">
+                  <Bot className="h-10 w-10 text-primary" aria-hidden="true" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black uppercase tracking-tighter italic text-slate-900 dark:text-slate-100">O que vamos descobrir hoje?</h3>
-                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">Motor de Agilidade • Portal Tech V&D</p>
+                  <h2 className="text-3xl font-bold tracking-tight text-foreground">O que vamos descobrir hoje?</h2>
+                  <p className="text-sm text-muted-foreground">Assistente de Agilidade • Portal Tech V&amp;D</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl mt-10">
-                   {[
-                     "Quais os processos de deploy?",
-                     "Como funciona o Scrum Poker?",
-                     "Quais as regras da Governança?",
-                     "Explique o motor Jolt."
-                   ].map(suggestion => (
-                     <button
-                       key={suggestion}
-                       onClick={() => { setInput(suggestion); }}
-                       className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 rounded-2xl text-[11px] font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-900 hover:border-slate-900 dark:hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-100 transition-all text-left shadow-sm"
-                     >
-                       {suggestion}
-                     </button>
-                   ))}
+                <div className="mt-6 grid w-full max-w-2xl grid-cols-1 gap-3 md:grid-cols-2">
+                  {[
+                    "Quais os processos de deploy?",
+                    "Como funciona o Scrum Poker?",
+                    "Quais as regras da Governança?",
+                    "Explique o motor Jolt."
+                  ].map(suggestion => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      onClick={() => { setInput(suggestion); }}
+                      className={cn("rounded-2xl border border-border bg-card p-4 text-left text-sm font-medium text-foreground hover:border-primary hover:bg-muted/50 motion-safe:transition-colors", FOCUS)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -492,121 +504,132 @@ function ChatContent({ chatId }: { chatId: string }) {
               <div
                 key={m.id}
                 className={cn(
-                  "flex gap-4 w-full group",
+                  "group flex w-full gap-4",
                   m.role === 'user' ? "flex-row-reverse" : "flex-row"
                 )}
               >
-                <div className={cn(
-                  "w-10 h-10 rounded-2xl shrink-0 flex items-center justify-center shadow-sm border transition-transform group-hover:scale-110",
-                  m.role === 'user' ? "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
-                )}>
-                  {m.role === 'user' ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5 text-cyan-600" />}
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border",
+                    m.role === 'user' ? "bg-muted text-foreground" : "bg-card text-primary"
+                  )}
+                >
+                  {m.role === 'user' ? <User className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
                 </div>
 
                 <div className={cn(
-                  "flex flex-col gap-2 max-w-[80%]",
+                  "flex max-w-[85%] flex-col gap-2 md:max-w-[80%]",
                   m.role === 'user' ? "items-end" : "items-start"
                 )}>
                   <div className={cn(
-                    "relative px-6 py-5 rounded-3xl text-[14px] leading-relaxed",
+                    "relative rounded-2xl px-5 py-4 text-sm leading-relaxed text-foreground",
                     m.role === 'user'
-                      ? "bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 rounded-tr-xl"
-                      : "bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-tl-xl shadow-sm"
+                      ? "rounded-tr-md bg-muted"
+                      : "rounded-tl-md border border-border bg-card"
                   )}>
-                    <div className="whitespace-pre-wrap break-words font-medium">{m.content}</div>
+                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
 
-                    {/* Documents & Results Rendering */}
+                    {/* Documentos e resultados */}
                     {(m.docs || m.tdnResults) && (
-                      <div className="mt-6 space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                      <div className="mt-5 space-y-4 border-t border-border pt-5">
                         {m.docs && m.docs.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                               <span className="text-[9px] font-black uppercase tracking-widest text-indigo-500">Documentação Local</span>
+                              <div className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                              <span className="text-sm font-semibold text-foreground">Documentação local</span>
                             </div>
-                            <div className="grid gap-2">
+                            <ul className="grid gap-2">
                               {m.docs.map((docItem) => (
-                                <div
-                                  key={docItem.id}
-                                  onClick={() => window.open(`/knowledge/kb?id=${docItem.id}`, '_blank')}
-                                  className="bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl hover:bg-white dark:hover:bg-slate-900 hover:border-indigo-500 hover:shadow-lg transition-all cursor-pointer group/card flex items-center justify-between"
-                                >
-                                  <div className="min-w-0">
-                                    <h4 className="text-xs font-black uppercase text-slate-900 dark:text-slate-100 group-hover/card:text-indigo-600">{docItem.title}</h4>
-                                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">{docItem.category || 'Wiki'}</p>
-                                  </div>
-                                  <ChevronRight className="h-4 w-4 text-slate-300 group-hover/card:text-indigo-500 group-hover/card:translate-x-1 transition-all" />
-                                </div>
+                                <li key={docItem.id}>
+                                  <button
+                                    type="button"
+                                    onClick={() => window.open(`/knowledge/kb?id=${docItem.id}`, '_blank')}
+                                    className={cn("group/card flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 text-left hover:border-primary hover:bg-muted/40 motion-safe:transition-colors", FOCUS)}
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block text-sm font-semibold text-foreground">{docItem.title}</span>
+                                      <span className="mt-1 line-clamp-1 block text-[0.8125rem] text-muted-foreground">{docItem.category || 'Wiki'}</span>
+                                    </span>
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground group-hover/card:text-primary motion-safe:transition-transform motion-safe:group-hover/card:translate-x-1" aria-hidden="true" />
+                                  </button>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           </div>
                         )}
 
                         {m.tdnResults && m.tdnResults.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-                               <span className="text-[9px] font-black uppercase tracking-widest text-cyan-500">TDN Base de Conhecimento</span>
+                              <div className="h-2 w-2 rounded-full bg-foreground" aria-hidden="true" />
+                              <span className="text-sm font-semibold text-foreground">Base de conhecimento do TDN</span>
                             </div>
-                            <div className="grid gap-2">
+                            <ul className="grid gap-2">
                               {m.tdnResults.map((tdn) => (
-                                <div
+                                <li
                                   key={tdn.id}
-                                  className="bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl flex items-center justify-between group/tdn"
+                                  className="group/tdn flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4"
                                 >
-                                  <div
-                                    className="flex-1 cursor-pointer"
+                                  <button
+                                    type="button"
+                                    className={cn("min-w-0 flex-1 rounded-md text-left", FOCUS)}
                                     onClick={() => window.open(tdn.link, '_blank')}
                                   >
-                                    <h4 className="text-xs font-black uppercase text-slate-900 dark:text-slate-100 group-hover/tdn:text-cyan-600">{tdn.title}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[9px] font-black text-slate-400 uppercase">{tdn.space}</span>
-                                      <div className="w-1 h-1 rounded-full bg-slate-200 dark:bg-slate-800" />
-                                      <span className="text-[9px] font-medium text-slate-400 italic">Fonte Externa</span>
-                                    </div>
-                                  </div>
+                                    <span className="block text-sm font-semibold text-foreground group-hover/tdn:text-primary">{tdn.title}</span>
+                                    <span className="mt-1 flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
+                                      <span>{tdn.space}</span>
+                                      <span className="h-1 w-1 rounded-full bg-border" aria-hidden="true" />
+                                      <span>Fonte externa</span>
+                                    </span>
+                                  </button>
                                   <Button
                                     size="icon"
-                                    variant="ghost"
-                                    className="h-9 w-9 rounded-xl hover:bg-white dark:hover:bg-slate-900 text-slate-400 hover:text-cyan-600 shadow-sm border border-transparent hover:border-slate-200 dark:hover:border-slate-800"
+                                    variant="outline"
+                                    aria-label={`Importar ${tdn.title} para a base`}
+                                    title="Importar para a base"
+                                    className={cn("h-9 w-9 shrink-0 rounded-[10px]", FOCUS)}
                                     onClick={() => handleImport(tdn)}
                                     disabled={isImporting === tdn.id}
                                   >
-                                    {isImporting === tdn.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                                    {isImporting === tdn.id ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
                                   </Button>
-                                </div>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           </div>
                         )}
                       </div>
                     )}
 
-                    {/* AI Key Warning */}
+                    {/* Aviso: sem chave de IA */}
                     {m.role === 'assistant' && (m.docs || m.tdnResults) && !userApiKey && (
-                       <div className="mt-6 p-5 rounded-2xl bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">Busca Simples Ativa</span>
-                          </div>
-                          <p className="text-[11px] text-rose-900/60 dark:text-rose-300/60 font-medium leading-relaxed">Sua chave de acesso ao motor não foi detectada. Estou operando no modo de busca indexada. Para análise avançada, configure sua chave.</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push('/knowledge/settings')}
-                            className="h-9 rounded-xl text-[10px] font-black uppercase tracking-widest bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/30 transition-all"
-                          >
-                             <Settings className="h-3.5 w-3.5 mr-2" /> Configurar Chave
-                          </Button>
-                       </div>
+                      <div role="note" className="mt-5 space-y-3 rounded-xl border border-amber-500/35 bg-amber-500/10 p-4 text-foreground">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+                          <span className="text-sm font-semibold text-foreground">Busca simples ativa</span>
+                        </div>
+                        <p className="text-sm leading-relaxed text-foreground">Sua chave de acesso ao assistente não foi detectada. Estou operando no modo de busca indexada. Para análise avançada, configure sua chave.</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push('/knowledge/settings')}
+                          className={cn("h-9 gap-2 rounded-[10px] bg-background text-sm font-semibold", FOCUS)}
+                        >
+                          <Settings className="h-4 w-4" aria-hidden="true" /> Configurar chave
+                        </Button>
+                      </div>
                     )}
 
-                    {/* Quick Copy Button */}
+                    {/* Copiar mensagem */}
                     <button
+                      type="button"
                       onClick={() => { navigator.clipboard.writeText(m.content); toast({ title: "Copiado!" }); }}
-                      className="absolute -left-10 top-2 p-2 opacity-0 group-hover:opacity-100 text-slate-300 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-all"
+                      aria-label="Copiar mensagem"
+                      title="Copiar mensagem"
+                      className={cn("absolute -left-10 top-2 rounded-md p-2 text-muted-foreground opacity-0 hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 motion-safe:transition-opacity", FOCUS)}
                     >
-                      <Copy className="h-4 w-4" />
+                      <Copy className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -614,51 +637,53 @@ function ChatContent({ chatId }: { chatId: string }) {
             ))}
 
             {isLoading && (
-              <div className="flex gap-6 animate-pulse">
-                <div className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800" />
-                <div className="space-y-3 flex-1 max-w-md">
-                  <div className="h-4 bg-slate-100 dark:bg-slate-900 rounded-lg w-full" />
-                  <div className="h-4 bg-slate-100 dark:bg-slate-900 rounded-lg w-5/6" />
+              <div role="status" aria-label="O assistente está respondendo" className="flex gap-4 motion-safe:animate-pulse">
+                <div className="h-10 w-10 rounded-2xl border border-border bg-muted" />
+                <div className="max-w-md flex-1 space-y-3">
+                  <div className="h-4 w-full rounded-lg bg-muted" />
+                  <div className="h-4 w-5/6 rounded-lg bg-muted" />
                 </div>
               </div>
             )}
 
-            {/* Âncora para scroll automático */}
+            {/* Âncora para a rolagem automática */}
             <div ref={messagesEndRef} className="h-1" />
           </div>
         </ScrollArea>
 
-        {/* Input Experience - Docked at Bottom */}
-        <div className="p-4 md:p-6 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 shrink-0 relative z-20">
-          <div className="max-w-4xl mx-auto w-full">
-            <form onSubmit={onFormSubmit} className="relative group">
-              <div className="absolute inset-0 bg-slate-100/50 dark:bg-slate-900/20 rounded-[2.5rem] opacity-0 group-focus-within:opacity-100 transition-opacity" />
-              <div className="relative flex items-center bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-1.5 pl-3 focus-within:border-slate-900 dark:focus-within:border-slate-100 focus-within:shadow-lg transition-all">
+        {/* Caixa de pergunta, fixa no rodapé */}
+        <div className="relative z-20 shrink-0 border-t border-border bg-background/90 p-4 backdrop-blur-xl md:p-6">
+          <div className="mx-auto w-full max-w-4xl">
+            <form onSubmit={onFormSubmit} className="relative">
+              <div className="relative flex items-center rounded-full border-2 border-border bg-card p-1.5 pl-3 motion-safe:transition-shadow focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40">
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-10 rounded-full text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800 shrink-0"
+                  aria-label="Anexar arquivo"
+                  className={cn("h-10 w-10 shrink-0 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground", FOCUS)}
                 >
-                  <Paperclip className="h-4 w-4" />
+                  <Paperclip className="h-4 w-4" aria-hidden="true" />
                 </Button>
                 <input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
+                  aria-label="Sua pergunta"
                   placeholder="Pergunte qualquer coisa sobre o Portal Tech V&D..."
-                  className="flex-1 border-none focus:outline-none text-[13px] font-bold h-12 bg-transparent px-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  className="h-12 flex-1 border-none bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
                 />
                 <Button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="h-10 w-10 bg-slate-900 dark:bg-slate-100 hover:bg-black dark:hover:bg-slate-200 text-white dark:text-slate-900 rounded-full flex items-center justify-center p-0 transition-all disabled:opacity-30 active:scale-95 shrink-0"
+                  aria-label="Enviar pergunta"
+                  className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary p-0 text-primary-foreground disabled:opacity-40", FOCUS)}
                 >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {isLoading ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
                 </Button>
               </div>
             </form>
-            <p className="text-center text-[8px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500 mt-3">
-              Assistente de Agilidade • V4.0.2 Premium
+            <p className="mt-3 text-center text-[0.8125rem] text-muted-foreground">
+              Assistente de Agilidade
             </p>
           </div>
         </div>
@@ -670,7 +695,7 @@ function ChatContent({ chatId }: { chatId: string }) {
 export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params);
   return (
-    <Suspense fallback={<div className="h-full flex items-center justify-center font-black text-[10px] uppercase tracking-widest text-slate-500">Carregando Base de Conhecimento...</div>}>
+    <Suspense fallback={<div role="status" className="flex h-full items-center justify-center text-sm text-muted-foreground">Carregando o assistente...</div>}>
       <ChatContent chatId={chatId} />
     </Suspense>
   );
