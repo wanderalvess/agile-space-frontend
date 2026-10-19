@@ -298,7 +298,7 @@ export function IntegrationsSection() {
                   Este app (novo) ainda não tem deploy público
                 </h4>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Pra consumir agora (ex: ingestão pela Lynn/TOTVS), aponte pro legado — mesmo contrato de rotas:
+                  Pra consumir agora (ex: ingestão pela Lynn), aponte pro legado — mesmo contrato de rotas:
                 </p>
                 <code className="font-code text-[12px] text-slate-700 dark:text-slate-300 break-all">
                   {LEGACY_PRODUCTION_HOST}/api/v1

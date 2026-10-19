@@ -41,7 +41,7 @@ export function AppFooter({ toolName, onOpenFeedback, className }: AppFooterProp
     <footer className={cn('relative mt-auto border-t border-border', className)}>
       <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8 2xl:px-12">
         <p className="text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">Portal Tech V&amp;D</span> · TOTVS · © 2026 ·{' '}
+          <span className="font-semibold text-foreground">Portal Tech V&amp;D</span> · © 2026 ·{' '}
           <span className="tabular-nums" title="Versão do portal">
             v{packageInfo.version}
           </span>

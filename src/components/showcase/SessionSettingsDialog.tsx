@@ -59,7 +59,7 @@ const STYLES = [
 const QUICK_BACKGROUNDS = [
   { label: 'Branco Puro', value: '#ffffff', border: true },
   { label: 'Studio Off-White', value: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', border: true },
-  { label: 'Azul TOTVS', value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)' },
+  { label: 'Azul institucional', value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)' },
   { label: 'Deep Space', value: 'linear-gradient(135deg, #050510 0%, #0d0d1f 50%, #050510 100%)' },
   { label: 'Tech Emerald', value: 'linear-gradient(135deg, #022c22 0%, #064e3b 50%, #021a14 100%)' },
 ];
