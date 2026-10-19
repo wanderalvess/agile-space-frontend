@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { inviteApi, type Invite, type InvitePreview } from '@/lib/invite-api';
+import { inviteApi, isRateLimitError, type Invite, type InvitePreview } from '@/lib/invite-api';
 import { clearPendingInvite, savePendingInvite } from '@/lib/pending-invite';
 import { loginUrlForInvite } from '@/lib/login-context';
 import { inviteView } from '@/lib/invite-state';
@@ -29,6 +29,9 @@ export default function InviteAcceptPage() {
   const [error, setError] = useState<Error | null>(null);
   const [isAccepting, setIsAccepting] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  // "Tentar de novo" depois de um 429: de onde veio o erro e um contador para refazer a busca do convite.
+  const [errorSource, setErrorSource] = useState<'load' | 'accept'>('load');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const hasSession = !!session;
 
@@ -48,13 +51,15 @@ export default function InviteAcceptPage() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        clearPendingInvite();
+        // 429 não diz nada sobre o convite: mantém o convite pendente guardado para o login voltar a ele.
+        if (!isRateLimitError(err)) clearPendingInvite();
+        setErrorSource('load');
         setError(asError(err, 'Convite não encontrado ou expirado.'));
       });
     return () => {
       cancelled = true;
     };
-  }, [authLoading, hasSession, token]);
+  }, [authLoading, hasSession, token, reloadKey]);
 
   // Depois de aceitar, "Convite aceito!" fica um instante e leva para o squad.
   useEffect(() => {
@@ -65,16 +70,28 @@ export default function InviteAcceptPage() {
 
   const handleAccept = useCallback(async () => {
     setIsAccepting(true);
+    setError(null);
     try {
       await acceptInvite(token);
       clearPendingInvite();
       setAccepted(true);
     } catch (err: unknown) {
+      setErrorSource('accept');
       setError(asError(err, 'Não foi possível aceitar o convite.'));
     } finally {
       setIsAccepting(false);
     }
   }, [acceptInvite, token]);
+
+  const handleRetry = useCallback(() => {
+    if (errorSource === 'accept') {
+      void handleAccept();
+      return;
+    }
+    setError(null);
+    setInvite(null);
+    setReloadKey((k) => k + 1);
+  }, [errorSource, handleAccept]);
 
   const view = inviteView({ authLoading, hasSession, invite, error, accepted });
 
@@ -87,6 +104,7 @@ export default function InviteAcceptPage() {
       email={session?.email}
       accepting={isAccepting}
       onAccept={handleAccept}
+      onRetry={handleRetry}
       // Sair da conta leva ao /login?returnUrl=/invite/{token} (AuthGuard), e o convite reabre depois de entrar.
       onSwitchAccount={logout}
       onSignIn={() => router.push(loginUrlForInvite(token, 'login'))}

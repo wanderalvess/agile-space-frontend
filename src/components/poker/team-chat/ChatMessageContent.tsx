@@ -33,7 +33,7 @@ function InlineText({ value, isOwn }: { value: string; isOwn: boolean }) {
         if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
           return (
             <code key={i} className={cn(
-              'px-1 py-0.5 rounded font-mono text-[11px]',
+              'px-1 py-0.5 rounded font-mono text-xs',
               isOwn ? 'bg-black/15' : 'bg-muted'
             )}>
               {part.slice(1, -1)}

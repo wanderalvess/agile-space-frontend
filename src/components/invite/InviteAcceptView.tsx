@@ -23,12 +23,14 @@ export interface InviteAcceptViewProps {
   onSignUp?: () => void;
   /** "Agora não" e "Ir para o início": vai para a página inicial sem aceitar. */
   onSkip: () => void;
+  /** "Tentar de novo" na tela de limite de requisições (429). */
+  onRetry?: () => void;
 }
 
 const CHIP = 'inline-flex h-[30px] items-center rounded-full border border-border px-3.5 text-[13px] font-bold text-foreground';
 
 /** Telas da página do convite. Só desenho: quem busca o convite e aceita é a página. */
-export function InviteAcceptView({ view, invite, error, email, accepting, onAccept, onSwitchAccount, onSignIn, onSignUp, onSkip }: InviteAcceptViewProps) {
+export function InviteAcceptView({ view, invite, error, email, accepting, onAccept, onSwitchAccount, onSignIn, onSignUp, onSkip, onRetry }: InviteAcceptViewProps) {
   if (view === 'sessao') {
     return (
       <AccessPage>
@@ -132,6 +134,25 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
               )}
               {expires && <span className="text-xs text-muted-foreground">{expires}</span>}
             </div>
+          </div>
+        </AccessCard>
+      </AccessPage>
+    );
+  }
+
+  if (view === 'muitas-tentativas') {
+    return (
+      <AccessPage>
+        <AccessCard role="alert" className="items-center gap-[18px] text-center">
+          <StateTile icon={AlertCircle} tone="warn" />
+          <CenteredHeading title="Muitas tentativas" text={error?.message || 'Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.'} />
+          <div className="flex w-full flex-col-reverse items-stretch justify-center gap-2.5 sm:w-auto sm:flex-row sm:items-center">
+            <AccessButton variant="secondary" onClick={onSkip}>
+              Ir para o início
+            </AccessButton>
+            <AccessButton variant="primary" onClick={onRetry}>
+              Tentar de novo
+            </AccessButton>
           </div>
         </AccessCard>
       </AccessPage>

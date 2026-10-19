@@ -1,4 +1,4 @@
-import { isOtherEmailError, type Invite, type InviteApiError } from '@/lib/invite-api';
+import { isOtherEmailError, isRateLimitError, type Invite, type InviteApiError } from '@/lib/invite-api';
 
 /** Telas da página `/invite/{token}`. */
 export type InviteView =
@@ -11,6 +11,7 @@ export type InviteView =
   | 'usado'
   | 'cancelado'
   | 'expirado'
+  | 'muitas-tentativas' // 429: o servidor pediu para esperar; o convite pode estar perfeito
   | 'outro-email'; // convite de outro e-mail (precisa do backend: 403 INVITE_OTHER_EMAIL)
 
 export type UnavailableKind = 'usado' | 'cancelado' | 'expirado';
@@ -43,7 +44,10 @@ export interface InviteViewInput {
 export function inviteView(input: InviteViewInput, now: number = Date.now()): InviteView {
   if (input.authLoading) return 'sessao';
   if (input.accepted) return 'aceito';
-  if (input.error) return isOtherEmailError(input.error) ? 'outro-email' : 'invalido';
+  if (input.error) {
+    if (isRateLimitError(input.error)) return 'muitas-tentativas';
+    return isOtherEmailError(input.error) ? 'outro-email' : 'invalido';
+  }
   const unavailable = unavailableKind(input.invite, now);
   if (unavailable) return unavailable;
   if (!input.invite) return 'verificando'; // ainda buscando o convite

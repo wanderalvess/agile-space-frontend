@@ -60,7 +60,15 @@ export function isOtherEmailError(err: unknown): err is InviteApiError {
   return err instanceof InviteApiError && err.status === 403 && err.code === INVITE_OTHER_EMAIL;
 }
 
+/** O servidor limitou as requisições (HTTP 429): não quer dizer que o convite é inválido. */
+export function isRateLimitError(err: unknown): err is InviteApiError {
+  return err instanceof InviteApiError && err.status === 429;
+}
+
+export const RATE_LIMIT_MESSAGE = 'Muitas tentativas em pouco tempo. Aguarde um instante e tente de novo.';
+
 function friendlyInviteMessage(status: number, serverMessage: string): string {
+  if (status === 429) return RATE_LIMIT_MESSAGE;
   if (serverMessage && !/^(Bad Request|Forbidden|Not Found|Unauthorized)$/i.test(serverMessage)) return serverMessage;
   if (status === 404) return 'Convite não encontrado. Confira o link com quem te convidou.';
   if (status === 403) return 'Você não tem permissão para esta ação de convite.';
