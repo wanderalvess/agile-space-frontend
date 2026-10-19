@@ -126,7 +126,7 @@ export function NextCeremonyCard({ squadId, userKey }: { squadId: string; userKe
         <Shell onOpenSettings={openSettings}>
           <p className={MUTED}>
             {manualCeremonies.length === 0
-              ? 'Nenhuma cerimônia cadastrada ainda pra essa squad.'
+              ? 'Nenhuma cerimônia cadastrada ainda para esta squad.'
               : 'Nenhuma cerimônia cadastrada cai nos próximos 7 dias.'}
           </p>
           <ModalButton onClick={openSettings} className={cn(SMALL_BUTTON, 'self-start')}>
@@ -153,8 +153,8 @@ export function NextCeremonyCard({ squadId, userKey }: { squadId: string; userKe
     return (
       <Shell onOpenSettings={openSettings}>
         <p className={MUTED}>
-          A conexão automática com o Google Calendar ainda não está disponível pra essa squad.
-          Enquanto isso, dá pra cadastrar o horário manualmente.
+          A conexão automática com o Google Calendar ainda não está disponível para esta squad.
+          Enquanto isso, dá para cadastrar o horário manualmente.
         </p>
         <ModalButton onClick={openSettings} className={cn(SMALL_BUTTON, 'self-start')}>
           <Settings className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" /> Cadastrar manualmente
@@ -168,7 +168,7 @@ export function NextCeremonyCard({ squadId, userKey }: { squadId: string; userKe
     return (
       <Shell onOpenSettings={openSettings}>
         <p className={MUTED}>
-          Conecte sua agenda do Google pra ver aqui a próxima daily, planning, review, retro ou
+          Conecte sua agenda do Google para ver aqui a próxima daily, planning, review, retro ou
           refinement que você foi convidado. A gente só lê — nada é criado ou alterado.
         </p>
         {connectionError && <p role="alert" className="text-[13px] text-destructive">{connectionError}</p>}
@@ -208,7 +208,7 @@ export function NextCeremonyCard({ squadId, userKey }: { squadId: string; userKe
   if (!ceremony) {
     return (
       <Shell onOpenSettings={openSettings}>
-        <p className={MUTED}>Nenhuma cerimônia encontrada na sua agenda pras próximas 48h.</p>
+        <p className={MUTED}>Nenhuma cerimônia encontrada na sua agenda para as próximas 48h.</p>
         <button
           type="button"
           onClick={disconnect}

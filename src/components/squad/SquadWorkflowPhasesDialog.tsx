@@ -80,14 +80,14 @@ function PhaseRow({
         <div className="flex flex-col gap-0.5 shrink-0">
           <button
             type="button" onClick={onMoveUp} disabled={isFirst}
-            title="Mover fase pra cima (mais cedo no fluxo)"
+            title="Mover fase para cima (mais cedo no fluxo)"
             className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:hover:text-muted-foreground"
           >
             <ChevronUp className="h-3.5 w-3.5" />
           </button>
           <button
             type="button" onClick={onMoveDown} disabled={isLast}
-            title="Mover fase pra baixo (mais tarde no fluxo)"
+            title="Mover fase para baixo (mais tarde no fluxo)"
             className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:hover:text-muted-foreground"
           >
             <ChevronDown className="h-3.5 w-3.5" />
@@ -278,7 +278,7 @@ export function SquadWorkflowPhasesDialog({
             <Workflow className="h-5 w-5 text-primary" /> Fases do Workflow ({squadId})
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground mt-1">
-            Mapeie os tipos de issue do Jira pra fases do fluxo (Codificação, Code Review, Teste QA...). A ordem abaixo é a ordem usada na fita do cronograma do Jira Plans. Sem fases configuradas, o sistema usa uma heurística padrão pelo nome do tipo.
+            Mapeie os tipos de issue do Jira para fases do fluxo (Codificação, Code Review, Teste QA...). A ordem abaixo é a ordem usada na fita do cronograma do Jira Plans. Sem fases configuradas, o sistema usa uma heurística padrão pelo nome do tipo.
           </DialogDescription>
         </DialogHeader>
 

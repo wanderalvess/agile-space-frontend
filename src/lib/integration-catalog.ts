@@ -197,7 +197,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         method: 'GET',
         path: '/api/v1/prompt-hub/items/{id}',
         summary: 'Um prompt/iniciativa pelo id.',
-        returns: 'prompt completo, ou 404 (mesmo status pra inexistente ou privado)',
+        returns: 'prompt completo, ou 404 (mesmo status para inexistente ou privado)',
         scope: 'PROMPTHUB_READ',
       },
       {
@@ -212,7 +212,7 @@ export const MODULE_INTEGRATIONS: ModuleIntegration[] = [
         method: 'GET',
         path: '/api/v1/prompt-hub/collections/{id}',
         summary: 'Uma coleção pública pelo id, com os prompts (públicos) embutidos.',
-        returns: 'coleção + items[], ou 404 (mesmo status pra inexistente ou privada)',
+        returns: 'coleção + items[], ou 404 (mesmo status para inexistente ou privada)',
         scope: 'PROMPTHUB_READ',
       },
       {

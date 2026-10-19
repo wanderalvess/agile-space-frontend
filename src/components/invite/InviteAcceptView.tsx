@@ -44,7 +44,7 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
       <AccessPage>
         <AccessCard role="status" className="items-center py-9 text-center">
           <StateTile icon={CheckCircle2} tone="success" />
-          <CenteredHeading title="Convite aceito!" text="Redirecionando pro seu squad…" />
+          <CenteredHeading title="Convite aceito!" text="Redirecionando para a sua squad…" />
         </AccessCard>
       </AccessPage>
     );
@@ -73,10 +73,10 @@ export function InviteAcceptView({ view, invite, error, email, accepting, onAcce
           <div className="flex flex-col items-center gap-3 text-center">
             <StateTile icon={Users} />
             <CenteredHeading
-              title="Convite pro squad"
+              title="Convite para a squad"
               text={
                 <>
-                  Você foi convidado pra entrar como <strong className="font-bold text-foreground">{invite.roleName}</strong>.
+                  Você foi convidado para entrar como <strong className="font-bold text-foreground">{invite.roleName}</strong>.
                 </>
               }
             />

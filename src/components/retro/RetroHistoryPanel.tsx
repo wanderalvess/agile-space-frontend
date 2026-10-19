@@ -144,7 +144,7 @@ export function RetroHistoryPanel({ squadId }: { squadId?: string | null }) {
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">Carregando...</p>
         ) : moodChartData.length < 2 ? (
           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide py-8 text-center">
-            Precisa de 2+ retros com check-in respondido pra mostrar tendência.
+            Precisa de 2+ retros com check-in respondido para mostrar tendência.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height={180}>

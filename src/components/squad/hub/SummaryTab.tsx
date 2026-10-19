@@ -137,7 +137,7 @@ export function SummaryTab({
     return (
       <EmptyState
         title="Você ainda não está em uma squad"
-        description="Entre em um time pra ver sprint, board e movimentos aqui."
+        description="Entre em um time para ver sprint, board e movimentos aqui."
         actions={
           <ModalButton variant="primary" onClick={() => router.push('/onboarding')}>
             Escolher meu time

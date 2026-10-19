@@ -38,7 +38,7 @@ export function CreateSquadStep({ busy, onSubmit, onEmptyName, onImport, onBack 
 
   return (
     <StepCard>
-      <StepHeading title="Vamos criar o espaço da sua squad." subtitle="Uma pergunta só. O resto a gente monta pra você." />
+      <StepHeading title="Vamos criar o espaço da sua squad." subtitle="Uma pergunta só. O resto a gente monta para você." />
 
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">

@@ -1431,7 +1431,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       // a sala inteira a partir do roomData da closure (estado pre-adiamento) e
       // desfaria o update que acabou de ser salvo.
       pokerApi.clearVotes(roomId).catch(notifyError);
-      toast({ title: 'Tarefa adiada', description: 'Volta pro fim da fila para revisitar.' });
+      toast({ title: 'Tarefa adiada', description: 'Volta para o fim da fila para revisitar.' });
     }).catch(notifyError);
   }, [roomData, isCurrentUserFacilitator, roomId, toast, buildSessionClosure]);
 

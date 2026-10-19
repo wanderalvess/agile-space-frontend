@@ -54,7 +54,7 @@ export function InviteFooter({ open, onOpenChange, onSubmit }: Props) {
             <Link2 aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={1.5} /> Tenho um link de convite
           </button>
           <span aria-hidden="true">·</span>
-          <span>Dá pra trocar de squad depois</span>
+          <span>Dá para trocar de squad depois</span>
         </div>
       )}
     </div>

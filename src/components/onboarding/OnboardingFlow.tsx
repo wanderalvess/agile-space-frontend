@@ -387,7 +387,7 @@ export function OnboardingFlow() {
             <CreateSquadStep
               busy={busy === 'create'}
               onSubmit={handleCreate}
-              onEmptyName={() => toast({ title: 'Dê um nome pra squad', variant: 'destructive' })}
+              onEmptyName={() => toast({ title: 'Dê um nome para a squad', variant: 'destructive' })}
               onImport={() => setStep('jira')}
               onBack={() => setStep('intent')}
             />
@@ -408,7 +408,7 @@ export function OnboardingFlow() {
                 onPreviewChange={setWideImport}
                 onImported={handleImported}
                 onBack={() => setStep('intent')}
-                skipHint="Sem token? Dá pra criar uma squad na mão agora e importar do Jira depois, sem perder nada."
+                skipHint="Sem token? Dá para criar uma squad na mão agora e importar do Jira depois, sem perder nada."
                 skipAction={{ label: 'Criar uma squad sem o Jira', onClick: () => setStep('create') }}
               />
             </StepCard>

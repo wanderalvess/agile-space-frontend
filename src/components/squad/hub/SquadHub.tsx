@@ -313,7 +313,7 @@ export function SquadHub() {
       ) : !hasSquad ? (
         <EmptyState
           title="Você ainda não está em uma squad"
-          description="Entre em um time pra ver sprint, quadro, cronograma e métricas aqui."
+          description="Entre em um time para ver sprint, quadro, cronograma e métricas aqui."
           actions={
             <ModalButton variant="primary" onClick={() => router.push('/onboarding')}>
               Escolher meu time

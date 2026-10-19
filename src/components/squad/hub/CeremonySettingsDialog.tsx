@@ -124,7 +124,7 @@ export function CeremonySettingsDialog({
         ceremonies: draftMode === 'manual' ? draftCeremonies : ceremonies,
         ...(draftUnit ? { estimationUnit: draftUnit as NonNullable<SquadConfig['estimationUnit']> } : {}),
       });
-      toast({ title: 'Configuração salva', description: 'A configuração foi atualizada pra squad toda.' });
+      toast({ title: 'Configuração salva', description: 'A configuração foi atualizada para a squad toda.' });
       onOpenChange(false);
     } catch (err: any) {
       toast({
@@ -143,7 +143,7 @@ export function CeremonySettingsDialog({
         <DialogHeader>
           <DialogTitle>Configuração da squad</DialogTitle>
           <DialogDescription>
-            Unidade de estimativa e rituais (de onde o Resumo lê a próxima cerimônia). Vale pra squad inteira.
+            Unidade de estimativa e rituais (de onde o Resumo lê a próxima cerimônia). Vale para a squad inteira.
           </DialogDescription>
         </DialogHeader>
 

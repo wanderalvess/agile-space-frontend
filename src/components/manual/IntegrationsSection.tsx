@@ -68,7 +68,7 @@ const SURFACE_COMPARISON = [
   },
   {
     surface: 'MCP /mcp/sse',
-    good: 'Agente de IA (Claude, Cursor, editor com MCP) que precisa descobrir sozinho o que dá pra fazer.',
+    good: 'Agente de IA (Claude, Cursor, editor com MCP) que precisa descobrir sozinho o que dá para fazer.',
     shape: 'SSE + JSON-RPC, tools autodescritas, paginação 0-based.',
     icon: Bot,
     tone: 'text-primary [.theme-totvs:not(.dark)_&]:text-foreground',
@@ -109,7 +109,7 @@ export function IntegrationsSection() {
           </h4>
           <p className="text-sm font-medium leading-relaxed opacity-90">
             A mesma API key abre as duas superfícies: a REST em <code className="font-code not-italic">/api/v1</code> e o
-            servidor MCP em <code className="font-code not-italic">/mcp</code>. Não existe segundo mecanismo de auth pra aprender.
+            servidor MCP em <code className="font-code not-italic">/mcp</code>. Não existe segundo mecanismo de auth para aprender.
           </p>
         </div>
 
@@ -146,7 +146,7 @@ export function IntegrationsSection() {
                   <Link href={API_KEY_SELF_SERVICE_PATH} className="font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground hover:underline">
                     Meu Espaço → aba Conectividade
                   </Link>{' '}
-                  → seção &quot;Minhas API Keys&quot;. Escolhe os escopos que quiser dentre os liberados pro seu papel (ver
+                  → seção &quot;Minhas API Keys&quot;. Escolhe os escopos que quiser dentre os liberados para o seu papel (ver
                   tabela abaixo) e gera na hora — sem precisar de acesso ao admin.
                 </p>
               </div>
@@ -168,7 +168,7 @@ export function IntegrationsSection() {
                 <>Dê um nome que identifique o consumidor (&quot;bot do Slack&quot;, &quot;script de backup&quot;) — é o que aparece na lista depois.</>,
                 <>
                   Copie a chave <code className="font-code text-primary [.theme-totvs:not(.dark)_&]:text-foreground">ask_…</code> na hora. Ela é
-                  mostrada <strong>uma única vez</strong>: o banco guarda só o SHA-256, não dá pra recuperar depois.
+                  mostrada <strong>uma única vez</strong>: o banco guarda só o SHA-256, não dá para recuperar depois.
                 </>,
                 <>Vazou ou não usa mais? Revogue na mesma tela onde criou — a chave para de funcionar na chamada seguinte.</>,
               ].map((step, i) => (
@@ -237,7 +237,7 @@ export function IntegrationsSection() {
                 numa squad. Só o administrador gera chave sem essa restrição.
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Chave criada antes desse mecanismo existir (nenhum escopo salvo) continua com acesso total, pra não
+                Chave criada antes desse mecanismo existir (nenhum escopo salvo) continua com acesso total, para não
                 quebrar integração já em produção — mas toda chave nova, self-service ou via admin, sai com escopo
                 explícito.
               </p>
@@ -275,7 +275,7 @@ export function IntegrationsSection() {
                 <span className="font-bold tracking-normal text-amber-700 dark:text-amber-400">Atenção à paginação:</span>{' '}
                 a REST usa <code className="font-code">page</code> começando em <strong>1</strong>; as tools MCP usam{' '}
                 <code className="font-code">page</code> começando em <strong>0</strong>. Mesmo dado, offset diferente — é a
-                causa mais comum de &quot;faltou a primeira página&quot; ao portar código de uma pra outra.
+                causa mais comum de &quot;faltou a primeira página&quot; ao portar código de uma para a outra.
               </p>
             </div>
           </CardContent>
@@ -298,7 +298,7 @@ export function IntegrationsSection() {
                   Este app (novo) ainda não tem deploy público
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Pra consumir agora (ex: ingestão pela Lynn), aponte pro legado — mesmo contrato de rotas:
+                  Para consumir agora (ex: ingestão pela Lynn), aponte para o legado — mesmo contrato de rotas:
                 </p>
                 <code className="font-code text-[12px] text-foreground dark:text-muted-foreground break-all">
                   {LEGACY_PRODUCTION_HOST}/api/v1
@@ -388,7 +388,7 @@ export function IntegrationsSection() {
               </h4>
               <p className="text-[12px] text-muted-foreground leading-relaxed">
                 A listagem devolve só um <code className="font-code">contentPreview</code> de 240 caracteres. Para o texto
-                completo é preciso um segundo GET no id — de propósito, pra listar 50 documentos não trafegar megabytes.
+                completo é preciso um segundo GET no id — de propósito, para listar 50 documentos não trafegar megabytes.
               </p>
               <CodeBlock code={NODE_FETCH} label="Node / fetch" />
             </div>
@@ -516,7 +516,7 @@ export function IntegrationsSection() {
                     <th className="py-2 pr-4 text-xs font-bold tracking-normal text-muted-foreground">Módulo</th>
                     <th className="py-2 pr-4 text-xs font-bold tracking-normal text-muted-foreground">REST</th>
                     <th className="py-2 pr-4 text-xs font-bold tracking-normal text-muted-foreground">MCP</th>
-                    <th className="py-2 text-xs font-bold tracking-normal text-muted-foreground">Dá pra</th>
+                    <th className="py-2 text-xs font-bold tracking-normal text-muted-foreground">Dá para</th>
                   </tr>
                 </thead>
                 <tbody>
