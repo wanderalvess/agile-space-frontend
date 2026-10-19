@@ -9,17 +9,16 @@ import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
 import { CopyEstimateCard } from './Results';
 import { Button } from '@/components/ui/button';
-import { Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards } from 'lucide-react';
+import { Download, Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards } from 'lucide-react';
 import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
 import { formatExternalUrl, cn } from '@/lib/utils';
 import { TopicQueue } from './TopicQueue';
-import { RoomHeader } from '@/components/layout/RoomHeader';
 import { ShareRoomDialog } from './ShareRoomDialog';
 import { CeremonySettingsDialog } from './PokerDialogs';
 import { useSaveRoomTemplate } from './TemplateDialogs';
-import { DeckCard, FIELD, IconButton, Modal, ModalButton, ResponsivePanel, StatusChip, VoteCard } from '@/components/room-kit';
+import { DeckCard, FIELD, Modal, ModalButton, ResponsivePanel, RoomTopBar, StatusChip, VoteCard, type RoomTopBarAction, type RoomTopBarChip, type RoomTopBarMenuItem } from '@/components/room-kit';
 
 interface AsyncPokerRoomProps {
   roomId: string;
@@ -87,6 +86,7 @@ const AsyncPokerRoomComponent = ({
   const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const saveRoomTemplate = useSaveRoomTemplate({ roomTitle, deck, settings, issues: issuesQueue });
   const deckValues = useMemo(() => getDeckCards(deck, settings?.maxHours), [deck, settings?.maxHours]);
   const isDense = deckValues.length > 14;
@@ -104,34 +104,47 @@ const AsyncPokerRoomComponent = ({
   const completedIssues = issuesQueue.filter(i => i.status === 'completed');
   const unit = deck === 'hours' ? 'h' : deck === 'tshirt' ? '' : ' SP';
 
+  const title = roomTitle || 'Scrum Poker assíncrono';
+  const presencePeople = participants.map(p => ({ id: p.id, name: p.nickname }));
+  const chips: RoomTopBarChip[] = [
+    { id: 'mode', label: 'Assíncrono', tone: 'brand' },
+    ...(roomTeam ? [{ id: 'team', label: roomTeam, secondary: true }] : []),
+  ];
+  const actions: RoomTopBarAction[] = [
+    { id: 'queue', label: 'Fila de tarefas', icon: ListChecks, pressed: isQueueOpen, badge: pendingIssues.length, onClick: () => setIsQueueOpen(v => !v) },
+    { id: 'share', label: 'Compartilhar sala', icon: Link2, onClick: () => setIsShareDialogOpen(true) },
+    ...(isCurrentUserFacilitator
+      ? [{ id: 'settings', label: 'Configurações da cerimônia', icon: SlidersHorizontal, tier: 'mid' as const, onClick: () => setIsSettingsOpen(true) }]
+      : []),
+    { id: 'export', label: 'Exportar resultados', icon: Download, tier: 'mid' as const, onClick: () => setIsExportOpen(true) },
+  ];
+  const menuItems: RoomTopBarMenuItem[] = onOpenRetro
+    ? [{ id: 'retro', label: 'Abrir retro desta sprint', icon: MessageSquareText, onClick: onOpenRetro }]
+    : [];
+
   return (
     <>
       <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
-        <RoomHeader
-          title={roomTitle || 'Scrum Poker assíncrono'}
-          toolIcon={<WalletCards className="h-4 w-4" />}
-          toolColorClass="text-primary [.theme-totvs:not(.dark)_&]:text-foreground"
+        <RoomTopBar
+          toolName="Scrum Poker"
+          toolIcon={WalletCards}
+          title={title}
+          chips={chips}
+          presence={{ people: presencePeople, open: isParticipantsOpen, onClick: () => setIsParticipantsOpen(v => !v), unknown: true }}
+          actions={actions}
+          menuItems={menuItems}
           onOpenFeedback={onOpenFeedback}
-          badge={<StatusChip>Assíncrono</StatusChip>}
         />
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card px-4 py-3 md:px-6">
-          <div className="flex min-w-[200px] flex-1 flex-col gap-0.5">
-            {roomTeam && <span className="truncate text-xs text-muted-foreground">{roomTeam}</span>}
-            <span className="truncate text-base font-semibold">{roomTitle || 'Scrum Poker assíncrono'}</span>
-          </div>
-          <IconButton label="Fila de tarefas" icon={ListChecks} pressed={isQueueOpen} onClick={() => setIsQueueOpen(v => !v)} />
-          <IconButton label="Participantes" icon={Users} pressed={isParticipantsOpen} onClick={() => setIsParticipantsOpen(v => !v)} />
-          {isCurrentUserFacilitator && <IconButton label="Configurações da cerimônia" icon={SlidersHorizontal} onClick={() => setIsSettingsOpen(true)} />}
-          <IconButton label="Compartilhar sala" icon={Link2} onClick={() => setIsShareDialogOpen(true)} />
-          {onOpenRetro && <IconButton label="Abrir retro desta sprint" icon={MessageSquareText} onClick={onOpenRetro} />}
-          <ExportDialog
-            roomTitle={roomTitle || 'Scrum Poker assíncrono'}
-            roomTeam={roomTeam}
-            issues={issuesQueue}
-            participants={participants}
-            deck={deck}
-          />
-        </div>
+        <ExportDialog
+          roomTitle={title}
+          roomTeam={roomTeam}
+          issues={issuesQueue}
+          participants={participants}
+          deck={deck}
+          open={isExportOpen}
+          onOpenChange={setIsExportOpen}
+          hideTrigger
+        />
 
         <div className="relative flex min-h-0 flex-1">
           <ResponsivePanel side="left" open={isQueueOpen} onOpenChange={setIsQueueOpen} title="Fila" count={issuesQueue.length} icon={ListChecks} widthClass="w-80">

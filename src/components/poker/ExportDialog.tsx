@@ -20,6 +20,11 @@ interface ExportDialogProps {
   participants: Participant[];
   deck: DeckType;
   triggerNode?: React.ReactNode;
+  /** Aberto/fechado controlados por quem chama (botão na barra da sala); sem isso o diálogo cuida do próprio estado. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Não desenha o botão "Exportar resumo" (quem chama abre o diálogo por `open`). */
+  hideTrigger?: boolean;
   // Tempo por tópico no relatório — só inclui a seção quando o facilitador
   // ligou "Tempo por tópico" nas configs (mesma flag da visão ao vivo).
   rounds?: VotingRound[];
@@ -56,11 +61,13 @@ const CTA: Partial<Record<ExportFormatId, string>> = {
 };
 
 export function ExportDialog({
-  roomTitle, roomTeam, issues, participants, deck, triggerNode, rounds, sessionStartedAt, sessionEndedAt,
+  roomTitle, roomTeam, issues, participants, deck, triggerNode, open: openProp, onOpenChange: onOpenChangeProp, hideTrigger, rounds, sessionStartedAt, sessionEndedAt,
   perTopicTime, divergenceThresholds, report: reportProp, interceptBrowserPrint, print: printProp,
 }: ExportDialogProps) {
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const isOpen = openProp ?? openState;
+  const setIsOpen = (v: boolean) => { setOpenState(v); onOpenChangeProp?.(v); };
   const [exportFormat, setExportFormat] = useState<ExportFormatId>('pdf-download');
   const [includeResults, setIncludeResults] = useState(true);
 
@@ -134,14 +141,16 @@ export function ExportDialog({
 
   return (
     <>
-      <span className="contents" onClick={() => setIsOpen(true)}>
-        {triggerNode || (
-          <Button variant="outline" size="sm" className="hidden h-9 gap-2 sm:flex">
-            <Download className="h-4 w-4" strokeWidth={1.5} />
-            Exportar resumo
-          </Button>
-        )}
-      </span>
+      {!hideTrigger && (
+        <span className="contents" onClick={() => setIsOpen(true)}>
+          {triggerNode || (
+            <Button variant="outline" size="sm" className="hidden h-9 gap-2 sm:flex">
+              <Download className="h-4 w-4" strokeWidth={1.5} />
+              Exportar resumo
+            </Button>
+          )}
+        </span>
+      )}
       <ExportDialogShell
         open={isOpen}
         onOpenChange={setIsOpen}
