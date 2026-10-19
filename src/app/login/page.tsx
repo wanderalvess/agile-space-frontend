@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { LoginPanel } from '@/components/login/LoginPanel';
 import { LoginShowcase } from '@/components/login/LoginShowcase';
 import { useLoginFlow } from '@/components/login/useLoginFlow';
@@ -9,7 +10,7 @@ import { useLoginFlow } from '@/components/login/useLoginFlow';
  * onboarding, squad ativa) é decidido pelo AuthGuard assim que a sessão existe.
  * Só tokens semânticos: vale para os 7 temas, claro e escuro. O halo do fundo é discreto e some no tema "leitura".
  */
-export default function LoginPage() {
+function LoginScreen() {
   const flow = useLoginFlow();
 
   return (
@@ -24,5 +25,14 @@ export default function LoginPage() {
         <LoginPanel flow={flow} />
       </div>
     </main>
+  );
+}
+
+/** useSearchParams (destino e aba) pede um limite de Suspense para a página poder ser pré-renderizada. */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginScreen />
+    </Suspense>
   );
 }

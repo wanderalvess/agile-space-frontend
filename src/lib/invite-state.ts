@@ -5,6 +5,7 @@ export type InviteView =
   | 'sessao' // carregando a sessão
   | 'verificando' // buscando o convite
   | 'normal' // pode aceitar
+  | 'visitante' // sem sessão: mostra o convite e leva ao login/cadastro com o link de volta
   | 'aceito' // aceitou: redireciona em 1,5 s
   | 'invalido' // erro de carga ou de aceite, com a mensagem do servidor
   | 'usado'
@@ -22,7 +23,7 @@ export const UNAVAILABLE_TEXT: Record<UnavailableKind, string> = {
 };
 
 /** Convite que não está mais pendente (usado, revogado ou vencido por `status` ou por `expiresAt`). */
-export function unavailableKind(invite: Invite | null, now: number = Date.now()): UnavailableKind | null {
+export function unavailableKind(invite: Pick<Invite, 'status' | 'expiresAt'> | null, now: number = Date.now()): UnavailableKind | null {
   if (!invite) return null;
   if (invite.status === 'ACCEPTED') return 'usado';
   if (invite.status === 'REVOKED') return 'cancelado';
@@ -33,20 +34,20 @@ export function unavailableKind(invite: Invite | null, now: number = Date.now())
 export interface InviteViewInput {
   authLoading: boolean;
   hasSession: boolean;
-  invite: Invite | null;
+  invite: Pick<Invite, 'status' | 'expiresAt'> | null;
   error: Error | null;
   accepted: boolean;
 }
 
-/** Qual tela mostrar. A ordem é a do código antigo: aceito, erro, indisponível, verificando, normal. */
+/** Qual tela mostrar. A ordem é a do código antigo: aceito, erro, indisponível, verificando, normal (ou visitante, sem sessão). */
 export function inviteView(input: InviteViewInput, now: number = Date.now()): InviteView {
-  if (input.authLoading || !input.hasSession) return 'sessao';
+  if (input.authLoading) return 'sessao';
   if (input.accepted) return 'aceito';
   if (input.error) return isOtherEmailError(input.error) ? 'outro-email' : 'invalido';
   const unavailable = unavailableKind(input.invite, now);
   if (unavailable) return unavailable;
   if (!input.invite) return 'verificando'; // ainda buscando o convite
-  return 'normal';
+  return input.hasSession ? 'normal' : 'visitante';
 }
 
 /** "Expira em 6 dias", "Expira em 5 h", "Expira em menos de 1 hora"; null se já passou ou a data é inválida. */
@@ -66,4 +67,26 @@ export function otherEmailText(currentEmail: string | undefined, err: InviteApiE
   return err.invitedEmailMasked
     ? `${entered}, mas o convite foi enviado para ${err.invitedEmailMasked}.`
     : `${entered}, mas o convite foi enviado para outro e-mail.`;
+}
+
+/** Linha "quem convidou" da tela do convite e do aviso do login; vazio quando o servidor não sabe. */
+export function invitedByText(name: string | null | undefined): string | null {
+  const clean = (name ?? '').trim();
+  return clean ? `Convite de ${clean}` : null;
+}
+
+/** Aviso do login para quem veio de um convite: com a squad quando ela já foi carregada. */
+export function loginInviteNotice(preview: { squadName?: string | null; squadId: string; invitedByName?: string | null } | null): { title: string; description: string } {
+  if (!preview) {
+    return {
+      title: 'Você recebeu um convite para uma squad',
+      description: 'Entre ou crie a sua conta; em seguida o convite abre para você aceitar.',
+    };
+  }
+  const squad = preview.squadName || preview.squadId;
+  const by = invitedByText(preview.invitedByName);
+  return {
+    title: `Você foi convidado para a squad ${squad}`,
+    description: `${by ? `${by}. ` : ''}Entre ou crie a sua conta; em seguida o convite abre para você aceitar.`,
+  };
 }

@@ -18,6 +18,20 @@ export interface Invite {
   squadName?: string | null;
 }
 
+/** Pré-visualização do convite para quem ainda não entrou (GET /public/invites/{token}, sem sessão). */
+export interface InvitePreview {
+  squadId: string;
+  /** Nome legível da squad; vazio quando só existe a chave. */
+  squadName?: string | null;
+  roleName: string;
+  /** Nome de quem convidou, quando o servidor o conhece. */
+  invitedByName?: string | null;
+  status: Invite['status'];
+  expiresAt: string;
+  /** E-mail do destinatário mascarado (c••••@dominio), só em convite endereçado. */
+  emailMasked?: string | null;
+}
+
 /** Código que o backend deve mandar (403) quando o convite é de um e-mail e a pessoa entrou com outro. */
 export const INVITE_OTHER_EMAIL = 'INVITE_OTHER_EMAIL';
 
@@ -105,6 +119,13 @@ export const inviteApi = {
 
   async getInvite(token: string): Promise<Invite> {
     return req<Invite>(`/invites/${encodeURIComponent(token)}`);
+  },
+
+  /** Sem sessão: serve a página do convite e o aviso do login. 404 = link que não existe. */
+  async getPreview(token: string): Promise<InvitePreview> {
+    const res = await fetch(`${API_BASE_URL}/public/invites/${encodeURIComponent(token)}`);
+    if (!res.ok) throw await inviteErrorFrom(res);
+    return res.json();
   },
 
   buildInviteLink(token: string): string {
