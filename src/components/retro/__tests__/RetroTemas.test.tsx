@@ -418,6 +418,19 @@ describe('boas-vindas e guia com a dinâmica do formato', () => {
     expect(within(dialog).getByText(`sugerido ${theme.temposPorFase.act} min`)).toBeTruthy();
   });
 
+  it('depois de "Começar" as boas-vindas não voltam ao recarregar a mesma retro, mas aparecem em outra', async () => {
+    window.localStorage.clear();
+    const first = render(<RetroWelcome title="Retro A" isFacilitator disabled={false} boardId="rA" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Começar' }));
+    first.unmount();
+    render(<RetroWelcome title="Retro A" isFacilitator disabled={false} boardId="rA" />);
+    await waitFor(() => expect(window.localStorage.getItem('agile_retro_welcome_seen_rA')).toBe('true'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    cleanup();
+    render(<RetroWelcome title="Retro B" isFacilitator disabled={false} boardId="rB" />);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
   it('sem formato conhecido, as boas-vindas ficam como eram', () => {
     window.localStorage.setItem('agile_retro_welcome_dismissed', 'false');
     render(<RetroWelcome title="Retro livre" isFacilitator={false} disabled={false} templateKey="custom" />);

@@ -24,6 +24,7 @@ import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
+import { removeLocalRoomMeta } from '@/lib/health-check-lobby';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -346,6 +347,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
           case 'ROOM_DELETED':
             // Quem criou a sala a excluiu: não há mais o que mostrar aqui.
+            removeLocalRoomMeta(roomId, typeof window === 'undefined' ? undefined : window.localStorage);
             toast({ title: 'Sala excluída', description: 'Quem criou a sala a excluiu. Voltando para o Poker.' });
             router.push('/room');
             break;
@@ -1808,9 +1810,10 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       console.error("Erro ao assumir controle:", error);
       toast({
         title: "Erro ao assumir controle",
-        description: error instanceof Error && !(error instanceof RoomConflictError)
-          ? error.message
-          : "Não foi possível completar a operação. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
+        // Nunca o texto técnico do servidor ("Falha ao salvar a sala (HTTP 403...)").
+        description: error instanceof Error && /HTTP 403/.test(error.message)
+          ? "O organizador ainda está na sala. Só dá para assumir o controle quando ele estiver ausente; peça a ele para repassar."
+          : "Não foi possível assumir o controle agora. Se o organizador ainda estiver na sala, peça a ele para repassar o controle.",
         variant: "destructive"
       });
     }

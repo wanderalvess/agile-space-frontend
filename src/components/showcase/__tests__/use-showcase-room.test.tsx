@@ -318,6 +318,36 @@ describe('tempo real', () => {
     expect(result.current.session?.tasks[0]).toMatchObject({ title: 'Digitando', description: 'do colega', version: 2 });
   });
 
+  it('edição do mesmo campo na fila + CARD_UPDATED de outra pessoa: não sobrescreve em silêncio, vira aviso de conflito', async () => {
+    const { result } = await openRoom(room([card('c1', { version: 1, acceptanceCriteria: 'base' })]));
+    const socket = FakeSocket.instances[0];
+    // 1ª digitação fica em voo; a 2ª espera na fila (é a que usaria a versão nova do evento).
+    h.api.patchCard.mockImplementation(() => new Promise(() => {}));
+    act(() => { void result.current.updateTask('c1', { acceptanceCriteria: 'base minha' }); });
+    let queued: Promise<boolean> = Promise.resolve(true);
+    act(() => { queued = result.current.updateTask('c1', { acceptanceCriteria: 'base minha 2' }); });
+    act(() => socket.emit({
+      type: 'CARD_UPDATED',
+      payload: { cardId: 'c1', version: 2, card: card('c1', { version: 2, acceptanceCriteria: 'texto do colega' }) },
+    }));
+    await expect(queued).resolves.toBe(false);
+    expect(result.current.conflicts).toHaveLength(1);
+    expect(result.current.conflicts[0].changes[0]).toMatchObject({ path: 'acceptanceCriteria', value: 'base minha 2' });
+    expect(result.current.lastFailure()).toBe('conflict');
+  });
+
+  it('CARD_UPDATED de OUTRO campo com edição na fila não gera conflito', async () => {
+    const { result } = await openRoom(room([card('c1', { version: 1 })]));
+    const socket = FakeSocket.instances[0];
+    h.api.patchCard.mockImplementation(() => new Promise(() => {}));
+    act(() => { void result.current.updateTask('c1', { acceptanceCriteria: 'a' }); });
+    act(() => { void result.current.updateTask('c1', { acceptanceCriteria: 'ab' }); });
+    // O servidor ainda tem o critério original (vazio): não foi outra pessoa que mexeu nele.
+    act(() => socket.emit({ type: 'CARD_UPDATED', payload: { cardId: 'c1', version: 2, card: card('c1', { version: 2, description: 'do colega' }) } }));
+    expect(result.current.conflicts).toEqual([]);
+    expect(result.current.session?.tasks[0]).toMatchObject({ acceptanceCriteria: 'ab', description: 'do colega' });
+  });
+
   it('SESSION_UPDATED continua funcionando como antes', async () => {
     const { result } = await openRoom(room([card('c1')]));
     const socket = FakeSocket.instances[0];

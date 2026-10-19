@@ -39,7 +39,7 @@ export class RoomConflictError extends Error {
 export const pokerApi = {
   async getRoom(roomId: string): Promise<Room> {
     const res = await authFetch(`${API_BASE_URL}/poker/${roomId}`);
-    if (!res.ok) throw new Error('Falha ao carregar a sala de Poker');
+    if (!res.ok) throw Object.assign(new Error('Falha ao carregar a sala de Poker'), { status: res.status });
     return res.json();
   },
 

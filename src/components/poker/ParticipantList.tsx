@@ -54,6 +54,11 @@ export function ParticipantList({
 }: ParticipantListProps) {
   const [toRemove, setToRemove] = useState<Participant | null>(null);
   const [claimOpen, setClaimOpen] = useState(false);
+  // O servidor só deixa assumir quando o organizador está ausente (sem sinal recente); com ele online o botão nem aparece.
+  const hostOnline = useMemo(
+    () => participants.some((p) => p.isFacilitator && p.id !== currentUserId && (onlineIds ? onlineIds.has(p.id) : true)),
+    [participants, currentUserId, onlineIds]
+  );
   const votedIds = useMemo(() => new Set(votes.map((v) => v.participantId)), [votes]);
 
   const items = useMemo<PresenceItem[]>(() => {
@@ -102,7 +107,7 @@ export function ParticipantList({
     if (!person) return null;
     return (
       <TooltipProvider>
-        {!isFacilitator && item.isYou && onClaimFacilitator && (
+        {!isFacilitator && !hostOnline && item.isYou && onClaimFacilitator && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Assumir o controle da sala" onClick={() => setClaimOpen(true)} className="h-7 w-7 shrink-0 text-amber-600 dark:text-amber-300">
