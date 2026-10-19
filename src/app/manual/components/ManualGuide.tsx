@@ -17,8 +17,8 @@ export interface GuideSection {
 
 export interface ManualGuideProps {
   topicId: string;
-  /** Classe de fundo do cartão lateral (ex.: bg-orange-600). */
-  accentClass: string;
+  /** Mantido por compatibilidade: o cartão lateral sempre usa a cor de destaque do tema. */
+  accentClass?: string;
   quoteTitle: string;
   quote: string;
   sections: GuideSection[];
@@ -32,11 +32,11 @@ export interface ManualGuideProps {
  * seções em cartões numerados e avisos. Os textos ficam nos arquivos de cada tópico; o que a tela
  * faz hoje deve ser conferido em docs/fluxos antes de editar.
  */
-export function ManualGuide({ topicId, accentClass, quoteTitle, quote, sections, notes, children }: ManualGuideProps) {
+export function ManualGuide({ topicId, quoteTitle, quote, sections, notes, children }: ManualGuideProps) {
   const meta = getTopicById(topicId)!;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-10">
       <ManualHero
         title={meta.title}
         subtitle={meta.subtitle}
@@ -52,13 +52,13 @@ export function ManualGuide({ topicId, accentClass, quoteTitle, quote, sections,
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-6">
-          <div className={`p-8 ${accentClass} rounded-[2.5rem] text-white shadow-2xl space-y-4`}>
-            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-white/80">{quoteTitle}</h4>
-            <p className="text-xs text-white/90 leading-relaxed font-medium italic">&ldquo;{quote}&rdquo;</p>
+          <div className="p-8 bg-primary rounded-2xl text-primary-foreground shadow-sm space-y-4">
+            <h4 className="text-sm font-bold tracking-normal text-primary-foreground">{quoteTitle}</h4>
+            <p className="text-sm text-primary-foreground leading-relaxed font-medium">&ldquo;{quote}&rdquo;</p>
           </div>
           {notes?.map((note) => (
-            <div key={note.title} className="p-6 bg-background rounded-[2rem] border border-border/80 space-y-2">
-              <h5 className="text-xs font-black uppercase tracking-widest text-foreground">{note.title}</h5>
+            <div key={note.title} className="p-6 bg-background rounded-2xl border border-border/80 space-y-2">
+              <h5 className="text-xs font-bold tracking-normal text-foreground">{note.title}</h5>
               <p className="text-xs text-muted-foreground leading-relaxed font-medium">{note.text}</p>
             </div>
           ))}
@@ -66,9 +66,9 @@ export function ManualGuide({ topicId, accentClass, quoteTitle, quote, sections,
 
         <div className="lg:col-span-8 space-y-8">
           {sections.map((section) => (
-            <Card key={section.title} className="border-none bg-card rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
+            <Card key={section.title} className="border-none bg-card rounded-2xl shadow-xl shadow-black/10 dark:shadow-none overflow-hidden">
               <CardHeader className="p-8 pb-4 border-b border-border">
-                <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground">
+                <CardTitle className="text-xl font-bold tracking-tight text-foreground">
                   {section.title}
                 </CardTitle>
                 {section.description && (
@@ -79,8 +79,8 @@ export function ManualGuide({ topicId, accentClass, quoteTitle, quote, sections,
                 <div className={section.columns === 1 ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}>
                   {section.items.map((item, idx) => (
                     <div key={item.title} className="p-5 rounded-2xl bg-background border border-border space-y-2">
-                      <h4 className="flex items-center gap-2 font-black uppercase tracking-widest text-xs text-foreground">
-                        <span className="w-6 h-6 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex items-center justify-center text-xs shrink-0">
+                      <h4 className="flex items-center gap-2 font-bold tracking-normal text-xs text-foreground">
+                        <span className="w-6 h-6 rounded-lg bg-card dark:bg-muted/60 text-foreground flex items-center justify-center text-xs shrink-0">
                           {idx + 1}
                         </span>
                         {item.title}

@@ -8,7 +8,7 @@ export function GovernanceTopic() {
   const meta = getTopicById('governance')!;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-10">
       <ManualHero
         title={meta.title}
         subtitle={meta.subtitle}
@@ -24,20 +24,20 @@ export function GovernanceTopic() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-4 space-y-6">
-          <div className="p-8 bg-emerald-600 rounded-[2.5rem] text-white shadow-2xl shadow-emerald-500/20 space-y-4">
-            <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-100">
+          <div className="p-8 bg-primary rounded-2xl text-primary-foreground shadow-sm space-y-4">
+            <h4 className="flex items-center gap-2 text-xs font-bold tracking-normal text-primary-foreground">
               <ShieldCheck className="h-4 w-4" /> Conformidade Ativa
             </h4>
-            <p className="text-xs text-emerald-100/90 leading-relaxed font-medium italic">
+            <p className="text-xs text-primary-foreground/90 leading-relaxed font-medium">
               &quot;O Portal Tech V&D utiliza isolamento seguro por usuário e autenticação padrão Google. Seus dados e registros nunca são cruzados com outros usuários ou squads.&quot;
             </p>
           </div>
         </div>
 
         <div className="lg:col-span-8">
-          <Card className="border-none bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-xl shadow-slate-200/40 dark:shadow-none overflow-hidden">
-            <CardHeader className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+          <Card className="border-none bg-card rounded-2xl shadow-xl shadow-black/10 dark:shadow-none overflow-hidden">
+            <CardHeader className="p-8 pb-4 border-b border-border">
+              <CardTitle className="text-xl font-bold tracking-tight text-foreground">
                 Políticas & Transparência Técnica
               </CardTitle>
               <CardDescription className="text-xs font-medium">
@@ -46,26 +46,26 @@ export function GovernanceTopic() {
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="p-6 rounded-3xl bg-muted/40 border border-border space-y-2">
                   <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-emerald-600" />
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                    <Lock className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+                    <h4 className="text-xs font-bold tracking-normal text-foreground">
                       Privacidade dos Dados
                     </h4>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                     Não armazenamos senhas diretamente: toda a autenticação é delegada via OAuth2 seguro. Suas anotações, quadros e trechos de código são protegidos com controle rígido de acesso e validação estrita de token.
                   </p>
                 </div>
 
-                <div className="p-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2">
+                <div className="p-6 rounded-3xl bg-muted/40 border border-border space-y-2">
                   <div className="flex items-center gap-2">
-                    <Key className="h-4 w-4 text-emerald-600" />
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-100">
+                    <Key className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+                    <h4 className="text-xs font-bold tracking-normal text-foreground">
                       Processamento de IA
                     </h4>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                  <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                     As chaves de API (Gemini Studio, etc.) configuradas na Base de Conhecimento residem apenas no armazenamento local do navegador. Nenhuma requisição transfere suas credenciais privadas para servidores de terceiros.
                   </p>
                 </div>

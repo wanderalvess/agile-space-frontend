@@ -6,7 +6,7 @@ export function PokerTopic() {
   return (
     <ManualGuide
       topicId="poker"
-      accentClass="bg-blue-600"
+      accentClass="bg-primary"
       quoteTitle="Por que esconder os votos"
       quote="Ao ocultar os votos, forçamos o cérebro a pensar de forma independente. O valor não está no número final, mas na discussão que surge quando as opiniões divergem."
       notes={[

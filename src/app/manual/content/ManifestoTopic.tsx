@@ -31,7 +31,7 @@ export function ManifestoTopic() {
   ];
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-10">
       <ManualHero
         title={meta.title}
         subtitle={meta.subtitle}
@@ -48,15 +48,15 @@ export function ManifestoTopic() {
           {principles.map((rule, i) => (
             <div 
               key={i} 
-              className="p-8 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-lg transition-all space-y-4 group"
+              className="p-8 bg-card rounded-3xl border border-border/80 dark:border-border shadow-sm hover:shadow-lg transition-all space-y-4 group"
             >
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                <rule.icon className="h-6 w-6 text-primary" />
+                <rule.icon className="h-6 w-6 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" />
               </div>
-              <h4 className="font-black uppercase tracking-widest text-xs text-slate-900 dark:text-slate-100">
+              <h4 className="font-bold tracking-normal text-xs text-foreground">
                 {rule.title}
               </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+              <p className="text-xs text-muted-foreground leading-relaxed font-medium">
                 {rule.desc}
               </p>
             </div>
