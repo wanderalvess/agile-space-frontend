@@ -18,13 +18,13 @@ const PHASE_COLOR_OPTIONS: { value: string; name: string }[] = [
   { value: 'bg-teal-600 dark:bg-teal-500', name: 'Teal' },
   { value: 'bg-purple-600 dark:bg-purple-500', name: 'Roxo' },
   { value: 'bg-amber-600 dark:bg-amber-500', name: 'Âmbar' },
-  { value: 'bg-indigo-600 dark:bg-indigo-500', name: 'Índigo' },
+  { value: 'bg-primary', name: 'Índigo' },
   { value: 'bg-rose-600 dark:bg-rose-500', name: 'Rosa' },
   { value: 'bg-emerald-600 dark:bg-emerald-500', name: 'Verde' },
   { value: 'bg-cyan-600 dark:bg-cyan-500', name: 'Ciano' },
   { value: 'bg-orange-600 dark:bg-orange-500', name: 'Laranja' },
   { value: 'bg-fuchsia-600 dark:bg-fuchsia-500', name: 'Fúcsia' },
-  { value: 'bg-slate-600 dark:bg-slate-500', name: 'Cinza' },
+  { value: 'bg-slate-600', name: 'Cinza' },
   { value: 'bg-lime-600 dark:bg-lime-500', name: 'Lima' },
 ];
 
@@ -75,26 +75,26 @@ function PhaseRow({
   };
 
   return (
-    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/40 space-y-2.5">
+    <div className="p-3 rounded-xl bg-muted/50 border border-border/50 space-y-2.5">
       <div className="flex items-center gap-2">
         <div className="flex flex-col gap-0.5 shrink-0">
           <button
             type="button" onClick={onMoveUp} disabled={isFirst}
             title="Mover fase pra cima (mais cedo no fluxo)"
-            className="h-4 w-4 flex items-center justify-center rounded text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 disabled:hover:text-slate-400"
+            className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:hover:text-muted-foreground"
           >
             <ChevronUp className="h-3.5 w-3.5" />
           </button>
           <button
             type="button" onClick={onMoveDown} disabled={isLast}
             title="Mover fase pra baixo (mais tarde no fluxo)"
-            className="h-4 w-4 flex items-center justify-center rounded text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-25 disabled:hover:text-slate-400"
+            className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:hover:text-muted-foreground"
           >
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <span className="text-[9px] font-black text-slate-400 w-4 text-center shrink-0" title="Ordem no fluxo">
+        <span className="text-xs font-semibold text-muted-foreground w-4 text-center shrink-0" title="Ordem no fluxo">
           {index + 1}
         </span>
 
@@ -114,10 +114,10 @@ function PhaseRow({
         />
 
         <Select value={row.color} onValueChange={v => onChange({ color: v })}>
-          <SelectTrigger className="h-8 w-[104px] text-[10px] rounded-lg shrink-0 px-2">
+          <SelectTrigger className="h-8 w-[104px] text-xs rounded-lg shrink-0 px-2">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="text-[11px]">
+          <SelectContent className="text-xs">
             {PHASE_COLOR_OPTIONS.map(c => (
               <SelectItem key={c.value} value={c.value}>
                 <span className="flex items-center gap-1.5">
@@ -140,7 +140,7 @@ function PhaseRow({
 
       <div className="flex flex-wrap items-center gap-1.5 pl-6">
         {row.issueTypes.map(t => (
-          <Badge key={t} variant="outline" className="text-[9px] font-bold gap-1 pr-1 rounded-md">
+          <Badge key={t} variant="outline" className="text-xs font-bold gap-1 pr-1 rounded-md">
             {t}
             <button type="button" onClick={() => onRemoveIssueType(t)} title="Remover tipo" className="hover:text-rose-500">
               <X className="h-2.5 w-2.5" />
@@ -153,11 +153,11 @@ function PhaseRow({
             onChange={e => setDraftType(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitDraft(); } }}
             placeholder="Digitar tipo de issue..."
-            className="h-6 w-40 text-[10px] rounded-md"
+            className="h-6 w-40 text-xs rounded-md"
           />
           <button
             type="button" onClick={commitDraft} title="Adicionar tipo"
-            className="h-6 w-6 flex items-center justify-center rounded-md text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-900"
+            className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-card"
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -170,7 +170,7 @@ function PhaseRow({
             <button
               key={s} type="button" onClick={() => onAddIssueType(s)}
               title="Adicionar tipo sincronizado do Jira"
-              className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-primary hover:text-primary"
+              className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-card border border-border text-muted-foreground hover:border-primary hover:text-primary"
             >
               + {s}
             </button>
@@ -274,23 +274,23 @@ export function SquadWorkflowPhasesDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl rounded-3xl p-6 max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-            <Workflow className="h-5 w-5 text-indigo-500" /> Fases do Workflow ({squadId})
+          <DialogTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
+            <Workflow className="h-5 w-5 text-primary" /> Fases do Workflow ({squadId})
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <DialogDescription className="text-xs text-muted-foreground mt-1">
             Mapeie os tipos de issue do Jira pra fases do fluxo (Codificação, Code Review, Teste QA...). A ordem abaixo é a ordem usada na fita do cronograma do Jira Plans. Sem fases configuradas, o sistema usa uma heurística padrão pelo nome do tipo.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 mt-2">
           {availableIssueTypes.length === 0 && (
-            <p className="text-[10px] text-slate-400">
+            <p className="text-xs text-muted-foreground">
               Nenhum tipo de issue sincronizado ainda — sincronize o squad ou digite o nome manualmente em cada fase.
             </p>
           )}
 
           {rows.length === 0 && (
-            <p className="text-xs text-slate-400 text-center py-4">
+            <p className="text-xs text-muted-foreground text-center py-4">
               Nenhuma fase configurada — o cronograma usa o fallback padrão por tipo de issue.
             </p>
           )}
@@ -314,16 +314,16 @@ export function SquadWorkflowPhasesDialog({
 
           <Button
             type="button" variant="outline" onClick={addRow}
-            className="w-full h-9 rounded-xl text-xs font-bold border-dashed border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 gap-1.5"
+            className="w-full h-9 rounded-xl text-xs font-bold border-dashed border-border text-muted-foreground gap-1.5"
           >
             <Plus className="h-3.5 w-3.5" /> Adicionar Fase
           </Button>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex justify-end gap-2 pt-4 border-t border-border">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl text-xs">
               Cancelar
             </Button>
-            <Button type="button" onClick={handleSave} disabled={isSaving} className="bg-primary text-white rounded-xl text-xs font-bold">
+            <Button type="button" onClick={handleSave} disabled={isSaving} className="bg-primary text-primary-foreground rounded-xl text-xs font-bold">
               {isSaving ? 'Salvando...' : 'Salvar Fases'}
             </Button>
           </div>

@@ -34,7 +34,7 @@ export function SquadRituals() {
           <div key={c.id} className="bg-muted/40 p-3 rounded-xl border border-border flex items-center justify-between gap-3">
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-foreground truncate">{c.title}</span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 {describeDays(c.daysOfWeek)} às {c.startTime} · {c.durationMinutes} min
               </span>
             </div>

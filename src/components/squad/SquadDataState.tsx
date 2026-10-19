@@ -38,10 +38,10 @@ interface SquadDataStateProps {
 
 function Step({ n, done, current, children }: { n: number; done?: boolean; current?: boolean; children: React.ReactNode }) {
   return (
-    <li className={cn('flex items-center gap-3 text-sm', current ? 'font-semibold text-slate-900 dark:text-white' : done ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400')}>
+    <li className={cn('flex items-center gap-3 text-sm', current ? 'font-semibold text-foreground' : done ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
       <span className={cn(
         'flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0',
-        done ? 'bg-emerald-500/20' : current ? 'bg-primary text-primary-foreground' : 'border border-slate-400/60'
+        done ? 'bg-emerald-500/20' : current ? 'bg-primary text-primary-foreground' : 'border border-border/60'
       )}>
         {done ? <Check className="h-3.5 w-3.5" /> : n}
       </span>
@@ -83,7 +83,7 @@ export function SquadDataState({ kind, subject, isSyncing, errorMessage, onConne
   return (
     <div className={cn(
       'rounded-3xl border p-6 sm:p-8 flex flex-col gap-4',
-      isError ? 'border-rose-500/40 bg-rose-500/5' : 'border-slate-200/70 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70',
+      isError ? 'border-rose-500/40 bg-rose-500/5' : 'border-border/70 bg-card/80',
       className
     )}>
       <span className={cn(
@@ -92,8 +92,8 @@ export function SquadDataState({ kind, subject, isSyncing, errorMessage, onConne
       )}>
         {copy.badge}
       </span>
-      <h3 className="text-2xl font-black tracking-tight font-headline text-slate-900 dark:text-white leading-tight">{copy.title}</h3>
-      <p className="max-w-2xl text-sm sm:text-base text-slate-600 dark:text-slate-300">{copy.body}</p>
+      <h3 className="text-2xl font-semibold tracking-tight font-headline text-foreground leading-tight">{copy.title}</h3>
+      <p className="max-w-2xl text-sm sm:text-base text-muted-foreground">{copy.body}</p>
 
       {(kind === 'no-jira' || kind === 'first-sync') && (
         <ol className="flex flex-col gap-3">
@@ -104,7 +104,7 @@ export function SquadDataState({ kind, subject, isSyncing, errorMessage, onConne
       )}
 
       {isError && errorMessage && (
-        <p className="max-w-2xl rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3.5 py-2.5 font-code text-xs text-slate-600 dark:text-slate-300 break-words">
+        <p className="max-w-2xl rounded-xl border border-border bg-muted/50 px-3.5 py-2.5 font-code text-xs text-muted-foreground break-words">
           Detalhe técnico: {errorMessage}
         </p>
       )}
