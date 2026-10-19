@@ -28,7 +28,8 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
 
   const mute = 'text-muted-foreground';
   // O fundo escolhido em Configurações > Apresentação manda na capa; a foto só aparece enquanto nenhum fundo foi escolhido.
-  const showPhoto = Boolean(session.coverImage) && bgLoaded && !session.presentationBackground;
+  const coverPhoto = session.coverImage;
+  const showPhoto = Boolean(coverPhoto) && bgLoaded && !session.presentationBackground;
 
   return (
     <motion.div
@@ -42,7 +43,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={getDirectImageUrl(session.coverImage)}
+              src={getDirectImageUrl(coverPhoto ?? '')}
               referrerPolicy="no-referrer"
               className="h-full w-full object-cover"
               alt=""
