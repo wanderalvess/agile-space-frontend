@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { InviteApiError, inviteErrorFrom, type Invite } from '../invite-api';
-import { expiresInLabel, invitedByText, inviteView, loginInviteNotice, otherEmailText, unavailableKind, type InviteViewInput } from '../invite-state';
+import { expiresInLabel, inviteView, loginInviteNotice, otherEmailText, unavailableKind, type InviteViewInput } from '../invite-state';
 
 const NOW = Date.parse('2026-10-16T12:00:00Z');
 const DAY = 86_400_000;
@@ -129,16 +129,10 @@ describe('inviteErrorFrom', () => {
 });
 
 describe('texto do convite para quem ainda não entrou', () => {
-  it('quem convidou só aparece quando se sabe', () => {
-    expect(invitedByText('Lia Lider')).toBe('Convite de Lia Lider');
-    expect(invitedByText('  ')).toBeNull();
-    expect(invitedByText(null)).toBeNull();
-  });
-
-  it('o aviso do login nomeia a squad e quem convidou; sem a prévia fica o texto genérico', () => {
-    const n = loginInviteNotice({ squadId: 'SQ', squadName: 'Squad Alfa', invitedByName: 'Lia Lider' });
+  it('o aviso do login nomeia a squad; sem a prévia fica o texto genérico', () => {
+    const n = loginInviteNotice({ squadId: 'SQ', squadName: 'Squad Alfa' });
     expect(n.title).toBe('Você foi convidado para a squad Squad Alfa');
-    expect(n.description).toContain('Convite de Lia Lider.');
+    expect(n.description).not.toContain('Convite de');
     expect(loginInviteNotice({ squadId: 'SQ', squadName: null }).title).toBe('Você foi convidado para a squad SQ');
     expect(loginInviteNotice(null).title).toBe('Você recebeu um convite para uma squad');
   });

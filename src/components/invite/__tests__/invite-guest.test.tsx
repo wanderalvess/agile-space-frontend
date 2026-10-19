@@ -7,7 +7,6 @@ const preview: InvitePreview = {
   squadId: 'SQ',
   squadName: 'Squad Alfa',
   roleName: 'Developer',
-  invitedByName: 'Lia Lider',
   status: 'PENDING',
   expiresAt: new Date(Date.now() + 3 * 86_400_000).toISOString(),
   emailMasked: null,
@@ -18,12 +17,12 @@ const common = { error: null, accepting: false, onAccept: vi.fn(), onSwitchAccou
 describe('página do convite sem login', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('mostra a squad, o papel e quem convidou, com os dois caminhos para entrar', () => {
+  it('mostra a squad, o papel, sem nome de quem convidou, com os dois caminhos para entrar', () => {
     const onSignIn = vi.fn();
     const onSignUp = vi.fn();
     render(<InviteAcceptView {...common} view="visitante" invite={preview} onSignIn={onSignIn} onSignUp={onSignUp} />);
     expect(screen.getByText('Squad: Squad Alfa')).toBeTruthy();
-    expect(screen.getByText(/Convite de Lia Lider/)).toBeTruthy();
+    expect(screen.queryByText(/Convite de/)).toBeNull();
     expect(screen.queryByText('Aceitar Convite')).toBeNull();
     fireEvent.click(screen.getByText('Criar conta e aceitar'));
     fireEvent.click(screen.getByText(/Já tenho conta/));

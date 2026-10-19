@@ -24,8 +24,6 @@ export interface InvitePreview {
   /** Nome legível da squad; vazio quando só existe a chave. */
   squadName?: string | null;
   roleName: string;
-  /** Nome de quem convidou, quando o servidor o conhece. */
-  invitedByName?: string | null;
   status: Invite['status'];
   expiresAt: string;
   /** E-mail do destinatário mascarado (c••••@dominio), só em convite endereçado. */

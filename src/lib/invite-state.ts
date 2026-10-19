@@ -69,14 +69,8 @@ export function otherEmailText(currentEmail: string | undefined, err: InviteApiE
     : `${entered}, mas o convite foi enviado para outro e-mail.`;
 }
 
-/** Linha "quem convidou" da tela do convite e do aviso do login; vazio quando o servidor não sabe. */
-export function invitedByText(name: string | null | undefined): string | null {
-  const clean = (name ?? '').trim();
-  return clean ? `Convite de ${clean}` : null;
-}
-
 /** Aviso do login para quem veio de um convite: com a squad quando ela já foi carregada. */
-export function loginInviteNotice(preview: { squadName?: string | null; squadId: string; invitedByName?: string | null } | null): { title: string; description: string } {
+export function loginInviteNotice(preview: { squadName?: string | null; squadId: string} | null): { title: string; description: string } {
   if (!preview) {
     return {
       title: 'Você recebeu um convite para uma squad',
@@ -84,9 +78,8 @@ export function loginInviteNotice(preview: { squadName?: string | null; squadId:
     };
   }
   const squad = preview.squadName || preview.squadId;
-  const by = invitedByText(preview.invitedByName);
   return {
     title: `Você foi convidado para a squad ${squad}`,
-    description: `${by ? `${by}. ` : ''}Entre ou crie a sua conta; em seguida o convite abre para você aceitar.`,
+    description: `Entre ou crie a sua conta; em seguida o convite abre para você aceitar.`,
   };
 }
