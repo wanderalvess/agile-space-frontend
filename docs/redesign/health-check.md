@@ -52,7 +52,7 @@ O cálculo parte das **contagens por valor** que o servidor grava em `summary.re
 | WebSocket com reconexão e `REFRESH_BOARD`, só a recarga mais recente vale, auto-join uma vez, relê os votos ao encerrar | iguais; ganha estado de conexão visível (`onClose` em `connectRoomSocket`) |
 | `BOARD_UPDATED/DELETED`, `PARTICIPANT_JOINED/LEFT`, `VOTE_SAVED` | iguais; `BOARD_DELETED` vira estado de página (quem apagou segue para a lista) |
 | Falha de rede mostrava "não encontrada" | `HealthRoomState kind="error"` com "Tentar de novo"; só 404/403 dizem "não encontrado" |
-| `RoomHeader` + `GlobalProjectSelector` | `RoomTopBar` do kit (Votar, Resultado, presença, ações) |
+| `RoomHeader` + `GlobalProjectSelector` (removidos) | `RoomTopBar` do kit (Votar, Resultado, presença, ações) |
 | Contador de participantes | pilha de avatares que abre a lista (sem dizer quem votou) |
 | Copiar link | Compartilhar: link, QR e convite em texto |
 | Botão de guia, `HealthGuide` | `GuideSheet` com abas Como funciona, Escalas, Privacidade (texto corrigido) |
