@@ -222,17 +222,17 @@ export const DEFAULT_SHOWCASE_IMAGE = '/showcase/fundo-totvs.webp';
 export const PRESENTATION_PRESETS: PresentationPreset[] = [
   {
     id: 'totvs',
-    name: 'TOTVS (padrão)',
+    name: 'Sede (padrão)',
     category: 'dark',
     value: DEFAULT_SHOWCASE_IMAGE,
     preview: 'url',
-    description: 'Foto da sede TOTVS, padrão de toda Review nova',
+    description: 'Foto da sede, padrão de toda Review nova',
     isLight: false,
   },
   // --- TONS ESCUROS (CINEMATOGRÁFICO) ---
   {
     id: 'totvs-azul',
-    name: 'Azul TOTVS',
+    name: 'Azul institucional',
     category: 'dark',
     value: 'linear-gradient(135deg, #001824 0%, #002233 50%, #0A3048 100%)',
     preview: '#002233',
@@ -348,7 +348,7 @@ export const PRESENTATION_PRESETS: PresentationPreset[] = [
  * A primeira é o padrão da empresa; as outras são fundos abstratos na paleta TOTVS.
  */
 export const PRESETS = [
-  { id: 'totvs-padrao', name: 'TOTVS', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
+  { id: 'totvs-padrao', name: 'Sede (padrão)', url: DEFAULT_SHOWCASE_IMAGE, description: 'Padrão da empresa' },
   { id: 'azul-profundo', name: 'Azul profundo', url: '/showcase/fundo-azul.svg', description: 'Azul escuro com halos de luz' },
   { id: 'grade-clara', name: 'Grade clara', url: '/showcase/fundo-grade.svg', description: 'Fundo claro com grade suave' },
   { id: 'ondas', name: 'Ondas', url: '/showcase/fundo-ondas.svg', description: 'Linhas fluidas em azul e verde' },
