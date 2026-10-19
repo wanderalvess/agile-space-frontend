@@ -147,12 +147,11 @@ Na prática:
 
 - `/painel` virou a aba Resumo de `/squad` (hub em `PageShell`, título "Squad", sem selo da squad; `SummaryWelcome` só mostra a chave quando difere do nome). Resolvido.
 - Telas migradas para o `PageShell` (sem o segundo seletor de squad): hubs de cerimônia (`ToolHubLayout`: Retrospectiva, Radar de clima, Brainstorming, Plano de ação, Review, landing do Prompt Hub), Plano de ação (`/action-plan/[id]`), Scrum Poker (lista em `/room`), Versões, Segurança e dados, Suporte, Configurações, Jolt (hub, Gerador, Sandbox), DevTools (hub e as 35 ferramentas) e Central de qualidade, Prompt Hub (painel, autor, coleções, tutorial), Base de conhecimento (`knowledge/layout.tsx`: `AppHeader` + sub-barra do módulo) e Manual.
-- Legado das salas, remover no redesenho de Retro/Review: `layout/RoomHeader.tsx` (embute o `GlobalProjectSelector`) ainda é usado por `AsyncPokerRoom`, `HealthCheckVotingBoard`/`HealthCheckResults` e `showcase/[id]` (a Retro já usa o `RoomTopBar`). `layout/Header.tsx` fica só para `/onboarding` e `/invite`. `layout/Footer.tsx` está sem uso (use `AppFooter`).
-- Legado das salas, remover no redesenho de Retro/Review: `layout/RoomHeader.tsx` (embute o `GlobalProjectSelector`) ainda é usado por `AsyncPokerRoom`, `RetroBoard` e `HealthCheckVotingBoard`/`HealthCheckResults`. A sala da Review (`showcase/[id]`) já usa o `RoomTopBar` do kit. `layout/Header.tsx` fica só para `/onboarding` e `/invite`. `layout/Footer.tsx` está sem uso (use `AppFooter`).
+- Legado removido: `layout/RoomHeader.tsx`, `admin/GlobalProjectSelector.tsx`, `layout/Header.tsx` e `layout/Footer.tsx` não existem mais. O layout raiz não monta cabeçalho; toda página inteira traz o `PageShell`/`AppHeader` (inclusive `/onboarding` e `/invite`, com `squadControl={null}` porque a pessoa pode ainda não ter squad), e toda sala traz o `RoomTopBar`. Rotas públicas (`/login`, `/reset-password`) têm tela própria sem cabeçalho.
 
 ## Checklist para migrar uma página
 
-1. Troque `<RoomHeader>` / `<Footer>` / `<main>` próprios por `<PageShell>`.
+1. Troque cabeçalho, rodapé e `<main>` próprios por `<PageShell>`.
 2. Título, migalha e ações em `<PageHeader>`; números em `<KpiRow>`.
 3. Busca e filtros em `<DataToolbar>`; listas em `<DataTable>` quando couber.
 4. Carregando, vazio e erro com `LoadingSkeleton`, `EmptyState`, `ErrorState` (nunca deixe a tela parecer vazia quando falhou).

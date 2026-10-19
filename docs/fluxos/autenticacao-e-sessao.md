@@ -16,7 +16,7 @@ Provar quem é a pessoa e mantê-la logada com segurança. Todo mundo passa por 
 |---|---|---|
 | Login / cadastro / esqueci a senha | `/login` | Rota pública do frontend (junto com `/changelog`, aberta a todos). Aceita `?returnUrl=` para voltar ao ponto de origem |
 | Guarda de rota | `AuthGuard` (em todo o app) | Sem sessão manda para `/login?returnUrl=<destino>`; com sessão em `/login` manda para o destino |
-| Menu da pessoa | cabeçalho (`Header`, `RoomHeader`, widgets da home) | "Sair", editar perfil, trocar de equipe |
+| Menu da pessoa | cabeçalho (`AppHeader`, `RoomTopBar`, widgets da home) | "Sair", editar perfil, trocar de equipe |
 
 Entradas do cadastro: nome, e-mail, senha (8 a 128 caracteres) e confirmação. O frontend envia também `jiraAccountId` = parte do e-mail antes do `@`.
 

@@ -57,4 +57,4 @@ Nenhum no servidor. No navegador: mocks e massa exportada (`agile-space_custom_m
 
 ## Onde olhar no código
 
-`src/app/qa/page.tsx`, `src/components/devtools/DevToolsHubPage.tsx` e `DevToolsHub.tsx`, `src/lib/devtools/registry.ts` (campo `qa`), `src/components/home/ModuleGrid.tsx` (card), `src/components/layout/Header.tsx` (destaque do menu).
+`src/app/qa/page.tsx`, `src/components/devtools/DevToolsHubPage.tsx` e `DevToolsHub.tsx`, `src/lib/devtools/registry.ts` (campo `qa`), `src/components/home/ModuleGrid.tsx` (card), `src/components/layout/AppHeader.tsx` (destaque do menu).
