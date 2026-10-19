@@ -83,6 +83,7 @@ interface PokerRoomProps {
   onSetIsSoundEnabled: (enabled: boolean) => void;
   onOpenFeedback: () => void;
   onOpenRetro?: () => void;
+  onDeleteRoom?: () => void;
   roomTitle?: string;
   roomTeam?: string;
   issuesQueue: Issue[];
@@ -151,6 +152,7 @@ const PokerRoomComponent = ({
   onSetIsSoundEnabled,
   onOpenFeedback,
   onOpenRetro,
+  onDeleteRoom,
   roomTitle,
   roomTeam,
   issuesQueue,
@@ -796,6 +798,7 @@ const PokerRoomComponent = ({
             onOpenGuide={() => setIsGuideOpen(true)}
             onTheater={() => setIsTheaterMode(true)}
             onOpenRetro={onOpenRetro}
+            onDeleteRoom={onDeleteRoom}
             canReveal={votes.length > 0}
             showReveal={showRevealButton}
             votedCount={votes.length}

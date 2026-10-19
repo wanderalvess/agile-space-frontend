@@ -13,6 +13,23 @@ export interface RoomMeta {
   createdAt: string;
 }
 
+/**
+ * Guarda no atalho local ("Abertas neste navegador") uma sala aberta por link, encerrada ou não. Sem repetir a que já
+ * está lá. Falha de armazenamento é ignorada.
+ */
+export function rememberOpenedRoom(meta: RoomMeta, storage: Pick<Storage, 'getItem' | 'setItem'> | undefined): void {
+  try {
+    if (!storage) return;
+    const saved = storage.getItem(ROOMS_META_KEY);
+    const parsed = saved ? JSON.parse(saved) : [];
+    const list: RoomMeta[] = Array.isArray(parsed) ? parsed : [];
+    if (list.some((r) => r.roomId === meta.roomId && r.type === meta.type)) return;
+    storage.setItem(ROOMS_META_KEY, JSON.stringify([...list, meta]));
+  } catch {
+    /* sem armazenamento: só não aparece no atalho */
+  }
+}
+
 export function useToolHistory(type: RoomMeta['type']) {
   const [history, setHistory] = useState<RoomMeta[]>([]);
   const [loading, setLoading] = useState(true);

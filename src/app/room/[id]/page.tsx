@@ -24,7 +24,10 @@ import { pokerApi, ROOM_CONFLICT_EVENT, RoomConflictError } from '../api';
 import { authFetch } from '@/lib/auth-client';
 import { squadApi } from '@/app/squad/api';
 import { openOrCreateRetro } from '@/lib/sprintCycleNav';
+import { rememberOpenedRoom } from '@/hooks/useToolHistory';
 import { removeLocalRoomMeta } from '@/lib/health-check-lobby';
+import { ConfirmDialog } from '@/components/room-kit';
+import { Trash2 } from 'lucide-react';
 
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -125,6 +128,40 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
     setFeedbackSignal(Date.now());
   }, []);
 
+  // Excluir a sala (menu da sala): quem criou ou admin; o servidor confere de novo e recusa os demais.
+  const [deleteRoomOpen, setDeleteRoomOpen] = useState(false);
+  const [deletingRoom, setDeletingRoom] = useState(false);
+  const canDeleteRoom = !!session?.id && !!roomData && (roomData.creatorId === session.id || userProfile?.role === 'admin');
+  const confirmDeleteRoom = useCallback(async () => {
+    setDeletingRoom(true);
+    try {
+      await pokerApi.deleteRoom(roomId);
+      removeLocalRoomMeta(roomId, typeof window === 'undefined' ? undefined : window.localStorage);
+      toast({ title: 'Sala excluída', description: 'A sala e o histórico dela foram apagados.' });
+      router.push('/room');
+    } catch (err: any) {
+      toast({ title: 'Não foi possível excluir a sala', description: err?.message, variant: 'destructive' });
+      setDeletingRoom(false);
+    }
+  }, [roomId, router, toast]);
+  const deleteRoomDialog = (
+    <ConfirmDialog
+      open={deleteRoomOpen}
+      onOpenChange={(open) => { if (!open && !deletingRoom) setDeleteRoomOpen(false); }}
+      tone="danger"
+      icon={Trash2}
+      title="Excluir a sala?"
+      description={<>A sala <strong className="text-foreground">{roomData?.title || 'Sem título'}</strong> sai para todos, com os votos, o histórico de rodadas e o chat. Não dá para desfazer.</>}
+      cancelLabel="Cancelar"
+      confirmLabel="Excluir sala"
+      loading={deletingRoom}
+      loadingLabel="Excluindo…"
+      keepOpenOnConfirm
+      onConfirm={() => { void confirmDeleteRoom(); }}
+    />
+  );
+  const onDeleteRoom = canDeleteRoom ? () => setDeleteRoomOpen(true) : undefined;
+
   const handleOpenRetro = useCallback(async () => {
     const activeIssue = roomData?.issuesQueue?.find(i => i.id === roomData.activeIssueId) || roomData?.issuesQueue?.[0];
     const issueProjectKey = activeIssue?.key?.includes('-') ? activeIssue.key.split('-')[0].toUpperCase() : '';
@@ -178,6 +215,13 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
       // Uma recarga mais nova já saiu: esta resposta é velha.
       if (seq !== reloadSeqRef.current) return;
       applyRoom(room);
+      // Quem entrou por link (ou abriu uma sala já encerrada) também fica com o atalho em "Abertas neste navegador".
+      if (room?.id) {
+        rememberOpenedRoom(
+          { roomId: room.id, type: 'poker', title: room.title || 'Sem título', team: room.team || '', createdBy: room.creatorId, createdAt: room.createdAt || new Date().toISOString() },
+          typeof window === 'undefined' ? undefined : window.localStorage,
+        );
+      }
       setParticipants(partsList);
       setVotes(votesList);
       setVotingRounds(roundsList);
@@ -1980,7 +2024,9 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
 
   if (roomData.mode === 'async') {
     return (
+      <>
       <AsyncPokerRoom
+        onDeleteRoom={onDeleteRoom}
         roomId={roomId}
         currentUser={currentUser}
         participants={participants || []}
@@ -2011,12 +2057,15 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onOpenFeedback={stableOpenFeedback}
         onOpenRetro={stableOpenRetro}
       />
+      {deleteRoomDialog}
+      </>
     );
   }
 
   return (
     <>
       <PokerRoom
+        onDeleteRoom={onDeleteRoom}
         roomId={roomId}
         currentUser={currentUser}
         participants={participants || []}
@@ -2083,6 +2132,7 @@ export default function RoomPage({ params }: { params: Promise<{ id: string }> }
         onSendMessage={stableSendMessage}
         onDeleteMessage={stableDeleteMessage}
       />
+      {deleteRoomDialog}
       <FeedbackWidget
         toolName="Scrum Poker"
         triggerVariant="none"

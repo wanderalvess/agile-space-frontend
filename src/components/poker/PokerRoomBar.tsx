@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   MessagesSquare,
   Monitor,
+  Trash2,
   SlidersHorizontal,
   Sparkles,
   Volume2,
@@ -72,6 +73,8 @@ export interface PokerRoomBarProps {
   onOpenGuide: () => void;
   onTheater: () => void;
   onOpenRetro?: () => void;
+  /** Só para quem criou a sala (ou admin): abre a confirmação de excluir a sala. */
+  onDeleteRoom?: () => void;
   onOpenFeedback?: () => void;
   // Ação principal
   canReveal: boolean;
@@ -118,6 +121,7 @@ export function PokerRoomBar(p: PokerRoomBarProps) {
       onClick: () => p.onSetIsSoundEnabled(!p.isSoundEnabled),
     },
     ...(p.onOpenRetro ? [{ id: 'retro', label: 'Abrir retro desta sprint', icon: MessageSquareText, onClick: p.onOpenRetro }] : []),
+    ...(p.onDeleteRoom ? [{ id: 'delete-room', label: 'Excluir sala', icon: Trash2, onClick: p.onDeleteRoom }] : []),
   ];
 
   return (

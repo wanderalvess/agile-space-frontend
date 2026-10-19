@@ -9,7 +9,7 @@ import { VoteDistribution } from './VoteDistribution';
 import { OutlierPrompt } from './OutlierPrompt';
 import { CopyEstimateCard } from './Results';
 import { Button } from '@/components/ui/button';
-import { Download, Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards } from 'lucide-react';
+import { Download, Eye, RefreshCcw, ListChecks, Users, SlidersHorizontal, Link2, MessageSquareText, ChevronDown, CheckCircle2, ExternalLink, WalletCards, Trash2 } from 'lucide-react';
 import { ExportDialog } from './ExportDialog';
 import { ParticipantList } from './ParticipantList';
 import { FacilitatorPanel } from './FacilitatorPanel';
@@ -49,6 +49,7 @@ interface AsyncPokerRoomProps {
   onUpdateSettings?: (settings: Partial<NonNullable<Room['settings']>>) => void;
   onOpenFeedback: () => void;
   onOpenRetro?: () => void;
+  onDeleteRoom?: () => void;
   creatorId: string;
 }
 
@@ -79,6 +80,7 @@ const AsyncPokerRoomComponent = ({
   onUpdateSettings,
   onOpenFeedback,
   onOpenRetro,
+  onDeleteRoom,
   onSetDeck,
 }: AsyncPokerRoomProps) => {
   const [expandedIssues, setExpandedIssues] = useState<string[]>([]);
@@ -118,9 +120,10 @@ const AsyncPokerRoomComponent = ({
       : []),
     { id: 'export', label: 'Exportar resultados', icon: Download, tier: 'mid' as const, onClick: () => setIsExportOpen(true) },
   ];
-  const menuItems: RoomTopBarMenuItem[] = onOpenRetro
-    ? [{ id: 'retro', label: 'Abrir retro desta sprint', icon: MessageSquareText, onClick: onOpenRetro }]
-    : [];
+  const menuItems: RoomTopBarMenuItem[] = [
+    ...(onOpenRetro ? [{ id: 'retro', label: 'Abrir retro desta sprint', icon: MessageSquareText, onClick: onOpenRetro }] : []),
+    ...(onDeleteRoom ? [{ id: 'delete-room', label: 'Excluir sala', icon: Trash2, onClick: onDeleteRoom }] : []),
+  ];
 
   return (
     <>
