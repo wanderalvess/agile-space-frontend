@@ -27,6 +27,8 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
   }).length || 0;
 
   const mute = 'text-muted-foreground';
+  // O fundo escolhido em Configurações > Apresentação manda na capa; a foto só aparece enquanto nenhum fundo foi escolhido.
+  const showPhoto = Boolean(session.coverImage) && bgLoaded && !session.presentationBackground;
 
   return (
     <motion.div
@@ -36,7 +38,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
     >
       {/* Fundo */}
       <div className="pointer-events-none absolute inset-0 z-0">
-        {session.coverImage && bgLoaded ? (
+        {showPhoto ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -46,7 +48,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
               alt=""
               onError={() => setBgLoaded(false)}
             />
-            {/* Véu para garantir contraste e leitura */}
+            {/* Véu (cores do palco claro/escuro) para garantir contraste e leitura */}
             <div className={cn('absolute inset-0 bg-gradient-to-r to-transparent', 'from-background/95 via-background/80')} />
             <div className={cn('absolute inset-0 bg-gradient-to-t via-transparent to-transparent', 'from-background/90')} />
           </>
@@ -152,7 +154,7 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
             transition={{ delay: 0.3, duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
             className={cn(
               'flex flex-col gap-6 rounded-[2rem] border p-6 shadow-2xl backdrop-blur-3xl md:p-10 lg:col-span-5',
-              isLight ? 'border-border bg-card/90 shadow-black/10' : 'border-border bg-background/80 shadow-black/60'
+              isLight ? 'border-border bg-card/95 shadow-black/10' : 'border-border bg-background/90 shadow-black/60'
             )}
           >
             <div className="flex flex-col gap-3">
@@ -178,10 +180,10 @@ export function ShowcaseCover({ session, onStart, onClose, isLight }: ShowcaseCo
                 </div>
                 <div className={cn('rounded-2xl border p-3.5', isLight ? 'border-border bg-muted/80' : 'border-border bg-foreground/[0.03]')}>
                   <div className="mb-1 flex items-center gap-1.5">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-500" strokeWidth={1.5} aria-hidden="true" />
+                    <TrendingUp className={cn('h-3.5 w-3.5', isLight ? 'text-emerald-700' : 'text-emerald-400')} strokeWidth={1.5} aria-hidden="true" />
                     <span className={cn('text-xs font-semibold', mute)}>Tipo dominante</span>
                   </div>
-                  <p className={cn('m-0 mt-1 truncate text-sm font-bold', isLight ? 'text-emerald-700' : 'text-emerald-400')}>
+                  <p className="m-0 mt-1 truncate text-sm font-bold text-foreground">
                     {storiesCount > 0 ? `${storiesCount} histórias` : metricsCards > 0 ? `${metricsCards} métricas` : 'Funcionalidades'}
                   </p>
                 </div>
