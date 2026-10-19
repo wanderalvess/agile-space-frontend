@@ -5,7 +5,7 @@ export function RetroTopic() {
   return (
     <ManualGuide
       topicId="retro"
-      accentClass="bg-orange-600"
+      accentClass="bg-primary"
       quoteTitle="Segurança psicológica"
       quote="Todos assumem que os colegas agiram com as melhores intenções e com as informações disponíveis no momento. Sem caça às bruxas."
       notes={[

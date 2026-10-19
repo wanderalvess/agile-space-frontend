@@ -106,31 +106,31 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden border border-white/20 dark:border-slate-800/80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-3xl shadow-[0_40px_120px_rgba(0,0,0,0.15)] rounded-[3.5rem] animate-in zoom-in-95 duration-300">
+      <DialogContent className="max-w-4xl p-0 overflow-hidden border border-border/20 dark:border-border/80 bg-card/60 dark:bg-background/60 backdrop-blur-3xl shadow-[0_40px_120px_rgba(0,0,0,0.15)] rounded-2xl animate-in zoom-in-95 duration-300">
         <div className="flex flex-col h-[650px] relative">
 
           {/* MESH GRADIENT INSIDE DIALOG */}
-          <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
 
           {/* COMMAND INPUT HEADER */}
-          <div className="p-10 border-b border-slate-100 dark:border-slate-800 flex items-center gap-8 bg-white/40 dark:bg-slate-900/10 relative z-10">
-            <div className="w-16 h-16 bg-slate-950 rounded-[1.5rem] flex items-center justify-center text-cyan-400 shadow-2xl shadow-indigo-500/20 relative group overflow-hidden shrink-0">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="p-10 border-b border-border flex items-center gap-8 bg-card/40 dark:bg-card/10 relative z-10">
+            <div className="w-16 h-16 bg-background rounded-xl flex items-center justify-center text-primary [.theme-totvs:not(.dark)_&]:text-foreground shadow-2xl shadow-primary/20 relative group overflow-hidden shrink-0">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <SearchIcon className="h-7 w-7 relative z-10" />
             </div>
             <div className="flex-1 flex flex-col">
-               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 dark:text-indigo-400 mb-1">Interface de Busca de Conhecimento</span>
+               <span className="text-xs font-bold tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground mb-1">Interface de Busca de Conhecimento</span>
                <input
                  value={search}
                  onChange={(e) => setSearch(e.target.value)}
                  placeholder="O QUE VOCÊ DESEJA LOCALIZAR?"
-                 className="bg-transparent text-3xl font-black placeholder:text-slate-200 dark:placeholder:text-slate-700 focus:outline-none h-14 uppercase tracking-tighter italic text-slate-900 dark:text-slate-100 transition-all"
+                 className="bg-transparent text-3xl font-bold placeholder:text-foreground focus:outline-none h-14 tracking-tighter text-foreground transition-all"
                  autoFocus
                />
             </div>
-            <div className="hidden sm:flex items-center gap-3 px-5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm ring-8 ring-slate-50/50 dark:ring-slate-950/30">
-               <kbd className="text-[12px] font-black text-slate-900 dark:text-slate-100 font-sans tracking-tight">ESC</kbd>
-               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Close</span>
+            <div className="hidden sm:flex items-center gap-3 px-5 py-2.5 bg-muted/40 dark:bg-card border border-border rounded-2xl shadow-sm ring-8 ring-border/50 dark:ring-border/30">
+               <kbd className="text-[12px] font-bold text-foreground font-sans tracking-tight">ESC</kbd>
+               <span className="text-xs font-bold text-muted-foreground tracking-normal">Fechar</span>
             </div>
           </div>
 
@@ -138,19 +138,19 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
             {isLoading ? (
                <div className="py-32 flex flex-col items-center justify-center gap-8">
                   <AgileSpinner variant="indigo" size="lg" />
-                  <p className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500 italic animate-pulse">Consultando Base de Conhecimento...</p>
+                  <p className="text-xs font-bold tracking-normal text-muted-foreground animate-pulse">Consultando Base de Conhecimento...</p>
                </div>
             ) : filteredResults.length > 0 ? (
                <div className="space-y-4">
                 <div className="px-6 flex items-center justify-between pb-4">
                    <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-4 bg-indigo-600 rounded-full" />
-                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900 dark:text-slate-100 italic">
+                      <div className="w-1.5 h-4 bg-primary rounded-full" />
+                      <p className="text-xs font-bold tracking-normal text-foreground">
                         {search.trim() === "" ? "Sugestões do Sistema" : `Resultados Encontrados (${filteredResults.length})`}
                       </p>
                    </div>
                    {search.trim() !== "" && (
-                     <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 px-3 py-1 bg-slate-50 dark:bg-slate-900 rounded-lg">Filtro Ativo: "{search}"</span>
+                     <span className="text-xs font-bold tracking-normal text-muted-foreground px-3 py-1 bg-muted/40 dark:bg-card rounded-lg">Filtro Ativo: "{search}"</span>
                    )}
                 </div>
 
@@ -158,52 +158,52 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
                    <button
                     key={doc.id}
                     onClick={() => handleSelect(doc)}
-                    className="w-full text-left p-8 rounded-[2.5rem] bg-transparent hover:bg-slate-950 dark:hover:bg-white transition-all duration-500 group flex items-center justify-between border border-transparent hover:shadow-2xl hover:shadow-indigo-500/10 active:scale-[0.99]"
+                    className="w-full text-left p-8 rounded-2xl bg-transparent hover:bg-muted/60 transition-all duration-500 group flex items-center justify-between border border-transparent hover:shadow-2xl hover:shadow-primary/10 active:scale-[0.99]"
                    >
                      <div className="flex gap-8 items-center min-w-0">
-                        <div className="w-20 h-20 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[1.5rem] flex items-center justify-center text-slate-700 dark:text-slate-300 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent transition-all shadow-xl group-hover:shadow-indigo-500/20 group-hover:scale-110 shrink-0">
+                        <div className="w-20 h-20 bg-card border border-border rounded-xl flex items-center justify-center text-foreground dark:text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-transparent transition-all shadow-xl group-hover:shadow-primary/20 group-hover:scale-110 shrink-0">
                           <FileText className="h-9 w-9" />
                         </div>
                         <div className="space-y-3 min-w-0">
                            <div className="flex items-center gap-4 flex-wrap">
-                             <h4 className="text-2xl font-black text-slate-900 dark:text-slate-100 group-hover:text-white dark:group-hover:text-slate-950 uppercase italic tracking-tighter transition-colors leading-none truncate max-w-[400px]">{doc.title}</h4>
-                             <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-300 text-[10px] font-black rounded-xl uppercase tracking-widest border border-slate-200 dark:border-slate-800 group-hover:bg-white/10 group-hover:text-cyan-400 group-hover:border-transparent transition-all italic">
+                             <h4 className="text-2xl font-bold text-foreground group-hover:text-foreground tracking-tighter transition-colors leading-none truncate max-w-[400px]">{doc.title}</h4>
+                             <span className="px-4 py-1.5 bg-muted/60 dark:bg-muted text-foreground dark:text-muted-foreground text-xs font-bold rounded-xl tracking-normal border border-border group-hover:bg-primary/10 group-hover:text-primary group-hover:border-transparent transition-all">
                                {doc.category}
                              </span>
                            </div>
-                           <p className="text-[12px] text-slate-500 dark:text-slate-400 group-hover:text-slate-400 dark:group-hover:text-slate-500 line-clamp-1 font-bold uppercase tracking-tight transition-colors leading-none">
+                           <p className="text-[12px] text-muted-foreground group-hover:text-muted-foreground line-clamp-1 font-bold tracking-tight transition-colors leading-none">
                              {doc.fullPath || 'Namespace: Geral'}
                            </p>
                            <div className="flex items-center gap-6 pt-1">
-                              <div className="flex items-center gap-2 text-[10px] font-black text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-400 dark:group-hover:text-indigo-650 uppercase tracking-widest transition-colors italic">
+                              <div className="flex items-center gap-2 text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground group-hover:text-primary tracking-normal transition-colors">
                                 <Zap className="h-3.5 w-3.5" /> Contextualizado
                               </div>
-                              <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 group-hover:text-slate-500 dark:group-hover:text-slate-400 uppercase tracking-widest tabular-nums transition-colors">
+                              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground group-hover:text-muted-foreground tracking-normal tabular-nums transition-colors">
                                 <Clock className="h-3.5 w-3.5" /> {formatDocDate(doc.updatedAt)}
                               </div>
                            </div>
                         </div>
                      </div>
-                     <div className="h-14 w-14 rounded-2xl border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center group-hover:bg-white/10 group-hover:border-transparent transition-all group-hover:translate-x-2 shrink-0">
-                       <ArrowRight className="h-7 w-7 text-slate-300 dark:text-slate-500 group-hover:text-white dark:group-hover:text-slate-950 transition-all" />
+                     <div className="h-14 w-14 rounded-2xl border-2 border-border flex items-center justify-center group-hover:bg-muted group-hover:border-transparent transition-all group-hover:translate-x-2 shrink-0">
+                       <ArrowRight className="h-7 w-7 text-muted-foreground group-hover:text-foreground transition-all" />
                      </div>
                    </button>
                 ))}
               </div>
             ) : (
-              <div className="py-32 flex flex-col items-center justify-center text-center gap-10 animate-in fade-in zoom-in duration-700">
-                 <div className="w-32 h-32 bg-white/60 dark:bg-slate-900/60 backdrop-blur-3xl rounded-[3rem] flex items-center justify-center text-slate-200 dark:text-slate-700 border border-white dark:border-slate-800 shadow-2xl relative group">
-                    <div className="absolute inset-0 bg-rose-500/5 rounded-[3rem] animate-pulse" />
-                    <Sparkles className="h-16 w-16 text-slate-200 dark:text-slate-700 group-hover:text-rose-400 transition-colors" />
+              <div className="py-32 flex flex-col items-center justify-center text-center gap-10">
+                 <div className="w-32 h-32 bg-card/60 backdrop-blur-3xl rounded-2xl flex items-center justify-center text-foreground border border-border shadow-2xl relative group">
+                    <div className="absolute inset-0 bg-primary/5 rounded-2xl animate-pulse" />
+                    <Sparkles className="h-16 w-16 text-foreground group-hover:text-primary transition-colors" />
                  </div>
                  <div className="space-y-4">
-                    <h5 className="text-3xl font-black text-slate-900 dark:text-slate-100 uppercase italic tracking-tighter">Vácuo de Detecção</h5>
-                    <p className="text-[12px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] max-w-sm mx-auto leading-relaxed">Nenhum ativo correlacionado a <span className="text-slate-900 dark:text-slate-100">"{search}"</span> foi identificado na base de conhecimento.</p>
+                    <h5 className="text-3xl font-bold text-foreground tracking-tighter">Nada encontrado</h5>
+                    <p className="text-[12px] text-muted-foreground font-bold tracking-normal max-w-sm mx-auto leading-relaxed">Nenhum ativo correlacionado a <span className="text-foreground">"{search}"</span> foi identificado na base de conhecimento.</p>
                  </div>
                  <Button
                    onClick={() => setSearch("")}
                    variant="outline"
-                   className="h-14 px-8 rounded-2xl border-slate-200 dark:border-slate-800 text-[10px] font-black uppercase tracking-widest hover:bg-slate-950 dark:hover:bg-slate-100 hover:text-white dark:hover:text-slate-900 hover:border-slate-950 dark:hover:border-slate-100 transition-all shadow-sm"
+                   className="h-14 px-8 rounded-2xl border-border text-xs font-bold tracking-normal hover:bg-background dark:hover:bg-muted/60 hover:text-foreground hover:border-border transition-all shadow-sm"
                  >
                    Resetar Parâmetros
                  </Button>
@@ -212,21 +212,21 @@ export function GlobalSearch({ open, onOpenChange }: { open: boolean, onOpenChan
           </ScrollArea>
 
           {/* SYSTEM TELEMETRY FOOTER */}
-          <div className="p-10 bg-slate-950/5 dark:bg-slate-950/40 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
+          <div className="p-10 bg-background/5 dark:bg-background/40 border-t border-border dark:border-border/80 flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-4 text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-[0.2em] italic">
-                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-slate-400 dark:text-slate-500 font-sans tracking-tight">↑↓</div> Navegar
+                <div className="flex items-center gap-4 text-xs font-bold text-foreground tracking-normal">
+                   <div className="px-3 py-1.5 bg-card border border-border rounded-xl shadow-sm text-muted-foreground font-sans tracking-tight">↑↓</div> Navegar
                 </div>
-                <div className="flex items-center gap-4 text-[10px] font-black text-slate-950 dark:text-slate-200 uppercase tracking-[0.2em] italic">
-                   <div className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-slate-400 dark:text-slate-500 font-sans tracking-tight">↵</div> Selecionar
+                <div className="flex items-center gap-4 text-xs font-bold text-foreground tracking-normal">
+                   <div className="px-3 py-1.5 bg-card border border-border rounded-xl shadow-sm text-muted-foreground font-sans tracking-tight">↵</div> Selecionar
                 </div>
              </div>
              <div className="flex items-center gap-4">
                 <div className="flex flex-col items-end">
-                   <div className="flex items-center gap-2.5 text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.3em] italic">
+                   <div className="flex items-center gap-2.5 text-xs font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground tracking-normal">
                       <ShieldCheck className="h-4 w-4" /> Conexão Segura
                    </div>
-                   <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Portal Tech V&D v3.0 // Unified Search</span>
+                   <span className="text-xs font-bold text-muted-foreground tracking-normal mt-1">Portal Tech V&D · Busca unificada</span>
                 </div>
              </div>
           </div>

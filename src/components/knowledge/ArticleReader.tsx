@@ -88,7 +88,7 @@ function Chip({ children, tone = 'muted', className }: { children: React.ReactNo
     <span
       className={cn(
         'inline-flex h-6 items-center rounded-full px-2.5 text-xs',
-        tone === 'brand' ? 'bg-primary/10 font-bold text-primary' : 'border border-border bg-muted/50 text-muted-foreground',
+        tone === 'brand' ? 'bg-primary/10 font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground' : 'border border-border bg-muted/50 text-muted-foreground',
         className,
       )}
     >
@@ -236,7 +236,7 @@ export function ArticleReader({
               title={isFavorite ? 'Remover dos favoritos' : 'Favoritar artigo'}
               className="h-9 w-9 rounded-[10px]"
             >
-              <Star className={cn('h-4 w-4', isFavorite ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground')} aria-hidden="true" />
+              <Star className={cn('h-4 w-4', isFavorite ? 'fill-amber-500 text-amber-700 dark:text-amber-300' : 'text-muted-foreground')} aria-hidden="true" />
             </Button>
 
             {isTdn && (
@@ -321,7 +321,7 @@ export function ArticleReader({
           >
             {hasToc && (
               <nav aria-label="Nesta página" className="sticky top-8 hidden max-h-[calc(100dvh-16rem)] self-start overflow-y-auto pr-2 lg:block">
-                <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Nesta página</h2>
+                <h2 className="mb-2 text-xs font-bold tracking-normal text-muted-foreground">Nesta página</h2>
                 <TocLinks items={toc} activeId={activeId} onGo={scrollToHeading} />
               </nav>
             )}
@@ -349,7 +349,7 @@ export function ArticleReader({
 
               {isTdn && (
                 <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">
-                  <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  <Link2 className="h-4 w-4 shrink-0 text-primary [.theme-totvs:not(.dark)_&]:text-foreground" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     {origin}.
                   </span>
@@ -358,7 +358,7 @@ export function ArticleReader({
                       href={tdnLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className={cn('inline-flex items-center gap-1 rounded-sm font-bold text-primary underline-offset-4 hover:underline', FOCUS)}
+                      className={cn('inline-flex items-center gap-1 rounded-sm font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground underline-offset-4 hover:underline', FOCUS)}
                     >
                       Abrir original <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                     </a>
@@ -384,7 +384,7 @@ export function ArticleReader({
                 <button
                   type="button"
                   onClick={scrollToTop}
-                  className={cn('inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-primary underline-offset-4 hover:underline', FOCUS)}
+                  className={cn('inline-flex items-center gap-1.5 rounded-sm text-sm font-semibold text-primary [.theme-totvs:not(.dark)_&]:text-foreground underline-offset-4 hover:underline', FOCUS)}
                 >
                   Voltar ao topo <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>

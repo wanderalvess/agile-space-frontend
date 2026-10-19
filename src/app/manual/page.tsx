@@ -20,10 +20,12 @@ import {
   Compass
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 
 export default function ManualOverviewPage() {
   const router = useRouter();
   const [filterQuery, setFilterQuery] = useState('');
+  useDocumentTitle('Manual');
 
   // Retrocompatibilidade automática: se o usuário entrar em /manual#poker, redireciona suavemente para /manual/poker
   useEffect(() => {
@@ -53,34 +55,32 @@ export default function ManualOverviewPage() {
   });
 
   return (
-    <div className="space-y-12 animate-in fade-in duration-500">
+    <div className="space-y-12">
       {/* Hero Central */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-slate-900 p-8 md:p-12 text-white shadow-2xl border border-slate-800">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-
+      <div className="relative overflow-hidden rounded-2xl bg-card p-8 md:p-12 text-foreground shadow-sm border border-border">
+                
         <div className="relative z-10 max-w-4xl space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest w-fit">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary [.theme-totvs:not(.dark)_&]:text-foreground text-xs font-bold tracking-normal w-fit">
             <Sparkles className="h-3 w-3" /> Manual de Agilidade & Ferramentas
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black uppercase tracking-tighter italic leading-[0.95] text-white">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight leading-tight text-foreground">
             O seu guia de <br />
-            <span className="text-primary not-italic">Alta Performance</span>
+            <span className="text-primary [.theme-totvs:not(.dark)_&]:text-foreground">Alta Performance</span>
           </h2>
 
-          <p className="text-slate-300 font-medium text-sm md:text-base leading-relaxed max-w-3xl">
+          <p className="text-muted-foreground font-medium text-sm md:text-base leading-relaxed max-w-3xl">
             Documentação tática completa das cerimônias, motores de transformação e utilitários da plataforma Portal Tech V&D. Cada módulo possui sua página dedicada com passo a passo de operação.
           </p>
 
           {/* Quick Search */}
           <div className="relative max-w-lg pt-2">
-            <Search className="absolute left-4 top-5 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-4 top-5 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
               placeholder="Pesquise por cerimônia, ferramenta ou palavra-chave..."
-              className="pl-11 pr-4 h-12 rounded-2xl bg-white/10 border-white/15 text-white placeholder:text-slate-400 focus-visible:ring-primary text-xs font-medium"
+              className="pl-11 pr-4 h-12 rounded-2xl bg-background border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary text-xs font-medium"
             />
           </div>
         </div>
@@ -94,14 +94,14 @@ export default function ManualOverviewPage() {
 
           return (
             <div key={category.id} className="space-y-5">
-              <div className="flex flex-col gap-1 border-b border-slate-200/80 dark:border-slate-800 pb-3">
-                <h2 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <div className="flex flex-col gap-1 border-b border-border/80 dark:border-border pb-3">
+                <h2 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
                   <span>{category.label}</span>
-                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500">
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-muted/60 dark:bg-muted text-muted-foreground">
                     {topicsInCategory.length}
                   </span>
                 </h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <p className="text-xs text-muted-foreground font-medium">
                   {category.description}
                 </p>
               </div>
@@ -113,7 +113,7 @@ export default function ManualOverviewPage() {
                     <Link
                       key={topic.id}
                       href={`/manual/${topic.id}`}
-                      className="group flex flex-col justify-between p-6 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200/80 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                      className="group flex flex-col justify-between p-6 bg-card rounded-2xl border border-border/80 dark:border-border shadow-sm hover:shadow-xl hover:border-border transition-all"
                     >
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -123,27 +123,27 @@ export default function ManualOverviewPage() {
                           )}>
                             <Icon className={cn("h-6 w-6", topic.color)} />
                           </div>
-                          <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <ArrowRight className="h-4 w-4 text-slate-700 dark:text-slate-300 group-hover:translate-x-0.5 transition-transform" />
+                          <div className="w-8 h-8 rounded-full bg-muted/60 dark:bg-muted flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ArrowRight className="h-4 w-4 text-foreground dark:text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>
 
                         <div>
-                          <h3 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-slate-100 group-hover:text-primary transition-colors">
+                          <h3 className="text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
                             {topic.title}
                           </h3>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
+                          <p className="text-xs font-bold tracking-normal text-muted-foreground mt-0.5">
                             {topic.subtitle}
                           </p>
                         </div>
 
-                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium line-clamp-3 leading-relaxed">
+                        <p className="text-xs text-muted-foreground font-medium line-clamp-3 leading-relaxed">
                           {topic.description}
                         </p>
                       </div>
 
-                      <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+                      <div className="pt-4 mt-4 border-t border-border dark:border-border/60 flex items-center justify-between">
+                        <span className="text-xs font-bold tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground flex items-center gap-1">
                           Acessar Guia
                           <ArrowRight className="h-3 w-3" />
                         </span>

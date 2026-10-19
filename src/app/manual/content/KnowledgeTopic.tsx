@@ -6,7 +6,7 @@ export function KnowledgeTopic() {
   return (
     <ManualGuide
       topicId="knowledge"
-      accentClass="bg-cyan-600"
+      accentClass="bg-primary"
       quoteTitle="Sobre a sua chave de IA"
       quote="Sua chave do Google Gemini fica guardada de forma cifrada no servidor da plataforma e é usada só nas suas perguntas ao Assistente. Você pode trocá-la ou apagá-la nas Configurações a qualquer momento."
       notes={[

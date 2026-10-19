@@ -5,7 +5,7 @@ export function PrimeirosPassosTopic() {
   return (
     <ManualGuide
       topicId="primeiros-passos"
-      accentClass="bg-indigo-600"
+      accentClass="bg-primary"
       quoteTitle="Regra do produto"
       quote="Ninguém se torna liderança de uma squad por conta própria. O papel vem do vínculo com a squad: do Jira (Profields), de um convite ou de um pedido aprovado por quem lidera."
       notes={[

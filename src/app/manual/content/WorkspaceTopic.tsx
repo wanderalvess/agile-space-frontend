@@ -5,7 +5,7 @@ export function WorkspaceTopic() {
   return (
     <ManualGuide
       topicId="workspace"
-      accentClass="bg-slate-900"
+      accentClass="bg-card"
       quoteTitle="Só seu"
       quote="Tudo o que você guarda no Meu Espaço é visível apenas para você. Nem a sua squad nem os administradores veem as suas tarefas, notas, atalhos e snippets."
       notes={[

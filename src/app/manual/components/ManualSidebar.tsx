@@ -52,15 +52,15 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
           onClick={onNavigate}
           className="flex items-center gap-3 group"
         >
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white shadow-md shadow-primary/25 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-md shadow-primary/25 group-hover:scale-105 transition-transform">
             <BookOpen className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-xs font-black uppercase tracking-tight text-foreground flex items-center gap-1.5">
+            <h2 className="text-xs font-bold tracking-tight text-foreground flex items-center gap-1.5">
               Guia de Operações
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             </h2>
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            <p className="text-xs font-bold text-muted-foreground tracking-normal">
               Manual Portal Tech V&D
             </p>
           </div>
@@ -97,20 +97,20 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
             className={cn(
               "flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all group",
               pathname === '/manual'
-                ? "bg-primary text-white shadow-sm shadow-primary/30 font-black"
+                ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30 font-bold"
                 : "text-foreground hover:bg-muted"
             )}
           >
-            <Compass className={cn("h-4 w-4 shrink-0", pathname === '/manual' ? "text-white" : "text-slate-400 group-hover:text-primary")} />
+            <Compass className={cn("h-4 w-4 shrink-0", pathname === '/manual' ? "text-foreground" : "text-muted-foreground group-hover:text-primary")} />
             <span className="flex-1 truncate">Visão Geral & Índice</span>
-            {pathname === '/manual' && <ChevronRight className="h-3.5 w-3.5 text-white/80" />}
+            {pathname === '/manual' && <ChevronRight className="h-3.5 w-3.5 text-foreground" />}
           </Link>
         </div>
 
         {/* If searching, display flat list */}
         {searchQuery.trim() ? (
           <div className="space-y-1">
-            <p className="px-3 text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">
+            <p className="px-3 text-xs font-bold tracking-normal text-muted-foreground mb-2">
               Resultados ({filteredTopics.length})
             </p>
             {filteredTopics.length === 0 ? (
@@ -129,7 +129,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all group",
                       active
-                        ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white shadow-sm font-bold ring-1 ring-slate-700"
+                        ? "bg-card text-foreground dark:bg-muted dark:text-foreground shadow-sm font-bold ring-1 ring-border"
                         : "text-muted-foreground hover:bg-muted font-semibold"
                     )}
                   >
@@ -137,7 +137,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                       "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
                       active ? "bg-card/10" : "bg-muted"
                     )}>
-                      <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : topic.color)} />
+                      <Icon className={cn("h-3.5 w-3.5", active ? "text-primary [.theme-totvs:not(.dark)_&]:text-foreground" : topic.color)} />
                     </div>
                     <span className="flex-1 truncate text-xs">{topic.title}</span>
                     <ChevronRight className={cn("h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity", active && "opacity-100")} />
@@ -156,7 +156,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
               return (
                 <div key={category.id} className="space-y-1.5">
                   <div className="px-3 py-1">
-                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    <p className="text-xs font-bold tracking-normal text-muted-foreground">
                       {category.label}
                     </p>
                   </div>
@@ -173,7 +173,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                           className={cn(
                             "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-all group",
                             active
-                              ? "bg-slate-900 text-white dark:bg-slate-800 dark:text-white shadow-sm font-bold ring-1 ring-slate-700/50"
+                              ? "bg-card text-foreground dark:bg-muted dark:text-foreground shadow-sm font-bold ring-1 ring-border/50"
                               : "text-muted-foreground hover:bg-muted font-semibold"
                           )}
                         >
@@ -181,7 +181,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
                             "w-6 h-6 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shrink-0",
                             active ? "bg-card/10" : "bg-muted"
                           )}>
-                            <Icon className={cn("h-3.5 w-3.5", active ? "text-primary" : topic.color)} />
+                            <Icon className={cn("h-3.5 w-3.5", active ? "text-primary [.theme-totvs:not(.dark)_&]:text-foreground" : topic.color)} />
                           </div>
                           <span className="flex-1 truncate text-xs">{topic.title}</span>
                           {active && <ChevronRight className="h-3 w-3 opacity-80" />}
@@ -202,7 +202,7 @@ export function ManualSidebar({ className, onNavigate }: ManualSidebarProps) {
           asChild 
           variant="outline" 
           size="sm" 
-          className="w-full h-9 rounded-xl font-black uppercase text-xs tracking-widest text-muted-foreground hover:bg-card"
+          className="w-full h-9 rounded-xl font-bold text-xs tracking-normal text-muted-foreground hover:bg-card"
         >
           <Link href="/" onClick={onNavigate} className="flex items-center justify-center gap-2">
             <span>Voltar à Plataforma</span>

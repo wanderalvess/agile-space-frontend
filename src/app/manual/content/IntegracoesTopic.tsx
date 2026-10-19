@@ -7,7 +7,7 @@ export function IntegracoesTopic() {
   const meta = getTopicById('integracoes')!;
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-500">
+    <div className="space-y-10">
       <ManualHero
         title={meta.title}
         subtitle={meta.subtitle}
@@ -19,7 +19,7 @@ export function IntegracoesTopic() {
         badgeText={meta.badgeText}
       />
 
-      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 md:p-8 border border-slate-200/80 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
+      <div className="bg-card rounded-2xl p-6 md:p-8 border border-border/80 dark:border-border shadow-xl shadow-black/10 dark:shadow-none">
         <IntegrationsSection />
       </div>
     </div>

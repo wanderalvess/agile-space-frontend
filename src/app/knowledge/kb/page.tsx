@@ -472,8 +472,8 @@ function KBExplorerContent() {
 
   return (
     <div className="flex flex-col h-full w-full bg-background/30 overflow-hidden relative">
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-150 dark:bg-cyan-950/20 rounded-full blur-[140px] pointer-events-none -z-10" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-150 dark:bg-indigo-950/20 rounded-full blur-[120px] pointer-events-none -z-10" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary/10 dark:bg-primary/20 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 dark:bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       <div className="flex-1 flex overflow-hidden">
         <main className="flex-1 overflow-hidden flex flex-col">
@@ -505,7 +505,7 @@ function KBExplorerContent() {
                 {/* Barra Lateral Widescreen: Módulo/Pasta, Categoria e Rótulos */}
                 <aside className="hidden xl:flex xl:w-64 2xl:w-72 xl:shrink-0 flex-col gap-6 py-5 pr-6 border-r border-border/60 overflow-y-auto">
                   <div className="space-y-2">
-                    <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                    <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground px-2">
                       Módulo / Pasta
                     </span>
                     <div className="space-y-1">
@@ -551,7 +551,7 @@ function KBExplorerContent() {
 
                   {categoryCounts.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-border/40">
-                      <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground px-2">
+                      <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground px-2">
                         Categoria
                       </span>
                       <div className="space-y-1">
@@ -580,11 +580,11 @@ function KBExplorerContent() {
                   {availableTags.length > 0 && (
                     <div className="space-y-2 pt-2 border-t border-border/40">
                       <div className="flex items-center justify-between px-2">
-                        <span className="text-xs font-mono font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span className="text-xs font-mono font-semibold tracking-normal text-muted-foreground">
                           Rótulos
                         </span>
                         {selectedTags.length > 0 && (
-                          <button onClick={() => setSelectedTags([])} className="text-xs font-medium text-primary hover:underline">
+                          <button onClick={() => setSelectedTags([])} className="text-xs font-medium text-primary [.theme-totvs:not(.dark)_&]:text-foreground hover:underline">
                             Limpar
                           </button>
                         )}
@@ -628,8 +628,8 @@ function KBExplorerContent() {
 
                 {/* Área Principal: Ações, Hero, Busca e Tabela */}
                 <main className="flex flex-1 min-w-0 flex-col overflow-hidden xl:pl-6">
-                  <ScrollArea className="flex-1">
-                    <div className="pt-6 pb-32 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
+                    <div className="pt-6 pb-32 space-y-6">
 
                       {/* Ações + Atalho de integração */}
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -665,7 +665,7 @@ function KBExplorerContent() {
 
                       {/* Falhas da última sincronização TDN — some ao fechar ou ao rodar de novo. */}
                       {failedDocs.length > 0 && (
-                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5 animate-in fade-in slide-in-from-top-2">
+                        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-2.5">
                           <div className="flex items-center justify-between gap-3">
                             <span className="flex items-center gap-2 text-xs font-semibold text-destructive">
                               <AlertTriangle className="h-3.5 w-3.5" />
@@ -694,7 +694,7 @@ function KBExplorerContent() {
                       <section className="overflow-hidden rounded-2xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/20 p-6 sm:p-8">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                           <div className="max-w-2xl space-y-2.5">
-                            <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-primary font-semibold">
+                            <div className="inline-flex items-center gap-2 font-mono text-xs tracking-normal text-primary [.theme-totvs:not(.dark)_&]:text-foreground font-semibold">
                               <BookOpen className="h-3.5 w-3.5" />
                               Wiki Space
                             </div>
@@ -706,21 +706,21 @@ function KBExplorerContent() {
                             </p>
                           </div>
 
-                          <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs backdrop-blur-sm">
+                          <div className="grid w-full grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-3 rounded-xl border border-border/80 bg-background/80 px-4 py-3 shadow-xs sm:w-auto sm:gap-4">
                             <div className="text-right">
                               <span className="block font-mono text-xl font-bold text-foreground leading-none">
                                 {documents?.length || 0}
                               </span>
-                              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 Artigos ativos
                               </span>
                             </div>
                             <div className="h-7 w-[1px] bg-border/80" />
                             <div className="text-right">
-                              <span className="block font-mono text-xl font-bold text-primary leading-none">
+                              <span className="block font-mono text-xl font-bold text-primary [.theme-totvs:not(.dark)_&]:text-foreground leading-none">
                                 {(documents?.reduce((acc, d) => acc + (d.byteSize || 0), 0) / 1024 / 1024).toFixed(1)}
                               </span>
-                              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 MB usados
                               </span>
                             </div>
@@ -729,7 +729,7 @@ function KBExplorerContent() {
                               <span className="block font-mono text-xl font-bold text-foreground leading-none">
                                 {documents?.filter(d => d.tdnId).length || 0}
                               </span>
-                              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                              <span className="text-xs font-medium tracking-normal text-muted-foreground">
                                 Do TDN
                               </span>
                             </div>
@@ -751,7 +751,7 @@ function KBExplorerContent() {
                           </div>
 
                           {selectedIds.size > 0 && (
-                            <div className="flex flex-wrap items-center gap-2 animate-in fade-in zoom-in duration-300">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Button size="sm" className="gap-2" onClick={handleSyncMultiple} disabled={isSyncing}>
                                 {isSyncing ? <AgileSpinner size="xs" /> : <RefreshCw className="h-4 w-4" />} Sincronizar ({selectedIds.size})
                               </Button>
@@ -833,7 +833,7 @@ function KBExplorerContent() {
                                         <div className="flex flex-col gap-1">
                                           <span className="text-sm font-medium text-foreground flex items-center gap-1.5">
                                             {docItem.tdnId ? (
-                                              <FileUp className="h-3.5 w-3.5 text-primary shrink-0" />
+                                              <FileUp className="h-3.5 w-3.5 text-primary [.theme-totvs:not(.dark)_&]:text-foreground shrink-0" />
                                             ) : (
                                               <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                             )}

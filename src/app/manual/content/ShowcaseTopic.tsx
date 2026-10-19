@@ -5,7 +5,7 @@ export function ShowcaseTopic() {
   return (
     <ManualGuide
       topicId="showcase"
-      accentClass="bg-pink-600"
+      accentClass="bg-primary"
       quoteTitle="Review sem slides"
       quote="Quem prepara não precisa montar slide. A squad importa as entregas, cada pessoa completa a evidência dos próprios cards e, na cerimônia, o Modo Teatro mostra uma entrega por vez."
       notes={[

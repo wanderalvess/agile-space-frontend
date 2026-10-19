@@ -6,7 +6,7 @@ export function PromptHubTopic() {
   return (
     <ManualGuide
       topicId="prompt-hub"
-      accentClass="bg-violet-600"
+      accentClass="bg-primary"
       quoteTitle="Achar antes de escrever"
       quote="Um bom prompt economiza horas de código e refinamento. Na Biblioteca, a intuição de uma pessoa vira ativo reutilizável para toda a empresa."
       notes={[
