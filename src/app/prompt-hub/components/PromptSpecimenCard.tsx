@@ -315,7 +315,7 @@ export function PromptSpecimenCard({
                 e.stopPropagation();
                 onSelectTag?.(tag);
               }}
-              className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="inline-flex min-h-6 items-center rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               #{tag}
             </button>

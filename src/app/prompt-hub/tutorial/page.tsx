@@ -215,7 +215,7 @@ export default function SkillTutorialPage() {
             />
             <p className="text-sm leading-relaxed text-muted-foreground">
               Regra prática da documentação: parta do princípio de que o modelo já é inteligente.
-              Só entre na skill o contexto que ele <em>não</em> tem como saber.
+              Só entre na skill o contexto que ele <strong className="font-semibold text-foreground">não</strong> tem como saber.
             </p>
           </Section>
 

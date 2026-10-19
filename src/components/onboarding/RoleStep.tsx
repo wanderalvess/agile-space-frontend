@@ -32,7 +32,7 @@ export function RoleStep({ projectId, joiningRole, refused, onPick, onOpenInvite
   const busy = joiningRole !== null;
   return (
     <StepCard>
-      <StepHeading title={`Como você participa da ${projectId}?`} subtitle="Só pra saber o que te mostrar primeiro. A squad pode ajustar isso depois." />
+      <StepHeading title={`Como você participa da ${projectId}?`} subtitle="Só para saber o que te mostrar primeiro. A squad pode ajustar isso depois." />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {ROLE_CHOICES.map((choice) => (
@@ -72,7 +72,7 @@ export function RoleStep({ projectId, joiningRole, refused, onPick, onOpenInvite
       )}
 
       <BackButton onClick={onBack} disabled={busy}>
-        Voltar pra lista
+        Voltar para a lista
       </BackButton>
     </StepCard>
   );

@@ -44,7 +44,7 @@ const CONFIDENCE_OPTIONS = [
 export const POKER_PHRASES = {
   geral: [
     "Qualidade não é evento, é hábito (tipo café ☕).",
-    "Feito é melhor que perfeito… mas dá pra caprichar né.",
+    "Feito é melhor que perfeito… mas dá para caprichar né.",
     "Se complicou demais, provavelmente tem um jeito mais simples.",
     "Código simples hoje, menos dor de cabeça amanhã.",
     "Gente alinhada resolve mais que ferramenta cara.",

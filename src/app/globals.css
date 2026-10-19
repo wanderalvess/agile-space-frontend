@@ -336,6 +336,13 @@ html, body {
   --input: 201 55% 25%;
 }
 
+/* Corporativo claro: o azul TOTVS (#00DBFF) sobre branco dá 1,6:1 e não lê como texto.
+   Regra central: qualquer `text-primary` (inclusive `text-primary/80`; variantes com prefixo, como hover:, ficam de fora) vira o texto padrão.
+   Fundos e bordas em primary não mudam; só a cor de texto/ícone. */
+.theme-totvs:not(.dark) :is([class~="text-primary"], [class^="text-primary/"], [class*=" text-primary/"]) {
+  color: hsl(var(--foreground));
+}
+
 /* 6. Leitura confortável (contraste alto, sem brilho) */
 .theme-leitura {
   --primary: 224 76% 48%;

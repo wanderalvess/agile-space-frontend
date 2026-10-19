@@ -564,7 +564,7 @@ export function PromptDashboard({
                         isActive
                           ? 'bg-accent text-foreground font-semibold shadow-xs'
                           : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                        count === 0 && !isActive && 'cursor-not-allowed opacity-40 hover:bg-transparent'
+                        count === 0 && !isActive && 'cursor-not-allowed border-dashed hover:bg-transparent [&_svg]:opacity-50'
                       )}
                     >
                       <div className="flex items-center gap-2.5">
@@ -650,7 +650,7 @@ export function PromptDashboard({
                         key={tag}
                         onClick={() => toggleTag(tag)}
                         className={cn(
-                          'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
+                          'inline-flex min-h-6 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors',
                           isSelected
                             ? 'bg-primary text-primary-foreground font-semibold'
                             : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -658,7 +658,7 @@ export function PromptDashboard({
                         title={`Filtrar por #${tag} (${count} itens)`}
                       >
                         #{tag}
-                        <span className="opacity-60 text-xs">({count})</span>
+                        <span className="text-xs">({count})</span>
                       </button>
                     );
                   })}
@@ -814,7 +814,7 @@ export function PromptDashboard({
                       isActive
                         ? 'border-foreground/20 bg-accent font-medium text-foreground'
                         : 'border-border text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                      count === 0 && !isActive && 'cursor-not-allowed opacity-40 hover:bg-transparent'
+                      count === 0 && !isActive && 'cursor-not-allowed border-dashed hover:bg-transparent [&_svg]:opacity-50'
                     )}
                   >
                     <Icon className={cn('h-4 w-4', isActive && meta.accent)} />
@@ -832,7 +832,7 @@ export function PromptDashboard({
                   <button
                     key={tag}
                     onClick={() => toggleTag(tag)}
-                    className="inline-flex items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-foreground"
+                    className="inline-flex min-h-6 items-center gap-1 rounded-md bg-accent px-2 py-1 text-xs text-foreground"
                     title="Remover esta tag do filtro"
                   >
                     #{tag}

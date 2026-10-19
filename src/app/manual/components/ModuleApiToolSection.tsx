@@ -117,11 +117,11 @@ export function ModuleApiToolSection({ moduleId }: ModuleApiToolSectionProps) {
                       {tool.name}
                     </code>
                     {tool.write ? (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-800 dark:text-amber-400 border border-amber-500/20">
                         Escrita
                       </span>
                     ) : (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-primary/10 text-primary [.theme-totvs:not(.dark)_&]:text-foreground border border-primary/20">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-primary/10 text-foreground border border-primary/20">
                         Leitura
                       </span>
                     )}

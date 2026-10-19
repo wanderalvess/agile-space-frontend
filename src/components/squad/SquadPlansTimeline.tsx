@@ -184,8 +184,8 @@ export function getIssueTypeBadge(type?: string, isParent?: boolean, isBug?: boo
   // casa com qualquer tipo que tenha "ti" no meio, ex: "Manutenção").
   if (hasWord(normType, 'ti') || normType.includes('execucao')) {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30 text-xs font-bold shrink-0" title="Execução de TI">
-        <Terminal className="w-2.5 h-2.5 text-primary" />
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-50 text-cyan-800 dark:bg-cyan-950/60 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 text-xs font-bold shrink-0" title="Execução de TI">
+        <Terminal className="w-2.5 h-2.5 text-cyan-700 dark:text-cyan-400" />
         <span>Execução de TI</span>
       </span>
     );
@@ -236,7 +236,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   const normType = normalizeIssueType(task.type);
   if (normType.includes('review') || normType.includes('revisao')) {
     return {
-      bg: 'bg-purple-600 dark:bg-purple-500',
+      bg: 'bg-purple-700',
       label: 'Code Review',
       shortLabel: 'Review',
       matched: true,
@@ -245,7 +245,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   // Automatizados ANTES de QA/TI — mesma razão de getIssueTypeBadge.
   if (normType.includes('automatiz') || normType.includes('unitario')) {
     return {
-      bg: 'bg-teal-600 dark:bg-teal-500',
+      bg: 'bg-teal-700',
       label: 'Testes Auto',
       shortLabel: 'Auto',
       matched: true,
@@ -253,7 +253,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   }
   if (hasWord(normType, 'qa') || normType.includes('teste')) {
     return {
-      bg: 'bg-amber-600 dark:bg-amber-500',
+      bg: 'bg-amber-700',
       label: 'Teste QA',
       shortLabel: 'QA',
       matched: true,
@@ -261,7 +261,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   }
   if (hasWord(normType, 'ti') || normType.includes('execucao') || normType.includes('acompanhamento')) {
     return {
-      bg: 'bg-primary',
+      bg: 'bg-cyan-800',
       label: 'Execução TI',
       shortLabel: 'TI',
       matched: true,
@@ -271,7 +271,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   // então abre a cascata. Só vem depois das regras acima para não roubar tipos que contêm "dev" por acaso.
   if (normType.includes('codifica') || normType.includes('desenvolv') || hasWord(normType, 'dev')) {
     return {
-      bg: 'bg-blue-600 dark:bg-blue-500',
+      bg: 'bg-blue-700',
       label: 'Codificação',
       shortLabel: 'DEV',
       matched: true,
@@ -284,7 +284,7 @@ function getDisciplineColorAndLabel(task: PlansTask) {
   // tipo desconhecido e ele ordenava PRIMEIRO na cascata, corrompendo a
   // sequência de fases de qualquer história com subtarefa de tipo genérico.
   return {
-    bg: 'bg-blue-600 dark:bg-blue-500',
+    bg: 'bg-blue-700',
     label: 'Codificação',
     shortLabel: 'DEV',
     matched: false,
@@ -299,11 +299,11 @@ const DEFAULT_PHASE_ORDER: Record<string, number> = { DEV: 0, Auto: 1, Review: 2
 // Legenda pra quando o squad não configurou SquadConfig.phases — mesmas
 // cores de getDisciplineColorAndLabel, na ordem do workflow padrão.
 const DEFAULT_PHASE_LEGEND = [
-  { label: 'Codificação', bg: 'bg-blue-600 dark:bg-blue-500' },
-  { label: 'Testes Auto', bg: 'bg-teal-600 dark:bg-teal-500' },
-  { label: 'Code Review', bg: 'bg-purple-600 dark:bg-purple-500' },
-  { label: 'Teste QA', bg: 'bg-amber-600 dark:bg-amber-500' },
-  { label: 'Execução TI', bg: 'bg-primary' },
+  { label: 'Codificação', bg: 'bg-blue-700' },
+  { label: 'Testes Auto', bg: 'bg-teal-700' },
+  { label: 'Code Review', bg: 'bg-purple-700' },
+  { label: 'Teste QA', bg: 'bg-amber-700' },
+  { label: 'Execução TI', bg: 'bg-cyan-800' },
 ];
 
 // Resolve fase de workflow (cor/rótulo/ordem) de uma subtarefa: prioriza o
@@ -1253,7 +1253,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                                 parentProgress === 100
                                   ? 'bg-emerald-500'
                                   : parentProgress > 0
-                                  ? 'bg-blue-600 dark:bg-blue-500'
+                                  ? 'bg-blue-700'
                                   : 'bg-transparent'
                               }`}
                               style={{ width: `${parentProgress}%` }}
@@ -1306,7 +1306,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                               </div>
                               <button
                                 onClick={(e) => { e.stopPropagation(); setOpenDelayPickerFor(openDelayPickerFor === task.id ? null : task.id); }}
-                                className={`ml-auto shrink-0 p-1 rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                                className={`ml-auto inline-flex min-h-6 min-w-6 shrink-0 items-center justify-center rounded-md transition-colors ${task.id === activeDelayTaskId ? 'bg-rose-600 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
                                 title="Simular atraso nesta fase"
                               >
                                 <Clock className="w-3 h-3" />
@@ -1343,7 +1343,7 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                                   isOverdueRisk
                                     ? 'bg-rose-600 text-white animate-pulse'
                                     : isDelayed
-                                    ? 'bg-amber-600 text-white'
+                                    ? 'bg-amber-700 text-white'
                                     : 'bg-foreground text-background'
                                 }`}
                                 title={isDelayed ? `+${delayDays}d${confidenceNote}` : undefined}
@@ -1564,9 +1564,9 @@ export function SquadPlansTimeline({ jiraConnected = true, onConnectJira, onSync
                             >
                               <div className={`w-full h-full rounded-md px-2 flex items-center gap-1.5 overflow-hidden ${
                                 isOverdueRisk 
-                                  ? 'bg-gradient-to-r from-amber-500 via-rose-600 to-rose-700 text-white shadow-md shadow-rose-500/40 ring-2 ring-rose-400 animate-pulse'
+                                  ? 'bg-gradient-to-r from-amber-700 via-rose-700 to-rose-800 text-white shadow-md shadow-rose-500/40 ring-2 ring-rose-400 animate-pulse'
                                   : isDelayed 
-                                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-400/60'
+                                  ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-400/60'
                                   : `${disc.bg} text-white shadow-xs`
                               }`}>
                                 <span className="text-xs bg-black/25 px-1 py-0.2 rounded font-semibold shrink-0">

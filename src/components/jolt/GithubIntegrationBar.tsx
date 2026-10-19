@@ -121,7 +121,7 @@ export function GithubIntegrationBar({
               aria-label="Rota"
               aria-expanded={isLayoutPopoverOpen}
               disabled={!integration || loadingTree || loadingLayout || routes.length === 0}
-              className="h-9 w-full bg-muted hover:bg-accent border border-border text-xs font-medium rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left text-foreground hover:text-foreground"
+              className="h-9 w-full bg-muted hover:bg-accent border border-border text-xs font-medium rounded-lg px-2 justify-between shadow-none focus:ring-0 text-left text-foreground hover:text-foreground disabled:opacity-100 disabled:text-muted-foreground"
             >
               <span className="truncate max-w-[130px]">
                 {loadingLayout

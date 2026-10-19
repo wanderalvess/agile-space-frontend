@@ -60,7 +60,7 @@ export default function ManualOverviewPage() {
       <div className="relative overflow-hidden rounded-2xl bg-card p-8 md:p-12 text-foreground shadow-sm border border-border">
                 
         <div className="relative z-10 max-w-4xl space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary [.theme-totvs:not(.dark)_&]:text-foreground text-xs font-bold tracking-normal w-fit">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 text-foreground text-xs font-bold tracking-normal w-fit">
             <Sparkles className="h-3 w-3" /> Manual de Agilidade & Ferramentas
           </div>
 

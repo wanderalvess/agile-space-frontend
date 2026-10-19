@@ -125,7 +125,7 @@ export default function KnowledgeSettingsPage() {
                         className={cn(
                           "flex flex-col items-center gap-3 rounded-xl border p-4 motion-safe:transition-colors",
                           selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border bg-card",
-                          !available && "opacity-70"
+                          !available && "bg-muted/40"
                         )}
                       >
                         <button
@@ -136,7 +136,7 @@ export default function KnowledgeSettingsPage() {
                           onClick={() => setModel(provider.modelValue)}
                           className={cn("flex w-full flex-col items-center gap-3 rounded-lg disabled:cursor-not-allowed", FOCUS)}
                         >
-                          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                          <span className={cn("flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground", !available && "opacity-60")}>
                             <provider.icon className="h-6 w-6" aria-hidden="true" />
                           </span>
                           <span className="text-center text-sm font-semibold leading-tight text-foreground">

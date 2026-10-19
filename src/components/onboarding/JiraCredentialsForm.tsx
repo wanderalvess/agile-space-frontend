@@ -12,7 +12,7 @@ import { BackButton, Caption, Spinner, WIDE_CTA } from './ui';
 const TOKEN_STEPS = [
   'No Jira, abra o seu Perfil (menu da sua foto, no canto superior direito).',
   'Vá em Tokens de acesso pessoal e clique em Criar token.',
-  'Dê o nome Portal Tech V&D, copie o token e cole aqui. A gente guarda pra você não precisar de novo.',
+  'Dê o nome Portal Tech V&D, copie o token e cole aqui. A gente guarda para você não precisar de novo.',
 ];
 
 interface Props {
