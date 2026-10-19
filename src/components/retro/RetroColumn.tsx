@@ -295,7 +295,7 @@ function RetroColumnComponent({
 
       {/* Campo fixo no topo (visão foco) */}
       {focus && !readOnly && (
-        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} placeholder={themed?.placeholder} />
+        <AddRetroCard columnKey={columnKey} isActionColumn={isActionColumn} variant="field" onAddCard={onAddCard} participants={participants} onTyping={onTyping} placeholder={themed?.placeholder} draftKey={`${boardData.id}:${columnKey}`} />
       )}
 
       {/* Cartões */}
@@ -376,6 +376,7 @@ function RetroColumnComponent({
       {/* Rodapé da coluna (visão em quadro) */}
       {view === 'board' && !readOnly && (
         <AddRetroCard
+          draftKey={`${boardData.id}:${columnKey}`}
           columnKey={columnKey}
           isActionColumn={isActionColumn}
           variant="button"

@@ -114,7 +114,7 @@ export function RitualsSection({ history, loading, failed = false, onRetry, show
                   ))}
                 </span>
                 <span className="relative inline-flex h-10 w-full items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground transition-opacity group-hover:opacity-90 [.theme-totvs:not(.dark)_&]:text-foreground">
-                  Abrir {r.title.toLowerCase()}
+                  Ver sessões de {r.title.toLowerCase()}
                 </span>
               </motion.button>
             </li>

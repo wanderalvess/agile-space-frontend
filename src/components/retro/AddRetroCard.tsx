@@ -27,23 +27,50 @@ interface AddRetroCardProps {
   onTyping?: (columnKey: RetroColumnKey) => void;
   /** Começo de frase do formato (ex.: "O vento a favor foi…"); sem ele, o texto genérico. */
   placeholder?: string;
+  /** Chave do rascunho no navegador (retro + coluna): o texto não enviado sobrevive a F5 e some ao enviar. */
+  draftKey?: string;
+}
+
+const DRAFT_PREFIX = 'retro-draft:';
+
+function readDraft(key?: string): string {
+  if (!key) return '';
+  try {
+    return window.localStorage.getItem(DRAFT_PREFIX + key) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function writeDraft(key: string | undefined, text: string) {
+  if (!key) return;
+  try {
+    if (text) window.localStorage.setItem(DRAFT_PREFIX + key, text);
+    else window.localStorage.removeItem(DRAFT_PREFIX + key);
+  } catch {
+    /* navegador sem armazenamento: o rascunho só não sobrevive ao F5 */
+  }
 }
 
 /** Campo de novo cartão (ou nova ação). O texto só some depois que o servidor aceitou: se falhar, ele continua ali. */
-export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participants, variant, open = false, onOpenChange, addLabel, onTyping, placeholder: placeholderProp }: AddRetroCardProps) {
-  const [content, setContent] = useState('');
+export function AddRetroCard({ columnKey, isActionColumn, onAddCard, participants, variant, open = false, onOpenChange, addLabel, onTyping, placeholder: placeholderProp, draftKey }: AddRetroCardProps) {
+  const [content, setContent] = useState(() => readDraft(draftKey));
   const [assignee, setAssignee] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
-  const isOpen = variant === 'field' || open;
+  // Rascunho com texto reabre o campo da variante `button` (senão o texto salvo ficaria escondido).
+  const hasDraft = content !== '';
+  const isOpen = variant === 'field' || open || hasDraft;
   const label = addLabel ?? (isActionColumn ? 'Nova ação' : 'Adicionar cartão');
   const placeholder = placeholderProp ?? (isActionColumn ? 'Nova ação para o time…' : 'Escreva seu feedback aqui…');
 
   useEffect(() => {
     if (variant === 'button' && open) textareaRef.current?.focus();
   }, [variant, open]);
+
+  useEffect(() => { writeDraft(draftKey, content); }, [draftKey, content]);
 
   // Cresce com o texto, até um limite.
   useEffect(() => {
